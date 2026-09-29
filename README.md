@@ -1,1 +1,3 @@
 # KMP-ActivityPub
+
+ActivityPubのバックエンドとWebとAndroidフロントのアプリケーション
