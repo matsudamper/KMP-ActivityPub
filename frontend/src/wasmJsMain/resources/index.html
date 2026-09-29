@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 画面ごとのタイトルは Compose 側で document.title を書き換える。
+         ここは読み込み中に出るものなので、どの画面から開いても困らない名前にしておく -->
+    <title>kmp-activitypub</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<!-- root 絶対で参照する。相対のままだと /admin/password-hash のような深いパスから
+     /admin/frontend.js を引きに行ってしまう。index.html はどのパスでも同じものが返る -->
+<script src="/frontend.js"></script>
+</body>
+</html>
