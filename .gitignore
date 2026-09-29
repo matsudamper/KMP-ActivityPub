@@ -1,0 +1,15 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+*.iml
+.idea/
+out/
+scripts
+local.properties
+
+# docker build に渡す native バイナリの置き場所
+/kmp-activitypub
+
+# docker compose の設定
+.env
