@@ -1,0 +1,391 @@
+package net.matsudamper.kmp.activitypub.repository
+
+import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+
+/**
+ * 相手の inbox に送る配信の待ち行列。
+ *
+ * 1 行が 1 宛先への 1 件。送る中身と署名するアカウントを行が持つので、
+ * 取り出した側は行だけ見れば送れる。
+ *
+ * 投函の口（[enqueueNote]）もここに置く。投稿の記録（`notes`）と投函（`delivery_queue`）は
+ * 1 トランザクションで確定させる必要があり、
+ * 接続 1 本 + ロックの構成ではリポジトリを跨いで囲えないため。
+ *
+ * 状態は `pending`（送る時刻を待つ）/ `delivering`（送っている）/ `failed`（諦めた）の 3 つで、
+ * 成功した行は消す。送り直しを待つ行は `pending` に戻るので、`failed` は諦めた行だけを指す。
+ */
+interface DeliveryQueueRepository {
+    /**
+     * 投稿を記録して、宛先ごとの配信を投函する。
+     *
+     * 宛先が 1 つも無くても投稿は記録する。フォロワーがいない間の投稿も `outbox` には並ぶ。
+     *
+     * 投函した行は投稿に紐付く。投稿を消すと未配信の行も一緒に消えるので、
+     * 消したはずの投稿が復旧した相手に後から届くことはない。
+     */
+    fun enqueueNote(post: NotePost): EnqueueNoteResult
+
+    /**
+     * 投稿を消して、消したことを宛先ごとに投函する。
+     *
+     * 記録を消すのと投函を 1 トランザクションで確定させる。記録だけ消すと、
+     * 相手のタイムラインには残ったままになる。投函だけすると、`Delete` を受けた相手が
+     * 確かめに来たときにまだ本文を返す。
+     *
+     * 消した投稿に紐付く未配信の `Create` も一緒に消える。消したはずの投稿を
+     * この後で配らない。投函する行は投稿に紐付けない。紐付けると、いま消した投稿と
+     * 一緒に消える。
+     *
+     * @return 投函した配信の数。配信を止めているドメイン宛ては入れないので、宛先の数より少ないことがある
+     */
+    fun enqueueNoteDeletion(post: NoteDeletionPost): Int
+
+    /**
+     * アクター情報の更新を宛先ごとに投函する。
+     *
+     * まだ送っていない同じアカウントの更新は、いま渡されたもので置き換える。
+     * 続けて 2 回変えたときに古い方が後から届くと、相手の表示が 1 つ前に戻る。
+     *
+     * @return 投函した配信の数。配信を止めているドメイン宛ては入れないので、宛先の数より少ないことがある
+     */
+    fun enqueueActorUpdate(post: ActorUpdatePost): Int
+
+    /**
+     * 送る時刻を過ぎた `pending` を、送る時刻の古い順に `delivering` にして返す。
+     *
+     * 選ぶのと `delivering` にするのを一度に行い、更新できた行だけを返す。
+     * 分けると、別のループが同じ行を拾って二重に送る。`attempts` はここで増やす。
+     *
+     * @param limit 一度に取り出す数
+     */
+    fun claim(
+        now: Instant,
+        limit: Int,
+    ): List<ClaimedDelivery>
+
+    /**
+     * 行がまだあるか。
+     *
+     * claim してから送るまでの間に、投稿が消されて行ごと消えていることがある。
+     * まとめて claim した分を順に送る間は開くので、送る直前に確かめる
+     */
+    fun exists(id: DeliveryId): Boolean
+
+    /**
+     * 送れたので行を消す。
+     *
+     * 送れたことで確定する記録が種別ごとにあるので、行を消すのと一緒に書く。
+     * 分けると、書く前に落ちたときに「送ったのに記録が無い」状態が残り、
+     * 行はもう無いので直す手立てが無くなる。
+     *
+     * @param deliveredAt 送れた時刻。フォローが成立した時刻として記録する
+     * @return 送れたことで何が確定したか
+     */
+    fun markDelivered(
+        id: DeliveryId,
+        deliveredAt: Instant,
+    ): DeliveredOutcome
+
+    /**
+     * 送れなかったので、時刻を指定して `pending` に戻す
+     */
+    fun scheduleRetry(
+        id: DeliveryId,
+        nextAttemptAt: Instant,
+        error: String,
+    )
+
+    /**
+     * 諦める。`failed` にして `next_attempt_at` と `body` を NULL にする。
+     *
+     * 二度と送らないものの本文を残さないため。行そのものは残すので、
+     * 死んだインスタンスを 1 つフォローされたままだと `failed` は増え続ける
+     */
+    fun giveUp(
+        id: DeliveryId,
+        error: String,
+    )
+
+    /**
+     * `delivering` のまま残っている行を `pending` に戻す。起動時に呼ぶ。
+     *
+     * 送信中にプロセスが落ちた分がここに残る。相手に二重に届くことはあるが、
+     * ActivityPub の受信側はアクティビティの `id` で冪等に扱うので許容する。
+     * 同じ DB に対してプロセスを 2 つ動かすと、動いている方の行まで巻き戻すので、
+     * その構成は取らない。
+     *
+     * @return 戻した件数
+     */
+    fun recoverDelivering(): Int
+
+    /**
+     * 署名して送るものが 1 件でも残っているか。諦めた行は数えない。
+     *
+     * 鍵を失ったまま新しい鍵を生成して起動してしまう事故を止めるために使う。
+     * フォロワーが 1 人も残っていなくても、消したアカウントの `Delete{Actor}` は残る。
+     * 新しい鍵で署名すると、相手が覚えている鍵で検証できず届かない。
+     */
+    fun hasUnsent(): Boolean
+
+    /**
+     * そのアカウントが署名する配信の件数。
+     *
+     * 諦めた行は消えないので、アカウント画面を開くたびにここは増え続ける行を数えることになる。
+     * `(username, state, next_attempt_at, id)` のインデックスで、自分の分だけを見て済ませる
+     */
+    fun counts(username: String): DeliveryQueueCounts
+
+    /**
+     * 一度は失敗して、まだ諦めていない行を、次に送る時刻の順に返す。アカウントは問わない。
+     *
+     * 失敗した理由が残っている行だけを出す。claim は送る前に回数を増やすので、
+     * 回数で数えると初回の送信中まで「失敗した」と読めてしまう。
+     *
+     * 位置を件数で数えず、直前のページの最後の 1 件で指す。ワーカーが動いている間は
+     * 行が出入りするので、件数で数えると同じ行が 2 回出たり抜けたりする。
+     *
+     * @param after この位置より後ろを返す。null なら先頭から
+     */
+    fun listRetrying(
+        after: DeliveryQueuePosition?,
+        limit: Int,
+    ): List<AccountRetryingDelivery>
+
+    /**
+     * 一度は失敗して送り直しを待っている行（`pending` かつ `attempts > 0`）を、次に送る時刻の順に返す。
+     *
+     * 位置を件数で数えず、直前のページの最後の 1 件で指す。ワーカーが動いている間は
+     * 行が出入りするので、件数で数えると同じ行が 2 回出たり抜けたりする。
+     *
+     * @param after この位置より後ろを返す。null なら先頭から
+     */
+    fun listRetrying(
+        username: String,
+        after: DeliveryQueuePosition?,
+        limit: Int,
+    ): List<RetryingDelivery>
+
+    /**
+     * 諦めた行を新しい順に返す。
+     *
+     * @param afterId この id より古いものを返す。null なら先頭から
+     */
+    fun listFailed(
+        username: String,
+        afterId: DeliveryId?,
+        limit: Int,
+    ): List<FailedDelivery>
+
+    /**
+     * そのアカウントが署名する配信を全部消す。アカウントを消すときに使う。
+     *
+     * 残すと、消えたアカウントとして署名しようとして送れない行を延々と送り直す
+     *
+     * @return 消えた件数
+     */
+    fun deleteByUsername(username: String): Int
+}
+
+/**
+ * 投函する投稿。
+ *
+ * @param body 署名対象になる `Create{Note}` の JSON。宛先ごとに同じものを送る
+ * @param inboxes 宛先。同じ宛先は 1 つにまとめてから渡すこと
+ * @param enqueuedAt 投函した時刻。最初の 1 回はこの時刻にすぐ送る
+ */
+data class NotePost(
+    val note: NewNote,
+    val body: String,
+    val inboxes: List<String>,
+    val enqueuedAt: Instant,
+)
+
+/**
+ * 投函する投稿の削除。
+ *
+ * @param publicId 消す投稿。この投稿の記録も一緒に消える
+ * @param username 署名するこちらのアカウントの名前
+ * @param body 署名対象になる `Delete{Note}` の JSON
+ * @param inboxes 宛先。同じ宛先は 1 つにまとめてから渡すこと
+ * @param enqueuedAt 投函した時刻。最初の 1 回はこの時刻にすぐ送る
+ */
+data class NoteDeletionPost(
+    val publicId: PublicNoteId,
+    val username: String,
+    val body: String,
+    val inboxes: List<String>,
+    val enqueuedAt: Instant,
+)
+
+/**
+ * 投函するアクター情報の更新。
+ *
+ * @param username 署名するこちらのアカウントの名前
+ * @param body 署名対象になる `Update{Actor}` の JSON
+ * @param inboxes 宛先。同じ宛先は 1 つにまとめてから渡すこと
+ * @param enqueuedAt 投函した時刻。最初の 1 回はこの時刻にすぐ送る
+ */
+data class ActorUpdatePost(
+    val username: String,
+    val body: String,
+    val inboxes: List<String>,
+    val enqueuedAt: Instant,
+)
+
+sealed interface EnqueueNoteResult {
+    /**
+     * @param deliveries 投函した配信の数。配信を止めているドメイン宛ては入れないので、宛先の数より少ないことがある
+     */
+    data class Queued(
+        val deliveries: Int,
+    ) : EnqueueNoteResult
+}
+
+/**
+ * 何を送る行か。DB には小文字の名前で入る
+ */
+enum class DeliveryKind {
+    /**
+     * 投稿を包んだ `Create`
+     */
+    CREATE_NOTE,
+
+    /**
+     * 消した投稿の `Delete`
+     */
+    DELETE_NOTE,
+
+    /**
+     * アクター情報の `Update`
+     */
+    UPDATE_ACTOR,
+
+    /**
+     * 消したアクターの `Delete`
+     */
+    DELETE_ACTOR,
+
+    /**
+     * 受け取った `Follow` への `Accept`
+     */
+    ACCEPT_FOLLOW,
+}
+
+/**
+ * 送れたことで確定したもの。
+ *
+ * 呼び出し側は、送れて初めて始められる後処理をここから判断する
+ */
+sealed interface DeliveredOutcome {
+    /**
+     * 行を消した以外に何も起きていない
+     */
+    data object None : DeliveredOutcome
+
+    /**
+     * `Accept` が届いてフォローが初めて成立した。送り直しの `Accept` では返らない。
+     *
+     * @param followerActorUri 成立した相手
+     * @param inbox 相手の inbox。`sharedInbox` ではないので、この相手にだけ送れる
+     */
+    data class FollowAccepted(
+        val username: String,
+        val followerActorUri: String,
+        val inbox: String,
+    ) : DeliveredOutcome
+}
+
+/**
+ * ワーカーに渡す、`delivering` にした行。
+ *
+ * @param username 署名するこちらのアカウントの名前
+ * @param body 署名対象になる JSON
+ * @param attempts この claim を含めた回数。送り直しの間隔を決めるのに使う
+ * @param enqueuedAt 投函した時刻。諦める判定に使う
+ */
+data class ClaimedDelivery(
+    val id: DeliveryId,
+    val kind: DeliveryKind,
+    val username: String,
+    val inbox: String,
+    val body: String,
+    val attempts: Int,
+    val enqueuedAt: Instant,
+)
+
+/**
+ * @param waiting 送る時刻を待っているものと送っている最中のものの合計
+ * @param failed 諦めたもの
+ */
+data class DeliveryQueueCounts(
+    val waiting: Long,
+    val failed: Long,
+)
+
+/**
+ * 送り直しを待っている行 1 件。アカウントを問わない一覧に使う
+ *
+ * @param kind 何を送る行か
+ * @param username 署名するこちらのアカウントの名前
+ * @param sending 送っている最中か。送る時刻を待っているだけなら false
+ */
+data class AccountRetryingDelivery(
+    val id: DeliveryId,
+    val kind: DeliveryKind,
+    val username: String,
+    val inbox: String,
+    val attempts: Int,
+    val nextAttemptAt: Instant,
+    val sending: Boolean,
+    val lastError: String?,
+) {
+    /**
+     * この行を「直前のページの最後」として指す位置
+     */
+    val position: DeliveryQueuePosition get() = DeliveryQueuePosition(nextAttemptAt = nextAttemptAt, id = id)
+}
+
+/**
+ * 送り直しを待っている行 1 件
+ *
+ * @param kind 何を送る行か。何が滞っているかは宛先だけでは分からない
+ */
+data class RetryingDelivery(
+    val id: DeliveryId,
+    val kind: DeliveryKind,
+    val inbox: String,
+    val attempts: Int,
+    val nextAttemptAt: Instant,
+    val lastError: String?,
+) {
+    /**
+     * この行を「直前のページの最後」として指す位置
+     */
+    val position: DeliveryQueuePosition get() = DeliveryQueuePosition(nextAttemptAt = nextAttemptAt, id = id)
+}
+
+/**
+ * 送り直し待ちの一覧の位置。
+ *
+ * 時刻だけでは同じ時刻の行が並んだときに決まらないので、id まで見て一意にする
+ */
+data class DeliveryQueuePosition(
+    val nextAttemptAt: Instant,
+    val id: DeliveryId,
+)
+
+/**
+ * 諦めた行 1 件。もう送らないので次に送る時刻は無い
+ *
+ * @param kind 何を送る行か
+ */
+data class FailedDelivery(
+    val id: DeliveryId,
+    val kind: DeliveryKind,
+    val inbox: String,
+    val attempts: Int,
+    val lastError: String?,
+)

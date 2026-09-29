@@ -1,0 +1,31 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    id("kmp-activitypub.database-codegen")
+}
+
+dependencies {
+    api(project(":shared"))
+
+    // implementation にすることで、JDBC と jOOQ の型が :backend の compile classpath に漏れない。
+    // :backend からは repository パッケージの interface だけが見える状態を保つ
+    implementation(libs.sqlite.jdbc)
+    implementation(libs.jooq)
+    implementation(libs.opentelemetry.jdbc)
+
+    jooqCodegen(libs.sqlite.jdbc)
+
+    testImplementation(libs.kotlin.test)
+}
+
+databaseCodegen {
+    packageName.set("net.matsudamper.kmp.activitypub.repository.jooq")
+    nativeImageMetadataPath.set("net.matsudamper/kmp-activitypub-repository-jooq")
+}
+
+kotlin {
+    jvmToolchain(25)
+}
+
+tasks.test {
+    useJUnitPlatform()
+}

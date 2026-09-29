@@ -1,0 +1,121 @@
+package net.matsudamper.kmp.activitypub.repository
+
+import java.time.Instant
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+
+/**
+ * 配信した投稿の読み書き。
+ *
+ * 送ったら終わりにはできない。Mastodon は受け取った投稿のパーマリンクを後から
+ * 引きに来るので、送った中身をこちらにも残しておく必要がある。
+ * `outbox` を返すのにも要る。
+ */
+interface NoteRepository {
+    /**
+     * 投稿を記録する。
+     *
+     * 配信する前に呼ぶ。配信してから記録すると、相手が受け取った直後に
+     * パーマリンクを引きに来たときに 404 を返すことになる。
+     */
+    fun add(note: NewNote)
+
+    /**
+     * 公開 id で引く。`GET /notes/{publicId}` に使う
+     */
+    fun find(publicId: PublicNoteId): Note?
+
+    fun findByPublicIds(publicIds: Set<PublicNoteId>): Map<PublicNoteId, Note>
+
+    /**
+     * 消す。消えていれば何もしない。
+     *
+     * まだ配っていない配信（`delivery_queue`）は一緒に消える
+     */
+    fun delete(publicId: PublicNoteId)
+
+    /**
+     * そのアカウントの投稿を全部消す。アカウントを消すときに使う。
+     *
+     * 残すと、同じ名前でアカウントを作り直したときに前の投稿が並ぶ。
+     * `notes.username` はアカウントを参照していないので外部キーでは消えない。
+     *
+     * @return 消えた件数
+     */
+    fun deleteByUsername(username: String): Int
+
+    /**
+     * 新しい順に返す。`outbox` と管理画面の一覧に使う。
+     *
+     * 位置を件数で数えず、直前のページの最後の 1 件で指す。件数で数えると、
+     * 読んでいる間に新しい投稿が入るたびに位置がずれて、同じ投稿が 2 回出たり
+     * 抜けたりする。投稿は先頭に増えるので、offset では必ずずれる。
+     *
+     * @param after ここより古いものを返す。null なら先頭から
+     */
+    fun list(
+        username: String,
+        after: NotePosition?,
+        limit: Int,
+    ): List<Note>
+
+    /**
+     * 新しい順に公開 id だけ返す。本文は取らない
+     */
+    fun listPositions(
+        username: String,
+        after: NotePosition?,
+        limit: Int,
+    ): List<NotePosition>
+
+    /**
+     * アカウントを問わず、新しい順に位置だけ返す。トップのタイムラインに使う
+     */
+    fun listAllPositions(
+        after: NotePosition?,
+        limit: Int,
+    ): List<NotePosition>
+
+    fun count(username: String): Long
+
+    /**
+     * フォロワー数と同様、一覧に並んだアカウントの分を 1 回で数える
+     */
+    fun counts(usernames: Set<String>): Map<String, Long>
+}
+
+/**
+ * ページの位置。
+ *
+ * 並び順の鍵をそのまま持つ。`publishedAt` だけでは同じ時刻の投稿が並んだときに
+ * 位置が決まらないので、`publicId` まで見て一意にする。
+ */
+data class NotePosition(
+    val publishedAt: Instant,
+    val publicId: PublicNoteId,
+)
+
+/**
+ * 配信した投稿 1 件。
+ *
+ * @param publicId URL のパスに入る識別子。AUTOINCREMENT id ではなく UUID v7。
+ *   先頭 48 bit に生成時刻を持つ。published_at も公開するので順序の新規露出はない
+ * @param username 投稿したこちらのアカウントの名前
+ * @param contentHtml 配信した本文の HTML。サニタイズ済みのものが入っている
+ * @param publishedAt 相手に見せる公開日時
+ */
+data class Note(
+    val publicId: PublicNoteId,
+    val username: String,
+    val contentHtml: String,
+    val publishedAt: Instant,
+)
+
+/**
+ * 記録する投稿
+ */
+data class NewNote(
+    val username: String,
+    val publicId: PublicNoteId,
+    val contentHtml: String,
+    val publishedAt: Instant,
+)

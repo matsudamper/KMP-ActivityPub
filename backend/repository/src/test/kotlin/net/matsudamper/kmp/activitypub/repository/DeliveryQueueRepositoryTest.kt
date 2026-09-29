@@ -1,0 +1,597 @@
+package net.matsudamper.kmp.activitypub.repository
+
+import java.nio.file.Path
+import java.time.Instant
+import kotlin.io.path.createTempDirectory
+import kotlin.io.path.deleteRecursively
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import org.sqlite.SQLiteDataSource
+
+// 本物の SQLite に対して確かめる。
+// 投函が 1 トランザクションで確定すること、claim が二重に取れないことがここの関心になる。
+class DeliveryQueueRepositoryTest {
+    private val tempDir: Path = createTempDirectory("kmp-activitypub-delivery-queue-test")
+
+    private val dbPath: Path = tempDir.resolve("test.db")
+
+    private val now: Instant = Instant.parse("2026-08-10T00:00:00Z")
+
+    init {
+        TestSchema.applyTo(dbPath)
+    }
+
+    @OptIn(kotlin.io.path.ExperimentalPathApi::class)
+    @AfterTest
+    fun tearDown() {
+        tempDir.deleteRecursively()
+    }
+
+    private fun <T> withRepositories(block: (Repositories) -> T): T =
+        createRepositories(DatabaseConfig(path = dbPath)).use(block)
+
+    @Test
+    fun `投函すると投稿と宛先ごとの行が入る`() {
+        withRepositories { repositories ->
+            val result = repositories.deliveryQueue.enqueueNote(
+                notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B)),
+            )
+
+            assertEquals(EnqueueNoteResult.Queued(deliveries = 2), result)
+            assertNotNull(repositories.notes.find(PublicNoteId("n1")))
+            assertEquals(DeliveryQueueCounts(waiting = 2, failed = 0), repositories.deliveryQueue.counts(USERNAME))
+
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10)
+            assertEquals(listOf(INBOX_A, INBOX_B), claimed.map { it.inbox })
+            assertEquals(listOf(DeliveryKind.CREATE_NOTE, DeliveryKind.CREATE_NOTE), claimed.map { it.kind })
+            assertEquals(listOf(USERNAME, USERNAME), claimed.map { it.username })
+            assertEquals(listOf(BODY, BODY), claimed.map { it.body })
+            assertEquals(listOf(1, 1), claimed.map { it.attempts })
+            assertEquals(listOf(now, now), claimed.map { it.enqueuedAt })
+        }
+    }
+
+    @Test
+    fun `配信を止めているドメイン宛ては投函しない`() {
+        withRepositories { repositories ->
+            repositories.domainBlocks.markUnavailable(domain = "b.example", description = "諦めた", at = now)
+
+            val result = repositories.deliveryQueue.enqueueNote(
+                notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B)),
+            )
+
+            assertEquals(EnqueueNoteResult.Queued(deliveries = 1), result)
+            assertEquals(listOf(INBOX_A), repositories.deliveryQueue.claim(now = now, limit = 10).map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `受信だけを止めているドメイン宛ては投函する`() {
+        withRepositories { repositories ->
+            repositories.domainBlocks.saveManual(
+                domain = "b.example",
+                blockDelivery = false,
+                blockInbox = true,
+                description = null,
+                at = now,
+            )
+
+            val result = repositories.deliveryQueue.enqueueNote(
+                notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B)),
+            )
+
+            assertEquals(EnqueueNoteResult.Queued(deliveries = 2), result)
+        }
+    }
+
+    @Test
+    fun `宛先が無くても投稿は記録する`() {
+        withRepositories { repositories ->
+            val result = repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = emptyList()))
+
+            assertEquals(EnqueueNoteResult.Queued(deliveries = 0), result)
+            assertNotNull(repositories.notes.find(PublicNoteId("n1")))
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
+        }
+    }
+
+    @Test
+    fun `claim は送る時刻を過ぎた pending だけを古い順に delivering にする`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A), enqueuedAt = now.plusSeconds(60)))
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n2", inboxes = listOf(INBOX_B), enqueuedAt = now))
+
+            val first = repositories.deliveryQueue.claim(now = now, limit = 10)
+            assertEquals(listOf(INBOX_B), first.map { it.inbox })
+            assertEquals(listOf(1), first.map { it.attempts })
+
+            // delivering になった行は取り直せない
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
+
+            val later = repositories.deliveryQueue.claim(now = now.plusSeconds(60), limit = 10)
+            assertEquals(listOf(INBOX_A), later.map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `claim は同じホスト宛でも送る時刻の古い順に取る`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(
+                notePost(publicId = "n1", inboxes = (1..3).map { "https://a.example/users/$it/inbox" }),
+            )
+            repositories.deliveryQueue.enqueueNote(
+                notePost(publicId = "n2", inboxes = listOf(INBOX_B), enqueuedAt = now.plusSeconds(1)),
+            )
+
+            val claimed = repositories.deliveryQueue.claim(now = now.plusSeconds(1), limit = 3)
+
+            assertEquals((1..3).map { "https://a.example/users/$it/inbox" }, claimed.map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `claim は limit までしか取らない`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B, INBOX_C)))
+
+            assertEquals(2, repositories.deliveryQueue.claim(now = now, limit = 2).size)
+            assertEquals(1, repositories.deliveryQueue.claim(now = now, limit = 2).size)
+            assertEquals(0, repositories.deliveryQueue.claim(now = now, limit = 2).size)
+        }
+    }
+
+    @Test
+    fun `起動時に delivering を pending に戻す`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            repositories.deliveryQueue.claim(now = now, limit = 10)
+
+            assertEquals(1, repositories.deliveryQueue.recoverDelivering())
+            assertEquals(0, repositories.deliveryQueue.recoverDelivering())
+
+            // 戻した行は attempts を引き継いだまま、もう一度 claim できる
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10)
+            assertEquals(listOf(2), claimed.map { it.attempts })
+        }
+    }
+
+    @Test
+    fun `Follow を記録すると Accept が投函される`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+            assertEquals(DeliveryKind.ACCEPT_FOLLOW, claimed.kind)
+            assertEquals(ACCEPT_BODY, claimed.body)
+            // sharedInbox にはまとめない。Accept は Follow を送ってきた相手だけへの応答
+            assertEquals(FOLLOWER_INBOX, claimed.inbox)
+        }
+    }
+
+    @Test
+    fun `Accept が届いたらフォロワーとして数える`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+
+            val outcome = repositories.deliveryQueue.markDelivered(id = claimed.id, deliveredAt = now)
+
+            assertEquals(
+                DeliveredOutcome.FollowAccepted(
+                    username = USERNAME,
+                    followerActorUri = FOLLOWER_ACTOR_URI,
+                    inbox = FOLLOWER_INBOX,
+                ),
+                outcome,
+            )
+            assertEquals(1, repositories.followers.count(USERNAME))
+        }
+    }
+
+    @Test
+    fun `送り直した Accept が届いても初めての成立にはしない`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+            val first = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+            repositories.deliveryQueue.markDelivered(id = first.id, deliveredAt = now)
+
+            // Accept を受け取れていないと思った相手が Follow を送り直してくる形
+            repositories.followers.record(incomingFollow(followActivityUri = "https://remote.example/activities/2"))
+            val second = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+
+            // ここで初めての成立として返すと、過去の投稿が配り直される
+            assertEquals(
+                DeliveredOutcome.None,
+                repositories.deliveryQueue.markDelivered(id = second.id, deliveredAt = now),
+            )
+            assertEquals(1, repositories.followers.count(USERNAME))
+        }
+    }
+
+    @Test
+    fun `Follow を送り直されても未送信の Accept は 1 つ`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+            repositories.followers.record(
+                incomingFollow(
+                    followActivityUri = "https://remote.example/activities/2",
+                    acceptBody = """{"type":"Accept","id":"2"}""",
+                ),
+            )
+
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10)
+            // 送り直された分だけ Accept が増えると、相手には同じ応答が何通も届く
+            assertEquals(1, claimed.size)
+            assertEquals("""{"type":"Accept","id":"2"}""", claimed.single().body)
+        }
+    }
+
+    @Test
+    fun `フォローを解除すると未送信の Accept が消える`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+
+            assertEquals(
+                true,
+                repositories.followers.remove(
+                    username = USERNAME,
+                    followerActorUri = FOLLOWER_ACTOR_URI,
+                    followActivityUri = null,
+                ),
+            )
+
+            // 解除された相手に返しても、相手にはもう対応するフォローが無い
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
+        }
+    }
+
+    @Test
+    fun `相手のアクターごと消えると未送信の Accept も消える`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+
+            // 相手が Follow の直後に消えた形。Accept はまだ送れていない
+            repositories.followers.removeRemoteActor(FOLLOWER_ACTOR_URI)
+
+            // 残すと、消えた相手に諦めるまで送り直し続ける
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
+        }
+    }
+
+    @Test
+    fun `アカウントのフォローをまとめて消すと未送信の Accept も消える`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+
+            repositories.followers.removeAccount(USERNAME)
+
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
+        }
+    }
+
+    @Test
+    fun `送っている最中の Accept も 取り消されたら消える`() {
+        withRepositories { repositories ->
+            repositories.followers.record(incomingFollow())
+            // 送り始めた後に Undo や Delete{Actor} が届く形
+            repositories.deliveryQueue.claim(now = now, limit = 10)
+
+            repositories.followers.removeRemoteActor(FOLLOWER_ACTOR_URI)
+
+            // 残すと、送れなかったときに送り直し待ちに戻って相手が居なくなった後も送り続ける
+            assertEquals(0, repositories.deliveryQueue.recoverDelivering())
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
+        }
+    }
+
+    @Test
+    fun `送っている最中の古い Update も 新しい更新で消える`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueActorUpdate(actorUpdatePost(body = """{"type":"Update","id":"1"}"""))
+            repositories.deliveryQueue.claim(now = now, limit = 10)
+
+            repositories.deliveryQueue.enqueueActorUpdate(actorUpdatePost(body = """{"type":"Update","id":"2"}"""))
+
+            // 古い方が送り直し待ちに戻ると、新しい更新の後から届いて表示が 1 つ前に戻る
+            assertEquals(0, repositories.deliveryQueue.recoverDelivering())
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+            assertEquals("""{"type":"Update","id":"2"}""", claimed.body)
+        }
+    }
+
+    @Test
+    fun `送るものが残っているかを見られる`() {
+        withRepositories { repositories ->
+            assertEquals(false, repositories.deliveryQueue.hasUnsent())
+
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            assertEquals(true, repositories.deliveryQueue.hasUnsent())
+
+            // 諦めた行は数えない。鍵が要るのは送るものが残っているときだけ
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+            repositories.deliveryQueue.giveUp(claimed.id, error = "諦めた")
+            assertEquals(false, repositories.deliveryQueue.hasUnsent())
+        }
+    }
+
+    @Test
+    fun `消したアカウント宛の Follow は記録も投函もしない`() {
+        withRepositories { repositories ->
+            val account = assertNotNull(repositories.accounts.add(username = USERNAME, passwordHash = "hash", createdAt = now))
+            repositories.accounts.markDeleted(
+                AccountDeletion(
+                    id = account.id,
+                    username = account.username,
+                    body = """{"type":"Delete"}""",
+                    inboxes = emptyList(),
+                    deletedAt = now,
+                ),
+            )
+
+            // Follow を処理している間にアカウントが消された形
+            assertEquals(false, repositories.followers.record(incomingFollow()))
+
+            // 記録すると、消えたアカウントに Accept が生えて名前が二度と空かない
+            assertEquals(0, repositories.followers.count(USERNAME))
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
+            assertEquals(1, repositories.accounts.purgeDeleted())
+        }
+    }
+
+    @Test
+    fun `成功した行は消える`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+
+            repositories.deliveryQueue.markDelivered(id = claimed.id, deliveredAt = now)
+
+            assertEquals(DeliveryQueueCounts(waiting = 0, failed = 0), repositories.deliveryQueue.counts(USERNAME))
+            assertEquals(0, repositories.deliveryQueue.recoverDelivering())
+        }
+    }
+
+    @Test
+    fun `送り直しは指定した時刻まで claim されず一覧に出る`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+            val retryAt = now.plusSeconds(30)
+
+            repositories.deliveryQueue.scheduleRetry(claimed.id, nextAttemptAt = retryAt, error = "HTTP 503")
+
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = retryAt.minusSeconds(1), limit = 10))
+            assertEquals(DeliveryQueueCounts(waiting = 1, failed = 0), repositories.deliveryQueue.counts(USERNAME))
+
+            val retrying = repositories.deliveryQueue.listRetrying(USERNAME, after = null, limit = 10).single()
+            assertEquals(INBOX_A, retrying.inbox)
+            assertEquals(1, retrying.attempts)
+            assertEquals(retryAt, retrying.nextAttemptAt)
+            assertEquals("HTTP 503", retrying.lastError)
+
+            val again = repositories.deliveryQueue.claim(now = retryAt, limit = 10).single()
+            assertEquals(2, again.attempts)
+            assertEquals(BODY, again.body)
+        }
+    }
+
+    @Test
+    fun `まだ一度も送っていない行は送り直し待ちに出ない`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+
+            assertEquals(emptyList(), repositories.deliveryQueue.listRetrying(USERNAME, after = null, limit = 10))
+        }
+    }
+
+    @Test
+    fun `アカウントを問わない送り直し待ちの一覧は、送り直しを待っている行だけを次に送る時刻の順に返す`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            repositories.deliveryQueue.enqueueNote(
+                notePost(publicId = "n2", inboxes = listOf(INBOX_B), username = OTHER_USERNAME),
+            )
+            repositories.deliveryQueue.claim(now = now, limit = 10).forEach { claimed ->
+                val delay = if (claimed.inbox == INBOX_A) 20L else 10L
+                repositories.deliveryQueue.scheduleRetry(claimed.id, nextAttemptAt = now.plusSeconds(delay), error = "e")
+            }
+
+            // 初回を送っている最中の行。claim が attempts を増やすが、まだ失敗していない
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n3", inboxes = listOf(INBOX_C)))
+            repositories.deliveryQueue.claim(now = now, limit = 10)
+
+            val retrying = repositories.deliveryQueue.listRetrying(after = null, limit = 10)
+            assertEquals(listOf(INBOX_B, INBOX_A), retrying.map { it.inbox })
+            assertEquals(listOf(OTHER_USERNAME, USERNAME), retrying.map { it.username })
+
+            val secondPage = repositories.deliveryQueue.listRetrying(after = retrying.first().position, limit = 10)
+            assertEquals(listOf(INBOX_A), secondPage.map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `諦めた行は body と次の時刻が消えて failed に数えられる`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+
+            repositories.deliveryQueue.giveUp(claimed.id, error = "30 日を過ぎた")
+
+            assertEquals(DeliveryQueueCounts(waiting = 0, failed = 1), repositories.deliveryQueue.counts(USERNAME))
+            assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now.plusSeconds(3600), limit = 10))
+            assertEquals(emptyList(), repositories.deliveryQueue.listRetrying(USERNAME, after = null, limit = 10))
+
+            val failed = repositories.deliveryQueue.listFailed(USERNAME, afterId = null, limit = 10).single()
+            assertEquals(INBOX_A, failed.inbox)
+            assertEquals(1, failed.attempts)
+            assertEquals("30 日を過ぎた", failed.lastError)
+            assertEquals(claimed.id, failed.id)
+
+            // body が NULL になっていること。カラムは外に出していないので、claim できない形で確かめる
+            assertEquals(0, repositories.deliveryQueue.recoverDelivering())
+        }
+    }
+
+    @Test
+    fun `送り直し待ちの一覧は位置から続きを返す`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B, INBOX_C)))
+            repositories.deliveryQueue.claim(now = now, limit = 10).forEachIndexed { index, claimed ->
+                repositories.deliveryQueue.scheduleRetry(claimed.id, nextAttemptAt = now.plusSeconds(10L * (3 - index)), error = "e")
+            }
+
+            val firstPage = repositories.deliveryQueue.listRetrying(USERNAME, after = null, limit = 2)
+            assertEquals(listOf(INBOX_C, INBOX_B), firstPage.map { it.inbox })
+
+            val secondPage = repositories.deliveryQueue.listRetrying(USERNAME, after = firstPage.last().position, limit = 2)
+            assertEquals(listOf(INBOX_A), secondPage.map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `諦めた一覧は新しい順で id から続きを返す`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B, INBOX_C)))
+            repositories.deliveryQueue.claim(now = now, limit = 10).forEach { claimed ->
+                repositories.deliveryQueue.giveUp(claimed.id, error = "e")
+            }
+
+            val firstPage = repositories.deliveryQueue.listFailed(USERNAME, afterId = null, limit = 2)
+            assertEquals(listOf(INBOX_C, INBOX_B), firstPage.map { it.inbox })
+
+            val secondPage = repositories.deliveryQueue.listFailed(USERNAME, afterId = firstPage.last().id, limit = 2)
+            assertEquals(listOf(INBOX_A), secondPage.map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `件数と一覧はアカウントごとに分かれる`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n2", username = "other", inboxes = listOf(INBOX_B)))
+
+            assertEquals(DeliveryQueueCounts(waiting = 1, failed = 0), repositories.deliveryQueue.counts(USERNAME))
+            assertEquals(DeliveryQueueCounts(waiting = 1, failed = 0), repositories.deliveryQueue.counts("other"))
+            assertEquals(DeliveryQueueCounts(waiting = 0, failed = 0), repositories.deliveryQueue.counts("nobody"))
+        }
+    }
+
+    @Test
+    fun `アカウントの配信をまとめて消せる`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B)))
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n2", username = "other", inboxes = listOf(INBOX_C)))
+
+            assertEquals(2, repositories.deliveryQueue.deleteByUsername(USERNAME))
+
+            assertEquals(DeliveryQueueCounts(waiting = 0, failed = 0), repositories.deliveryQueue.counts(USERNAME))
+            assertEquals(listOf(INBOX_C), repositories.deliveryQueue.claim(now = now, limit = 10).map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `投稿を消すとまだ配っていない配信も消える`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A, INBOX_B)))
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n2", inboxes = listOf(INBOX_C)))
+            // 送信中の行も消える。送り終わった後の markDelivered は何も消さないだけ
+            repositories.deliveryQueue.claim(now = now, limit = 1)
+
+            repositories.notes.delete(PublicNoteId("n1"))
+
+            assertEquals(DeliveryQueueCounts(waiting = 1, failed = 0), repositories.deliveryQueue.counts(USERNAME))
+            assertEquals(listOf(INBOX_C), repositories.deliveryQueue.claim(now = now, limit = 10).map { it.inbox })
+        }
+    }
+
+    @Test
+    fun `exists は消えた行に false を返す`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+
+            assertEquals(true, repositories.deliveryQueue.exists(claimed.id))
+
+            repositories.notes.delete(PublicNoteId("n1"))
+
+            assertEquals(false, repositories.deliveryQueue.exists(claimed.id))
+        }
+    }
+
+    @Test
+    fun `一覧の id は claim した行と同じ`() {
+        withRepositories { repositories ->
+            repositories.deliveryQueue.enqueueNote(notePost(publicId = "n1", inboxes = listOf(INBOX_A)))
+            val claimed = repositories.deliveryQueue.claim(now = now, limit = 10).single()
+            repositories.deliveryQueue.scheduleRetry(claimed.id, nextAttemptAt = now, error = "e")
+
+            val retrying = repositories.deliveryQueue.listRetrying(USERNAME, after = null, limit = 10).single()
+
+            assertIs<DeliveryId>(retrying.id)
+            assertEquals(claimed.id, retrying.id)
+        }
+    }
+
+    /**
+     * 投稿を紐付けたまま未投稿に戻す。配信の直前に紐付けていた頃の版が残す状態で、
+     * いまのコードからは作れないので直接書く
+     */
+    private fun incomingFollow(
+        followActivityUri: String = "https://remote.example/activities/1",
+        acceptBody: String = ACCEPT_BODY,
+    ): IncomingFollow = IncomingFollow(
+        username = USERNAME,
+        follower = NewRemoteActor(
+            actorUri = FOLLOWER_ACTOR_URI,
+            inbox = FOLLOWER_INBOX,
+            sharedInbox = INBOX_A,
+            publicKeyPem = "pem",
+            profile = RemoteActorProfile(preferredUsername = null, displayName = null, profileUrl = null, iconUrl = null),
+        ),
+        followActivityUri = followActivityUri,
+        receivedAt = now,
+        acceptBody = acceptBody,
+    )
+
+    private fun actorUpdatePost(body: String): ActorUpdatePost = ActorUpdatePost(
+        username = USERNAME,
+        body = body,
+        inboxes = listOf(INBOX_A),
+        enqueuedAt = now,
+    )
+
+    private fun notePost(
+        publicId: String,
+        inboxes: List<String>,
+        username: String = USERNAME,
+        enqueuedAt: Instant = now,
+    ): NotePost = NotePost(
+        note = NewNote(
+            username = username,
+            publicId = PublicNoteId(publicId),
+            contentHtml = "<p>$publicId</p>",
+            publishedAt = enqueuedAt,
+        ),
+        body = BODY,
+        inboxes = inboxes,
+        enqueuedAt = enqueuedAt,
+    )
+
+    private companion object {
+        const val USERNAME = "admin"
+        const val OTHER_USERNAME = "other"
+        const val BODY = """{"type":"Create"}"""
+        const val INBOX_A = "https://a.example/inbox"
+        const val INBOX_B = "https://b.example/inbox"
+        const val INBOX_C = "https://c.example/inbox"
+        const val ACCEPT_BODY = """{"type":"Accept"}"""
+        const val FOLLOWER_ACTOR_URI = "https://a.example/users/alice"
+        const val FOLLOWER_INBOX = "https://a.example/users/alice/inbox"
+    }
+}
