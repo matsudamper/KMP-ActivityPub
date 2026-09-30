@@ -294,7 +294,10 @@ jobs:
   build-all-success:
     name: build-all-success
     needs: [ktlint, detekt, backend, frontend, android, native-test, native-image]
+    # needs のジョブが落ちるとこのジョブ自体が skipped になり、必須チェックとしては通ってしまう。
+    # 常に動かして needs の結果を見る
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-      - if: ${{ failure() || cancelled() }}
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
         run: exit 1
