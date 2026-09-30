@@ -86,6 +86,25 @@ class ServerEnvTest {
     }
 
     @Test
+    fun `DOMAIN はポート付きのホスト名を受け付ける`() {
+        assertEquals("localhost:8080", ServerEnv(mapOf("DOMAIN" to "localhost:8080")).domain)
+    }
+
+    @Test
+    fun `DOMAIN にホスト名以外が付いていたら落ちる`() {
+        listOf(
+            "example.com/path",
+            "https://example.com/path/",
+            "example.com?q=1",
+            "example.com#top",
+            "user@example.com",
+            "example.com:port",
+        ).forEach { raw ->
+            assertFailsWith<IllegalArgumentException>(raw) { ServerEnv(mapOf("DOMAIN" to raw)) }
+        }
+    }
+
+    @Test
     fun `鍵の PEM を直接指定できる`() {
         val env = env("ACTOR_PRIVATE_KEY_PEM" to "-----BEGIN PRIVATE KEY-----")
 

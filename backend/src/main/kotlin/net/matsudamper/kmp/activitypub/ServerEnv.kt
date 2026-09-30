@@ -59,6 +59,10 @@ class ServerEnv(
             require(!normalized.isNullOrEmpty()) {
                 "DOMAIN が未設定。WebFinger の acct とアクターの id に使うので必ず指定すること"
             }
+            // パスやクエリが残るとアクター ID や WebFinger の acct が壊れたまま配られる
+            require(DOMAIN_PATTERN.matches(normalized)) {
+                "DOMAIN はホスト名（ポートは付けてよい）だけにすること: $normalized"
+            }
             normalized
         }
 
@@ -122,4 +126,8 @@ class ServerEnv(
             raw.lowercase().toBooleanStrictOrNull()
                 ?: throw IllegalArgumentException("COOKIE_SECURE は true か false にすること: $raw")
         }
+
+    private companion object {
+        val DOMAIN_PATTERN = Regex("""^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[0-9]{1,5})?$""")
+    }
 }
