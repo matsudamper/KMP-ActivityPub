@@ -129,6 +129,8 @@ class ServerEnv(
         }
 
     private companion object {
-        val DOMAIN_PATTERN = Regex("""^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[1-9][0-9]{0,4})?$""")
+        val DOMAIN_PATTERN = Regex(
+            """^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::[1-9][0-9]{0,4})?$""",
+        )
     }
 }
