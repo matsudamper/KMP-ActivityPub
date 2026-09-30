@@ -32,7 +32,7 @@ private const val INDEX_CACHE_CONTROL: String = "no-store"
  * @param staticFiles 配信元。未設定またはディレクトリが無いときは null。
  *   この場合は 404 を返す。理由は起動ログに出している
  */
-fun Route.staticRoutes(staticFiles: StaticFiles?) {
+internal fun Route.staticRoutes(staticFiles: StaticFiles?) {
     val hashedNameExtensions = setOf("js", "wasm")
 
     get("/{path...}") {

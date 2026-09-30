@@ -81,7 +81,7 @@ fun main() {
  * @param deps 使うものは全て [AppDependencies] から取る。本番の組み立ては
  *   [AppDependencies.create]、テストはフェイクを詰めたものを渡す
  */
-fun Application.module(deps: AppDependencies) {
+internal fun Application.module(deps: AppDependencies) {
     val env = deps.env
     val actorKey = deps.actorKey
 

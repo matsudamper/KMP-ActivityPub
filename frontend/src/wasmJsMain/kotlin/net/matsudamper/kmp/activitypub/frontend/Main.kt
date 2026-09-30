@@ -98,7 +98,7 @@ private fun createWebGl2UnavailableNotice(): HTMLElement {
  * ブラウザの履歴に合わせたものを渡す。
  */
 @Composable
-fun App() {
+internal fun App() {
     AppTheme {
         val platformNavController = rememberNavController()
         val screenStateStore = rememberScreenStateStore()

@@ -13,5 +13,5 @@ suspend fun <T> withOpenTelemetryContext(
     block: suspend CoroutineScope.() -> T,
 ): T = withContext(dispatcher + Context.current().asContextElement(), block)
 
-fun CoroutineDispatcher.withOpenTelemetryContext(): CoroutineContext =
+internal fun CoroutineDispatcher.withOpenTelemetryContext(): CoroutineContext =
     this + Context.current().asContextElement()

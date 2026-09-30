@@ -18,7 +18,7 @@ import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 
 private const val MAX_BODY_BYTES = 1024 * 1024
 
-fun Route.graphQlRoutes(engine: GraphQlEngine) {
+internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
         // 読んでから確かめても、その時点で受け取り終えている
         val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()

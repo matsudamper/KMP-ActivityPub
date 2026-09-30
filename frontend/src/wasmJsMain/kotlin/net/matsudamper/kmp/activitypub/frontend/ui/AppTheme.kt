@@ -61,7 +61,7 @@ private val DarkColors =
  * 揃うまでは既定のフォントのまま描く。
  */
 @Composable
-fun AppTheme(content: @Composable () -> Unit) {
+internal fun AppTheme(content: @Composable () -> Unit) {
     val fontFamily = rememberAppFontFamily()
     val typography = remember(fontFamily) { Typography().withFontFamily(fontFamily) }
 
