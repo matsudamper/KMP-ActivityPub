@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.android.server
 
+import java.net.URI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +38,7 @@ internal class ServerScreenViewModel(
     private fun connect() {
         val normalized = normalize(viewModelStateFlow.value.serverUrl)
         if (normalized == null) {
-            viewModelStateFlow.update { it.copy(error = "https:// から始まる URL を入れる") }
+            viewModelStateFlow.update { it.copy(error = "https:// から始まるサーバーの URL を入れる（パスは付けない）") }
             return
         }
         viewModelScope.launch {
@@ -46,19 +47,23 @@ internal class ServerScreenViewModel(
     }
 
     /**
-     * ドメインだけ入れられたら https を補う。末尾の `/` は落とす。パスを足して叩くため。
+     * ドメインだけ入れられたら https を補う。パスを足して叩くため、パス・クエリ・フラグメントの付いた URL は受け付けない。
      *
      * http は受け付けない。Android は既定で平文の通信を止めるので、通しても繋がらない
      */
     private fun normalize(input: String): String? {
-        val trimmed = input.trim().trimEnd('/')
+        val trimmed = input.trim()
         if (trimmed.isEmpty()) return null
 
         val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
-        if (!withScheme.startsWith("https://", ignoreCase = true)) return null
-        if (withScheme.substringAfter("://").isEmpty()) return null
+        val uri = runCatching { URI(withScheme) }.getOrNull() ?: return null
+        if (!uri.scheme.equals("https", ignoreCase = true)) return null
+        if (uri.host.isNullOrEmpty() || uri.rawUserInfo != null) return null
+        if (!(uri.rawPath.isNullOrEmpty() || uri.rawPath == "/")) return null
+        if (uri.rawQuery != null || uri.rawFragment != null) return null
 
-        return withScheme
+        val port = if (uri.port == -1) "" else ":${uri.port}"
+        return "https://${uri.host}$port"
     }
 
     private fun createUiState(state: ViewModelState): ServerScreenUiState = ServerScreenUiState(
