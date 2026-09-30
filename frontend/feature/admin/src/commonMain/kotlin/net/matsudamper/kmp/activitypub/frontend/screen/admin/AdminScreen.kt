@@ -34,6 +34,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ScreenPlatform
 import net.matsudamper.kmp.activitypub.frontend.ui.AdminScaffold
 import net.matsudamper.kmp.activitypub.frontend.ui.ContentMaxWidth
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.PasswordPurpose
 import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import net.matsudamper.kmp.activitypub.frontend.ui.SectionCard
 import net.matsudamper.kmp.activitypub.frontend.ui.SnackbarHostState
@@ -153,6 +154,7 @@ private fun LoginCard(
             formId = LOGIN_FORM_ID,
             inputId = LOGIN_PASSWORD_INPUT_ID,
             inputName = "password",
+            purpose = PasswordPurpose.Current,
             enabled = content.passwordInputEnabled,
             hasError = content.error != null,
             modifier = Modifier.fillMaxWidth(),

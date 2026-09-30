@@ -15,6 +15,7 @@ actual fun PasswordField(
     formId: String,
     inputId: String,
     inputName: String,
+    purpose: PasswordPurpose,
     enabled: Boolean,
     hasError: Boolean,
     modifier: Modifier,
@@ -31,7 +32,10 @@ actual fun PasswordField(
         inputId = inputId,
         inputName = inputName,
         inputType = HtmlInputType.Password,
-        autocomplete = "current-password",
+        autocomplete = when (purpose) {
+            PasswordPurpose.Current -> "current-password"
+            PasswordPurpose.New -> "new-password"
+        },
         enabled = enabled,
         hasError = hasError,
         formId = formId,

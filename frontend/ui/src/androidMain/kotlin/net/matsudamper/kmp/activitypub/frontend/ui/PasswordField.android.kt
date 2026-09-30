@@ -19,6 +19,7 @@ actual fun PasswordField(
     formId: String,
     inputId: String,
     inputName: String,
+    purpose: PasswordPurpose,
     enabled: Boolean,
     hasError: Boolean,
     modifier: Modifier,

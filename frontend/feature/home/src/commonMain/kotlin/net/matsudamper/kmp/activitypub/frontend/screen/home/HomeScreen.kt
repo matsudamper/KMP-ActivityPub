@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.PasswordPurpose
 import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import net.matsudamper.kmp.activitypub.frontend.ui.ScaffoldSnackbarHost
 import net.matsudamper.kmp.activitypub.frontend.ui.SnackbarHostState
@@ -199,6 +200,7 @@ private fun LoginForm(
             formId = LOGIN_FORM_ID,
             inputId = LOGIN_PASSWORD_INPUT_ID,
             inputName = "password",
+            purpose = PasswordPurpose.Current,
             enabled = column.inputEnabled,
             hasError = column.error != null,
             modifier = Modifier.fillMaxWidth(),

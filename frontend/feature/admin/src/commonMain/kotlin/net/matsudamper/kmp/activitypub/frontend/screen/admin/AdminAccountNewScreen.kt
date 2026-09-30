@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.AdminScaffold
 import net.matsudamper.kmp.activitypub.frontend.ui.ContentMaxWidth
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.PasswordPurpose
 import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import net.matsudamper.kmp.activitypub.frontend.ui.SectionCard
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberRetained
@@ -101,6 +102,7 @@ private fun InputCard(content: AdminAccountNewScreenUiState.Content.Input, liste
             formId = NEW_USER_FORM_ID,
             inputId = NEW_USER_PASSWORD_INPUT_ID,
             inputName = "password",
+            purpose = PasswordPurpose.New,
             enabled = content.inputEnabled,
             hasError = content.error != null,
             modifier = Modifier.fillMaxWidth(),
