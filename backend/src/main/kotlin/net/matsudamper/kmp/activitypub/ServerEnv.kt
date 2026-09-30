@@ -60,7 +60,8 @@ class ServerEnv(
                 "DOMAIN が未設定。WebFinger の acct とアクターの id に使うので必ず指定すること"
             }
             // パスやクエリが残るとアクター ID や WebFinger の acct が壊れたまま配られる
-            require(DOMAIN_PATTERN.matches(normalized)) {
+            val port = normalized.substringAfter(':', missingDelimiterValue = "").takeIf { it.isNotEmpty() }
+            require(DOMAIN_PATTERN.matches(normalized) && (port == null || port.toInt() in 1..65535)) {
                 "DOMAIN はホスト名（ポートは付けてよい）だけにすること: $normalized"
             }
             normalized
@@ -128,6 +129,6 @@ class ServerEnv(
         }
 
     private companion object {
-        val DOMAIN_PATTERN = Regex("""^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[0-9]{1,5})?$""")
+        val DOMAIN_PATTERN = Regex("""^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[1-9][0-9]{0,4})?$""")
     }
 }

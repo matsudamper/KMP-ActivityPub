@@ -99,6 +99,10 @@ class ServerEnvTest {
             "example.com#top",
             "user@example.com",
             "example.com:port",
+            "example.com:0",
+            "example.com:00080",
+            "example.com:65536",
+            "example.com:",
         ).forEach { raw ->
             assertFailsWith<IllegalArgumentException>(raw) { ServerEnv(mapOf("DOMAIN" to raw)) }
         }
