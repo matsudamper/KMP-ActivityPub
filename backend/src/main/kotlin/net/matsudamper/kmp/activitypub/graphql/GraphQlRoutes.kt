@@ -1,13 +1,15 @@
 package net.matsudamper.kmp.activitypub.graphql
 
+import kotlinx.io.readByteArray
 import kotlinx.serialization.json.JsonObject
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.header
-import io.ktor.server.request.receiveText
+import io.ktor.server.request.receiveChannel
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
+import io.ktor.utils.io.readRemaining
 import net.matsudamper.activitypub.json.AppJson
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
@@ -25,11 +27,13 @@ fun Route.graphQlRoutes(engine: GraphQlEngine) {
             return@post
         }
 
-        val body = call.receiveText()
-        if (body.length > MAX_BODY_BYTES) {
+        // Content-Length の無い chunked のボディは上の判定をすり抜けるので、上限の 1 バイト先までで読むのを止める
+        val bodyBytes = call.receiveChannel().readRemaining(MAX_BODY_BYTES + 1L).readByteArray()
+        if (bodyBytes.size > MAX_BODY_BYTES) {
             call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
             return@post
         }
+        val body = bodyBytes.decodeToString()
 
         val request = runCatching {
             AppJson.decodeFromString(GraphQlRequest.serializer(), body)
