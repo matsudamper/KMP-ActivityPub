@@ -46,14 +46,16 @@ internal class ServerScreenViewModel(
     }
 
     /**
-     * ドメインだけ入れられたら https を補う。末尾の `/` は落とす。パスを足して叩くため
+     * ドメインだけ入れられたら https を補う。末尾の `/` は落とす。パスを足して叩くため。
+     *
+     * http は受け付けない。Android は既定で平文の通信を止めるので、通しても繋がらない
      */
     private fun normalize(input: String): String? {
         val trimmed = input.trim().trimEnd('/')
         if (trimmed.isEmpty()) return null
 
         val withScheme = if (trimmed.contains("://")) trimmed else "https://$trimmed"
-        if (!withScheme.startsWith("https://") && !withScheme.startsWith("http://")) return null
+        if (!withScheme.startsWith("https://", ignoreCase = true)) return null
         if (withScheme.substringAfter("://").isEmpty()) return null
 
         return withScheme
