@@ -60,8 +60,10 @@ class ServerEnv(
                 "DOMAIN が未設定。WebFinger の acct とアクターの id に使うので必ず指定すること"
             }
             // パスやクエリが残るとアクター ID や WebFinger の acct が壊れたまま配られる
+            val hostName = normalized.substringBefore(':')
             val port = normalized.substringAfter(':', missingDelimiterValue = "").takeIf { it.isNotEmpty() }
-            require(DOMAIN_PATTERN.matches(normalized) && (port == null || port.toInt() in 1..65535)) {
+            val isValidHostName = hostName.length <= 253 && hostName.split('.').all { it.length <= 63 }
+            require(DOMAIN_PATTERN.matches(normalized) && isValidHostName && (port == null || port.toInt() in 1..65535)) {
                 "DOMAIN はホスト名（ポートは付けてよい）だけにすること: $normalized"
             }
             normalized

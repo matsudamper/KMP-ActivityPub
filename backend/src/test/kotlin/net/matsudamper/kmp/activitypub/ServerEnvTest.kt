@@ -88,6 +88,8 @@ class ServerEnvTest {
     @Test
     fun `DOMAIN はポート付きのホスト名を受け付ける`() {
         assertEquals("localhost:8080", ServerEnv(mapOf("DOMAIN" to "localhost:8080")).domain)
+        val longestLabel = "${"a".repeat(63)}.com"
+        assertEquals(longestLabel, ServerEnv(mapOf("DOMAIN" to longestLabel)).domain)
     }
 
     @Test
@@ -103,6 +105,8 @@ class ServerEnvTest {
             "example.-com",
             "example-.com",
             ".example.com",
+            "${"a".repeat(64)}.com",
+            List(64) { "abc" }.joinToString("."),
             "example.com:0",
             "example.com:00080",
             "example.com:65536",
