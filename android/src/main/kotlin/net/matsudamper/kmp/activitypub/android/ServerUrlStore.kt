@@ -17,6 +17,10 @@ internal class ServerUrlStore(
         preferences.edit { putString(KEY_SERVER_URL, serverUrl) }
     }
 
+    fun clear() {
+        preferences.edit { remove(KEY_SERVER_URL) }
+    }
+
     private companion object {
         const val PREFERENCES_NAME = "server"
         const val KEY_SERVER_URL = "server_url"
