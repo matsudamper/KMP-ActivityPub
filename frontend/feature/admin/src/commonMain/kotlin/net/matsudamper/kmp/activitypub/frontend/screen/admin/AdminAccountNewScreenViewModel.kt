@@ -82,6 +82,8 @@ class AdminAccountNewScreenViewModel(
         viewModelScope.launch {
             when (val result = api.addUser(username = state.username.trim(), password = state.password)) {
                 is AdminAddAccountResult.Success -> {
+                    // ViewModel は履歴に残るので、戻ってきたときに次を登録できる状態にしておく
+                    viewModelStateFlow.update { it.copy(username = "", password = "", submitting = false) }
                     navigate(Screen.AdminAccounts)
                 }
 
