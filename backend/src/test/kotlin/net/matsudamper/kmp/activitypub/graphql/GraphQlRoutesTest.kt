@@ -63,4 +63,19 @@ class GraphQlRoutesTest {
 
             assertEquals(HttpStatusCode.OK, response.status)
         }
+
+    // text/plain はプリフライト無しで別オリジンから Cookie 付きで送れる
+    @Test
+    fun `JSON 以外の Content-Type は 415 で実行しない`() =
+        testApplication {
+            application { module(testDependencies()) }
+
+            val response =
+                client.post(GRAPHQL_PATH) {
+                    contentType(ContentType.Text.Plain)
+                    setBody("""{"query":"query { admin { session { loggedIn } } }"}""")
+                }
+
+            assertEquals(HttpStatusCode.UnsupportedMediaType, response.status)
+        }
 }

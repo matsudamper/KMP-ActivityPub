@@ -2,8 +2,10 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.JsonObject
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.request.contentType
 import io.ktor.server.request.header
 import io.ktor.server.request.receiveChannel
 import io.ktor.server.response.respondText
@@ -20,6 +22,13 @@ private const val MAX_BODY_BYTES = 1024 * 1024
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
+        // text/plain などの CORS safelist の型はプリフライト無しで別オリジンから Cookie 付きで送れる。
+        // SameSite=Strict は同じ site の別オリジンからの送信を止めないので、JSON 以外は受けずにプリフライトを必須にする
+        if (!call.request.contentType().match(ContentType.Application.Json)) {
+            call.respondText("Content-Type は application/json にすること", status = HttpStatusCode.UnsupportedMediaType)
+            return@post
+        }
+
         // 読んでから確かめても、その時点で受け取り終えている
         val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
         if (declaredLength != null && declaredLength > MAX_BODY_BYTES) {
