@@ -7,19 +7,19 @@ import io.ktor.server.routing.get
 import net.matsudamper.activitypub.actor.ActorDirectory
 import net.matsudamper.activitypub.actor.ActorEndpoint
 import net.matsudamper.activitypub.actor.ActorKey
+import net.matsudamper.activitypub.actor.StoredActorAppearances
 import net.matsudamper.activitypub.actor.StoredActorProfiles
-import net.matsudamper.activitypub.actor.StoredFeedLinks
 import net.matsudamper.activitypub.url.WebPageUrls
 import net.matsudamper.kmp.activitypub.http.respondEndpoint
 
 internal fun Route.actorRoutes(
     directory: ActorDirectory,
     actorKey: ActorKey,
-    feedLinks: StoredFeedLinks,
+    appearances: StoredActorAppearances,
     profiles: StoredActorProfiles,
     webPages: WebPageUrls?,
 ) {
-    val endpoint = ActorEndpoint(directory, actorKey, feedLinks, profiles, webPages)
+    val endpoint = ActorEndpoint(directory, actorKey, appearances, profiles, webPages)
     get("/users/{username}") {
         call.respondEndpoint(
             endpoint.get(username = call.parameters["username"], accept = call.request.header(HttpHeaders.Accept)),

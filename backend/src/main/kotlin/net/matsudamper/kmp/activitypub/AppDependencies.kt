@@ -13,16 +13,16 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import io.opentelemetry.api.OpenTelemetry
+import net.matsudamper.activitypub.actor.ActorAppearance
 import net.matsudamper.activitypub.actor.ActorDirectory
 import net.matsudamper.activitypub.actor.ActorKey
 import net.matsudamper.activitypub.actor.ActorKeyLoader
 import net.matsudamper.activitypub.actor.ActorPrivateKey
-import net.matsudamper.activitypub.actor.FeedLinks
 import net.matsudamper.activitypub.actor.HttpRemoteActors
 import net.matsudamper.activitypub.actor.RemoteActors
+import net.matsudamper.activitypub.actor.StoredActorAppearances
 import net.matsudamper.activitypub.actor.StoredActorNames
 import net.matsudamper.activitypub.actor.StoredActorProfiles
-import net.matsudamper.activitypub.actor.StoredFeedLinks
 import net.matsudamper.activitypub.delivery.ActivityDelivery
 import net.matsudamper.activitypub.delivery.HttpActivityDelivery
 import net.matsudamper.activitypub.favourite.FavouriteStore
@@ -136,10 +136,10 @@ class AppDependencies(
     )
 
     /**
-     * フィードを持たないので、プロフィールにリンクもアイコンも出さない
+     * プロフィールのリンクと画像を設定する口がまだ無いので、何も出さない
      */
-    val feedLinks: StoredFeedLinks = object : StoredFeedLinks {
-        override fun find(username: String): FeedLinks = FeedLinks.EMPTY
+    val actorAppearances: StoredActorAppearances = object : StoredActorAppearances {
+        override fun find(username: String): ActorAppearance = ActorAppearance.EMPTY
     }
 
     val actorProfiles: StoredActorProfiles = RepositoryActorProfiles(repositories.accounts)
