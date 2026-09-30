@@ -7,7 +7,6 @@ import kotlin.io.path.deleteRecursively
 import kotlin.io.path.writeText
 import kotlin.test.AfterTest
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertFalse
 import net.matsudamper.activitypub.actor.ActorUrls
 import net.matsudamper.kmp.activitypub.repository.IncomingFollow
@@ -15,9 +14,8 @@ import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 
-// 投函する `Create` に入る画面の URL は、ルーティングが返す JSON と同じものでなければならない。
-// 片方だけに入っていると、相手のタイムラインからは JSON のパスが開くのに、
-// 直接引くと画面のパスが返る、という外からは追いにくい形になる。
+// 投函する `Create` に入る画面の URL（`url`）を見る。
+// 画面が無いのに出すと、相手のタイムラインのリンクが見つからないページを指す。
 class AppDependenciesTest {
     private val staticSrcDir: Path = Files.createTempDirectory("app-dependencies-test")
 
@@ -28,20 +26,18 @@ class AppDependenciesTest {
     }
 
     @Test
-    fun `画面を配信する構成では投函する Create にも画面の URL が入る`() {
+    fun `画面を配信する構成でも投函する Create に url が入らない`() {
         staticSrcDir.resolve(StaticFiles.INDEX_FILE_NAME).writeText("<html></html>")
         val deps = testDependencies(env = TestServerEnv.of("STATIC_SRC_DIR" to staticSrcDir.toString()))
         deps.acceptFollower()
 
-        val queued = deps.noteEnqueuer.enqueue(
+        deps.noteEnqueuer.enqueue(
             sender = ActorUrls(domain = TestServerEnv.DOMAIN, username = TestServerEnv.USERNAME),
             contentHtml = "<p>本文</p>",
         )
 
-        assertContains(
-            deps.queuedBody(),
-            """"url":"https://${TestServerEnv.DOMAIN}/@${TestServerEnv.USERNAME}/${queued.publicId.value}"""",
-        )
+        // アカウントと投稿の画面はまだ無い。出すと相手のパーマリンクが見つからないページを指す
+        assertFalse(deps.queuedBody().contains(""""url":"""))
     }
 
     @Test
