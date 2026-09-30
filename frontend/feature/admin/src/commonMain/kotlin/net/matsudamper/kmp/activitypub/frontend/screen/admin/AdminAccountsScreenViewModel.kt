@@ -26,6 +26,7 @@ class AdminAccountsScreenViewModel(
     private var sessionJob: Job? = null
     private var accountsJob: Job? = null
     private var loadMoreJob: Job? = null
+    private var started = false
 
     val uiStateFlow: StateFlow<AdminAccountsScreenUiState> =
         MutableStateFlow(
@@ -63,7 +64,12 @@ class AdminAccountsScreenViewModel(
             }
         }.asStateFlow()
 
+    /**
+     * 履歴から戻ってきたときも呼ばれる。読み込み済みの続きのページを捨てないよう、読み込むのは初回だけ
+     */
     fun onStart() {
+        if (started) return
+        started = true
         reload()
     }
 
