@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminAccountsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.ui.AppTheme
+import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import org.w3c.dom.HTMLElement
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -116,10 +117,11 @@ internal fun App() {
                     contentKey = historyEntry.id,
                     metadata = if (historyEntry.screen is Screen.Overlay) TransparentScreen.asMetadata() else mapOf(),
                 ) {
-                    screenStateStore.Provide(historyEntry.id) { _ ->
+                    screenStateStore.Provide(historyEntry.id) { retainedScreenState ->
                         ScreenContent(
                             screen = historyEntry.screen,
                             navController = navController,
+                            retainedScreenState = retainedScreenState,
                         )
                     }
                 }
@@ -132,20 +134,29 @@ internal fun App() {
 private fun ScreenContent(
     screen: Screen,
     navController: Navigator,
+    retainedScreenState: RetainedScreenState,
 ) {
     when (screen) {
         Screen.Home -> HomeScreen(
+            retainedScreenState = retainedScreenState,
             api = remember { UserApi(GraphQlClient.apollo) },
         )
 
         Screen.Admin -> AdminScreen(
+            retainedScreenState = retainedScreenState,
             platform = WasmScreenPlatform,
             navController = navController,
         )
 
-        Screen.AdminAccounts -> AdminAccountsScreen(navController = navController)
+        Screen.AdminAccounts -> AdminAccountsScreen(
+            retainedScreenState = retainedScreenState,
+            navController = navController,
+        )
 
-        Screen.AdminAccountNew -> AdminAccountNewScreen(navController = navController)
+        Screen.AdminAccountNew -> AdminAccountNewScreen(
+            retainedScreenState = retainedScreenState,
+            navController = navController,
+        )
 
         is Screen.NotFound -> NotFoundScreen(
             requestedPath = screen.path,

@@ -8,6 +8,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import kotlinx.coroutines.CoroutineScope
+import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 
 /**
  * 履歴ごとに [RetainedScreenState] と rememberSaveable の保存先を持ち、

@@ -29,7 +29,8 @@ kotlin {
                 api(compose.ui)
                 api(compose.material3)
                 implementation(compose.materialIconsExtended)
-                implementation(libs.kotlinx.coroutines.core)
+                // RetainedScreenState が CoroutineScope を公開している
+                api(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.datetime)
             }
         }

@@ -11,9 +11,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.android.server.ServerScreen
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
+import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 
 /**
  * Android アプリの入口。管理画面は出さない
@@ -63,6 +66,11 @@ private fun AndroidAppContent(
         val api = remember(context, serverUrl) {
             UserApi(AndroidGraphQlClient.create(context = context, serverUrl = serverUrl))
         }
+        val parentScope = rememberCoroutineScope()
+        val retainedScreenState = remember(parentScope, serverUrl) { RetainedScreenState(parentScope) }
+        DisposableEffect(retainedScreenState) {
+            onDispose { retainedScreenState.dispose() }
+        }
         // 打ち間違えたホストや止まったサーバーを保存すると、ここから戻れないとアプリのデータを消すしかない
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -81,7 +89,7 @@ private fun AndroidAppContent(
                 }
             }
             Box(modifier = Modifier.weight(1f)) {
-                HomeScreen(api = api)
+                HomeScreen(retainedScreenState = retainedScreenState, api = api)
             }
         }
     }

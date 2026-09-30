@@ -24,8 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -36,9 +34,11 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ScreenPlatform
 import net.matsudamper.kmp.activitypub.frontend.ui.AdminScaffold
 import net.matsudamper.kmp.activitypub.frontend.ui.ContentMaxWidth
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import net.matsudamper.kmp.activitypub.frontend.ui.SectionCard
 import net.matsudamper.kmp.activitypub.frontend.ui.SnackbarHostState
 import net.matsudamper.kmp.activitypub.frontend.ui.TextLink
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberRetained
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberSnackbarHostState
 
 private const val REPOSITORY_URL = "https://github.com/matsudamper/KMP-ActivityPub"
@@ -47,11 +47,11 @@ private const val LOGIN_PASSWORD_INPUT_ID = "admin-login-password"
 
 @Composable
 fun AdminScreen(
+    retainedScreenState: RetainedScreenState,
     platform: ScreenPlatform,
     navController: Navigator,
 ) {
-    val viewModelScope = rememberCoroutineScope()
-    val viewModel = remember(viewModelScope) {
+    val viewModel = rememberRetained(retainedScreenState) { viewModelScope ->
         AdminScreenViewModel(viewModelScope)
     }
     val uiState by viewModel.uiStateFlow.collectAsState()

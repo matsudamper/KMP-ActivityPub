@@ -14,8 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -25,14 +23,16 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.AdminScaffold
 import net.matsudamper.kmp.activitypub.frontend.ui.ContentMaxWidth
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import net.matsudamper.kmp.activitypub.frontend.ui.SectionCard
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberRetained
 
 @Composable
 fun AdminAccountNewScreen(
+    retainedScreenState: RetainedScreenState,
     navController: Navigator,
 ) {
-    val viewModelScope = rememberCoroutineScope()
-    val viewModel = remember(viewModelScope) {
+    val viewModel = rememberRetained(retainedScreenState) { viewModelScope ->
         AdminAccountNewScreenViewModel(viewModelScope)
     }
     val uiState by viewModel.uiStateFlow.collectAsState()

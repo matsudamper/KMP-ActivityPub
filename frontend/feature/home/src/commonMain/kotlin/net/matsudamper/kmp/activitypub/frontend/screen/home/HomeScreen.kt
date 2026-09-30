@@ -30,8 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -40,17 +38,19 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import net.matsudamper.kmp.activitypub.frontend.ui.ScaffoldSnackbarHost
 import net.matsudamper.kmp.activitypub.frontend.ui.SnackbarHostState
 import net.matsudamper.kmp.activitypub.frontend.ui.SnackbarMaxWidth
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberRetained
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberSnackbarHostState
 
 @Composable
 fun HomeScreen(
+    retainedScreenState: RetainedScreenState,
     api: UserApi,
 ) {
-    val viewModelScope = rememberCoroutineScope()
-    val viewModel = remember(viewModelScope, api) {
+    val viewModel = rememberRetained(retainedScreenState) { viewModelScope ->
         HomeScreenViewModel(viewModelScope = viewModelScope, api = api)
     }
     val uiState by viewModel.uiStateFlow.collectAsState()
