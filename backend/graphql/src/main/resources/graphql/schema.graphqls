@@ -1,0 +1,19 @@
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+type Query {
+    admin: AdminQuery!
+    user: UserQuery!
+}
+
+type Mutation {
+    admin: AdminMutation!
+    user: UserMutation!
+}
+
+type PageInfo {
+    hasMore: Boolean!
+    nextCursor: String
+}

@@ -1,0 +1,226 @@
+package net.matsudamper.kmp.activitypub
+
+import java.nio.file.Path
+import io.ktor.server.application.Application
+import io.ktor.server.application.ServerReady
+import io.ktor.server.application.install
+import io.ktor.server.application.log
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
+import net.matsudamper.activitypub.actor.ActorKey
+import net.matsudamper.kmp.activitypub.actor.actorRoutes
+import net.matsudamper.kmp.activitypub.follower.followerRoutes
+import net.matsudamper.kmp.activitypub.graphql.DiContainer
+import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
+import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
+import net.matsudamper.kmp.activitypub.graphql.resolver.AdminMutationResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.AdminQueryResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.UserQueryResolverImpl
+import net.matsudamper.kmp.activitypub.inbox.inboxRoutes
+import net.matsudamper.kmp.activitypub.json.respondJson
+import net.matsudamper.kmp.activitypub.nodeinfo.nodeInfoRoutes
+import net.matsudamper.kmp.activitypub.note.featuredRoutes
+import net.matsudamper.kmp.activitypub.note.noteRoutes
+import net.matsudamper.kmp.activitypub.note.outboxRoutes
+import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
+import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
+import net.matsudamper.kmp.activitypub.webfinger.webFingerRoutes
+
+fun main() {
+    // DOMAIN が無ければこの時点で落ちる。サーバーを立てる前に止めたいので順番を変えないこと
+    val serverEnv = ServerEnv()
+
+    val telemetry = OpenTelemetryInitializer.start()
+    val deps = AppDependencies.create(serverEnv, telemetry = telemetry)
+    val server = embeddedServer(CIO, port = serverEnv.port, host = serverEnv.host) {
+        module(deps)
+    }
+
+    // 終了処理を `use` に任せない。docker stop で来る SIGTERM では main が返らないまま
+    // JVM が終わるので finally まで届かず、閉じずに終わると書き込みが DB のファイルに
+    // 確定しない。JVM が終わる経路は必ずシャットダウンフックを通るため、
+    // start が例外で終わった場合も含めてここ 1 か所で閉じられる
+    Runtime.getRuntime().addShutdownHook(
+        Thread {
+            // 待ち受けを止める前に配信を止める。投稿を受け取った相手はその場で
+            // Note やアクターの URL を引きに来るので、止めた後に送ると繋げずに終わる。
+            // 送信中の配信は待たない。行は delivering のまま残り、次の起動で送り直される
+            deps.stopBackgroundWork()
+
+            // 処理中のリクエストが DB を触っている最中に閉じないよう、次にサーバーを止める。
+            // 待ち時間は docker stop の既定の猶予（10 秒）に収まる範囲にする
+            server.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
+            deps.close()
+        },
+    )
+
+    // 受け付けが始まってから動かす。投稿を受け取った相手はその場で Note やアクターの
+    // URL を引きに来るので、待ち受ける前に送ると相手は繋げずに終わる
+    server.monitor.subscribe(ServerReady) { application ->
+        val purgedAccounts = deps.startDeliveryWorker()
+        if (purgedAccounts > 0) {
+            application.log.info("配信を送り切った削除済みアカウント $purgedAccounts 件を片付けた")
+        }
+    }
+
+    // start(wait = true) は停止まで返ってこない
+    server.start(wait = true)
+}
+
+/**
+ * ルーティングを組み立てて、運用で見たいものを起動ログに出す。
+ *
+ * @param deps 使うものは全て [AppDependencies] から取る。本番の組み立ては
+ *   [AppDependencies.create]、テストはフェイクを詰めたものを渡す
+ */
+internal fun Application.module(deps: AppDependencies) {
+    val env = deps.env
+    val actorKey = deps.actorKey
+
+    // 書けない DB を抱えたまま起動すると、最初のリクエストまで問題に気付けない。
+    // native バイナリでは SQLite のネイティブライブラリ周りで起きやすいので起動時に確かめる
+    deps.repositories.verifyWritable()
+
+    // ドメインはアクター ID に焼き込まれ、Mastodon 側にキャッシュされると後から変えられない。
+    // 取り違えたまま気付かないのが一番まずいので、起動時に必ず見えるところに出す
+    log.info("ドメイン: ${env.domain}")
+
+    // 追加したはずのアカウントに応答しないとき、DB を見ているかどうかがここで切り分けられる
+    log.info("アカウント: ${deps.repositories.accounts.list().size} 件")
+
+    // 鍵が入れ替わると相手側は署名検証に失敗し続ける。
+    // どこから読んだ鍵なのかが後から追えるよう、取得元を必ず出す
+    when (val origin = actorKey.origin) {
+        is ActorKey.Origin.Environment -> {
+            log.info("アクターの秘密鍵: ACTOR_PRIVATE_KEY_PEM から読んだ")
+        }
+
+        is ActorKey.Origin.LoadedFile -> {
+            log.info("アクターの秘密鍵: ${origin.path} から読んだ")
+        }
+
+        is ActorKey.Origin.GeneratedFile -> {
+            log.warn(
+                "アクターの秘密鍵を新しく生成して ${origin.path} に書き出した。" +
+                    "既にフォロワーがいる状態でこれが出たら、以前の鍵を失っている",
+            )
+        }
+    }
+
+    // 画面が出ないときに理由を追えるよう、配信元を起動時に必ず出す。
+    // 黙って 404 になると、設定し忘れなのか置き忘れなのかが分からない
+    val staticFiles = deps.staticFiles
+    logStaticFiles(srcDir = env.staticSrcDir, staticFiles = staticFiles)
+
+    logAdminLogin(env)
+
+    val diContainer = DiContainer(
+        passwordHash = env.adminPasswordHash,
+        accountService = deps.accountService,
+        noteEnqueuer = deps.noteEnqueuer,
+    )
+
+    val graphQl = GraphQlEngine.create(
+        resolvers = listOf(
+            QueryResolverImpl(),
+            MutationResolverImpl(),
+            AdminQueryResolverImpl(),
+            AdminMutationResolverImpl(),
+            UserQueryResolverImpl(),
+            UserMutationResolverImpl(),
+        ),
+        createContext = { call ->
+            GraphQlContext(
+                call = call,
+                adminSessionStore = deps.adminSessionStore,
+                userSessions = deps.userSessions,
+                cookieSecure = env.cookieSecure,
+            )
+        },
+        diContainer = diContainer,
+        openTelemetry = deps.openTelemetry,
+    )
+
+    // ContentNegotiation は入れていない。serializer をリフレクションで引く実装のため
+    // native-image で解決できず 500 になる。詳細は json/JsonResponse.kt を参照
+    deps.openTelemetry?.let { openTelemetry ->
+        install(KtorServerTelemetry) {
+            setOpenTelemetry(openTelemetry)
+        }
+    }
+
+    routing {
+        get("/healthz") {
+            call.respondJson(HealthResponse.serializer(), HealthResponse(status = "ok"))
+        }
+
+        // Mastodon はこの 2 つを WebFinger → Actor の順に引いてアカウントを見つける
+        webFingerRoutes(deps.directory)
+        actorRoutes(deps.directory, actorKey, deps.actorAppearances, deps.actorProfiles, deps.webPageUrls)
+
+        // 見つけた後、フォローなどのアクティビティはここに POST されてくる
+        inboxRoutes(directory = deps.directory, service = deps.inboxService)
+
+        followerRoutes(deps.directory, deps.followerStore)
+        outboxRoutes(deps.directory, deps.noteStore, deps.webPageUrls)
+        featuredRoutes(deps.directory)
+        noteRoutes(env.domain, deps.noteStore, deps.webPageUrls)
+
+        nodeInfoRoutes(env.domain)
+
+        graphQlRoutes(graphQl)
+
+        // 残り全部を受けるので最後に置く
+        staticRoutes(staticFiles)
+    }
+}
+
+private fun Application.logAdminLogin(env: ServerEnv) {
+    if (env.adminPasswordHash == null) {
+        log.warn("ADMIN_PASSWORD_HASH が未設定なので管理画面にログインできない")
+        return
+    }
+
+    if (env.cookieSecure) {
+        log.info("管理画面のログインを受け付ける。セッション Cookie には Secure を付ける")
+    } else {
+        log.warn(
+            "管理画面のログインを受け付ける。COOKIE_SECURE=false なので" +
+                "セッション Cookie に Secure を付けない。http で試すとき以外は外すこと",
+        )
+    }
+}
+
+/**
+ * 静的ファイルの配信元を起動ログに出す。
+ *
+ * 配信できないときは、指定が無いのか実体が無いのかまで出す。黙って 404 になると
+ * 設定し忘れなのか置き忘れなのかが分からない。
+ */
+private fun Application.logStaticFiles(
+    srcDir: Path?,
+    staticFiles: StaticFiles?,
+) {
+    if (staticFiles != null) {
+        log.info("静的ファイルを ${staticFiles.root} から配信する")
+        return
+    }
+
+    if (srcDir == null) {
+        log.info(
+            "STATIC_SRC_DIR が未設定なので静的ファイルを配信しない。" +
+                "画面を出すには :frontend の成果物を置いたディレクトリを指定する",
+        )
+        return
+    }
+
+    log.warn("$srcDir が無いので静的ファイルを配信しない")
+}

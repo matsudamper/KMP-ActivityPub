@@ -1,0 +1,434 @@
+# 設計
+
+コードの 1 か所に紐付かない、横断的な決めごとを置く。個別の判断はコードの KDoc と
+ビルドスクリプトのコメントに書いてあるので、こちらには重複させない。
+
+使い方は [README.md](../README.md)、外に対して何をどう応答するかは
+[mastodon-spec.md](mastodon-spec.md)、これからやることは
+[GitHub の Issue](https://github.com/matsudamper/kmp-activitypub/issues) を参照。
+
+## モジュールの分け方
+
+`:backend` に残すのは、アプリとしての組み立てだけにする。環境変数を読み、
+使うものを作って配り（`AppDependencies`）、ルーティングに並べ（`Application.module`）、
+静的ファイルを配信する。相手のサーバーとどう話すかも、どこに保存するかも持たない。
+
+ActivityPub の実装は別リポジトリ [matsudamper/kotpub](https://github.com/matsudamper/kotpub) の
+`activitypub`（`net.matsudamper.kotpub:activitypub`）に切り出してあり、GitHub Packages から取る。
+WebFinger・Actor・inbox・NodeInfo の応答、HTTP Signature の署名と検証、
+相手のアクター文書の取得、`Accept` の送信までが入る。単体のライブラリなので、次を守る。
+
+- このアプリ固有のものを入れない。`ServerEnv` も `Repositories` も参照しない。
+  設定は引数で受け取る（アクターの鍵の在り処は `ActorPrivateKey`、
+  ドメインとユーザー名は `ActorUrls`）
+- HTTP の実装（Ktor など）に依存しない。エンドポイントは `EndpointResponse` を返し、
+  外向きの通信は `ActivityPubHttpClient` を受け取る。Ktor のルーティングと
+  `ActivityPubHttpClient` の Ktor 実装は `:backend` が持つ
+- 依存は kotlinx.serialization・kotlinx.coroutines・OpenTelemetry API・SLF4J まで。
+  RSA 鍵と署名（`RsaKeys` / `RsaSignature`）もライブラリ側に持つ。
+  SQLite も jOOQ も入らない。相手のアクター文書のキャッシュを
+  `:backend:repository` の `ExpiringCache` から、モジュール内の `internal` な
+  実装に移したのはこのため
+- 組み立てに要る知識は外に出さない。inbox がどのハンドラを必要とするかは
+  `InboxService.default` の中にあり、`:backend` からは見えない
+
+`:backend` から見えるのは `:backend:repository` の公開 API だけ。実装は `internal` で、
+sqlite-jdbc と jOOQ も `implementation` で入れているため、JDBC と jOOQ の型は
+`:backend` の compile classpath にも現れない。jOOQ の生成コードも
+`:backend:repository` の中で閉じていて、外には出さない。
+
+`:backend:crypto` はパスワードのハッシュ（`PasswordHash`）を持つ。管理画面のパスワードと、
+管理画面から登録したユーザーのパスワードの両方に使う。
+別モジュールに切り出してあるのは、
+テストを native バイナリとして実行するため。`:backend` のテストは
+`ktor-server-test-host` 経由で ByteBuddy と JNA を引き込み、これらは実行時の
+バイトコード書き換えに依存するので native-image では動かない。JCA の確認を
+そこに同居させると確認できなくなる。
+
+`:backend:graphql` は管理 API のスキーマと、そこから生成したモデル・リゾルバの
+インタフェースを持つ。生成物を使うのはサーバーだけなので `backend/` の下に置く。
+
+画面側は Web（Kotlin/Wasm）と Android の 2 つのアプリで共有するので、アプリの入口と
+画面を分ける。依存は上から下への一方向だけ。
+
+| モジュール | 持つもの |
+| --- | --- |
+| `:frontend` | Web アプリの入口。URL と画面の対応、画面遷移、フォントのように Web にしか無いもの |
+| `:android` | Android アプリ。接続先のサーバーの入力と、ログインの Cookie の保存 |
+| `:frontend:feature:home` | カラムを並べるトップ画面。いまは投稿カラム（ログインと投稿）だけ |
+| `:frontend:feature:admin` | 管理画面。Web だけが使い、Android アプリには入れない |
+| `:frontend:navigation` | Web の画面のパス（`Screen`）と、画面から遷移を頼む口（`Navigator`） |
+| `:frontend:api` | GraphQL の問い合わせと、その結果を画面が扱う形に直すところまで |
+| `:frontend:ui` | このアプリの API を知らない画面部品と、画面の土台（ViewModel からの通知など） |
+| `:frontend:common-component` | 別の Compose Web アプリからも使える、HTML の input を載せる部品 |
+
+`:frontend:api` はスキーマのファイルを Apollo のコード生成の入力として読むだけで、
+`:backend:graphql` には依存しない。画面側の生成物（問い合わせから作るクライアント）は
+`:frontend:api` の中にできる。両方の生成物を 1 つのモジュールに入れると、サーバー用の
+JVM の依存が Kotlin/Wasm のビルドに混ざる。
+
+Android から見て要らないもの（管理画面、URL での画面遷移、Web のフォント）は
+`:android` の依存に入らない位置に置く。逆に Android にしか無いもの（OkHttp の Cookie の保存、
+SharedPreferences）は `:android` に閉じて、画面のモジュールには持ち込まない。
+`UserApi` が `ApolloClient` を受け取るのはこのため。Web は同じオリジンへ、Android は
+入力されたサーバーへ投げるクライアントを、それぞれの入口で作って渡す。
+
+スキーマだけを root の共有モジュールに切り出す形も採れるが、そうすると
+コード生成の設定と入力が別のモジュールに分かれる。スキーマを触るときに
+見る場所が 2 つになるので、生成する側と同じ場所に置いている。
+
+口の URL（`/graphql`）はスキーマに書かない。どこで受けるかはサーバーの都合で、
+スキーマの一部ではない。ただしサーバーの routing と画面のクライアントで同じ値が要り、
+ずれても誰も気付けないので `:shared` に置いて両方から見る。
+
+`:shared` は `:backend` と画面側の両方から見る値だけを置く KMP モジュール
+（`jvm`・`wasmJs`・`android`）。
+
+kotpub の `activitypub` は `:shared` を見ない。ActivityPub の `url` に入れる
+画面の URL は、組み立てを `WebPageUrls` として受け取る。いまはアカウントと投稿の画面が
+無いので渡していない。
+
+環境変数を読むのは `:backend` の入口（`ServerEnv`）だけにする。`:backend:repository` や
+kotpub の `activitypub` のような下位のモジュールは、値を引数で受け取る。
+
+## ビルドスクリプトに手続きを書かない
+
+タスクの定義は `build-logic`（複合ビルドとして取り込むプラグイン）に置く。
+`build.gradle.kts` に残すのは、プラグインの適用と、依存とパッケージ名のような
+そのモジュール固有の値だけにする。
+
+`doLast` に処理を直接書くと、入力と出力の宣言が曖昧なままでも動いてしまう。
+プラグイン側で型のあるタスクにすれば、何が入力で何が出力かを書かないと
+コンパイルが通らない。up-to-date 判定とビルドキャッシュはその宣言に乗るので、
+宣言が正しいことがそのまま再ビルドの正しさになる。
+
+バージョンはプラグインに持たせない。`build-logic` からも同じ
+`gradle/libs.versions.toml` を読む。プラグイン側に書くと version catalog の
+外にバージョンが散り、Renovate の追従から外れる。
+
+## JDK と GraalVM はビルドが用意する
+
+`settings.gradle.kts` に foojay-resolver を入れてあるので、ツールチェインが手元に
+無ければ Gradle が取ってくる。開発を始めるのに必要なのは Gradle を起動できる JDK 1 つで、
+JDK 25 と GraalVM を各自で入れる手順は要らない。
+
+native-image を使うモジュール（`:backend`・`:backend:crypto`）は
+`kmp-activitypub.native-image` を適用する。決めているのは「どの GraalVM で作るか」だけで、
+`imageName` や `buildArgs` はモジュール側に残す。モジュールごとに同じ結線を書かないため。
+
+GraalVM は Gradle が配置する時点で `bin/native-image` のシンボリックリンクが
+0 バイトのファイルに化ける（[gradle#28583](https://github.com/gradle/gradle/issues/28583)）。
+`RepairNativeImageLauncherTask` が native のタスクの前に実体へのリンクを張り直す。
+自分で入れた GraalVM を使う場合は壊れていないので何もしない。
+
+`graalvmNative` の `toolchainDetection` は切らないこと。切ると native-image を探す
+処理がツールチェインの launcher を読まなくなり、`JAVA_HOME` を見に行って
+「native-image が無い」と言って落ちる。
+
+`build-logic` は別のビルドなので、root の `ktlintCheck` からは辿られない。
+CI が叩くのは root の `ktlintCheck` だけなので、root の build.gradle.kts で
+繋いである。
+
+`:frontend` と `:backend` のビルドを繋がないのは、繋ぐとサーバーのテストが
+Kotlin/Wasm のツールチェイン（Node.js と yarn）に引きずられるため。wasm 側が
+壊れているとサーバーのテストも回せなくなる。配信は実行時のディレクトリを読む形にして、
+ビルドの依存を作らない。
+
+## 画面のパス
+
+サーバーが持つパス以外は静的配信に落ち、ファイルが無ければ `index.html` が返る。
+どの画面を出すかを決めるのはブラウザ側（`:frontend:navigation` の `Screen`）で、
+サーバーは画面のパスを 1 つも知らない。
+
+| パス | 画面 |
+| --- | --- |
+| `/` | トップ。Mastodon と同じくカラムを横に並べる。いまは投稿カラムだけ |
+| `/admin` 以下 | 管理画面。ログインが要る |
+| それ以外 | 見つからない |
+
+Android アプリは URL を持たないので `Screen` を使わない。接続先のサーバーが決まるまで
+その入力を出し、決まったらトップと同じ `HomeScreen` を出す。
+
+ダイアログも画面として扱う。`Screen.Overlay` は下に敷く画面を持ち、バックスタックには
+その画面ごと積む。`NavEntry` の metadata に `TransparentScreen` が載っていれば
+`TransparentScreenSceneStrategy` が下の画面を描いたまま重ねる。いまはダイアログの画面は無い。
+
+バックスタックは URL から組み直すので、別の画面へ進むと前の画面はスタックから消える。
+ブラウザの戻る / 進むで同じスクロール位置に戻すため、履歴 1 つごとに id を振って
+`history.state` に持たせ、rememberSaveable の状態は `ScreenStateStore` が
+その id ごとに持ち越す。
+
+画面は canvas に描くので、ブラウザが持っているフォントも `@font-face` も効かない。
+日本語のフォントは静的ファイルと一緒に `/fonts/` で配信し、起動後に取ってきて
+`FontFamily` を組み立てる（`:frontend` の `ui/Font.kt`）。配信するファイルの置き場を
+画面ごとに分けず `STATIC_SRC_DIR` にまとめてあるのは、こういうものが入るため。
+
+## 静的ファイルのキャッシュ
+
+入口の `index.html` はキャッシュさせない（`Cache-Control: no-store`）。JS と `.wasm` は
+名前に中身のハッシュが入るので、`immutable` で 1 年持たせる。
+
+配布物を置き換えると JS も `.wasm` も別の名前になる。`index.html` が古いまま使われると、
+既に消えた名前を取りに行って画面が出ない。入口だけ毎回取り直せば、そこから読むものは
+名前で決まるので、新旧が混ざることもない。
+
+JS の名前にハッシュを入れるのは `:frontend` の配布物を作るとき（`build-logic` の
+`WebpackBundleHashPlugin`）で、`index.html` の `<script>` の参照も一緒に差し替える。
+dev server はこの経路を通らないため、ハッシュの無い名前のまま動く。
+
+フォントのように名前が変わらないものには何も付けない。中身を差し替えても名前が同じなので、
+長く持たせると新しいものに変わらなくなる。
+
+## 管理 API
+
+エンドポイントは `POST /graphql` の 1 つ。管理用は `Query.admin` / `Mutation.admin` の下に
+まとめ、認可はエンドポイントではなくフィールドごとに見る。ActivityPub 側は相手の実装が
+決まっている REST なので、こちらの都合で形を変えられない。触らずに分けておく。
+
+ユーザー（投稿する人）の口は `Query.user` / `Mutation.user` の下にまとめる。
+
+スキーマは `:backend:graphql` に置き、管理用（`admin_*.graphqls`）とユーザー用
+（`user_*.graphqls`）などに分けてある。`:backend` は起動時に
+全部をリソースとして読んで 1 つに繋ぎ、`:frontend:api` は同じファイルから Apollo Kotlin で
+クライアントを生成する。写しを作らないので、片方にだけフィールドがある状態にはならない。
+
+### スキーマ優先とコード生成
+
+[kake-bo](https://github.com/matsudamper/kake-bo) と同じ構成にしてある。手で書くのは
+スキーマとリゾルバの実装だけで、その間にある型は全部生成する。
+
+- サーバーのモデルとリゾルバのインタフェース: kobylynskyi の
+  graphql-java-codegen（Gradle プラグイン `io.github.kobylynskyi.graphql.codegen`）。
+  取るのは [fork](https://github.com/matsudamper/graphql-java-codegen) のビルドで、
+  GitHub Packages にあるので資格情報が要る（README を参照）。設定は
+  `backend/graphql/build.gradle.kts`
+- 結線: graphql-java-tools (kickstart) の `SchemaParser`。リゾルバの実装を渡すだけで、
+  スキーマのフィールドとメソッドを対応付ける
+- 画面のクライアント: Apollo Kotlin。入力は同じスキーマと `:frontend:api` の問い合わせ
+
+生成されるモデルには `Ql` を付けている。スキーマと同じ名前にすると、リゾルバの中で
+スキーマの型と自分のドメインの型が同じ名前で並ぶ。
+
+リゾルバのインタフェースを作るのは `@lazy` を付けたフィールドだけ。付けないフィールドは
+親のモデルが持っている値がそのまま返る。`Query` と `Mutation` は付けなくても
+1 つずつインタフェースができる。
+
+結線の漏れはコンパイルか起動時に出る。スキーマにフィールドを足すとインタフェースに
+メソッドが増えるので、実装しなければコンパイルが通らない。リゾルバを
+`GraphQlEngine.create` に渡し忘れた場合は `makeExecutableSchema` が落ちる。
+
+### リクエストごとのもの
+
+リゾルバは自分では何も持たず、要るものは `GraphQlContext` から取る。1 リクエストに
+1 つ作って `GraphQLContext` に載せ、`GraphQlEngine.graphQlContext(env)` で引く。
+
+`ApplicationCall` をそのまま渡すとリゾルバが Ktor に依存する。`GraphQlContext` が
+出すのはセッションの読み書きだけなので、Cookie の名前や有効期限はリゾルバから見えない。
+
+### DataLoader
+
+一覧の各行から別のものを引くようになったら、DataLoader でまとめて取得する。
+いまは該当するフィールドが無いので、DataLoader は 1 つも登録していない。
+
+### native-image との組み合わせ
+
+kickstart はスキーマとクラスの対応をリフレクションで解決する。native バイナリは
+到達可能性を静的に解析するので、リフレクションで引かれるクラスは登録しておく。
+
+登録は `graalvm/GraphQlReflectionFeature`（`--features=` で渡す GraalVM の Feature）が
+イメージのビルド時にクラスパスを走査して行う。対象は生成物のパッケージ
+（`graphql.model`）とリゾルバの実装のパッケージ（`graphql.resolver`）、それに
+生成モデルがフィールドに持つ `:shared` の型。input object の中のカスタムスカラーは
+kickstart が Jackson で組み立てるので、パッケージ走査だけでは `AccountId` のような
+`:shared` の型が落ちる。手で `reflect-config.json` に並べると、スキーマを触るたびに
+更新が要る。
+
+リゾルバの実装を `graphql.resolver` 以外に置くと走査から外れる。生成モデルが
+`:shared` の型を参照しているかも、`GraphQlReflectionTargetsTest` が JVM のテストで
+見ている。
+
+スキーマはリソースなので `resource-config.json` に登録している。読むファイルの一覧
+（`graphql/schema-list.txt`）は `:backend:graphql` がビルド時に作る。native バイナリでは
+ディレクトリを列挙できないので、実行時に `graphql/` の中身を数え上げる手段が無い。
+
+リフレクション登録の他に 2 つ要る。kickstart がリゾルバの引数の数を
+kotlin-reflect で数えるので、その実装クラスの登録と `*.kotlin_builtins` の同梱。
+それと kickstart が連れてくる jackson-databind を jOOQ が拾うので
+`--initialize-at-run-time=org.jooq.impl.Convert$_JSON`。どれも native バイナリを
+動かして 1 つずつ見つけた。症状と経緯は
+`backend/src/main/resources/META-INF/native-image/` の README にある。
+
+native バイナリで `/graphql` を叩いて query・mutation・変数・enum・`Set-Cookie`・
+スキーマ検証まで通ることは確認済み。CI の native-image ジョブでも同じ確認をする。
+JVM のテストはこの経路の問題を出さないので、依存を足したときは native ビルドを通すこと。
+
+## 管理画面のログイン
+
+パスワード 1 つとセッションで見る。ユーザー名は無い。管理画面を開くのは運用者だけで、
+名前を足しても覚えるものが増えるだけになる。
+
+パスワードそのものは持たず、`ADMIN_PASSWORD_HASH` にハッシュ（PBKDF2-HMAC-SHA256、
+`:backend:crypto` の `PasswordHash`）を入れる。ハッシュは
+`./gradlew --quiet :backend:crypto:passwordHash` で作る。
+
+やり取りは管理 API（`POST /graphql`）の `admin.session` / `admin.login` / `admin.logout`。
+
+未設定でも起動する。最初のハッシュを作る前に起動できないと先に進めないため。
+この場合はログインできず、画面には設定方法が出る。起動ログにも警告を出す。
+
+```mermaid
+sequenceDiagram
+    participant B as ブラウザ（/admin）
+    participant S as :backend
+
+    B->>S: POST /graphql（query admin.session）
+    S-->>B: loggedIn: false, passwordConfigured: true
+    Note over B: ログインの入力を出す
+    B->>S: POST /graphql（mutation admin.login）
+    Note over S: PBKDF2 を 21 万回（Dispatchers.IO で回す）
+    S-->>B: Set-Cookie: admin_session（HttpOnly, SameSite=Strict）
+    Note over B: 以降のリクエストにブラウザが Cookie を付ける
+```
+
+セッションはメモリ上のトークン（`AdminSessions`）で、期限は 12 時間。署名付き Cookie に
+して状態を持たない形も選べるが、署名鍵をどこから渡すかという設定が増えるうえ、鍵を固定すると
+ログアウトさせる手段が無くなる（発行済みの Cookie が期限まで有効なまま残る）。サーバーは 1 台で
+再起動も稀なので、再起動でログインし直しになる代わりに設定が増えない方を選んでいる。
+
+ログインの口も管理 API と同じ `/graphql` に置く。認可はエンドポイントではなくフィールドごとに
+見る決まりなので、`admin.session` と `admin.login` だけを認証なしで通せばよく、口を分ける理由が無い。
+分けると認可の有無が URL と実装の 2 か所に散る。
+
+Cookie の `Secure` は既定で付ける。本番はリバースプロキシで HTTPS を終端する前提だが、
+プロキシの後ろではリクエストの scheme が http に見えるのでサーバーからは判定できない。
+手元で `localhost:8080` を平文で開いて試すときだけ `COOKIE_SECURE=false` にする。
+付けたまま http で開くと、ブラウザが Cookie を保存せず、ログインしてもログインしていない
+状態のままになる。
+
+総当たり対策（試行回数の制限）はまだ無い。Phase 7 で入れる。
+
+## ユーザーのログイン
+
+ユーザーは管理画面から登録する（`admin.addUser`）。登録したユーザーは
+そのまま ActivityPub のアクターとして応答するようになる。パスワードは管理画面と同じ
+PBKDF2 のハッシュにして `accounts.password_hash` に持つ。
+
+やり取りは `user.session` / `user.login` / `user.logout`。ログインすると
+`user_session` の Cookie（HttpOnly, SameSite=Strict）が返る。Secure の扱いは管理画面と同じ
+`COOKIE_SECURE` で決まる。
+
+管理画面と違ってセッションは DB（`user_sessions`）に置き、期限は 30 日。Android アプリは
+開くたびにログインし直させられないので、サーバーの再起動で消えると困る。Cookie に入れる
+トークンそのものは持たず SHA-256 を持つ。DB が漏れても、そのままセッションとして使えない。
+
+ユーザー名が無いときもパスワードの照合と同じだけ PBKDF2 を回す。すぐ返すと、応答の速さで
+ユーザー名が存在するかが分かる。応答もパスワード違いと同じ `WRONG_USERNAME_OR_PASSWORD` にする。
+
+Android アプリは OkHttp の CookieJar で Cookie を SharedPreferences に残す。
+
+## 配信キュー
+
+こちらから相手の inbox に送るものは、フォロー成立後に過去の投稿を配るぶんを除いて
+その場で送らず `delivery_queue` に投函して、`:backend` のワーカー（`DeliveryWorker`）が
+送る。投稿の `Create{Note}` と `Delete{Note}`、`Follow` への `Accept`、アクターの
+`Update{Actor}` と `Delete{Actor}` が載っている。送信中にプロセスが落ちても投函した行が
+残るので、次の起動で送り直せる。
+
+投稿の場合、誰が何をするかは 3 つのモジュールに分かれる。
+
+- kotpub の `activitypub` の `NotePublisher.prepare` は `Create{Note}` を組み立てて
+  返すだけ。DB も触らず HTTP も出さない
+- `:backend:repository` の `DeliveryQueueRepository.enqueueNote` が投函の口。投稿の記録
+  （`notes`）と投函（`delivery_queue`）を 1 トランザクションで書く
+- `:backend` の `NoteEnqueuer` が両方を繋ぐ。ユーザーの投稿（GraphQL の resolver）はここを通る
+
+投稿の削除はまだ画面から呼べない。消すときは `NotePublisher.prepareDelete` が `Delete{Note}` を組み立て、
+`DeliveryQueueRepository.enqueueNoteDeletion` が投稿の記録を消すのと投函を
+1 トランザクションで書く。消した投稿に紐付く未配信の `Create` は外部キーで一緒に消える。
+`Delete` の行は投稿に紐付けない。紐付けると、いま消した投稿と一緒に消えて配られない。
+
+`Accept` も同じ形で、kotpub の `activitypub` の `FollowHandler` が組み立てて
+`FollowerStore.record` に預け、`:backend:repository` の `FollowerRepository.record` が
+フォローの記録と投函を 1 トランザクションで書く。フォローが成立するのは `Accept` を
+送れたときなので、状態を `accepted` にするのは `markDelivered` になる。相手に届いて
+初めて成立するものを、送る前に成立させない。初めて成立したときだけ、フォローより前の
+投稿をその相手に配る（`FollowBackfillPublisher`）。送り直しの `Accept` では配らない。
+
+アクターの更新（`Update{Actor}`）は、プロフィールを編集する画面がまだ無いので投函していない。
+repository の口（`enqueueActorUpdate`）は、まだ送っていない同じアカウントの更新を投函時に置き換える。
+
+アカウントの削除もまだ画面から呼べない。消すときは `AccountRepository.markDeleted` が、
+消えるもの（セッション・投稿・フォロワー・送り残した配信）を消すのと `Delete{Actor}` の投函を 1 トランザクションで
+書く。`accounts` の行は消さず `deleted_at` を入れる。消えたアカウントとして署名して
+`Delete{Actor}` を送り切る必要があるため。読み出しは生きているものだけを返すので外からは
+消えて見え、署名だけが消した行も引ける（`AppDependencies` の `signingDirectory`）。
+その名前は行が残っている間は作り直せない。作り直せると、送り残した行が新しい
+アカウントのものとして配られる。行は起動時に、配信が 1 件も残っていないものから片付く。
+
+ワーカーは `Main` が `ServerReady` で 1 つだけ回す。Ktor の routing には乗せない
+（リクエストと無関係に動くため）。同じ DB に対してアプリのプロセスを 2 つ動かす構成は
+サポートしない。起動時の復旧（`delivering` を `pending` に戻す）が、動いている他の
+プロセスの送信中の行まで巻き戻して二重に送る。
+
+取り出しは「送る時刻を過ぎた `pending` を古い順に選ぶ」と「`delivering` にして
+`attempts` を増やす」を 1 文で行う。1 回に 100 件まで取り、8 本の送り手が空いた順に
+1 件ずつ受け取って送る。取った行を渡し終えたら次を取り、何も無ければ 1 秒待つ。
+送れなかった行は間隔を空けて送り直し、投函から時間が経ちすぎた行は諦める。
+間隔と期限は `DeliveryRetryPolicy` が決める。
+
+同じ inbox で送り直せる失敗が 10 回続いたら、60 秒間はその inbox に送らず送り直し待ちへ回す
+（`DeliveryCircuitBreaker`）。取り出しで宛先を散らさないので、落ちている相手宛が同時に
+いくつも送られるのをここで抑える。
+
+送り直しを重ねて期限まで送れずに諦めたら、その宛先のドメインへの配信を止める（`domain_blocks`、理由は `unavailable`）。
+止めたドメイン宛ては投函の時点で行を入れず、既に積まれていた行は送る直前に諦める。
+そのドメインへの配信が成功するか、そのドメインのアクターから署名付きのリクエストが届いたら外す。
+Mastodon のドメインごとの「利用不可」と同じ条件で、失敗した日数は数えない。
+管理画面からは、配信と受信を選んで止められる（理由は `manual`）。こちらは自動では付け外ししない。
+受信を止めたドメインからの inbox は、鍵を取りに行く前に 202 で受け流す（`DomainBlockService`）。
+
+相手が「受け取らない」と決めた応答（401・408・429 を除く 4xx と 501）は送り直さずに諦める。
+消えた inbox に 7 日送り続けても届かない。落ちている・詰まっているだけの応答と、
+届かなかった場合は送り直す。区別は `DeliveryResult.Failed.retryable` が持つ。
+
+`Accept{Follow}`・`Delete{Note}`・`Delete{Actor}`・`Update{Actor}` はキューに載せず、今まで通りその場で送る。
+行の形は「署名するアカウント・宛先・送るボディ」と種別（`kind`）なので、載せるときに
+テーブルを作り直す必要は無い。
+
+## 起動時の流れ
+
+```mermaid
+sequenceDiagram
+    participant M as main
+    participant A as ActorKeyLoader
+    participant R as Repositories
+    participant DB as SQLite
+    participant K as Ktor CIO
+
+    Note over M: 環境変数を読む（DOMAIN が無ければここで落ちる）
+    M->>A: load
+    A->>A: PEM を読む（ファイルが無ければ生成して書き出す）
+    M->>R: createRepositories
+    R->>DB: 接続して PRAGMA を適用
+    M->>K: embeddedServer で起動
+    K->>M: module を実行
+    M->>R: verifyWritable
+    R->>DB: health_check に書いて読み戻す
+    Note over K: リクエスト受付開始
+    Note over M: ServerReady で配信ワーカーを始める
+```
+
+スキーマの適用は起動時にはやらない。実 DB へは sqlite3def で手適用する運用で、
+適用していない DB（空の DB を含む）で起動すると `verifyWritable` が
+`no such table` で落ちる。適用のしかたは `db/schema.sql` と同じ場所の README を参照。
+
+DB を開けなかった場合もスキーマが無い場合も、この時点で例外になって
+起動が止まる。native バイナリでは SQLite のネイティブライブラリの展開に失敗しても
+起動自体は通ってしまうことがあるため、書き込みの往復まで確かめている。
+
+鍵は DB より先に読む。鍵を用意できないならサーバーを立てても意味が無いので、
+先に落とすため。`DOMAIN` が無い場合も同じ理由でそれより前に落ちる。
+
+ログは slf4j-simple で標準エラーに出る。SLF4J の実装を入れていないと Ktor 自身の
+ログも含めて何も出ないため、実装を 1 つだけ入れている。logback にしないのは、
+設定ファイルの読み込みに native-image 側の追加対応が要るため。

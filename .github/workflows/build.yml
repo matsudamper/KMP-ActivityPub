@@ -1,0 +1,303 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  ktlint:
+    name: ktlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: setup JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # 違反があればここで落とす。直し方は ./gradlew ktlintFormat
+      - name: ktlintCheck
+        run: ./gradlew ktlintCheck
+
+  detekt:
+    name: detekt
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: setup JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: detektCheck
+        run: ./gradlew detektCheck
+
+  backend:
+    name: backend test
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: setup JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # build ではなく test にしているのは、build に付いてくる ktlintCheck が
+      # ktlint ジョブと重複し、application プラグインの distZip / distTar も
+      # 作られるため。配布は native-image なのでアーカイブは使わない
+      - name: test
+        run: ./gradlew test
+
+  frontend:
+    name: build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: setup JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: Wasm バンドルのビルド
+        run: ./gradlew :frontend:wasmJsBrowserDistribution
+
+      - name: 成果物の確認
+        run: |
+          set -euo pipefail
+
+          DIST=frontend/build/dist/wasmJs/productionExecutable
+          ls -la "$DIST"
+          test -f "$DIST/index.html"
+          ls "$DIST"/*.wasm > /dev/null
+
+          BUNDLE=$(sed -n 's|.*<script src="/\(frontend\.[0-9a-f]\{1,\}\.js\)".*|\1|p' "$DIST/index.html")
+          test -f "$DIST/$BUNDLE"
+
+  android:
+    name: build android
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: setup JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: APK のビルド
+        run: ./gradlew :android:assembleDebug
+
+  native-test:
+    name: native backend test
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: setup GraalVM
+        uses: graalvm/setup-graalvm@0426e2e191540e8514dff98dc52a5f5146a2a276 # v1.6.6
+        with:
+          java-version: "25"
+          distribution: "graalvm"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: setup Gradle
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # JCA が native-image 上で動くかは JVM のテストでは分からないので、
+      # テストごと native バイナリにして実行する
+      - name: crypto の native テスト
+        run: ./gradlew :backend:crypto:nativeTest
+
+  native-image:
+    name: native-image build
+    runs-on: ubuntu-latest
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: GraalVM のセットアップ
+        uses: graalvm/setup-graalvm@0426e2e191540e8514dff98dc52a5f5146a2a276 # v1.6.6
+        with:
+          java-version: "25"
+          distribution: "graalvm"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gradle のセットアップ
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      - name: native-image ビルド
+        run: ./gradlew :backend:nativeCompile
+
+      - name: 起動確認
+        run: |
+          set -euo pipefail
+
+          # 起動時のスキーマ自動適用は無い（実運用では sqlite3def で手適用する）
+          export DB_PATH="$RUNNER_TEMP/native-check/kmp-activitypub.db"
+          mkdir -p "$(dirname "$DB_PATH")"
+          sqlite3 "$DB_PATH" < backend/repository/src/main/resources/db/schema.sql
+
+          export ACTOR_PRIVATE_KEY_PATH="$RUNNER_TEMP/native-check/actor-private-key.pem"
+          # パスワードは ci-password。このジョブの中でしか使わない使い捨て
+          export ADMIN_PASSWORD_HASH='pbkdf2-sha256:210000:HP9l044PxKN0LJhMy5GyrQ:tWTwqvZDQgC75D39BMPPm2TvA3F9S3bUP1-XyH5l4HQ'
+          # http で叩くので、Secure を付けると Cookie の確認ができない
+          export COOKIE_SECURE=false
+          export DOMAIN=example.com
+
+          ./backend/build/native/nativeCompile/kmp-activitypub > /tmp/server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:8080/healthz -o /tmp/response.txt; then
+              break
+            fi
+            sleep 1
+          done
+
+          if ! grep -q '"status":"ok"' /tmp/response.txt 2>/dev/null; then
+            echo "::error::サーバーの起動確認に失敗しました"
+            cat /tmp/server.log
+            exit 1
+          fi
+
+          gql() {
+            curl -sf -X POST -H 'Content-Type: application/json' "$@" http://localhost:8080/graphql
+          }
+
+          # graphql-java が native-image で動くか、スキーマが同梱されているかは
+          # JVM のテストでは分からない
+          echo "--- 管理画面のログイン ---"
+          gql -D /tmp/admin-login-headers.txt \
+            -d '{"query":"mutation Login($password: String!) { admin { login(password: $password) { session { loggedIn } failure } } }","variables":{"password":"ci-password"}}' \
+            -o /tmp/admin-login.json
+          cat /tmp/admin-login.json
+          grep -q '"loggedIn":true' /tmp/admin-login.json
+          ADMIN_COOKIE="$(grep -io 'admin_session=[^;]*' /tmp/admin-login-headers.txt | head -n 1)"
+
+          # input object は kickstart が Jackson で組み立てる。native-image で落ちると errors になる
+          echo "--- ユーザーの登録 ---"
+          gql -H "Cookie: $ADMIN_COOKIE" \
+            -d '{"query":"mutation Add($query: AddUserQuery!) { admin { addUser(query: $query) { adminAccount { acct createdAt } failure { isDuplicated } } } }","variables":{"query":{"username":"ci-user","password":"ci-user-password"}}}' \
+            -o /tmp/add-user.json
+          cat /tmp/add-user.json
+          grep -q '"acct":"@ci-user@example.com"' /tmp/add-user.json
+
+          # WebFinger と Actor は @SerialName とカスタム serializer を通る
+          echo "--- WebFinger ---"
+          curl -sf "http://localhost:8080/.well-known/webfinger?resource=acct:ci-user@example.com" -o /tmp/webfinger.json
+          cat /tmp/webfinger.json
+          grep -q '"subject":"acct:ci-user@example.com"' /tmp/webfinger.json
+
+          echo "--- Actor ---"
+          curl -sf -H 'Accept: application/activity+json' http://localhost:8080/users/ci-user -o /tmp/actor.json
+          cat /tmp/actor.json
+          grep -q 'BEGIN PUBLIC KEY' /tmp/actor.json
+
+          echo "--- inbox は署名が無ければ 401 ---"
+          test "$(curl -s -o /dev/null -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/activity+json' \
+            -d '{"type":"Follow"}' \
+            "http://localhost:8080/users/ci-user/inbox")" = "401"
+
+          # PBKDF2 の照合と、DB に置くセッションを通す
+          echo "--- ユーザーのログイン ---"
+          gql -D /tmp/user-login-headers.txt \
+            -d '{"query":"mutation Login($query: UserLoginQuery!) { user { login(query: $query) { session { account { acct } } failure } } }","variables":{"query":{"username":"ci-user","password":"ci-user-password"}}}' \
+            -o /tmp/user-login.json
+          cat /tmp/user-login.json
+          grep -q '"failure":null' /tmp/user-login.json
+          USER_COOKIE="$(grep -io 'user_session=[^;]*' /tmp/user-login-headers.txt | head -n 1)"
+
+          # PublicNoteId の scalar と、投稿の記録・投函まで通す
+          echo "--- 投稿 ---"
+          gql -H "Cookie: $USER_COOKIE" \
+            -d '{"query":"mutation Post($body: String!) { user { postNote(body: $body) { note { id url } failure { isEmpty } } } }","variables":{"body":"ci"}}' \
+            -o /tmp/post-note.json
+          cat /tmp/post-note.json
+          grep -q '"failure":null' /tmp/post-note.json
+
+          NOTE_URL="$(python3 -c "import json; print(json.load(open('/tmp/post-note.json'))['data']['user']['postNote']['note']['url'])")"
+          NOTE_PATH="/${NOTE_URL#https://example.com/}"
+          echo "--- Note ---"
+          curl -sf -H 'Accept: application/activity+json' "http://localhost:8080$NOTE_PATH" -o /tmp/note.json
+          cat /tmp/note.json
+          grep -q '"type":"Note"' /tmp/note.json
+
+          echo "--- ログインしていなければ投稿できない ---"
+          gql -d '{"query":"mutation { user { postNote(body: \"ci\") { failure { isEmpty } } } }"}' -o /tmp/post-anon.json
+          grep -q '"errors"' /tmp/post-anon.json
+
+      - name: DOMAIN が無ければ起動しないことの確認
+        run: |
+          set -euo pipefail
+
+          # 既定値で起動できてしまうと、間違ったドメインのアクター ID が
+          # Mastodon 側にキャッシュされて後から直せない
+          export DB_PATH="$RUNNER_TEMP/no-domain/kmp-activitypub.db"
+          export ACTOR_PRIVATE_KEY_PATH="$RUNNER_TEMP/no-domain/actor-private-key.pem"
+
+          set +e
+          timeout 30 ./backend/build/native/nativeCompile/kmp-activitypub > /tmp/no-domain.log 2>&1
+          STATUS=$?
+          set -e
+
+          cat /tmp/no-domain.log
+
+          if [ "$STATUS" -eq 0 ] || [ "$STATUS" -eq 124 ]; then
+            echo "::error::DOMAIN が無いのに起動してしまった (exit: $STATUS)"
+            exit 1
+          fi
+
+          grep -q "DOMAIN" /tmp/no-domain.log
+
+  build-all-success:
+    name: build-all-success
+    needs: [ktlint, detekt, backend, frontend, android, native-test, native-image]
+    # needs のジョブが落ちるとこのジョブ自体が skipped になり、必須チェックとしては通ってしまう。
+    # 常に動かして needs の結果を見る
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+        run: exit 1

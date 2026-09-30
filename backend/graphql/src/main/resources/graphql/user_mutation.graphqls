@@ -1,0 +1,54 @@
+type UserMutation {
+    "通るとセッションの Cookie が返る"
+    login(query: UserLoginQuery!): UserLoginResult! @lazy
+
+    "サーバー側のセッションも消える"
+    logout: UserSession! @lazy
+
+    "ログイン中のユーザーとして投稿し、フォロワーへの配信をキューに入れる。相手に届くのはこの後"
+    postNote(body: String!): UserPostNoteResult! @lazy
+}
+
+input UserLoginQuery {
+    username: String!
+    password: String!
+}
+
+type UserLoginResult {
+    session: UserSession!
+    failure: UserLoginFailure
+}
+
+enum UserLoginFailure {
+    "ユーザーがいないか、パスワードが違う。どちらかは教えない"
+    WRONG_USERNAME_OR_PASSWORD
+}
+
+type UserPostNoteResult {
+    "記録できていれば入る。配信はこの後キューから行う"
+    note: UserNote
+
+    "投稿できなかった場合だけ入る"
+    failure: UserPostNoteFailure
+}
+
+"配信した投稿 1 件"
+type UserNote {
+    id: PublicNoteId!
+
+    "投稿の URL。相手はここをパーマリンクとして開く"
+    url: String!
+
+    "配信した本文の HTML"
+    contentHtml: String!
+
+    publishedAt: UnixTime!
+}
+
+type UserPostNoteFailure {
+    "本文が空"
+    isEmpty: Boolean!
+
+    "文字数の上限を超えている場合の上限"
+    maxLength: Int
+}

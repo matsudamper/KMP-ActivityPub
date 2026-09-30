@@ -1,0 +1,48 @@
+query UserSession {
+    user {
+        session {
+            ...UserSessionFields
+        }
+    }
+}
+
+fragment UserSessionFields on UserSession {
+    account {
+        username
+        acct
+    }
+}
+
+mutation UserLogin($query: UserLoginQuery!) {
+    user {
+        login(query: $query) {
+            session {
+                ...UserSessionFields
+            }
+            failure
+        }
+    }
+}
+
+mutation UserLogout {
+    user {
+        logout {
+            ...UserSessionFields
+        }
+    }
+}
+
+mutation UserPostNote($body: String!) {
+    user {
+        postNote(body: $body) {
+            note {
+                id
+                url
+            }
+            failure {
+                isEmpty
+                maxLength
+            }
+        }
+    }
+}
