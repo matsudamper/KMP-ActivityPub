@@ -27,8 +27,8 @@ import io.ktor.client.statement.readRawBytes
  * フォントのファイルを静的ファイルと一緒に配信し、起動後に取ってきて
  * [FontFamily] を組み立てる。`index.html` の `@font-face` では canvas に効かない。
  *
- * ファイルは `frontend/src/wasmJsMain/resources/fonts/` に置いてある。
- * 成果物に入るので `STATIC_SRC_DIR` 配下に出て、`:backend` が `/fonts/...` で返す。
+ * ファイルは `frontend/src/wasmJsMain/resources/fonts/` に置いてあり、成果物と同じオリジンの
+ * `/fonts/...` から取れる前提で読む。
  *
  * 太さは 3 つだけ入れている。1 ファイル 5MB 台で、参考にした kake-bo のように
  * 9 つ全部入れると 50MB になる。無い太さは Compose が近いものに寄せるので、
