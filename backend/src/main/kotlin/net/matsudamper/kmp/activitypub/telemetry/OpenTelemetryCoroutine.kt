@@ -8,7 +8,7 @@ import kotlinx.coroutines.withContext
 import io.opentelemetry.context.Context
 import io.opentelemetry.extension.kotlin.asContextElement
 
-suspend fun <T> withOpenTelemetryContext(
+internal suspend fun <T> withOpenTelemetryContext(
     dispatcher: CoroutineDispatcher = Dispatchers.IO,
     block: suspend CoroutineScope.() -> T,
 ): T = withContext(dispatcher + Context.current().asContextElement(), block)

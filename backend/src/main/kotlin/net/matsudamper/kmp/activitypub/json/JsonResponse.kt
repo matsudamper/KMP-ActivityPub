@@ -22,7 +22,7 @@ import net.matsudamper.activitypub.json.AppJson
  * @param serializer 値のシリアライザ。`Foo.serializer()` で取れる
  * @param contentType 返す Content-Type
  */
-suspend fun <T> ApplicationCall.respondJson(
+internal suspend fun <T> ApplicationCall.respondJson(
     serializer: SerializationStrategy<T>,
     value: T,
     contentType: ContentType = ContentType.Application.Json,
