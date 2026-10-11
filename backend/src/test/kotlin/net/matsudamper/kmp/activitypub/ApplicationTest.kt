@@ -30,6 +30,19 @@ class ApplicationTest {
         }
 
     @Test
+    fun `hello で Hello World を返す`() =
+        testApplication {
+            application {
+                module(testDependencies())
+            }
+
+            val response = client.get("/hello")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("Hello World", response.bodyAsText())
+        }
+
+    @Test
     fun `ActivityPub のエンドポイントが組み込まれている`() =
         testApplication {
             val repositories = FakeRepositories()

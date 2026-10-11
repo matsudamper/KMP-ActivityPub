@@ -47,8 +47,8 @@ class ServerEnvTest {
     }
 
     @Test
-    fun `数値でない PORT は既定値に落ちる`() {
-        assertEquals(8080, env("PORT" to "ポート").port)
+    fun `PORT が数値でなければ起動しない`() {
+        assertFailsWith<NumberFormatException> { env("PORT" to "808O") }
     }
 
     @Test

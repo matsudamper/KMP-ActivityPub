@@ -8,7 +8,9 @@ import kotlin.io.path.writeText
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import io.ktor.http.ContentType
 
 class StaticFilesTest {
@@ -116,6 +118,37 @@ class StaticFilesTest {
     }
 
     private fun staticFiles(): StaticFiles = StaticFiles(root)
+
+    @Test
+    fun `外を指すシンボリックリンクは配信しない`() {
+        putFile("index.html", "<html></html>")
+        val secret = base.resolve("secret.txt").apply { writeText("secret") }
+        Files.createSymbolicLink(root.resolve("link.txt"), secret)
+        Files.createSymbolicLink(root.resolve("linked-dir"), base)
+
+        assertNull(staticFiles().resolve(listOf("link.txt")))
+        assertNull(staticFiles().resolve(listOf("linked-dir", "secret.txt")))
+    }
+
+    @Test
+    fun `外を指す index html は返さない`() {
+        val outside = base.resolve("outside.html").apply { writeText("<html></html>") }
+        Files.createSymbolicLink(root.resolve("index.html"), outside)
+
+        assertNull(staticFiles().index())
+        assertNull(staticFiles().resolve(listOf("admin")))
+    }
+
+    @Test
+    fun `内容のハッシュを含む JS と wasm の名前だけをハッシュ付きとみなす`() {
+        assertTrue(StaticFiles.isContentHashedName("frontend.0123456789abcdef.js"))
+        assertTrue(StaticFiles.isContentHashedName("0a5c250505a8cc7f74ca.wasm"))
+
+        assertFalse(StaticFiles.isContentHashedName("frontend.js"))
+        assertFalse(StaticFiles.isContentHashedName("app.wasm"))
+        assertFalse(StaticFiles.isContentHashedName("index.html"))
+        assertFalse(StaticFiles.isContentHashedName("0123456789abcdef.css"))
+    }
 
     private fun putFile(
         relativePath: String,

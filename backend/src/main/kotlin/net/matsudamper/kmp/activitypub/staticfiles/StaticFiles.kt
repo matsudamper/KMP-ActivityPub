@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.staticfiles
 
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -25,7 +26,7 @@ class StaticFiles(
     /**
      * 画面を出すための [INDEX_FILE_NAME]。置かれていなければ null
      */
-    fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { Files.isRegularFile(it) }
+    fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { isServableFile(it) }
 
     /**
      * 返すファイルを決める。見つからなければ null。
@@ -36,13 +37,27 @@ class StaticFiles(
         val safeSegments = safeSegments(segments) ?: return null
 
         val requested = fileOf(safeSegments) ?: return null
-        if (Files.isRegularFile(requested)) return requested
+        if (isServableFile(requested)) return requested
 
         // 拡張子のあるパスは index.html に落とさない。落とすと .js や .wasm の
         // 読み込み失敗が 200 + HTML になり、画面が真っ白になった理由を追えなくなる
         if (safeSegments.lastOrNull()?.contains('.') == true) return null
 
         return index()
+    }
+
+    /**
+     * 字句上の [root] 配下の確認だけでは、配下に置かれたシンボリックリンクから外のファイルを返してしまう。
+     * リンクを解決した実体も root の実体の配下にあるものだけを返す
+     */
+    private fun isServableFile(path: Path): Boolean {
+        if (!Files.isRegularFile(path)) return false
+
+        return try {
+            path.toRealPath().startsWith(root.toRealPath())
+        } catch (_: IOException) {
+            false
+        }
     }
 
     private fun fileOf(safeSegments: List<String>): Path? {
@@ -56,8 +71,7 @@ class StaticFiles(
                 return null
             }
 
-        // セグメント単位で弾いた上での二重の確認。シンボリックリンクは辿るが、
-        // 置いたのは配信する側なので、ここでは考慮しない
+        // セグメント単位で弾いた上での二重の確認。シンボリックリンクの行き先は isServableFile で確かめる
         return resolved.takeIf { it.startsWith(root) }
     }
 
@@ -80,6 +94,12 @@ class StaticFiles(
 
     companion object {
         const val INDEX_FILE_NAME: String = "index.html"
+
+        // 内容が変わると名前も変わるので、同じ名前のまま中身が変わらない。
+        // 固定名のファイルに長期キャッシュを付けると、再デプロイ後も古いものが使われ続ける
+        private val CONTENT_HASHED_NAME = Regex("""^(?:.+\.)?[0-9a-f]{16,}\.(?:js|wasm)$""")
+
+        fun isContentHashedName(fileName: String): Boolean = CONTENT_HASHED_NAME.matches(fileName)
 
         /**
          * 拡張子から Content-Type を決める。

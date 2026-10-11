@@ -34,9 +34,9 @@ class ServerEnv(
         }
 
     /**
-     * 待ち受けポート。数値でなければ既定値に落とす
+     * 待ち受けポート。数値でなければ起動しない
      */
-    val port: Int = env["PORT"]?.trim()?.toIntOrNull() ?: 8080
+    val port: Int = env["PORT"]?.trim()?.takeIf { it.isNotEmpty() }?.toInt() ?: 8080
 
     /**
      * 外部に公開するドメイン。WebFinger の `acct:` と Actor の `id` に使う。

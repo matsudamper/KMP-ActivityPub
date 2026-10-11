@@ -7,6 +7,7 @@ import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
@@ -160,6 +161,9 @@ internal fun Application.module(deps: AppDependencies) {
     routing {
         get("/healthz") {
             call.respondJson(HealthResponse.serializer(), HealthResponse(status = "ok"))
+        }
+        get("/hello") {
+            call.respondText("Hello World")
         }
 
         // Mastodon はこの 2 つを WebFinger → Actor の順に引いてアカウントを見つける
