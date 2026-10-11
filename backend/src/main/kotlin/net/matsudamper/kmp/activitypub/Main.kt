@@ -35,7 +35,7 @@ internal fun Application.module(staticFiles: StaticFiles?) {
     } else {
         log.info(
             "STATIC_SRC_DIR が未設定またはディレクトリが存在しないため、静的ファイルを配信しない。" +
-                "画面を出すには :frontend:app-web の成果物を置いたディレクトリを指定する",
+                "画面を出すには画面の配布物を置いたディレクトリを指定する",
         )
     }
 
