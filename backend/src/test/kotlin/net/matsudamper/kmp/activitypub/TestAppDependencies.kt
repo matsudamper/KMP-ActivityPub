@@ -15,7 +15,7 @@ import net.matsudamper.kmp.activitypub.repository.Repositories
  * ルーティングのテストが必要とするのは大抵 1 つか 2 つなので、
  * 全部を毎回並べると何を差し替えたのかが埋もれる。
  */
-fun testDependencies(
+internal fun testDependencies(
     repositories: Repositories = FakeRepositories(),
     actorKey: ActorKey = TestActorKey.value,
     env: ServerEnv = TestServerEnv.value,
