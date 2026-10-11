@@ -23,5 +23,6 @@ dependencyResolutionManagement {
     }
 }
 
+include(":backend")
 include(":frontend:app-web")
 include(":frontend:app-android")
