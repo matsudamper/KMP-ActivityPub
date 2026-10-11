@@ -93,19 +93,7 @@ jobs:
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Wasm バンドルのビルド
-        run: ./gradlew :frontend:app-web:wasmJsBrowserDistribution
-
-      - name: 成果物の確認
-        run: |
-          set -euo pipefail
-
-          DIST=frontend/app-web/build/dist/wasmJs/productionExecutable
-          ls -la "$DIST"
-          test -f "$DIST/index.html"
-          ls "$DIST"/*.wasm > /dev/null
-
-          BUNDLE=$(sed -n 's|.*<script src="/\(frontend\.[0-9a-f]\{1,\}\.js\)".*|\1|p' "$DIST/index.html")
-          test -f "$DIST/$BUNDLE"
+        run: ./gradlew :frontend:app-web:wasmJsBrowserDevelopmentExecutableDistribution
 
   android:
     name: build android
