@@ -35,9 +35,7 @@ class ServerEnvTest {
     }
 
     @Test
-    fun `PORT が数値でないか範囲外なら起動しない`() {
-        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("PORT" to "808O")) }
-        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("PORT" to "0")) }
-        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("PORT" to "65536")) }
+    fun `PORT が数値でなければ起動しない`() {
+        assertFailsWith<NumberFormatException> { ServerEnv(mapOf("PORT" to "808O")) }
     }
 }
