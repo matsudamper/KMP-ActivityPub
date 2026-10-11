@@ -1,24 +1,19 @@
-FROM eclipse-temurin:25-jdk AS build
-WORKDIR /build
-
-COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
-COPY gradle gradle
-COPY build-logic build-logic
-# settings.gradle.kts が include するプロジェクトのディレクトリが無いと、Gradle 9 は構成の時点で落ちる
-COPY frontend frontend
-COPY backend backend
-
-RUN ./gradlew :backend:installDist --no-daemon
-
-FROM eclipse-temurin:25-jre
+# ビルドは外部（CI など）で済ませ、成果物だけを詰める。事前に次を実行しておくこと。
+# ./gradlew :backend:distTar :frontend:app-web:wasmJsBrowserDistribution
+FROM amazoncorretto:25-alpine
 WORKDIR /app
 
-RUN useradd --system --no-create-home --shell /usr/sbin/nologin app
+RUN adduser -S -H -s /sbin/nologin app
 
-COPY --from=build /build/backend/build/install/backend /app
+COPY frontend/app-web/build/dist/wasmJs/productionExecutable static
+
+COPY backend/build/distributions/backend.tar backend.tar
+RUN tar -xf backend.tar && rm backend.tar
 
 USER app
 
+ENV STATIC_SRC_DIR=/app/static
+
 EXPOSE 8080
 
-ENTRYPOINT ["/app/bin/backend"]
+ENTRYPOINT ["/app/backend/bin/backend"]
