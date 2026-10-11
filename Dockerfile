@@ -1,5 +1,3 @@
-# ビルドは外部（CI など）で済ませ、成果物だけを詰める。事前に次を実行しておくこと。
-# ./gradlew :backend:distTar :frontend:app-web:wasmJsBrowserDistribution
 FROM amazoncorretto:25-alpine
 WORKDIR /app
 
