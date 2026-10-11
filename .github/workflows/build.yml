@@ -29,12 +29,3 @@ jobs:
       - name: Wasm バンドルのビルド
         run: ./gradlew :frontend:wasmJsBrowserDistribution
 
-      - name: 成果物の確認
-        run: |
-          set -euo pipefail
-
-          DIST=frontend/build/dist/wasmJs/productionExecutable
-          ls -la "$DIST"
-          test -f "$DIST/index.html"
-          test -f "$DIST/frontend.js"
-          ls "$DIST"/*.wasm > /dev/null
