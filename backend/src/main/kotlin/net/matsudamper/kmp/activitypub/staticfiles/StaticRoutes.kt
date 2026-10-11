@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.staticfiles
 
-import kotlin.io.path.extension
 import kotlin.io.path.name
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -15,8 +14,6 @@ private const val NO_STATIC_FILES_MESSAGE: String = "静的ファイルの配信
 private const val INDEX_CACHE_CONTROL: String = "no-store"
 
 internal fun Route.staticRoutes(staticFiles: StaticFiles?) {
-    val hashedNameExtensions = setOf("js", "wasm")
-
     get("/{path...}") {
         if (staticFiles == null) {
             call.respondText(NO_STATIC_FILES_MESSAGE, status = HttpStatusCode.NotFound)
@@ -36,7 +33,7 @@ internal fun Route.staticRoutes(staticFiles: StaticFiles?) {
                 call.response.header(HttpHeaders.CacheControl, INDEX_CACHE_CONTROL)
             }
 
-            file.fileName.extension in hashedNameExtensions -> {
+            StaticFiles.isContentHashedName(file.fileName.name) -> {
                 call.response.header(HttpHeaders.CacheControl, "public, max-age=31536000, immutable")
             }
         }

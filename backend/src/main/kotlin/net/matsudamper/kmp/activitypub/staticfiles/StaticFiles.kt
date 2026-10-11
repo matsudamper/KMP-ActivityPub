@@ -52,6 +52,12 @@ class StaticFiles(
     companion object {
         const val INDEX_FILE_NAME: String = "index.html"
 
+        // 内容が変わると名前も変わるので、同じ名前のまま中身が変わらない。
+        // 固定名のファイルに長期キャッシュを付けると、再デプロイ後も古いものが使われ続ける
+        private val CONTENT_HASHED_NAME = Regex("""^(?:.+\.)?[0-9a-f]{16,}\.(?:js|wasm)$""")
+
+        fun isContentHashedName(fileName: String): Boolean = CONTENT_HASHED_NAME.matches(fileName)
+
         fun contentTypeOf(fileName: String): ContentType =
             when (fileName.substringAfterLast('.', "").lowercase()) {
                 "html" -> ContentType.Text.Html

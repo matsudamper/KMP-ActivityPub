@@ -65,4 +65,15 @@ class StaticFilesTest {
         assertNull(staticFiles.resolve(listOf("..", "secret.txt")))
         assertNull(staticFiles.resolve(listOf("assets", "..", "..", "secret.txt")))
     }
+
+    @Test
+    fun `内容のハッシュを含む JS と wasm の名前だけをハッシュ付きとみなす`() {
+        assertTrue(StaticFiles.isContentHashedName("frontend.0123456789abcdef.js"))
+        assertTrue(StaticFiles.isContentHashedName("0a5c250505a8cc7f74ca.wasm"))
+
+        assertFalse(StaticFiles.isContentHashedName("frontend.js"))
+        assertFalse(StaticFiles.isContentHashedName("app.wasm"))
+        assertFalse(StaticFiles.isContentHashedName("index.html"))
+        assertFalse(StaticFiles.isContentHashedName("0123456789abcdef.css"))
+    }
 }
