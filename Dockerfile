@@ -3,6 +3,7 @@ WORKDIR /build
 
 COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle gradle
+COPY build-logic build-logic
 # settings.gradle.kts が include するプロジェクトのディレクトリが無いと、Gradle 9 は構成の時点で落ちる
 COPY frontend frontend
 COPY backend backend

@@ -1,6 +1,8 @@
 rootProject.name = "kmp-activitypub"
 
 pluginManagement {
+    includeBuild("build-logic")
+
     repositories {
         gradlePluginPortal()
         mavenCentral()
