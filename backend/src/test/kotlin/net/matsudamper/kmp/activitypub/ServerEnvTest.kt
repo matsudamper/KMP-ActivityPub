@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub
 import kotlin.io.path.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class ServerEnvTest {
@@ -31,5 +32,12 @@ class ServerEnvTest {
         assertEquals("127.0.0.1", env.host)
         assertEquals(9000, env.port)
         assertEquals(Path("/srv/static"), env.staticSrcDir)
+    }
+
+    @Test
+    fun `PORT が数値でないか範囲外なら起動しない`() {
+        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("PORT" to "808O")) }
+        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("PORT" to "0")) }
+        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("PORT" to "65536")) }
     }
 }
