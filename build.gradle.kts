@@ -17,11 +17,12 @@ tasks.register("compileAll") {
     dependsOn(
         allprojects.map { project ->
             project.tasks.matching { task ->
-                task.name.startsWith("compileKotlin") ||
-                    task.name.startsWith("compileTestKotlin") ||
-                    task.name == "compileAndroidMain" ||
-                    task.name == "compileDebugKotlin" ||
-                    task.name in listOf("compileJava", "compileTestJava")
+                val isSourceCompile =
+                    task.name.startsWith("compile") &&
+                        (task.name.contains("Kotlin") || task.name.endsWith("Java"))
+                // Wasm の実行バイナリを作るリンクと最適化は重く、コンパイルの確認には要らない
+                val isWasmExecutableLink = task.name.contains("Executable")
+                (isSourceCompile && !isWasmExecutableLink) || task.name == "compileAndroidMain"
             }
         },
     )
