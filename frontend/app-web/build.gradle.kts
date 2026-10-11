@@ -1,9 +1,11 @@
+import net.matsudamper.kmp.activitypub.gradle.WebpackBundleHashPlugin
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
+    id("kmp-activitypub.webpack-bundle-hash")
 }
 
 kotlin {
@@ -11,7 +13,7 @@ kotlin {
     wasmJs {
         browser {
             commonWebpackConfig {
-                outputFileName = "frontend.js"
+                outputFileName = WebpackBundleHashPlugin.BUNDLE_FILE_NAME
             }
         }
         binaries.executable()
