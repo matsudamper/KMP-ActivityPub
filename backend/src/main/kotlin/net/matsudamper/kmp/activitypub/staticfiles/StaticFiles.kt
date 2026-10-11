@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.staticfiles
 
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -12,17 +13,31 @@ class StaticFiles(
 
     fun isAvailable(): Boolean = Files.isDirectory(root)
 
-    fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { Files.isRegularFile(it) }
+    fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { isServableFile(it) }
 
     fun resolve(segments: List<String>): Path? {
         val safeSegments = safeSegments(segments) ?: return null
 
         val requested = fileOf(safeSegments) ?: return null
-        if (Files.isRegularFile(requested)) return requested
+        if (isServableFile(requested)) return requested
 
         if (safeSegments.lastOrNull()?.contains('.') == true) return null
 
         return index()
+    }
+
+    /**
+     * 字句上の [root] 配下の確認だけでは、配下に置かれたシンボリックリンクから外のファイルを返してしまう。
+     * リンクを解決した実体も root の実体の配下にあるものだけを返す
+     */
+    private fun isServableFile(path: Path): Boolean {
+        if (!Files.isRegularFile(path)) return false
+
+        return try {
+            path.toRealPath().startsWith(root.toRealPath())
+        } catch (_: IOException) {
+            false
+        }
     }
 
     private fun fileOf(safeSegments: List<String>): Path? {

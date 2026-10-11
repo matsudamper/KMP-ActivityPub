@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.staticfiles
 
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
@@ -75,5 +76,29 @@ class StaticFilesTest {
         assertFalse(StaticFiles.isContentHashedName("app.wasm"))
         assertFalse(StaticFiles.isContentHashedName("index.html"))
         assertFalse(StaticFiles.isContentHashedName("0123456789abcdef.css"))
+    }
+
+    @Test
+    fun `外を指すシンボリックリンクは配信しない`(@TempDir tempDir: Path) {
+        val publicDir = tempDir.resolve("public").apply { createDirectories() }
+        publicDir.resolve("index.html").writeText("<html></html>")
+        val secret = tempDir.resolve("secret.txt").apply { writeText("secret") }
+        Files.createSymbolicLink(publicDir.resolve("link.txt"), secret)
+        Files.createSymbolicLink(publicDir.resolve("linked-dir"), tempDir)
+
+        val staticFiles = StaticFiles(publicDir)
+        assertNull(staticFiles.resolve(listOf("link.txt")))
+        assertNull(staticFiles.resolve(listOf("linked-dir", "secret.txt")))
+    }
+
+    @Test
+    fun `外を指す index html は返さない`(@TempDir tempDir: Path) {
+        val publicDir = tempDir.resolve("public").apply { createDirectories() }
+        val outside = tempDir.resolve("outside.html").apply { writeText("<html></html>") }
+        Files.createSymbolicLink(publicDir.resolve("index.html"), outside)
+
+        val staticFiles = StaticFiles(publicDir)
+        assertNull(staticFiles.index())
+        assertNull(staticFiles.resolve(listOf("admin")))
     }
 }
