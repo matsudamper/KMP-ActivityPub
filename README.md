@@ -69,17 +69,17 @@ DB のスキーマは起動時に適用しない。先に sqlite3def などで `
 
 ```sh
 # 開発サーバー（http://localhost:8081、ホットリロードあり）
-./gradlew :frontend:wasmJsBrowserDevelopmentRun
+./gradlew :frontend:app-web:wasmJsBrowserDevelopmentRun
 
-# production 用の配布物（frontend/build/dist/wasmJs/productionExecutable/）
-./gradlew :frontend:wasmJsBrowserDistribution
+# production 用の配布物（frontend/app-web/build/dist/wasmJs/productionExecutable/）
+./gradlew :frontend:app-web:wasmJsBrowserDistribution
 ```
 
 backend から画面を出すときは、配布物のディレクトリを `STATIC_SRC_DIR` に渡す。
 
 ```sh
 DOMAIN=example.com \
-STATIC_SRC_DIR=frontend/build/dist/wasmJs/productionExecutable \
+STATIC_SRC_DIR=frontend/app-web/build/dist/wasmJs/productionExecutable \
 ADMIN_PASSWORD_HASH='pbkdf2-sha256:...' \
 COOKIE_SECURE=false \
   ./gradlew :backend:run
@@ -88,7 +88,7 @@ COOKIE_SECURE=false \
 ### Android
 
 ```sh
-./gradlew :android:assembleDebug
+./gradlew :frontend:app-android:assembleDebug
 ```
 
 初回起動で接続先のサーバーの URL を入れる。ログインの Cookie はアプリに残るので、
@@ -147,13 +147,13 @@ COOKIE_SECURE=false \
 | `:backend:graphql` | GraphQL のスキーマと、そこから生成したモデル・リゾルバのインタフェース |
 | `:backend:repository` | SQLite への保存 |
 | `:shared` | backend と画面の両方から見る値 |
-| `:frontend` | Web アプリの入口 |
+| `:frontend:app-web` | Web アプリの入口 |
 | `:frontend:feature:home` | トップのカラム画面（Web と Android） |
 | `:frontend:feature:admin` | 管理画面（Web のみ） |
 | `:frontend:navigation` | Web の画面のパスと遷移の口 |
 | `:frontend:api` | GraphQL クライアント |
 | `:frontend:ui` | 画面部品 |
 | `:frontend:common-component` | HTML の input を載せる部品 |
-| `:android` | Android アプリ |
+| `:frontend:app-android` | Android アプリ |
 
 分け方の理由は [docs/architecture.md](docs/architecture.md) の「モジュールの分け方」を参照。

@@ -53,8 +53,8 @@ sqlite-jdbc と jOOQ も `implementation` で入れているため、JDBC と jO
 
 | モジュール | 持つもの |
 | --- | --- |
-| `:frontend` | Web アプリの入口。URL と画面の対応、画面遷移、フォントのように Web にしか無いもの |
-| `:android` | Android アプリ。接続先のサーバーの入力と、ログインの Cookie の保存 |
+| `:frontend:app-web` | Web アプリの入口。URL と画面の対応、画面遷移、フォントのように Web にしか無いもの |
+| `:frontend:app-android` | Android アプリ。接続先のサーバーの入力と、ログインの Cookie の保存 |
 | `:frontend:feature:home` | カラムを並べるトップ画面。いまは投稿カラム（ログインと投稿）だけ |
 | `:frontend:feature:admin` | 管理画面。Web だけが使い、Android アプリには入れない |
 | `:frontend:navigation` | Web の画面のパス（`Screen`）と、画面から遷移を頼む口（`Navigator`） |
@@ -68,8 +68,8 @@ sqlite-jdbc と jOOQ も `implementation` で入れているため、JDBC と jO
 JVM の依存が Kotlin/Wasm のビルドに混ざる。
 
 Android から見て要らないもの（管理画面、URL での画面遷移、Web のフォント）は
-`:android` の依存に入らない位置に置く。逆に Android にしか無いもの（OkHttp の Cookie の保存、
-SharedPreferences）は `:android` に閉じて、画面のモジュールには持ち込まない。
+`:frontend:app-android` の依存に入らない位置に置く。逆に Android にしか無いもの（OkHttp の Cookie の保存、
+SharedPreferences）は `:frontend:app-android` に閉じて、画面のモジュールには持ち込まない。
 `UserApi` が `ApolloClient` を受け取るのはこのため。Web は同じオリジンへ、Android は
 入力されたサーバーへ投げるクライアントを、それぞれの入口で作って渡す。
 
@@ -129,7 +129,7 @@ GraalVM は Gradle が配置する時点で `bin/native-image` のシンボリ�
 CI が叩くのは root の `ktlintCheck` だけなので、root の build.gradle.kts で
 繋いである。
 
-`:frontend` と `:backend` のビルドを繋がないのは、繋ぐとサーバーのテストが
+`:frontend:app-web` と `:backend` のビルドを繋がないのは、繋ぐとサーバーのテストが
 Kotlin/Wasm のツールチェイン（Node.js と yarn）に引きずられるため。wasm 側が
 壊れているとサーバーのテストも回せなくなる。配信は実行時のディレクトリを読む形にして、
 ビルドの依存を作らない。
@@ -160,7 +160,7 @@ Android アプリは URL を持たないので `Screen` を使わない。接続
 
 画面は canvas に描くので、ブラウザが持っているフォントも `@font-face` も効かない。
 日本語のフォントは静的ファイルと一緒に `/fonts/` で配信し、起動後に取ってきて
-`FontFamily` を組み立てる（`:frontend` の `ui/Font.kt`）。配信するファイルの置き場を
+`FontFamily` を組み立てる（`:frontend:app-web` の `ui/Font.kt`）。配信するファイルの置き場を
 画面ごとに分けず `STATIC_SRC_DIR` にまとめてあるのは、こういうものが入るため。
 
 ## 静的ファイルのキャッシュ
@@ -172,7 +172,7 @@ Android アプリは URL を持たないので `Screen` を使わない。接続
 既に消えた名前を取りに行って画面が出ない。入口だけ毎回取り直せば、そこから読むものは
 名前で決まるので、新旧が混ざることもない。
 
-JS の名前にハッシュを入れるのは `:frontend` の配布物を作るとき（`build-logic` の
+JS の名前にハッシュを入れるのは `:frontend:app-web` の配布物を作るとき（`build-logic` の
 `WebpackBundleHashPlugin`）で、`index.html` の `<script>` の参照も一緒に差し替える。
 dev server はこの経路を通らないため、ハッシュの無い名前のまま動く。
 

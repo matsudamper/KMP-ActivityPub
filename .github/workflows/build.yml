@@ -93,13 +93,13 @@ jobs:
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Wasm バンドルのビルド
-        run: ./gradlew :frontend:wasmJsBrowserDistribution
+        run: ./gradlew :frontend:app-web:wasmJsBrowserDistribution
 
       - name: 成果物の確認
         run: |
           set -euo pipefail
 
-          DIST=frontend/build/dist/wasmJs/productionExecutable
+          DIST=frontend/app-web/build/dist/wasmJs/productionExecutable
           ls -la "$DIST"
           test -f "$DIST/index.html"
           ls "$DIST"/*.wasm > /dev/null
@@ -124,7 +124,7 @@ jobs:
         uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: APK のビルド
-        run: ./gradlew :android:assembleDebug
+        run: ./gradlew :frontend:app-android:assembleDebug
 
   native-test:
     name: native backend test
