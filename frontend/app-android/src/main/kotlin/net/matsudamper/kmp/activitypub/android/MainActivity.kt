@@ -11,9 +11,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
+import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
@@ -33,6 +36,8 @@ class MainActivity : ComponentActivity() {
 private fun AndroidApp(modifier: Modifier = Modifier) {
     val backStack = rememberScreenBackStack(startScreen = Screen.Login)
     val navigator = remember(backStack) { Navigator(backStack) }
+    val applicationContext = LocalContext.current.applicationContext
+    val serverSettingStore = remember(applicationContext) { ServerSettingStore(applicationContext) }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
             NavDisplay(
@@ -40,7 +45,12 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                 onBack = { backStack.removeLastOrNull() },
                 entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
                 entryProvider = entryProvider {
-                    entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator) }
+                    entry<Screen.Login> {
+                        HomeFeatureScreens.Login(
+                            navigator = navigator,
+                            serverSettingUiState = rememberServerSettingUiState(serverSettingStore),
+                        )
+                    }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                     entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
                 },

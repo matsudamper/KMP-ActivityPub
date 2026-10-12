@@ -15,9 +15,53 @@ private fun LoginContentPreview() {
                 loginButtonEnabled = true,
                 listener = AndroidPreviewLoginListener,
             ),
+            serverSettingUiState = null,
         )
     }
 }
+
+@Preview
+@Composable
+private fun LoginContentServerSettingPreview() {
+    MaterialTheme {
+        LoginContent(
+            uiState = previewLoginUiState,
+            serverSettingUiState = ServerSettingUiState(
+                serverUrlText = "https://example.com",
+                dialog = null,
+                listener = AndroidPreviewServerSettingListener,
+            ),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LoginContentServerSettingDialogPreview() {
+    MaterialTheme {
+        LoginContent(
+            uiState = previewLoginUiState,
+            serverSettingUiState = ServerSettingUiState(
+                serverUrlText = "https://example.com",
+                dialog = previewServerSettingDialog,
+                listener = AndroidPreviewServerSettingListener,
+            ),
+        )
+    }
+}
+
+private val previewLoginUiState = LoginScreenUiState(
+    username = "kotlin",
+    password = "password",
+    loginButtonEnabled = true,
+    listener = AndroidPreviewLoginListener,
+)
+
+private val previewServerSettingDialog = ServerSettingUiState.Dialog(
+    serverUrl = "example.com/path",
+    serverUrlInputError = true,
+    saveButtonEnabled = true,
+)
 
 private object AndroidPreviewLoginListener : LoginScreenUiState.Listener {
     override fun onUsernameChanged(text: String) = Unit
@@ -25,4 +69,14 @@ private object AndroidPreviewLoginListener : LoginScreenUiState.Listener {
     override fun onPasswordChanged(text: String) = Unit
 
     override fun onClickLogin() = Unit
+}
+
+private object AndroidPreviewServerSettingListener : ServerSettingUiState.Listener {
+    override fun onClickChange() = Unit
+
+    override fun onServerUrlChanged(text: String) = Unit
+
+    override fun onClickSave() = Unit
+
+    override fun onDismissDialog() = Unit
 }

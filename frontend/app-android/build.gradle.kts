@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
     alias(libs.plugins.paparazzi)
+    alias(libs.plugins.protobuf)
 }
 
 android {
@@ -38,6 +39,21 @@ android {
     }
 }
 
+protobuf {
+    protoc {
+        artifact = libs.protobuf.protoc.get().toString()
+    }
+    generateProtoTasks {
+        all().configureEach {
+            builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))
@@ -49,6 +65,9 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.navigation3.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.datastore)
+    implementation(libs.protobuf.javalite)
+    implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.paparazzi)
     testImplementation(libs.androidx.test.core.ktx)
