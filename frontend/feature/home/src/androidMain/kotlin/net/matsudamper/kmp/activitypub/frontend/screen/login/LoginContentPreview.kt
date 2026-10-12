@@ -12,9 +12,22 @@ private fun LoginContentPreview() {
             uiState = LoginScreenUiState(
                 username = "kotlin",
                 password = "password",
+                error = null,
+                inputEnabled = true,
                 loginButtonEnabled = true,
                 listener = AndroidPreviewLoginListener,
             ),
+            serverSettingUiState = null,
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LoginContentErrorPreview() {
+    MaterialTheme {
+        LoginContent(
+            uiState = previewLoginUiState.copy(error = "ユーザー名かパスワードが違う"),
             serverSettingUiState = null,
         )
     }
@@ -53,6 +66,8 @@ private fun LoginContentServerSettingDialogPreview() {
 private val previewLoginUiState = LoginScreenUiState(
     username = "kotlin",
     password = "password",
+    error = null,
+    inputEnabled = true,
     loginButtonEnabled = true,
     listener = AndroidPreviewLoginListener,
 )

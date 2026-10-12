@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
@@ -29,11 +30,12 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
+    api: UserApi?,
     serverSettingUiState: ServerSettingUiState?,
 ) {
     val viewModelScope = rememberCoroutineScope()
-    val viewModel = rememberSaveable(saver = LoginScreenViewModel.saver(viewModelScope)) {
-        LoginScreenViewModel(viewModelScope = viewModelScope, savedState = LoginScreenViewModel.InitialState)
+    val viewModel = rememberSaveable(saver = LoginScreenViewModel.saver(viewModelScope, api)) {
+        LoginScreenViewModel(viewModelScope = viewModelScope, api = api, savedState = LoginScreenViewModel.InitialState)
     }
     val uiState by viewModel.uiStateFlow.collectAsState()
 
@@ -79,8 +81,8 @@ internal fun LoginContent(
                     formId = LOGIN_FORM_ID,
                     inputId = LOGIN_USERNAME_INPUT_ID,
                     inputName = "username",
-                    enabled = true,
-                    hasError = false,
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.error != null,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 PasswordField(
@@ -91,10 +93,16 @@ internal fun LoginContent(
                     formId = LOGIN_FORM_ID,
                     inputId = LOGIN_PASSWORD_INPUT_ID,
                     inputName = "password",
-                    enabled = true,
-                    hasError = false,
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.error != null,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                uiState.error?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Button(
                     onClick = uiState.listener::onClickLogin,
                     enabled = uiState.loginButtonEnabled,

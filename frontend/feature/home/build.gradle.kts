@@ -23,6 +23,7 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(project(":frontend:ui"))
+                implementation(project(":frontend:api"))
                 implementation(project(":frontend:navigation"))
                 implementation(libs.kotlinx.coroutines.core)
             }

@@ -55,6 +55,8 @@ protobuf {
 }
 
 dependencies {
+    implementation(project(":shared"))
+    implementation(project(":frontend:api"))
     implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))
 
@@ -68,6 +70,8 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.protobuf.javalite)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.okhttp)
+    implementation(libs.androidx.core.ktx)
 
     testImplementation(libs.paparazzi)
     testImplementation(libs.androidx.test.core.ktx)

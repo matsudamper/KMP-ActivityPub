@@ -5,6 +5,8 @@ import androidx.compose.runtime.Immutable
 data class LoginScreenUiState(
     val username: String,
     val password: String,
+    val error: String?,
+    val inputEnabled: Boolean,
     val loginButtonEnabled: Boolean,
     val listener: Listener,
 ) {
