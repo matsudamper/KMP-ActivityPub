@@ -12,6 +12,12 @@ class Navigator(
         backStack.add(screen)
     }
 
+    fun back() {
+        if (backStack.size > 1) {
+            backStack.removeAt(backStack.lastIndex)
+        }
+    }
+
     /**
      * 積んである画面を捨てて [screen] だけにする。ログイン後に戻るでログイン画面へ戻れないようにする
      */
