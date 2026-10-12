@@ -8,6 +8,10 @@ import androidx.navigation3.runtime.NavKey
 class Navigator(
     private val backStack: NavBackStack<NavKey>,
 ) {
+    fun navigate(screen: Screen) {
+        backStack.add(screen)
+    }
+
     /**
      * 積んである画面を捨てて [screen] だけにする。ログイン後に戻るでログイン画面へ戻れないようにする
      */

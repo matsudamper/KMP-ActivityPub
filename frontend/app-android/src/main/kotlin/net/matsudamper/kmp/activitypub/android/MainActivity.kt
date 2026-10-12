@@ -41,7 +41,8 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                 entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
                 entryProvider = entryProvider {
                     entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator) }
-                    entry<Screen.Home> { HomeFeatureScreens.Home() }
+                    entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
+                    entry<Screen.Post> { HomeFeatureScreens.Post() }
                 },
             )
         }

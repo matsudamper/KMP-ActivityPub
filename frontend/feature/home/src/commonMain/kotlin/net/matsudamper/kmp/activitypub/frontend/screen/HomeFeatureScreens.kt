@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 
 object HomeFeatureScreens {
     @Composable
@@ -12,7 +13,12 @@ object HomeFeatureScreens {
     }
 
     @Composable
-    fun Home() {
-        HomeScreen()
+    fun Home(navigator: Navigator) {
+        HomeScreen(navigator = navigator)
+    }
+
+    @Composable
+    fun Post() {
+        PostScreen()
     }
 }

@@ -25,6 +25,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
         polymorphic(NavKey::class) {
             subclass(Screen.Login::class)
             subclass(Screen.Home::class)
+            subclass(Screen.Post::class)
         }
     }
 }
