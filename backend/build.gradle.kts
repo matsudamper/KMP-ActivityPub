@@ -155,8 +155,3 @@ graalvmNative {
         }
     }
 }
-
-// Dockerfile がバージョンを知らずに展開できるよう、配布物の名前から外す
-tasks.distTar {
-    archiveVersion.set("")
-}

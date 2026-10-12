@@ -11,5 +11,4 @@ local.properties
 # docker build に渡す native バイナリの置き場所
 /kmp-activitypub
 
-# docker compose の設定
 .env
