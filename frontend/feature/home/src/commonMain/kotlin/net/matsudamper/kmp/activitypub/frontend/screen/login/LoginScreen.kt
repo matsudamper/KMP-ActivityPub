@@ -31,7 +31,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 
 @Composable
-fun LoginScreen(
+internal fun LoginScreen(
     navigator: Navigator,
 ) {
     val viewModelScope = rememberCoroutineScope()

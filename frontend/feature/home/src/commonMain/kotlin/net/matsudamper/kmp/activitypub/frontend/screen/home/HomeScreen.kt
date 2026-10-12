@@ -31,7 +31,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 @Composable
-fun HomeScreen(
+internal fun HomeScreen(
     navigator: Navigator,
 ) {
     val viewModelScope = rememberCoroutineScope()

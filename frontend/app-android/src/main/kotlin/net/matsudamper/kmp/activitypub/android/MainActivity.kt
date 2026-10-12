@@ -14,9 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import net.matsudamper.kmp.activitypub.frontend.navigation.BackStackNavigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
-import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
-import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
-import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,9 +35,9 @@ private fun AndroidApp() {
     MaterialTheme {
         Box(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
             when (navigator.currentScreen) {
-                Screen.Login -> LoginScreen(navigator = navigator)
-                Screen.Home -> HomeScreen(navigator = navigator)
-                Screen.Post -> PostScreen(navigator = navigator)
+                Screen.Login -> HomeFeatureScreens.Login(navigator = navigator)
+                Screen.Home -> HomeFeatureScreens.Home(navigator = navigator)
+                Screen.Post -> HomeFeatureScreens.Post(navigator = navigator)
             }
         }
     }

@@ -28,7 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 @Composable
-fun PostScreen(
+internal fun PostScreen(
     navigator: Navigator,
 ) {
     val viewModelScope = rememberCoroutineScope()
