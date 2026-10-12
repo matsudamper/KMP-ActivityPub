@@ -37,8 +37,13 @@ if [ ! -x "${SDKMANAGER}" ]; then
   mv "${tmp}/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest"
 fi
 
+# 既存の SDK に入っている他のライセンスの承諾を消さないよう、無いときだけ足す
+license_hash="24333f8a63b6825ea9c5514f83c2829b004d1fee"
+license_file="${ANDROID_SDK_ROOT}/licenses/android-sdk-license"
 mkdir -p "${ANDROID_SDK_ROOT}/licenses"
-printf '\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n' > "${ANDROID_SDK_ROOT}/licenses/android-sdk-license"
+if ! grep -qx "${license_hash}" "${license_file}" 2>/dev/null; then
+  printf '\n%s\n' "${license_hash}" >> "${license_file}"
+fi
 
 # 環境変数(ANDROID_HOME)はセットアップ後のシェルに残らないので local.properties に書く。
 # 他のローカル設定を消さないよう sdk.dir の行だけ差し替える
