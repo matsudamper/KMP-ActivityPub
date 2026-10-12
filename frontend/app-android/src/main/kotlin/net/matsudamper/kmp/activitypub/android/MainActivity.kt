@@ -15,8 +15,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import net.matsudamper.kmp.activitypub.android.server.ServerSetting
 import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
+import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
@@ -48,7 +48,7 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                     entry<Screen.Login> {
                         HomeFeatureScreens.Login(
                             navigator = navigator,
-                            serverSetting = { ServerSetting(serverSettingStore = serverSettingStore) },
+                            serverSettingUiState = rememberServerSettingUiState(serverSettingStore),
                         )
                     }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }

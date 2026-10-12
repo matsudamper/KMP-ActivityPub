@@ -1,4 +1,4 @@
-package net.matsudamper.kmp.activitypub.android.server
+package net.matsudamper.kmp.activitypub.frontend.screen.login
 
 import androidx.compose.runtime.Immutable
 
@@ -9,7 +9,7 @@ data class ServerSettingUiState(
 ) {
     data class Dialog(
         val serverUrl: String,
-        val error: String?,
+        val serverUrlInputError: Boolean,
         val saveButtonEnabled: Boolean,
     )
 

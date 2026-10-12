@@ -29,7 +29,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
-    serverSetting: (@Composable () -> Unit)?,
+    serverSettingUiState: ServerSettingUiState?,
 ) {
     val viewModelScope = rememberCoroutineScope()
     val viewModel = rememberSaveable(saver = LoginScreenViewModel.saver(viewModelScope)) {
@@ -47,13 +47,13 @@ internal fun LoginScreen(
         )
     }
 
-    LoginContent(uiState = uiState, serverSetting = serverSetting)
+    LoginContent(uiState = uiState, serverSettingUiState = serverSettingUiState)
 }
 
 @Composable
 internal fun LoginContent(
     uiState: LoginScreenUiState,
-    serverSetting: (@Composable () -> Unit)?,
+    serverSettingUiState: ServerSettingUiState?,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -102,7 +102,9 @@ internal fun LoginContent(
                 ) {
                     Text("ログイン")
                 }
-                serverSetting?.invoke()
+                if (serverSettingUiState != null) {
+                    ServerSettingContent(uiState = serverSettingUiState)
+                }
             }
         }
     }

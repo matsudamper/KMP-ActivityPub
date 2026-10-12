@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
 
 internal class ServerSettingViewModel(
     private val viewModelScope: CoroutineScope,
@@ -17,13 +18,13 @@ internal class ServerSettingViewModel(
     private val listener = object : ServerSettingUiState.Listener {
         override fun onClickChange() {
             viewModelStateFlow.update { state ->
-                state.copy(dialog = DialogState(serverUrl = state.savedServerUrl.orEmpty(), error = null))
+                state.copy(dialog = DialogState(serverUrl = state.savedServerUrl.orEmpty(), invalidServerUrl = false))
             }
         }
 
         override fun onServerUrlChanged(text: String) {
             viewModelStateFlow.update { state ->
-                state.copy(dialog = state.dialog?.copy(serverUrl = text, error = null))
+                state.copy(dialog = state.dialog?.copy(serverUrl = text, invalidServerUrl = false))
             }
         }
 
@@ -58,7 +59,7 @@ internal class ServerSettingViewModel(
         val normalized = normalize(dialog.serverUrl)
         if (normalized == null) {
             viewModelStateFlow.update { state ->
-                state.copy(dialog = dialog.copy(error = "https:// から始まるサーバーの URL を入れる（パスは付けない）"))
+                state.copy(dialog = dialog.copy(invalidServerUrl = true))
             }
             return
         }
@@ -89,7 +90,7 @@ internal class ServerSettingViewModel(
         dialog = state.dialog?.let { dialog ->
             ServerSettingUiState.Dialog(
                 serverUrl = dialog.serverUrl,
-                error = dialog.error,
+                serverUrlInputError = dialog.invalidServerUrl,
                 saveButtonEnabled = dialog.serverUrl.isNotBlank(),
             )
         },
@@ -103,6 +104,6 @@ internal class ServerSettingViewModel(
 
     private data class DialogState(
         val serverUrl: String,
-        val error: String?,
+        val invalidServerUrl: Boolean,
     )
 }
