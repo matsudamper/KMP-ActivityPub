@@ -20,6 +20,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
+        check(context.claimLoginAttempt()) { "login は 1 リクエストにつき 1 回まで" }
         val accountService = GraphQlEngine.diContainer(env).accountService
 
         val accountId = accountService.authenticate(username = query.username, password = query.password)

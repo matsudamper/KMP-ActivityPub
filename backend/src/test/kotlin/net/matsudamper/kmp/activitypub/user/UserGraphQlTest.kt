@@ -5,6 +5,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -85,6 +86,22 @@ class UserGraphQlTest {
             val account = querySession(token).user().obj("session").obj("account")
 
             assertEquals(USERNAME, account.string("username"))
+        }
+
+    @Test
+    fun `1 つのリクエストで login を 2 回呼ぶと 2 回目は失敗する`() =
+        testApplication {
+            applicationWith(repositoriesWithUser())
+
+            val response = graphQl(
+                query =
+                "mutation Login(${'$'}query: UserLoginQuery!) { user { " +
+                    "first: login(query: ${'$'}query) { failure } " +
+                    "second: login(query: ${'$'}query) { failure } } }",
+                variables = """{"query":{"username":${JsonPrimitive(USERNAME)},"password":${JsonPrimitive(PASSWORD)}}}""",
+            )
+
+            assertTrue(response.body().containsKey("errors"))
         }
 
     private fun repositoriesWithUser(): FakeRepositories =

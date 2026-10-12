@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.graphql
 
+import java.util.concurrent.atomic.AtomicBoolean
 import io.ktor.server.application.ApplicationCall
 import net.matsudamper.kmp.activitypub.logic.UserSessionService
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
@@ -15,6 +16,16 @@ class GraphQlContext(
         secure = cookieSecure,
         cookieName = SessionCookieManager.USER_COOKIE_NAME,
     )
+
+    private val loginAttempted = AtomicBoolean(false)
+
+    /**
+     * alias で 1 つのリクエストに login を並べると、その数だけ PBKDF2 が回る。
+     * 照合は 1 リクエストにつき 1 回までにする
+     *
+     * @return このリクエストで初めてなら true
+     */
+    fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
 
     fun userAccountId(): AccountId? = userCookie.token()?.let { userSessions.accountIdOf(it) }
 
