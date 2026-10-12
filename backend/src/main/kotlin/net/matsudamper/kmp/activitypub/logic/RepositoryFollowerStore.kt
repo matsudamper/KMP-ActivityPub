@@ -1,14 +1,14 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Instant
-import net.matsudamper.activitypub.actor.RemoteActor
-import net.matsudamper.activitypub.actor.RemoteActorProfile
-import net.matsudamper.activitypub.follower.FollowerStore
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.IncomingFollow
+import net.matsudamper.kotpub.actor.RemoteActor
+import net.matsudamper.kotpub.actor.RemoteActorProfile
+import net.matsudamper.kotpub.follower.FollowerStore
 
 /**
- * kotpub の `activitypub` が `:backend:repository` を知らないので型を持ち替える
+ * kotpub の `core` が `:backend:repository` を知らないので型を持ち替える
  */
 class RepositoryFollowerStore(
     private val followers: FollowerRepository,

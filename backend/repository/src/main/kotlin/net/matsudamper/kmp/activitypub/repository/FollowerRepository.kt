@@ -214,7 +214,7 @@ data class StoredFollower(
 )
 
 /**
- * アクター文書を読んだ結果（kotpub の `activitypub` 側の型）とは別に定義する。
+ * アクター文書を読んだ結果（kotpub の `core` 側の型）とは別に定義する。
  * 同じ型を使い回すと、スキーマを変えるたびに取得側を触ることになる。
  *
  * @param actorUri 相手のアクター文書の URL。相手を指す識別子

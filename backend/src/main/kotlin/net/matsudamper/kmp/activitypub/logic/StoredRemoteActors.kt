@@ -1,9 +1,9 @@
 package net.matsudamper.kmp.activitypub.logic
 
-import net.matsudamper.activitypub.actor.RemoteActor
-import net.matsudamper.activitypub.actor.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile as StoredRemoteActorProfile
+import net.matsudamper.kotpub.actor.RemoteActor
+import net.matsudamper.kotpub.actor.RemoteActorProfile
 
 internal object StoredRemoteActors {
     fun of(actor: RemoteActor): NewRemoteActor = NewRemoteActor(

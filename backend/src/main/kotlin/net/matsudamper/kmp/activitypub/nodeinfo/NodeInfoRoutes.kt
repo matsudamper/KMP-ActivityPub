@@ -2,9 +2,9 @@ package net.matsudamper.kmp.activitypub.nodeinfo
 
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
-import net.matsudamper.activitypub.nodeinfo.NodeInfoEndpoint
-import net.matsudamper.activitypub.nodeinfo.NodeInfoSoftware
 import net.matsudamper.kmp.activitypub.http.respondEndpoint
+import net.matsudamper.kotpub.nodeinfo.NodeInfoEndpoint
+import net.matsudamper.kotpub.nodeinfo.NodeInfoSoftware
 
 internal fun Route.nodeInfoRoutes(domain: String) {
     val endpoint =

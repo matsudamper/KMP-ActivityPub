@@ -1,12 +1,12 @@
 package net.matsudamper.kmp.activitypub
 
-import net.matsudamper.activitypub.TestActorKey
-import net.matsudamper.activitypub.TestDelivery
-import net.matsudamper.activitypub.TestRemoteActors
-import net.matsudamper.activitypub.actor.ActorKey
-import net.matsudamper.activitypub.actor.RemoteActors
-import net.matsudamper.activitypub.delivery.ActivityDelivery
 import net.matsudamper.kmp.activitypub.repository.Repositories
+import net.matsudamper.kotpub.TestActorKey
+import net.matsudamper.kotpub.TestDelivery
+import net.matsudamper.kotpub.TestRemoteActors
+import net.matsudamper.kotpub.actor.ActorKey
+import net.matsudamper.kotpub.actor.RemoteActors
+import net.matsudamper.kotpub.delivery.ActivityDelivery
 
 /**
  * 差し替えたいものだけを名前付きで指定して、残りはフェイクの既定に任せる。

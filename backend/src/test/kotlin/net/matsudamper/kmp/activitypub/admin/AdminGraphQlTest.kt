@@ -31,7 +31,6 @@ import io.ktor.http.contentType
 import io.ktor.http.setCookie
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import net.matsudamper.activitypub.json.AppJson
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.TestServerEnv
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
@@ -40,6 +39,7 @@ import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 import net.matsudamper.kmp.activitypub.testDependencies
+import net.matsudamper.kotpub.json.AppJson
 
 // Cookie の保存はクライアント側の実装に寄るので、テストでは Set-Cookie を自分で読んで付け直す。
 class AdminGraphQlTest {

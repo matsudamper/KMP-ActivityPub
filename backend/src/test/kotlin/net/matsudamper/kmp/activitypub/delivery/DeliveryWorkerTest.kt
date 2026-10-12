@@ -23,17 +23,6 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider
 import io.opentelemetry.sdk.trace.data.SpanData
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import io.opentelemetry.sdk.trace.export.SpanExporter
-import net.matsudamper.activitypub.FakeNoteStore
-import net.matsudamper.activitypub.FakeStoredActorNames
-import net.matsudamper.activitypub.TestLocalActor
-import net.matsudamper.activitypub.TestWebPageUrls
-import net.matsudamper.activitypub.actor.ActorDirectory
-import net.matsudamper.activitypub.actor.ActorUrls
-import net.matsudamper.activitypub.delivery.ActivityDelivery
-import net.matsudamper.activitypub.delivery.DeliveryResult
-import net.matsudamper.activitypub.entity.PublicNoteId as MastodonPublicNoteId
-import net.matsudamper.activitypub.note.FollowBackfillPublisher
-import net.matsudamper.activitypub.note.StoredNote
 import net.matsudamper.kmp.activitypub.FakeDeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.FakeDomainBlockRepository
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
@@ -51,6 +40,17 @@ import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kotpub.FakeNoteStore
+import net.matsudamper.kotpub.FakeStoredActorNames
+import net.matsudamper.kotpub.TestLocalActor
+import net.matsudamper.kotpub.TestWebPageUrls
+import net.matsudamper.kotpub.actor.ActorDirectory
+import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.delivery.ActivityDelivery
+import net.matsudamper.kotpub.delivery.DeliveryResult
+import net.matsudamper.kotpub.entity.PublicNoteId as MastodonPublicNoteId
+import net.matsudamper.kotpub.note.FollowBackfillPublisher
+import net.matsudamper.kotpub.note.StoredNote
 
 class DeliveryWorkerTest {
     private val now: Instant = Instant.parse("2026-08-10T00:00:00Z")

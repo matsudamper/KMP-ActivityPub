@@ -1,11 +1,11 @@
 package net.matsudamper.kmp.activitypub.logic
 
-import net.matsudamper.activitypub.entity.PublicNoteId as MastodonPublicNoteId
-import net.matsudamper.activitypub.stamp.StampStore
-import net.matsudamper.activitypub.stamp.StampStore.ReceivedStamp
 import net.matsudamper.kmp.activitypub.repository.NoteStampRepository
 import net.matsudamper.kmp.activitypub.repository.NoteStampRepository.NewNoteStamp
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kotpub.entity.PublicNoteId as MastodonPublicNoteId
+import net.matsudamper.kotpub.stamp.StampStore
+import net.matsudamper.kotpub.stamp.StampStore.ReceivedStamp
 
 class RepositoryStampStore(
     private val stamps: NoteStampRepository,

@@ -4,7 +4,6 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
-import net.matsudamper.activitypub.actor.ActorUsernameUtil
 import net.matsudamper.kmp.activitypub.GraphqlExceptions
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
@@ -18,6 +17,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlAdminMutation
 import net.matsudamper.kmp.activitypub.graphql.model.QlAdminSession
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.AdminLoginService
+import net.matsudamper.kotpub.actor.ActorUsernameUtil
 
 class AdminMutationResolverImpl : AdminMutationResolver {
     override fun login(

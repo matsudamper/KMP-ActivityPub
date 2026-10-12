@@ -1,8 +1,8 @@
 package net.matsudamper.kmp.activitypub
 
 import java.nio.file.Path
-import net.matsudamper.activitypub.actor.ActorPrivateKey
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kotpub.actor.ActorPrivateKey
 
 /**
  * 環境変数を読む唯一の場所。起動時にここで全部読み、以降は引数で配る。
