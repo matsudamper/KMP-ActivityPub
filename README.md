@@ -4,18 +4,6 @@ ActivityPubのバックエンドとWebとAndroidフロントのアプリケー�
 
 ## ローカルで動かす
 
-### 準備
-
-`:backend:graphql` のコード生成に使うプラグインを GitHub Packages から取るので、
-`read:packages` のあるトークンを `~/.gradle/gradle.properties` に書く。
-
-```properties
-gpr.user=<GitHub のユーザー名>
-gpr.key=<トークン>
-```
-
-環境変数 `GITHUB_ACTOR` と `GITHUB_TOKEN` でもよい。
-
 ### DB を作る
 
 スキーマは [sqlite3def](https://github.com/sqldef/sqldef) で適用する。起動時の自動適用は無い。
