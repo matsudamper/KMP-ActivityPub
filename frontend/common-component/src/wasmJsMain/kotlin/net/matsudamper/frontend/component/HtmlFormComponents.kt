@@ -27,8 +27,10 @@ import kotlin.js.js
 import kotlinx.browser.document
 import kotlinx.browser.window
 import androidx.compose.material3.TextFieldDefaults as MaterialTextFieldDefaults
+import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLFormElement
 import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.HTMLTextAreaElement
 import org.w3c.dom.events.Event
 
 enum class HtmlInputType(val value: String) {
@@ -154,6 +156,106 @@ object HtmlFormComponents {
     }
 
     /**
+     * 複数行の [PlatformInputField]。HTML の textarea を埋め込む
+     */
+    @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
+    @Composable
+    fun PlatformTextArea(
+        value: String,
+        onValueChange: (String) -> Unit,
+        label: String,
+        inputId: String,
+        inputName: String,
+        enabled: Boolean,
+        hasError: Boolean,
+        modifier: Modifier = Modifier,
+    ) {
+        val currentOnValueChange = rememberUpdatedState(onValueChange)
+        val colors = MaterialTheme.colorScheme
+        val textStyle = MaterialTheme.typography.bodyLarge
+        val interactionSource = remember { MutableInteractionSource() }
+        val focusInteractionHolder = remember { FocusInteractionHolder() }
+        val clickInteractionSource = remember { MutableInteractionSource() }
+
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable(
+                    interactionSource = clickInteractionSource,
+                    indication = null,
+                    enabled = enabled,
+                ) {
+                    (document.getElementById(inputId) as? HTMLTextAreaElement)?.focus()
+                },
+        ) {
+            MaterialTextFieldDefaults.DecorationBox(
+                value = value,
+                visualTransformation = VisualTransformation.None,
+                innerTextField = {
+                    HtmlElementView(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(TextAreaHeight),
+                        factory = {
+                            val textArea = document.createElement("textarea") as HTMLTextAreaElement
+                            textArea.id = inputId
+                            textArea.name = inputName
+                            textArea.setAttribute("aria-label", label)
+                            textArea.style.setProperty("resize", "none")
+                            bindDomListeners(
+                                input = textArea,
+                                onValueChange = { currentOnValueChange.value(it) },
+                            )
+                            textArea
+                        },
+                        update = { textArea ->
+                            textArea.disabled = !enabled
+                            applyInputStyle(
+                                input = textArea,
+                                fontSizeSp = textStyle.fontSize.value,
+                                textColor = colors.onSurface,
+                            )
+                            bindFocusHandlers(
+                                input = textArea,
+                                interactionSource = interactionSource,
+                                focusInteractionHolder = focusInteractionHolder,
+                                onValueChange = { currentOnValueChange.value(it) },
+                            )
+                            syncInputValue(input = textArea, value = value)
+                        },
+                    )
+                },
+                label = {
+                    Text(label)
+                },
+                placeholder = null,
+                leadingIcon = null,
+                trailingIcon = null,
+                prefix = null,
+                suffix = null,
+                supportingText = null,
+                shape = MaterialTextFieldDefaults.shape,
+                singleLine = false,
+                enabled = enabled,
+                isError = hasError,
+                interactionSource = interactionSource,
+                colors = MaterialTextFieldDefaults.colors(
+                    focusedSupportingTextColor = colors.surface,
+                    focusedContainerColor = colors.surface,
+                    focusedIndicatorColor = colors.primary,
+                    focusedTextColor = colors.onSurface,
+                    focusedLabelColor = colors.primary,
+                    focusedPrefixColor = colors.onSurfaceVariant,
+                    focusedSuffixColor = colors.onSurfaceVariant,
+                    focusedPlaceholderColor = colors.onSurfaceVariant,
+                    focusedTrailingIconColor = colors.onSurfaceVariant,
+                    focusedLeadingIconColor = colors.onSurfaceVariant,
+                ),
+            )
+        }
+    }
+
+    /**
      * 画面外の HTML form。オートフィルと Enter 送信のため。
      *
      * [PlatformInputField] の `formId` と同じ id を渡す。
@@ -197,7 +299,7 @@ private class FocusInteractionHolder {
 }
 
 private fun bindDomListeners(
-    input: HTMLInputElement,
+    input: HTMLElement,
     onValueChange: (String) -> Unit,
 ) {
     // oninput プロパティの型は (InputEvent) -> Unit。切り取りやパスワードマネージャーの
@@ -225,7 +327,7 @@ private fun bindDomListeners(
                 }
 
                 "a" -> {
-                    input.select()
+                    selectAll(input)
                     event.preventDefault()
                 }
             }
@@ -234,35 +336,36 @@ private fun bindDomListeners(
 }
 
 private fun cutSelection(
-    input: HTMLInputElement,
+    input: HTMLElement,
     onValueChange: (String) -> Unit,
 ): Boolean {
-    val start = input.selectionStart ?: return false
-    val end = input.selectionEnd ?: return false
-    if (start >= end) return false
-    copyToClipboard(input.value.substring(start, end))
-    val next = input.value.removeRange(start, end)
-    input.value = next
-    input.setSelectionRange(start, start)
+    val start = selectionStart(input)
+    val end = selectionEnd(input)
+    if (start < 0 || start >= end) return false
+    val current = elementValue(input)
+    copyToClipboard(current.substring(start, end))
+    val next = current.removeRange(start, end)
+    setElementValue(input, next)
+    setSelectionRange(input, start, start)
     onValueChange(next)
     return true
 }
 
-private fun copySelection(input: HTMLInputElement): Boolean {
-    val start = input.selectionStart ?: return false
-    val end = input.selectionEnd ?: return false
-    if (start >= end) return false
-    copyToClipboard(input.value.substring(start, end))
+private fun copySelection(input: HTMLElement): Boolean {
+    val start = selectionStart(input)
+    val end = selectionEnd(input)
+    if (start < 0 || start >= end) return false
+    copyToClipboard(elementValue(input).substring(start, end))
     return true
 }
 
 private fun syncInputValue(
-    input: HTMLInputElement,
+    input: HTMLElement,
     value: String,
 ) {
     if (document.activeElement == input) return
-    if (input.value != value) {
-        input.value = value
+    if (elementValue(input) != value) {
+        setElementValue(input, value)
     }
 }
 
@@ -282,7 +385,7 @@ private fun keyboardKey(event: Event): String =
     js("String(event.key || '')")
 
 private fun bindFocusHandlers(
-    input: HTMLInputElement,
+    input: HTMLElement,
     interactionSource: MutableInteractionSource,
     focusInteractionHolder: FocusInteractionHolder,
     onValueChange: (String) -> Unit,
@@ -300,12 +403,12 @@ private fun bindFocusHandlers(
             interactionSource.tryEmit(FocusInteraction.Unfocus(focus))
             focusInteractionHolder.focus = null
         }
-        onValueChange(input.value)
+        onValueChange(elementValue(input))
     }
 }
 
 private fun applyInputStyle(
-    input: HTMLInputElement,
+    input: HTMLElement,
     fontSizeSp: Float,
     textColor: Color,
 ) {
@@ -332,8 +435,37 @@ private fun applyInputStyle(
 }
 
 private fun readInputValue(event: Event): String {
-    val target = event.target
-    return (target as? HTMLInputElement)?.value ?: ""
+    val target = event.target as? HTMLElement ?: return ""
+    return elementValue(target)
+}
+
+// input と textarea は value や選択範囲を同じ名前で持つが、Kotlin の型では共通の親に無い
+private fun elementValue(element: HTMLElement): String =
+    js("String(element.value || '')")
+
+private fun setElementValue(
+    element: HTMLElement,
+    value: String,
+) {
+    js("element.value = value")
+}
+
+private fun selectionStart(element: HTMLElement): Int =
+    js("element.selectionStart ?? -1")
+
+private fun selectionEnd(element: HTMLElement): Int =
+    js("element.selectionEnd ?? -1")
+
+private fun setSelectionRange(
+    element: HTMLElement,
+    start: Int,
+    end: Int,
+) {
+    js("element.setSelectionRange(start, end)")
+}
+
+private fun selectAll(element: HTMLElement) {
+    js("element.select()")
 }
 
 private fun copyToClipboard(text: String) {
@@ -349,3 +481,5 @@ private fun Color.toCssColor(): String {
 }
 
 private val InputLineHeight = 24.dp
+
+private val TextAreaHeight = 120.dp

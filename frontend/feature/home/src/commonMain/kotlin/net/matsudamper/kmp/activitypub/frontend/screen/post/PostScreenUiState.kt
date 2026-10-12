@@ -1,5 +1,18 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
+import androidx.compose.runtime.Immutable
+
 data class PostScreenUiState(
-    val message: String,
-)
+    val body: String,
+    val postButtonEnabled: Boolean,
+    val listener: Listener,
+) {
+    @Immutable
+    interface Listener {
+        fun onBodyChanged(text: String)
+
+        fun onClickPost()
+
+        fun onClickBack()
+    }
+}

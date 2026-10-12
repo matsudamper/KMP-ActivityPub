@@ -18,7 +18,7 @@ object HomeFeatureScreens {
     }
 
     @Composable
-    fun Post() {
-        PostScreen()
+    fun Post(navigator: Navigator) {
+        PostScreen(navigator = navigator)
     }
 }

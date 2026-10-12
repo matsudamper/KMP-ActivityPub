@@ -42,7 +42,7 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                 entryProvider = entryProvider {
                     entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator) }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
-                    entry<Screen.Post> { HomeFeatureScreens.Post() }
+                    entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
                 },
             )
         }

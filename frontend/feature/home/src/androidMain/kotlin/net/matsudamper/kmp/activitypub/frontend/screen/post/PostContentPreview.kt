@@ -10,8 +10,18 @@ private fun PostContentPreview() {
     MaterialTheme {
         PostContent(
             uiState = PostScreenUiState(
-                message = "投稿",
+                body = "Kotlin 2.4 がリリースされました",
+                postButtonEnabled = true,
+                listener = AndroidPreviewPostListener,
             ),
         )
     }
+}
+
+private object AndroidPreviewPostListener : PostScreenUiState.Listener {
+    override fun onBodyChanged(text: String) = Unit
+
+    override fun onClickPost() = Unit
+
+    override fun onClickBack() = Unit
 }
