@@ -16,6 +16,7 @@ class UserApi(
         val response = client
             .mutation(UserLoginMutation(UserLoginQuery(username = username, password = password)))
             .execute()
+        if (response.exception != null || response.hasErrors()) return UserLoginResult.Failure(response.failureMessage())
         val login = response.data?.user?.login ?: return UserLoginResult.Failure(response.failureMessage())
 
         return when (login.failure) {
