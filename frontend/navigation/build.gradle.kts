@@ -23,6 +23,7 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(compose.runtime)
+                implementation(compose.runtimeSaveable)
             }
         }
     }
