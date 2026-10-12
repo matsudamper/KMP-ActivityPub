@@ -3,8 +3,48 @@ rootProject.name = "kmp-activitypub"
 pluginManagement {
     includeBuild("build-logic")
 
+    // 無いまま進むと「no value available」だけが出て、何を設定すればよいか分からない。
+    // トークンには read:packages が要る
+    fun credential(
+        property: String,
+        environment: String,
+    ): String {
+        val value =
+            providers
+                .gradleProperty(property)
+                .orElse(providers.environmentVariable(environment))
+                .orNull
+
+        return requireNotNull(value) {
+            "GitHub Packages の資格情報が無い。~/.gradle/gradle.properties に $property を書くか、" +
+                "環境変数 $environment を渡すこと"
+        }
+    }
+
     repositories {
-        gradlePluginPortal()
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "GitHubPackages"
+                    url = uri("https://maven.pkg.github.com/matsudamper/graphql-java-codegen")
+                    credentials {
+                        username = credential("gpr.user", "GITHUB_ACTOR")
+                        password = credential("gpr.key", "GITHUB_TOKEN")
+                    }
+                }
+            }
+            filter {
+                includeGroupByRegex("io\\.github\\.kobylynskyi.*")
+            }
+        }
+
+        gradlePluginPortal {
+            // Apollo 5.x はポータルに実体が無く Maven Central へ 303 で飛ばされる。
+            // このリダイレクトの扱いには環境差があり、CI では解決できなかったのでportalはexcludeする
+            content {
+                excludeGroup("com.apollographql.apollo")
+            }
+        }
         mavenCentral()
         google()
     }
@@ -24,9 +64,14 @@ dependencyResolutionManagement {
 }
 
 include(":backend")
+include(":backend:crypto")
+include(":backend:graphql")
+include(":backend:repository")
 include(":frontend:app-web")
 include(":frontend:common-component")
 include(":frontend:ui")
+include(":frontend:api")
 include(":frontend:navigation")
 include(":frontend:feature:home")
 include(":frontend:app-android")
+include(":shared")

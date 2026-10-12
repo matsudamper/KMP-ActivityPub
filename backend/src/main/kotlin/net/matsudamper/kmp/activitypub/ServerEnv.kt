@@ -15,4 +15,14 @@ class ServerEnv(
     val host: String = values["HOST"] ?: "0.0.0.0"
     val port: Int = values["PORT"]?.toInt() ?: 8080
     val staticSrcDir: Path? = values["STATIC_SRC_DIR"]?.let { Path(it) }
+    val dbPath: Path = Path(values["DB_PATH"] ?: "./data/kmp-activitypub.db")
+
+    /**
+     * セッション Cookie に `Secure` を付けるか。付けたまま http で開くとログインできない
+     */
+    val cookieSecure: Boolean =
+        values["COOKIE_SECURE"]?.let { raw ->
+            raw.lowercase().toBooleanStrictOrNull()
+                ?: throw IllegalArgumentException("COOKIE_SECURE は true か false にすること: $raw")
+        } ?: true
 }
