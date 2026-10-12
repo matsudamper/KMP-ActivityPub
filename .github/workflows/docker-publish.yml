@@ -9,6 +9,11 @@ permissions:
   contents: read
   packages: write
 
+# graphql-java-codegen を GitHub Packages から取る
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   publish:
     name: publish docker image
