@@ -151,7 +151,7 @@ Kotlin/Wasm のツールチェイン（Node.js と yarn）に引きずられる�
 | それ以外 | 見つからない |
 
 Android アプリは URL を持たないので `Screen` のパスを使わず、`BackStackNavigator` で
-バックスタックを直接積む。接続先のサーバーが決まるまでその入力を出し、決まったらホームを出す。
+バックスタックを直接積む。接続先のサーバーが決まるまではログイン画面を出し、そこで接続先を入れる。
 
 ダイアログも画面として扱う。`Screen.Overlay` は下に敷く画面を持ち、バックスタックには
 その画面ごと積む。`NavEntry` の metadata に `TransparentScreen` が載っていれば

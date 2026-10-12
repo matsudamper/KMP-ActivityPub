@@ -14,7 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginResult
 
 internal class LoginScreenViewModel(
     private val viewModelScope: CoroutineScope,
-    private val api: UserApi,
+    private val api: UserApi?,
     savedState: ViewModelState,
 ) {
     private val events = EventSender<Event>()
@@ -51,6 +51,7 @@ internal class LoginScreenViewModel(
 
     private fun login() {
         val state = viewModelStateFlow.value
+        val api = api ?: return
         if (state.loginable().not()) return
 
         viewModelStateFlow.update { it.copy(submitting = true, error = null) }
@@ -81,7 +82,8 @@ internal class LoginScreenViewModel(
         )
     }
 
-    private fun ViewModelState.loginable(): Boolean = submitting.not() && username.isNotBlank() && password.isNotEmpty()
+    private fun ViewModelState.loginable(): Boolean =
+        api != null && submitting.not() && username.isNotBlank() && password.isNotEmpty()
 
     data class ViewModelState(
         val username: String,
@@ -102,7 +104,7 @@ internal class LoginScreenViewModel(
          */
         fun saver(
             viewModelScope: CoroutineScope,
-            api: UserApi,
+            api: UserApi?,
         ): Saver<LoginScreenViewModel, Any> = listSaver(
             save = { viewModel ->
                 val state = viewModel.viewModelStateFlow.value

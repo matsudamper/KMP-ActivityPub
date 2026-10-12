@@ -92,7 +92,7 @@ COOKIE_SECURE=false \
 ./gradlew :frontend:app-android:assembleDebug
 ```
 
-初回起動で接続先のサーバーの URL を入れる。ログインの Cookie はアプリに残るので、
+接続先のサーバーの URL はログイン画面の「変更」から入れる。ログインの Cookie はアプリに残るので、
 次からはそのまま投稿できる。Android アプリに管理画面は無い。
 
 ## 使い方

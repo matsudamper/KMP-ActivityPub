@@ -30,7 +30,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
-    api: UserApi,
+    api: UserApi?,
     serverSettingUiState: ServerSettingUiState?,
 ) {
     val viewModelScope = rememberCoroutineScope()

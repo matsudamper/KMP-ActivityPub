@@ -9,10 +9,13 @@ import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiStat
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 
 object HomeFeatureScreens {
+    /**
+     * @param api 接続先が決まっていなければ null。その間はログインできない
+     */
     @Composable
     fun Login(
         navigator: Navigator,
-        api: UserApi,
+        api: UserApi?,
         serverSettingUiState: ServerSettingUiState?,
     ) {
         LoginScreen(navigator = navigator, api = api, serverSettingUiState = serverSettingUiState)
