@@ -27,7 +27,7 @@ class ScreenshotTest(
         @Parameterized.Parameters(name = "{0}")
         fun previews(): List<ComposablePreview<AndroidPreviewInfo>> =
             AndroidComposablePreviewScanner()
-                .scanPackageTrees("net.matsudamper.kmp.activitypub.android")
+                .scanPackageTrees("net.matsudamper.kmp.activitypub")
                 .includePrivatePreviews()
                 .getPreviews()
     }
