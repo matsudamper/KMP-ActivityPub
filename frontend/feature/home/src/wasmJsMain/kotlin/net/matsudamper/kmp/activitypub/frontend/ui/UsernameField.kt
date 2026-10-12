@@ -2,8 +2,8 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import net.matsudamper.frontend.component.HtmlFormComponents
 import net.matsudamper.frontend.component.HtmlInputType
-import net.matsudamper.frontend.component.PlatformInputField
 
 @Composable
 internal actual fun UsernameField(
@@ -17,7 +17,7 @@ internal actual fun UsernameField(
     hasError: Boolean,
     modifier: Modifier,
 ) {
-    PlatformInputField(
+    HtmlFormComponents.PlatformInputField(
         value = value,
         onValueChange = onValueChange,
         label = label,

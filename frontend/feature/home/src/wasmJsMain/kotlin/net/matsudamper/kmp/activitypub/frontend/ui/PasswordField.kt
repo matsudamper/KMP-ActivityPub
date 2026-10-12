@@ -2,9 +2,8 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import net.matsudamper.frontend.component.HiddenHtmlForm
+import net.matsudamper.frontend.component.HtmlFormComponents
 import net.matsudamper.frontend.component.HtmlInputType
-import net.matsudamper.frontend.component.PlatformInputField
 
 @Composable
 internal actual fun PasswordField(
@@ -19,12 +18,12 @@ internal actual fun PasswordField(
     hasError: Boolean,
     modifier: Modifier,
 ) {
-    HiddenHtmlForm(
+    HtmlFormComponents.HiddenHtmlForm(
         formId = formId,
         onSubmit = onSubmit,
         enabled = enabled,
     )
-    PlatformInputField(
+    HtmlFormComponents.PlatformInputField(
         value = value,
         onValueChange = onValueChange,
         label = label,
