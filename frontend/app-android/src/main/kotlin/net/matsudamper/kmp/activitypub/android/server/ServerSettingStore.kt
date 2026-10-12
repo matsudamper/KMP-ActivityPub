@@ -5,9 +5,11 @@ import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import com.google.protobuf.InvalidProtocolBufferException
 
@@ -16,9 +18,11 @@ internal class ServerSettingStore(
 ) {
     private val dataStore: DataStore<ServerSetting> = context.serverSettingDataStore
 
-    val serverUrlFlow: Flow<String?> = dataStore.data.map { setting ->
-        setting.serverUrl.ifEmpty { null }
-    }
+    val serverUrlFlow: Flow<String?> = dataStore.data
+        .catch { e ->
+            if (e is IOException) emit(ServerSetting.getDefaultInstance()) else throw e
+        }
+        .map { setting -> setting.serverUrl.ifEmpty { null } }
 
     suspend fun save(serverUrl: String) {
         dataStore.updateData { setting ->

@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.android.server
 
+import java.io.IOException
 import java.net.URI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,7 +65,11 @@ internal class ServerSettingViewModel(
             return
         }
         viewModelScope.launch {
-            serverSettingStore.save(normalized)
+            try {
+                serverSettingStore.save(normalized)
+            } catch (_: IOException) {
+                return@launch
+            }
             viewModelStateFlow.update { it.copy(dialog = null) }
         }
     }
