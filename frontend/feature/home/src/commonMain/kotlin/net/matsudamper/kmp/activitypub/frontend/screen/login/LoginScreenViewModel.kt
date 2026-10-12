@@ -29,11 +29,11 @@ internal class LoginScreenViewModel(
                 loginButtonEnabled = savedState.inputFilled(),
                 listener = object : LoginScreenUiState.Listener {
                     override fun onUsernameChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(username = text) }
+                        viewModelStateFlow.update { it.copy(username = text.take(INPUT_MAX_LENGTH)) }
                     }
 
                     override fun onPasswordChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(password = text) }
+                        viewModelStateFlow.update { it.copy(password = text.take(INPUT_MAX_LENGTH)) }
                     }
 
                     override fun onClickLogin() {
@@ -76,6 +76,11 @@ internal class LoginScreenViewModel(
 
     companion object {
         val InitialState = ViewModelState(username = "", password = "")
+
+        /**
+         * 入力は Activity の保存状態に入る。Binder の転送上限を超えるとクラッシュするので打ち切る
+         */
+        private const val INPUT_MAX_LENGTH = 256
 
         /**
          * 画面回転などで作り直されても入力を残す

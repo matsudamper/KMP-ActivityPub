@@ -29,7 +29,7 @@ internal class PostScreenViewModel(
                 postButtonEnabled = savedState.postable(),
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(body = text) }
+                        viewModelStateFlow.update { it.copy(body = text.take(BODY_INPUT_MAX_LENGTH)) }
                     }
 
                     override fun onClickPost() {
@@ -87,6 +87,12 @@ internal class PostScreenViewModel(
          * Mastodon の既定の投稿長。超えるとサーバーが弾く
          */
         private const val NOTE_MAX_LENGTH = 500
+
+        /**
+         * 本文は Activity の保存状態に入る。Binder の転送上限を超えるとクラッシュするので、
+         * 投稿長を超えたと分かる程度の長さで入力を打ち切る
+         */
+        private const val BODY_INPUT_MAX_LENGTH = NOTE_MAX_LENGTH * 4
 
         /**
          * 画面回転などで作り直されても書きかけの本文を残す
