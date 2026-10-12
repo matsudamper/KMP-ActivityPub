@@ -56,12 +56,16 @@ internal class LoginScreenViewModel(
 
         viewModelStateFlow.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
-            val error = when (val result = api.login(username = state.username.trim(), password = state.password)) {
-                UserLoginResult.Success -> null
-                UserLoginResult.WrongUsernameOrPassword -> "ユーザー名かパスワードが違う"
-                is UserLoginResult.Failure -> result.message
+            val error = try {
+                when (val result = api.login(username = state.username.trim(), password = state.password)) {
+                    UserLoginResult.Success -> null
+                    UserLoginResult.WrongUsernameOrPassword -> "ユーザー名かパスワードが違う"
+                    is UserLoginResult.Failure -> result.message
+                }
+            } finally {
+                viewModelStateFlow.update { it.copy(submitting = false) }
             }
-            viewModelStateFlow.update { it.copy(submitting = false, error = error) }
+            viewModelStateFlow.update { it.copy(error = error) }
             if (error == null) {
                 events.send { it.navigateToHome() }
             }
