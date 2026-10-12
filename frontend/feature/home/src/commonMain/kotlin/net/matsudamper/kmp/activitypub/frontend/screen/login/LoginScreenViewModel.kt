@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
 import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -78,22 +77,20 @@ internal class LoginScreenViewModel(
         val InitialState = ViewModelState(username = "", password = "")
 
         /**
-         * 入力は Activity の保存状態に入る。Binder の転送上限を超えるとクラッシュするので打ち切る
+         * ユーザー名は Activity の保存状態に入る。Binder の転送上限を超えるとクラッシュするので打ち切る
          */
         private const val INPUT_MAX_LENGTH = 256
 
         /**
-         * 画面回転などで作り直されても入力を残す
+         * 画面回転などで作り直されてもユーザー名を残す。
+         * 保存状態はプロセスの復元用にディスクへ書かれうるので、パスワードは入れない
          */
-        fun saver(viewModelScope: CoroutineScope): Saver<LoginScreenViewModel, Any> = listSaver(
-            save = { viewModel ->
-                val state = viewModel.viewModelStateFlow.value
-                listOf(state.username, state.password)
-            },
-            restore = { (username, password) ->
+        fun saver(viewModelScope: CoroutineScope): Saver<LoginScreenViewModel, String> = Saver(
+            save = { viewModel -> viewModel.viewModelStateFlow.value.username },
+            restore = { username ->
                 LoginScreenViewModel(
                     viewModelScope = viewModelScope,
-                    savedState = ViewModelState(username = username, password = password),
+                    savedState = ViewModelState(username = username, password = ""),
                 )
             },
         )
