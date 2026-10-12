@@ -131,7 +131,7 @@ jobs:
           header: apk-download
           recreate: true
           message: |
-            ✅ **Debug APK is ready!**
+            ✅ Debug APK is ready!
 
             | Storage | Download Link | QR Code |
             | :--- | :--- | :--- |
