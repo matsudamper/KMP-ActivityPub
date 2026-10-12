@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import graphql.ExceptionWhileDataFetching
 import graphql.ExecutionInput
 import graphql.GraphQL
+import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.kickstart.tools.GraphQLResolver
 import graphql.kickstart.tools.SchemaParser
 import graphql.schema.DataFetchingEnvironment
@@ -82,6 +83,12 @@ class GraphQlEngine private constructor(
 
         private val logger = LoggerFactory.getLogger(GraphQlEngine::class.java)
 
+        /**
+         * alias で同じフィールドを並べると、その数だけリゾルバが DB を引く。
+         * 画面が送る問い合わせはどれも 10 に届かないので、桁を 1 つ上げた値で止める
+         */
+        private const val MAX_QUERY_COMPLEXITY = 100
+
         internal const val GENERIC_ERROR_MESSAGE = "GraphQL の実行に失敗した"
 
         fun create(
@@ -97,7 +104,10 @@ class GraphQlEngine private constructor(
                 .makeExecutableSchema()
 
             return GraphQlEngine(
-                graphQl = GraphQL.newGraphQL(schema).build(),
+                graphQl = GraphQL
+                    .newGraphQL(schema)
+                    .instrumentation(MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY))
+                    .build(),
                 createContext = createContext,
                 diContainer = diContainer,
             )

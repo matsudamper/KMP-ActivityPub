@@ -104,6 +104,17 @@ class UserGraphQlTest {
             assertTrue(response.body().containsKey("errors"))
         }
 
+    @Test
+    fun `alias で session を大量に並べた問い合わせは実行しない`() =
+        testApplication {
+            applicationWith(repositoriesWithUser())
+
+            val aliases = (1..200).joinToString(" ") { "s$it: session { account { username } }" }
+            val response = graphQl(query = "query { user { $aliases } }")
+
+            assertTrue(response.body().containsKey("errors"))
+        }
+
     private fun repositoriesWithUser(): FakeRepositories =
         FakeRepositories().apply {
             accounts.add(username = USERNAME, passwordHash = PASSWORD_HASH)
