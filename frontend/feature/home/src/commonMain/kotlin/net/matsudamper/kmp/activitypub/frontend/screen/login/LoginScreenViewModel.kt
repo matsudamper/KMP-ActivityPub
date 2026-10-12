@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,11 +29,11 @@ internal class LoginScreenViewModel(
                 loginButtonEnabled = savedState.inputFilled(),
                 listener = object : LoginScreenUiState.Listener {
                     override fun onUsernameChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(username = text.take(INPUT_MAX_LENGTH)) }
+                        viewModelStateFlow.update { it.copy(username = text) }
                     }
 
                     override fun onPasswordChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(password = text.take(INPUT_MAX_LENGTH)) }
+                        viewModelStateFlow.update { it.copy(password = text) }
                     }
 
                     override fun onClickLogin() {
@@ -77,20 +78,17 @@ internal class LoginScreenViewModel(
         val InitialState = ViewModelState(username = "", password = "")
 
         /**
-         * ユーザー名は Activity の保存状態に入る。Binder の転送上限を超えるとクラッシュするので打ち切る
+         * 画面回転などで作り直されても入力を残す
          */
-        private const val INPUT_MAX_LENGTH = 256
-
-        /**
-         * 画面回転などで作り直されてもユーザー名を残す。
-         * 保存状態はプロセスの復元用にディスクへ書かれうるので、パスワードは入れない
-         */
-        fun saver(viewModelScope: CoroutineScope): Saver<LoginScreenViewModel, String> = Saver(
-            save = { viewModel -> viewModel.viewModelStateFlow.value.username },
-            restore = { username ->
+        fun saver(viewModelScope: CoroutineScope): Saver<LoginScreenViewModel, Any> = listSaver(
+            save = { viewModel ->
+                val state = viewModel.viewModelStateFlow.value
+                listOf(state.username, state.password)
+            },
+            restore = { (username, password) ->
                 LoginScreenViewModel(
                     viewModelScope = viewModelScope,
-                    savedState = ViewModelState(username = username, password = ""),
+                    savedState = ViewModelState(username = username, password = password),
                 )
             },
         )
