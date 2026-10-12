@@ -120,8 +120,12 @@ jobs:
           output_path: qrcode-github.png
           artifact_name: apk-qr-code-github
 
+      # フォークと Dependabot の PR では GITHUB_TOKEN が読み取り専用で、コメントを書けない
       - name: APK のダウンロード URL をコメント
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.actor != 'dependabot[bot]'
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           header: apk-download
