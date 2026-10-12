@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.compose)
 }
 
-// Android アプリ。画面は Compose で Hello World を出すところまで
 android {
     namespace = "net.matsudamper.kmp.activitypub.android"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()

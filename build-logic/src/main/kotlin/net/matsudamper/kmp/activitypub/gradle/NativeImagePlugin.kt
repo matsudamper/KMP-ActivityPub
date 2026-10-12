@@ -13,23 +13,12 @@ import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.register
 import org.gradle.kotlin.dsl.withType
 
-/**
- * native-image を使うモジュールの共通設定。
- *
- * GraalVM は自分では探さず、Gradle のツールチェインから受け取る。手元に無ければ
- * settings.gradle.kts の foojay-resolver が取ってくるので、各自で入れる必要が無い。
- *
- * 何を作るか（`imageName` や `buildArgs`）はモジュールごとに違うので、ここには置かない。
- * 決めているのは「どの GraalVM で作るか」だけ。
- */
 class NativeImagePlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.pluginManager.apply(GraalVmNativeImagePlugin::class.java)
 
         val javaToolchains = target.extensions.getByType<JavaToolchainService>()
 
-        // Java の版はモジュールの jvmToolchain(...) に合わせる。ここに書くと
-        // モジュール側と 2 か所で揃えることになる
         val toolchain = target.extensions.getByType<JavaPluginExtension>().toolchain
 
         val graalVmLauncher =
@@ -42,8 +31,6 @@ class NativeImagePlugin : Plugin<Project> {
             target.tasks.register<RepairNativeImageLauncherTask>("repairNativeImageLauncher") {
                 description = "Gradle が用意した GraalVM の native-image を使える状態に直す"
                 javaLauncher.set(graalVmLauncher)
-                // 直す先は共有された JDK なので、モジュールごとに走る分が同時に
-                // 同じディレクトリを触る。途中のファイルの名前を分ける
                 temporaryNameSuffix.set(target.path.trim(':').replace(':', '-'))
             }
 
@@ -61,7 +48,6 @@ class NativeImagePlugin : Plugin<Project> {
             }
         }
 
-        // nativeCompile も nativeTestCompile もこのタスクの型なので、まとめて繋がる
         target.tasks.withType<BuildNativeImageTask>().configureEach {
             dependsOn(repairLauncher)
         }
