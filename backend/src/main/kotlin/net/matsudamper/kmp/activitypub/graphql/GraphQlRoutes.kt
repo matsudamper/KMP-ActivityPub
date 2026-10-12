@@ -1,5 +1,8 @@
 package net.matsudamper.kmp.activitypub.graphql
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.JsonObject
 import io.ktor.http.ContentType
@@ -19,6 +22,14 @@ import net.matsudamper.kmp.activitypub.json.respondJson
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 
 private const val MAX_BODY_BYTES = 1024 * 1024
+
+/**
+ * graphql-java の実行は同期で、ログインでは PBKDF2 を回す。リクエストを受けたスレッドで
+ * 回すと、ログインを並べて送られるだけで healthz や静的ファイルまで止まる。
+ * 並行数を絞って、ログインを連打されても他のリクエストに回るスレッドを残す
+ */
+private val GRAPHQL_DISPATCHER: CoroutineDispatcher =
+    Dispatchers.IO.limitedParallelism((Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1))
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
@@ -56,8 +67,7 @@ internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
                 return@post
             }
 
-        // パスワードの照合で PBKDF2 を回すので、そのまま実行すると他が詰まる
-        val result = engine.execute(request, call)
+        val result = withContext(GRAPHQL_DISPATCHER) { engine.execute(request, call) }
 
         call.respondJson(JsonObject.serializer(), result)
     }
