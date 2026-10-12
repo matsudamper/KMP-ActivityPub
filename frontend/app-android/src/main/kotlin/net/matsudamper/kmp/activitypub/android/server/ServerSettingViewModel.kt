@@ -68,11 +68,6 @@ internal class ServerSettingViewModel(
         }
     }
 
-    /**
-     * ドメインだけ入れられたら https を補う。パスを足して叩くため、パス・クエリ・フラグメントの付いた URL は受け付けない。
-     *
-     * http は受け付けない。Android は既定で平文の通信を止めるので、通しても繋がらない
-     */
     private fun normalize(input: String): String? {
         val trimmed = input.trim()
         if (trimmed.isEmpty()) return null

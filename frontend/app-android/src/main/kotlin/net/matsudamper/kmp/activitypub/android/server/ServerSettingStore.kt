@@ -11,9 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.google.protobuf.InvalidProtocolBufferException
 
-/**
- * 接続先のサーバー。ブラウザと違って画面の配信元が無いので、使う人が決める
- */
 internal class ServerSettingStore(
     context: Context,
 ) {
@@ -30,9 +27,6 @@ internal class ServerSettingStore(
     }
 }
 
-/**
- * 同じファイルに DataStore を 2 つ作ると例外になるので、Activity が作り直されても使い回せるようプロセスで 1 つにする
- */
 private val Context.serverSettingDataStore: DataStore<ServerSetting> by dataStore(
     fileName = "server_setting.pb",
     serializer = ServerSettingSerializer,
