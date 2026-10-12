@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     application
+    id("kmp-activitypub.native-image")
 }
 
 dependencies {
@@ -25,7 +26,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// Dockerfile がバージョンを知らずに展開できるよう、配布物の名前から外す
-tasks.distTar {
-    archiveVersion.set("")
+graalvmNative {
+    binaries {
+        named("main") {
+            imageName.set("kmp-activitypub")
+            mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
+            buildArgs.add("--no-fallback")
+        }
+    }
 }
