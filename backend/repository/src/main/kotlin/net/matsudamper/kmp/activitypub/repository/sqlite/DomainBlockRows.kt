@@ -5,15 +5,11 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
 /**
- * `domain_blocks` の読み取り。
- *
  * 投函は配信キュー以外のリポジトリからも行うので、配信を止めているかの判定を
  * それぞれに持たせずここに置く。
  */
 internal object DomainBlockRows {
     /**
-     * そのドメインへの配信を止めているか
-     *
      * @param domain 小文字に揃えたホスト名
      */
     fun blocksDelivery(
@@ -28,8 +24,6 @@ internal object DomainBlockRows {
     )
 
     /**
-     * そのドメインからの受信を止めているか
-     *
      * @param domain 小文字に揃えたホスト名
      */
     fun blocksInbox(

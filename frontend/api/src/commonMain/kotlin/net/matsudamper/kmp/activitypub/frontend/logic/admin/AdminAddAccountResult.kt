@@ -6,12 +6,6 @@ sealed interface AdminAddAccountResult {
 
     /**
      * 追加できなかった理由。当てはまらないものは null か空で来る。
-     *
-     * @param unusableCharacters 入力に含まれていた使えない文字
-     * @param maxLength 文字数が多すぎる場合の上限
-     * @param minLength 文字数が足りない場合の下限
-     * @param isDuplicated 同じ名前のユーザーが既にいる
-     * @param passwordMinLength パスワードが短すぎる場合の下限
      */
     data class Rejected(
         val unusableCharacters: List<String>,

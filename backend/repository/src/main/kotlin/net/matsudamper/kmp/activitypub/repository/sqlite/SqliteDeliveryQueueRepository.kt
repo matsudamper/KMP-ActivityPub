@@ -338,8 +338,6 @@ internal class SqliteDeliveryQueueRepository(
     }
 
     /**
-     * 並び順で [cursor] より後ろにあるものを絞る条件。
-     *
      * 時刻だけで比べると、同じ時刻の行がページの境目に来たときに落ちるか重複する
      */
     private fun laterThan(cursor: DeliveryQueuePosition): Condition {

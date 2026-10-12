@@ -1,8 +1,6 @@
 package net.matsudamper.kmp.activitypub
 
 /**
- * テストで使う `ServerEnv`。
- *
  * `DOMAIN` が無いと作れないので、テストからは常にこれを通す。
  * 変えたい変数だけ [of] に渡す。
  */

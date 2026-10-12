@@ -27,7 +27,6 @@ import org.gradle.api.tasks.TaskAction
  * `ktlintFormat` と同じ「叩いたら必ず実行される」タスクとして扱う。
  */
 abstract class DumpSchemaTask : DefaultTask() {
-    /** 開発用 DB の絶対パス。`-PdevDb=...` で渡す */
     @get:Internal
     abstract val devDatabasePath: Property<String>
 
@@ -39,11 +38,9 @@ abstract class DumpSchemaTask : DefaultTask() {
     @get:Internal
     abstract val excludes: Property<String>
 
-    /** 書き出し先。コミット対象の `schema.sql` */
     @get:Internal
     abstract val schemaFile: RegularFileProperty
 
-    /** 適用可能なことの確認に使う使い捨て DB。`build/` の下 */
     @get:Internal
     abstract val workDatabase: RegularFileProperty
 
@@ -94,8 +91,6 @@ abstract class DumpSchemaTask : DefaultTask() {
     }
 
     /**
-     * `sqlite_master` から CREATE 文を読む。
-     *
      * 保存されているのは実行された文のテキストそのままなので、そのまま書き出せば
      * 適用可能な SQL になる。自動生成のインデックス (`sqlite_autoindex_*`) は
      * `sql` が NULL なので、この条件で一緒に落ちる。

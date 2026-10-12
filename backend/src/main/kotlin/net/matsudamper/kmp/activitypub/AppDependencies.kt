@@ -55,12 +55,6 @@ import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 
 /**
- * アプリが使うものを作って配る場所。
- *
- * 何をどの順で作り、どの順で閉じるかをここ 1 か所に集める。以前は [main] の中で
- * `use` を入れ子にしていたが、抱えるものが増えるたびに入れ子が深くなり、
- * [Application.module] の引数も一緒に伸びていく形だった。配信キューのワーカーもここに並ぶ。
- *
  * 外から作れるようにしてあるのはテストのため。フェイクを渡せば、
  * 本物の DB や外向きの HTTP を用意せずにルーティングを組み立てられる。
  * 本番の組み立ては [create] にある。
@@ -68,7 +62,6 @@ import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
  * @param remoteActors 相手のアクターの引き先。署名検証に使う公開鍵と、
  *   `Accept` の宛先になる inbox をここから取る。本番は [HttpRemoteActors] が
  *   相手のサーバーに GET しに行く
- * @param delivery こちらから相手の inbox に POST する口
  */
 class AppDependencies(
     val repositories: Repositories,
@@ -80,11 +73,6 @@ class AppDependencies(
     val openTelemetry: OpenTelemetry? = null,
     private val telemetry: OpenTelemetryInitializer.Handler? = null,
 ) : AutoCloseable {
-    /**
-     * 画面の配信元。無ければ画面は出ない。
-     *
-     * 指定と、そこに実体があるかの両方を見る。結果を起動ログに出すのは `Main` の側
-     */
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     /**
@@ -149,13 +137,6 @@ class AppDependencies(
         clock = Instant::now,
     )
 
-    /**
-     * inbox が受け取ったアクティビティの検証と振り分け。
-     *
-     * 何をどう組み合わせるかは ActivityPub 側の話なので
-     * [InboxService.default] に任せる。ここで決めるのは、その材料になる
-     * [remoteActors] を本番のものにするかフェイクにするかだけ。
-     */
     val inboxService: InboxService = InboxService.default(
         directory = directory,
         remoteActors = remoteActors,
@@ -213,10 +194,6 @@ class AppDependencies(
     private val backgroundStopped = AtomicBoolean(false)
 
     /**
-     * 配信キューのワーカーを始める。
-     *
-     * 呼ぶまで 1 件も送らない。止めるのは [stopBackgroundWork]
-     *
      * @return 片付いた削除済みアカウントの数
      */
     fun startDeliveryWorker(): Int {
@@ -294,8 +271,6 @@ class AppDependencies(
 
     companion object {
         /**
-         * 本番の組み立て。
-         *
          * DB を先に開く。鍵のファイルが無いときに新しく作ってよいかどうかが、
          * フォロワーが記録されているかどうかで決まるため。
          * 開いた後に失敗した場合は、開いた分を閉じてから投げ直す。

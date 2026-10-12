@@ -273,9 +273,6 @@ class AccountRepositoryTest {
         }
     }
 
-    /**
-     * アカウントを消して `Delete{Actor}` を投函する
-     */
     private fun Repositories.deleteAccount(
         account: Account,
         inboxes: List<String> = emptyList(),

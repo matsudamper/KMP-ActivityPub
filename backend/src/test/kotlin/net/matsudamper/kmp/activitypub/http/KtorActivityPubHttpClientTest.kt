@@ -24,8 +24,6 @@ import net.matsudamper.activitypub.httpsignature.HttpSignatureVerifier
 import net.matsudamper.activitypub.httpsignature.SignedRequest
 
 /**
- * Ktor で実際に HTTP を張って送る側。
- *
  * 署名文字列だけを突き合わせるテストでは、engine が後から足したり書き換えたりする
  * ヘッダの影響が見えない。`Host` が二重に付く、`Date` が engine のものに置き換わる、
  * といった壊れ方は実際に送ってみないと分からず、相手側では「署名が一致しない」と
@@ -42,8 +40,6 @@ class KtorActivityPubHttpClientTest {
         )
 
     /**
-     * 受け取った側で署名を検証するサーバーを立て、[block] に宛先の URL を渡す。
-     *
      * ポートは 0 で開いて実際に割り当てられたものを使う。固定すると
      * 並列に走るテストや開発機の他のプロセスとぶつかる。
      */

@@ -15,9 +15,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 
-/**
- * 管理画面用の枠。タイトル末尾に「管理画面」を付けた TopAppBar を出す。
- */
 @Composable
 internal fun AdminScaffold(
     title: String?,

@@ -165,7 +165,6 @@ jobs:
           sqlite3 "$DB_PATH" < backend/repository/src/main/resources/db/schema.sql
 
           export ACTOR_PRIVATE_KEY_PATH="$RUNNER_TEMP/native-check/actor-private-key.pem"
-          # パスワードは ci-password。このジョブの中でしか使わない使い捨て
           export ADMIN_PASSWORD_HASH='pbkdf2-sha256:210000:HP9l044PxKN0LJhMy5GyrQ:tWTwqvZDQgC75D39BMPPm2TvA3F9S3bUP1-XyH5l4HQ'
           # http で叩くので、Secure を付けると Cookie の確認ができない
           export COOKIE_SECURE=false
@@ -227,7 +226,6 @@ jobs:
             -d '{"type":"Follow"}' \
             "http://localhost:8080/users/ci-user/inbox")" = "401"
 
-          # PBKDF2 の照合と、DB に置くセッションを通す
           echo "--- ユーザーのログイン ---"
           gql -D /tmp/user-login-headers.txt \
             -d '{"query":"mutation Login($query: UserLoginQuery!) { user { login(query: $query) { session { account { acct } } failure } } }","variables":{"query":{"username":"ci-user","password":"ci-user-password"}}}' \
@@ -236,7 +234,6 @@ jobs:
           grep -q '"failure":null' /tmp/user-login.json
           USER_COOKIE="$(grep -io 'user_session=[^;]*' /tmp/user-login-headers.txt | head -n 1)"
 
-          # PublicNoteId の scalar と、投稿の記録・投函まで通す
           echo "--- 投稿 ---"
           gql -H "Cookie: $USER_COOKIE" \
             -d '{"query":"mutation Post($body: String!) { user { postNote(body: $body) { note { id url } failure { isEmpty } } } }","variables":{"body":"ci"}}' \

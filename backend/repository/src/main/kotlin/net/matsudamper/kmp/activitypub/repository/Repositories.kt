@@ -4,8 +4,6 @@ import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
 
 /**
- * DB アクセスの入口。
- *
  * モジュールの責務は「どこからデータを読むかを呼び出し側から隠す」ことで、
  * いまはその実装が DB だけなのでここが唯一の入口になっている。
  * DB を経由しない取得口を足す場合もこのモジュールに並べる。
@@ -53,8 +51,6 @@ interface Repositories : AutoCloseable {
 }
 
 /**
- * [Repositories] を作り、DB への接続を開く。
- *
  * 接続に失敗した場合は例外を投げる。使い終わったら [Repositories.close] を呼ぶこと。
  */
 fun createRepositories(

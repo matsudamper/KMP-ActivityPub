@@ -23,9 +23,6 @@ class DeliveryCircuitBreaker(
 ) {
     private val inboxes = ConcurrentHashMap<String, InboxState>()
 
-    /**
-     * いまは送らずに待つべきか
-     */
     fun isOpen(
         inbox: String,
         now: Instant,

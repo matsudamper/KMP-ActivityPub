@@ -41,10 +41,8 @@ object GraphQlReflectionTargets {
             .flatMap { resource ->
                 val uri = resource.toURI()
                 when (uri.scheme) {
-                    // :backend 自身の出力
                     "file" -> classNamesInDirectory(Paths.get(uri), packageName)
 
-                    // 依存として入る :backend:graphql の生成物
                     "jar" ->
                         FileSystems.newFileSystem(uri, emptyMap<String, Any>()).use { fileSystem ->
                             classNamesInDirectory(fileSystem.getPath(packagePath), packageName)

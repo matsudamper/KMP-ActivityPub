@@ -49,8 +49,6 @@ internal class SqliteAccountRepository(
     }
 
     /**
-     * 並び順で [position] より後ろにあるものを絞る条件。
-     *
      * 時刻だけで比べると、同じ時刻のアカウントがページの境目に来たときに落ちるか重複する
      */
     private fun laterThan(position: AccountPosition): Condition {

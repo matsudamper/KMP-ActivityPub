@@ -11,7 +11,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 
-// ルーティングとレスポンスの形を確認する。
 // DB そのものの挙動は :backend:repository 側でテストするので、
 // ここでは FakeRepositories を渡して実ファイルを触らない。
 class ApplicationTest {

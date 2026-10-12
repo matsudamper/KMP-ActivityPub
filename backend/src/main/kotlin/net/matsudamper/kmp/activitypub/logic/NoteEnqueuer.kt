@@ -14,8 +14,6 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.slf4j.LoggerFactory
 
 /**
- * 投稿を組み立てて、記録と配信の投函を 1 回で確定させる。
- *
  * kotpub の `activitypub` の [NotePublisher] が `Create{Note}` を組み立て、
  * `:backend:repository` の投函の口が記録と投函を 1 トランザクションで書く。
  * 両方を知っているのは `:backend` だけなので、繋ぐのはここになる。
@@ -70,9 +68,6 @@ class NoteEnqueuer(
     )
 }
 
-/**
- * 記録して投函した投稿。相手に届くのはこの後
- */
 data class QueuedNote(
     val publicId: MastodonPublicNoteId,
     val url: String,

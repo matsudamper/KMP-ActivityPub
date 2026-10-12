@@ -12,14 +12,6 @@ import org.jooq.codegen.gradle.CodegenPlugin
 import org.jooq.codegen.gradle.CodegenPluginExtension
 import org.jooq.codegen.gradle.CodegenTask
 
-/**
- * コミットされた `schema.sql` を入力に、jOOQ の生成コードとリフレクション設定を作る。
- * `schema.sql` 自体は `dumpSchema` が開発用 DB から書き出す。
- *
- * codegen 本体は公式の `org.jooq.jooq-codegen-gradle` プラグインに任せる。
- * このプラグインは `GenerationTool` を Gradle デーモンの中で直接呼ぶので、
- * jOOQ 自体がデーモンのクラスパスに乗る
- */
 class DatabaseCodegenPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         val extension = target.extensions.create<DatabaseCodegenExtension>(EXTENSION_NAME)

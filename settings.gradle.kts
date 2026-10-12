@@ -76,7 +76,6 @@ fun gitHubPackagesCredential(
 
 dependencyResolutionManagement {
     repositories {
-        // ActivityPub の実装は matsudamper/kotpub から取る
         exclusiveContent {
             forRepository {
                 maven {

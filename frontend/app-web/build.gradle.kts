@@ -9,10 +9,7 @@ plugins {
     id("kmp-activitypub.webpack-bundle-hash")
 }
 
-// Web アプリの入口。URL と画面の対応、画面遷移、フォントのように Web にしか無いものを持つ。
-// 画面そのものは :frontend:feature の下にある
 kotlin {
-    // Compose Multiplatform for Web。canvas 上に描画するため DOM 操作は最小限で済む
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser {
@@ -22,7 +19,6 @@ kotlin {
                 devServer = (devServer ?: KotlinWebpackConfig.DevServer()).copy(port = 8081)
             }
         }
-        // ブラウザで動かすだけなので実行可能バイナリを生成する
         binaries.executable()
     }
 
@@ -34,18 +30,13 @@ kotlin {
                 implementation(project(":frontend:navigation"))
                 implementation(project(":frontend:feature:home"))
                 implementation(project(":frontend:feature:admin"))
-                // compose.* は deprecated 警告が出るが、1.11.1 では
-                // org.jetbrains.compose.* の直接座標がまだ公開されていない
-                // （material3 は alpha 止まり）ため、こちらを使う。
-                // 1.12 系が安定したら直接座標へ移行する。
+                // org.jetbrains.compose.* の直接座標は material3 がまだ alpha なので compose.* を使う
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.ui)
                 implementation(compose.material3)
-                // 画面遷移。JetBrains 版の Navigation 3（wasmJs 向けの成果物がある）。
                 // runtime は推移的に androidx.navigation3 から入る
                 implementation(libs.navigation3.ui)
-                // 日本語フォントを配信元から取ってくるのに使う。詳細は ui/Font.kt を参照
                 implementation(libs.ktor.client.core)
                 implementation(libs.ktor.client.js)
                 // document 等のブラウザ API。Kotlin/Wasm では stdlib から分離されている

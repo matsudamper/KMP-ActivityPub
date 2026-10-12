@@ -9,9 +9,6 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-// 公開 API から見た振る舞いを確認する。
-// 接続できること、DB ファイルと親ディレクトリが作られること、
-// 開き直しても内容が残っていること。
 // スキーマは実運用と同じく事前適用（テストでは TestSchema）で、起動時の自動適用は無い。
 class RepositoriesTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-repository-test")

@@ -8,8 +8,6 @@ import io.ktor.server.response.respondText
 import net.matsudamper.activitypub.json.AppJson
 
 /**
- * serializer を明示して JSON を返す。
- *
  * Ktor の `ContentNegotiation` を入れて `call.respond(value)` と書くと、
  * 値の [kotlin.reflect.KType] から serializer をリフレクションで引く実装になる。
  * これは native-image では解決できず、`Serializer for class 'Foo' is not found.`
@@ -18,9 +16,6 @@ import net.matsudamper.activitypub.json.AppJson
  *
  * ここで serializer を引数に取るのは、その解決をコンパイル時に済ませるため。
  * リフレクションが発生しないので `reflect-config.json` への登録も要らない。
- *
- * @param serializer 値のシリアライザ。`Foo.serializer()` で取れる
- * @param contentType 返す Content-Type
  */
 internal suspend fun <T> ApplicationCall.respondJson(
     serializer: SerializationStrategy<T>,

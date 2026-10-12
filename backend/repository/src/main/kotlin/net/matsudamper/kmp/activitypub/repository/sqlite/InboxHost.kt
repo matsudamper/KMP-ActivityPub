@@ -3,9 +3,6 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.net.URI
 import java.util.Locale
 
-/**
- * inbox の URL から、同じ相手かどうかを見るための鍵を作る。
- */
 internal object InboxHost {
     /**
      * ホスト名は大文字小文字を区別しないので、揃えてから鍵にする。

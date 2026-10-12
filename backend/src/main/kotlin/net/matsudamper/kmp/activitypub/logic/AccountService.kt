@@ -9,9 +9,6 @@ import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-/**
- * ユーザー（= こちらのアクター）の登録と照合。
- */
 class AccountService(
     private val accounts: AccountRepository,
     private val domain: String,

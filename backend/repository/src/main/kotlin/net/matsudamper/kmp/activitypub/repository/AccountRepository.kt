@@ -4,8 +4,6 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
- * 応答するアカウントの読み書き。
- *
  * 名前は大文字小文字を区別せずに一意にする。区別して持てると同じ acct を指す行が
  * 2 つ並び、どちらを返すかが引き方で変わる。
  *
@@ -98,17 +96,11 @@ interface AccountRepository {
      *
      * 諦めた配信（`failed`）も残っている間は消さない。何を送れなかったのかが
      * 分からなくなる。消すまでその名前は空かない。
-     *
-     * @return 消えた件数
      */
     fun purgeDeleted(): Int
 }
 
 /**
- * 消すアカウントと、消したことを伝える配信。
- *
- * @param id 消すアカウント
- * @param username 署名するこちらのアカウントの名前
  * @param body 署名対象になる `Delete{Actor}` の JSON
  * @param inboxes 宛先。同じ宛先は 1 つにまとめてから渡すこと
  * @param deletedAt 消した時刻。投函した時刻としても記録する
@@ -133,8 +125,6 @@ data class AccountDeletionResult(
 )
 
 /**
- * ページの位置。
- *
  * 並び順の鍵をそのまま持つ。名前で位置を指すと、その行が消えたときに続きを引けず、
  * 同じ名前で作り直されたときは新しい行の位置から返してしまう。
  */
@@ -144,8 +134,6 @@ data class AccountPosition(
 )
 
 /**
- * 応答するアカウント 1 つ。
- *
  * @param username `acct:<username>@<domain>` と `/users/<username>` に入る名前
  * @param deletedAt 消した時刻。生きているアカウントでは null
  */
@@ -161,8 +149,6 @@ data class Account(
 }
 
 /**
- * ログインの照合に使う値。
- *
  * [Account] に入れないのは、ハッシュを画面や API に渡す経路を作らないため
  *
  * @param passwordHash `:backend:crypto` の `PasswordHash.encode` の形

@@ -34,7 +34,6 @@ dependencies {
     implementation(compose.material3)
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.core)
-    // Apollo に渡す OkHttp に、ログインの Cookie を残す CookieJar を付ける
     implementation(libs.okhttp)
     implementation(libs.androidx.core.ktx)
 

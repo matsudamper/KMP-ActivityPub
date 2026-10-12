@@ -40,9 +40,6 @@ object TestImageBytes {
         header + entry + embeddedPng
     }
 
-    /**
-     * 同じ種類のまま中身だけを変える。
-     */
     fun jpegOf(content: String): ByteArray = JPEG + content.toByteArray()
 
     private const val ENTRY_SIZE = 16

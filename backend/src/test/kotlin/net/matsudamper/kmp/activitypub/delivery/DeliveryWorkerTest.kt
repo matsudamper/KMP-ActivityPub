@@ -52,8 +52,6 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
-// キューの行を拾って送るところ。
-// 並列に送る、1 件の失敗で止まらない、キャンセルは失敗として残さない。
 class DeliveryWorkerTest {
     private val now: Instant = Instant.parse("2026-08-10T00:00:00Z")
 
@@ -605,9 +603,6 @@ class DeliveryWorkerTest {
         assertEquals(1, delivery.attempts)
     }
 
-    /**
-     * キューが空になるまで回してから止める
-     */
     private suspend fun TestScope.runWorker(
         queue: FakeDeliveryQueueRepository,
         delivery: ActivityDelivery,
@@ -653,9 +648,6 @@ class DeliveryWorkerTest {
         acceptBody = """{"type":"Accept"}""",
     )
 
-    /**
-     * 消したアカウントの引き先。既定では 1 つも消えていない
-     */
     private fun deletedActorDirectory(deleted: List<String> = emptyList()): ActorDirectory = ActorDirectory(
         domain = TestLocalActor.DOMAIN,
         stored = FakeStoredActorNames(storedUserNames = deleted),
@@ -700,9 +692,6 @@ class DeliveryWorkerTest {
         override fun blocksDelivery(domain: String): Boolean = false
     }
 
-    /**
-     * 起動時の復旧だけ 1 回失敗させる
-     */
     private class FailingRecoveryOnce(
         private val delegate: FakeDeliveryQueueRepository,
     ) : DeliveryQueueRepository by delegate {
@@ -717,9 +706,6 @@ class DeliveryWorkerTest {
         }
     }
 
-    /**
-     * claim してから送り始めるまでの間に投稿が消された状態を作る
-     */
     private class DeletingNotesOnClaim(
         private val delegate: FakeDeliveryQueueRepository,
         private val notes: FakeNoteRepository,
@@ -734,9 +720,6 @@ class DeliveryWorkerTest {
         }
     }
 
-    /**
-     * claim の中で SQL の span が作られる状態を作る
-     */
     private class TracingClaim(
         private val delegate: FakeDeliveryQueueRepository,
         openTelemetry: OpenTelemetry,
@@ -769,9 +752,6 @@ class DeliveryWorkerTest {
         override fun shutdown(): CompletableResultCode = CompletableResultCode.ofSuccess()
     }
 
-    /**
-     * 送れた記録だけ 1 回失敗させる
-     */
     private class FailingMarkDeliveredOnce(
         private val delegate: FakeDeliveryQueueRepository,
     ) : DeliveryQueueRepository by delegate {
@@ -811,8 +791,6 @@ class DeliveryWorkerTest {
     }
 
     /**
-     * 送信の差し替え。同時に何件送っているかを数える
-     *
      * @param failing 失敗を返す宛先
      * @param failTimes 失敗を返す回数。0 なら毎回
      * @param throwing 例外を投げる宛先

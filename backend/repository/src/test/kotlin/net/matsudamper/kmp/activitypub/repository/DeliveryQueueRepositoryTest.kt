@@ -14,8 +14,6 @@ import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.sqlite.SQLiteDataSource
 
-// 本物の SQLite に対して確かめる。
-// 投函が 1 トランザクションで確定すること、claim が二重に取れないことがここの関心になる。
 class DeliveryQueueRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-delivery-queue-test")
 

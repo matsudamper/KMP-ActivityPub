@@ -9,9 +9,6 @@ import io.ktor.server.response.respondBytes
 import net.matsudamper.activitypub.http.EndpointResponse
 import net.matsudamper.activitypub.http.RequestHeaders
 
-/**
- * エンドポイントが返した応答をそのまま書き出す
- */
 internal suspend fun ApplicationCall.respondEndpoint(endpointResponse: EndpointResponse) {
     endpointResponse.headers.forEach { (name, value) -> response.header(name, value) }
     respondBytes(

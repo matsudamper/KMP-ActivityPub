@@ -17,8 +17,6 @@ import kotlinx.browser.window
 import org.w3c.dom.events.Event
 
 /**
- * Navigation 3 のバックスタックを、ブラウザの履歴に合わせて持つ。
- *
  * Navigation 3 が扱うのはバックスタックだけで URL は見ない。一方ブラウザには
  * アドレスバーと戻る / 進むがあり、こちらを無視すると「戻ると画面が変わらない」
  * 「共有した URL で別の画面が出る」ことになる。
@@ -37,19 +35,14 @@ import org.w3c.dom.events.Event
 @Stable
 class NavController internal constructor() {
     /**
-     * [androidx.navigation3.ui.NavDisplay] に渡すバックスタック。
-     *
      * 再読み込みしても履歴の状態は残るので、アプリの中で開いたときと同じ画面を下に敷ける
      */
     val backStack: SnapshotStateList<HistoryEntry> =
         mutableStateListOf<HistoryEntry>().apply { addAll(stackOfCurrentEntry()) }
 
-    /** いま出している画面 */
     val current: Screen get() = backStack.last().screen
 
     /**
-     * 画面を切り替え、アドレスバーも合わせる。
-     *
      * 同じ画面なら履歴に積まない。積むと戻るボタンを押しても同じ画面のままになる。
      */
     fun navigateTo(screen: Screen) {
@@ -72,8 +65,6 @@ class NavController internal constructor() {
     }
 
     /**
-     * 戻る。
-     *
      * バックスタックを直接削らずブラウザの履歴を戻す。ここで削ると
      * アドレスバーが古いパスのまま残り、再読み込みで別の画面が出る。
      * バックスタックは `popstate` を受けた [syncWithLocation] が組み直す。
@@ -115,7 +106,6 @@ class NavController internal constructor() {
     private val currentEntryPushedByApp: Boolean
         get() = isPushedByApp(window.history.state)
 
-    /** 戻る / 進むで URL が変わったときに呼ぶ */
     internal fun syncWithLocation() {
         applyStack(stackOfCurrentEntry())
     }
@@ -129,8 +119,6 @@ class NavController internal constructor() {
 
     private companion object {
         /**
-         * いま見えている履歴から組むバックスタック。
-         *
          * id の無い履歴（直接開いたもの）にはここで振る。戻る / 進むで同じ履歴に来たときに、
          * 前に出した状態を引けるようにする
          */
@@ -171,8 +159,6 @@ class NavController internal constructor() {
         fun createEntryId(): String = Random.nextLong().toULong().toString(36)
 
         /**
-         * URL から決まるバックスタック。
-         *
          * トップを常に下に敷いておくと、直接開いた URL からでも
          * 戻り先が画面の中に必ず 1 つある状態になる。
          *
@@ -222,9 +208,6 @@ private fun historyScreenBelowId(state: JsAny?): String? =
 private fun isPushedByApp(state: JsAny?): Boolean =
     js("typeof state === 'string' || state?.pushedByApp === true")
 
-/**
- * 現在の URL から [NavController] を作り、履歴の操作とタブのタイトルを繋ぐ。
- */
 @Composable
 fun rememberNavController(): NavController {
     val navController = remember { NavController() }

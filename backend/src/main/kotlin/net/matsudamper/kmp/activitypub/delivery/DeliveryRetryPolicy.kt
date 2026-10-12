@@ -14,7 +14,6 @@ import kotlin.time.toJavaDuration
  * 恒久的に消えたインスタンスは 1 週間で切れる。
  *
  * @param initialInterval 最初の失敗の後に待つ時間
- * @param maxInterval 間隔の上限
  * @param giveUpAfter 投函からこれを過ぎる時刻に送ることになるなら諦める
  */
 class DeliveryRetryPolicy(
@@ -23,8 +22,6 @@ class DeliveryRetryPolicy(
     private val giveUpAfter: Duration,
 ) {
     /**
-     * 投函から時間が経ちすぎていて、もう送るべきでないか。
-     *
      * 止まっていた間に期限を過ぎた行を、再起動後に 1 回だけ送ってしまわないために送る前に見る
      */
     fun isExpired(

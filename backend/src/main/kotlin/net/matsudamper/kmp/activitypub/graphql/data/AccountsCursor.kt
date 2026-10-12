@@ -9,8 +9,6 @@ import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
- * 公開アカウント一覧の続きを指す印。
- *
  * 受け渡す形は JSON を base64 にしたもので、外からは中身の無い文字列として扱う。
  * 何を目印に切っているかを変えても、クライアントを直さずに済む。
  *

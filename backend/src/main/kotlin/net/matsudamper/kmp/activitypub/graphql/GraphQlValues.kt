@@ -10,9 +10,6 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 
 object GraphQlValues {
-    /**
-     * 実行結果を JSON にする
-     */
     fun toJsonElement(value: Any?): JsonElement {
         return when (value) {
             null -> {
@@ -50,9 +47,6 @@ object GraphQlValues {
         }
     }
 
-    /**
-     * 変数を graphql-java に渡せる形にする
-     */
     fun toRawValue(element: JsonElement): Any? {
         return when (element) {
             is JsonNull -> {

@@ -10,8 +10,6 @@ import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
- * ユーザーのログインセッション。
- *
  * 管理画面と違って DB に置く。Android アプリは開くたびにログインし直させられないので、
  * サーバーの再起動でセッションが消えると困る。
  */

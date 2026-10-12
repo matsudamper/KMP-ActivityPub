@@ -11,8 +11,6 @@ import kotlin.test.assertTrue
 import net.matsudamper.activitypub.actor.ActorPrivateKey
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 
-// 環境変数の読み取りを確認する。読むのはここ 1 か所だけなので、
-// 変数と既定値の一覧としてもこのテストを見れば分かるようにしておく。
 class ServerEnvTest {
     private fun env(vararg values: Pair<String, String>): ServerEnv =
         ServerEnv(values.toMap() + ("DOMAIN" to "example.com"))

@@ -12,9 +12,6 @@ import net.matsudamper.kmp.activitypub.crypto.PasswordHash
  * `:backend:repository` のようなライブラリ側のモジュールが環境を読むのも同じ理由でやめる。
  * 何をどこから読むかを決めるのはアプリの入口の仕事にする。
  *
- * native-image では起動時に環境変数を読む方が設定ファイルより素直なので、
- * 設定の入口そのものは環境変数に寄せている。
- *
  * 空文字と空白だけの指定はどれも未設定と同じに扱う。docker compose の
  * `VAR` が空で展開されたときに、既定値へ落ちる方が扱いやすい。
  *
@@ -24,18 +21,12 @@ import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 class ServerEnv(
     env: Map<String, String> = System.getenv(),
 ) {
-    /**
-     * バインドするアドレス
-     */
     val host: String =
         run {
             val raw = env["HOST"]?.trim()
             if (raw.isNullOrEmpty()) "0.0.0.0" else raw
         }
 
-    /**
-     * 待ち受けポート。数値でなければ起動しない
-     */
     val port: Int = env["PORT"]?.trim()?.takeIf { it.isNotEmpty() }?.toInt() ?: 8080
 
     /**
@@ -69,18 +60,12 @@ class ServerEnv(
             normalized
         }
 
-    /**
-     * SQLite の DB ファイル。親ディレクトリは接続時に作られる
-     */
     val dbPath: Path =
         run {
             val raw = env["DB_PATH"]?.trim()
             Path.of(if (raw.isNullOrEmpty()) "./data/kmp-activitypub.db" else raw)
         }
 
-    /**
-     * アクターの秘密鍵をどこから読むか
-     */
     val actorPrivateKey: ActorPrivateKey =
         run {
             // PEM は中身をそのまま鍵として読むので、前後の空白も落とさずに渡す
@@ -101,9 +86,6 @@ class ServerEnv(
             }
         }
 
-    /**
-     * 配信する静的ファイルのディレクトリ。未設定なら null で、何も配信しない
-     */
     val staticSrcDir: Path? =
         run {
             val raw = env["STATIC_SRC_DIR"]?.trim()

@@ -12,14 +12,8 @@ import java.time.Instant
  * 手で止めた相手が、配信が 1 回通っただけで元に戻ってはいけない。
  */
 interface DomainBlockRepository {
-    /**
-     * そのドメインへの配信を止めているか
-     */
     fun blocksDelivery(domain: String): Boolean
 
-    /**
-     * そのドメインからの受信を止めているか
-     */
     fun blocksInbox(domain: String): Boolean
 
     /**
@@ -40,8 +34,6 @@ interface DomainBlockRepository {
      * 自動で止めたものだけを外す。手で止めたものは残す。
      *
      * 配信の成功や署名付きのリクエストの受信のたびに呼ぶので、止めていなければ書き込まずに返る。
-     *
-     * @return 外したら true
      */
     fun clearUnavailable(domain: String): Boolean
 
@@ -73,18 +65,12 @@ interface DomainBlockRepository {
 
     /**
      * 理由を問わず削除する
-     *
-     * @return 削除したら true
      */
     fun delete(domain: String): Boolean
 }
 
 /**
  * @param domain 小文字に揃えたホスト名
- * @param reasonDescription 止めた理由の説明
- * @param blockDelivery こちらから送らない
- * @param blockInbox 相手から受け取らない
- * @param createdAt 止め始めた時刻
  */
 data class DomainBlock(
     val domain: String,

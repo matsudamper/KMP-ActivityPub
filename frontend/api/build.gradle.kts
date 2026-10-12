@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.apollo)
 }
 
-// GraphQL の口を叩いて、画面が扱う形に直すところまで。画面は知らない
 kotlin {
     android {
         namespace = "net.matsudamper.kmp.activitypub.frontend.api"
@@ -33,7 +32,6 @@ kotlin {
     }
 }
 
-// 問い合わせ（src/commonMain/graphql/*.graphql）はこのモジュールが持つ。
 // スキーマは :backend:graphql のものをファイルとして読むだけで、依存はしない。
 // 写しを持たないので、片方にだけフィールドがある状態にはならない
 apollo {

@@ -10,8 +10,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
-// 本物の SQLite に対して確かめる。
-// 相手はパーマリンクを後から引きに来るので、送ったものが残っていることが要件になる。
 class NoteRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-note-test")
 

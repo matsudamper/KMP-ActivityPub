@@ -3,15 +3,9 @@ package net.matsudamper.kmp.activitypub.gradle
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 
-/** [DatabaseCodegenPlugin] の設定 */
 interface DatabaseCodegenExtension {
-    /**
-     * スキーマの唯一の定義になる SQL ファイル。既定は `src/main/resources/db/schema.sql`。
-     * [DumpSchemaTask] の書き出し先で、codegen の入力でもある
-     */
     val schemaFile: RegularFileProperty
 
-    /** 生成コードのパッケージ名 */
     val packageName: Property<String>
 
     /**
@@ -23,9 +17,5 @@ interface DatabaseCodegenExtension {
      */
     val excludes: Property<String>
 
-    /**
-     * リフレクション設定を置く `META-INF/native-image/` の下のパス。
-     * 既定は `<group>/<プロジェクト名>-jooq`
-     */
     val nativeImageMetadataPath: Property<String>
 }

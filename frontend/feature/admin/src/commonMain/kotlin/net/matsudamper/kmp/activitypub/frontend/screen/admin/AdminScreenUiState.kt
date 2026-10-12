@@ -42,9 +42,6 @@ data class AdminScreenUiState(
         ) : Content
     }
 
-    /**
-     * ホームに並べる入口のまとまり。見出しの下にタイルを並べる
-     */
     data class MenuSection(
         val title: String,
         val items: List<MenuItem>,

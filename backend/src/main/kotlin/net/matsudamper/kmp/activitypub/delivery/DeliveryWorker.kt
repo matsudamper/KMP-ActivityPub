@@ -32,8 +32,6 @@ import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import org.slf4j.LoggerFactory
 
 /**
- * 配信キューの行を拾って相手の inbox に送る。
- *
  * リクエストとは無関係に動くので Ktor の routing には乗せず、起動時に 1 つだけ回す。
  * 同じ DB に対してプロセスを 2 つ動かす構成は取らない。起動時の復旧が、
  * 動いている他のプロセスの送信中の行まで巻き戻して二重に送る。
@@ -50,11 +48,9 @@ import org.slf4j.LoggerFactory
  *   これで引いて署名する
  * @param backfill フォローが成立した相手に過去の投稿を配る。成立するのは `Accept` が
  *   届いたときなので、始められるのはここになる
- * @param circuitBreaker 失敗が続いている inbox に送らずに済ませる
  * @param domainBlocks 配信を止めているドメイン。諦めた宛先のドメインをここで止め、
  *   送れたら再開する
  * @param claimLimit 1 回の claim で取り出す数。取った行を渡し終えるまで次の claim はしない
- * @param sendConcurrency 同時に送る数の上限
  * @param idleInterval claim が 0 件だったときに次を見に行くまでの待ち。
  *   新しい投稿が入ってから送り始めるまでの遅れの上限になる
  * @param openTelemetry 1 行ごとの span を出す先。1 行ごとに root を作る
@@ -88,9 +84,6 @@ class DeliveryWorker(
         ),
     )
 
-    /**
-     * 送信中のまま残っている行を戻してから、繰り返しを始める
-     */
     fun start(scope: CoroutineScope): Job =
         scope.launch {
             // 成立したフォローへの配り直しをここに乗せる。送り手のコルーチンの中で待つと、
@@ -120,8 +113,6 @@ class DeliveryWorker(
         }
 
     /**
-     * 送信中のまま残っている行を戻す。戻せるまで繰り返す。
-     *
      * 投げると繰り返しが始まらず、次に再起動するまで配信が止まる
      */
     private suspend fun recoverDelivering() {
@@ -187,8 +178,6 @@ class DeliveryWorker(
     }
 
     /**
-     * 1 件送って結果を記録する。
-     *
      * 例外はこの行の失敗として扱う。キャンセルだけは投げ直して、失敗として記録しない。
      * 記録すると、送れていない行が `pending` に戻って停止中に送り直される
      */
@@ -289,8 +278,6 @@ class DeliveryWorker(
     }
 
     /**
-     * 署名するこちらのアカウントを引く。
-     *
      * 消したアカウントとして署名してよいのは、消したことを伝える `Delete{Actor}` だけ。
      * 他の種別まで引けると、消した後に投函された行が旧アクターとして送られて、
      * `Delete` の後から投稿が届く
@@ -303,8 +290,6 @@ class DeliveryWorker(
     }
 
     /**
-     * フォローが成立した相手に、フォローより前の投稿を配る。
-     *
      * 配信の結果は記録済みなので、ここで落ちてもキューには残らない。配れなくても
      * フォローは成立していて、次の新着からは普通に届く
      */
@@ -368,8 +353,6 @@ class DeliveryWorker(
     }
 
     /**
-     * 期限まで送れなかったので、そのドメインへの配信を止める。
-     *
      * 行の結果は記録済みなので、ここで落ちても行を送り直し待ちには戻さない。
      * 止められなくても、次に諦めたときにまた試す
      */
@@ -387,8 +370,6 @@ class DeliveryWorker(
     }
 
     /**
-     * 送れたので、自動で止めていたドメインへの配信を再開する。
-     *
      * 行の結果は記録済みなので、ここで落ちても行を送り直し待ちには戻さない
      */
     private fun markAvailable(inbox: String) {

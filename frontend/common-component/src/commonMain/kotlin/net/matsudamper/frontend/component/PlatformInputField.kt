@@ -15,8 +15,6 @@ enum class HtmlInputType(val value: String) {
 }
 
 /**
- * プラットフォームの入力欄を Material3 の TextField 風に見せる。
- *
  * Web では HTML の input を埋め込み、オートフィルとクリップボード操作を
  * ブラウザに任せる。Android では [androidx.compose.material3.OutlinedTextField] を使う。
  */

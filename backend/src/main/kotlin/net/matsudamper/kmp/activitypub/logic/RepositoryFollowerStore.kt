@@ -8,8 +8,6 @@ import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.IncomingFollow
 
 /**
- * ActivityPub 側の [FollowerStore] を DB に繋ぐ。
- *
  * kotpub の `activitypub` が `:backend:repository` を知らないので型を持ち替える
  */
 class RepositoryFollowerStore(

@@ -10,8 +10,6 @@ import net.matsudamper.kmp.activitypub.repository.DomainBlockRepository
 import org.slf4j.LoggerFactory
 
 /**
- * 配信・受信を止める相手のドメイン。
- *
  * 配信を諦めたドメインへは送らないようにして、相手が戻ってきたら送り始める。
  * 落ちた相手にも新しい投稿のたびに行が積まれ、それぞれが諦めるまで送り直しを繰り返すのを止める。
  * Mastodon もドメインごとに「利用不可」を持ち、配信の成功か、そのドメインのアクターからの

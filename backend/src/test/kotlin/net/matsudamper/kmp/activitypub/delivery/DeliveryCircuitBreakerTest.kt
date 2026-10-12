@@ -5,7 +5,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 
-// 失敗が続いた inbox へしばらく送らない。数えるのは inbox ごとで、成功で数え直す。
 class DeliveryCircuitBreakerTest {
     private val now: Instant = Instant.parse("2026-08-10T00:00:00Z")
     private val breaker = DeliveryCircuitBreaker(failureThreshold = 3, coolOff = 60.seconds)

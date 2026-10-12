@@ -14,9 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/**
- * 公開画面と管理画面で共通の枠。TopAppBar 以外のレイアウトだけを担う。
- */
 @Composable
 fun AppScaffoldLayout(
     snackbarHostState: SnackbarHostState,

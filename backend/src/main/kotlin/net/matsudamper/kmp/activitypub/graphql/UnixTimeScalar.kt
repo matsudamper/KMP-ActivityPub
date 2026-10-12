@@ -12,8 +12,6 @@ import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 
 /**
- * スキーマの `UnixTime`。
- *
  * 定義はスキーマ側にあるが、値の変換は graphql-java に登録しないと動かない。
  * 登録漏れはスキーマを組み立てる時点で落ちるので、[GraphQlEngine] から必ず渡す。
  */

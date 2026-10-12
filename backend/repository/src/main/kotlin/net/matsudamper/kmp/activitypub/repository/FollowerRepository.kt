@@ -3,8 +3,6 @@ package net.matsudamper.kmp.activitypub.repository
 import java.time.Instant
 
 /**
- * フォロワーの読み書き。
- *
  * `remote_actors` と `followers` の 2 テーブルにまたがるが、口は 1 つにする。
  * 呼び出し側が欲しいのは「この相手がこのアカウントをフォローしている」という事実だけで、
  * 行を採番した id は外に出しても使い道が無い。分けると、フォロー 1 件を記録するのに
@@ -49,7 +47,6 @@ interface FollowerRepository {
      *   アクティビティが埋め込まれておらず id だけが来た場合、それが本当に `Follow` の id
      *   だったのかはこちらの記録と突き合わせるしか確かめようが無い。埋め込まれていて
      *   `Follow` だと分かる場合は null を渡して id を問わずに消す
-     * @return 消したら true
      */
     fun remove(
         username: String,
@@ -69,8 +66,6 @@ interface FollowerRepository {
      * 参照していないので外部キーでは消えず、残すと同じ名前で作り直したアカウントを
      * 前のフォロワーがフォローしている状態になる。
      * まだ送っていない `Accept` も一緒に消える。返す先が無い。
-     *
-     * @return 消えた件数
      */
     fun removeAccount(username: String): Int
 
@@ -81,8 +76,6 @@ interface FollowerRepository {
      * 相手が消えた以上、フォローの相手として残しておく意味が無い。
      * その相手へのまだ送っていない `Accept` も一緒に消える。残すと、消えた相手に
      * 送り続けて諦めるまでキューに残る。
-     *
-     * @return 消えたフォローの数
      */
     fun removeRemoteActor(actorUri: String): Int
 
@@ -174,14 +167,10 @@ interface FollowerRepository {
 }
 
 /**
- * 受け取った `Follow` を記録するのに要るもの。
- *
  * 相手のアクターの中身を一緒に受け取るのは、`Follow` を処理する時点で
  * アクター文書を取りに行っているため。フォロワーとして記録するなら、
  * そのとき読めた inbox と公開鍵もその場で残しておくのが取りに行く回数が少なくて済む。
  *
- * @param username フォローされたこちらのアカウントの名前
- * @param followActivityUri 受け取った `Follow` の id
  * @param receivedAt 受け取った時刻。相手のアクター文書を読んだ時刻としても記録する
  * @param acceptBody 相手に返す `Accept` の JSON。署名対象になる
  */
@@ -210,8 +199,6 @@ data class RemoteActorProfile(
 )
 
 /**
- * 記録済みのフォロワー 1 人。
- *
  * プロフィールは相手が名乗ったものをそのまま持つ。名乗らない実装があるので
  * どれも null を取りうる。ドメインを持たないのは [actorUri] から決まるため。
  *
@@ -227,8 +214,6 @@ data class StoredFollower(
 )
 
 /**
- * 相手のアクターのうち保存する部分。
- *
  * アクター文書を読んだ結果（kotpub の `activitypub` 側の型）とは別に定義する。
  * 同じ型を使い回すと、スキーマを変えるたびに取得側を触ることになる。
  *

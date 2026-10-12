@@ -11,9 +11,6 @@ import com.apollographql.cache.normalized.doNotStore
 import com.apollographql.cache.normalized.fetchPolicy
 import com.apollographql.cache.normalized.watch
 
-/**
- * 続きを足しても 1 つの流れで受け取れる一覧
- */
 interface Paging<T> {
     fun watch(): Flow<T>
 
@@ -44,7 +41,6 @@ sealed interface PagingLoadMoreResult {
  *
  * @param appendPage 先頭のページの内容に続きを足したものを返す。
  *   次の cursor は取ってきた側のものにする
- * @param toResult watch から流す形に直す
  */
 internal class CachedPaging<D : Query.Data, T>(
     private val client: ApolloClient,

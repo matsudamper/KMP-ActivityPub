@@ -6,9 +6,6 @@ import net.matsudamper.kmp.activitypub.logic.UserSessionService
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-/**
- * 通信に関係するものを入れておく
- */
 class GraphQlContext(
     call: ApplicationCall,
     private val adminSessionStore: AdminSessionInMemoryStore,
@@ -30,7 +27,6 @@ class GraphQlContext(
     fun isAdminLoggedIn(): Boolean = adminSessionStore.isValid(adminCookie.token())
 
     /**
-     * Cookieを発行する
      * 発行した Cookie はまだリクエスト側に無いので、[isAdminLoggedIn] は false のまま
      */
     fun issueAdminSession() {
@@ -42,9 +38,6 @@ class GraphQlContext(
         adminCookie.expire()
     }
 
-    /**
-     * ログイン中のユーザー。ログインしていなければ null
-     */
     fun userAccountId(): AccountId? = userCookie.token()?.let { userSessions.accountIdOf(it) }
 
     /**

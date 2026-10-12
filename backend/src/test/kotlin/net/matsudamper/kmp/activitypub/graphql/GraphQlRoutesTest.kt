@@ -14,7 +14,6 @@ import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 import net.matsudamper.kmp.activitypub.testDependencies
 
-// 口そのものの振る舞いを確認する。中身（管理画面のフィールド）は AdminGraphQlTest 側。
 class GraphQlRoutesTest {
     @Test
     fun `ボディが大きすぎれば 413 で読まない`() =

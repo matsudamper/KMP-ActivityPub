@@ -9,8 +9,6 @@ import org.jooq.Select
 import org.jooq.impl.DSL
 
 /**
- * `followers` の絞り込みと状態の書き換え。
- *
  * フォローの記録と、`Accept` を送れたことの記録は別のリポジトリから書く。
  * 同じ絞り込みをそれぞれに持たせると、状態の名前や結合の仕方が片方だけずれる。
  */

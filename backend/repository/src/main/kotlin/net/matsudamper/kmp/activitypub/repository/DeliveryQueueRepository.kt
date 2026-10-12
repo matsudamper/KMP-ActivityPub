@@ -5,8 +5,6 @@ import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
- * 相手の inbox に送る配信の待ち行列。
- *
  * 1 行が 1 宛先への 1 件。送る中身と署名するアカウントを行が持つので、
  * 取り出した側は行だけ見れば送れる。
  *
@@ -19,8 +17,6 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
  */
 interface DeliveryQueueRepository {
     /**
-     * 投稿を記録して、宛先ごとの配信を投函する。
-     *
      * 宛先が 1 つも無くても投稿は記録する。フォロワーがいない間の投稿も `outbox` には並ぶ。
      *
      * 投函した行は投稿に紐付く。投稿を消すと未配信の行も一緒に消えるので、
@@ -29,8 +25,6 @@ interface DeliveryQueueRepository {
     fun enqueueNote(post: NotePost): EnqueueNoteResult
 
     /**
-     * 投稿を消して、消したことを宛先ごとに投函する。
-     *
      * 記録を消すのと投函を 1 トランザクションで確定させる。記録だけ消すと、
      * 相手のタイムラインには残ったままになる。投函だけすると、`Delete` を受けた相手が
      * 確かめに来たときにまだ本文を返す。
@@ -44,8 +38,6 @@ interface DeliveryQueueRepository {
     fun enqueueNoteDeletion(post: NoteDeletionPost): Int
 
     /**
-     * アクター情報の更新を宛先ごとに投函する。
-     *
      * まだ送っていない同じアカウントの更新は、いま渡されたもので置き換える。
      * 続けて 2 回変えたときに古い方が後から届くと、相手の表示が 1 つ前に戻る。
      *
@@ -58,8 +50,6 @@ interface DeliveryQueueRepository {
      *
      * 選ぶのと `delivering` にするのを一度に行い、更新できた行だけを返す。
      * 分けると、別のループが同じ行を拾って二重に送る。`attempts` はここで増やす。
-     *
-     * @param limit 一度に取り出す数
      */
     fun claim(
         now: Instant,
@@ -67,16 +57,12 @@ interface DeliveryQueueRepository {
     ): List<ClaimedDelivery>
 
     /**
-     * 行がまだあるか。
-     *
      * claim してから送るまでの間に、投稿が消されて行ごと消えていることがある。
      * まとめて claim した分を順に送る間は開くので、送る直前に確かめる
      */
     fun exists(id: DeliveryId): Boolean
 
     /**
-     * 送れたので行を消す。
-     *
      * 送れたことで確定する記録が種別ごとにあるので、行を消すのと一緒に書く。
      * 分けると、書く前に落ちたときに「送ったのに記録が無い」状態が残り、
      * 行はもう無いので直す手立てが無くなる。
@@ -89,9 +75,6 @@ interface DeliveryQueueRepository {
         deliveredAt: Instant,
     ): DeliveredOutcome
 
-    /**
-     * 送れなかったので、時刻を指定して `pending` に戻す
-     */
     fun scheduleRetry(
         id: DeliveryId,
         nextAttemptAt: Instant,
@@ -116,8 +99,6 @@ interface DeliveryQueueRepository {
      * ActivityPub の受信側はアクティビティの `id` で冪等に扱うので許容する。
      * 同じ DB に対してプロセスを 2 つ動かすと、動いている方の行まで巻き戻すので、
      * その構成は取らない。
-     *
-     * @return 戻した件数
      */
     fun recoverDelivering(): Int
 
@@ -183,15 +164,11 @@ interface DeliveryQueueRepository {
      * そのアカウントが署名する配信を全部消す。アカウントを消すときに使う。
      *
      * 残すと、消えたアカウントとして署名しようとして送れない行を延々と送り直す
-     *
-     * @return 消えた件数
      */
     fun deleteByUsername(username: String): Int
 }
 
 /**
- * 投函する投稿。
- *
  * @param body 署名対象になる `Create{Note}` の JSON。宛先ごとに同じものを送る
  * @param inboxes 宛先。同じ宛先は 1 つにまとめてから渡すこと
  * @param enqueuedAt 投函した時刻。最初の 1 回はこの時刻にすぐ送る
@@ -204,10 +181,7 @@ data class NotePost(
 )
 
 /**
- * 投函する投稿の削除。
- *
  * @param publicId 消す投稿。この投稿の記録も一緒に消える
- * @param username 署名するこちらのアカウントの名前
  * @param body 署名対象になる `Delete{Note}` の JSON
  * @param inboxes 宛先。同じ宛先は 1 つにまとめてから渡すこと
  * @param enqueuedAt 投函した時刻。最初の 1 回はこの時刻にすぐ送る
@@ -221,9 +195,6 @@ data class NoteDeletionPost(
 )
 
 /**
- * 投函するアクター情報の更新。
- *
- * @param username 署名するこちらのアカウントの名前
  * @param body 署名対象になる `Update{Actor}` の JSON
  * @param inboxes 宛先。同じ宛先は 1 つにまとめてから渡すこと
  * @param enqueuedAt 投函した時刻。最初の 1 回はこの時刻にすぐ送る
@@ -248,29 +219,14 @@ sealed interface EnqueueNoteResult {
  * 何を送る行か。DB には小文字の名前で入る
  */
 enum class DeliveryKind {
-    /**
-     * 投稿を包んだ `Create`
-     */
     CREATE_NOTE,
 
-    /**
-     * 消した投稿の `Delete`
-     */
     DELETE_NOTE,
 
-    /**
-     * アクター情報の `Update`
-     */
     UPDATE_ACTOR,
 
-    /**
-     * 消したアクターの `Delete`
-     */
     DELETE_ACTOR,
 
-    /**
-     * 受け取った `Follow` への `Accept`
-     */
     ACCEPT_FOLLOW,
 }
 
@@ -299,9 +255,6 @@ sealed interface DeliveredOutcome {
 }
 
 /**
- * ワーカーに渡す、`delivering` にした行。
- *
- * @param username 署名するこちらのアカウントの名前
  * @param body 署名対象になる JSON
  * @param attempts この claim を含めた回数。送り直しの間隔を決めるのに使う
  * @param enqueuedAt 投函した時刻。諦める判定に使う
@@ -326,10 +279,6 @@ data class DeliveryQueueCounts(
 )
 
 /**
- * 送り直しを待っている行 1 件。アカウントを問わない一覧に使う
- *
- * @param kind 何を送る行か
- * @param username 署名するこちらのアカウントの名前
  * @param sending 送っている最中か。送る時刻を待っているだけなら false
  */
 data class AccountRetryingDelivery(
@@ -349,8 +298,6 @@ data class AccountRetryingDelivery(
 }
 
 /**
- * 送り直しを待っている行 1 件
- *
  * @param kind 何を送る行か。何が滞っているかは宛先だけでは分からない
  */
 data class RetryingDelivery(
@@ -379,8 +326,6 @@ data class DeliveryQueuePosition(
 
 /**
  * 諦めた行 1 件。もう送らないので次に送る時刻は無い
- *
- * @param kind 何を送る行か
  */
 data class FailedDelivery(
     val id: DeliveryId,

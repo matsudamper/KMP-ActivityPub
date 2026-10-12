@@ -19,12 +19,8 @@ import net.matsudamper.activitypub.http.ActivityPubHttpClient
 import net.matsudamper.activitypub.http.ActivityPubPostResponse
 
 /**
- * Ktor の CIO で相手のサーバーと話す [ActivityPubHttpClient]。
- *
  * GET と POST でリダイレクトの扱いが違うので、クライアントを分けて持つ。
  * 使わない側は作らない。
- *
- * @param openTelemetry null でなければ、外向きのリクエストを span として記録する
  */
 internal class KtorActivityPubHttpClient(
     private val openTelemetry: OpenTelemetry?,

@@ -10,7 +10,6 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
-// 送れなかった配信を次にいつ送るか。
 // 間隔が 2 倍ずつ伸びて 24 時間で頭打ちになること、7 日で諦めることが要件。
 class DeliveryRetryPolicyTest {
     private val policy = DeliveryRetryPolicy(

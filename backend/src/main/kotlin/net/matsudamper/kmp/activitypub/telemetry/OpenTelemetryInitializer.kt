@@ -34,8 +34,6 @@ object OpenTelemetryInitializer {
     }
 
     /**
-     * OpenTelemetry SDK を手動で起動する。
-     *
      * GraalVM native-image では javaagent が使えないため、
      * [AutoConfiguredOpenTelemetrySdk] で環境変数から設定を読む。
      * ログは対応しない。トレースとメトリクスのみ。

@@ -8,12 +8,8 @@ plugins {
 dependencies {
     implementation(project(":backend:repository"))
 
-    // ActivityPub（WebFinger / Actor / inbox / NodeInfo）の実装。
-    // HTTP の実装には依存しないので、Ktor のルーティングと ActivityPubHttpClient の
-    // Ktor 実装はこちらで持つ
     implementation(libs.kotpub.activitypub)
 
-    // 管理画面のパスワードの照合
     implementation(project(":backend:crypto"))
 
     implementation(project(":backend:graphql"))
@@ -35,7 +31,6 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
 
-    // GraphQlReflectionFeature を書くための API
     compileOnly(libs.graalvm.nativeimage)
 
     // SLF4J の実装が無いと Ktor もこちらのログも NOP になって何も出ない。
@@ -48,8 +43,6 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlin.test)
 
-    // 相手のアクターと送信先のフェイク。ActivityPub の組み立てを差し替えるものなので、
-    // 実装と同じモジュールが出す
     testImplementation(testFixtures(libs.kotpub.activitypub))
 }
 
@@ -71,16 +64,6 @@ graalvmNative {
     // これは third-party ライブラリ向けの設定を配る仕組みで、収録範囲は各ライブラリ
     // 自身のパッケージに限られる（index.json の allowed-packages）。アプリ側の
     // @Serializable 型は構造上入らないので、こちらの都合は何も解決しない。
-    //
-    // このプロジェクトの依存について実際に収録されているものを見ると、
-    // ktor-server-cio / ktor-server-content-negotiation / kotlinx-serialization-json は
-    // 中身が {} （設定不要と検証済みの印）で、実データがあるのは ktor-server-core の
-    // 一部だけ。sqlite-jdbc は jar が SqliteJdbcFeature を同梱していて素で動く。
-    //
-    // 当初は GraalVM for JDK 21 を使っていて、統合形式の reachability-metadata.json を
-    // 読めずビルドが落ちるという理由もあった（provides a reachability-metadata schema,
-    // but your GraalVM installation does not）。JDK 25 に上げてこの制約は無くなったが、
-    // 上に書いた「収録範囲がアプリ側に届かない」という理由はそのままなので切ったままにする
     metadataRepository {
         enabled.set(false)
     }
@@ -100,11 +83,6 @@ graalvmNative {
             //
             //   Error: Classes that should be initialized at run time got initialized during image building:
             //   kotlin.DeprecationLevel was unintentionally initialized at build time
-            //
-            // 当初は reflect-config.json への登録が原因だと考えていたが、登録を全て消しても
-            // 再現した。Kotlin のクラスが解析対象にあれば起きるので、このまま許可する。
-            // 値を持たない enum なのでビルド時初期化にして問題ない。
-            // 原因の特定には --trace-class-initialization=kotlin.DeprecationLevel を使った
             buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
 
             // jOOQ は組み込みの型を静的初期化子で登録し、その中で配列型を

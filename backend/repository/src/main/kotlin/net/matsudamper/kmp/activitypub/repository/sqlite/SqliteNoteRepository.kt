@@ -114,8 +114,6 @@ internal class SqliteNoteRepository(
     }
 
     /**
-     * 並び順で [cursor] より後ろにあるものを絞る条件。
-     *
      * 時刻だけで比べると、同じ時刻の投稿がページの境目に来たときに落ちるか重複する
      */
     private fun olderThan(cursor: NotePosition): Condition {

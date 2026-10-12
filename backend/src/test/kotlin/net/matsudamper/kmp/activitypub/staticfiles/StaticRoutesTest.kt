@@ -20,8 +20,6 @@ import net.matsudamper.kmp.activitypub.TestServerEnv
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.testDependencies
 
-// root から静的ファイルを配信するところを確認する。
-// パスの解決そのものは StaticFilesTest 側で見るので、ここは HTTP から見た形だけ。
 class StaticRoutesTest {
     private val root: Path = Files.createTempDirectory("static-routes-test")
 

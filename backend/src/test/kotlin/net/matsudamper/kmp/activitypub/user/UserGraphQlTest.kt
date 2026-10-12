@@ -38,7 +38,6 @@ import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 import net.matsudamper.kmp.activitypub.testDependencies
 
-// ユーザーのログインと投稿を GraphQL の口から確認する。
 // Cookie の保存はクライアント側の実装に寄るので、テストでは Set-Cookie を自分で読んで付け直す。
 class UserGraphQlTest {
     @Test

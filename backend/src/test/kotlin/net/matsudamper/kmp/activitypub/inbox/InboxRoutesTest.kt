@@ -31,7 +31,6 @@ import net.matsudamper.activitypub.httpsignature.TestSigning
 import net.matsudamper.activitypub.inbox.InboxService
 import net.matsudamper.activitypub.json.AppJson
 
-// 相手のサーバーからアクティビティが POST されてくる口。
 // 署名が通ったかどうかが、送り主を確かめる唯一の根拠になる。
 class InboxRoutesTest {
     /**

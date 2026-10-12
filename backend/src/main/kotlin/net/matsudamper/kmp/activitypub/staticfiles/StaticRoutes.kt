@@ -19,17 +19,12 @@ private const val NO_STATIC_FILES_MESSAGE: String = "静的ファイルの配信
 private const val INDEX_CACHE_CONTROL: String = "no-store"
 
 /**
- * 静的ファイルの配信。画面はここから始まる。
- *
  * 配信するのは root から。画面は SPA で、画面のパスは全部 1 つの
  * `index.html` から始まるため、`/admin` の下だけを配信する形にはしない。
  *
  * サーバー自身が持つパス（`/healthz` や ActivityPub のもの）はここには来ない。
  * Ktor は固定のパスをテールカードより優先して選ぶため、残りだけが落ちてくる。
  * 読む側にも同じ順に見えるよう、routing の最後で呼ぶこと。
- *
- * @param staticFiles 配信元。未設定またはディレクトリが無いときは null。
- *   この場合は 404 を返す。理由は起動ログに出している
  */
 internal fun Route.staticRoutes(staticFiles: StaticFiles?) {
     get("/{path...}") {

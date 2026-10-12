@@ -44,8 +44,6 @@ import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
-// ルーティングのテストで使う Repositories の差し替え。
-// 保存はメモリ上だけで、DB には一切触らない。
 class FakeRepositories : Repositories {
     var verifyWritableCallCount: Int = 0
         private set
@@ -243,8 +241,6 @@ class FakeAccountRepository(
 }
 
 /**
- * 記録するだけの [FollowerRepository]。ルーティングのテストでは中身を見ない
- *
  * @param onRecorded 記録と一緒に `Accept` を投函する
  * @param onRemoved 解除された相手への、まだ送っていない `Accept` を消す
  */
@@ -271,8 +267,6 @@ class FakeFollowerRepository(
 
     /**
      * `Accept` が届いてフォローが成立した状況を作る。本物では配信キューがここを書く
-     *
-     * @return 初めて成立したなら true
      */
     fun markAccepted(
         username: String,
@@ -383,9 +377,6 @@ class FakeFollowerRepository(
     )
 }
 
-/**
- * 記録するだけの [NoteRepository]
- */
 class FakeNoteRepository(
     private val onDeleted: (publicId: PublicNoteId) -> Unit = {},
 ) : NoteRepository {
@@ -462,8 +453,6 @@ class FakeNoteRepository(
 }
 
 /**
- * 配信キューの差し替え。オンメモリで持つ。
- *
  * 投函は本物と同じく、投稿の記録と記事の投稿済み化を一緒に書く。
  * SQL の振る舞いは `:backend:repository` のテストが本物の SQLite で確かめる
  */
@@ -546,9 +535,6 @@ class FakeDeliveryQueueRepository(
         return post.inboxes.size
     }
 
-    /**
-     * アカウントを消したことを宛先ごとに投函する
-     */
     fun enqueueActorDeletion(deletion: AccountDeletion) {
         deletion.inboxes.forEach { inbox ->
             stored += Row(
@@ -571,8 +557,6 @@ class FakeDeliveryQueueRepository(
     fun hasRows(username: String): Boolean = stored.any { it.username.equals(username, ignoreCase = true) }
 
     /**
-     * `Follow` の記録と一緒に `Accept` を投函する。
-     *
      * 送り直された `Follow` の分だけ増やさず、最後のもので置き換える
      */
     fun enqueueAccept(follow: IncomingFollow) {

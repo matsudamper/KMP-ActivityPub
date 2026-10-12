@@ -16,7 +16,6 @@ import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 
-// 記録と宛先ごとのキュー行が 1 回で確定するところ。送るのはここではない
 class NoteEnqueuerTest {
     private val repositories = FakeRepositories()
 

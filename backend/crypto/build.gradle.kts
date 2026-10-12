@@ -16,7 +16,6 @@ tasks.test {
     useJUnitPlatform()
 }
 
-//   ./gradlew --quiet :backend:crypto:passwordHash
 tasks.register<JavaExec>("passwordHash") {
     group = "application"
     description = "標準入力のパスワードから ADMIN_PASSWORD_HASH に入れる値を作る"

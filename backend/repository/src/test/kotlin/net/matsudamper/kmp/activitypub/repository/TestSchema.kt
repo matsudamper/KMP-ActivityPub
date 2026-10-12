@@ -5,8 +5,6 @@ import java.nio.file.Path
 import org.sqlite.SQLiteDataSource
 
 /**
- * テスト用に `schema.sql` を適用する。
- *
  * 実運用では sqlite3def で手適用する（`db/schema.sql` と同じ場所の README を参照）ので、
  * 起動時の自動適用は無い。テストも同じ前提で、DB を作るときにこれを呼ぶ。
  */

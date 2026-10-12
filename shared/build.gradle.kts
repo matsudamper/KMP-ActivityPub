@@ -10,7 +10,6 @@ kotlin {
 
     jvm()
 
-    // :frontend の Android から使う
     android {
         namespace = "net.matsudamper.kmp.activitypub.shared"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()

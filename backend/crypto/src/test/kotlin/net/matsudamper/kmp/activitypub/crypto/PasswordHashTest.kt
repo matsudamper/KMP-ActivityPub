@@ -6,8 +6,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-// 管理画面のログインに使うハッシュ。環境変数に入れて渡す前提なので、
-// 1 行に畳めることと、その 1 行から検証まで戻せることを確かめる。
 // 反復回数はテストでは小さくする。既定値のまま何度も回すとテストが遅くなる。
 class PasswordHashTest {
     private val iterations = 1_000

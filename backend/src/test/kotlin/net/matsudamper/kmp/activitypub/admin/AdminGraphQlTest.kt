@@ -41,7 +41,6 @@ import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 import net.matsudamper.kmp.activitypub.testDependencies
 
-// 管理画面のログインを GraphQL の口から確認する。
 // Cookie の保存はクライアント側の実装に寄るので、テストでは Set-Cookie を自分で読んで付け直す。
 class AdminGraphQlTest {
     @Test
@@ -462,9 +461,6 @@ class AdminGraphQlTest {
 
         fun JsonObject.int(name: String): Int = getValue(name).jsonPrimitive.int
 
-        /**
-         * Set-Cookie のセッション。無ければ null
-         */
         fun HttpResponse.sessionCookieValue(): String? =
             setCookie().firstOrNull { it.name == SessionCookieManager.ADMIN_COOKIE_NAME }?.value
 

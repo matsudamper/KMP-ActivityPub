@@ -26,8 +26,6 @@ object TransparentScreen : NavMetadataKey<Unit> {
 }
 
 /**
- * [TransparentScreen] の画面を、下の画面を描いたまま重ねる。
- *
  * Navigation 3 の既定は一番上の画面だけを描くので、重なる画面を 1 つの画面として
  * 積むと下が消える。ここで [OverlayScene] にすると、下の画面は別の Scene として
  * 描かれ続ける。

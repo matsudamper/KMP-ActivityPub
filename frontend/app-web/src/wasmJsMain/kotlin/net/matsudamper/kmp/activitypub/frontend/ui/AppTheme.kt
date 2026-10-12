@@ -52,8 +52,6 @@ private val DarkColors =
     )
 
 /**
- * 画面全体の配色と文字。
- *
  * 配色は OS の設定に追従する。canvas に描いているので `prefers-color-scheme` の
  * CSS は効かず、色の切り替えは Compose 側でやる必要がある。
  *
@@ -80,8 +78,6 @@ internal fun AppTheme(content: @Composable () -> Unit) {
 }
 
 /**
- * すべての文字の種類に同じフォントを当てる。
- *
  * Material3 の [Typography] は種類ごとに [TextStyle] を持っていて、
  * 1 つでも入れ忘れるとそこだけ既定のフォントになり、日本語が豆腐になる。
  */

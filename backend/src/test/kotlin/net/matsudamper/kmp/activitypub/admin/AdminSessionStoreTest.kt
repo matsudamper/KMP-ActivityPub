@@ -82,9 +82,6 @@ class AdminSessionStoreTest {
         assertTrue(sessions.isValid(kept))
     }
 
-    /**
-     * 進められる時計
-     */
     private class TestClock(
         var now: Instant,
     ) : Clock() {

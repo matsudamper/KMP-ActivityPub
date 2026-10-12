@@ -5,8 +5,6 @@ import net.matsudamper.activitypub.actor.StoredActorProfiles
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 
 /**
- * ActivityPub 側の [StoredActorProfiles] を DB に繋ぐ。
- *
  * 毎回引き直す。持ち回すと、編集した後も古い表示名を返し続ける。
  */
 class RepositoryActorProfiles(

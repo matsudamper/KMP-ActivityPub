@@ -7,8 +7,6 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 /**
- * 管理画面のログインに使うパスワードハッシュ。
- *
  * 環境変数に入れて渡す前提なので、salt と反復回数を含めて 1 行の文字列に畳む。
  * 別々の変数に分けると片方だけ書き換わって検証が通らなくなるうえ、
  * 反復回数を後から上げたときに既存の設定が読めなくなる。
@@ -31,8 +29,6 @@ class PasswordHash private constructor(
     private val hash: ByteArray,
 ) {
     /**
-     * パスワードが一致するか調べる。
-     *
      * 比較は [MessageDigest.isEqual] で行う。長さが同じなら内容によらず
      * 同じ時間で終わるので、応答時間から先頭何バイトが合っているかを
      * 推測されない。
@@ -42,7 +38,6 @@ class PasswordHash private constructor(
         return MessageDigest.isEqual(hash, candidate)
     }
 
-    /** 環境変数に入れる 1 行の文字列に戻す。 */
     fun encode(): String =
         listOf(
             ALGORITHM_LABEL,
@@ -63,7 +58,6 @@ class PasswordHash private constructor(
         /** salt の長さ。16 バイトあれば同じ salt が再び出ることは考えなくてよい */
         const val SALT_SIZE_BYTES: Int = 16
 
-        /** 出力するハッシュの長さ。SHA-256 の出力と同じにしておく */
         const val HASH_SIZE_BITS: Int = 256
 
         private const val ALGORITHM_LABEL = "pbkdf2-sha256"
@@ -97,8 +91,6 @@ class PasswordHash private constructor(
         }
 
         /**
-         * [encode] が返した形式を読む。
-         *
          * 壊れていたら例外にする。ログインが必ず失敗するだけの値を黙って抱えると、
          * パスワードを間違えたのか設定を間違えたのかが区別できなくなるため、
          * 起動時にここで落とす。

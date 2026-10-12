@@ -8,8 +8,6 @@ import org.jooq.Condition
 import org.jooq.DSLContext
 
 /**
- * `delivery_queue` への投函。
- *
  * 投函は配信キュー以外のリポジトリからも、記録と同じトランザクションで行う。
  * 行の作り方をそれぞれに持たせると、初回に送る時刻や状態の入れ方が片方だけずれる。
  */
@@ -22,7 +20,6 @@ internal object DeliveryQueueRows {
      *
      * @param notePublicId この行が配る投稿。投稿を伴わない種別では null
      * @param targetActorUri この行が相手にする向こうのアクター。関係しない種別では null
-     * @return 入れたら true
      */
     fun insertPending(
         dsl: DSLContext,
@@ -64,8 +61,6 @@ internal object DeliveryQueueRows {
      * 送っている最中の行も消す。残すと、送れなかったときに送り直し待ちに戻って、
      * 相手が居なくなった後も諦めるまで送り続ける。消えた行の結果は記録できなくなるが、
      * [DeliveryQueueRepository.markDelivered] も送り直しの記録も、行が無い場合を許容する。
-     *
-     * @return 消えた件数
      */
     fun deletePendingAccept(
         dsl: DSLContext,
@@ -83,8 +78,6 @@ internal object DeliveryQueueRows {
      *
      * こちらのどのアカウントへのフォローだったかは問わない。相手が消えた以上、
      * どのアカウントの `Accept` も届ける先が無い。
-     *
-     * @return 消えた件数
      */
     fun deletePendingAcceptsToActor(
         dsl: DSLContext,
@@ -95,12 +88,6 @@ internal object DeliveryQueueRows {
         .and(DELIVERY_QUEUE.TARGET_ACTOR_URI.eq(followerActorUri))
         .execute()
 
-    /**
-     * そのアカウントの、送り終えていない `Accept` を全部消す。
-     * フォローをまとめて消すときに使う。
-     *
-     * @return 消えた件数
-     */
     fun deletePendingAcceptsOfAccount(
         dsl: DSLContext,
         username: String,

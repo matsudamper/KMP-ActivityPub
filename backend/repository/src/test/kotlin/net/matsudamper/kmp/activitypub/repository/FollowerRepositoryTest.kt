@@ -11,7 +11,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// 本物の SQLite に対して確かめる。
 // 一意制約や外部キーの効き方はスキーマ側に書いてあるので、
 // SQL を通さないと確かめたことにならない。
 class FollowerRepositoryTest {
@@ -38,8 +37,6 @@ class FollowerRepositoryTest {
         createRepositories(DatabaseConfig(path = dbPath)).use { block(it) }
 
     /**
-     * 投函された `Accept` が全部相手に届いた状況を作る。
-     *
      * フォローが成立するのは `Accept` を送れたときなので、記録しただけでは数えられない
      */
     private fun Repositories.acceptDelivered() {

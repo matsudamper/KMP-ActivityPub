@@ -72,16 +72,9 @@ fun main() {
         }
     }
 
-    // start(wait = true) は停止まで返ってこない
     server.start(wait = true)
 }
 
-/**
- * ルーティングを組み立てて、運用で見たいものを起動ログに出す。
- *
- * @param deps 使うものは全て [AppDependencies] から取る。本番の組み立ては
- *   [AppDependencies.create]、テストはフェイクを詰めたものを渡す
- */
 internal fun Application.module(deps: AppDependencies) {
     val env = deps.env
     val actorKey = deps.actorKey
@@ -203,12 +196,6 @@ private fun Application.logAdminLogin(env: ServerEnv) {
     }
 }
 
-/**
- * 静的ファイルの配信元を起動ログに出す。
- *
- * 配信できないときは、指定が無いのか実体が無いのかまで出す。黙って 404 になると
- * 設定し忘れなのか置き忘れなのかが分からない。
- */
 private fun Application.logStaticFiles(
     srcDir: Path?,
     staticFiles: StaticFiles?,

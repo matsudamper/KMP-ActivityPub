@@ -7,8 +7,6 @@ import java.nio.file.Path
 import io.ktor.http.ContentType
 
 /**
- * [root] の下から、リクエストのパスに対応するファイルを引く。
- *
  * 画面は SPA なので、パスの解釈はブラウザ側の仕事になる。サーバーは
  * ファイルがあればそれを返し、無ければ [INDEX_FILE_NAME] を返して frontend に任せる。
  */
@@ -18,19 +16,11 @@ class StaticFiles(
     /** 外に出ていないかの判定に使うので、絶対パスに正規化しておく */
     val root: Path = srcDir.toAbsolutePath().normalize()
 
-    /**
-     * 配信できる状態か。ディレクトリごと無ければ何も返せない。
-     */
     fun isAvailable(): Boolean = Files.isDirectory(root)
 
-    /**
-     * 画面を出すための [INDEX_FILE_NAME]。置かれていなければ null
-     */
     fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { isServableFile(it) }
 
     /**
-     * 返すファイルを決める。見つからなければ null。
-     *
      * @param segments リクエストパスをスラッシュで区切ったもの。デコード済みのものを渡す
      */
     fun resolve(segments: List<String>): Path? {
@@ -76,8 +66,6 @@ class StaticFiles(
     }
 
     /**
-     * ディレクトリの外に出るパスを弾く。
-     *
      * リクエストのパスをそのまま連結すると `..` で外のファイルを読み出せてしまう。
      * 空のセグメント（`//` や末尾の `/`）は外に出られないので落とすだけにする。
      */
@@ -102,8 +90,6 @@ class StaticFiles(
         fun isContentHashedName(fileName: String): Boolean = CONTENT_HASHED_NAME.matches(fileName)
 
         /**
-         * 拡張子から Content-Type を決める。
-         *
          * Ktor の `ContentType.defaultForFile` を使わず自前で持つのは、あれが
          * jar の中の一覧（mimelist.csv）を読む実装で、native-image ではリソースの
          * 登録が要るため。配信するのは自分で置いたファイルなので、必要な分だけ並べる。

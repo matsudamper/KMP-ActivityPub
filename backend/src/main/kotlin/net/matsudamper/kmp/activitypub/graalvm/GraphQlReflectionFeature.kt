@@ -4,9 +4,6 @@ import org.graalvm.nativeimage.hosted.Feature
 import org.graalvm.nativeimage.hosted.RuntimeReflection
 
 /**
- * GraphQL の結線に使うクラスを native-image のリフレクション対象に登録する。
- * `--features=` で渡す（指定は `backend/build.gradle.kts`）。
- *
  * 手で `reflect-config.json` に並べるとスキーマを触るたびに更新が要るので、
  * イメージのビルド時にクラスパスを走査する。生成モデルが参照する `:shared` の型も
  * 同じタイミングで登録する。何が要るのかと、それぞれ何で落ちたかは

@@ -42,8 +42,6 @@ fun main() {
 }
 
 /**
- * WebGL2 でコンテキストを作れるかを調べる。
- *
  * 描画は Skia を WebGL2 の上で動かしていて、WebGL1 にもソフトウェア描画にも
  * 代替経路が無い。使えない状態で起動すると描画の初期化が例外になり、
  * 何も出ないまま終わる。
@@ -92,12 +90,6 @@ private fun createWebGl2UnavailableNotice(): HTMLElement {
     return notice
 }
 
-/**
- * 画面の入口。URL に対応する画面を 1 つ出す。
- *
- * 遷移は Navigation 3 の [NavDisplay] に任せ、バックスタックは
- * ブラウザの履歴に合わせたものを渡す。
- */
 @Composable
 internal fun App() {
     AppTheme {

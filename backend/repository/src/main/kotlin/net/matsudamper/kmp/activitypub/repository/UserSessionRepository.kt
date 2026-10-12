@@ -4,8 +4,6 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
- * ログイン中のユーザーのセッション。
- *
  * トークンそのものは受け取らない。呼び出し側がハッシュにしてから渡す。
  * DB が漏れても、中身をそのままセッションとして使えないようにするため
  */

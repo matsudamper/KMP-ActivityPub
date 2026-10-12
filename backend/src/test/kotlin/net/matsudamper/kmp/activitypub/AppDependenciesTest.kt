@@ -14,8 +14,6 @@ import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 
-// 投函する `Create` に入る画面の URL（`url`）を見る。
-// 画面が無いのに出すと、相手のタイムラインのリンクが見つからないページを指す。
 class AppDependenciesTest {
     private val staticSrcDir: Path = Files.createTempDirectory("app-dependencies-test")
 

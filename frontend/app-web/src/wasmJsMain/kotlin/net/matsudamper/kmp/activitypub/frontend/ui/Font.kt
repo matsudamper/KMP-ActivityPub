@@ -18,8 +18,6 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.readRawBytes
 
 /**
- * 画面で使う日本語フォントを、配信元から取ってきて組み立てる。
- *
  * Compose Multiplatform for Web は canvas に描くので、ブラウザが持っているフォントは
  * 使われない。何も読み込まないと日本語が豆腐（□）になる。
  *
@@ -44,8 +42,6 @@ private class AppFontState {
     private val loaded = mutableListOf<Font>()
 
     /**
-     * 取得を始める。2 回目以降は何もしない。
-     *
      * 1 つ読めるたびに [fontFamily] を差し替える。全部揃うまで待つと、
      * 最初の描画から数秒間ずっと豆腐のままになる。
      */
@@ -90,9 +86,6 @@ private class AppFontState {
     }
 }
 
-/**
- * 日本語フォントの [FontFamily]。読み込みが終わるまでは既定のフォントを返す。
- */
 @Composable
 fun rememberAppFontFamily(): FontFamily {
     val state = remember { AppFontState() }

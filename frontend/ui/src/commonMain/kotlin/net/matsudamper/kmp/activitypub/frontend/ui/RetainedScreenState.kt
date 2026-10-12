@@ -10,8 +10,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
 /**
- * 画面を離れても捨てずに持っておく値の置き場。履歴 1 つにつき 1 つ。
- *
  * 画面を離れると remember した値は消える。ViewModel まで作り直すと読み込み中の表示から始まり、
  * 中身の高さが無い間にスクロール位置が先頭へ詰められて、戻っても元の位置に戻れない。
  */
@@ -35,8 +33,6 @@ class RetainedScreenState(parentScope: CoroutineScope) {
 }
 
 /**
- * 画面を離れて戻ってきても同じものを返す。同じ画面の中では型ごとに 1 つ。
- *
  * [create] に渡すスコープは画面を離れている間も動き続ける。
  */
 @Composable

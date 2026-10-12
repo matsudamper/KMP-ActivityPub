@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.compose)
 }
 
-// Web の画面のパスと、画面から遷移を頼む口。どう遷移するかは :frontend が決める
 kotlin {
     android {
         namespace = "net.matsudamper.kmp.activitypub.frontend.navigation"

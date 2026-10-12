@@ -9,9 +9,6 @@ data class HomeScreenUiState(
     val composeColumn: ComposeColumn,
     val listener: Listener,
 ) {
-    /**
-     * 左端のカラム。ログインしていなければログインの入力を、していれば投稿の入力を出す
-     */
     sealed interface ComposeColumn {
         data object Loading : ComposeColumn
 
@@ -19,10 +16,6 @@ data class HomeScreenUiState(
             val message: String,
         ) : ComposeColumn
 
-        /**
-         * @param submitting true の間はボタンの文字を待ち状態にする
-         * @param error 入力欄の下に赤字で出す。null なら何も出さない
-         */
         data class Login(
             val username: String,
             val password: String,
@@ -32,13 +25,6 @@ data class HomeScreenUiState(
             val loginButtonEnabled: Boolean,
         ) : ComposeColumn
 
-        /**
-         * @param acct カラムの上に出す、ログイン中のユーザー
-         * @param remainingLength 入力欄の下に出す残りの文字数
-         * @param remainingLengthOver true なら残りの文字数を赤字で出す
-         * @param submitting true の間はボタンの文字を待ち状態にする
-         * @param error 入力欄の下に赤字で出す。null なら何も出さない
-         */
         data class Compose(
             val acct: String,
             val body: String,

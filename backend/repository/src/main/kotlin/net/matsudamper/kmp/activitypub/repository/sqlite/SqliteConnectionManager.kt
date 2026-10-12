@@ -11,8 +11,6 @@ import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import org.sqlite.SQLiteDataSource
 
 /**
- * SQLite への接続を持ち、PRAGMA の適用とアクセスの直列化を担う。
- *
  * SQLite はライターを 1 本しか取れないため、汎用のコネクションプールは過剰になる。
  * まずは接続 1 本 + ロックで直列化する構成で始める。読み取りが詰まるようなら、
  * 読み取り用の接続を複数持つ形に広げる。HikariCP は依存と native-image 設定を
@@ -67,8 +65,6 @@ internal class SqliteConnectionManager(
         }
 
     /**
-     * WAL を DB ファイルに畳んでから閉じる。
-     *
      * WAL は書き込みを -wal 側に貯めるので、畳まないまま終わると .db だけを
      * コピーしても直前の更新が入らない。TRUNCATE まで指定して -wal を空にし、
      * 閉じた後は .db 単体をコピーしたり別のツールで開いて編集したりできる状態にする。
@@ -87,8 +83,6 @@ internal class SqliteConnectionManager(
 
     private companion object {
         /**
-         * 接続時に必ず入れる PRAGMA。
-         *
          * 接続を増やしたときに入れ忘れないよう、ここ 1 箇所にまとめる。
          */
         fun applyPragmas(connection: Connection) {

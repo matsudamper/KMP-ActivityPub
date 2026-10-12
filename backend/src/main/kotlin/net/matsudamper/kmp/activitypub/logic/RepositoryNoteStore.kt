@@ -8,10 +8,6 @@ import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
-/**
- * ActivityPub 側の [NoteStore] を DB に繋ぐ。
- * [RepositoryFollowerStore] と同じく型を持ち替えるだけの層になる。
- */
 class RepositoryNoteStore(
     private val notes: NoteRepository,
 ) : NoteStore {
