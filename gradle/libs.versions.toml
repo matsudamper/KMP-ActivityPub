@@ -7,6 +7,10 @@ androidxActivity = "1.13.0"
 ktor = "3.6.0"
 slf4j = "2.0.20"
 graalvmBuildtools = "1.1.14"
+ktlintGradle = "14.2.0"
+ktlint = "1.8.0"
+detekt = "2.0.0-alpha.6"
+composeRules = "0.6.7"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
@@ -17,9 +21,13 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 graalvm-native-plugin = { module = "org.graalvm.buildtools:native-gradle-plugin", version.ref = "graalvmBuildtools" }
 
+compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
+
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 kotlin-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
+detekt = { id = "dev.detekt", version.ref = "detekt" }
