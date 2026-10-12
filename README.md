@@ -25,7 +25,7 @@ sqlite3 data/kmp-activitypub.db \
   "INSERT INTO accounts (username, password_hash, created_at) VALUES ('user1', '$HASH', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));"
 ```
 
-ユーザー名は大文字小文字を区別せず一意になる。ログインでは前後の空白を落として照合するので、前後に空白を入れない。
+ユーザー名は大文字小文字を区別せず一意になる。区別しないのは ASCII の英字だけなので、使う文字は英数字と `_` `.` `-` に限る。ログインでは前後の空白を落として照合するので、前後に空白を入れない。
 
 ### 起動する
 
