@@ -27,7 +27,12 @@ class GraphQlContext(
      */
     fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
 
-    fun userAccountId(): AccountId? = userCookie.token()?.let { userSessions.accountIdOf(it) }
+    /**
+     * alias で session を並べられても DB を引くのは 1 回にする
+     */
+    private val userAccountId: AccountId? by lazy { userCookie.token()?.let { userSessions.accountIdOf(it) } }
+
+    fun userAccountId(): AccountId? = userAccountId
 
     /**
      * 発行した Cookie はまだリクエスト側に無いので、[userAccountId] は null のまま
