@@ -22,6 +22,9 @@ android {
 }
 
 dependencies {
+    implementation(project(":frontend:navigation"))
+    implementation(project(":frontend:feature:home"))
+
     implementation(compose.runtime)
     implementation(compose.foundation)
     implementation(compose.ui)
