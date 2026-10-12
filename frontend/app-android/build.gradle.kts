@@ -39,11 +39,15 @@ android {
 }
 
 dependencies {
+    implementation(project(":frontend:navigation"))
+    implementation(project(":frontend:feature:home"))
+
     implementation(compose.runtime)
     implementation(compose.foundation)
     implementation(compose.ui)
     implementation(compose.material3)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.navigation3.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
 
     testImplementation(libs.paparazzi)

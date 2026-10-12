@@ -25,4 +25,8 @@ dependencyResolutionManagement {
 
 include(":backend")
 include(":frontend:app-web")
+include(":frontend:common-component")
+include(":frontend:ui")
+include(":frontend:navigation")
+include(":frontend:feature:home")
 include(":frontend:app-android")
