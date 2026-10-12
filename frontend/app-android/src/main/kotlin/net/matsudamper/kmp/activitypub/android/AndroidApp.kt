@@ -11,21 +11,24 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.android.server.ServerScreen
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
-import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
-import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
+import net.matsudamper.kmp.activitypub.frontend.navigation.BackStackNavigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
 
 /**
  * Android アプリの入口。管理画面は出さない
@@ -59,18 +62,9 @@ private fun AndroidAppContent(
     onServerUrlDecide: (String) -> Unit,
     onClickChangeServer: () -> Unit,
 ) {
-    val context = LocalContext.current
     if (serverUrl == null) {
         ServerScreen(onDecide = onServerUrlDecide)
     } else {
-        val api = remember(context, serverUrl) {
-            UserApi(AndroidGraphQlClient.create(context = context, serverUrl = serverUrl))
-        }
-        val parentScope = rememberCoroutineScope()
-        val retainedScreenState = remember(parentScope, serverUrl) { RetainedScreenState(parentScope) }
-        DisposableEffect(retainedScreenState) {
-            onDispose { retainedScreenState.dispose() }
-        }
         // 打ち間違えたホストや止まったサーバーを保存すると、ここから戻れないとアプリのデータを消すしかない
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -89,8 +83,26 @@ private fun AndroidAppContent(
                 }
             }
             Box(modifier = Modifier.weight(1f)) {
-                HomeScreen(retainedScreenState = retainedScreenState, api = api)
+                key(serverUrl) {
+                    ScreenNavDisplay()
+                }
             }
         }
     }
+}
+
+@Composable
+private fun ScreenNavDisplay() {
+    val backStack = rememberScreenBackStack(startScreen = Screen.Login)
+    val navigator = remember(backStack) { BackStackNavigator(backStack) }
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
+        entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
+        entryProvider = entryProvider {
+            entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator) }
+            entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
+            entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
+        },
+    )
 }

@@ -9,10 +9,12 @@ plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.kotlin.multiplatform.library) apply false
     alias(libs.plugins.kotlin.compose.compiler) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.compose) apply false
     alias(libs.plugins.graalvm.native) apply false
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.paparazzi) apply false
 }
 
 // version catalog のアクセサは allprojects の中からは引けないので、ここで取り出しておく

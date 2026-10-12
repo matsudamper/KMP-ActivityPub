@@ -9,8 +9,6 @@ import androidx.navigation3.ui.NavDisplay
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
 import kotlinx.browser.window
-import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.TransparentScreen
@@ -18,12 +16,12 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.TransparentScreenScen
 import net.matsudamper.kmp.activitypub.frontend.navigation.WasmNavigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberNavController
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenStateStore
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
 import net.matsudamper.kmp.activitypub.frontend.screen.NotFoundScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.ScreenPlatform
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminAccountNewScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminAccountsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
-import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.ui.AppTheme
 import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
 import org.w3c.dom.HTMLElement
@@ -129,10 +127,11 @@ private fun ScreenContent(
     retainedScreenState: RetainedScreenState,
 ) {
     when (screen) {
-        Screen.Home -> HomeScreen(
-            retainedScreenState = retainedScreenState,
-            api = remember { UserApi(GraphQlClient.apollo) },
-        )
+        Screen.Home -> HomeFeatureScreens.Home(navigator = navController)
+
+        Screen.Login -> HomeFeatureScreens.Login(navigator = navController)
+
+        Screen.Post -> HomeFeatureScreens.Post(navigator = navController)
 
         Screen.Admin -> AdminScreen(
             retainedScreenState = retainedScreenState,

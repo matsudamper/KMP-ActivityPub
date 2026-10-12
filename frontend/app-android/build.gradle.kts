@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
+    alias(libs.plugins.paparazzi)
 }
 
 // Android アプリ。画面は :frontend:feature:home を使い、ここには Android にしか無いもの
@@ -21,12 +22,29 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        val isPaparazziRequested =
+            gradle.startParameter.taskNames.any { taskName ->
+                taskName.contains("Paparazzi", ignoreCase = true)
+            }
+        unitTests.all { test ->
+            test.useJUnit {
+                if (isPaparazziRequested) {
+                    includeCategories("net.matsudamper.kmp.activitypub.android.PaparazziTestCategory")
+                } else {
+                    excludeCategories("net.matsudamper.kmp.activitypub.android.PaparazziTestCategory")
+                }
+            }
+        }
+    }
 }
 
 dependencies {
     implementation(project(":shared"))
     implementation(project(":frontend:ui"))
     implementation(project(":frontend:api"))
+    implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))
 
     implementation(compose.runtime)
@@ -37,5 +55,12 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.core.ktx)
 
+    implementation(libs.navigation3.ui)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+
     debugImplementation(libs.compose.ui.tooling)
+
+    testImplementation(libs.paparazzi)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.composable.preview.scanner.android)
 }

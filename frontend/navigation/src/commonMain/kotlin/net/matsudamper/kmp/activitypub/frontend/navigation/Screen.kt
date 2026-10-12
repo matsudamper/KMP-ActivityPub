@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.navigation
 
 import androidx.navigation3.runtime.NavKey
+import kotlinx.serialization.Serializable
 
 /**
  * 画面のパス。Navigation 3 のバックスタックに積むキーでもある。
@@ -9,6 +10,7 @@ import androidx.navigation3.runtime.NavKey
  * ブラウザ側で決めることになる。判定をここに集めておかないと、リンクを張る側と
  * 画面を出す側で綴りがずれて「リンクは踏めるが真っ白になる」壊れ方をする。
  */
+@Serializable
 sealed interface Screen : NavKey {
     val path: String
 
@@ -20,6 +22,7 @@ sealed interface Screen : NavKey {
      * ダイアログも 1 つの画面として扱う。URL を持てるので直接開けるし、戻るで閉じられる。
      * 出している間も [background] は生きたままなので、閉じた後に作り直されない。
      */
+    @Serializable
     sealed interface Overlay : Screen {
         /**
          * URL を直接開いたときに下に敷く画面。アプリの中から開いたときは、開いた画面の上に重ねる
@@ -27,10 +30,22 @@ sealed interface Screen : NavKey {
         val background: Screen
     }
 
-    /** トップ。Mastodon と同じくカラムを並べる */
+    @Serializable
     data object Home : Screen {
         override val path: String = "/"
         override val title: String = SITE_NAME
+    }
+
+    @Serializable
+    data object Login : Screen {
+        override val path: String = "/$LOGIN_SEGMENT"
+        override val title: String = "ログイン | $SITE_NAME"
+    }
+
+    @Serializable
+    data object Post : Screen {
+        override val path: String = "/$POST_SEGMENT"
+        override val title: String = "投稿 | $SITE_NAME"
     }
 
     /**
@@ -38,16 +53,19 @@ sealed interface Screen : NavKey {
      * 下の階層に分ける。1 つの画面に並べると、開いた時点で必要のない
      * 問い合わせまで走り、URL でその操作を指せなくなる。
      */
+    @Serializable
     data object Admin : Screen {
         override val path: String = "/$ADMIN_SEGMENT"
         override val title: String = "管理画面 | $SITE_NAME"
     }
 
+    @Serializable
     data object AdminAccounts : Screen {
         override val path: String = "/$ADMIN_SEGMENT/$ACCOUNTS_SEGMENT"
         override val title: String = "ユーザー | $SITE_NAME"
     }
 
+    @Serializable
     data object AdminAccountNew : Screen {
         override val path: String = "/$ADMIN_SEGMENT/$ACCOUNTS_SEGMENT/$NEW_SEGMENT"
         override val title: String = "ユーザーの登録 | $SITE_NAME"
@@ -57,16 +75,21 @@ sealed interface Screen : NavKey {
      * [path] は要求されたパスのまま持つ。ここで `/` に書き換えると、
      * 戻るボタンで元のパスに戻れなくなる。
      */
+    @Serializable
     data class NotFound(
         override val path: String,
     ) : Screen {
-        override val title: String = "見つからない | $SITE_NAME"
+        override val title: String get() = "見つからない | $SITE_NAME"
     }
 
     companion object {
         const val SITE_NAME: String = "KMP-ActivityPub"
 
         const val ADMIN_SEGMENT: String = "admin"
+
+        private const val LOGIN_SEGMENT: String = "login"
+
+        private const val POST_SEGMENT: String = "post"
 
         private const val ACCOUNTS_SEGMENT: String = "accounts"
 
@@ -79,6 +102,13 @@ sealed interface Screen : NavKey {
             val segments = path.split('/').filter { it.isNotEmpty() }
 
             val first = segments.firstOrNull() ?: return Home
+
+            if (segments.size == 1) {
+                when (first) {
+                    LOGIN_SEGMENT -> return Login
+                    POST_SEGMENT -> return Post
+                }
+            }
 
             if (first == ADMIN_SEGMENT) {
                 // 知らない下の階層は管理画面ではなく見つからない扱いにする。

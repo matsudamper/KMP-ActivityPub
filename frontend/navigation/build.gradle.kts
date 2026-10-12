@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -25,6 +26,7 @@ kotlin {
                 implementation(compose.runtime)
                 // Screen が NavKey を実装する
                 api(libs.navigation3.ui)
+                implementation(libs.kotlinx.serialization.core)
             }
         }
     }

@@ -83,6 +83,14 @@ class NavController internal constructor() {
     }
 
     /**
+     * 履歴を積まずに [screen] だけのバックスタックにする。積むとブラウザの戻るで
+     * ログイン画面のような抜けてきた画面に戻ってしまう
+     */
+    fun replaceWith(screen: Screen) {
+        replaceCurrentEntry(HistoryEntry(screen = screen, id = createEntryId()))
+    }
+
+    /**
      * いま見えている履歴を [entry] のものに差し替える。アプリが積んだ目印は付けない。
      *
      * 直接開いた履歴のままにしておくと、ここから更に戻ろうとしたときも
@@ -161,6 +169,7 @@ class NavController internal constructor() {
         /**
          * トップを常に下に敷いておくと、直接開いた URL からでも
          * 戻り先が画面の中に必ず 1 つある状態になる。
+         * ログインの下には敷かない。トップはログインしていなければログインへ戻すので、行き来が止まらなくなる。
          *
          * 重ねて出す画面は下に敷く画面も一緒に積む。ダイアログの URL を
          * 直接開いても、下の画面ごと組み上がる。
@@ -170,7 +179,7 @@ class NavController internal constructor() {
         fun stackOf(entry: HistoryEntry): List<HistoryEntry> {
             val screen = entry.screen
             return when {
-                screen == Screen.Home -> listOf(entry)
+                screen == Screen.Home || screen == Screen.Login -> listOf(entry)
                 screen is Screen.Overlay -> stackOf(HistoryEntry(screen.background, "${entry.id}/below")) + entry
                 else -> listOf(HistoryEntry(Screen.Home, "${entry.id}/home"), entry)
             }

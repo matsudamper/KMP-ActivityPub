@@ -4,7 +4,12 @@ import androidx.compose.runtime.Stable
 
 @Stable
 interface Navigator {
-    suspend fun navigate(screen: Screen)
+    fun navigate(screen: Screen)
 
-    suspend fun back()
+    fun back()
+
+    /**
+     * 積んである画面を捨てて [screen] だけにする。ログイン後に戻るでログイン画面へ戻れないようにする
+     */
+    fun replaceAll(screen: Screen)
 }

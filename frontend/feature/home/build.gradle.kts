@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.compose)
 }
 
-// Android アプリからも使う。管理画面は :frontend:feature:admin に分けてあるので入らない
 kotlin {
     android {
         namespace = "net.matsudamper.kmp.activitypub.frontend.feature.home"
@@ -24,14 +23,20 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(project(":frontend:ui"))
-                implementation(project(":frontend:api"))
+                implementation(project(":frontend:navigation"))
                 implementation(libs.kotlinx.coroutines.core)
+            }
+        }
+
+        wasmJsMain {
+            dependencies {
+                implementation(project(":frontend:common-component"))
             }
         }
 
         androidMain {
             dependencies {
-                implementation(libs.compose.ui.tooling)
+                implementation(libs.androidx.compose.ui.tooling.preview)
             }
         }
     }
