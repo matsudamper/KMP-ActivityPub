@@ -76,6 +76,7 @@ internal class LoginScreenViewModel(
             username = viewModelState.username,
             password = viewModelState.password,
             error = viewModelState.error,
+            inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
             loginButtonEnabled = viewModelState.loginable(),
             listener = listener,

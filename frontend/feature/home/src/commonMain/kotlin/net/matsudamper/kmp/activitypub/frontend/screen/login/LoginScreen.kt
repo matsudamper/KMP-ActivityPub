@@ -82,7 +82,7 @@ internal fun LoginContent(
                     inputId = LOGIN_USERNAME_INPUT_ID,
                     inputName = "username",
                     enabled = uiState.inputEnabled,
-                    hasError = uiState.error != null,
+                    hasError = uiState.inputHasError,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 PasswordField(
@@ -94,7 +94,7 @@ internal fun LoginContent(
                     inputId = LOGIN_PASSWORD_INPUT_ID,
                     inputName = "password",
                     enabled = uiState.inputEnabled,
-                    hasError = uiState.error != null,
+                    hasError = uiState.inputHasError,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 uiState.error?.let { error ->

@@ -6,6 +6,7 @@ data class LoginScreenUiState(
     val username: String,
     val password: String,
     val error: String?,
+    val inputHasError: Boolean,
     val inputEnabled: Boolean,
     val loginButtonEnabled: Boolean,
     val listener: Listener,
