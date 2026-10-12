@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.crypto
 
+import kotlin.system.exitProcess
+
 /**
  * 引数ではなく標準入力から受けるのは、シェルの履歴と `ps` に平文で残るため。
  * 前後の空白は落とさない。ログインでは入力をそのまま照合するので、落とすと入れたパスワードで通らなくなる
@@ -10,7 +12,8 @@ fun main() {
 
     if (password.isNullOrEmpty()) {
         System.err.println("パスワードを標準入力に 1 行で渡すこと")
-        return
+        // 正常終了すると、続けて INSERT したときに空のハッシュで登録されてしまう
+        exitProcess(1)
     }
 
     println(PasswordHash.create(password).encode())

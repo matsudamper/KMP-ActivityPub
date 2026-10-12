@@ -19,8 +19,7 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-a
 
 ```sh
 # 標準入力に 1 行でパスワードを渡すと、ハッシュが 1 行出る
-HASH=$(./gradlew --quiet :backend:crypto:passwordHash)
-
+HASH=$(./gradlew --quiet :backend:crypto:passwordHash) && \
 sqlite3 data/kmp-activitypub.db \
   "INSERT INTO accounts (username, password_hash, created_at) VALUES ('user1', '$HASH', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));"
 ```
