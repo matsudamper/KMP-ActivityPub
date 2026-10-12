@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
+    alias(libs.plugins.paparazzi)
 }
 
 android {
@@ -19,6 +20,22 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        val isPaparazziRequested =
+            gradle.startParameter.taskNames.any { taskName ->
+                taskName.contains("Paparazzi", ignoreCase = true)
+            }
+        unitTests.all { test ->
+            test.useJUnit {
+                if (isPaparazziRequested) {
+                    includeCategories("net.matsudamper.kmp.activitypub.android.PaparazziTestCategory")
+                } else {
+                    excludeCategories("net.matsudamper.kmp.activitypub.android.PaparazziTestCategory")
+                }
+            }
+        }
+    }
 }
 
 dependencies {
@@ -27,4 +44,9 @@ dependencies {
     implementation(compose.ui)
     implementation(compose.material3)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+
+    testImplementation(libs.paparazzi)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.composable.preview.scanner.android)
 }
