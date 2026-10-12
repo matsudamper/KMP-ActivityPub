@@ -105,7 +105,7 @@ private fun ScreenNavDisplay(serverUrl: String) {
         onBack = { backStack.removeLastOrNull() },
         entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
         entryProvider = entryProvider {
-            entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator, api = api) }
+            entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator, api = api, serverSettingUiState = null) }
             entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator, api = api) }
             entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator, api = api) }
         },

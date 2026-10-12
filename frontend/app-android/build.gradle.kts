@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
     alias(libs.plugins.paparazzi)
+    alias(libs.plugins.protobuf)
 }
 
 // Android アプリ。画面は :frontend:feature:home を使い、ここには Android にしか無いもの
@@ -40,6 +41,21 @@ android {
     }
 }
 
+protobuf {
+    protoc {
+        artifact = libs.protobuf.protoc.get().toString()
+    }
+    generateProtoTasks {
+        all().configureEach {
+            builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
     implementation(project(":frontend:ui"))
@@ -57,6 +73,9 @@ dependencies {
 
     implementation(libs.navigation3.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.datastore)
+    implementation(libs.protobuf.javalite)
+    implementation(libs.kotlinx.coroutines.core)
 
     debugImplementation(libs.compose.ui.tooling)
 

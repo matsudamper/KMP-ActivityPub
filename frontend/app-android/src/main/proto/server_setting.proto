@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+option java_package = "net.matsudamper.kmp.activitypub.android.server";
+option java_multiple_files = true;
+
+message ServerSetting {
+  string server_url = 1;
+}

@@ -132,7 +132,7 @@ private fun ScreenContent(
     when (screen) {
         Screen.Home -> HomeFeatureScreens.Home(navigator = navController, api = userApi)
 
-        Screen.Login -> HomeFeatureScreens.Login(navigator = navController, api = userApi)
+        Screen.Login -> HomeFeatureScreens.Login(navigator = navController, api = userApi, serverSettingUiState = null)
 
         Screen.Post -> HomeFeatureScreens.Post(navigator = navController, api = userApi)
 
