@@ -8,11 +8,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 @Composable
 fun PostScreen(
@@ -59,8 +61,11 @@ internal fun PostContent(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = uiState.listener::onClickBack) {
-                    Text("戻る")
+                IconButton(onClick = uiState.listener::onClickBack) {
+                    Icon(
+                        imageVector = AppIcons.ArrowBack,
+                        contentDescription = "戻る",
+                    )
                 }
                 Text(
                     text = "投稿",
