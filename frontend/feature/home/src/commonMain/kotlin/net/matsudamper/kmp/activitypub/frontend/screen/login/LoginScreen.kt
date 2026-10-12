@@ -7,11 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,12 +20,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 
 @Composable
 internal fun LoginScreen(
@@ -74,23 +70,28 @@ internal fun LoginContent(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                 )
-                OutlinedTextField(
+                UsernameField(
                     value = uiState.username,
                     onValueChange = uiState.listener::onUsernameChanged,
+                    label = "ユーザー名",
+                    formId = LOGIN_FORM_ID,
+                    inputId = LOGIN_USERNAME_INPUT_ID,
+                    inputName = "username",
+                    enabled = true,
+                    hasError = false,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("ユーザー名") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 )
-                OutlinedTextField(
+                PasswordField(
                     value = uiState.password,
                     onValueChange = uiState.listener::onPasswordChanged,
+                    onSubmit = uiState.listener::onClickLogin,
+                    label = "パスワード",
+                    formId = LOGIN_FORM_ID,
+                    inputId = LOGIN_PASSWORD_INPUT_ID,
+                    inputName = "password",
+                    enabled = true,
+                    hasError = false,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("パスワード") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { uiState.listener.onClickLogin() }),
                 )
                 Button(
                     onClick = uiState.listener::onClickLogin,
@@ -103,3 +104,7 @@ internal fun LoginContent(
         }
     }
 }
+
+private const val LOGIN_FORM_ID = "user-login-form"
+private const val LOGIN_USERNAME_INPUT_ID = "user-login-username"
+private const val LOGIN_PASSWORD_INPUT_ID = "user-login-password"

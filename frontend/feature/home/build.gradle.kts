@@ -28,6 +28,12 @@ kotlin {
             }
         }
 
+        wasmJsMain {
+            dependencies {
+                implementation(project(":frontend:common-component"))
+            }
+        }
+
         androidMain {
             dependencies {
                 implementation(libs.androidx.compose.ui.tooling.preview)
