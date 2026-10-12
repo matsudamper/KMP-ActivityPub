@@ -1,5 +1,5 @@
 **/build/
-!backend/build/distributions/backend.tar
+!backend/build/native/nativeCompile/kmp-activitypub
 !frontend/app-web/build/dist/wasmJs/productionExecutable/
 **/.gradle/
 **/.kotlin/
