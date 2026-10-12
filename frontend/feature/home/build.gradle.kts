@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.compose)
 }
 
-// Android アプリからも使う
 kotlin {
     android {
         namespace = "net.matsudamper.kmp.activitypub.frontend.feature.home"
