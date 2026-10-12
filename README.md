@@ -104,7 +104,7 @@ COOKIE_SECURE=false \
    ```
 
 2. `/admin` で管理画面にログインし、「ユーザーの登録」でユーザー名とパスワードを決める
-3. `/`（Android ならアプリ）でそのユーザーとしてログインし、左のカラムから投稿する
+3. `/login`（Android ならアプリ）でそのユーザーとしてログインし、ホームの「投稿」から投稿する
 4. Mastodon の検索窓に `@<ユーザー名>@<DOMAIN>` を入れるとフォローできる。フォロー後の投稿が届く
 
 ユーザー名は後から変えられない。Mastodon はリモートのアカウントを永続キャッシュするので、
@@ -116,7 +116,9 @@ COOKIE_SECURE=false \
 
 | パス | 画面 |
 | --- | --- |
-| `/` | トップ。Mastodon と同じカラム方式で、いまは左端の投稿カラム（ログインと投稿）だけ |
+| `/` | ホーム。タイムラインはまだダミー。ログインしていなければ `/login` へ移る |
+| `/login` | ログイン |
+| `/post` | 投稿 |
 | `/admin` | 管理画面のトップ。ログインと、下の各画面への入口 |
 | `/admin/accounts` | ユーザーの一覧 |
 | `/admin/accounts/new` | ユーザーの登録 |
@@ -148,7 +150,7 @@ COOKIE_SECURE=false \
 | `:backend:repository` | SQLite への保存 |
 | `:shared` | backend と画面の両方から見る値 |
 | `:frontend:app-web` | Web アプリの入口 |
-| `:frontend:feature:home` | トップのカラム画面（Web と Android） |
+| `:frontend:feature:home` | ログイン・ホーム・投稿の画面（Web と Android） |
 | `:frontend:feature:admin` | 管理画面（Web のみ） |
 | `:frontend:navigation` | Web の画面のパスと遷移の口 |
 | `:frontend:api` | GraphQL クライアント |

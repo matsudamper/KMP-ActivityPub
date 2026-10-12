@@ -55,9 +55,9 @@ sqlite-jdbc と jOOQ も `implementation` で入れているため、JDBC と jO
 | --- | --- |
 | `:frontend:app-web` | Web アプリの入口。URL と画面の対応、画面遷移、フォントのように Web にしか無いもの |
 | `:frontend:app-android` | Android アプリ。接続先のサーバーの入力と、ログインの Cookie の保存 |
-| `:frontend:feature:home` | カラムを並べるトップ画面。いまは投稿カラム（ログインと投稿）だけ |
+| `:frontend:feature:home` | ログイン・ホーム・投稿の画面 |
 | `:frontend:feature:admin` | 管理画面。Web だけが使い、Android アプリには入れない |
-| `:frontend:navigation` | Web の画面のパス（`Screen`）と、画面から遷移を頼む口（`Navigator`） |
+| `:frontend:navigation` | 画面（`Screen`）と Web でのそのパス、画面から遷移を頼む口（`Navigator`） |
 | `:frontend:api` | GraphQL の問い合わせと、その結果を画面が扱う形に直すところまで |
 | `:frontend:ui` | このアプリの API を知らない画面部品と、画面の土台（ViewModel からの通知など） |
 | `:frontend:common-component` | 別の Compose Web アプリからも使える、HTML の input を載せる部品 |
@@ -142,12 +142,14 @@ Kotlin/Wasm のツールチェイン（Node.js と yarn）に引きずられる�
 
 | パス | 画面 |
 | --- | --- |
-| `/` | トップ。Mastodon と同じくカラムを横に並べる。いまは投稿カラムだけ |
+| `/` | ホーム。ログインしていなければ `/login` へ移る |
+| `/login` | ログイン |
+| `/post` | 投稿 |
 | `/admin` 以下 | 管理画面。ログインが要る |
 | それ以外 | 見つからない |
 
-Android アプリは URL を持たないので `Screen` を使わない。接続先のサーバーが決まるまで
-その入力を出し、決まったらトップと同じ `HomeScreen` を出す。
+Android アプリは URL を持たないので `Screen` のパスを使わず、`BackStackNavigator` で
+バックスタックを直接積む。接続先のサーバーが決まるまでその入力を出し、決まったらホームを出す。
 
 ダイアログも画面として扱う。`Screen.Overlay` は下に敷く画面を持ち、バックスタックには
 その画面ごと積む。`NavEntry` の metadata に `TransparentScreen` が載っていれば
