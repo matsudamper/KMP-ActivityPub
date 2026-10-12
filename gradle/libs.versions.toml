@@ -11,6 +11,10 @@ ktlintGradle = "14.2.0"
 ktlint = "1.8.0"
 detekt = "2.0.0-alpha.6"
 composeRules = "0.6.7"
+androidxComposeUiToolingPreview = "1.12.1"
+androidxTestCore = "1.7.0"
+paparazzi = "2.0.0-alpha05"
+composablePreviewScanner = "0.9.3"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
@@ -20,6 +24,10 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 graalvm-native-plugin = { module = "org.graalvm.buildtools:native-gradle-plugin", version.ref = "graalvmBuildtools" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidxComposeUiToolingPreview" }
+androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
+paparazzi = { module = "app.cash.paparazzi:paparazzi", version.ref = "paparazzi" }
+composable-preview-scanner-android = { module = "io.github.sergio-sastre.ComposablePreviewScanner:android", version.ref = "composablePreviewScanner" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 
@@ -31,3 +39,4 @@ kotlin-compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlintGradle" }
 detekt = { id = "dev.detekt", version.ref = "detekt" }
+paparazzi = { id = "app.cash.paparazzi", version.ref = "paparazzi" }
