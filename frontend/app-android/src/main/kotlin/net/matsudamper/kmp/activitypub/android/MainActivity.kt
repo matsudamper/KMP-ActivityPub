@@ -7,30 +7,43 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
+import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MainScreen()
+            AndroidApp()
         }
     }
 }
 
 @Composable
-private fun MainScreen(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
-        Text("Hello World")
+private fun AndroidApp(modifier: Modifier = Modifier) {
+    val backStack = rememberScreenBackStack(startScreen = Screen.Login)
+    val navigator = remember(backStack) { Navigator(backStack) }
+    MaterialTheme {
+        Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
+            NavDisplay(
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
+                entryProvider = entryProvider {
+                    entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator) }
+                    entry<Screen.Home> { HomeFeatureScreens.Home() }
+                },
+            )
+        }
     }
-}
-
-@Preview
-@Composable
-private fun MainScreenPreview() {
-    MainScreen()
 }
