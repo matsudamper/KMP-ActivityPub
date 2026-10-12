@@ -24,12 +24,10 @@ internal class PostScreenViewModel(
         MutableStateFlow(
             PostScreenUiState(
                 body = savedState.body,
-                remainingLength = savedState.remainingLength(),
-                remainingLengthOver = savedState.remainingLength() < 0,
                 postButtonEnabled = savedState.postable(),
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(body = text.take(BODY_INPUT_MAX_LENGTH)) }
+                        viewModelStateFlow.update { it.copy(body = text) }
                     }
 
                     override fun onClickPost() {
@@ -46,12 +44,9 @@ internal class PostScreenViewModel(
         ).also { uiStateFlow ->
             viewModelScope.launch {
                 viewModelStateFlow.collect { viewModelState ->
-                    val remainingLength = viewModelState.remainingLength()
                     uiStateFlow.update { uiState ->
                         uiState.copy(
                             body = viewModelState.body,
-                            remainingLength = remainingLength,
-                            remainingLengthOver = remainingLength < 0,
                             postButtonEnabled = viewModelState.postable(),
                         )
                     }
@@ -67,10 +62,7 @@ internal class PostScreenViewModel(
         }
     }
 
-    private fun ViewModelState.postable(): Boolean = body.isNotBlank() && remainingLength() >= 0
-
-    // 書いた人にとっての文字数に合わせてコードポイントで数える
-    private fun ViewModelState.remainingLength(): Int = NOTE_MAX_LENGTH - body.trim().count { !it.isLowSurrogate() }
+    private fun ViewModelState.postable(): Boolean = body.isNotBlank()
 
     data class ViewModelState(
         val body: String,
@@ -82,17 +74,6 @@ internal class PostScreenViewModel(
 
     companion object {
         val InitialState = ViewModelState(body = "")
-
-        /**
-         * Mastodon の既定の投稿長。超えるとサーバーが弾く
-         */
-        private const val NOTE_MAX_LENGTH = 500
-
-        /**
-         * 本文は Activity の保存状態に入る。Binder の転送上限を超えるとクラッシュするので、
-         * 投稿長を超えたと分かる程度の長さで入力を打ち切る
-         */
-        private const val BODY_INPUT_MAX_LENGTH = NOTE_MAX_LENGTH * 4
 
         /**
          * 画面回転などで作り直されても書きかけの本文を残す

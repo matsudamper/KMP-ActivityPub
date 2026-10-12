@@ -84,24 +84,13 @@ internal fun PostContent(
                     onValueChange = uiState.listener::onBodyChanged,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
                     placeholder = { Text("今なにしてる？") },
-                    isError = uiState.remainingLengthOver,
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = uiState.remainingLength.toString(),
-                        modifier = Modifier.weight(1f),
-                        color = if (uiState.remainingLengthOver) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                    Button(
-                        onClick = uiState.listener::onClickPost,
-                        enabled = uiState.postButtonEnabled,
-                    ) {
-                        Text("投稿")
-                    }
+                Button(
+                    onClick = uiState.listener::onClickPost,
+                    enabled = uiState.postButtonEnabled,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text("投稿")
                 }
             }
         }
