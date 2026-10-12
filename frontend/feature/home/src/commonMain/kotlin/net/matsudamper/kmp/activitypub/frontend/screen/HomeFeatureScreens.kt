@@ -7,9 +7,15 @@ import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 
 object HomeFeatureScreens {
+    /**
+     * @param serverSetting 接続先を選べるアプリだけが渡す。ログインボタンの下に出る
+     */
     @Composable
-    fun Login(navigator: Navigator) {
-        LoginScreen(navigator = navigator)
+    fun Login(
+        navigator: Navigator,
+        serverSetting: (@Composable () -> Unit)?,
+    ) {
+        LoginScreen(navigator = navigator, serverSetting = serverSetting)
     }
 
     @Composable

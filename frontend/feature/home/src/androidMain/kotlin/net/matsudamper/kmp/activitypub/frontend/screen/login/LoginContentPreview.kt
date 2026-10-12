@@ -15,6 +15,7 @@ private fun LoginContentPreview() {
                 loginButtonEnabled = true,
                 listener = AndroidPreviewLoginListener,
             ),
+            serverSetting = null,
         )
     }
 }
