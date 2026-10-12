@@ -1,11 +1,12 @@
 package net.matsudamper.kmp.activitypub.crypto
 
 /**
- * 引数ではなく標準入力から受けるのは、シェルの履歴と `ps` に平文で残るため
+ * 引数ではなく標準入力から受けるのは、シェルの履歴と `ps` に平文で残るため。
+ * 前後の空白は落とさない。ログインでは入力をそのまま照合するので、落とすと入れたパスワードで通らなくなる
  */
 fun main() {
     System.err.println("hash化するパスワードを入力してください")
-    val password = readlnOrNull()?.trim()
+    val password = readlnOrNull()
 
     if (password.isNullOrEmpty()) {
         System.err.println("パスワードを標準入力に 1 行で渡すこと")
