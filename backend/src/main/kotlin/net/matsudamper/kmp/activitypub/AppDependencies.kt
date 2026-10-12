@@ -6,7 +6,6 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.UserSessionService
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
-import net.matsudamper.kmp.activitypub.repository.createRepositories
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 
 /**
@@ -33,7 +32,7 @@ class AppDependencies(
     companion object {
         fun create(env: ServerEnv): AppDependencies =
             AppDependencies(
-                repositories = createRepositories(DatabaseConfig(path = env.dbPath)),
+                repositories = Repositories.create(DatabaseConfig(path = env.dbPath)),
                 env = env,
             )
     }

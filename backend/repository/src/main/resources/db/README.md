@@ -59,7 +59,7 @@ jOOQ には SQL を直接読む `DDLDatabase` もあるが、そちらは jOOQ �
 
 ## テストでの使いかた
 
-テストは `TestSchema.applyTo(dbPath)` で `schema.sql` を適用してから `createRepositories` する。
+テストは `TestSchema.applyTo(dbPath)` で `schema.sql` を適用してから `Repositories.create` する。
 起動時の自動適用が無いのは実運用と同じで、適用を忘れると実運用と同じ形で落ちる。
 
 ## 現在のテーブル

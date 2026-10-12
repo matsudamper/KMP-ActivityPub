@@ -24,7 +24,7 @@ class AccountRepositoryTest {
         TestSchema.applyTo(dbPath)
         val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use { repositories ->
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(
                 Account(id = id, username = "user1", createdAt = CREATED_AT),
                 repositories.accounts.findById(id),
@@ -37,7 +37,7 @@ class AccountRepositoryTest {
         TestSchema.applyTo(dbPath)
         val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use { repositories ->
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(
                 AccountCredential(id = id, username = "user1", passwordHash = PASSWORD_HASH),
                 repositories.accounts.findCredential("user1"),
@@ -50,7 +50,7 @@ class AccountRepositoryTest {
         TestSchema.applyTo(dbPath)
         val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use { repositories ->
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(id, repositories.accounts.findCredential("USER1")?.id)
         }
     }
@@ -59,7 +59,7 @@ class AccountRepositoryTest {
     fun `いない名前は引けない`() {
         TestSchema.applyTo(dbPath)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use { repositories ->
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertNull(repositories.accounts.findCredential("user1"))
         }
     }

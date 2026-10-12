@@ -24,7 +24,7 @@ class RepositoriesTest {
         val dbPath = tempDir.resolve("test.db")
         TestSchema.applyTo(dbPath)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use { repositories ->
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.verifyWritable()
         }
     }
@@ -34,7 +34,7 @@ class RepositoriesTest {
         val dbPath = tempDir.resolve("nested/dir/test.db")
         TestSchema.applyTo(dbPath)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use { repositories ->
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.verifyWritable()
         }
 
@@ -47,8 +47,8 @@ class RepositoriesTest {
         TestSchema.applyTo(dbPath)
         val config = DatabaseConfig(path = dbPath)
 
-        createRepositories(config).use { it.verifyWritable() }
-        createRepositories(config).use { it.verifyWritable() }
+        Repositories.create(config).use { it.verifyWritable() }
+        Repositories.create(config).use { it.verifyWritable() }
     }
 
     @Test
@@ -56,7 +56,7 @@ class RepositoriesTest {
         // 空の DB での起動失敗は仕様。sqlite3def での適用忘れをここで検出する
         val config = DatabaseConfig(path = tempDir.resolve("empty.db"))
 
-        createRepositories(config).use { repositories ->
+        Repositories.create(config).use { repositories ->
             assertFailsWith<Exception> { repositories.verifyWritable() }
         }
     }

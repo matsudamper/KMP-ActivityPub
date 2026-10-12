@@ -42,7 +42,7 @@ class UserSessionRepositoryTest {
         TestSchema.applyTo(dbPath)
         val accountId = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = "hash", createdAt = NOW)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use { block(it, accountId) }
+        Repositories.create(DatabaseConfig(path = dbPath)).use { block(it, accountId) }
     }
 
     private companion object {

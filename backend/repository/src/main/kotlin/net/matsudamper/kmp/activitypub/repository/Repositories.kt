@@ -33,9 +33,11 @@ interface Repositories : AutoCloseable {
      * とだけ見えるようにする。
      */
     override fun close()
-}
 
-/**
- * 接続に失敗した場合は例外を投げる。使い終わったら [Repositories.close] を呼ぶこと。
- */
-fun createRepositories(config: DatabaseConfig): Repositories = SqliteRepositories(config)
+    companion object {
+        /**
+         * 接続に失敗した場合は例外を投げる。使い終わったら [Repositories.close] を呼ぶこと。
+         */
+        fun create(config: DatabaseConfig): Repositories = SqliteRepositories(config)
+    }
+}
