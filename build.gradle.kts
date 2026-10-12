@@ -37,6 +37,7 @@ allprojects {
 val detektTargetProjects =
     setOf(
         ":frontend:app-web",
+        ":frontend:common-component",
         ":frontend:ui",
         ":frontend:navigation",
         ":frontend:feature:home",
