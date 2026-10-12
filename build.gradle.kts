@@ -20,13 +20,9 @@ allprojects {
     group = "net.matsudamper"
     version = "0.1.0"
 
-    // フォーマットはモジュールごとに設定せず、全体で 1 つに揃える。
-    // ルートの build.gradle.kts / settings.gradle.kts も対象に含める
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
 
     configure<KtlintExtension> {
-        // プラグイン既定のバージョンに引きずられないよう version catalog で固定する。
-        // Renovate に追従させるためでもある
         version.set(ktlintVersion)
 
         filter {

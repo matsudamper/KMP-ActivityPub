@@ -14,7 +14,6 @@ configure<KtlintExtension> {
 }
 
 dependencies {
-    // native-image の設定（どの GraalVM で作るか）をプラグイン側で書くために要る
     implementation(libs.graalvm.native.plugin)
 }
 

@@ -102,7 +102,6 @@ abstract class RepairNativeImageLauncherTask : DefaultTask() {
         }
     }
 
-    /** 0 バイトの普通のファイルなら、リンクがコピーで潰れた状態 */
     private fun Path.isBroken(): Boolean {
         return isRegularFile(LinkOption.NOFOLLOW_LINKS) && fileSize() == 0L
     }
