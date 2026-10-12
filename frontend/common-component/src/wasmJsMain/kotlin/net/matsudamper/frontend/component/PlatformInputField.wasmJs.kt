@@ -152,6 +152,10 @@ actual fun HiddenHtmlForm(
                 created.id = formId
                 created.setAttribute("autocomplete", "on")
                 created.style.display = "none"
+                // 入力欄が 2 つ以上ある form は、送信ボタンが無いと Enter で送信されない
+                val submitButton = document.createElement("button")
+                submitButton.setAttribute("type", "submit")
+                created.appendChild(submitButton)
                 document.body?.appendChild(created)
                 created
             }
