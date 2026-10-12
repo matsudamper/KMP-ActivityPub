@@ -47,6 +47,10 @@ class GraphQlEngine private constructor(
                     logger.debug("GraphQL の実行に失敗した(クライアント起因): {}", error.message)
                 }
 
+                dataFetchingException is GraphQlClientException -> {
+                    logger.debug("GraphQL の実行に失敗した(クライアント起因): {}", error.message)
+                }
+
                 else -> {
                     logger.error(
                         "GraphQL の実行に失敗した: {}",

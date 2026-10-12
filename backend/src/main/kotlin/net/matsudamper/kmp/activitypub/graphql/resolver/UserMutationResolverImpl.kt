@@ -4,6 +4,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
+import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserAccount
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
@@ -20,7 +21,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
-        check(context.claimLoginAttempt()) { "login は 1 リクエストにつき 1 回まで" }
+        if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
         val accountService = GraphQlEngine.diContainer(env).accountService
 
         val accountId = accountService.authenticate(username = query.username, password = query.password)
