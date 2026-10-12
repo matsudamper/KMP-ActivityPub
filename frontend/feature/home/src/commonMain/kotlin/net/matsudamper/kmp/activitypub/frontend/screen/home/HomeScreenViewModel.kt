@@ -4,14 +4,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSessionResult
 
 /**
- * サーバーとはまだ繋いでいない。タイムラインは決まったダミーの投稿を出す
+ * タイムラインはまだサーバーと繋いでいない。決まったダミーの投稿を出す
  */
 internal class HomeScreenViewModel(
     private val viewModelScope: CoroutineScope,
+    private val api: UserApi,
 ) {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -26,9 +31,24 @@ internal class HomeScreenViewModel(
                             events.send { it.navigateToPost() }
                         }
                     }
+
+                    override fun onClickLogout() {
+                        viewModelScope.launch {
+                            api.logout()
+                        }
+                    }
                 },
             ),
         ).asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            api.session()
+                .filterIsInstance<UserSessionResult.LoggedOut>()
+                .first()
+            events.send { it.navigateToLogin() }
+        }
+    }
 
     private fun createDummyTimelineItems(): List<HomeScreenUiState.TimelineItem> {
         return (1..30).map { index ->
@@ -43,5 +63,7 @@ internal class HomeScreenViewModel(
 
     interface Event {
         fun navigateToPost()
+
+        fun navigateToLogin()
     }
 }

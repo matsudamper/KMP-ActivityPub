@@ -9,6 +9,8 @@ import androidx.navigation3.ui.NavDisplay
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
 import kotlinx.browser.window
+import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.TransparentScreen
@@ -126,12 +128,13 @@ private fun ScreenContent(
     navController: Navigator,
     retainedScreenState: RetainedScreenState,
 ) {
+    val userApi = remember { UserApi(GraphQlClient.apollo) }
     when (screen) {
-        Screen.Home -> HomeFeatureScreens.Home(navigator = navController)
+        Screen.Home -> HomeFeatureScreens.Home(navigator = navController, api = userApi)
 
-        Screen.Login -> HomeFeatureScreens.Login(navigator = navController)
+        Screen.Login -> HomeFeatureScreens.Login(navigator = navController, api = userApi)
 
-        Screen.Post -> HomeFeatureScreens.Post(navigator = navController)
+        Screen.Post -> HomeFeatureScreens.Post(navigator = navController, api = userApi)
 
         Screen.Admin -> AdminScreen(
             retainedScreenState = retainedScreenState,

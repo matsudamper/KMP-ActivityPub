@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -29,10 +30,11 @@ import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 @Composable
 internal fun PostScreen(
     navigator: Navigator,
+    api: UserApi,
 ) {
     val viewModelScope = rememberCoroutineScope()
-    val viewModel = rememberSaveable(saver = PostScreenViewModel.saver(viewModelScope)) {
-        PostScreenViewModel(viewModelScope = viewModelScope, savedState = PostScreenViewModel.InitialState)
+    val viewModel = rememberSaveable(saver = PostScreenViewModel.saver(viewModelScope, api)) {
+        PostScreenViewModel(viewModelScope = viewModelScope, api = api, savedState = PostScreenViewModel.InitialState)
     }
     val uiState by viewModel.uiStateFlow.collectAsState()
 
@@ -84,16 +86,32 @@ internal fun PostContent(
                     label = "今なにしてる？",
                     inputId = POST_BODY_INPUT_ID,
                     inputName = "body",
-                    enabled = true,
-                    hasError = false,
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.error != null,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(
-                    onClick = uiState.listener::onClickPost,
-                    enabled = uiState.postButtonEnabled,
-                    modifier = Modifier.align(Alignment.End),
-                ) {
-                    Text("投稿")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = uiState.remainingLength.toString(),
+                        modifier = Modifier.weight(1f),
+                        color = if (uiState.remainingLengthOver) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    Button(
+                        onClick = uiState.listener::onClickPost,
+                        enabled = uiState.postButtonEnabled,
+                    ) {
+                        Text("投稿")
+                    }
+                }
+                uiState.error?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }

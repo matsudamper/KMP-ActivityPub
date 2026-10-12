@@ -12,6 +12,8 @@ private fun LoginContentPreview() {
             uiState = LoginScreenUiState(
                 username = "kotlin",
                 password = "password",
+                error = null,
+                inputEnabled = true,
                 loginButtonEnabled = true,
                 listener = AndroidPreviewLoginListener,
             ),

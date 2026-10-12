@@ -25,6 +25,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.android.server.ServerScreen
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.BackStackNavigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
@@ -84,7 +85,7 @@ private fun AndroidAppContent(
             }
             Box(modifier = Modifier.weight(1f)) {
                 key(serverUrl) {
-                    ScreenNavDisplay()
+                    ScreenNavDisplay(serverUrl = serverUrl)
                 }
             }
         }
@@ -92,17 +93,21 @@ private fun AndroidAppContent(
 }
 
 @Composable
-private fun ScreenNavDisplay() {
-    val backStack = rememberScreenBackStack(startScreen = Screen.Login)
+private fun ScreenNavDisplay(serverUrl: String) {
+    val context = LocalContext.current
+    val api = remember(context, serverUrl) {
+        UserApi(AndroidGraphQlClient.create(context = context, serverUrl = serverUrl))
+    }
+    val backStack = rememberScreenBackStack(startScreen = Screen.Home)
     val navigator = remember(backStack) { BackStackNavigator(backStack) }
     NavDisplay(
         backStack = backStack,
         onBack = { backStack.removeLastOrNull() },
         entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
         entryProvider = entryProvider {
-            entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator) }
-            entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
-            entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
+            entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator, api = api) }
+            entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator, api = api) }
+            entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator, api = api) }
         },
     )
 }

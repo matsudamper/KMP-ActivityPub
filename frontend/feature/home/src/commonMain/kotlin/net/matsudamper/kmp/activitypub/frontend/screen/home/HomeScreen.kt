@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -32,9 +34,10 @@ import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 @Composable
 internal fun HomeScreen(
     navigator: Navigator,
+    api: UserApi,
 ) {
     val viewModelScope = rememberCoroutineScope()
-    val viewModel = remember(viewModelScope) { HomeScreenViewModel(viewModelScope = viewModelScope) }
+    val viewModel = remember(viewModelScope, api) { HomeScreenViewModel(viewModelScope = viewModelScope, api = api) }
     val uiState by viewModel.uiStateFlow.collectAsState()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
@@ -42,6 +45,10 @@ internal fun HomeScreen(
             object : HomeScreenViewModel.Event {
                 override fun navigateToPost() {
                     navigator.navigate(Screen.Post)
+                }
+
+                override fun navigateToLogin() {
+                    navigator.replaceAll(Screen.Login)
                 }
             },
         )
@@ -57,12 +64,20 @@ internal fun HomeContent(
     Scaffold(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface) {
-                Text(
-                    text = "ホーム",
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "ホーム",
+                        modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    TextButton(onClick = uiState.listener::onClickLogout) {
+                        Text("ログアウト")
+                    }
+                }
             }
         },
         floatingActionButton = {

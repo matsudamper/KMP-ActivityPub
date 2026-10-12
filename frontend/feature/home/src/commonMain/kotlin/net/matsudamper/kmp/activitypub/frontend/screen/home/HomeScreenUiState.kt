@@ -16,5 +16,7 @@ data class HomeScreenUiState(
     @Immutable
     interface Listener {
         fun onClickPost()
+
+        fun onClickLogout()
     }
 }
