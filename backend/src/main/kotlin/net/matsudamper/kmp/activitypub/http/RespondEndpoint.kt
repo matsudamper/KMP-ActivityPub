@@ -6,8 +6,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
-import net.matsudamper.activitypub.http.EndpointResponse
-import net.matsudamper.activitypub.http.RequestHeaders
+import net.matsudamper.kotpub.http.EndpointResponse
+import net.matsudamper.kotpub.http.RequestHeaders
 
 internal suspend fun ApplicationCall.respondEndpoint(endpointResponse: EndpointResponse) {
     endpointResponse.headers.forEach { (name, value) -> response.header(name, value) }

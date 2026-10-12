@@ -4,9 +4,9 @@ import java.time.Instant
 import java.util.Base64
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import net.matsudamper.activitypub.json.AppJson
 import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kotpub.json.AppJson
 
 /**
  * 受け渡す形は JSON を base64 にしたもので、外からは中身の無い文字列として扱う。

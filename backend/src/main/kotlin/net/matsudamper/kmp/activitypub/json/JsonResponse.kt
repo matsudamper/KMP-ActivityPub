@@ -5,7 +5,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.respondText
-import net.matsudamper.activitypub.json.AppJson
+import net.matsudamper.kotpub.json.AppJson
 
 /**
  * Ktor の `ContentNegotiation` を入れて `call.respond(value)` と書くと、

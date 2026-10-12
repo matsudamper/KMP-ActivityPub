@@ -1,20 +1,20 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Instant
-import net.matsudamper.activitypub.actor.ActorUrls
-import net.matsudamper.activitypub.entity.PublicNoteId as MastodonPublicNoteId
-import net.matsudamper.activitypub.note.NotePublisher
-import net.matsudamper.activitypub.note.PreparedNote
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NewNote
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.entity.PublicNoteId as MastodonPublicNoteId
+import net.matsudamper.kotpub.note.NotePublisher
+import net.matsudamper.kotpub.note.PreparedNote
 import org.slf4j.LoggerFactory
 
 /**
- * kotpub の `activitypub` の [NotePublisher] が `Create{Note}` を組み立て、
+ * kotpub の `core` の [NotePublisher] が `Create{Note}` を組み立て、
  * `:backend:repository` の投函の口が記録と投函を 1 トランザクションで書く。
  * 両方を知っているのは `:backend` だけなので、繋ぐのはここになる。
  *

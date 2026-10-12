@@ -8,11 +8,11 @@ import kotlin.io.path.writeText
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
-import net.matsudamper.activitypub.actor.ActorUrls
 import net.matsudamper.kmp.activitypub.repository.IncomingFollow
 import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
+import net.matsudamper.kotpub.actor.ActorUrls
 
 class AppDependenciesTest {
     private val staticSrcDir: Path = Files.createTempDirectory("app-dependencies-test")

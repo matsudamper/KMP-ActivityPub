@@ -6,15 +6,15 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.runBlocking
-import net.matsudamper.activitypub.TestLocalActor
-import net.matsudamper.activitypub.TestWebPageUrls
-import net.matsudamper.activitypub.actor.ActorUrls
-import net.matsudamper.activitypub.note.NotePublisher
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.IncomingFollow
 import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
+import net.matsudamper.kotpub.TestLocalActor
+import net.matsudamper.kotpub.TestWebPageUrls
+import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.note.NotePublisher
 
 class NoteEnqueuerTest {
     private val repositories = FakeRepositories()

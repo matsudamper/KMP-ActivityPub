@@ -1,13 +1,13 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Instant
-import net.matsudamper.activitypub.actor.ActorUrls
-import net.matsudamper.activitypub.actor.ActorUsernameUtil
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.actor.ActorUsernameUtil
 
 class AccountService(
     private val accounts: AccountRepository,

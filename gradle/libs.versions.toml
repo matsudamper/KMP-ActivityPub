@@ -23,10 +23,10 @@ ktlintGradle = "14.2.0"
 ktlint = "1.8.0"
 detekt = "2.0.0-alpha.6"
 composeRules = "0.6.7"
-opentelemetry = "1.66.0"
-opentelemetryApiIncubator = "1.65.0-alpha"
+opentelemetry = "1.67.0"
+opentelemetryApiIncubator = "1.67.0-alpha"
 opentelemetryInstrumentation = "2.31.1-alpha"
-kotpub = "1.1.0"
+kotpub = "1.2.0"
 okhttp = "5.5.0"
 androidxActivity = "1.13.0"
 androidxCore = "1.16.0"
@@ -40,7 +40,6 @@ composablePreviewScanner = "0.9.3"
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
@@ -75,7 +74,8 @@ opentelemetry-jdbc = { module = "io.opentelemetry.instrumentation:opentelemetry-
 opentelemetry-graphql-java = { module = "io.opentelemetry.instrumentation:opentelemetry-graphql-java-20.0", version.ref = "opentelemetryInstrumentation" }
 opentelemetry-runtime-telemetry = { module = "io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry", version.ref = "opentelemetryInstrumentation" }
 opentelemetry-extension-kotlin = { module = "io.opentelemetry:opentelemetry-extension-kotlin", version.ref = "opentelemetry" }
-kotpub-activitypub = { module = "net.matsudamper.kotpub:activitypub", version.ref = "kotpub" }
+kotpub-core = { module = "net.matsudamper.kotpub:core", version.ref = "kotpub" }
+kotpub-client-ktor = { module = "net.matsudamper.kotpub:client-ktor", version.ref = "kotpub" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }

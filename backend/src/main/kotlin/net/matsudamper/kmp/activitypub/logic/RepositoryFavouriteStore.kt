@@ -1,11 +1,11 @@
 package net.matsudamper.kmp.activitypub.logic
 
-import net.matsudamper.activitypub.entity.PublicNoteId as MastodonPublicNoteId
-import net.matsudamper.activitypub.favourite.FavouriteStore
-import net.matsudamper.activitypub.favourite.FavouriteStore.ReceivedFavourite
 import net.matsudamper.kmp.activitypub.repository.NoteFavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteFavouriteRepository.NewNoteFavourite
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kotpub.entity.PublicNoteId as MastodonPublicNoteId
+import net.matsudamper.kotpub.favourite.FavouriteStore
+import net.matsudamper.kotpub.favourite.FavouriteStore.ReceivedFavourite
 
 class RepositoryFavouriteStore(
     private val favourites: NoteFavouriteRepository,

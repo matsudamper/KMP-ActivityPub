@@ -19,16 +19,16 @@ import io.opentelemetry.api.trace.TraceId
 import io.opentelemetry.api.trace.TraceState
 import io.opentelemetry.context.Context
 import io.opentelemetry.extension.kotlin.asContextElement
-import net.matsudamper.activitypub.actor.ActorDirectory
-import net.matsudamper.activitypub.actor.ActorUrls
-import net.matsudamper.activitypub.delivery.ActivityDelivery
-import net.matsudamper.activitypub.delivery.DeliveryResult
-import net.matsudamper.activitypub.note.FollowBackfillPublisher
 import net.matsudamper.kmp.activitypub.logic.DomainBlockService
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveredOutcome
 import net.matsudamper.kmp.activitypub.repository.DeliveryKind
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kotpub.actor.ActorDirectory
+import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.delivery.ActivityDelivery
+import net.matsudamper.kotpub.delivery.DeliveryResult
+import net.matsudamper.kotpub.note.FollowBackfillPublisher
 import org.slf4j.LoggerFactory
 
 /**

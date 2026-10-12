@@ -1,8 +1,8 @@
 package net.matsudamper.kmp.activitypub.logic
 
-import net.matsudamper.activitypub.actor.ActorProfile
-import net.matsudamper.activitypub.actor.StoredActorProfiles
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kotpub.actor.ActorProfile
+import net.matsudamper.kotpub.actor.StoredActorProfiles
 
 /**
  * 毎回引き直す。持ち回すと、編集した後も古い表示名を返し続ける。

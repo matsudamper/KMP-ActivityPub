@@ -8,7 +8,8 @@ plugins {
 dependencies {
     implementation(project(":backend:repository"))
 
-    implementation(libs.kotpub.activitypub)
+    implementation(libs.kotpub.core)
+    implementation(libs.kotpub.client.ktor)
 
     implementation(project(":backend:crypto"))
 
@@ -17,8 +18,6 @@ dependencies {
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
 
     implementation(libs.opentelemetry.api.incubator)
     implementation(libs.opentelemetry.sdk)
@@ -43,7 +42,7 @@ dependencies {
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlin.test)
 
-    testImplementation(testFixtures(libs.kotpub.activitypub))
+    testImplementation(testFixtures(libs.kotpub.core))
 }
 
 application {

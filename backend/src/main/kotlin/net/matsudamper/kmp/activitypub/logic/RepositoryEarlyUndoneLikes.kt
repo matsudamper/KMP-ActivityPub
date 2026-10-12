@@ -1,8 +1,8 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Instant
-import net.matsudamper.activitypub.inbox.EarlyUndoneLikes
 import net.matsudamper.kmp.activitypub.repository.EarlyUndoneLikeRepository
+import net.matsudamper.kotpub.inbox.EarlyUndoneLikes
 
 class RepositoryEarlyUndoneLikes(
     private val repository: EarlyUndoneLikeRepository,

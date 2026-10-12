@@ -27,8 +27,9 @@ Android アプリをビルドするときは Android SDK が要る（`local.prop
 
 ### GitHub Packages の資格情報
 
-graphql-java-codegen の fork と kotpub の `activitypub` は GitHub Packages から取る。
+graphql-java-codegen の fork は GitHub Packages から取る。
 無いと構成の時点で落ちるので、`~/.gradle/gradle.properties` に置く。
+kotpub は Maven Central の `net.matsudamper.kotpub:core` と `client-ktor`（1.2.0）を使う。
 
 ```properties
 gpr.user=<GitHub のユーザー名>
@@ -36,7 +37,7 @@ gpr.key=<read:packages を付けたパーソナルアクセストークン>
 ```
 
 環境変数 `GITHUB_ACTOR` / `GITHUB_TOKEN` でも読む。CI はそちらを使っている。
-CI の `GITHUB_TOKEN` で読めるよう、2 つのパッケージの設定でこのリポジトリに読み取りを許可しておく。
+CI の `GITHUB_TOKEN` で読めるよう、graphql-java-codegen のパッケージ設定でこのリポジトリに読み取りを許可しておく。
 
 ## ビルド
 

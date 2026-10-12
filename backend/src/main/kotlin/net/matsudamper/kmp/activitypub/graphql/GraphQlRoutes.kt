@@ -12,11 +12,11 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.utils.io.readRemaining
-import net.matsudamper.activitypub.json.AppJson
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.json.respondJson
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
+import net.matsudamper.kotpub.json.AppJson
 
 private const val MAX_BODY_BYTES = 1024 * 1024
 

@@ -11,7 +11,6 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
-import net.matsudamper.activitypub.actor.ActorKey
 import net.matsudamper.kmp.activitypub.actor.actorRoutes
 import net.matsudamper.kmp.activitypub.follower.followerRoutes
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
@@ -34,6 +33,7 @@ import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.webfinger.webFingerRoutes
+import net.matsudamper.kotpub.actor.ActorKey
 
 fun main() {
     // DOMAIN が無ければこの時点で落ちる。サーバーを立てる前に止めたいので順番を変えないこと

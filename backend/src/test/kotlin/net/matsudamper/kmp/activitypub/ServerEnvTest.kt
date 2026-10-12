@@ -8,8 +8,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import net.matsudamper.activitypub.actor.ActorPrivateKey
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kotpub.actor.ActorPrivateKey
 
 class ServerEnvTest {
     private fun env(vararg values: Pair<String, String>): ServerEnv =
