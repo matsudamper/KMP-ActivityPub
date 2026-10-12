@@ -1,3 +1,8 @@
-*
+**/build/
 !backend/build/distributions/backend.tar
 !frontend/app-web/build/dist/wasmJs/productionExecutable/
+**/.gradle/
+**/.kotlin/
+.git/
+.idea/
+local.properties
