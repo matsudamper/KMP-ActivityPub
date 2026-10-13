@@ -25,6 +25,7 @@ kotlin {
                 implementation(project(":frontend:ui"))
                 implementation(project(":frontend:navigation"))
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.androidx.lifecycle.viewmodel.compose)
             }
         }
 
