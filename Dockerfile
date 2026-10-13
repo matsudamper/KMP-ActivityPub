@@ -1,11 +1,6 @@
 FROM debian:13-slim
 WORKDIR /app
 
-# エントリーポイントで初回のスキーマを入れるのに使う
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends sqlite3 \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN useradd --system --no-create-home --shell /usr/sbin/nologin app \
     && mkdir /app/data \
     && chown app:app /app/data
@@ -13,10 +8,6 @@ RUN useradd --system --no-create-home --shell /usr/sbin/nologin app \
 COPY frontend/app-web/build/dist/wasmJs/productionExecutable static
 
 COPY backend/build/native/nativeCompile/kmp-activitypub kmp-activitypub
-
-COPY backend/repository/src/main/resources/db/schema.sql schema.sql
-
-COPY docker/entrypoint.sh entrypoint.sh
 
 USER app
 
@@ -27,4 +18,4 @@ VOLUME /app/data
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/kmp-activitypub"]
