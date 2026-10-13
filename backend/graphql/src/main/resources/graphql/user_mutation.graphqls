@@ -12,6 +12,6 @@ type UserLoginResult {
 }
 
 enum UserLoginFailure {
-    "ユーザーがいないか、パスワードが違う。どちらかは教えない"
+    "ユーザーがいないか、パスワードが違う。"
     WRONG_USERNAME_OR_PASSWORD
 }

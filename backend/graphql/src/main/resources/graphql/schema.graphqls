@@ -4,7 +4,7 @@ schema {
 }
 
 type Query {
-    "GraphQL は query にフィールドが 1 つ要る。ログインは使わない"
+    "GraphQL は query にフィールドが 1 つ要る。空実装"
     unused: Boolean
 }
 

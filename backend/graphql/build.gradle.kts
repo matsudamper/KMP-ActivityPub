@@ -44,6 +44,7 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     // 生成時刻が入るとビルドキャッシュが効かない
     addGeneratedAnnotation = false
 
+    // 付けたフィールドだけリゾルバのインタフェースを作る
     fieldsWithResolvers = setOf("@lazy")
     generateParameterizedFieldsResolvers = true
 
