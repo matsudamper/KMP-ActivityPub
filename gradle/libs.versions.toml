@@ -7,7 +7,7 @@ androidxActivity = "1.13.0"
 kotlinxCoroutines = "1.11.0"
 kotlinxSerialization = "1.11.0"
 navigation3 = "1.1.2"
-androidxLifecycle = "2.10.0"
+androidxLifecycle = "2.11.0"
 kotlinxBrowser = "0.5.0"
 ktor = "3.6.0"
 graphqlJava = "26.1"
@@ -28,6 +28,11 @@ composablePreviewScanner = "0.9.3"
 androidxDatastore = "1.2.1"
 protobuf = "4.36.2"
 protobufPlugin = "0.10.0"
+springSecurityCrypto = "7.1.1"
+bouncycastle = "1.86"
+springCore = "7.0.9"
+sqliteJdbc = "3.53.4.0"
+jooq = "3.21.9"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
@@ -47,6 +52,7 @@ apollo-runtime = { module = "com.apollographql.apollo:apollo-runtime", version.r
 graalvm-nativeimage = { module = "org.graalvm.sdk:nativeimage", version.ref = "graalvmSdk" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 graalvm-native-plugin = { module = "org.graalvm.buildtools:native-gradle-plugin", version.ref = "graalvmBuildtools" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidxComposeUiToolingPreview" }
 androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
@@ -55,6 +61,13 @@ composable-preview-scanner-android = { module = "io.github.sergio-sastre.Composa
 androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "androidxDatastore" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf" }
 protobuf-protoc = { module = "com.google.protobuf:protoc", version.ref = "protobuf" }
+spring-security-crypto = { module = "org.springframework.security:spring-security-crypto", version.ref = "springSecurityCrypto" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+spring-core = { module = "org.springframework:spring-core", version.ref = "springCore" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
+jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
+jooq-codegen = { module = "org.jooq:jooq-codegen", version.ref = "jooq" }
+jooq-codegen-gradle = { module = "org.jooq:jooq-codegen-gradle", version.ref = "jooq" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 
