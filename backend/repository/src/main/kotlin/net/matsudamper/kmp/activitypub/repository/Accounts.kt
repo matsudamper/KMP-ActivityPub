@@ -10,6 +10,10 @@ import org.sqlite.SQLiteErrorCode
 import org.sqlite.SQLiteException
 
 object Accounts {
+    /**
+     * @throws AccountAlreadyExists 同じユーザー名が既にある
+     * @throws AccountTableMissing accounts が無い
+     */
     fun insert(
         databasePath: Path,
         username: String,
@@ -43,8 +47,10 @@ object Accounts {
     }
 }
 
+sealed class AccountInsertException : RuntimeException()
+
 class AccountAlreadyExists(
     val username: String,
-) : RuntimeException()
+) : AccountInsertException()
 
-class AccountTableMissing : RuntimeException()
+class AccountTableMissing : AccountInsertException()
