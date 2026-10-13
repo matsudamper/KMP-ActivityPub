@@ -43,21 +43,3 @@ COOKIE_SECURE=false ./gradlew :backend:run
 画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
 `frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
 同じサーバーから出る。
-
-## Docker で動かす
-
-DB は compose でマウントする `./data` に置かれる。初回の起動で空の DB にスキーマが入る。
-既にある DB のスキーマの変更は、これまでどおり sqlite3def で手で行う。
-
-コンテナはホストの UID/GID で動くので、`./data` の DB はホストのユーザーのまま編集できる。
-UID と GID は `HOST_UID` と `HOST_GID` で渡す。省略すると 1000 になる。
-`./data` は先に作っておく。無いと Docker が root の持ち物として作り、書けなくなる。
-
-```sh
-mkdir -p data
-HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up -d
-```
-
-ユーザーはローカルと同じ手順で、`data/kmp-activitypub.db` に直接入れる。
-
-http で試すときは `COOKIE_SECURE=false` を付けて `docker compose up` する。

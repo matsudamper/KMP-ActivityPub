@@ -3,7 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # data に書いた DB をホストのユーザーのまま編集できるよう、ホストの UID/GID で動かす
+    # data に書いた DB をホストのユーザーのまま編集できるよう、ホストの UID/GID で動かす。
+    # bash の UID は上書きできないので HOST_UID / HOST_GID で渡す
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     ports:
       - "8080:8080"
@@ -12,7 +13,9 @@ services:
       PORT: 8080
       STATIC_SRC_DIR: /app/static
       DB_PATH: /app/data/kmp-activitypub.db
+      # http で試すときは false にする。true のままだとログインできない
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
     volumes:
+      # 先に作っておく。無いと Docker が root の持ち物として作り、書けなくなる
       - ./data:/app/data
 #      - ./public:/public:ro
