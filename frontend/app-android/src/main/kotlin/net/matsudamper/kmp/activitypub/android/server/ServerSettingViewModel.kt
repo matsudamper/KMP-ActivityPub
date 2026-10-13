@@ -1,32 +1,45 @@
 package net.matsudamper.kmp.activitypub.android.server
 
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import java.io.IOException
 import java.net.URI
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
 
 internal class ServerSettingViewModel(
-    private val viewModelScope: CoroutineScope,
+    savedStateHandle: SavedStateHandle,
     private val serverSettingStore: ServerSettingStore,
-) {
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState())
+) : ViewModel() {
+    /**
+     * null ならダイアログは閉じている
+     */
+    private val dialogServerUrlFlow: MutableStateFlow<String?> =
+        savedStateHandle.getMutableStateFlow(KEY_DIALOG_SERVER_URL, null)
+    private val invalidServerUrlFlow: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val savedServerUrlFlow: StateFlow<String?> = serverSettingStore.serverUrlFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = null,
+    )
 
     private val listener = object : ServerSettingUiState.Listener {
         override fun onClickChange() {
-            viewModelStateFlow.update { state ->
-                state.copy(dialog = DialogState(serverUrl = state.savedServerUrl.orEmpty(), invalidServerUrl = false))
-            }
+            dialogServerUrlFlow.value = savedServerUrlFlow.value.orEmpty()
+            invalidServerUrlFlow.value = false
         }
 
         override fun onServerUrlChanged(text: String) {
-            viewModelStateFlow.update { state ->
-                state.copy(dialog = state.dialog?.copy(serverUrl = text, invalidServerUrl = false))
-            }
+            if (dialogServerUrlFlow.value == null) return
+            dialogServerUrlFlow.value = text
+            invalidServerUrlFlow.value = false
         }
 
         override fun onClickSave() {
@@ -34,34 +47,36 @@ internal class ServerSettingViewModel(
         }
 
         override fun onDismissDialog() {
-            viewModelStateFlow.update { it.copy(dialog = null) }
+            dialogServerUrlFlow.value = null
         }
     }
 
     val uiStateFlow: StateFlow<ServerSettingUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
-            viewModelScope.launch {
-                viewModelStateFlow.collect { viewModelState ->
-                    uiStateFlow.value = createUiState(viewModelState)
-                }
-            }
-        }.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            serverSettingStore.serverUrlFlow.collect { serverUrl ->
-                viewModelStateFlow.update { it.copy(savedServerUrl = serverUrl) }
-            }
-        }
-    }
+        combine(
+            savedServerUrlFlow,
+            dialogServerUrlFlow,
+            invalidServerUrlFlow,
+        ) { savedServerUrl, dialogServerUrl, invalidServerUrl ->
+            createUiState(
+                savedServerUrl = savedServerUrl,
+                dialogServerUrl = dialogServerUrl,
+                invalidServerUrl = invalidServerUrl,
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = createUiState(
+                savedServerUrl = savedServerUrlFlow.value,
+                dialogServerUrl = dialogServerUrlFlow.value,
+                invalidServerUrl = invalidServerUrlFlow.value,
+            ),
+        )
 
     private fun save() {
-        val dialog = viewModelStateFlow.value.dialog ?: return
-        val normalized = normalize(dialog.serverUrl)
+        val dialogServerUrl = dialogServerUrlFlow.value ?: return
+        val normalized = normalize(dialogServerUrl)
         if (normalized == null) {
-            viewModelStateFlow.update { state ->
-                state.copy(dialog = dialog.copy(invalidServerUrl = true))
-            }
+            invalidServerUrlFlow.value = true
             return
         }
         viewModelScope.launch {
@@ -70,7 +85,7 @@ internal class ServerSettingViewModel(
             } catch (_: IOException) {
                 return@launch
             }
-            viewModelStateFlow.update { it.copy(dialog = null) }
+            dialogServerUrlFlow.value = null
         }
     }
 
@@ -90,25 +105,23 @@ internal class ServerSettingViewModel(
         return "https://${uri.host}$port"
     }
 
-    private fun createUiState(state: ViewModelState): ServerSettingUiState = ServerSettingUiState(
-        serverUrlText = state.savedServerUrl ?: "未設定",
-        dialog = state.dialog?.let { dialog ->
+    private fun createUiState(
+        savedServerUrl: String?,
+        dialogServerUrl: String?,
+        invalidServerUrl: Boolean,
+    ): ServerSettingUiState = ServerSettingUiState(
+        serverUrlText = savedServerUrl ?: "未設定",
+        dialog = dialogServerUrl?.let { serverUrl ->
             ServerSettingUiState.Dialog(
-                serverUrl = dialog.serverUrl,
-                serverUrlInputError = dialog.invalidServerUrl,
-                saveButtonEnabled = dialog.serverUrl.isNotBlank(),
+                serverUrl = serverUrl,
+                serverUrlInputError = invalidServerUrl,
+                saveButtonEnabled = serverUrl.isNotBlank(),
             )
         },
         listener = listener,
     )
 
-    private data class ViewModelState(
-        val savedServerUrl: String? = null,
-        val dialog: DialogState? = null,
-    )
-
-    private data class DialogState(
-        val serverUrl: String,
-        val invalidServerUrl: Boolean,
-    )
+    private companion object {
+        const val KEY_DIALOG_SERVER_URL = "dialogServerUrl"
+    }
 }

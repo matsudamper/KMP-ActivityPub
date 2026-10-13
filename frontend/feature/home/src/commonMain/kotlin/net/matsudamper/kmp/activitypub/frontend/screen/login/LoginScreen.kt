@@ -15,12 +15,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.Flow
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
@@ -30,17 +31,15 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
-    api: UserApi?,
+    apiFlow: Flow<UserApi?>,
     serverSettingUiState: ServerSettingUiState?,
-) {
-    val viewModelScope = rememberCoroutineScope()
-    val viewModel = rememberSaveable(saver = LoginScreenViewModel.saver(viewModelScope, api)) {
+    viewModel: LoginScreenViewModel = viewModel {
         LoginScreenViewModel(
-            viewModelScope = viewModelScope,
-            api = api,
-            savedState = LoginScreenViewModel.InitialState,
+            savedStateHandle = createSavedStateHandle(),
+            apiFlow = apiFlow,
         )
-    }
+    },
+) {
     val uiState by viewModel.uiStateFlow.collectAsState()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {

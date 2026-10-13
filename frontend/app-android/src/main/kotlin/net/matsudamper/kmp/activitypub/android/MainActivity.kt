@@ -9,15 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
@@ -42,34 +42,37 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
     val navigator = remember(backStack) { Navigator(backStack) }
     val applicationContext = LocalContext.current.applicationContext
     val serverSettingStore = remember(applicationContext) { ServerSettingStore(applicationContext) }
-    val serverUrl by serverSettingStore.serverUrlFlow.collectAsState(initial = null)
-    val api = remember(applicationContext, serverUrl) {
-        serverUrl?.let {
-            UserApi(
-                AndroidGraphQlClient.create(
-                    context = applicationContext,
-                    serverUrl = it,
-                ),
-            )
-        }
+    val apiFlow = remember(applicationContext, serverSettingStore) {
+        serverSettingStore.serverUrlFlow
+            .distinctUntilChanged()
+            .map { serverUrl ->
+                serverUrl?.let {
+                    UserApi(
+                        AndroidGraphQlClient.create(
+                            context = applicationContext,
+                            serverUrl = it,
+                        ),
+                    )
+                }
+            }
     }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
             NavDisplay(
                 backStack = backStack,
                 onBack = { backStack.removeLastOrNull() },
-                entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
                 entryProvider = entryProvider {
                     entry<Screen.Login> {
                         val serverSettingUiState = rememberServerSettingUiState(serverSettingStore)
-                        // UserApi は Activity の再生成で別インスタンスになり入力が復元されないので、URL をキーにする
-                        key(serverUrl) {
-                            HomeFeatureScreens.Login(
-                                navigator = navigator,
-                                api = api,
-                                serverSettingUiState = serverSettingUiState,
-                            )
-                        }
+                        HomeFeatureScreens.Login(
+                            navigator = navigator,
+                            apiFlow = apiFlow,
+                            serverSettingUiState = serverSettingUiState,
+                        )
                     }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                     entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }

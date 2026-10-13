@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.flow.Flow
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
@@ -10,17 +11,17 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 
 object HomeFeatureScreens {
     /**
-     * @param api 接続先が未設定なら null
+     * @param apiFlow 接続先が未設定の間は null を流す
      */
     @Composable
     fun Login(
         navigator: Navigator,
-        api: UserApi?,
+        apiFlow: Flow<UserApi?>,
         serverSettingUiState: ServerSettingUiState?,
     ) {
         LoginScreen(
             navigator = navigator,
-            api = api,
+            apiFlow = apiFlow,
             serverSettingUiState = serverSettingUiState,
         )
     }
