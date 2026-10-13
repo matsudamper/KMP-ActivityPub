@@ -1,8 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,20 +12,18 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 /**
  * サーバーとはまだ繋いでいない。入力があればログインできたことにする
  */
-internal class LoginScreenViewModel(
-    private val viewModelScope: CoroutineScope,
-    savedState: ViewModelState,
-) {
+internal class LoginScreenViewModel : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(savedState)
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(ViewModelState(username = "", password = ""))
 
     val uiStateFlow: StateFlow<LoginScreenUiState> =
         MutableStateFlow(
             LoginScreenUiState(
-                username = savedState.username,
-                password = savedState.password,
-                loginButtonEnabled = savedState.inputFilled(),
+                username = "",
+                password = "",
+                loginButtonEnabled = false,
                 listener = object : LoginScreenUiState.Listener {
                     override fun onUsernameChanged(text: String) {
                         viewModelStateFlow.update { it.copy(username = text) }
@@ -72,25 +69,5 @@ internal class LoginScreenViewModel(
 
     interface Event {
         fun navigateToHome()
-    }
-
-    companion object {
-        val InitialState = ViewModelState(username = "", password = "")
-
-        /**
-         * 画面回転などで作り直されても入力を残す
-         */
-        fun saver(viewModelScope: CoroutineScope): Saver<LoginScreenViewModel, Any> = listSaver(
-            save = { viewModel ->
-                val state = viewModel.viewModelStateFlow.value
-                listOf(state.username, state.password)
-            },
-            restore = { (username, password) ->
-                LoginScreenViewModel(
-                    viewModelScope = viewModelScope,
-                    savedState = ViewModelState(username = username, password = password),
-                )
-            },
-        )
     }
 }

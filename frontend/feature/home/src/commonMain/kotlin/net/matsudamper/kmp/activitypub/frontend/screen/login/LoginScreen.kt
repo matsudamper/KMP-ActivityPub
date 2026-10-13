@@ -15,12 +15,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
@@ -30,11 +29,8 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 internal fun LoginScreen(
     navigator: Navigator,
     serverSettingUiState: ServerSettingUiState?,
+    viewModel: LoginScreenViewModel = viewModel { LoginScreenViewModel() },
 ) {
-    val viewModelScope = rememberCoroutineScope()
-    val viewModel = rememberSaveable(saver = LoginScreenViewModel.saver(viewModelScope)) {
-        LoginScreenViewModel(viewModelScope = viewModelScope, savedState = LoginScreenViewModel.InitialState)
-    }
     val uiState by viewModel.uiStateFlow.collectAsState()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
