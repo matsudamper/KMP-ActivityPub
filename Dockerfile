@@ -10,9 +10,6 @@ RUN useradd --system --no-create-home --shell /usr/sbin/nologin app \
     && mkdir /app/data \
     && chown app:app /app/data
 
-# VOLUME より後の RUN でこのパスに加えた変更は捨てられるので、作成と chown の後に置く
-VOLUME /app/data
-
 COPY frontend/app-web/build/dist/wasmJs/productionExecutable static
 
 COPY backend/build/native/nativeCompile/kmp-activitypub kmp-activitypub
