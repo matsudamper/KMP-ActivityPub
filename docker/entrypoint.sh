@@ -6,7 +6,8 @@ set -eu
 mkdir -p "$(dirname "$DB_PATH")"
 table_count=$(sqlite3 "$DB_PATH" "SELECT count(*) FROM sqlite_master WHERE type = 'table'")
 if [ "$table_count" = "0" ]; then
-    sqlite3 "$DB_PATH" < /app/schema.sql
+    # 途中で失敗すると一部のテーブルだけが残り、次からは適用を飛ばしてしまうので 1 トランザクションで入れる
+    { echo "BEGIN;"; cat /app/schema.sql; echo "COMMIT;"; } | sqlite3 -bail "$DB_PATH"
 fi
 
 exec /app/kmp-activitypub
