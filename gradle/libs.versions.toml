@@ -22,6 +22,9 @@ composablePreviewScanner = "0.9.3"
 androidxDatastore = "1.2.1"
 protobuf = "4.36.2"
 protobufPlugin = "0.10.0"
+springSecurityCrypto = "7.1.1"
+bouncycastle = "1.86"
+springCore = "7.0.9"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
@@ -42,6 +45,9 @@ composable-preview-scanner-android = { module = "io.github.sergio-sastre.Composa
 androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "androidxDatastore" }
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf" }
 protobuf-protoc = { module = "com.google.protobuf:protoc", version.ref = "protobuf" }
+spring-security-crypto = { module = "org.springframework.security:spring-security-crypto", version.ref = "springSecurityCrypto" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+spring-core = { module = "org.springframework:spring-core", version.ref = "springCore" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 
