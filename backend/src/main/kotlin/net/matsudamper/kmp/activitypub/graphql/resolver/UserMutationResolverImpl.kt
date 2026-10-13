@@ -10,10 +10,10 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 
-/**
- * 照合はまだ無い。どの入力でも失敗にする
- */
 class UserMutationResolverImpl : UserMutationResolver {
+    /**
+     * 照合はまだ無い。どの入力でも失敗にする
+     */
     override fun login(
         userMutation: QlUserMutation,
         query: QlUserLoginQuery,
