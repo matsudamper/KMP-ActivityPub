@@ -44,7 +44,14 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
     val serverSettingStore = remember(applicationContext) { ServerSettingStore(applicationContext) }
     val serverUrl by serverSettingStore.serverUrlFlow.collectAsState(initial = null)
     val api = remember(applicationContext, serverUrl) {
-        serverUrl?.let { UserApi(AndroidGraphQlClient.create(context = applicationContext, serverUrl = it)) }
+        serverUrl?.let {
+            UserApi(
+                AndroidGraphQlClient.create(
+                    context = applicationContext,
+                    serverUrl = it,
+                ),
+            )
+        }
     }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {

@@ -18,7 +18,11 @@ object HomeFeatureScreens {
         api: UserApi?,
         serverSettingUiState: ServerSettingUiState?,
     ) {
-        LoginScreen(navigator = navigator, api = api, serverSettingUiState = serverSettingUiState)
+        LoginScreen(
+            navigator = navigator,
+            api = api,
+            serverSettingUiState = serverSettingUiState,
+        )
     }
 
     @Composable

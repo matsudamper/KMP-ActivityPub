@@ -27,11 +27,21 @@ internal class LoginScreenViewModel(
                 viewModelState = savedState,
                 listener = object : LoginScreenUiState.Listener {
                     override fun onUsernameChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(username = text, error = null) }
+                        viewModelStateFlow.update {
+                            it.copy(
+                                username = text,
+                                error = null,
+                            )
+                        }
                     }
 
                     override fun onPasswordChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(password = text, error = null) }
+                        viewModelStateFlow.update {
+                            it.copy(
+                                password = text,
+                                error = null,
+                            )
+                        }
                     }
 
                     override fun onClickLogin() {
@@ -43,7 +53,10 @@ internal class LoginScreenViewModel(
             viewModelScope.launch {
                 viewModelStateFlow.collect { viewModelState ->
                     uiStateFlow.update { uiState ->
-                        createUiState(viewModelState = viewModelState, listener = uiState.listener)
+                        createUiState(
+                            viewModelState = viewModelState,
+                            listener = uiState.listener,
+                        )
                     }
                 }
             }
@@ -54,7 +67,12 @@ internal class LoginScreenViewModel(
         val api = api ?: return
         if (state.loginable().not()) return
 
-        viewModelStateFlow.update { it.copy(submitting = true, error = null) }
+        viewModelStateFlow.update {
+            it.copy(
+                submitting = true,
+                error = null,
+            )
+        }
         viewModelScope.launch {
             val error = try {
                 when (val result = api.login(username = state.username.trim(), password = state.password)) {
@@ -102,7 +120,10 @@ internal class LoginScreenViewModel(
     }
 
     companion object {
-        val InitialState = ViewModelState(username = "", password = "")
+        val InitialState = ViewModelState(
+            username = "",
+            password = "",
+        )
 
         fun saver(
             viewModelScope: CoroutineScope,

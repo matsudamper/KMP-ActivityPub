@@ -35,7 +35,11 @@ internal fun LoginScreen(
 ) {
     val viewModelScope = rememberCoroutineScope()
     val viewModel = rememberSaveable(saver = LoginScreenViewModel.saver(viewModelScope, api)) {
-        LoginScreenViewModel(viewModelScope = viewModelScope, api = api, savedState = LoginScreenViewModel.InitialState)
+        LoginScreenViewModel(
+            viewModelScope = viewModelScope,
+            api = api,
+            savedState = LoginScreenViewModel.InitialState,
+        )
     }
     val uiState by viewModel.uiStateFlow.collectAsState()
 

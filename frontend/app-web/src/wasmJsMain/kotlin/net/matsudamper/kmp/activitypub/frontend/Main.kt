@@ -33,7 +33,13 @@ private fun App() {
             onBack = { backStack.removeLastOrNull() },
             entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
             entryProvider = entryProvider {
-                entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator, api = api, serverSettingUiState = null) }
+                entry<Screen.Login> {
+                    HomeFeatureScreens.Login(
+                        navigator = navigator,
+                        api = api,
+                        serverSettingUiState = null,
+                    )
+                }
                 entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                 entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
             },
