@@ -1,9 +1,10 @@
-package net.matsudamper.kmp.activitypub.crypto
+package net.matsudamper.kmp.activitypub.cli
 
 import java.nio.file.Path
 import java.sql.DriverManager
 import java.time.Instant
 import kotlin.io.path.isRegularFile
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import org.sqlite.SQLiteErrorCode
 import org.sqlite.SQLiteException
 

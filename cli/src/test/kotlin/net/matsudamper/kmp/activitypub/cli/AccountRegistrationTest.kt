@@ -1,4 +1,4 @@
-package net.matsudamper.kmp.activitypub.crypto
+package net.matsudamper.kmp.activitypub.cli
 
 import java.nio.file.Path
 import java.sql.DriverManager
@@ -13,6 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 
 class AccountRegistrationTest {
     private val tempDir: Path = createTempDirectory("account-registration")

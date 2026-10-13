@@ -1,4 +1,4 @@
-package net.matsudamper.kmp.activitypub.crypto
+package net.matsudamper.kmp.activitypub.cli
 
 import java.nio.file.Path
 import kotlin.system.exitProcess
