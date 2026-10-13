@@ -23,6 +23,7 @@ internal class LoginScreenViewModel(
     internal val eventHandler = events.asHandler()
 
     private val usernameFlow: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_USERNAME, "")
+
     /**
      * 平文をプロセスの外に残さないため、SavedStateHandle には入れない
      */
