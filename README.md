@@ -46,15 +46,18 @@ COOKIE_SECURE=false ./gradlew :backend:run
 
 ## Docker で動かす
 
-DB は `/app/data` のボリュームに置かれる。初回の起動で空の DB にスキーマが入る。
+DB は compose でマウントする `./data` に置かれる。初回の起動で空の DB にスキーマが入る。
 既にある DB のスキーマの変更は、これまでどおり sqlite3def で手で行う。
 
-ユーザーは、ハッシュを手元で作ってからコンテナの中の sqlite3 で入れる。
+コンテナはホストの UID/GID で動くので、`./data` の DB はホストのユーザーのまま編集できる。
+UID と GID は `HOST_UID` と `HOST_GID` で渡す。省略すると 1000 になる。
+`./data` は先に作っておく。無いと Docker が root の持ち物として作り、書けなくなる。
 
 ```sh
-HASH=$(./gradlew --quiet :backend:crypto:passwordHash) && \
-docker compose exec backend sqlite3 /app/data/kmp-activitypub.db \
-  "INSERT INTO accounts (username, password_hash, created_at) VALUES ('user1', '$HASH', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));"
+mkdir -p data
+HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up -d
 ```
+
+ユーザーはローカルと同じ手順で、`data/kmp-activitypub.db` に直接入れる。
 
 http で試すときは `COOKIE_SECURE=false` を渡す。

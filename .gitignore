@@ -14,3 +14,4 @@ local.properties
 .env
 
 /frontend/app-android/src/test/snapshots/
+/data/

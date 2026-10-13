@@ -1,7 +1,7 @@
 FROM debian:13-slim
 WORKDIR /app
 
-# スキーマの初回適用と、コンテナの中からのユーザー登録に使う
+# エントリーポイントで初回のスキーマを入れるのに使う
 RUN apt-get update \
     && apt-get install -y --no-install-recommends sqlite3 \
     && rm -rf /var/lib/apt/lists/*
