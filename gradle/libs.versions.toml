@@ -26,6 +26,7 @@ springSecurityCrypto = "7.1.1"
 bouncycastle = "1.86"
 springCore = "7.0.9"
 sqliteJdbc = "3.53.4.0"
+jooq = "3.21.9"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
@@ -38,6 +39,7 @@ ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 graalvm-native-plugin = { module = "org.graalvm.buildtools:native-gradle-plugin", version.ref = "graalvmBuildtools" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidxComposeUiToolingPreview" }
 androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
@@ -50,6 +52,9 @@ spring-security-crypto = { module = "org.springframework.security:spring-securit
 bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 spring-core = { module = "org.springframework:spring-core", version.ref = "springCore" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
+jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
+jooq-codegen = { module = "org.jooq:jooq-codegen", version.ref = "jooq" }
+jooq-codegen-gradle = { module = "org.jooq:jooq-codegen-gradle", version.ref = "jooq" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 

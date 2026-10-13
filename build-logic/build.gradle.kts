@@ -15,10 +15,17 @@ configure<KtlintExtension> {
 
 dependencies {
     implementation(libs.graalvm.native.plugin)
+    implementation(libs.jooq.codegen.gradle)
+    implementation(libs.jooq.codegen)
 }
 
 gradlePlugin {
     plugins {
+        create("databaseCodegen") {
+            id = "kmp-activitypub.database-codegen"
+            implementationClass = "net.matsudamper.kmp.activitypub.gradle.DatabaseCodegenPlugin"
+        }
+
         create("webpackBundleHash") {
             id = "kmp-activitypub.webpack-bundle-hash"
             implementationClass = "net.matsudamper.kmp.activitypub.gradle.WebpackBundleHashPlugin"
