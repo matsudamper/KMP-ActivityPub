@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
@@ -19,10 +18,7 @@ object HomeFeatureScreens {
         api: UserApi?,
         serverSettingUiState: ServerSettingUiState?,
     ) {
-        // 接続先が変わったら前の接続先に向けて動いている処理ごと作り直す
-        key(api) {
-            LoginScreen(navigator = navigator, api = api, serverSettingUiState = serverSettingUiState)
-        }
+        LoginScreen(navigator = navigator, api = api, serverSettingUiState = serverSettingUiState)
     }
 
     @Composable

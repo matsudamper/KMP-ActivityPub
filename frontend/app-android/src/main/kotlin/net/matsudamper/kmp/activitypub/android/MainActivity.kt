@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -53,11 +54,16 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                 entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
                 entryProvider = entryProvider {
                     entry<Screen.Login> {
-                        HomeFeatureScreens.Login(
-                            navigator = navigator,
-                            api = api,
-                            serverSettingUiState = rememberServerSettingUiState(serverSettingStore),
-                        )
+                        val serverSettingUiState = rememberServerSettingUiState(serverSettingStore)
+                        // 接続先が変わったら前の接続先に向けて動いている処理ごと作り直す。
+                        // UserApi は Activity の再生成で別インスタンスになり、入力の復元が外れるので URL をキーにする
+                        key(serverUrl) {
+                            HomeFeatureScreens.Login(
+                                navigator = navigator,
+                                api = api,
+                                serverSettingUiState = serverSettingUiState,
+                            )
+                        }
                     }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                     entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
