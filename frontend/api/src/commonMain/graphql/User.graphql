@@ -1,0 +1,7 @@
+mutation UserLogin($query: UserLoginQuery!) {
+    user {
+        login(query: $query) {
+            failure
+        }
+    }
+}

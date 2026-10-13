@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -17,6 +20,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
@@ -38,6 +42,16 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
     val navigator = remember(backStack) { Navigator(backStack) }
     val applicationContext = LocalContext.current.applicationContext
     val serverSettingStore = remember(applicationContext) { ServerSettingStore(applicationContext) }
+    val serverUrl by serverSettingStore.serverUrlFlow.collectAsState(initial = null)
+    val api =
+        remember(serverUrl) {
+            val url = serverUrl
+            if (url == null) {
+                null
+            } else {
+                UserApi(AndroidGraphQlClient.create(url))
+            }
+        }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
             NavDisplay(
@@ -46,10 +60,15 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                 entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
                 entryProvider = entryProvider {
                     entry<Screen.Login> {
-                        HomeFeatureScreens.Login(
-                            navigator = navigator,
-                            serverSettingUiState = rememberServerSettingUiState(serverSettingStore),
-                        )
+                        val serverSettingUiState = rememberServerSettingUiState(serverSettingStore)
+                        // 接続先が変わると別の UserApi になる。キーにしないと入力の復元が前の接続先のままになる
+                        key(serverUrl) {
+                            HomeFeatureScreens.Login(
+                                navigator = navigator,
+                                api = api,
+                                serverSettingUiState = serverSettingUiState,
+                            )
+                        }
                     }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                     entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }

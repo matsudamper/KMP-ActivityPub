@@ -4,7 +4,12 @@ pluginManagement {
     includeBuild("build-logic")
 
     repositories {
-        gradlePluginPortal()
+        gradlePluginPortal {
+            // Apollo 5.x はポータルから Maven Central へのリダイレクトが CI で解決できない
+            content {
+                excludeGroup("com.apollographql.apollo")
+            }
+        }
         mavenCentral()
         google()
     }
@@ -24,9 +29,12 @@ dependencyResolutionManagement {
 }
 
 include(":backend")
+include(":backend:graphql")
 include(":frontend:app-web")
 include(":frontend:common-component")
 include(":frontend:ui")
+include(":frontend:api")
 include(":frontend:navigation")
 include(":frontend:feature:home")
 include(":frontend:app-android")
+include(":shared")

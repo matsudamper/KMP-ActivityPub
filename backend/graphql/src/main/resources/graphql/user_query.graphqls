@@ -1,0 +1,12 @@
+type UserQuery {
+    session: UserSession! @lazy
+}
+
+type UserSession {
+    "ログインしていなければ null"
+    account: UserAccount
+}
+
+type UserAccount {
+    username: String!
+}

@@ -1,0 +1,12 @@
+schema {
+    query: Query
+    mutation: Mutation
+}
+
+type Query {
+    user: UserQuery!
+}
+
+type Mutation {
+    user: UserMutation!
+}
