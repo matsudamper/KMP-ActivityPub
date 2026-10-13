@@ -53,7 +53,7 @@ class PasswordHash private constructor(
          * 反復回数。OWASP が PBKDF2-HMAC-SHA256 に対して挙げている推奨値に合わせている。
          * ログインのたびにこの回数を回すので、上げすぎるとログインが重くなる。
          */
-        const val DEFAULT_ITERATIONS: Int = 210_000
+        const val DEFAULT_ITERATIONS: Int = 600_000
 
         /** salt の長さ。16 バイトあれば同じ salt が再び出ることは考えなくてよい */
         const val SALT_SIZE_BYTES: Int = 16
