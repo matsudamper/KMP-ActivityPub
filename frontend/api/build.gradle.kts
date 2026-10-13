@@ -21,7 +21,6 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                implementation(project(":shared"))
                 // Android が ApolloClient を渡せるように api にする
                 api(libs.apollo.runtime)
             }

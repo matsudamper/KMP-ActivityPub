@@ -24,11 +24,6 @@ gradlePlugin {
             implementationClass = "net.matsudamper.kmp.activitypub.gradle.WebpackBundleHashPlugin"
         }
 
-        create("graphQlSchemaList") {
-            id = "kmp-activitypub.graphql-schema-list"
-            implementationClass = "net.matsudamper.kmp.activitypub.gradle.GraphQlSchemaListPlugin"
-        }
-
         create("nativeImage") {
             id = "kmp-activitypub.native-image"
             implementationClass = "net.matsudamper.kmp.activitypub.gradle.NativeImagePlugin"

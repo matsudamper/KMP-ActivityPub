@@ -55,7 +55,6 @@ protobuf {
 }
 
 dependencies {
-    implementation(project(":shared"))
     implementation(project(":frontend:api"))
     implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))

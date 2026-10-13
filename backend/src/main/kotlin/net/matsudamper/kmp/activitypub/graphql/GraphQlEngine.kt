@@ -69,21 +69,16 @@ class GraphQlEngine private constructor(
         /**
          * ディレクトリの列挙は native バイナリで効かない
          */
-        private fun readSchema(): String {
-            val fileNames =
-                readResource(SCHEMA_LIST_RESOURCE)
-                    .lineSequence()
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .toList()
+        private val SCHEMA_FILES =
+            listOf(
+                "directive.graphqls",
+                "schema.graphqls",
+                "user_mutation.graphqls",
+            )
 
-            check(fileNames.isNotEmpty()) { "$SCHEMA_LIST_RESOURCE が空。スキーマが 1 つも無い" }
-
-            return fileNames.joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }
-        }
+        private fun readSchema(): String = SCHEMA_FILES.joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }
 
         private const val SCHEMA_DIRECTORY = "graphql"
-        private const val SCHEMA_LIST_RESOURCE = "$SCHEMA_DIRECTORY/schema-list.txt"
 
         private fun readResource(resource: String): String {
             val stream =

@@ -11,7 +11,6 @@ import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.writeFully
 import net.matsudamper.kmp.activitypub.module
-import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 
 class GraphQlRoutesTest {
     @Test

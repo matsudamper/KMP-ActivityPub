@@ -15,7 +15,6 @@ import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 import net.matsudamper.kmp.activitypub.json.ServerJson
 import net.matsudamper.kmp.activitypub.module
-import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 
 class UserLoginGraphQlTest {
     @Test

@@ -8,7 +8,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
-import net.matsudamper.kmp.activitypub.graphql.model.QlUserSession
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 
 /**
@@ -20,11 +19,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         query: QlUserLoginQuery,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserLoginResult>> {
-        val result =
-            QlUserLoginResult(
-                session = QlUserSession(account = null),
-                failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD,
-            )
+        val result = QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 }

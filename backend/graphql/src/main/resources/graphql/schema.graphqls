@@ -4,7 +4,8 @@ schema {
 }
 
 type Query {
-    user: UserQuery!
+    "GraphQL は query にフィールドが 1 つ要る。ログインは使わない"
+    unused: Boolean
 }
 
 type Mutation {

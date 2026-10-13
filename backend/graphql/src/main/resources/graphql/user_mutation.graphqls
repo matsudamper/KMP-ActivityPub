@@ -8,7 +8,6 @@ input UserLoginQuery {
 }
 
 type UserLoginResult {
-    session: UserSession!
     failure: UserLoginFailure
 }
 

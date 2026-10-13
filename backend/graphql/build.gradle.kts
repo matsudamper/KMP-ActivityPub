@@ -5,7 +5,6 @@ import io.github.kobylynskyi.graphql.codegen.gradle.GraphQLCodegenGradleTask
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.graphql.codegen)
-    id("kmp-activitypub.graphql-schema-list")
 }
 
 dependencies {
@@ -48,7 +47,7 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     fieldsWithResolvers = setOf("@lazy")
     generateParameterizedFieldsResolvers = true
 
-    // UserQueryResolver が UserQuery 型のリゾルバと衝突する
+    // API インタフェースを出すとリゾルバのファイルが二重に作られて落ちる
     apiInterfaceStrategy = ApiInterfaceStrategy.DO_NOT_GENERATE
 
     apiReturnType = "java.util.concurrent.CompletionStage<graphql.execution.DataFetcherResult<{{TYPE}}>>"
