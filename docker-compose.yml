@@ -4,7 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     # data に書いた DB をホストのユーザーのまま編集できるよう、ホストの UID/GID で動かす。
-    # bash の UID は上書きできないので HOST_UID / HOST_GID で渡す
+    # bash の UID は上書きできないので HOST_UID / HOST_GID で渡す。1000 でないなら次のように起動する
+    #   HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     ports:
       - "8080:8080"
