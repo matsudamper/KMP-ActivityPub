@@ -1,9 +1,8 @@
--- スキーマの唯一の定義。jOOQ の生成コードはビルド時にこのファイルから作られる。
+-- スキーマの定義。jOOQ の生成コードはビルド時にこのファイルから作られる。
 --
--- 手で編集しない。開発用 DB を直接いじって形を決めたら
+-- 開発用 DB で形を決めて
 --   ./gradlew :backend:repository:dumpSchema -PdevDb=/絶対パス/dev.db
--- で書き出して commit する。実 DB への適用は sqlite3def で手動。
--- 詳細は同じディレクトリの README.md を参照。
+-- で書き出す。実 DB へは sqlite3def で適用する。詳細は同じディレクトリの README.md
 CREATE TABLE accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     -- 大文字小文字だけが違う名前を別々に持たせない

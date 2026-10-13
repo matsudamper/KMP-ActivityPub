@@ -3,7 +3,6 @@
 `schema.sql` が、スキーマの唯一の定義。
 テーブルの型（jOOQ の生成コード）もここから作られる。
 
-マイグレーションの履歴管理はしていない。
 開発用 DB を直接いじって形を決め、`schema.sql` に書き出して commit し、実 DB へは sqlite3def で手適用する。
 
 ## スキーマの変えかた
@@ -12,7 +11,7 @@
 2. `./gradlew :backend:repository:dumpSchema -PdevDb=/絶対パス/dev.db` で `schema.sql` に書き出す
 3. diff を見て commit する
 
-`schema.sql` は手で編集しない。
+`schema.sql` は `dumpSchema` で書き出したものだけを commit する。
 
 ## 実 DB への適用のしかた
 
@@ -23,7 +22,7 @@
 sqlite3def --file backend/repository/src/main/resources/db/schema.sql /path/to/kmp-activitypub.db
 ```
 
-起動時の自動適用は無いので、新しい binary を動かす前に適用する。
+新しい binary を動かす前に適用する。
 
 ## スキーマから対応するコードが生成されるまで
 
@@ -33,7 +32,7 @@ jOOQ の生成コードは、`schema.sql` からビルド時に作られる。
 2. `generateJooq` がその DB を読んで `build/generated/jooq` に Java を生成する
 3. `compileKotlin` / `compileJava` が生成物を含めてコンパイルする
 
-これらのタスクは `build-logic` の `DatabaseCodegenPlugin` が登録する。生成コードは git に入れない。
+これらのタスクは `build-logic` の `DatabaseCodegenPlugin` が登録する。生成コードは `build/` に作られる。
 
 ## テストでの使いかた
 

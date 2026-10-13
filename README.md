@@ -6,7 +6,7 @@ ActivityPubのバックエンドとWebとAndroidフロントのアプリケー�
 
 ### DB を作る
 
-スキーマは [sqlite3def](https://github.com/sqldef/sqldef) で適用する。起動時の自動適用は無い。
+スキーマは [sqlite3def](https://github.com/sqldef/sqldef) で適用する。
 
 ```sh
 mkdir -p data
@@ -15,7 +15,7 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-a
 
 ### ユーザーを登録する
 
-登録の画面や API は無い。パスワードのハッシュを作り、sqlite3 で直接入れる。
+ユーザーは、パスワードのハッシュを作って sqlite3 で `accounts` に入れて登録する。
 
 ```sh
 # 標準入力に 1 行でパスワードを渡すと、ハッシュが 1 行出る
@@ -32,13 +32,7 @@ sqlite3 data/kmp-activitypub.db \
 COOKIE_SECURE=false ./gradlew :backend:run
 ```
 
-| 環境変数 | 既定値 | 内容 |
-| --- | --- | --- |
-| `HOST` | `0.0.0.0` | 待ち受けるアドレス |
-| `PORT` | `8080` | 待ち受けるポート |
-| `DB_PATH` | `./data/kmp-activitypub.db` | SQLite の DB ファイル |
-| `COOKIE_SECURE` | `true` | セッション Cookie に `Secure` を付けるか。http で試すときは `false` |
-| `STATIC_SRC_DIR` | なし | 画面の配布物を置いたディレクトリ |
+環境変数は `docker-compose.yml` を参照。
 
 画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
 `frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと

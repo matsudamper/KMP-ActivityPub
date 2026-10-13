@@ -29,7 +29,7 @@ kotlin {
     }
 }
 
-// スキーマは :backend:graphql のファイルを読むだけで、依存はしない
+// スキーマは :backend:graphql のファイルを直接読む
 apollo {
     service("app") {
         packageName.set("net.matsudamper.kmp.activitypub.frontend.graphql")

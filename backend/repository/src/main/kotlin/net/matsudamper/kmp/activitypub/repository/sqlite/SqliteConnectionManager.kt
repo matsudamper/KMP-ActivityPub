@@ -19,7 +19,6 @@ internal class SqliteConnectionManager(
 
     init {
         val path = config.path.toAbsolutePath().normalize()
-        // 初回起動時は data/ がまだ無い
         Files.createDirectories(path.parent)
 
         // DriverManager の ServiceLoader は native-image で追加設定が要る

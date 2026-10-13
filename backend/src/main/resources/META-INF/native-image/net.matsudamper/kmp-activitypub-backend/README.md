@@ -17,12 +17,12 @@ kickstart がリフレクションで結線するので、`GraphQlReflectionFeat
 
 ## kotlinx.serialization
 
-Ktor の `ContentNegotiation` は serializer をリフレクションで引くので使わない。
 送受信とも serializer を明示する（`json/JsonResponse.kt`）。
+Ktor の `ContentNegotiation` は serializer をリフレクションで引くため。
 
 ## リフレクションで詰まったら
 
-tracing agent で原因を特定する。出力はそのままコミットしない。
+tracing agent で原因を特定する。出力は特定に使い、設定はリフレクションを避ける書き方で直す。
 
     ./gradlew :backend:run -Pagent
     ./gradlew :backend:metadataCopy --task run \

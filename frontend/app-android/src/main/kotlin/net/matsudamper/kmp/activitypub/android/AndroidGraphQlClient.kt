@@ -9,7 +9,7 @@ import okhttp3.OkHttpClient
 
 internal object AndroidGraphQlClient {
     /**
-     * @param serverUrl 末尾の `/` は付けない
+     * @param serverUrl `https://example.com` の形
      */
     fun create(
         context: Context,

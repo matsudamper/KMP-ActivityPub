@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
-// デーモンの JVM で読み込むので、ツールチェーンは指定しない
+// デーモンの JVM で読み込むので、ツールチェーンはデーモンに合わせる
 
 configure<KtlintExtension> {
     version.set(libs.versions.ktlint.get())

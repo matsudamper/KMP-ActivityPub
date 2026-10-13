@@ -16,6 +16,6 @@ services:
       # http では false にする
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
     volumes:
-      # 無いと root の持ち物として作られ、書けなくなる
+      # 起動前に作っておく。Docker に作らせると root の持ち物になる
       - ./data:/app/data
 #      - ./public:/public:ro
