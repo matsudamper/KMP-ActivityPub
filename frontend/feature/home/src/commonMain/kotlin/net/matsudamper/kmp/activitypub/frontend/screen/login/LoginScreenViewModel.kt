@@ -23,7 +23,10 @@ internal class LoginScreenViewModel(
     internal val eventHandler = events.asHandler()
 
     private val usernameFlow: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_USERNAME, "")
-    private val passwordFlow: MutableStateFlow<String> = savedStateHandle.getMutableStateFlow(KEY_PASSWORD, "")
+    /**
+     * 平文をプロセスの外に残さないため、SavedStateHandle には入れない
+     */
+    private val passwordFlow: MutableStateFlow<String> = MutableStateFlow("")
     private val apiStateFlow: StateFlow<UserApi?> = apiFlow.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -167,6 +170,5 @@ internal class LoginScreenViewModel(
 
     private companion object {
         const val KEY_USERNAME = "username"
-        const val KEY_PASSWORD = "password"
     }
 }
