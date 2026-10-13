@@ -7,6 +7,7 @@ build/
 out/
 scripts
 local.properties
+*.db
 
 # docker build に渡す native バイナリの置き場所
 /kmp-activitypub
