@@ -5,24 +5,25 @@ import kotlin.system.exitProcess
 
 object AccountRegistrationCli {
     /**
-     * パスワードはシェルの履歴と `ps` に残らないよう標準入力から受ける。照合は入力そのままなので前後の空白は落とさない
+     * ユーザー名とパスワードはシェルの履歴と `ps` に残らないよう、聞いたあと標準入力から受ける。
+     * パスワードの照合は入力そのままなので前後の空白は落とさない
      */
     @JvmStatic
     fun main(args: Array<String>) {
-        if (args.size !in 1..2) {
-            System.err.println("使い方: ユーザー名 [DBのパス]")
+        if (args.isNotEmpty()) {
+            System.err.println("引数は受け取らない")
             exitProcess(1)
         }
 
-        val username = args[0]
-        val databasePath = Path.of(args.getOrNull(1) ?: DEFAULT_DATABASE_PATH)
+        System.err.println("ユーザー名を入力してください")
+        val username = readlnOrNull().orEmpty()
 
         System.err.println("登録するパスワードを入力してください")
         val password = readlnOrNull().orEmpty()
 
         try {
             AccountRegistration.register(
-                databasePath = databasePath,
+                databasePath = Path.of(DEFAULT_DATABASE_PATH),
                 username = username,
                 password = password,
             )

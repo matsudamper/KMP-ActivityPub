@@ -21,7 +21,7 @@ internal object AccountRegistration {
             throw AccountRegistrationException("ユーザー名は英数字と _ . - だけにする: $username")
         }
         if (password.isEmpty()) {
-            throw AccountRegistrationException("パスワードを標準入力に 1 行で渡すこと")
+            throw AccountRegistrationException("パスワードを入力すること")
         }
         if (!databasePath.isRegularFile()) {
             throw AccountRegistrationException("DB が無い: $databasePath 。sqlite3def でスキーマを適用すること")

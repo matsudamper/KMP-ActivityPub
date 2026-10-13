@@ -95,7 +95,7 @@ class AccountRegistrationTest {
                     createdAt = Instant.parse("2026-10-13T00:00:00Z"),
                 )
             }
-        assertEquals("パスワードを標準入力に 1 行で渡すこと", error.message)
+        assertEquals("パスワードを入力すること", error.message)
     }
 
     @Test
