@@ -65,6 +65,7 @@ dependencies {
     implementation(compose.material3)
     implementation(libs.androidx.activity.compose)
     implementation(libs.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.datastore)
     implementation(libs.protobuf.javalite)

@@ -11,10 +11,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -57,18 +57,17 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
             NavDisplay(
                 backStack = backStack,
                 onBack = { backStack.removeLastOrNull() },
-                entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
                 entryProvider = entryProvider {
                     entry<Screen.Login> {
-                        val serverSettingUiState = rememberServerSettingUiState(serverSettingStore)
-                        // 接続先が変わると別の UserApi になる。キーにしないと入力の復元が前の接続先のままになる
-                        key(serverUrl) {
-                            HomeFeatureScreens.Login(
-                                navigator = navigator,
-                                api = api,
-                                serverSettingUiState = serverSettingUiState,
-                            )
-                        }
+                        HomeFeatureScreens.Login(
+                            navigator = navigator,
+                            api = api,
+                            serverSettingUiState = rememberServerSettingUiState(serverSettingStore),
+                        )
                     }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                     entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }

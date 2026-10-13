@@ -31,6 +31,7 @@ kotlin {
                 implementation(compose.ui)
                 implementation(compose.material3)
                 implementation(libs.navigation3.ui)
+                implementation(libs.androidx.lifecycle.viewmodel.navigation3)
             }
         }
     }

@@ -1,8 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,18 +12,24 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginResult
 
 internal class LoginScreenViewModel(
-    private val viewModelScope: CoroutineScope,
     private val api: UserApi?,
-    savedState: ViewModelState,
-) {
+) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(savedState)
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(
+            ViewModelState(
+                username = "",
+                password = "",
+                submitting = false,
+                error = null,
+            ),
+        )
 
     val uiStateFlow: StateFlow<LoginScreenUiState> =
         MutableStateFlow(
             createUiState(
-                viewModelState = savedState,
+                viewModelState = viewModelStateFlow.value,
                 listener =
                 object : LoginScreenUiState.Listener {
                     override fun onUsernameChanged(text: String) {
@@ -63,6 +68,9 @@ internal class LoginScreenViewModel(
             }
         }.asStateFlow()
 
+    /**
+     * 照合はまだ無い。どの入力でも失敗にする
+     */
     private fun login() {
         val state = viewModelStateFlow.value
         val api = api ?: return
@@ -119,42 +127,5 @@ internal class LoginScreenViewModel(
 
     interface Event {
         fun navigateToHome()
-    }
-
-    companion object {
-        val InitialState =
-            ViewModelState(
-                username = "",
-                password = "",
-                submitting = false,
-                error = null,
-            )
-
-        /**
-         * 画面回転などで作り直されても入力を残す
-         */
-        fun saver(
-            viewModelScope: CoroutineScope,
-            api: UserApi?,
-        ): Saver<LoginScreenViewModel, Any> =
-            listSaver(
-                save = { viewModel ->
-                    val state = viewModel.viewModelStateFlow.value
-                    listOf(state.username, state.password)
-                },
-                restore = { (username, password) ->
-                    LoginScreenViewModel(
-                        viewModelScope = viewModelScope,
-                        api = api,
-                        savedState =
-                        ViewModelState(
-                            username = username,
-                            password = password,
-                            submitting = false,
-                            error = null,
-                        ),
-                    )
-                },
-            )
     }
 }
