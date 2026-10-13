@@ -23,7 +23,9 @@ abstract class BuildSchemaDatabaseTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val schemaSql: RegularFileProperty
 
-    /** JDBC ドライバを含む classpath。このビルドの classpath には載せない */
+    /**
+     * JDBC ドライバを含む classpath。このビルドの classpath には載せない
+     */
     @get:Classpath
     abstract val driverClasspath: ConfigurableFileCollection
 

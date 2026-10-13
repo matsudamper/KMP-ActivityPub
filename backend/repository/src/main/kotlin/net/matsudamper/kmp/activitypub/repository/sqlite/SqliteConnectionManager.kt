@@ -40,10 +40,14 @@ internal class SqliteConnectionManager(
         }
     }
 
-    /** 接続を借りて処理する。autocommit のまま実行される */
+    /**
+     * 接続を借りて処理する。autocommit のまま実行される
+     */
     fun <T> withConnection(block: (Connection) -> T): T = lock.withLock { block(connection) }
 
-    /** 接続を借りて 1 トランザクションで処理する。例外が出たらロールバックする */
+    /**
+     * 接続を借りて 1 トランザクションで処理する。例外が出たらロールバックする
+     */
     fun <T> transaction(block: (Connection) -> T): T =
         lock.withLock {
             connection.autoCommit = false

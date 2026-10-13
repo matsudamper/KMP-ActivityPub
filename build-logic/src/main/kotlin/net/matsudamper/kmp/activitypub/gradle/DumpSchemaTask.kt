@@ -30,11 +30,15 @@ abstract class DumpSchemaTask : DefaultTask() {
     @get:Internal
     abstract val devDatabasePath: Property<String>
 
-    /** JDBC ドライバを含む classpath。このビルドの classpath には載せない */
+    /**
+     * JDBC ドライバを含む classpath。このビルドの classpath には載せない
+     */
     @get:Internal
     abstract val driverClasspath: ConfigurableFileCollection
 
-    /** 書き出さないオブジェクトの正規表現。jOOQ codegen の excludes と同じものを渡す */
+    /**
+     * 書き出さないオブジェクトの正規表現。jOOQ codegen の excludes と同じものを渡す
+     */
     @get:Internal
     abstract val excludes: Property<String>
 
