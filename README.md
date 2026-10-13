@@ -60,4 +60,4 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up -d
 
 ユーザーはローカルと同じ手順で、`data/kmp-activitypub.db` に直接入れる。
 
-http で試すときは `COOKIE_SECURE=false` を渡す。
+http で試すときは `COOKIE_SECURE=false` を付けて `docker compose up` する。
