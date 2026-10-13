@@ -33,13 +33,20 @@ class AccountRepositoryTest {
     }
 
     @Test
-    fun `照合に使うハッシュを名前で引ける`() {
+    fun `照合に使うハッシュと方式を名前で引ける`() {
         TestSchema.applyTo(dbPath)
-        val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
+        val id =
+            TestSchema.insertAccount(
+                dbPath,
+                username = "user1",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                createdAt = CREATED_AT,
+            )
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(
-                AccountCredential(id = id, username = "user1", passwordHash = PASSWORD_HASH),
+                AccountCredential(id = id, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE),
                 repositories.accounts.findCredential("user1"),
             )
         }
@@ -66,6 +73,8 @@ class AccountRepositoryTest {
 
     private companion object {
         const val PASSWORD_HASH = "hash"
+
+        const val PASSWORD_HASH_TYPE = "hash-type"
 
         val CREATED_AT: Instant = Instant.parse("2026-09-01T00:00:00Z")
     }

@@ -24,8 +24,8 @@ import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 private const val MAX_BODY_BYTES = 1024 * 1024
 
 /**
- * graphql-java の実行は同期で、ログインでは PBKDF2 を回す。リクエストを受けたスレッドで
- * 回すと、ログインを並べて送られるだけで healthz や静的ファイルまで止まる。
+ * graphql-java の実行は同期で、ログインではパスワードのハッシュ計算をする。リクエストを受けたスレッドで
+ * 行うと、ログインを並べて送られるだけで healthz や静的ファイルまで止まる。
  * 並行数を絞って、ログインを連打されても他のリクエストに回るスレッドを残す
  */
 private val GRAPHQL_DISPATCHER: CoroutineDispatcher =

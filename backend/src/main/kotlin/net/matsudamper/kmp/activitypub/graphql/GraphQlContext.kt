@@ -20,7 +20,7 @@ class GraphQlContext(
     private val loginAttempted = AtomicBoolean(false)
 
     /**
-     * alias で 1 つのリクエストに login を並べると、その数だけ PBKDF2 が回る。
+     * alias で 1 つのリクエストに login を並べると、その数だけパスワードのハッシュ計算が走る。
      * 照合は 1 リクエストにつき 1 回までにする
      *
      * @return このリクエストで初めてなら true

@@ -2,9 +2,10 @@ package net.matsudamper.kmp.activitypub.logic
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.FakeAccountRepository
-import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 
 class AccountServiceTest {
     private val accounts = FakeAccountRepository()
@@ -37,12 +38,16 @@ class AccountServiceTest {
         assertNull(service.authenticate(username = "unknown", password = PASSWORD))
     }
 
+    @Test
+    fun `知らない方式のハッシュは照合で失敗にする`() {
+        accounts.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = "unknown")
+
+        assertFailsWith<IllegalStateException> { service.authenticate(username = "user1", password = PASSWORD) }
+    }
+
     private companion object {
         const val PASSWORD = "user-password"
 
-        /**
-         * 反復回数は検証にも使われるので、落としても経路は同じ。既定だとテストのたびに待つ
-         */
-        val PASSWORD_HASH: String = PasswordHash.create(PASSWORD, iterations = 1_000).encode()
+        val PASSWORD_HASH: String = PasswordHashType.Current.encoder.encode(PASSWORD)!!
     }
 }

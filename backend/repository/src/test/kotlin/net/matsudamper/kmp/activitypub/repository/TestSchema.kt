@@ -35,16 +35,18 @@ internal object TestSchema {
         dbPath: Path,
         username: String,
         passwordHash: String,
+        passwordHashType: String = "argon2",
         createdAt: Instant,
     ): AccountId {
         val dataSource = SQLiteDataSource().apply { url = "jdbc:sqlite:$dbPath" }
         return dataSource.connection.use { connection ->
             connection
-                .prepareStatement("INSERT INTO accounts (username, password_hash, created_at) VALUES (?, ?, ?) RETURNING id")
+                .prepareStatement("INSERT INTO accounts (username, password_hash, password_hash_type, created_at) VALUES (?, ?, ?, ?) RETURNING id")
                 .use { statement ->
                     statement.setString(1, username)
                     statement.setString(2, passwordHash)
-                    statement.setString(3, createdAt.toString())
+                    statement.setString(3, passwordHashType)
+                    statement.setString(4, createdAt.toString())
                     statement.executeQuery().use { resultSet ->
                         resultSet.next()
                         AccountId(resultSet.getLong(1))

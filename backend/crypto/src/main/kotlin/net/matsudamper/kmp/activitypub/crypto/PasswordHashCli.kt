@@ -16,5 +16,5 @@ fun main() {
         exitProcess(1)
     }
 
-    println(PasswordHash.create(password).encode())
+    println(PasswordHashType.Current.encoder.encode(password))
 }

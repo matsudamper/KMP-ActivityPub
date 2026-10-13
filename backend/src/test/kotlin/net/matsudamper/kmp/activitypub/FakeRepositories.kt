@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
@@ -30,9 +31,10 @@ internal class FakeAccountRepository : AccountRepository {
     fun add(
         username: String,
         passwordHash: String,
+        passwordHashType: String = PasswordHashType.Current.dbValue,
     ): AccountId {
         val id = AccountId(rows.size + 1L)
-        rows += AccountCredential(id = id, username = username, passwordHash = passwordHash)
+        rows += AccountCredential(id = id, username = username, passwordHash = passwordHash, passwordHashType = passwordHashType)
         return id
     }
 

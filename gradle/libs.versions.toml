@@ -16,6 +16,9 @@ apollo = "5.2.0"
 graalvmSdk = "25.4.4.1.1"
 sqliteJdbc = "3.53.4.0"
 jooq = "3.21.9"
+springSecurityCrypto = "7.1.1"
+bouncycastle = "1.86"
+springCore = "7.0.9"
 okhttp = "5.5.0"
 androidxCore = "1.16.0"
 slf4j = "2.0.20"
@@ -48,6 +51,9 @@ apollo-runtime = { module = "com.apollographql.apollo:apollo-runtime", version.r
 graalvm-nativeimage = { module = "org.graalvm.sdk:nativeimage", version.ref = "graalvmSdk" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
 jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
+spring-security-crypto = { module = "org.springframework.security:spring-security-crypto", version.ref = "springSecurityCrypto" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+spring-core = { module = "org.springframework:spring-core", version.ref = "springCore" }
 jooq-codegen = { module = "org.jooq:jooq-codegen", version.ref = "jooq" }
 jooq-codegen-gradle = { module = "org.jooq:jooq-codegen-gradle", version.ref = "jooq" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }

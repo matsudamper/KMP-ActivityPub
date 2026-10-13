@@ -25,7 +25,7 @@ import io.ktor.http.setCookie
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import net.matsudamper.kmp.activitypub.FakeRepositories
-import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
@@ -163,10 +163,7 @@ class UserGraphQlTest {
 
         const val PASSWORD = "user-password"
 
-        /**
-         * 反復回数は検証にも使われるので、落としても経路は同じ。既定だとテストのたびに待つ
-         */
-        val PASSWORD_HASH: String = PasswordHash.create(PASSWORD, iterations = 1_000).encode()
+        val PASSWORD_HASH: String = PasswordHashType.Current.encoder.encode(PASSWORD)!!
 
         suspend fun HttpResponse.body(): JsonObject = Json.parseToJsonElement(bodyAsText()).jsonObject
 

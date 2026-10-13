@@ -1,6 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
-import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -12,9 +12,9 @@ class AccountService(
      * ユーザーがいないときの照合に使う。
      *
      * いないときにすぐ返すと、応答の速さでユーザー名が存在するかが分かる。
-     * いるときと同じだけ PBKDF2 を回す
+     * いるときと同じだけハッシュの計算をする
      */
-    private val dummyPasswordHash: PasswordHash by lazy { PasswordHash.create("dummy-password") }
+    private val dummyPasswordHash: String by lazy { PasswordHashType.Current.encoder.encode("dummy-password")!! }
 
     fun account(id: AccountId): Account? = accounts.findById(id)
 
@@ -27,10 +27,15 @@ class AccountService(
     ): AccountId? {
         val credential = accounts.findCredential(username.trim())
         if (credential == null) {
-            dummyPasswordHash.matches(password)
+            PasswordHashType.Current.encoder.matches(password, dummyPasswordHash)
             return null
         }
 
-        return credential.id.takeIf { PasswordHash.parse(credential.passwordHash).matches(password) }
+        // 知らない方式は DB の入れ間違い。パスワード違いと区別できるよう失敗にする
+        val hashType =
+            checkNotNull(PasswordHashType.fromDbValue(credential.passwordHashType)) {
+                "対応していない password_hash_type: ${credential.passwordHashType}"
+            }
+        return credential.id.takeIf { hashType.encoder.matches(password, credential.passwordHash) }
     }
 }

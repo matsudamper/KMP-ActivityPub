@@ -29,7 +29,7 @@ internal class SqliteAccountRepository(
      */
     override fun findCredential(username: String): AccountCredential? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.PASSWORD_HASH)
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.PASSWORD_HASH, ACCOUNTS.PASSWORD_HASH_TYPE)
             .from(ACCOUNTS)
             .where(ACCOUNTS.USERNAME.eq(username))
             .fetchOne()
@@ -38,6 +38,7 @@ internal class SqliteAccountRepository(
                     id = AccountId(record.get(ACCOUNTS.ID)),
                     username = record.get(ACCOUNTS.USERNAME),
                     passwordHash = record.get(ACCOUNTS.PASSWORD_HASH),
+                    passwordHashType = record.get(ACCOUNTS.PASSWORD_HASH_TYPE),
                 )
             }
     }

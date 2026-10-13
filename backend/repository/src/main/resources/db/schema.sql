@@ -9,8 +9,11 @@ CREATE TABLE accounts (
     -- ログインに使う名前。大文字小文字だけが違う名前を別々に持てると、
     -- どちらでログインしたのか決まらないので NOCASE で一意にする
     username TEXT COLLATE NOCASE NOT NULL UNIQUE,
-    -- ログインに使うパスワードのハッシュ。:backend:crypto の PasswordHash.encode の形
+    -- ログインに使うパスワードのハッシュ。形は password_hash_type の方式による
     password_hash TEXT NOT NULL,
+    -- password_hash の方式。:backend:crypto の PasswordHashType.dbValue。
+    -- 照合は行ごとにこの方式で行うので、新しい方式に移っても既存の行はそのまま照合できる
+    password_hash_type TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
