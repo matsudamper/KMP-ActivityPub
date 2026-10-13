@@ -9,5 +9,10 @@ services:
       HOST: 0.0.0.0
       PORT: 8080
       STATIC_SRC_DIR: /app/static
-#    volumes:
+      DB_PATH: /app/data/kmp-activitypub.db
+    volumes:
+      - data:/app/data
 #      - ./public:/public:ro
+
+volumes:
+  data:
