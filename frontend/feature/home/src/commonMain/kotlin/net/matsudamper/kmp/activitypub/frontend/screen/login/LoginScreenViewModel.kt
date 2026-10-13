@@ -104,9 +104,6 @@ internal class LoginScreenViewModel(
     companion object {
         val InitialState = ViewModelState(username = "", password = "")
 
-        /**
-         * 画面回転などで作り直されても入力を残す
-         */
         fun saver(
             viewModelScope: CoroutineScope,
             api: UserApi?,

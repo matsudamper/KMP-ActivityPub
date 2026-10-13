@@ -6,27 +6,20 @@
 -- 詳細は同じディレクトリの README.md を参照。
 CREATE TABLE accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- ログインに使う名前。大文字小文字だけが違う名前を別々に持てると、
-    -- どちらでログインしたのか決まらないので NOCASE で一意にする
+    -- 大文字小文字だけが違う名前を別々に持たせない
     username TEXT COLLATE NOCASE NOT NULL UNIQUE,
-    -- ログインに使うパスワードのハッシュ。形は password_hash_type の方式による
     password_hash TEXT NOT NULL,
-    -- password_hash の方式。:backend:crypto の PasswordHashType.dbValue。
-    -- 照合は行ごとにこの方式で行うので、新しい方式に移っても既存の行はそのまま照合できる
+    -- :backend:crypto の PasswordHashType.dbValue
     password_hash_type TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
 
 CREATE TABLE health_check (
-    -- 起動時の書き込み確認に使うテーブル。
-    -- 行は常に 1 件だけなので、CHECK で id を固定して UPSERT の対象を一意にする
     id INTEGER PRIMARY KEY CHECK (id = 1),
     checked_at TEXT NOT NULL
 );
 
 CREATE TABLE user_sessions (
-    -- ログイン中のセッション。Cookie に入れるトークンそのものは持たず、SHA-256 のハッシュを持つ。
-    -- DB が漏れても、そのままセッションとして使えない
     token_hash TEXT NOT NULL PRIMARY KEY,
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     created_at TEXT NOT NULL,

@@ -55,8 +55,7 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                 entryProvider = entryProvider {
                     entry<Screen.Login> {
                         val serverSettingUiState = rememberServerSettingUiState(serverSettingStore)
-                        // 接続先が変わったら前の接続先に向けて動いている処理ごと作り直す。
-                        // UserApi は Activity の再生成で別インスタンスになり、入力の復元が外れるので URL をキーにする
+                        // UserApi は Activity の再生成で別インスタンスになり入力が復元されないので、URL をキーにする
                         key(serverUrl) {
                             HomeFeatureScreens.Login(
                                 navigator = navigator,

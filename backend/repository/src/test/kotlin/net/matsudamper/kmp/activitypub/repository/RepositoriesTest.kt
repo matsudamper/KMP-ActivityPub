@@ -9,7 +9,6 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-// スキーマは実運用と同じく事前適用（テストでは TestSchema）で、起動時の自動適用は無い。
 class RepositoriesTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-repository-test")
 
@@ -53,7 +52,6 @@ class RepositoriesTest {
 
     @Test
     fun `スキーマ未適用のDBでは書き込み確認が失敗する`() {
-        // 空の DB での起動失敗は仕様。sqlite3def での適用忘れをここで検出する
         val config = DatabaseConfig(path = tempDir.resolve("empty.db"))
 
         Repositories.create(config).use { repositories ->

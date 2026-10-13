@@ -9,7 +9,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 
-// ここが崩れると、実行は通っているのにレスポンスの形だけが変わる。
 class GraphQlValuesTest {
     @Test
     fun `実行結果を JSON にする`() {

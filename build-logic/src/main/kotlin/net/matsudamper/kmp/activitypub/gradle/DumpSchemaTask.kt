@@ -10,34 +10,19 @@ import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 
 /**
- * 開発用 DB から `schema.sql` を書き出す。スキーマを変えたときに手で叩く唯一のタスク。
+ * 開発用 DB から `schema.sql` を書き出す。
  *
- *     ./gradlew :backend:repository:dumpSchema -PdevDb=/絶対パス/dev.db
- *
- * 開発用 DB を直接いじって形を決め、このタスクで `schema.sql` に固定して commit する。
- * jOOQ の生成コードはコミットされた `schema.sql` から作られるので、
- * dump し忘れた変更がコードに紛れ込むことは無い。
- *
- * 書き出す前に、読んだ CREATE 文を使い捨ての DB に適用し直して、
- * `schema.sql` が単体で適用可能なことを確かめる。
- * 出力はオブジェクト名でソートするので、同じスキーマからは常に同じテキストが出る。
- *
- * 全プロパティを [Internal] にして up-to-date 判定に乗せない。
- * 出力先がソースツリーで、入力が Gradle の外にある開発用 DB なので、
- * `ktlintFormat` と同じ「叩いたら必ず実行される」タスクとして扱う。
+ * 入力が Gradle の外にあるので、全プロパティを [Internal] にして毎回実行させる。
  */
 abstract class DumpSchemaTask : DefaultTask() {
     @get:Internal
     abstract val devDatabasePath: Property<String>
 
-    /**
-     * JDBC ドライバを含む classpath。このビルドの classpath には載せない
-     */
     @get:Internal
     abstract val driverClasspath: ConfigurableFileCollection
 
     /**
-     * 書き出さないオブジェクトの正規表現。jOOQ codegen の excludes と同じものを渡す
+     * jOOQ codegen の excludes と同じものを渡す
      */
     @get:Internal
     abstract val excludes: Property<String>
@@ -88,17 +73,12 @@ abstract class DumpSchemaTask : DefaultTask() {
                 )
 
         val file = File(path)
-        // Gradle はカレントディレクトリの扱いが呼び出し場所で揺れるので、相対パスは受けない
+        // Gradle ではカレントディレクトリが呼び出し場所で変わる
         require(file.isAbsolute) { "devDb は絶対パスで渡すこと: $path" }
         require(file.isFile) { "開発用 DB が見つからない: $path" }
         return file
     }
 
-    /**
-     * 保存されているのは実行された文のテキストそのままなので、そのまま書き出せば
-     * 適用可能な SQL になる。自動生成のインデックス (`sqlite_autoindex_*`) は
-     * `sql` が NULL なので、この条件で一緒に落ちる。
-     */
     private fun readSchemaStatements(
         connection: Connection,
         excludePattern: Regex,
@@ -106,7 +86,7 @@ abstract class DumpSchemaTask : DefaultTask() {
         connection.createStatement().use { statement ->
             statement
                 .executeQuery(
-                    // インデックスや trigger はテーブルより後に作る必要があるので type で並べる
+                    // インデックスや trigger はテーブルより後に作る
                     """
                     SELECT type, name, tbl_name, sql FROM sqlite_master
                     WHERE sql IS NOT NULL
@@ -124,7 +104,6 @@ abstract class DumpSchemaTask : DefaultTask() {
                         while (resultSet.next()) {
                             val name = resultSet.getString("name")
                             val tableName = resultSet.getString("tbl_name")
-                            // 除外したテーブルに付いているインデックスや trigger も一緒に外す
                             if (excludePattern.matches(name) || excludePattern.matches(tableName)) continue
                             add(resultSet.getString("sql"))
                         }
@@ -133,10 +112,7 @@ abstract class DumpSchemaTask : DefaultTask() {
         }
 
     /**
-     * 読んだ CREATE 文を使い捨ての DB に適用し直し、そこからもう一度読む。
-     *
-     * これで「`schema.sql` は単体で適用できる」ことが書き出す前に確かめられる。
-     * テキストの整形が変わるわけではない。SQLite は実行された文をそのまま保存する
+     * `schema.sql` が単体で適用できることを、使い捨ての DB に適用し直して確かめる
      */
     private fun roundTrip(
         statements: List<String>,

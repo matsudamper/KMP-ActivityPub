@@ -22,16 +22,14 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(project(":shared"))
-                // UserApi が ApolloClient を受け取るので api にする。
-                // Android はここに OkHttp を渡して Cookie を持たせる
+                // Android が OkHttp を渡せるように api にする
                 api(libs.apollo.runtime)
             }
         }
     }
 }
 
-// スキーマは :backend:graphql のものをファイルとして読むだけで、依存はしない。
-// 写しを持たないので、片方にだけフィールドがある状態にはならない
+// スキーマは :backend:graphql のファイルを読むだけで、依存はしない
 apollo {
     service("app") {
         packageName.set("net.matsudamper.kmp.activitypub.frontend.graphql")

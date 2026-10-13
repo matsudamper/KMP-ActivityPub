@@ -13,15 +13,8 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * 生成コードの native-image 向けリフレクション設定を作る。
- *
- * jOOQ はクエリを組み立てるときに、テーブルに対応する `Record` を
- * `getDeclaredConstructor().newInstance()` で作る。native-image は到達可能性を
- * 静的に解析するので、この経路は登録しないと実行時に落ちる。JVM では動いて
- * native バイナリでだけ失敗する形になり、テストでは掴めない。
- *
- * 手で書かないのは、テーブルを足したときに更新を忘れるため。
- * 生成物から作れば忘れようがない。
+ * jOOQ は `Record` をリフレクションで作るので、native-image 向けに登録する。
+ * テーブルを足したときの更新忘れを防ぐため、生成物から作る
  */
 @CacheableTask
 abstract class GenerateJooqReflectConfigTask : DefaultTask() {
@@ -30,8 +23,7 @@ abstract class GenerateJooqReflectConfigTask : DefaultTask() {
     abstract val generatedSources: DirectoryProperty
 
     /**
-     * 設定ファイルの置き場所。`META-INF/native-image/<group>/<artifact>/` の
-     * `<group>/<artifact>` にあたる部分。手で書いた方の設定と混ざらないよう分ける
+     * `META-INF/native-image/<group>/<artifact>/` の `<group>/<artifact>`
      */
     @get:Input
     abstract val metadataPath: Property<String>

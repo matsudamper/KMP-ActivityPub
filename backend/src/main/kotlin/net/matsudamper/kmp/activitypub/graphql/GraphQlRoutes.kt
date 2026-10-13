@@ -24,30 +24,26 @@ import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 private const val MAX_BODY_BYTES = 1024 * 1024
 
 /**
- * graphql-java の実行は同期で、ログインではパスワードのハッシュ計算をする。リクエストを受けたスレッドで
- * 行うと、ログインを並べて送られるだけで healthz や静的ファイルまで止まる。
- * 並行数を絞って、ログインを連打されても他のリクエストに回るスレッドを残す
+ * ハッシュ計算が受付スレッドを塞いで healthz や静的ファイルまで止めないよう、並行数を絞る
  */
 private val GRAPHQL_DISPATCHER: CoroutineDispatcher =
     Dispatchers.IO.limitedParallelism((Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1))
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
-        // text/plain などの CORS safelist の型はプリフライト無しで別オリジンから Cookie 付きで送れる。
-        // SameSite=Strict は同じ site の別オリジンからの送信を止めないので、JSON 以外は受けずにプリフライトを必須にする
+        // text/plain などはプリフライト無しで別オリジンから Cookie 付きで送れる
         if (!call.request.contentType().match(ContentType.Application.Json)) {
             call.respondText("Content-Type は application/json にすること", status = HttpStatusCode.UnsupportedMediaType)
             return@post
         }
 
-        // 読んでから確かめても、その時点で受け取り終えている
         val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
         if (declaredLength != null && declaredLength > MAX_BODY_BYTES) {
             call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
             return@post
         }
 
-        // Content-Length の無い chunked のボディは上の判定をすり抜けるので、上限の 1 バイト先までで読むのを止める
+        // chunked は上の判定をすり抜ける
         val bodyBytes = call.receiveChannel().readRemaining(MAX_BODY_BYTES + 1L).readByteArray()
         if (bodyBytes.size > MAX_BODY_BYTES) {
             call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)

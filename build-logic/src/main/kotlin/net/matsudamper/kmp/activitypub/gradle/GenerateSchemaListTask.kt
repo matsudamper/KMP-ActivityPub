@@ -10,8 +10,7 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * スキーマのファイル名を並べた一覧をリソースとして作る。native バイナリでは
- * ディレクトリの列挙が効かないので、実行時に `graphql/` の中身を数え上げられない。
+ * native バイナリではディレクトリの列挙が効かないので、スキーマの一覧をリソースにする
  */
 @CacheableTask
 abstract class GenerateSchemaListTask : DefaultTask() {

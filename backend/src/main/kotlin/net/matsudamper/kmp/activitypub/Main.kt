@@ -27,8 +27,7 @@ fun main() {
             module(deps)
         }
 
-    // 閉じずに終わると WAL が畳まれず、DB のファイルに書き込みが確定しない。
-    // docker stop の SIGTERM では main が返らないので、シャットダウンフックで閉じる
+    // docker stop では main が返らないので、フックで閉じて WAL を畳む
     Runtime.getRuntime().addShutdownHook(
         Thread {
             server.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
@@ -40,7 +39,6 @@ fun main() {
 }
 
 internal fun Application.module(deps: AppDependencies) {
-    // 書けない DB を抱えたまま起動すると、最初のリクエストまで問題に気付けない
     deps.repositories.verifyWritable()
 
     val staticFiles = deps.staticFiles
@@ -83,7 +81,6 @@ internal fun Application.module(deps: AppDependencies) {
         }
         graphQlRoutes(graphQl)
 
-        // 残り全部を受けるので最後に置く
         staticRoutes(staticFiles)
     }
 }

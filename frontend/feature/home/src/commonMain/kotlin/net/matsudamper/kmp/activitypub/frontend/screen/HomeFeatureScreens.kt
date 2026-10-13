@@ -10,7 +10,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 
 object HomeFeatureScreens {
     /**
-     * @param api 接続先が決まっていなければ null。その間はログインできない
+     * @param api 接続先が未設定なら null
      */
     @Composable
     fun Login(

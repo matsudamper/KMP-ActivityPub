@@ -1,12 +1,12 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    // nativeTest のためだけに入れている。このモジュールは実行可能バイナリを作らない
+    // nativeTest のため
     id("kmp-activitypub.native-image")
 }
 
 dependencies {
     api(libs.spring.security.crypto)
-    // Argon2PasswordEncoder が実行時に使う。spring-security-crypto は依存として宣言していない
+    // spring-security-crypto が実行時に要るが依存として宣言していない
     runtimeOnly(libs.bouncycastle.bcprov)
     runtimeOnly(libs.spring.core)
     testImplementation(libs.kotlin.test)
@@ -30,9 +30,7 @@ tasks.register<JavaExec>("passwordHash") {
 
 graalvmNative {
     binaries {
-        // テストを native バイナリにして実行する。
-        // BouncyCastle の Argon2 が native-image 上で動くことは、
-        // JVM のテストでは分からないので実バイナリで確かめる
+        // Argon2 が native-image で動くかは JVM のテストでは分からない
         named("test") {
             buildArgs.add("--no-fallback")
         }

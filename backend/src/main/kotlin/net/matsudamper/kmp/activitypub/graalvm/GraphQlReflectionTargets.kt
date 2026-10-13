@@ -7,8 +7,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
- * リフレクションの登録対象を数え上げる。[GraphQlReflectionFeature] から切り離してあるのは、
- * GraalVM の API に触らずに走査だけをテストできるようにするため。
+ * GraalVM の API に触らずにテストできるよう、走査だけを切り出す
  */
 object GraphQlReflectionTargets {
     const val MODEL_PACKAGE = "net.matsudamper.kmp.activitypub.graphql.model"
@@ -22,9 +21,6 @@ object GraphQlReflectionTargets {
 
     private const val CLASS_EXTENSION = ".class"
 
-    /**
-     * 入れ子のクラスも含む
-     */
     fun classNamesIn(packageName: String): List<String> {
         val packagePath = packageName.replace('.', '/')
         val classLoader = classLoader()
@@ -59,7 +55,7 @@ object GraphQlReflectionTargets {
     ): Sequence<String> {
         if (!Files.isDirectory(directory)) return emptySequence()
 
-        // 遅延したままだと jar の FileSystem を閉じた後に辿ることになる
+        // jar の FileSystem を閉じる前に辿る
         return Files.walk(directory).use { paths ->
             paths
                 .filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(CLASS_EXTENSION) }

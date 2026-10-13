@@ -37,7 +37,6 @@ class GraphQlRoutesTest {
             val response =
                 client.post(GRAPHQL_PATH) {
                     contentType(ContentType.Application.Json)
-                    // 長さを申告しない chunked で送る
                     setBody(
                         ChannelWriterContent(
                             body = { writeFully(ByteArray(1024 * 1024 + 1) { 'x'.code.toByte() }) },

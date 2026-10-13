@@ -9,9 +9,6 @@ import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-/**
- * ルーティングのテストで本物の DB を用意しないための置き換え
- */
 internal class FakeRepositories : Repositories {
     override val accounts: FakeAccountRepository = FakeAccountRepository()
 
@@ -25,9 +22,6 @@ internal class FakeRepositories : Repositories {
 internal class FakeAccountRepository : AccountRepository {
     private val rows = mutableListOf<AccountCredential>()
 
-    /**
-     * 本番では sqlite3 で直接入れるので、テストだけが持つ口
-     */
     fun add(
         username: String,
         passwordHash: String,

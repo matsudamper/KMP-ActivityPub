@@ -8,9 +8,6 @@ import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.session.UserSessionService
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 
-/**
- * 外から作れるようにしてあるのはテストのため。本番の組み立ては [create] にある。
- */
 class AppDependencies(
     val repositories: Repositories,
     val env: ServerEnv,

@@ -9,10 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import org.sqlite.SQLiteDataSource
 
 /**
- * SQLite はライターを 1 本しか取れないため、汎用のコネクションプールは過剰になる。
- * まずは接続 1 本 + ロックで直列化する構成で始める。読み取りが詰まるようなら、
- * 読み取り用の接続を複数持つ形に広げる。HikariCP は依存と native-image 設定を
- * 増やしたくないので入れない。
+ * SQLite は書き込みが 1 本ずつなので、プールは使わず接続 1 本をロックで直列化する
  */
 internal class SqliteConnectionManager(
     config: DatabaseConfig,
@@ -25,8 +22,7 @@ internal class SqliteConnectionManager(
         // 初回起動時は data/ がまだ無い
         Files.createDirectories(path.parent)
 
-        // DriverManager 経由だと ServiceLoader でドライバを探すことになる。
-        // native-image では解決に追加設定が要ることがあるため、直接 DataSource を使う
+        // DriverManager の ServiceLoader は native-image で追加設定が要る
         val dataSource: DataSource =
             SQLiteDataSource().apply {
                 url = "jdbc:sqlite:$path"
@@ -40,14 +36,8 @@ internal class SqliteConnectionManager(
         }
     }
 
-    /**
-     * 接続を借りて処理する。autocommit のまま実行される
-     */
     fun <T> withConnection(block: (Connection) -> T): T = lock.withLock { block(connection) }
 
-    /**
-     * 接続を借りて 1 トランザクションで処理する。例外が出たらロールバックする
-     */
     fun <T> transaction(block: (Connection) -> T): T =
         lock.withLock {
             connection.autoCommit = false
@@ -64,9 +54,7 @@ internal class SqliteConnectionManager(
         }
 
     /**
-     * WAL は書き込みを -wal 側に貯めるので、畳まないまま終わると .db だけを
-     * コピーしても直前の更新が入らない。TRUNCATE まで指定して -wal を空にし、
-     * 閉じた後は .db 単体をコピーしたり別のツールで開いて編集したりできる状態にする。
+     * -wal を畳んでおかないと、.db だけをコピーしたときに直前の更新が入らない
      */
     override fun close() {
         lock.withLock {
@@ -81,18 +69,12 @@ internal class SqliteConnectionManager(
     }
 
     private companion object {
-        /**
-         * 接続を増やしたときに入れ忘れないよう、ここ 1 箇所にまとめる。
-         */
         fun applyPragmas(connection: Connection) {
             connection.createStatement().use { statement ->
-                // 読み書きの並行性を上げる。ファイル DB のみ有効で、設定は DB ファイルに残る
                 statement.execute("PRAGMA journal_mode = WAL")
-                // SQLite は既定で OFF。接続ごとに ON にしないと外部キーが効かない
+                // 既定で OFF で、接続ごとに要る
                 statement.execute("PRAGMA foreign_keys = ON")
-                // ロック待ちで即座に SQLITE_BUSY を返さないようにする（ミリ秒）
                 statement.execute("PRAGMA busy_timeout = 5000")
-                // WAL 前提での耐久性と速度の折衷
                 statement.execute("PRAGMA synchronous = NORMAL")
             }
         }

@@ -5,8 +5,7 @@ pluginManagement {
 
     repositories {
         gradlePluginPortal {
-            // Apollo 5.x はポータルに実体が無く Maven Central へ 303 で飛ばされる。
-            // このリダイレクトの扱いには環境差があり、CI では解決できなかったのでportalはexcludeする
+            // Apollo 5.x はポータルから Maven Central へのリダイレクトが CI で解決できない
             content {
                 excludeGroup("com.apollographql.apollo")
             }
@@ -16,8 +15,7 @@ pluginManagement {
     }
 }
 
-// バージョンを version catalog に置けないのは、settings.gradle.kts の plugins ブロックが
-// 評価される時点で catalog のアクセサがまだ無いため
+// plugins ブロックの評価時点では version catalog が使えない
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }

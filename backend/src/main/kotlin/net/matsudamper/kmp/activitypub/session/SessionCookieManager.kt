@@ -5,7 +5,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.util.date.GMTDate
 
 /**
- * 発行と失効で属性がずれると別の Cookie として扱われるので、1 箇所にまとめる
+ * 発行と失効で属性がずれると別の Cookie になる
  */
 class SessionCookieManager(
     private val call: ApplicationCall,

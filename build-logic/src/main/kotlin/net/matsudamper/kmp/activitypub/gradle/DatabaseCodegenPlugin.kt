@@ -25,8 +25,7 @@ class DatabaseCodegenPlugin : Plugin<Project> {
 
         target.pluginManager.apply(CodegenPlugin::class.java)
 
-        // codegen 用の JDBC ドライバは使う側がこの configuration に入れる。
-        // jOOQ 自体は org.jooq.jooq-codegen-gradle プラグインが持っているので入れる必要が無い
+        // JDBC ドライバは使う側が入れる
         val codegenConfiguration = target.configurations.getByName(CODEGEN_CONFIGURATION)
 
         target.pluginManager.withPlugin("java") {
@@ -50,8 +49,7 @@ class DatabaseCodegenPlugin : Plugin<Project> {
 
             val generatedDirectory = target.layout.buildDirectory.dir("generated/jooq")
 
-            // jooq {} の設定は呼んだ瞬間に評価される。packageName など使う側の
-            // build.gradle.kts が設定する値が要るので、その評価が終わる afterEvaluate まで待つ
+            // jooq {} は即時評価されるので、使う側の packageName などが入るまで待つ
             target.afterEvaluate {
                 val jooq = target.extensions.getByType<CodegenPluginExtension>()
                 jooq.configuration {
@@ -66,18 +64,15 @@ class DatabaseCodegenPlugin : Plugin<Project> {
                             excludes = extension.excludes.get()
                             forcedTypes {
                                 forcedType {
-                                    // SQLite の INTEGER は最大 8 バイトで、rowid も int64 まで入る。
-                                    // jOOQ は宣言名を SQL 標準の INTEGER（4 バイト）として読むので、
-                                    // そのままだと 2^31 を超えた値が黙って別の値になる
+                                    // SQLite の INTEGER は 8 バイト。jOOQ は 4 バイトとして読む
                                     name = "BIGINT"
                                     includeTypes = "INTEGER"
                                 }
                             }
                         }
                         generate {
-                            // TEXT に入れた ISO 8601 を java.time で受けたい
                             javaTimeTypes = true
-                            // POJO と DAO はリフレクション経由になるので作らない。native-image で効いてくる
+                            // native-image でリフレクションが要るので作らない
                             pojos = false
                             daos = false
                             deprecated = false
@@ -85,7 +80,6 @@ class DatabaseCodegenPlugin : Plugin<Project> {
                         target {
                             packageName = extension.packageName.get()
                             directory = generatedDirectory.get().asFile.absolutePath
-                            // テーブルや列を消したときに、古い型がそのまま残らないように作り直す
                             clean = true
                         }
                     }
@@ -95,18 +89,14 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             val generateJooq =
                 target.tasks.named<CodegenTask>("jooqCodegen") {
                     dependsOn(buildJooqSchema)
-                    // Configuration の中身（JDBC URL の文字列）だけでは schema.sql の変更を
-                    // 検知できないので、DB ファイル自体も input として追跡させる
+                    // JDBC URL だけでは schema.sql の変更を検知できない
                     inputs
                         .file(schemaDatabaseFile)
                         .withPropertyName("schemaDatabase")
                         .withPathSensitivity(PathSensitivity.NONE)
                 }
 
-            // 生成物を main のソースとして扱う。TaskProvider#map 経由で参照することで、
-            // このタスクを実際に実現(configure)しなくても "jooqCodegen に依存する" ことが
-            // コンパイルタスク側に伝わる。afterEvaluate まで設定を遅らせている都合上、
-            // プラグイン側の自動配線（configuration の即時評価を前提にしている）は使えない
+            // afterEvaluate で設定しているので、プラグインの自動配線は使えない
             target.extensions.getByType<SourceSetContainer>().named("main") {
                 java.srcDir(generateJooq.map { it.outputDirectory })
             }

@@ -5,10 +5,6 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * [GraphQlReflectionFeature] 自体はイメージのビルド中しか動かないので、走査だけを見る。
- * 登録が足りているかは native バイナリを動かして確かめる。
- */
 class GraphQlReflectionTargetsTest {
     @Test
     fun `走査するパッケージにクラスがある`() {
@@ -37,7 +33,6 @@ class GraphQlReflectionTargetsTest {
                 .classNamesIn(ROOT_PACKAGE)
                 .filter { it.substringAfterLast('.').endsWith(RESOLVER_IMPL_SUFFIX) }
 
-        // 空振りしていると下の確認が意味を持たない
         assertTrue(implementations.isNotEmpty(), "リゾルバの実装が 1 つも見つからない")
 
         assertEquals(

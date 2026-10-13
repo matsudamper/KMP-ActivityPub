@@ -9,19 +9,13 @@ class AccountService(
     private val accounts: AccountRepository,
 ) {
     /**
-     * ユーザーがいないときの照合に使う。
-     *
-     * いないときにすぐ返すと、応答の速さでユーザー名が存在するかが分かる。
-     * いるときと同じだけハッシュの計算をする。
-     * 遅延生成すると、最初の照合だけ生成の分遅くなりユーザー名の有無が分かるので、作る時点で用意する
+     * ユーザーがいなくても同じだけ計算し、応答時間で名前の有無を分からなくする。
+     * 遅延生成すると最初の 1 回だけ遅くなる
      */
     private val dummyPasswordHash: String = PasswordHashType.Current.encoder.encode("dummy-password")!!
 
     fun account(id: AccountId): Account? = accounts.findById(id)
 
-    /**
-     * @return 名前とパスワードが合えばそのユーザー。合わなければ null
-     */
     fun authenticate(
         username: String,
         password: String,
@@ -32,7 +26,7 @@ class AccountService(
             return null
         }
 
-        // 知らない方式は DB の入れ間違い。パスワード違いと区別できるよう失敗にする
+        // パスワード違いと区別できるよう失敗にする
         val hashType =
             checkNotNull(PasswordHashType.fromDbValue(credential.passwordHashType)) {
                 "対応していない password_hash_type: ${credential.passwordHashType}"

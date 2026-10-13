@@ -17,9 +17,6 @@ class UserSessionService(
 
     val ttlSeconds: Long get() = ttl.inWholeSeconds
 
-    /**
-     * @return Cookie に入れるトークン
-     */
     fun create(accountId: AccountId): String {
         val token = BASE64_ENCODER.encodeToString(ByteArray(TOKEN_SIZE_BYTES).also(random::nextBytes))
         val now = clock.instant()
@@ -35,7 +32,7 @@ class UserSessionService(
     fun accountIdOf(token: String): AccountId? = sessions.findAccountId(tokenHash = hash(token), now = clock.instant())
 
     /**
-     * トークンは推測できない長さの乱数なので、総当たりへの備え（salt や反復）は要らない
+     * 推測できない長さの乱数なので salt や反復は要らない
      */
     private fun hash(token: String): String =
         BASE64_ENCODER.encodeToString(MessageDigest.getInstance("SHA-256").digest(token.encodeToByteArray()))

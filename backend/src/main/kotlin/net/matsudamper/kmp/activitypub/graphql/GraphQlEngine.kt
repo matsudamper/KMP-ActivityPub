@@ -14,10 +14,6 @@ import io.ktor.server.application.ApplicationCall
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import org.slf4j.LoggerFactory
 
-/**
- * 結線は graphql-java-tools (kickstart) がリフレクションで行う。native-image 向けの
- * 登録は `graalvm/GraphQlReflectionFeature` がまとめて行う。
- */
 class GraphQlEngine private constructor(
     private val graphQl: GraphQL,
     private val createContext: (ApplicationCall) -> GraphQlContext,
@@ -42,8 +38,7 @@ class GraphQlEngine private constructor(
         executionResult.errors.forEach { error ->
             val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
             when {
-                // 構文エラーや検証エラーなど、DataFetcher に到達する前にクライアントの入力で弾かれたもの。
-                // 未認証のクライアントが不正なクエリを送るだけで ERROR ログを埋められてしまうため記録しない
+                // 未認証で不正なクエリを送るだけで ERROR ログを埋められるため記録しない
                 error !is ExceptionWhileDataFetching -> {
                     logger.debug("GraphQL の実行に失敗した(クライアント起因): {}", error.message)
                 }
@@ -84,8 +79,7 @@ class GraphQlEngine private constructor(
         private val logger = LoggerFactory.getLogger(GraphQlEngine::class.java)
 
         /**
-         * alias で同じフィールドを並べると、その数だけリゾルバが DB を引く。
-         * 画面が送る問い合わせはどれも 10 に届かないので、桁を 1 つ上げた値で止める
+         * alias で並べた数だけ DB を引くので上限を置く。画面の問い合わせは 10 未満
          */
         private const val MAX_QUERY_COMPLEXITY = 100
 
@@ -126,7 +120,7 @@ class GraphQlEngine private constructor(
         }
 
         /**
-         *  読むファイルは一覧から引く。ディレクトリの列挙は native バイナリで効かない
+         * ディレクトリの列挙は native バイナリで効かない
          */
         private fun readSchema(): String {
             val fileNames =

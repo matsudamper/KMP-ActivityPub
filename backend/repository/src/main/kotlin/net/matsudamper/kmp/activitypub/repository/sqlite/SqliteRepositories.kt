@@ -10,9 +10,6 @@ import net.matsudamper.kmp.activitypub.session.UserSessionStore
 internal class SqliteRepositories(
     config: DatabaseConfig,
 ) : Repositories {
-    // スキーマの適用はしない。実 DB へは sqlite3def で手適用する運用
-    // （db/schema.sql と同じ場所の README を参照）。空の DB で起動した場合は
-    // verifyWritable() が no such table で落ちるので、適用忘れはそこで分かる
     private val connectionManager = SqliteConnectionManager(config)
     private val jooq = SqliteJooq(connectionManager)
 

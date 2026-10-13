@@ -31,7 +31,7 @@ import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 import net.matsudamper.kmp.activitypub.testDependencies
 
-// Cookie の保存はクライアント側の実装に寄るので、テストでは Set-Cookie を自分で読んで付け直す。
+// Set-Cookie はテストで自分で読んで付け直す
 class UserGraphQlTest {
     @Test
     fun `ログインしていなければ account は null`() =
@@ -167,9 +167,6 @@ class UserGraphQlTest {
 
         suspend fun HttpResponse.body(): JsonObject = Json.parseToJsonElement(bodyAsText()).jsonObject
 
-        /**
-         * `data.user` まで降りる。errors が入っていたらここで落ちる
-         */
         suspend fun HttpResponse.user(): JsonObject = body().obj("data").obj("user")
 
         fun JsonObject.obj(name: String): JsonObject = getValue(name).jsonObject

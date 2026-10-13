@@ -7,17 +7,13 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 
 /**
- * ログインのセッション Cookie をアプリを閉じても残す。
- *
- * 残さないと、アプリを開くたびにログインし直すことになる。
- * 1 行 1 Cookie の `Set-Cookie` の形で持ち、読むときに期限切れを落とす。
+ * アプリを開くたびにログインし直さずに済むよう、Cookie を残す
  */
 internal class PersistentCookieJar(
     private val preferences: SharedPreferences,
 ) : CookieJar {
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         val merged = (loadAll(url) + cookies)
-            // 同じ名前は後から来たもので置き換える。失効させる Set-Cookie もここで上書きする
             .associateBy { it.name }
             .values
             .filter { it.expiresAt > System.currentTimeMillis() }

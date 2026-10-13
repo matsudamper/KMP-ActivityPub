@@ -41,14 +41,13 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     generateImmutableModels = true
     generateBuilder = false
 
-    // @Generated に生成時刻が入る。付けると中身が毎回変わってビルドキャッシュが効かない
+    // 生成時刻が入るとビルドキャッシュが効かない
     addGeneratedAnnotation = false
 
     fieldsWithResolvers = setOf("@lazy")
     generateParameterizedFieldsResolvers = true
 
-    // 操作ごとのインタフェースを作らせると、Query.user から UserQueryResolver という
-    // 名前が生まれ、UserQuery 型のリゾルバと衝突して codegen が落ちる
+    // UserQueryResolver が UserQuery 型のリゾルバと衝突する
     apiInterfaceStrategy = ApiInterfaceStrategy.DO_NOT_GENERATE
 
     apiReturnType = "java.util.concurrent.CompletionStage<graphql.execution.DataFetcherResult<{{TYPE}}>>"
@@ -67,8 +66,7 @@ tasks.named("compileKotlin") {
     dependsOn("graphqlCodegen")
 }
 
-// ktlint のタスクはソースセットごと入力として見るので、生成より後に走らせないと
-// Gradle が構成の誤りとして落とす
+// ktlint は生成より後に走らせないと構成の誤りで落ちる
 tasks.matching { it.name.startsWith("runKtlint") }.configureEach {
     dependsOn("graphqlCodegen")
 }

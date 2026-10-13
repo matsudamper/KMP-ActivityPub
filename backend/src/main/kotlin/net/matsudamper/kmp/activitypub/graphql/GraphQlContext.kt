@@ -20,22 +20,16 @@ class GraphQlContext(
     private val loginAttempted = AtomicBoolean(false)
 
     /**
-     * alias で 1 つのリクエストに login を並べると、その数だけパスワードのハッシュ計算が走る。
-     * 照合は 1 リクエストにつき 1 回までにする
-     *
-     * @return このリクエストで初めてなら true
+     * alias で login を並べてもハッシュ計算は 1 リクエスト 1 回までにする
      */
     fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
 
-    /**
-     * alias で session を並べられても DB を引くのは 1 回にする
-     */
     private val userAccountId: AccountId? by lazy { userCookie.token()?.let { userSessions.accountIdOf(it) } }
 
     fun userAccountId(): AccountId? = userAccountId
 
     /**
-     * 発行した Cookie はまだリクエスト側に無いので、[userAccountId] は null のまま
+     * 発行した Cookie はまだリクエストに無いので、[userAccountId] は変わらない
      */
     fun issueUserSession(accountId: AccountId) {
         userCookie.append(token = userSessions.create(accountId), maxAgeSeconds = userSessions.ttlSeconds)
