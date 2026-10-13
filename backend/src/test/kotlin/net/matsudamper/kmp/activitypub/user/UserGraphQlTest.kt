@@ -117,7 +117,7 @@ class UserGraphQlTest {
 
     private fun repositoriesWithUser(): FakeRepositories =
         FakeRepositories().apply {
-            accounts.add(username = USERNAME, passwordHash = PASSWORD_HASH)
+            accounts.add(username = USERNAME, passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
         }
 
     private fun ApplicationTestBuilder.applicationWith(repositories: FakeRepositories) {
@@ -163,7 +163,7 @@ class UserGraphQlTest {
 
         const val PASSWORD = "user-password"
 
-        val PASSWORD_HASH: String = PasswordHashType.Current.encoder.encode(PASSWORD)!!
+        val PASSWORD_HASH: String = checkNotNull(PasswordHashType.Current.encoder.encode(PASSWORD))
 
         suspend fun HttpResponse.body(): JsonObject = Json.parseToJsonElement(bodyAsText()).jsonObject
 

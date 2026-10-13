@@ -65,12 +65,10 @@ class GraphQlEngine private constructor(
         )
     }
 
-    private fun variablesOf(request: GraphQlRequest): Map<String, Any?> {
-        val raw = request.variables?.let { GraphQlValues.toRawValue(it) }
-
-        @Suppress("UNCHECKED_CAST")
-        return raw as? Map<String, Any?> ?: emptyMap()
-    }
+    private fun variablesOf(request: GraphQlRequest): Map<String, Any?> =
+        request.variables
+            ?.mapValues { (_, value) -> GraphQlValues.toRawValue(value) }
+            .orEmpty()
 
     companion object {
         private val CONTEXT_KEY = Any()

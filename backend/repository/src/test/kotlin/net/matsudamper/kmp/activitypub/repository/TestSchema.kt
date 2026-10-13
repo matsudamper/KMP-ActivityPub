@@ -27,7 +27,7 @@ internal object TestSchema {
         dbPath: Path,
         username: String,
         passwordHash: String,
-        passwordHashType: String = "argon2",
+        passwordHashType: String,
         createdAt: Instant,
     ): AccountId {
         val dataSource = SQLiteDataSource().apply { url = "jdbc:sqlite:$dbPath" }

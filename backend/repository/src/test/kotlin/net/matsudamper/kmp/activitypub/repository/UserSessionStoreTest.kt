@@ -40,7 +40,7 @@ class UserSessionStoreTest {
     private fun withRepositories(block: (Repositories, AccountId) -> Unit) {
         val dbPath = tempDir.resolve("test.db")
         TestSchema.applyTo(dbPath)
-        val accountId = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = "hash", createdAt = NOW)
+        val accountId = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = "hash", passwordHashType = "hash-type", createdAt = NOW)
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { block(it, accountId) }
     }

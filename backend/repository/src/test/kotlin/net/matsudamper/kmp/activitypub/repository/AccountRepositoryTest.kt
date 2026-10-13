@@ -22,7 +22,7 @@ class AccountRepositoryTest {
     @Test
     fun `SQL で入れたアカウントを id で引ける`() {
         TestSchema.applyTo(dbPath)
-        val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
+        val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(
@@ -55,7 +55,7 @@ class AccountRepositoryTest {
     @Test
     fun `大文字小文字の違いは同じ名前として扱う`() {
         TestSchema.applyTo(dbPath)
-        val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
+        val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(id, repositories.accounts.findCredential("USER1")?.id)

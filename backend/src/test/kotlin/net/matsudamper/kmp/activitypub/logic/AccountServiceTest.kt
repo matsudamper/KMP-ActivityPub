@@ -14,21 +14,21 @@ class AccountServiceTest {
 
     @Test
     fun `登録したユーザーは同じパスワードで照合が通る`() {
-        val id = accounts.add(username = "user1", passwordHash = PASSWORD_HASH)
+        val id = accounts.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
 
         assertEquals(id, service.authenticate(username = "user1", password = PASSWORD))
     }
 
     @Test
     fun `名前の前後の空白は落として照合する`() {
-        val id = accounts.add(username = "user1", passwordHash = PASSWORD_HASH)
+        val id = accounts.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
 
         assertEquals(id, service.authenticate(username = " user1 ", password = PASSWORD))
     }
 
     @Test
     fun `パスワードが違えば照合は通らない`() {
-        accounts.add(username = "user1", passwordHash = PASSWORD_HASH)
+        accounts.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
 
         assertNull(service.authenticate(username = "user1", password = "wrong-password"))
     }
@@ -48,6 +48,6 @@ class AccountServiceTest {
     private companion object {
         const val PASSWORD = "user-password"
 
-        val PASSWORD_HASH: String = PasswordHashType.Current.encoder.encode(PASSWORD)!!
+        val PASSWORD_HASH: String = checkNotNull(PasswordHashType.Current.encoder.encode(PASSWORD))
     }
 }

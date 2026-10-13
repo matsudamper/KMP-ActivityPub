@@ -12,7 +12,7 @@ class AccountService(
      * ユーザーがいなくても同じだけ計算し、応答時間で名前の有無を分からなくする。
      * 遅延生成すると最初の 1 回だけ遅くなる
      */
-    private val dummyPasswordHash: String = PasswordHashType.Current.encoder.encode("dummy-password")!!
+    private val dummyPasswordHash: String = checkNotNull(PasswordHashType.Current.encoder.encode("dummy-password"))
 
     fun account(id: AccountId): Account? = accounts.findById(id)
 
