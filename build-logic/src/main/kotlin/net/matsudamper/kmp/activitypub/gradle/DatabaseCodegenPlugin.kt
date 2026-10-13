@@ -25,19 +25,9 @@ class DatabaseCodegenPlugin : Plugin<Project> {
 
         target.pluginManager.apply(CodegenPlugin::class.java)
 
-        // JDBC ドライバは使う側が入れる
         val codegenConfiguration = target.configurations.getByName(CODEGEN_CONFIGURATION)
 
         target.pluginManager.withPlugin("java") {
-            target.tasks.register<DumpSchemaTask>("dumpSchema") {
-                description = "開発用 DB (-PdevDb=絶対パス) から schema.sql を書き出す"
-                devDatabasePath.set(target.providers.gradleProperty("devDb"))
-                driverClasspath.from(codegenConfiguration)
-                excludes.set(extension.excludes)
-                schemaFile.set(extension.schemaFile)
-                workDatabase.set(target.layout.buildDirectory.file("dump/normalize.db"))
-            }
-
             val schemaDatabaseFile = target.layout.buildDirectory.file("jooq/schema.db")
             val buildJooqSchema =
                 target.tasks.register<BuildSchemaDatabaseTask>("buildJooqSchema") {

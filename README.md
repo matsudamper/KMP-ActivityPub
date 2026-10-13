@@ -15,13 +15,10 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-a
 
 ### ユーザーを登録する
 
-ユーザーは、パスワードのハッシュを作って sqlite3 で `accounts` に入れて登録する。
+`data/kmp-activitypub.db` に登録する。ユーザー名とパスワードは、聞かれたときに入力する。
 
 ```sh
-# 標準入力に 1 行でパスワードを渡すと、ハッシュが 1 行出る
-HASH=$(./gradlew --quiet :backend:crypto:passwordHash) && \
-sqlite3 data/kmp-activitypub.db \
-  "INSERT INTO accounts (username, password_hash, password_hash_type, created_at) VALUES ('user1', '$HASH', 'argon2', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));"
+./gradlew --quiet :cli:addAccount
 ```
 
 ユーザー名は大文字小文字を区別せず一意になる。区別しないのは ASCII の英字だけなので、使う文字は英数字と `_` `.` `-` に限る。ログインでは前後の空白を落として照合するので、前後に空白を入れない。

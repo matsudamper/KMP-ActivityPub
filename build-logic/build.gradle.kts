@@ -13,7 +13,6 @@ configure<KtlintExtension> {
 
 dependencies {
     implementation(libs.graalvm.native.plugin)
-
     implementation(libs.jooq.codegen.gradle)
     implementation(libs.jooq.codegen)
 }
