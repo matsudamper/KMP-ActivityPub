@@ -12,9 +12,10 @@ class AccountService(
      * ユーザーがいないときの照合に使う。
      *
      * いないときにすぐ返すと、応答の速さでユーザー名が存在するかが分かる。
-     * いるときと同じだけハッシュの計算をする
+     * いるときと同じだけハッシュの計算をする。
+     * 遅延生成すると、最初の照合だけ生成の分遅くなりユーザー名の有無が分かるので、作る時点で用意する
      */
-    private val dummyPasswordHash: String by lazy { PasswordHashType.Current.encoder.encode("dummy-password")!! }
+    private val dummyPasswordHash: String = PasswordHashType.Current.encoder.encode("dummy-password")!!
 
     fun account(id: AccountId): Account? = accounts.findById(id)
 
