@@ -1,12 +1,10 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    // nativeTest のため
     id("kmp-activitypub.native-image")
 }
 
 dependencies {
     api(libs.spring.security.crypto)
-    // spring-security-crypto が実行時に要るが依存として宣言していない
     runtimeOnly(libs.bouncycastle.bcprov)
     runtimeOnly(libs.spring.core)
     testImplementation(libs.kotlin.test)
