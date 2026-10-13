@@ -1,13 +1,13 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.Tables.USER_SESSIONS
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-internal class SqliteUserSessionRepository(
+internal class SqliteUserSessionStore(
     private val jooq: SqliteJooq,
-) : UserSessionRepository {
+) : UserSessionStore {
     /**
      * 期限切れの行もここで消す。ログアウトせずに閉じられたセッションは読み直されずに溜まる
      */

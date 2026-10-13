@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-class UserSessionRepositoryTest {
+class UserSessionStoreTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-user-session-test")
 
     @OptIn(kotlin.io.path.ExperimentalPathApi::class)

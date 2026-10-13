@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
 
 /**
  * モジュールの責務は「どこからデータを読むかを呼び出し側から隠す」ことで、
@@ -14,7 +15,7 @@ import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
 interface Repositories : AutoCloseable {
     val accounts: AccountRepository
 
-    val userSessions: UserSessionRepository
+    val userSessions: UserSessionStore
 
     /**
      * DB に書き込んで読み戻せることを確認する。書けない場合は例外を投げる。

@@ -4,8 +4,8 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
-import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.Tables.HEALTH_CHECK
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
 
 internal class SqliteRepositories(
     config: DatabaseConfig,
@@ -18,7 +18,7 @@ internal class SqliteRepositories(
 
     override val accounts: AccountRepository = SqliteAccountRepository(jooq)
 
-    override val userSessions: UserSessionRepository = SqliteUserSessionRepository(jooq)
+    override val userSessions: UserSessionStore = SqliteUserSessionStore(jooq)
 
     override fun verifyWritable() {
         val writtenAt = Instant.now().toString()

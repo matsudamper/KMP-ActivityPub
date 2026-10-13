@@ -10,6 +10,8 @@ dependencies {
 
     implementation(project(":backend:crypto"))
 
+    implementation(project(":backend:session"))
+
     implementation(project(":backend:graphql"))
     implementation(project(":shared"))
 

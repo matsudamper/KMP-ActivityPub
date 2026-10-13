@@ -2,8 +2,8 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import java.util.concurrent.atomic.AtomicBoolean
 import io.ktor.server.application.ApplicationCall
-import net.matsudamper.kmp.activitypub.logic.UserSessionService
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
+import net.matsudamper.kmp.activitypub.session.UserSessionService
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class GraphQlContext(

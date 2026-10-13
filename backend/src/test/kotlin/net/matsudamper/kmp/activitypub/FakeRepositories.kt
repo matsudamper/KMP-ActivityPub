@@ -6,7 +6,7 @@ import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
-import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
@@ -15,7 +15,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 internal class FakeRepositories : Repositories {
     override val accounts: FakeAccountRepository = FakeAccountRepository()
 
-    override val userSessions: UserSessionRepository = FakeUserSessionRepository()
+    override val userSessions: UserSessionStore = FakeUserSessionStore()
 
     override fun verifyWritable() = Unit
 
@@ -44,7 +44,7 @@ internal class FakeAccountRepository : AccountRepository {
     override fun findCredential(username: String): AccountCredential? = rows.firstOrNull { it.username.equals(username, ignoreCase = true) }
 }
 
-private class FakeUserSessionRepository : UserSessionRepository {
+private class FakeUserSessionStore : UserSessionStore {
     private val rows = mutableMapOf<String, Pair<AccountId, Instant>>()
 
     override fun create(

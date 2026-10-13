@@ -1,4 +1,4 @@
-package net.matsudamper.kmp.activitypub.logic
+package net.matsudamper.kmp.activitypub.session
 
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -6,15 +6,10 @@ import java.time.Clock
 import java.util.Base64
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
-import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-/**
- * DB に置く。Android アプリは開くたびにログインし直させられないので、
- * サーバーの再起動でセッションが消えると困る。
- */
 class UserSessionService(
-    private val sessions: UserSessionRepository,
+    private val sessions: UserSessionStore,
     private val ttl: Duration,
     private val clock: Clock,
 ) {
