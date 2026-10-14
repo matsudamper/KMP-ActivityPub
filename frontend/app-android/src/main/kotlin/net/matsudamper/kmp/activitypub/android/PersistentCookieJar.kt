@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 internal class PersistentCookieJar(
     private val blockStore: CookieBlockStore,
 ) : CookieJar {
-    private val byHost = ConcurrentHashMap<String, MutableSet<String>>()
+    private val serializedCookies = ConcurrentHashMap.newKeySet<String>()
     private val loadLock = Any()
 
     @Volatile
@@ -23,28 +23,24 @@ internal class PersistentCookieJar(
     ) {
         ensureLoaded()
         val merged =
-            (cookiesForHost(url) + cookies)
-                .associateBy { it.name }
+            (parseAll(url) + cookies)
+                .filter { cookie -> cookie.expiresAt > System.currentTimeMillis() }
+                .associateBy { cookie -> cookie.identityKey() }
                 .values
-                .filter { it.expiresAt > System.currentTimeMillis() }
 
-        val hostCookies = merged.map { it.toString() }.toMutableSet()
-        if (hostCookies.isEmpty()) {
-            byHost.remove(url.host)
-        } else {
-            byHost[url.host] = hostCookies
-        }
-        blockStore.writeAsync(byHost.mapValues { (_, cookieSet) -> cookieSet.toSet() })
+        serializedCookies.clear()
+        serializedCookies.addAll(merged.map { cookie -> cookie.toString() })
+        blockStore.writeAsync(serializedCookies.toSet())
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> =
-        cookiesForHost(url).filter { cookie ->
+        parseAll(url).filter { cookie ->
             cookie.expiresAt > System.currentTimeMillis() && cookie.matches(url)
         }
 
-    private fun cookiesForHost(url: HttpUrl): List<Cookie> {
+    private fun parseAll(url: HttpUrl): List<Cookie> {
         ensureLoaded()
-        return byHost[url.host].orEmpty().mapNotNull { serialized -> Cookie.parse(url, serialized) }
+        return serializedCookies.mapNotNull { value -> Cookie.parse(url, value) }
     }
 
     private fun ensureLoaded() {
@@ -55,11 +51,11 @@ internal class PersistentCookieJar(
             if (loaded) {
                 return
             }
-            byHost.clear()
-            blockStore.read().forEach { (host, cookies) ->
-                byHost[host] = cookies.toMutableSet()
-            }
+            serializedCookies.clear()
+            serializedCookies.addAll(blockStore.read())
             loaded = true
         }
     }
+
+    private fun Cookie.identityKey(): String = "$name|$domain|$path"
 }

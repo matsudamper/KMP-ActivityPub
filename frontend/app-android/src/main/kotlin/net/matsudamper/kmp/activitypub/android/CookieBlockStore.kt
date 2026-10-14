@@ -3,7 +3,6 @@ package net.matsudamper.kmp.activitypub.android
 import android.content.Context
 import com.google.android.gms.auth.blockstore.Blockstore
 import com.google.android.gms.auth.blockstore.BlockstoreClient
-import com.google.android.gms.auth.blockstore.DeleteBytesRequest
 import com.google.android.gms.auth.blockstore.RetrieveBytesRequest
 import com.google.android.gms.auth.blockstore.StoreBytesData
 import com.google.android.gms.tasks.Tasks
@@ -22,7 +21,7 @@ internal class CookieBlockStore(
     private val legacyPreferences =
         appContext.getSharedPreferences(LEGACY_COOKIE_PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    fun read(): Map<String, Set<String>> {
+    fun read(): Set<String> {
         val fromBlockStore = readFromBlockStore()
         if (fromBlockStore.isNotEmpty()) {
             return fromBlockStore
@@ -35,8 +34,8 @@ internal class CookieBlockStore(
         }
     }
 
-    fun writeAsync(byHost: Map<String, Set<String>>) {
-        val bytes = encode(byHost)
+    fun writeAsync(cookies: Set<String>) {
+        val bytes = encode(cookies)
         if (bytes.size > MAX_ENTRY_BYTES) {
             return
         }
@@ -58,7 +57,7 @@ internal class CookieBlockStore(
             }
     }
 
-    private fun readFromBlockStore(): Map<String, Set<String>> {
+    private fun readFromBlockStore(): Set<String> {
         val retrieveRequest =
             RetrieveBytesRequest
                 .Builder()
@@ -69,38 +68,40 @@ internal class CookieBlockStore(
             val response = Tasks.await(blockstore.retrieveBytes(retrieveRequest), BLOCK_STORE_TIMEOUT)
             val bytes = response.blockstoreDataMap[BLOCK_STORE_KEY]?.bytes
             if (bytes == null) {
-                emptyMap()
+                emptySet()
             } else {
                 decode(bytes)
             }
         } catch (_: Exception) {
-            emptyMap()
+            emptySet()
         }
     }
 
-    private fun readLegacyPreferences(): Map<String, Set<String>> =
-        legacyPreferences.all
-            .mapNotNull { (host, value) ->
-                if (host is String && value is Set<*>) {
-                    host to value.filterIsInstance<String>().toSet()
-                } else {
-                    null
-                }
-            }.toMap()
+    private fun readLegacyPreferences(): Set<String> =
+        legacyPreferences.all.values
+            .filterIsInstance<Set<*>>()
+            .flatMap { entry -> entry.filterIsInstance<String>() }
+            .toSet()
 
-    private fun encode(byHost: Map<String, Set<String>>): ByteArray =
-        Json.encodeToString(StoredCookies.serializer(), StoredCookies(byHost)).encodeToByteArray()
+    private fun encode(cookies: Set<String>): ByteArray =
+        Json.encodeToString(StoredCookies.serializer(), StoredCookies(cookies)).encodeToByteArray()
 
-    private fun decode(bytes: ByteArray): Map<String, Set<String>> =
+    private fun decode(bytes: ByteArray): Set<String> =
         try {
-            Json.decodeFromString(StoredCookies.serializer(), bytes.decodeToString()).byHost
+            val stored = Json.decodeFromString(StoredCookies.serializer(), bytes.decodeToString())
+            if (stored.cookies.isNotEmpty()) {
+                stored.cookies
+            } else {
+                stored.byHost.values.flatten().toSet()
+            }
         } catch (_: Exception) {
-            emptyMap()
+            emptySet()
         }
 
     @Serializable
     private data class StoredCookies(
-        val byHost: Map<String, Set<String>>,
+        val cookies: Set<String> = emptySet(),
+        val byHost: Map<String, Set<String>> = emptyMap(),
     )
 
     companion object {
