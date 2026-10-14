@@ -43,16 +43,15 @@ internal class CookieBlockStore(
         blockstore
             .isEndToEndEncryptionAvailable
             .continueWithTask { encryptionTask ->
-                val storeRequest =
+                val storeRequestBuilder =
                     StoreBytesData
                         .Builder()
                         .setBytes(bytes)
-                        .setKeys(listOf(BLOCK_STORE_KEY))
-                        .apply {
-                            if (encryptionTask.result == true) {
-                                setShouldBackupToCloud(true)
-                            }
-                        }.build()
+                        .setKey(BLOCK_STORE_KEY)
+                if (encryptionTask.result == true) {
+                    storeRequestBuilder.setShouldBackupToCloud(true)
+                }
+                val storeRequest = storeRequestBuilder.build()
                 blockstore.storeBytes(storeRequest)
             }
     }
@@ -65,8 +64,13 @@ internal class CookieBlockStore(
                 .build()
 
         return try {
-            val response = Tasks.await(blockstore.retrieveBytes(retrieveRequest), BLOCK_STORE_TIMEOUT)
-            val bytes = response.blockstoreDataMap[BLOCK_STORE_KEY]?.bytes
+            val response =
+                Tasks.await(
+                    blockstore.retrieveBytes(retrieveRequest),
+                    BLOCK_STORE_TIMEOUT_SECONDS,
+                    TimeUnit.SECONDS,
+                )
+            val bytes = response.getBlockstoreDataMap()[BLOCK_STORE_KEY]?.bytes
             if (bytes == null) {
                 emptySet()
             } else {
@@ -108,6 +112,6 @@ internal class CookieBlockStore(
         private const val BLOCK_STORE_KEY = "net.matsudamper.kmp.activitypub.http_cookies"
         private const val LEGACY_COOKIE_PREFERENCES_NAME = "cookies"
         private const val MAX_ENTRY_BYTES = 4 * 1024
-        private val BLOCK_STORE_TIMEOUT = TimeUnit.SECONDS.toMillis(10)
+        private const val BLOCK_STORE_TIMEOUT_SECONDS = 10L
     }
 }
