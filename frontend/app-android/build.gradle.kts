@@ -71,6 +71,8 @@ dependencies {
     implementation(libs.androidx.datastore)
     implementation(libs.protobuf.javalite)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.okhttp)
+    implementation(libs.androidx.core.ktx)
     implementation(libs.koin.android)
     implementation(libs.koin.annotations)
     implementation(libs.koin.compose)

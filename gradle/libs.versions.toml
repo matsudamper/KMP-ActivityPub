@@ -15,6 +15,8 @@ graphqlKickstartTools = "14.0.1"
 graphqlCodegen = "5.10.2"
 apollo = "5.2.0"
 graalvmSdk = "25.4.4.1.1"
+okhttp = "5.5.0"
+androidxCore = "1.16.0"
 slf4j = "2.0.20"
 graalvmBuildtools = "1.1.14"
 ktlintGradle = "14.2.0"
@@ -52,6 +54,8 @@ graphql-java = { module = "com.graphql-java:graphql-java", version.ref = "graphq
 graphql-kickstart-tools = { module = "com.graphql-java-kickstart:graphql-java-tools", version.ref = "graphqlKickstartTools" }
 apollo-runtime = { module = "com.apollographql.apollo:apollo-runtime", version.ref = "apollo" }
 graalvm-nativeimage = { module = "org.graalvm.sdk:nativeimage", version.ref = "graalvmSdk" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }

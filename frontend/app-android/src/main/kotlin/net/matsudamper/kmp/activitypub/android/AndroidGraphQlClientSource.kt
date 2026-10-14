@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.android
 
+import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -9,15 +10,24 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.network.okHttpClient
 import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import okhttp3.OkHttpClient
 import org.koin.core.annotation.Singleton
 
 @Singleton
 internal class AndroidGraphQlClientSource(
+    context: Context,
     serverSettingStore: ServerSettingStore,
 ) : GraphQlClientSource {
+    private val okHttpClient: OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .cookieJar(PersistentCookieJar(context.getSharedPreferences(COOKIE_PREFERENCES_NAME, Context.MODE_PRIVATE)))
+            .build()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override val client: StateFlow<ApolloClient?> =
@@ -27,7 +37,14 @@ internal class AndroidGraphQlClientSource(
                 if (serverUrl == null) {
                     null
                 } else {
-                    GraphQlClient.builder("$serverUrl/graphql").build()
+                    GraphQlClient
+                        .builder("$serverUrl/graphql")
+                        .okHttpClient(okHttpClient)
+                        .build()
                 }
             }.stateIn(scope, SharingStarted.Eagerly, null)
+
+    private companion object {
+        const val COOKIE_PREFERENCES_NAME = "cookies"
+    }
 }
