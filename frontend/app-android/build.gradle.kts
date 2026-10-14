@@ -60,6 +60,7 @@ dependencies {
     implementation(project(":frontend:api"))
     implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))
+    implementation(project(":shared"))
 
     implementation(compose.runtime)
     implementation(compose.foundation)
