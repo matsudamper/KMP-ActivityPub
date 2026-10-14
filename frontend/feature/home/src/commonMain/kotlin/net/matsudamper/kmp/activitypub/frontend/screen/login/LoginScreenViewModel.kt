@@ -140,9 +140,6 @@ internal class LoginScreenViewModel(
         fun navigateToHome()
     }
 
-    /**
-     * パスワードは平文をプロセスの外に残さないため、SavedStateHandle には入れない
-     */
     private companion object {
         const val KEY_USERNAME = "username"
     }
