@@ -71,9 +71,6 @@ internal class LoginScreenViewModel(
             }
         }.asStateFlow()
 
-    /**
-     * 照合はまだ無い。どの入力でも失敗にする
-     */
     private fun login() {
         val state = viewModelStateFlow.value
         val api = api ?: return
