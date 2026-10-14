@@ -211,6 +211,12 @@ tasks.register("testFrontend") {
     dependsOn(
         subprojects
             .filter { project -> project.path.startsWith(":frontend:") }
+            .filter { project ->
+                // テストのないComposeモジュールはWasmテストの実行環境を構成していない。
+                project.fileTree("src") {
+                    include("test*/**/*.kt", "*Test*/**/*.kt", "test*/**/*.java", "*Test*/**/*.java")
+                }.isEmpty.not()
+            }
             .map { project ->
                 project.tasks.withType<AbstractTestTask>().matching { task ->
                     task.name != "testReleaseUnitTest"
