@@ -1,5 +1,6 @@
 import javax.xml.parsers.DocumentBuilderFactory
 import dev.detekt.gradle.Detekt
+import org.gradle.api.tasks.testing.AbstractTestTask
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import org.w3c.dom.Element
 
@@ -201,5 +202,19 @@ tasks.register("compileAll") {
                 (isSourceCompile && !isWasmExecutableLink) || task.name == "compileAndroidMain"
             }
         },
+    )
+}
+
+tasks.register("testFrontend") {
+    group = "verification"
+    description = "frontendのテストをまとめて実行する（Androidはdebugのみ、Paparazziは個別実行）"
+    dependsOn(
+        subprojects
+            .filter { project -> project.path.startsWith(":frontend:") }
+            .map { project ->
+                project.tasks.withType<AbstractTestTask>().matching { task ->
+                    task.name != "testReleaseUnitTest"
+                }
+            },
     )
 }
