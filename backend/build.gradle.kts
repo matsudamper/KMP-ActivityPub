@@ -43,7 +43,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
             // jOOQ の組み込み型登録が Class.arrayType() を使い、native-image では欠けた配列型で NPE になる
             buildArgs.add("--initialize-at-build-time=org.jooq")
-            // 上の初期化で SimpleLogger がイメージヒープに載る。slf4j-simple は書き込みごとに System.err を引き直す
+            // jOOQ 初期化で SimpleLogger がイメージヒープに載る。slf4j-simple は書き込みごとに System.err を引き直す
             buildArgs.add("--initialize-at-build-time=org.slf4j")
             // kickstart 経由の Jackson ObjectMapper がビルド時初期化だとイメージヒープに載って失敗する（JSON 型は未使用）
             buildArgs.add("--initialize-at-run-time=org.jooq.impl.Convert${'$'}_JSON")

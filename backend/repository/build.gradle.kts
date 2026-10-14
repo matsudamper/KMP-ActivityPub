@@ -12,7 +12,7 @@ dependencies {
 
 databaseCodegen {
     packageName.set("net.matsudamper.kmp.activitypub.repository.jooq")
-    nativeImageMetadataPath.set("net.matsudamper/kmp-activitypub-repository-jooq")
+    nativeImageReflectConfigOutputPath.set("net.matsudamper/kmp-activitypub-repository-jooq")
 }
 
 kotlin {

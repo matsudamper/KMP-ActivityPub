@@ -19,7 +19,8 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             target.layout.projectDirectory.file("src/main/resources/db/schema.sql"),
         )
         extension.excludes.convention("schema_version|sqlite_.*")
-        extension.nativeImageMetadataPath.convention(
+        // reflect-config の META-INF/native-image/<path>/ の既定。未設定なら group とモジュール名から作る
+        extension.nativeImageReflectConfigOutputPath.convention(
             target.provider { "${target.group}/${target.name}-jooq" },
         )
 
@@ -96,7 +97,7 @@ class DatabaseCodegenPlugin : Plugin<Project> {
                     description = "生成コードの native-image 向けリフレクション設定を作る"
                     dependsOn(generateJooq)
                     generatedSources.set(generatedDirectory)
-                    metadataPath.set(extension.nativeImageMetadataPath)
+                    nativeImageReflectConfigOutputPath.set(extension.nativeImageReflectConfigOutputPath)
                     outputDirectory.set(target.layout.buildDirectory.dir("generated/jooqNativeImage"))
                 }
 

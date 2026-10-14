@@ -14,8 +14,8 @@ interface DatabaseCodegenExtension {
     val excludes: Property<String>
 
     /**
-     * 生成する `reflect-config.json` を置く `META-INF/native-image/<ここ>/` のパス。
-     * GraalVM は group/artifact ごとにメタデータを読むので、モジュール間で衝突しない名前にする
+     * 生成する `reflect-config.json` の出力先。
+     * `META-INF/native-image/<ここ>/reflect-config.json` の `<ここ>` 部分（モジュールごとに一意）
      */
-    val nativeImageMetadataPath: Property<String>
+    val nativeImageReflectConfigOutputPath: Property<String>
 }

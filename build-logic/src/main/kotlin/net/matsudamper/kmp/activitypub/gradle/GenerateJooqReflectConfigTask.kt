@@ -23,10 +23,10 @@ abstract class GenerateJooqReflectConfigTask : DefaultTask() {
     abstract val generatedSources: DirectoryProperty
 
     /**
-     * `META-INF/native-image/<group>/<artifact>/` の `<group>/<artifact>`
+     * `META-INF/native-image/<path>/reflect-config.json` の `<path>`
      */
     @get:Input
-    abstract val metadataPath: Property<String>
+    abstract val nativeImageReflectConfigOutputPath: Property<String>
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
@@ -61,7 +61,9 @@ abstract class GenerateJooqReflectConfigTask : DefaultTask() {
             outputDirectory
                 .get()
                 .asFile
-                .resolve("META-INF/native-image/${metadataPath.get()}/reflect-config.json")
+                .resolve(
+                    "META-INF/native-image/${nativeImageReflectConfigOutputPath.get()}/reflect-config.json",
+                )
         configFile.parentFile.mkdirs()
         configFile.writeText("[\n$entries\n]\n")
     }
