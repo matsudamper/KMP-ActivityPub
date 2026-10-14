@@ -38,12 +38,12 @@ abstract class GenerateJooqReflectConfigTask : DefaultTask() {
         val recordClasses =
             sourceRoot
                 .walkTopDown()
-                .filter { it.isFile && it.name.endsWith("Record.java") }
+                .filter { it.isFile && it.name.endsWith("Record.kt") }
                 .map { file ->
                     file
                         .relativeTo(sourceRoot)
                         .path
-                        .removeSuffix(".java")
+                        .removeSuffix(".kt")
                         .replace(File.separatorChar, '.')
                 }.sorted()
                 .toList()

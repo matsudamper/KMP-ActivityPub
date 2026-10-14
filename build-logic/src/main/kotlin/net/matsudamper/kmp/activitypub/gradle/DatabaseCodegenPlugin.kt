@@ -49,6 +49,7 @@ class DatabaseCodegenPlugin : Plugin<Project> {
                         url = "jdbc:sqlite:${schemaDatabaseFile.get().asFile.absolutePath}"
                     }
                     generator {
+                        name = "org.jooq.codegen.KotlinGenerator"
                         database {
                             name = "org.jooq.meta.sqlite.SQLiteDatabase"
                             includes = ".*"
@@ -90,6 +91,11 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             // afterEvaluate で設定しているので、プラグインの自動配線は使えない
             target.extensions.getByType<SourceSetContainer>().named("main") {
                 java.srcDir(generateJooq.map { it.outputDirectory })
+            }
+            target.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+                target.tasks.named("compileKotlin") {
+                    dependsOn(generateJooq)
+                }
             }
 
             val generateJooqReflectConfig =
