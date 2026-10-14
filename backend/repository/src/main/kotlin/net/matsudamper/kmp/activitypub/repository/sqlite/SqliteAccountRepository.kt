@@ -4,6 +4,7 @@ import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.Tables.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.Tables.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 internal class SqliteAccountRepository(
@@ -29,16 +30,23 @@ internal class SqliteAccountRepository(
      */
     override fun findCredential(username: String): AccountCredential? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.PASSWORD_HASH, ACCOUNTS.PASSWORD_HASH_TYPE)
+            .select(
+                ACCOUNTS.ID,
+                ACCOUNTS.USERNAME,
+                ACCOUNT_PASSWORDS.PASSWORD_HASH,
+                ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE,
+            )
             .from(ACCOUNTS)
+            .join(ACCOUNT_PASSWORDS)
+            .on(ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(ACCOUNTS.ID))
             .where(ACCOUNTS.USERNAME.eq(username))
             .fetchOne()
             ?.let { record ->
                 AccountCredential(
                     id = AccountId(record.get(ACCOUNTS.ID)),
                     username = record.get(ACCOUNTS.USERNAME),
-                    passwordHash = record.get(ACCOUNTS.PASSWORD_HASH),
-                    passwordHashType = record.get(ACCOUNTS.PASSWORD_HASH_TYPE),
+                    passwordHash = record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH),
+                    passwordHashType = record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE),
                 )
             }
     }

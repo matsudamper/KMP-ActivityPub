@@ -32,18 +32,33 @@ internal object TestSchema {
     ): AccountId {
         val dataSource = SQLiteDataSource().apply { url = "jdbc:sqlite:$dbPath" }
         return dataSource.connection.use { connection ->
-            connection
-                .prepareStatement("INSERT INTO accounts (username, password_hash, password_hash_type, created_at) VALUES (?, ?, ?, ?) RETURNING id")
-                .use { statement ->
-                    statement.setString(1, username)
-                    statement.setString(2, passwordHash)
-                    statement.setString(3, passwordHashType)
-                    statement.setString(4, createdAt.toString())
-                    statement.executeQuery().use { resultSet ->
-                        resultSet.next()
-                        AccountId(resultSet.getLong(1))
+            connection.autoCommit = false
+            try {
+                val accountId =
+                    connection
+                        .prepareStatement("INSERT INTO accounts (username, created_at) VALUES (?, ?) RETURNING id")
+                        .use { statement ->
+                            statement.setString(1, username)
+                            statement.setString(2, createdAt.toString())
+                            statement.executeQuery().use { resultSet ->
+                                resultSet.next()
+                                resultSet.getLong(1)
+                            }
+                        }
+                connection
+                    .prepareStatement("INSERT INTO account_passwords (account_id, password_hash, password_hash_type) VALUES (?, ?, ?)")
+                    .use { statement ->
+                        statement.setLong(1, accountId)
+                        statement.setString(2, passwordHash)
+                        statement.setString(3, passwordHashType)
+                        statement.executeUpdate()
                     }
-                }
+                connection.commit()
+                AccountId(accountId)
+            } catch (exception: Exception) {
+                connection.rollback()
+                throw exception
+            }
         }
     }
 }

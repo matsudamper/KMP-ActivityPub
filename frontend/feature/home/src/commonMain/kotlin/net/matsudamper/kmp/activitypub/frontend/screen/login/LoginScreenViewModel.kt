@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,13 +16,14 @@ import org.koin.core.annotation.KoinViewModel
 @KoinViewModel
 internal class LoginScreenViewModel(
     private val api: UserApi,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
-                username = "",
+                username = savedStateHandle.get<String>(USERNAME_KEY).orEmpty(),
                 password = "",
                 submitting = false,
                 error = null,
@@ -36,6 +38,7 @@ internal class LoginScreenViewModel(
                 listener =
                 object : LoginScreenUiState.Listener {
                     override fun onUsernameChanged(text: String) {
+                        savedStateHandle[USERNAME_KEY] = text
                         viewModelStateFlow.update {
                             it.copy(
                                 username = text,
@@ -137,3 +140,5 @@ internal class LoginScreenViewModel(
         fun navigateToHome()
     }
 }
+
+private const val USERNAME_KEY = "username"
