@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.android.server
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.io.IOException
@@ -14,18 +15,30 @@ import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
 internal class ServerSettingViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val serverSettingStore: ServerSettingStore,
 ) : ViewModel() {
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState())
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(
+            ViewModelState(
+                dialog = savedStateHandle.get<String>(DIALOG_SERVER_URL_KEY)?.let { serverUrl ->
+                    DialogState(serverUrl = serverUrl, invalidServerUrl = false)
+                },
+            ),
+        )
 
     private val listener = object : ServerSettingUiState.Listener {
         override fun onClickChange() {
+            val serverUrl = viewModelStateFlow.value.savedServerUrl.orEmpty()
+            savedStateHandle[DIALOG_SERVER_URL_KEY] = serverUrl
             viewModelStateFlow.update { state ->
-                state.copy(dialog = DialogState(serverUrl = state.savedServerUrl.orEmpty(), invalidServerUrl = false))
+                state.copy(dialog = DialogState(serverUrl = serverUrl, invalidServerUrl = false))
             }
         }
 
         override fun onServerUrlChanged(text: String) {
+            if (viewModelStateFlow.value.dialog == null) return
+            savedStateHandle[DIALOG_SERVER_URL_KEY] = text
             viewModelStateFlow.update { state ->
                 state.copy(dialog = state.dialog?.copy(serverUrl = text, invalidServerUrl = false))
             }
@@ -36,6 +49,7 @@ internal class ServerSettingViewModel(
         }
 
         override fun onDismissDialog() {
+            savedStateHandle.remove<String>(DIALOG_SERVER_URL_KEY)
             viewModelStateFlow.update { it.copy(dialog = null) }
         }
     }
@@ -72,6 +86,7 @@ internal class ServerSettingViewModel(
             } catch (_: IOException) {
                 return@launch
             }
+            savedStateHandle.remove<String>(DIALOG_SERVER_URL_KEY)
             viewModelStateFlow.update { it.copy(dialog = null) }
         }
     }
@@ -114,3 +129,5 @@ internal class ServerSettingViewModel(
         val invalidServerUrl: Boolean,
     )
 }
+
+private const val DIALOG_SERVER_URL_KEY = "dialogServerUrl"
