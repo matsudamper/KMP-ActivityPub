@@ -3,7 +3,7 @@ package net.matsudamper.kmp.activitypub.android
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * アプリを開くたびにログインし直さずに済むよう、Cookie を残す
@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
 internal class PersistentCookieJar(
     private val blockStore: CookieBlockStore,
 ) : CookieJar {
-    private val serializedCookies = ConcurrentHashMap.newKeySet<String>()
+    private val entries = CopyOnWriteArrayList<StoredCookieEntry>()
     private val loadLock = Any()
 
     @Volatile
@@ -22,25 +22,38 @@ internal class PersistentCookieJar(
         cookies: List<Cookie>,
     ) {
         ensureLoaded()
-        val merged =
-            (parseAll(url) + cookies)
-                .filter { cookie -> cookie.expiresAt > System.currentTimeMillis() }
-                .associateBy { cookie -> cookie.identityKey() }
-                .values
+        val now = System.currentTimeMillis()
+        val merged = LinkedHashMap<String, Pair<HttpUrl, Cookie>>()
 
-        serializedCookies.clear()
-        serializedCookies.addAll(merged.map { cookie -> cookie.toString() })
-        blockStore.writeAsync(serializedCookies.toSet())
-    }
-
-    override fun loadForRequest(url: HttpUrl): List<Cookie> =
-        parseAll(url).filter { cookie ->
-            cookie.expiresAt > System.currentTimeMillis() && cookie.matches(url)
+        for (entry in entries) {
+            val originUrl = entry.parseOrigin() ?: continue
+            val cookie = Cookie.parse(originUrl, entry.value) ?: continue
+            merged[cookie.identityKey()] = originUrl to cookie
+        }
+        for (cookie in cookies) {
+            merged[cookie.identityKey()] = url to cookie
         }
 
-    private fun parseAll(url: HttpUrl): List<Cookie> {
+        val nextEntries =
+            merged.values
+                .filter { (_, cookie) -> cookie.expiresAt > now }
+                .map { (originUrl, cookie) ->
+                    StoredCookieEntry(origin = originUrl.persistedOrigin(), value = cookie.toString())
+                }
+
+        entries.clear()
+        entries.addAll(nextEntries)
+        blockStore.writeEntriesAsync(entries.toList())
+    }
+
+    override fun loadForRequest(url: HttpUrl): List<Cookie> {
         ensureLoaded()
-        return serializedCookies.mapNotNull { value -> Cookie.parse(url, value) }
+        val now = System.currentTimeMillis()
+        return entries
+            .mapNotNull { entry ->
+                val originUrl = entry.parseOrigin() ?: return@mapNotNull null
+                Cookie.parse(originUrl, entry.value)
+            }.filter { cookie -> cookie.expiresAt > now && cookie.matches(url) }
     }
 
     private fun ensureLoaded() {
@@ -51,9 +64,21 @@ internal class PersistentCookieJar(
             if (loaded) {
                 return
             }
-            serializedCookies.clear()
-            serializedCookies.addAll(blockStore.read())
+            entries.clear()
+            entries.addAll(blockStore.readEntries())
             loaded = true
+        }
+    }
+
+    private fun StoredCookieEntry.parseOrigin(): HttpUrl? =
+        runCatching { HttpUrl.get(origin) }.getOrNull()
+
+    private fun HttpUrl.persistedOrigin(): String {
+        val defaultPort = if (scheme == "https") 443 else 80
+        return if (port == defaultPort) {
+            "$scheme://$host"
+        } else {
+            "$scheme://$host:$port"
         }
     }
 

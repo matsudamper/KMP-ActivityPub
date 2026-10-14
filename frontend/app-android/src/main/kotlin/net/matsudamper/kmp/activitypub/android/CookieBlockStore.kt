@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.android
 import android.content.Context
 import com.google.android.gms.auth.blockstore.Blockstore
 import com.google.android.gms.auth.blockstore.BlockstoreClient
+import com.google.android.gms.auth.blockstore.DeleteBytesRequest
 import com.google.android.gms.auth.blockstore.RetrieveBytesRequest
 import com.google.android.gms.auth.blockstore.StoreBytesData
 import com.google.android.gms.tasks.Tasks
@@ -21,46 +22,67 @@ internal class CookieBlockStore(
     private val legacyPreferences =
         appContext.getSharedPreferences(LEGACY_COOKIE_PREFERENCES_NAME, Context.MODE_PRIVATE)
 
-    fun read(): Set<String> {
+    fun readEntries(): List<StoredCookieEntry> {
         val fromBlockStore = readFromBlockStore()
         if (fromBlockStore.isNotEmpty()) {
             return fromBlockStore
         }
         return readLegacyPreferences().also { legacy ->
             if (legacy.isNotEmpty()) {
-                writeAsync(legacy)
+                writeEntriesAsync(legacy)
                 legacyPreferences.edit().clear().apply()
             }
         }
     }
 
-    fun writeAsync(cookies: Set<String>) {
-        val bytes = encode(cookies)
-        if (bytes.size > MAX_ENTRY_BYTES) {
+    fun writeEntriesAsync(entries: List<StoredCookieEntry>) {
+        val payload = encode(entries)
+        val chunks = splitPayload(payload)
+        if (payload.isNotEmpty() && chunks.isEmpty()) {
             return
         }
 
-        blockstore
-            .isEndToEndEncryptionAvailable
-            .continueWithTask { encryptionTask ->
-                val storeRequestBuilder =
-                    StoreBytesData
-                        .Builder()
-                        .setBytes(bytes)
-                        .setKey(BLOCK_STORE_KEY)
-                if (encryptionTask.result == true) {
-                    storeRequestBuilder.setShouldBackupToCloud(true)
-                }
-                val storeRequest = storeRequestBuilder.build()
-                blockstore.storeBytes(storeRequest)
+        blockstore.isEndToEndEncryptionAvailable.addOnSuccessListener { encryptionAvailable ->
+            val backupToCloud = encryptionAvailable == true
+            chunks.forEachIndexed { index, chunk ->
+                storeChunk(index = index, bytes = chunk, backupToCloud = backupToCloud)
             }
+            val staleKeys =
+                (chunks.size until BlockstoreClient.MAX_ENTRY_COUNT).map { index -> chunkKey(index) }
+            if (staleKeys.isNotEmpty()) {
+                val deleteRequest =
+                    DeleteBytesRequest
+                        .Builder()
+                        .setKeys(staleKeys)
+                        .build()
+                blockstore.deleteBytes(deleteRequest)
+            }
+        }
     }
 
-    private fun readFromBlockStore(): Set<String> {
+    private fun storeChunk(
+        index: Int,
+        bytes: ByteArray,
+        backupToCloud: Boolean,
+    ) {
+        val key = chunkKey(index)
+        val storeRequestBuilder =
+            StoreBytesData
+                .Builder()
+                .setBytes(bytes)
+                .setKey(key)
+        if (backupToCloud) {
+            storeRequestBuilder.setShouldBackupToCloud(true)
+        }
+        blockstore.storeBytes(storeRequestBuilder.build())
+    }
+
+    private fun readFromBlockStore(): List<StoredCookieEntry> {
+        val keys = (0 until BlockstoreClient.MAX_ENTRY_COUNT).map { index -> chunkKey(index) }
         val retrieveRequest =
             RetrieveBytesRequest
                 .Builder()
-                .setKeys(listOf(BLOCK_STORE_KEY))
+                .setKeys(keys)
                 .build()
 
         return try {
@@ -70,48 +92,106 @@ internal class CookieBlockStore(
                     BLOCK_STORE_TIMEOUT_SECONDS,
                     TimeUnit.SECONDS,
                 )
-            val bytes = response.getBlockstoreDataMap()[BLOCK_STORE_KEY]?.bytes
-            if (bytes == null) {
-                emptySet()
+            val payload = readChunkPayload(response)
+            if (payload.isEmpty()) {
+                emptyList()
             } else {
-                decode(bytes)
+                decode(payload)
             }
         } catch (_: Exception) {
-            emptySet()
+            emptyList()
         }
     }
 
-    private fun readLegacyPreferences(): Set<String> =
-        legacyPreferences.all.values
-            .filterIsInstance<Set<*>>()
-            .flatMap { entry -> entry.filterIsInstance<String>() }
-            .toSet()
+    private fun readChunkPayload(
+        response: com.google.android.gms.auth.blockstore.RetrieveBytesResponse,
+    ): ByteArray {
+        val dataMap = response.getBlockstoreDataMap()
+        val parts = mutableListOf<ByteArray>()
+        for (index in 0 until BlockstoreClient.MAX_ENTRY_COUNT) {
+            val bytes = dataMap[chunkKey(index)]?.bytes ?: break
+            parts.add(bytes)
+        }
+        return parts.fold(byteArrayOf()) { acc, part -> acc + part }
+    }
 
-    private fun encode(cookies: Set<String>): ByteArray =
-        Json.encodeToString(StoredCookies.serializer(), StoredCookies(cookies)).encodeToByteArray()
+    private fun splitPayload(payload: ByteArray): List<ByteArray> {
+        if (payload.isEmpty()) {
+            return emptyList()
+        }
+        val chunks = mutableListOf<ByteArray>()
+        var offset = 0
+        var index = 0
+        while (offset < payload.size && index < BlockstoreClient.MAX_ENTRY_COUNT) {
+            val key = chunkKey(index)
+            val chunkCapacity = maxValueBytes(key)
+            if (chunkCapacity <= 0) {
+                return emptyList()
+            }
+            val end = minOf(offset + chunkCapacity, payload.size)
+            chunks.add(payload.copyOfRange(offset, end))
+            offset = end
+            index++
+        }
+        if (offset < payload.size) {
+            return emptyList()
+        }
+        return chunks
+    }
 
-    private fun decode(bytes: ByteArray): Set<String> =
+    private fun maxValueBytes(key: String): Int = MAX_BLOCK_BYTES - key.encodeToByteArray().size
+
+    private fun chunkKey(index: Int): String = if (index == 0) KEY_PREFIX else "$KEY_PREFIX.$index"
+
+    private fun readLegacyPreferences(): List<StoredCookieEntry> =
+        legacyPreferences.all
+            .mapNotNull { (host, value) ->
+                if (host is String && value is Set<*>) {
+                    val origin = "https://$host"
+                    value.filterIsInstance<String>().map { cookieValue ->
+                        StoredCookieEntry(origin = origin, value = cookieValue)
+                    }
+                } else {
+                    null
+                }
+            }.flatten()
+
+    private fun encode(entries: List<StoredCookieEntry>): ByteArray =
+        Json.encodeToString(StoredCookies.serializer(), StoredCookies(entries)).encodeToByteArray()
+
+    private fun decode(bytes: ByteArray): List<StoredCookieEntry> =
         try {
             val stored = Json.decodeFromString(StoredCookies.serializer(), bytes.decodeToString())
-            if (stored.cookies.isNotEmpty()) {
-                stored.cookies
+            if (stored.entries.isNotEmpty()) {
+                stored.entries
             } else {
-                stored.byHost.values.flatten().toSet()
+                migrateLegacyStored(stored)
             }
         } catch (_: Exception) {
-            emptySet()
+            emptyList()
         }
+
+    private fun migrateLegacyStored(stored: StoredCookies): List<StoredCookieEntry> {
+        if (stored.legacyCookies.isNotEmpty()) {
+            return emptyList()
+        }
+        return stored.byHost.flatMap { (host, values) ->
+            val origin = "https://$host"
+            values.map { value -> StoredCookieEntry(origin = origin, value = value) }
+        }
+    }
 
     @Serializable
     private data class StoredCookies(
-        val cookies: Set<String> = emptySet(),
+        val entries: List<StoredCookieEntry> = emptyList(),
+        val legacyCookies: Set<String> = emptySet(),
         val byHost: Map<String, Set<String>> = emptyMap(),
     )
 
     companion object {
-        private const val BLOCK_STORE_KEY = "net.matsudamper.kmp.activitypub.http_cookies"
+        private const val KEY_PREFIX = "kmp.cookies"
         private const val LEGACY_COOKIE_PREFERENCES_NAME = "cookies"
-        private const val MAX_ENTRY_BYTES = 4 * 1024
+        private const val MAX_BLOCK_BYTES = 1024
         private const val BLOCK_STORE_TIMEOUT_SECONDS = 10L
     }
 }
