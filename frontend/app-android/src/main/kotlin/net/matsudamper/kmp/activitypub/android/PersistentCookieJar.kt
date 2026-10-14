@@ -1,9 +1,10 @@
 package net.matsudamper.kmp.activitypub.android
 
+import java.util.concurrent.CopyOnWriteArrayList
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
-import java.util.concurrent.CopyOnWriteArrayList
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
  * アプリを開くたびにログインし直さずに済むよう、Cookie を残す
@@ -71,7 +72,7 @@ internal class PersistentCookieJar(
     }
 
     private fun StoredCookieEntry.parseOrigin(): HttpUrl? =
-        runCatching { HttpUrl.get(origin) }.getOrNull()
+        runCatching { origin.toHttpUrl() }.getOrNull()
 
     private fun HttpUrl.persistedOrigin(): String {
         val defaultPort = if (scheme == "https") 443 else 80

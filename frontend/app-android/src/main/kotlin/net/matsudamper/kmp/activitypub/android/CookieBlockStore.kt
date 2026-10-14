@@ -1,15 +1,15 @@
 package net.matsudamper.kmp.activitypub.android
 
 import android.content.Context
+import java.util.concurrent.TimeUnit
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import com.google.android.gms.auth.blockstore.Blockstore
 import com.google.android.gms.auth.blockstore.BlockstoreClient
 import com.google.android.gms.auth.blockstore.DeleteBytesRequest
 import com.google.android.gms.auth.blockstore.RetrieveBytesRequest
 import com.google.android.gms.auth.blockstore.StoreBytesData
 import com.google.android.gms.tasks.Tasks
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import java.util.concurrent.TimeUnit
 
 /**
  * Block Store に Cookie スナップショットを載せる（端末変更時の復元向け）
