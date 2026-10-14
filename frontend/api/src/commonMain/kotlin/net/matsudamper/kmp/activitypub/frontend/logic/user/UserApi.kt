@@ -8,13 +8,9 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
-import org.koin.core.annotation.Provided
-import org.koin.core.annotation.Singleton
 
-@Singleton
 class UserApi(
-    // wasm と Android で実装が分かれる。common のコンパイル時点では定義が無い
-    @Provided private val clients: GraphQlClientSource,
+    private val clients: GraphQlClientSource,
 ) {
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
