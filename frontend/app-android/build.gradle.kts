@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
     alias(libs.plugins.paparazzi)
@@ -72,7 +73,8 @@ dependencies {
     implementation(libs.protobuf.javalite)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.okhttp)
-    implementation(libs.androidx.core.ktx)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.play.services.auth.blockstore)
     implementation(libs.koin.android)
     implementation(libs.koin.annotations)
     implementation(libs.koin.compose)

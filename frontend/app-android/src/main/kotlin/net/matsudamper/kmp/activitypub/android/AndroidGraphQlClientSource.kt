@@ -25,7 +25,7 @@ internal class AndroidGraphQlClientSource(
     private val okHttpClient: OkHttpClient =
         OkHttpClient
             .Builder()
-            .cookieJar(PersistentCookieJar(context.getSharedPreferences(COOKIE_PREFERENCES_NAME, Context.MODE_PRIVATE)))
+            .cookieJar(PersistentCookieJar(CookieBlockStore(context)))
             .build()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -43,8 +43,4 @@ internal class AndroidGraphQlClientSource(
                         .build()
                 }
             }.stateIn(scope, SharingStarted.Eagerly, null)
-
-    private companion object {
-        const val COOKIE_PREFERENCES_NAME = "cookies"
-    }
 }

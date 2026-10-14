@@ -17,6 +17,7 @@ apollo = "5.2.0"
 graalvmSdk = "25.4.4.1.1"
 okhttp = "5.5.0"
 androidxCore = "1.16.0"
+playServicesAuthBlockstore = "16.4.0"
 slf4j = "2.0.20"
 graalvmBuildtools = "1.1.14"
 ktlintGradle = "14.2.0"
@@ -56,6 +57,7 @@ apollo-runtime = { module = "com.apollographql.apollo:apollo-runtime", version.r
 graalvm-nativeimage = { module = "org.graalvm.sdk:nativeimage", version.ref = "graalvmSdk" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+play-services-auth-blockstore = { module = "com.google.android.gms:play-services-auth-blockstore", version.ref = "playServicesAuthBlockstore" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
