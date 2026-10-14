@@ -1,20 +1,18 @@
 package net.matsudamper.kmp.activitypub.android
 
-import net.matsudamper.kmp.activitypub.shared.UserSessionCookie
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
- * 起動中の Cookie はメモリに置く。Block Store へ書くのはセッション Cookie が変わったときだけ
+ * アプリを開くたびにログインし直さずに済むよう、Cookie を残す
  */
 internal class PersistentCookieJar(
     private val blockStore: CookieBlockStore,
 ) : CookieJar {
     private val cookieLock = Any()
     private val entries = mutableListOf<StoredCookieEntry>()
-    private var persistedSession: StoredCookieEntry? = null
 
     @Volatile
     private var loaded = false
@@ -46,18 +44,7 @@ internal class PersistentCookieJar(
 
             entries.clear()
             entries.addAll(nextEntries)
-
-            val session =
-                merged.values
-                    .firstOrNull { (_, cookie) ->
-                        cookie.name == UserSessionCookie.NAME && cookie.expiresAt > now
-                    }?.let { (originUrl, cookie) ->
-                        StoredCookieEntry(origin = originUrl.persistedOrigin(), value = cookie.toString())
-                    }
-            if (session != persistedSession) {
-                persistedSession = session
-                blockStore.writeSessionAsync(session)
-            }
+            blockStore.writeEntriesAsync(entries.toList())
         }
     }
 
@@ -77,11 +64,8 @@ internal class PersistentCookieJar(
         if (loaded) {
             return
         }
-        val session = blockStore.readSession()
-        if (session != null) {
-            entries.add(session)
-        }
-        persistedSession = session
+        entries.clear()
+        entries.addAll(blockStore.readEntries())
         loaded = true
     }
 
