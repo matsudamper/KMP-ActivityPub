@@ -9,7 +9,6 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import kotlinx.coroutines.flow.flowOf
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -28,7 +27,7 @@ fun main() {
 private fun App() {
     val backStack = rememberScreenBackStack(startScreen = Screen.Login)
     val navigator = remember(backStack) { Navigator(backStack) }
-    val apiFlow = remember { flowOf(UserApi(GraphQlClient.apollo)) }
+    val api = remember { UserApi(GraphQlClient.apollo) }
     MaterialTheme {
         NavDisplay(
             backStack = backStack,
@@ -41,7 +40,7 @@ private fun App() {
                 entry<Screen.Login> {
                     HomeFeatureScreens.Login(
                         navigator = navigator,
-                        apiFlow = apiFlow,
+                        api = api,
                         serverSettingUiState = null,
                     )
                 }

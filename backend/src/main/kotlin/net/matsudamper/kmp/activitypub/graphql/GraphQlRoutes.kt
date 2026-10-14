@@ -14,24 +14,25 @@ import io.ktor.server.request.receiveChannel
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
-import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.readBuffer
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.json.ServerJson
 import net.matsudamper.kmp.activitypub.json.respondJson
-import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
+
+internal const val GRAPHQL_PATH = "/graphql"
 
 private const val MAX_BODY_BYTES = 1024 * 1024
 
 /**
- * ハッシュ計算が受付スレッドを塞いで healthz や静的ファイルまで止めないよう、並行数を絞る
+ * graphql-java の実行とログインのハッシュ計算はブロックする。受付スレッドを塞がない
  */
 private val GRAPHQL_DISPATCHER: CoroutineDispatcher =
     Dispatchers.IO.limitedParallelism((Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1))
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
-        // text/plain などはプリフライト無しで別オリジンから Cookie 付きで送れる
+        // text/plain などはプリフライト無しで別オリジンから送れる
         if (!call.request.contentType().match(ContentType.Application.Json)) {
             call.respondText("Content-Type は application/json にすること", status = HttpStatusCode.UnsupportedMediaType)
             return@post
@@ -44,17 +45,17 @@ internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
         }
 
         // chunked は上の判定をすり抜ける
-        val bodyBytes = call.receiveChannel().readRemaining(MAX_BODY_BYTES + 1L).readByteArray()
+        val bodyBytes = call.receiveChannel().readBuffer(MAX_BODY_BYTES + 1L).readByteArray()
         if (bodyBytes.size > MAX_BODY_BYTES) {
             call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
             return@post
         }
         val body = bodyBytes.decodeToString()
 
-        val request = runCatching {
-            ServerJson.value.decodeFromString(GraphQlRequest.serializer(), body)
-        }
-            .getOrElse {
+        val request =
+            runCatching {
+                ServerJson.value.decodeFromString(GraphQlRequest.serializer(), body)
+            }.getOrElse {
                 call.respondJson(
                     GraphQlBadRequest.serializer(),
                     GraphQlBadRequest("GraphQL のリクエストとして読めない"),

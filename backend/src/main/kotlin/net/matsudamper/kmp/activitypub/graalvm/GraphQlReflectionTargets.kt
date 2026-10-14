@@ -7,7 +7,8 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
- * GraalVM の API に触らずにテストできるよう、走査だけを切り出す
+ * パッケージ内のクラス名を、ディレクトリと jar から集める。
+ * 登録は別クラスが行い、ここは GraalVM の API を使わない
  */
 object GraphQlReflectionTargets {
     const val MODEL_PACKAGE = "net.matsudamper.kmp.activitypub.graphql.model"

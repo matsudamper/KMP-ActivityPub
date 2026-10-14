@@ -4,7 +4,7 @@
 
 ## `resource-config.json`
 
-- `graphql/*.graphqls` と `graphql/schema-list.txt`。native バイナリではディレクトリを列挙できないので一覧を別に持つ
+- `graphql/*.graphqls`。native バイナリではディレクトリを列挙できないので、読むファイルは `GraphQlEngine` に並べる
 - graphql-java の `i18n.*`。`SchemaParser` が起動時に引く
 
 ## GraphQL の結線

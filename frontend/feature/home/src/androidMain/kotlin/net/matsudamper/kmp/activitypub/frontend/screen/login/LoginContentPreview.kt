@@ -25,20 +25,6 @@ private fun LoginContentPreview() {
 
 @Preview
 @Composable
-private fun LoginContentErrorPreview() {
-    MaterialTheme {
-        LoginContent(
-            uiState = previewLoginUiState.copy(
-                error = "ユーザー名かパスワードが違う",
-                inputHasError = true,
-            ),
-            serverSettingUiState = null,
-        )
-    }
-}
-
-@Preview
-@Composable
 private fun LoginContentServerSettingPreview() {
     MaterialTheme {
         LoginContent(
@@ -63,6 +49,20 @@ private fun LoginContentServerSettingDialogPreview() {
                 dialog = previewServerSettingDialog,
                 listener = AndroidPreviewServerSettingListener,
             ),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LoginContentErrorPreview() {
+    MaterialTheme {
+        LoginContent(
+            uiState = previewLoginUiState.copy(
+                error = "ユーザー名かパスワードが違う",
+                inputHasError = true,
+            ),
+            serverSettingUiState = null,
         )
     }
 }

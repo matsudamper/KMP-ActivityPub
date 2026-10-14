@@ -13,16 +13,16 @@ class UserApi(
         username: String,
         password: String,
     ): UserLoginResult {
-        val response = client
-            .mutation(
-                UserLoginMutation(
-                    UserLoginQuery(
-                        username = username,
-                        password = password,
+        val response =
+            client
+                .mutation(
+                    UserLoginMutation(
+                        UserLoginQuery(
+                            username = username,
+                            password = password,
+                        ),
                     ),
-                ),
-            )
-            .execute()
+                ).execute()
         if (response.exception != null || response.hasErrors()) return UserLoginResult.Failure(response.failureMessage())
         val login = response.data?.user?.login ?: return UserLoginResult.Failure(response.failureMessage())
 

@@ -17,10 +17,10 @@ class GraphQlReflectionTargetsTest {
     }
 
     @Test
-    fun `依存の jar に入っている生成物も拾う`() {
+    fun `依存の生成物も拾う`() {
         val classNames = GraphQlReflectionTargets.classNamesIn(GraphQlReflectionTargets.MODEL_PACKAGE)
 
-        assertContains(classNames, "${GraphQlReflectionTargets.MODEL_PACKAGE}.QlUserSession")
+        assertContains(classNames, "${GraphQlReflectionTargets.MODEL_PACKAGE}.QlUserLoginResult")
         assertContains(classNames, "${GraphQlReflectionTargets.MODEL_PACKAGE}.UserMutationResolver")
     }
 

@@ -5,7 +5,6 @@ import io.github.kobylynskyi.graphql.codegen.gradle.GraphQLCodegenGradleTask
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.graphql.codegen)
-    id("kmp-activitypub.graphql-schema-list")
 }
 
 dependencies {
@@ -24,14 +23,15 @@ kotlin {
 }
 
 tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
-    graphqlSchemaPaths = layout.projectDirectory
-        .dir("src/main/resources/graphql")
-        .asFile
-        .listFiles()
-        .orEmpty()
-        .filter { it.extension == "graphqls" }
-        .map { it.toString() }
-        .sorted()
+    graphqlSchemaPaths =
+        layout.projectDirectory
+            .dir("src/main/resources/graphql")
+            .asFile
+            .listFiles()
+            .orEmpty()
+            .filter { it.extension == "graphqls" }
+            .map { it.toString() }
+            .sorted()
 
     generatedLanguage = GeneratedLanguage.KOTLIN
     outputDir = generatedSourcesDirectory.get().asFile
@@ -44,10 +44,11 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     // 生成時刻が入るとビルドキャッシュが効かない
     addGeneratedAnnotation = false
 
+    // 付けたフィールドだけリゾルバのインタフェースを作る
     fieldsWithResolvers = setOf("@lazy")
     generateParameterizedFieldsResolvers = true
 
-    // UserQueryResolver が UserQuery 型のリゾルバと衝突する
+    // API インタフェースを出すとリゾルバのファイルが二重に作られて落ちる
     apiInterfaceStrategy = ApiInterfaceStrategy.DO_NOT_GENERATE
 
     apiReturnType = "java.util.concurrent.CompletionStage<graphql.execution.DataFetcherResult<{{TYPE}}>>"

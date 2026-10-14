@@ -4,7 +4,6 @@ import android.content.Context
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.network.okHttpClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
-import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 import okhttp3.OkHttpClient
 
 internal object AndroidGraphQlClient {
@@ -21,7 +20,7 @@ internal object AndroidGraphQlClient {
             .build()
 
         return GraphQlClient
-            .builder("$serverUrl$GRAPHQL_PATH")
+            .builder("$serverUrl/graphql")
             .okHttpClient(okHttpClient)
             .build()
     }

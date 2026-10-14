@@ -21,8 +21,7 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                implementation(project(":shared"))
-                // Android が OkHttp を渡せるように api にする
+                // Android が ApolloClient を渡せるように api にする
                 api(libs.apollo.runtime)
             }
         }

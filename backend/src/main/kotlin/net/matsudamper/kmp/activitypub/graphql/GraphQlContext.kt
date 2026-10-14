@@ -24,13 +24,6 @@ class GraphQlContext(
      */
     fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
 
-    private val userAccountId: AccountId? by lazy { userCookie.token()?.let { userSessions.accountIdOf(it) } }
-
-    fun userAccountId(): AccountId? = userAccountId
-
-    /**
-     * 発行した Cookie はまだリクエストに無いので、[userAccountId] は変わらない
-     */
     fun issueUserSession(accountId: AccountId) {
         userCookie.append(token = userSessions.create(accountId), maxAgeSeconds = userSessions.ttlSeconds)
     }

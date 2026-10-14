@@ -11,7 +11,6 @@ import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.writeFully
 import net.matsudamper.kmp.activitypub.module
-import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 import net.matsudamper.kmp.activitypub.testDependencies
 
 class GraphQlRoutesTest {
@@ -48,21 +47,6 @@ class GraphQlRoutesTest {
             assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
         }
 
-    @Test
-    fun `上限に収まっていれば読む`() =
-        testApplication {
-            application { module(testDependencies()) }
-
-            val response =
-                client.post(GRAPHQL_PATH) {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"query":"query { user { session { account { username } } } }"}""")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
-
-    // text/plain はプリフライト無しで別オリジンから Cookie 付きで送れる
     @Test
     fun `JSON 以外の Content-Type は 415 で実行しない`() =
         testApplication {

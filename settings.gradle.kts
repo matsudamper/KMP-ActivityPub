@@ -15,7 +15,8 @@ pluginManagement {
     }
 }
 
-// plugins ブロックの評価時点では version catalog が使えない
+// バージョンを version catalog に置けないのは、settings.gradle.kts の plugins ブロックが
+// 評価される時点で catalog のアクセサがまだ無いため
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
@@ -28,8 +29,8 @@ dependencyResolutionManagement {
 }
 
 include(":backend")
-include(":backend:crypto")
 include(":backend:graphql")
+include(":backend:crypto")
 include(":backend:repository")
 include(":backend:session")
 include(":cli")

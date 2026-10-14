@@ -21,7 +21,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.Flow
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
@@ -31,14 +30,16 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
-    apiFlow: Flow<UserApi?>,
+    api: UserApi?,
     serverSettingUiState: ServerSettingUiState?,
-    viewModel: LoginScreenViewModel = viewModel {
-        LoginScreenViewModel(
-            savedStateHandle = createSavedStateHandle(),
-            apiFlow = apiFlow,
-        )
-    },
+    // 接続先が変わると UserApi が別インスタンスになる。同じ画面の ViewModel を取り違えない
+    viewModel: LoginScreenViewModel =
+        viewModel(key = api?.hashCode()?.toString() ?: "no-api") {
+            LoginScreenViewModel(
+                api = api,
+                savedStateHandle = createSavedStateHandle(),
+            )
+        },
 ) {
     val uiState by viewModel.uiStateFlow.collectAsState()
 
@@ -100,7 +101,8 @@ internal fun LoginContent(
                     hasError = uiState.inputHasError,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                uiState.error?.let { error ->
+                val error = uiState.error
+                if (error != null) {
                     Text(
                         text = error,
                         color = MaterialTheme.colorScheme.error,

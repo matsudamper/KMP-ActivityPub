@@ -1,8 +1,6 @@
 package net.matsudamper.kmp.activitypub.graphql
 
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import graphql.ExceptionWhileDataFetching
 import graphql.ExecutionInput
 import graphql.GraphQL
@@ -19,50 +17,32 @@ class GraphQlEngine private constructor(
     private val createContext: (ApplicationCall) -> GraphQlContext,
     private val diContainer: DiContainer,
 ) {
-    suspend fun execute(
+    fun execute(
         request: GraphQlRequest,
         call: ApplicationCall,
     ): JsonObject {
-        val input = ExecutionInput
-            .newExecutionInput(request.query)
-            .operationName(request.operationName)
-            .variables(variablesOf(request))
-            .graphQLContext(mapOf(CONTEXT_KEY to createContext(call)))
-            .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
-            .build()
+        val input =
+            ExecutionInput
+                .newExecutionInput(request.query)
+                .operationName(request.operationName)
+                .variables(variablesOf(request))
+                .graphQLContext(mapOf(CONTEXT_KEY to createContext(call)))
+                .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
+                .build()
 
         val executionResult = graphQl.execute(input)
-        val response = GraphQlValues.toJsonElement(executionResult.toSpecification()) as JsonObject
-        if (executionResult.errors.isEmpty()) return response
-
         executionResult.errors.forEach { error ->
             val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
-            when {
-                // 未認証で不正なクエリを送るだけで ERROR ログを埋められるため記録しない
-                error !is ExceptionWhileDataFetching -> {
-                    logger.debug("GraphQL の実行に失敗した(クライアント起因): {}", error.message)
-                }
-
-                dataFetchingException is GraphQlClientException -> {
-                    logger.debug("GraphQL の実行に失敗した(クライアント起因): {}", error.message)
-                }
-
-                else -> {
-                    logger.error(
-                        "GraphQL の実行に失敗した: {}",
-                        error.message,
-                        dataFetchingException,
-                    )
-                }
+            if (dataFetchingException == null || dataFetchingException is GraphQlClientException) {
+                logger.debug("GraphQL の実行に失敗した: {}", error.message)
+            } else {
+                logger.error("GraphQL の実行に失敗した: {}", error.message, dataFetchingException)
             }
         }
-        val genericErrors =
-            JsonArray(
-                listOf(JsonObject(mapOf("message" to JsonPrimitive(GENERIC_ERROR_MESSAGE)))),
-            )
-        return JsonObject(
-            response + ("errors" to genericErrors),
-        )
+
+        val response = GraphQlValues.toJsonElement(executionResult.toSpecification())
+        check(response is JsonObject) { "GraphQL の結果がオブジェクトではない" }
+        return response
     }
 
     private fun variablesOf(request: GraphQlRequest): Map<String, Any?> =
@@ -77,23 +57,22 @@ class GraphQlEngine private constructor(
         private val logger = LoggerFactory.getLogger(GraphQlEngine::class.java)
 
         /**
-         * alias で並べた数だけ DB を引くので上限を置く。画面の問い合わせは 10 未満
+         * alias で並べた数だけ処理するので上限を置く。画面の問い合わせは 10 未満
          */
         private const val MAX_QUERY_COMPLEXITY = 100
-
-        internal const val GENERIC_ERROR_MESSAGE = "GraphQL の実行に失敗した"
 
         fun create(
             resolvers: List<GraphQLResolver<*>>,
             createContext: (ApplicationCall) -> GraphQlContext,
             diContainer: DiContainer,
         ): GraphQlEngine {
-            val schema = SchemaParser
-                .newParser()
-                .schemaString(readSchema())
-                .resolvers(resolvers)
-                .build()
-                .makeExecutableSchema()
+            val schema =
+                SchemaParser
+                    .newParser()
+                    .schemaString(readSchema())
+                    .resolvers(resolvers)
+                    .build()
+                    .makeExecutableSchema()
 
             return GraphQlEngine(
                 graphQl = GraphQL
@@ -120,21 +99,16 @@ class GraphQlEngine private constructor(
         /**
          * ディレクトリの列挙は native バイナリで効かない
          */
-        private fun readSchema(): String {
-            val fileNames =
-                readResource(SCHEMA_LIST_RESOURCE)
-                    .lineSequence()
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .toList()
+        private val SCHEMA_FILES =
+            listOf(
+                "directive.graphqls",
+                "schema.graphqls",
+                "user_mutation.graphqls",
+            )
 
-            check(fileNames.isNotEmpty()) { "$SCHEMA_LIST_RESOURCE が空。スキーマが 1 つも無い" }
-
-            return fileNames.joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }
-        }
+        private fun readSchema(): String = SCHEMA_FILES.joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }
 
         private const val SCHEMA_DIRECTORY = "graphql"
-        private const val SCHEMA_LIST_RESOURCE = "$SCHEMA_DIRECTORY/schema-list.txt"
 
         private fun readResource(resource: String): String {
             val stream =

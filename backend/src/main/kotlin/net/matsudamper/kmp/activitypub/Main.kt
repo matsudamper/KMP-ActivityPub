@@ -15,7 +15,6 @@ import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
-import net.matsudamper.kmp.activitypub.graphql.resolver.UserQueryResolverImpl
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 
 fun main() {
@@ -55,22 +54,22 @@ internal fun Application.module(deps: AppDependencies) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
 
-    val graphQl = GraphQlEngine.create(
-        resolvers = listOf(
-            QueryResolverImpl(),
-            MutationResolverImpl(),
-            UserQueryResolverImpl(),
-            UserMutationResolverImpl(),
-        ),
-        createContext = { call ->
-            GraphQlContext(
-                call = call,
-                userSessions = deps.userSessions,
-                cookieSecure = deps.env.cookieSecure,
-            )
-        },
-        diContainer = DiContainer(accountService = deps.accountService),
-    )
+    val graphQl =
+        GraphQlEngine.create(
+            resolvers = listOf(
+                QueryResolverImpl(),
+                MutationResolverImpl(),
+                UserMutationResolverImpl(),
+            ),
+            createContext = { call ->
+                GraphQlContext(
+                    call = call,
+                    userSessions = deps.userSessions,
+                    cookieSecure = deps.env.cookieSecure,
+                )
+            },
+            diContainer = DiContainer(accountService = deps.accountService),
+        )
 
     routing {
         get("/healthz") {
@@ -80,7 +79,6 @@ internal fun Application.module(deps: AppDependencies) {
             call.respondText("Hello World")
         }
         graphQlRoutes(graphQl)
-
         staticRoutes(staticFiles)
     }
 }
