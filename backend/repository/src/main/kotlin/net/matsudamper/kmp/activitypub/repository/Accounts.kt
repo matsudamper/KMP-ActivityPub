@@ -1,7 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import java.nio.file.Path
-import java.sql.DriverManager
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.AccountPasswords.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.Accounts.ACCOUNTS
 import org.jooq.SQLDialect
 import org.jooq.exception.DataAccessException
@@ -12,7 +12,7 @@ import org.sqlite.SQLiteException
 object Accounts {
     /**
      * @throws AccountAlreadyExists 同じユーザー名が既にある
-     * @throws AccountTableMissing accounts が無い
+     * @throws AccountTableMissing accounts か account_passwords が無い
      */
     fun insert(
         databasePath: Path,
@@ -22,17 +22,26 @@ object Accounts {
         createdAt: String,
     ) {
         try {
-            DriverManager.getConnection("jdbc:sqlite:${databasePath.toAbsolutePath()}").use { connection ->
-                DSL.using(connection, SQLDialect.SQLITE)
-                    .insertInto(ACCOUNTS)
-                    .columns(
-                        ACCOUNTS.USERNAME,
-                        ACCOUNTS.PASSWORD_HASH,
-                        ACCOUNTS.PASSWORD_HASH_TYPE,
-                        ACCOUNTS.CREATED_AT,
-                    )
-                    .values(username, passwordHash, passwordHashType, createdAt)
-                    .execute()
+            SqliteConnections.connect(databasePath) { connection ->
+                DSL.using(connection, SQLDialect.SQLITE).transaction { configuration ->
+                    val dsl = configuration.dsl()
+                    dsl.insertInto(ACCOUNTS)
+                        .columns(
+                            ACCOUNTS.USERNAME,
+                            ACCOUNTS.CREATED_AT,
+                        )
+                        .values(username, createdAt)
+                        .execute()
+                    val accountId = checkNotNull(dsl.lastID()).toLong()
+                    dsl.insertInto(ACCOUNT_PASSWORDS)
+                        .columns(
+                            ACCOUNT_PASSWORDS.ACCOUNT_ID,
+                            ACCOUNT_PASSWORDS.PASSWORD_HASH,
+                            ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE,
+                        )
+                        .values(accountId, passwordHash, passwordHashType)
+                        .execute()
+                }
             }
         } catch (exception: DataAccessException) {
             val sqlite = generateSequence<Throwable>(exception) { it.cause }.filterIsInstance<SQLiteException>().firstOrNull()

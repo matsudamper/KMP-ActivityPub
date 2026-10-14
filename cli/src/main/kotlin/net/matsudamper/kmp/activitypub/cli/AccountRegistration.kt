@@ -40,7 +40,7 @@ internal object AccountRegistration {
         } catch (exception: AccountAlreadyExists) {
             throw AccountRegistrationException("同じユーザー名が既にある: ${exception.username}")
         } catch (exception: AccountTableMissing) {
-            throw AccountRegistrationException("accounts が無い。sqlite3def でスキーマを適用すること")
+            throw AccountRegistrationException("accounts か account_passwords が無い。sqlite3def でスキーマを適用すること")
         }
     }
 }

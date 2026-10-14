@@ -4,7 +4,7 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 
 /**
- * accounts.password_hash_type に [dbValue] を入れる。DB に残るので [dbValue] は変えない
+ * account_passwords.password_hash_type に [dbValue] を入れる。DB に残るので [dbValue] は変えない
  */
 enum class PasswordHashType(
     val dbValue: String,

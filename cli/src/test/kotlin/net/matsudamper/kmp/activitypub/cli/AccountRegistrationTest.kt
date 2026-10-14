@@ -25,7 +25,7 @@ class AccountRegistrationTest {
     }
 
     @Test
-    fun `パスワードのハッシュを accounts に入れる`() {
+    fun `パスワードのハッシュを account_passwords に入れる`() {
         val databasePath = createDatabase()
         val createdAt = Instant.parse("2026-10-13T00:00:00Z")
 
@@ -134,9 +134,10 @@ class AccountRegistrationTest {
         DriverManager.getConnection("jdbc:sqlite:${databasePath.toAbsolutePath()}").use { connection ->
             connection.prepareStatement(
                 """
-                SELECT username, password_hash, password_hash_type, created_at
+                SELECT accounts.username, accounts.created_at, account_passwords.password_hash, account_passwords.password_hash_type
                 FROM accounts
-                WHERE username = ?
+                JOIN account_passwords ON account_passwords.account_id = accounts.id
+                WHERE accounts.username = ?
                 """.trimIndent(),
             ).use { statement ->
                 statement.setString(1, username)
