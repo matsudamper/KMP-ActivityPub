@@ -41,6 +41,7 @@ private fun App() {
                     HomeFeatureScreens.Login(
                         navigator = navigator,
                         api = api,
+                        serverKey = "same-origin",
                         serverSettingUiState = null,
                     )
                 }

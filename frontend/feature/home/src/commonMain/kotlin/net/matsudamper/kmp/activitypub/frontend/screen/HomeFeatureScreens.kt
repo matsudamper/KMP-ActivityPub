@@ -11,16 +11,19 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 object HomeFeatureScreens {
     /**
      * @param api 接続先が未設定なら null
+     * @param serverKey 接続先ごとに ViewModel を分けるキー。Activity の再生成で変わらない値にする
      */
     @Composable
     fun Login(
         navigator: Navigator,
         api: UserApi?,
+        serverKey: String,
         serverSettingUiState: ServerSettingUiState?,
     ) {
         LoginScreen(
             navigator = navigator,
             api = api,
+            serverKey = serverKey,
             serverSettingUiState = serverSettingUiState,
         )
     }

@@ -31,10 +31,10 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 internal fun LoginScreen(
     navigator: Navigator,
     api: UserApi?,
+    serverKey: String,
     serverSettingUiState: ServerSettingUiState?,
-    // 接続先が変わると UserApi が別インスタンスになる。同じ画面の ViewModel を取り違えない
     viewModel: LoginScreenViewModel =
-        viewModel(key = api?.hashCode()?.toString() ?: "no-api") {
+        viewModel(key = serverKey) {
             LoginScreenViewModel(
                 api = api,
                 savedStateHandle = createSavedStateHandle(),

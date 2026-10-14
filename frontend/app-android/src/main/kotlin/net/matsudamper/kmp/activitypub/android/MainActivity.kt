@@ -71,6 +71,7 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                         HomeFeatureScreens.Login(
                             navigator = navigator,
                             api = api,
+                            serverKey = serverUrl.orEmpty(),
                             serverSettingUiState = rememberServerSettingUiState(serverSettingStore),
                         )
                     }
