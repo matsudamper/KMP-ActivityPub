@@ -12,4 +12,6 @@ interface DatabaseCodegenExtension {
      * 既定では SQLite の内部表と、旧マイグレーションの `schema_version` を外す
      */
     val excludes: Property<String>
+
+    val nativeImageMetadataPath: Property<String>
 }

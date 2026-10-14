@@ -41,6 +41,11 @@ graalvmNative {
             buildArgs.add("--features=net.matsudamper.kmp.activitypub.graalvm.GraphQlReflectionFeature")
             // native-image が解析中に @Deprecated の既定値を読み、ビルド時初期化で落ちる
             buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
+            buildArgs.add("--initialize-at-build-time=org.jooq")
+            buildArgs.add("--initialize-at-build-time=org.slf4j")
+            buildArgs.add("--initialize-at-run-time=org.jooq.impl.Convert${'$'}_JSON")
+            buildArgs.add("-Dorg.jooq.no-logo=true")
+            buildArgs.add("-Dorg.jooq.no-tips=true")
         }
     }
 }

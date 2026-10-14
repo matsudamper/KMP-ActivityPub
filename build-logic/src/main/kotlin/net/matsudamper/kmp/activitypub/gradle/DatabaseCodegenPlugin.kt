@@ -19,6 +19,9 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             target.layout.projectDirectory.file("src/main/resources/db/schema.sql"),
         )
         extension.excludes.convention("schema_version|sqlite_.*")
+        extension.nativeImageMetadataPath.convention(
+            target.provider { "${target.group}/${target.name}-jooq" },
+        )
 
         target.pluginManager.apply(CodegenPlugin::class.java)
 
@@ -86,6 +89,19 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             // afterEvaluate で設定しているので、プラグインの自動配線は使えない
             target.extensions.getByType<SourceSetContainer>().named("main") {
                 java.srcDir(generateJooq.map { it.outputDirectory })
+            }
+
+            val generateJooqReflectConfig =
+                target.tasks.register<GenerateJooqReflectConfigTask>("generateJooqReflectConfig") {
+                    description = "生成コードの native-image 向けリフレクション設定を作る"
+                    dependsOn(generateJooq)
+                    generatedSources.set(generatedDirectory)
+                    metadataPath.set(extension.nativeImageMetadataPath)
+                    outputDirectory.set(target.layout.buildDirectory.dir("generated/jooqNativeImage"))
+                }
+
+            target.extensions.getByType<SourceSetContainer>().named("main") {
+                resources.srcDir(generateJooqReflectConfig.flatMap { it.outputDirectory })
             }
         }
     }
