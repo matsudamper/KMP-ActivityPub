@@ -16,6 +16,7 @@ plugins {
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.paparazzi) apply false
+    alias(libs.plugins.koin.compiler) apply false
 }
 
 // version catalog のアクセサは allprojects の中からは引けないので、ここで取り出しておく

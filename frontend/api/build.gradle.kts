@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.apollo)
+    alias(libs.plugins.koin.compiler)
 }
 
 kotlin {
@@ -23,6 +24,9 @@ kotlin {
             dependencies {
                 // Android が ApolloClient を渡せるように api にする
                 api(libs.apollo.runtime)
+                implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.koin.core)
+                implementation(libs.koin.annotations)
             }
         }
     }
