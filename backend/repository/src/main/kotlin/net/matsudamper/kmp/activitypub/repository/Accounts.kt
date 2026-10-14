@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import java.nio.file.Path
-import java.sql.DriverManager
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.AccountPasswords.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.Accounts.ACCOUNTS
 import org.jooq.SQLDialect
@@ -23,10 +22,7 @@ object Accounts {
         createdAt: String,
     ) {
         try {
-            DriverManager.getConnection("jdbc:sqlite:${databasePath.toAbsolutePath()}").use { connection ->
-                connection.createStatement().use { statement ->
-                    statement.execute("PRAGMA foreign_keys = ON")
-                }
+            SqliteConnections.connect(databasePath) { connection ->
                 DSL.using(connection, SQLDialect.SQLITE).transaction { configuration ->
                     val dsl = configuration.dsl()
                     dsl.insertInto(ACCOUNTS)
