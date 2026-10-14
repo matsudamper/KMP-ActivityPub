@@ -25,7 +25,7 @@ class AccountRegistrationTest {
     }
 
     @Test
-    fun `パスワードのハッシュを accounts に入れる`() {
+    fun `パスワードのハッシュを account_passwords に入れる`() {
         val databasePath = createDatabase()
         val createdAt = Instant.parse("2026-10-13T00:00:00Z")
 
@@ -115,6 +115,42 @@ class AccountRegistrationTest {
         assertFalse(databasePath.toFile().exists())
     }
 
+    @Test
+    fun `パスワードの行を消してもアカウントは残る`() {
+        val databasePath = createDatabase()
+        AccountRegistration.register(
+            databasePath = databasePath,
+            username = "user1",
+            password = "secret",
+            createdAt = Instant.parse("2026-10-13T00:00:00Z"),
+        )
+
+        DriverManager.getConnection("jdbc:sqlite:${databasePath.toAbsolutePath()}").use { connection ->
+            connection.createStatement().use { statement ->
+                assertEquals(1, statement.executeUpdate("DELETE FROM account_passwords"))
+            }
+            connection.prepareStatement(
+                """
+                SELECT username
+                FROM accounts
+                WHERE username = ?
+                """.trimIndent(),
+            ).use { statement ->
+                statement.setString(1, "user1")
+                statement.executeQuery().use { result ->
+                    check(result.next())
+                    assertEquals("user1", result.getString("username"))
+                }
+            }
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT COUNT(*) FROM account_passwords").use { result ->
+                    check(result.next())
+                    assertEquals(0, result.getInt(1))
+                }
+            }
+        }
+    }
+
     private fun createDatabase(): Path {
         val databasePath = tempDir.resolve("test.db")
         databasePath.writeText("")
@@ -134,9 +170,10 @@ class AccountRegistrationTest {
         DriverManager.getConnection("jdbc:sqlite:${databasePath.toAbsolutePath()}").use { connection ->
             connection.prepareStatement(
                 """
-                SELECT username, password_hash, password_hash_type, created_at
+                SELECT accounts.username, accounts.created_at, account_passwords.password_hash, account_passwords.password_hash_type
                 FROM accounts
-                WHERE username = ?
+                JOIN account_passwords ON account_passwords.account_id = accounts.id
+                WHERE accounts.username = ?
                 """.trimIndent(),
             ).use { statement ->
                 statement.setString(1, username)
