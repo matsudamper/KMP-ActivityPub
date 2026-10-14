@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
@@ -28,8 +29,13 @@ import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
+    api: UserApi?,
     serverSettingUiState: ServerSettingUiState?,
-    viewModel: LoginScreenViewModel = viewModel { LoginScreenViewModel() },
+    // 接続先が変わると UserApi が別インスタンスになる。同じ画面の ViewModel を取り違えない
+    viewModel: LoginScreenViewModel =
+        viewModel(key = api?.hashCode()?.toString() ?: "no-api") {
+            LoginScreenViewModel(api = api)
+        },
 ) {
     val uiState by viewModel.uiStateFlow.collectAsState()
 
@@ -75,8 +81,8 @@ internal fun LoginContent(
                     formId = LOGIN_FORM_ID,
                     inputId = LOGIN_USERNAME_INPUT_ID,
                     inputName = "username",
-                    enabled = true,
-                    hasError = false,
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.inputHasError,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 PasswordField(
@@ -87,10 +93,17 @@ internal fun LoginContent(
                     formId = LOGIN_FORM_ID,
                     inputId = LOGIN_PASSWORD_INPUT_ID,
                     inputName = "password",
-                    enabled = true,
-                    hasError = false,
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.inputHasError,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                val error = uiState.error
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Button(
                     onClick = uiState.listener::onClickLogin,
                     enabled = uiState.loginButtonEnabled,

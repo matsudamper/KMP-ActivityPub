@@ -8,6 +8,11 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
+import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 
@@ -39,6 +44,15 @@ internal fun Application.module(staticFiles: StaticFiles?) {
         )
     }
 
+    val graphQl =
+        GraphQlEngine.create(
+            resolvers = listOf(
+                QueryResolverImpl(),
+                MutationResolverImpl(),
+                UserMutationResolverImpl(),
+            ),
+        )
+
     routing {
         get("/healthz") {
             call.respondText("""{"status":"ok"}""", ContentType.Application.Json)
@@ -46,6 +60,7 @@ internal fun Application.module(staticFiles: StaticFiles?) {
         get("/hello") {
             call.respondText("Hello World")
         }
+        graphQlRoutes(graphQl)
         staticRoutes(staticFiles)
     }
 }

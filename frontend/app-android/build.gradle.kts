@@ -55,6 +55,7 @@ protobuf {
 }
 
 dependencies {
+    implementation(project(":frontend:api"))
     implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))
 

@@ -1,0 +1,17 @@
+type UserMutation {
+    login(query: UserLoginQuery!): UserLoginResult! @lazy
+}
+
+input UserLoginQuery {
+    username: String!
+    password: String!
+}
+
+type UserLoginResult {
+    failure: UserLoginFailure
+}
+
+enum UserLoginFailure {
+    "ユーザーがいないか、パスワードが違う。"
+    WRONG_USERNAME_OR_PASSWORD
+}

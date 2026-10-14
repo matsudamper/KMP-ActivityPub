@@ -9,6 +9,8 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
@@ -25,6 +27,7 @@ fun main() {
 private fun App() {
     val backStack = rememberScreenBackStack(startScreen = Screen.Login)
     val navigator = remember(backStack) { Navigator(backStack) }
+    val api = remember { UserApi(GraphQlClient.apollo) }
     MaterialTheme {
         NavDisplay(
             backStack = backStack,
@@ -34,7 +37,13 @@ private fun App() {
                 rememberViewModelStoreNavEntryDecorator(),
             ),
             entryProvider = entryProvider {
-                entry<Screen.Login> { HomeFeatureScreens.Login(navigator = navigator, serverSettingUiState = null) }
+                entry<Screen.Login> {
+                    HomeFeatureScreens.Login(
+                        navigator = navigator,
+                        api = api,
+                        serverSettingUiState = null,
+                    )
+                }
                 entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                 entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
             },

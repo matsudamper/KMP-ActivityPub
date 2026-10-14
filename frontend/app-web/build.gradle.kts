@@ -22,6 +22,7 @@ kotlin {
     sourceSets {
         wasmJsMain {
             dependencies {
+                implementation(project(":frontend:api"))
                 implementation(project(":frontend:navigation"))
                 implementation(project(":frontend:feature:home"))
                 // org.jetbrains.compose.* の直接座標は material3 がまだ alpha なので compose.* を使う
