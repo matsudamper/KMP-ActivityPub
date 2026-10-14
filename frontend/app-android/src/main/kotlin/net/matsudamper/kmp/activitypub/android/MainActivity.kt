@@ -9,22 +9,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
 import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
+import org.koin.compose.KoinApplication
+import org.koin.plugin.module.dsl.koinConfiguration
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,20 +35,15 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AndroidApp(modifier: Modifier = Modifier) {
+    KoinApplication(configuration = koinConfiguration<AndroidKoinApp>()) {
+        AndroidNavigation(modifier = modifier)
+    }
+}
+
+@Composable
+private fun AndroidNavigation(modifier: Modifier = Modifier) {
     val backStack = rememberScreenBackStack(startScreen = Screen.Login)
     val navigator = remember(backStack) { Navigator(backStack) }
-    val applicationContext = LocalContext.current.applicationContext
-    val serverSettingStore = remember(applicationContext) { ServerSettingStore(applicationContext) }
-    val serverUrl by serverSettingStore.serverUrlFlow.collectAsState(initial = null)
-    val api =
-        remember(serverUrl) {
-            val url = serverUrl
-            if (url == null) {
-                null
-            } else {
-                UserApi(AndroidGraphQlClient.create(url))
-            }
-        }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
             NavDisplay(
@@ -65,8 +57,7 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
                     entry<Screen.Login> {
                         HomeFeatureScreens.Login(
                             navigator = navigator,
-                            api = api,
-                            serverSettingUiState = rememberServerSettingUiState(serverSettingStore),
+                            serverSettingUiState = rememberServerSettingUiState(),
                         )
                     }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }

@@ -1,19 +1,21 @@
 package net.matsudamper.kmp.activitypub.android.server
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import java.io.IOException
 import java.net.URI
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 internal class ServerSettingViewModel(
-    private val viewModelScope: CoroutineScope,
     private val serverSettingStore: ServerSettingStore,
-) {
+) : ViewModel() {
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState())
 
     private val listener = object : ServerSettingUiState.Listener {

@@ -10,9 +10,11 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginResult
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 internal class LoginScreenViewModel(
-    private val api: UserApi?,
+    private val api: UserApi,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -23,6 +25,7 @@ internal class LoginScreenViewModel(
                 password = "",
                 submitting = false,
                 error = null,
+                apiReady = api.isReady(),
             ),
         )
 
@@ -68,12 +71,19 @@ internal class LoginScreenViewModel(
             }
         }.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            api.ready.collect { ready ->
+                viewModelStateFlow.update { it.copy(apiReady = ready) }
+            }
+        }
+    }
+
     /**
      * 照合はまだ無い。どの入力でも失敗にする
      */
     private fun login() {
         val state = viewModelStateFlow.value
-        val api = api ?: return
         if (state.loginable().not()) return
 
         viewModelStateFlow.update {
@@ -116,13 +126,14 @@ internal class LoginScreenViewModel(
     }
 
     private fun ViewModelState.loginable(): Boolean =
-        api != null && submitting.not() && username.isNotBlank() && password.isNotEmpty()
+        apiReady && submitting.not() && username.isNotBlank() && password.isNotEmpty()
 
     data class ViewModelState(
         val username: String,
         val password: String,
         val submitting: Boolean,
         val error: String?,
+        val apiReady: Boolean,
     )
 
     interface Event {

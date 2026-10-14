@@ -23,6 +23,7 @@ kotlin {
             dependencies {
                 // Android が ApolloClient を渡せるように api にする
                 api(libs.apollo.runtime)
+                implementation(libs.kotlinx.coroutines.core)
             }
         }
     }

@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
 import androidx.compose.runtime.Composable
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
@@ -9,18 +8,13 @@ import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiStat
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 
 object HomeFeatureScreens {
-    /**
-     * @param api 接続先が未設定なら null
-     */
     @Composable
     fun Login(
         navigator: Navigator,
-        api: UserApi?,
         serverSettingUiState: ServerSettingUiState?,
     ) {
         LoginScreen(
             navigator = navigator,
-            api = api,
             serverSettingUiState = serverSettingUiState,
         )
     }

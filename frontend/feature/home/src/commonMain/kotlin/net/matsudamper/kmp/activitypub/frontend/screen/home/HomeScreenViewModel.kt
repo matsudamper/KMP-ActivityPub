@@ -1,18 +1,19 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import org.koin.core.annotation.KoinViewModel
 
 /**
  * サーバーとはまだ繋いでいない。タイムラインは決まったダミーの投稿を出す
  */
-internal class HomeScreenViewModel(
-    private val viewModelScope: CoroutineScope,
-) {
+@KoinViewModel
+internal class HomeScreenViewModel : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
 

@@ -19,24 +19,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
 import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
-    api: UserApi?,
     serverSettingUiState: ServerSettingUiState?,
-    // 接続先が変わると UserApi が別インスタンスになる。同じ画面の ViewModel を取り違えない
-    viewModel: LoginScreenViewModel =
-        viewModel(key = api?.hashCode()?.toString() ?: "no-api") {
-            LoginScreenViewModel(api = api)
-        },
 ) {
+    val viewModel = koinViewModel<LoginScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {

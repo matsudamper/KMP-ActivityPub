@@ -1,32 +1,36 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
-import androidx.compose.runtime.saveable.Saver
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import org.koin.core.annotation.KoinViewModel
 
 /**
  * サーバーとはまだ繋いでいない。投稿は常に成功したことにする
  */
+@KoinViewModel
 internal class PostScreenViewModel(
-    private val viewModelScope: CoroutineScope,
-    savedState: ViewModelState,
-) {
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(savedState)
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(ViewModelState(body = savedStateHandle.get<String>(BODY_KEY).orEmpty()))
 
     val uiStateFlow: StateFlow<PostScreenUiState> =
         MutableStateFlow(
             PostScreenUiState(
-                body = savedState.body,
-                postButtonEnabled = savedState.postable(),
+                body = viewModelStateFlow.value.body,
+                postButtonEnabled = viewModelStateFlow.value.postable(),
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
+                        savedStateHandle[BODY_KEY] = text
                         viewModelStateFlow.update { it.copy(body = text) }
                     }
 
@@ -71,21 +75,6 @@ internal class PostScreenViewModel(
     interface Event {
         fun navigateBack()
     }
-
-    companion object {
-        val InitialState = ViewModelState(body = "")
-
-        /**
-         * 画面回転などで作り直されても書きかけの本文を残す
-         */
-        fun saver(viewModelScope: CoroutineScope): Saver<PostScreenViewModel, String> = Saver(
-            save = { viewModel -> viewModel.viewModelStateFlow.value.body },
-            restore = { body ->
-                PostScreenViewModel(
-                    viewModelScope = viewModelScope,
-                    savedState = ViewModelState(body = body),
-                )
-            },
-        )
-    }
 }
+
+private const val BODY_KEY = "body"
