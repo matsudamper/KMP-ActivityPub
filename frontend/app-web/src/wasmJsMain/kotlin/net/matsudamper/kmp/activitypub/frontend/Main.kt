@@ -9,12 +9,12 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
 import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
+import org.koin.compose.KoinApplication
+import org.koin.plugin.module.dsl.koinConfiguration
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -25,9 +25,15 @@ fun main() {
 
 @Composable
 private fun App() {
+    KoinApplication(configuration = koinConfiguration<WebKoinApp>()) {
+        AppNavigation()
+    }
+}
+
+@Composable
+private fun AppNavigation() {
     val backStack = rememberScreenBackStack(startScreen = Screen.Login)
     val navigator = remember(backStack) { Navigator(backStack) }
-    val api = remember { UserApi(GraphQlClient.apollo) }
     MaterialTheme {
         NavDisplay(
             backStack = backStack,
@@ -40,8 +46,6 @@ private fun App() {
                 entry<Screen.Login> {
                     HomeFeatureScreens.Login(
                         navigator = navigator,
-                        api = api,
-                        serverKey = "same-origin",
                         serverSettingUiState = null,
                     )
                 }

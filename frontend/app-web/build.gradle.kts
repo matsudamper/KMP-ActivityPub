@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
+    alias(libs.plugins.koin.compiler)
     id("kmp-activitypub.webpack-bundle-hash")
 }
 
@@ -32,6 +33,10 @@ kotlin {
                 implementation(compose.material3)
                 implementation(libs.navigation3.ui)
                 implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+                implementation(libs.koin.core)
+                implementation(libs.koin.annotations)
+                implementation(libs.koin.compose)
+                implementation(libs.koin.compose.viewmodel)
             }
         }
     }

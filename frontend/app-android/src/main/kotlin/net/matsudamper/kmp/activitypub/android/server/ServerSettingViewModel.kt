@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 internal class ServerSettingViewModel(
     savedStateHandle: SavedStateHandle,
     private val serverSettingStore: ServerSettingStore,

@@ -1,18 +1,26 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
-import com.apollographql.apollo.ApolloClient
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
+import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 
 class UserApi(
-    private val client: ApolloClient,
+    private val clients: GraphQlClientSource,
 ) {
+    val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
+
+    fun isReady(): Boolean = clients.client.value != null
+
     suspend fun login(
         username: String,
         password: String,
     ): UserLoginResult {
+        val client = clients.client.value ?: return UserLoginResult.Failure("接続先が未設定")
         val response =
             client
                 .mutation(

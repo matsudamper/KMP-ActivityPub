@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.compose)
     alias(libs.plugins.paparazzi)
     alias(libs.plugins.protobuf)
+    alias(libs.plugins.koin.compiler)
 }
 
 android {
@@ -72,6 +73,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.okhttp)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.koin.android)
+    implementation(libs.koin.annotations)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
 
     testImplementation(libs.paparazzi)
     testImplementation(libs.androidx.test.core.ktx)
