@@ -9,6 +9,7 @@ import com.google.android.gms.auth.blockstore.BlockstoreClient
 import com.google.android.gms.auth.blockstore.DeleteBytesRequest
 import com.google.android.gms.auth.blockstore.RetrieveBytesRequest
 import com.google.android.gms.auth.blockstore.StoreBytesData
+import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
 
 /**
@@ -21,6 +22,9 @@ internal class CookieBlockStore(
     private val blockstore: BlockstoreClient = Blockstore.getClient(appContext)
     private val legacyPreferences =
         appContext.getSharedPreferences(LEGACY_COOKIE_PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+    @Volatile
+    private var serializedPersist: Task<Void> = Tasks.forResult(null)
 
     fun readEntries(): List<StoredCookieEntry> {
         val fromBlockStore = readFromBlockStore()
@@ -42,39 +46,60 @@ internal class CookieBlockStore(
             return
         }
 
-        blockstore.isEndToEndEncryptionAvailable.addOnSuccessListener { encryptionAvailable ->
-            val backupToCloud = encryptionAvailable == true
-            chunks.forEachIndexed { index, chunk ->
-                storeChunk(index = index, bytes = chunk, backupToCloud = backupToCloud)
+        serializedPersist =
+            serializedPersist.continueWithTask {
+                persistChunks(chunks)
             }
-            val staleKeys =
-                (chunks.size until BlockstoreClient.MAX_ENTRY_COUNT).map { index -> chunkKey(index) }
-            if (staleKeys.isNotEmpty()) {
-                val deleteRequest =
-                    DeleteBytesRequest
-                        .Builder()
-                        .setKeys(staleKeys)
-                        .build()
-                blockstore.deleteBytes(deleteRequest)
+    }
+
+    private fun persistChunks(chunks: List<ByteArray>): Task<Void> {
+        if (chunks.isEmpty()) {
+            return deleteStaleChunkKeys(fromIndex = 0)
+        }
+        return blockstore.isEndToEndEncryptionAvailable.continueWithTask { encryptionTask ->
+            val backupToCloud = encryptionTask.result == true
+            persistChunkAt(chunks = chunks, backupToCloud = backupToCloud, index = 0).continueWithTask {
+                deleteStaleChunkKeys(fromIndex = chunks.size)
             }
         }
     }
 
-    private fun storeChunk(
-        index: Int,
-        bytes: ByteArray,
+    private fun persistChunkAt(
+        chunks: List<ByteArray>,
         backupToCloud: Boolean,
-    ) {
+        index: Int,
+    ): Task<Void> {
+        if (index >= chunks.size) {
+            return Tasks.forResult(null)
+        }
         val key = chunkKey(index)
         val storeRequestBuilder =
             StoreBytesData
                 .Builder()
-                .setBytes(bytes)
+                .setBytes(chunks[index])
                 .setKey(key)
         if (backupToCloud) {
             storeRequestBuilder.setShouldBackupToCloud(true)
         }
-        blockstore.storeBytes(storeRequestBuilder.build())
+        return blockstore
+            .storeBytes(storeRequestBuilder.build())
+            .continueWithTask {
+                persistChunkAt(chunks = chunks, backupToCloud = backupToCloud, index = index + 1)
+            }
+    }
+
+    private fun deleteStaleChunkKeys(fromIndex: Int): Task<Void> {
+        val staleKeys =
+            (fromIndex until BlockstoreClient.MAX_ENTRY_COUNT).map { index -> chunkKey(index) }
+        if (staleKeys.isEmpty()) {
+            return Tasks.forResult(null)
+        }
+        val deleteRequest =
+            DeleteBytesRequest
+                .Builder()
+                .setKeys(staleKeys)
+                .build()
+        return blockstore.deleteBytes(deleteRequest).continueWith { Tasks.forResult(null) }
     }
 
     private fun readFromBlockStore(): List<StoredCookieEntry> {
