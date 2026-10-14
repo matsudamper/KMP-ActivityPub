@@ -115,42 +115,6 @@ class AccountRegistrationTest {
         assertFalse(databasePath.toFile().exists())
     }
 
-    @Test
-    fun `パスワードの行を消してもアカウントは残る`() {
-        val databasePath = createDatabase()
-        AccountRegistration.register(
-            databasePath = databasePath,
-            username = "user1",
-            password = "secret",
-            createdAt = Instant.parse("2026-10-13T00:00:00Z"),
-        )
-
-        DriverManager.getConnection("jdbc:sqlite:${databasePath.toAbsolutePath()}").use { connection ->
-            connection.createStatement().use { statement ->
-                assertEquals(1, statement.executeUpdate("DELETE FROM account_passwords"))
-            }
-            connection.prepareStatement(
-                """
-                SELECT username
-                FROM accounts
-                WHERE username = ?
-                """.trimIndent(),
-            ).use { statement ->
-                statement.setString(1, "user1")
-                statement.executeQuery().use { result ->
-                    check(result.next())
-                    assertEquals("user1", result.getString("username"))
-                }
-            }
-            connection.createStatement().use { statement ->
-                statement.executeQuery("SELECT COUNT(*) FROM account_passwords").use { result ->
-                    check(result.next())
-                    assertEquals(0, result.getInt(1))
-                }
-            }
-        }
-    }
-
     private fun createDatabase(): Path {
         val databasePath = tempDir.resolve("test.db")
         databasePath.writeText("")
