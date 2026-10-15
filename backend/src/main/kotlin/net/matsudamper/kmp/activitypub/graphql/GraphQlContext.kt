@@ -8,7 +8,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class GraphQlContext(
     call: ApplicationCall,
-    private val userSessions: UserSessionService,
+    private val sessionService: UserSessionService,
     cookieSecure: Boolean,
 ) {
     private val userCookie = SessionCookieManager(
@@ -25,6 +25,6 @@ class GraphQlContext(
     fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
 
     fun issueUserSession(accountId: AccountId) {
-        userCookie.append(token = userSessions.create(accountId), maxAgeSeconds = userSessions.ttlSeconds)
+        userCookie.append(token = sessionService.create(accountId), maxAgeSeconds = sessionService.ttlSeconds)
     }
 }

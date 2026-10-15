@@ -7,9 +7,9 @@ import net.matsudamper.kmp.activitypub.session.UserSessionStore
  * JDBC と jOOQ をモジュールの外に出さないための入口
  */
 interface Repositories : AutoCloseable {
-    val accounts: AccountRepository
+    val accountRepository: AccountRepository
 
-    val userSessions: UserSessionStore
+    val sessionStore: UserSessionStore
 
     /**
      * 書けなければ例外。native バイナリでは SQLite のネイティブライブラリが壊れていても起動は通るため

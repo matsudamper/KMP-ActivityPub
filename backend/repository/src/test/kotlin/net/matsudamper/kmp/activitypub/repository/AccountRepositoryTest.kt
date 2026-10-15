@@ -27,7 +27,7 @@ class AccountRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(
                 Account(id = id, username = "user1", createdAt = CREATED_AT),
-                repositories.accounts.findById(id),
+                repositories.accountRepository.findById(id),
             )
         }
     }
@@ -47,7 +47,7 @@ class AccountRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(
                 AccountCredential(id = id, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE),
-                repositories.accounts.findCredential("user1"),
+                repositories.accountRepository.findCredential("user1"),
             )
         }
     }
@@ -58,7 +58,7 @@ class AccountRepositoryTest {
         val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
-            assertEquals(id, repositories.accounts.findCredential("USER1")?.id)
+            assertEquals(id, repositories.accountRepository.findCredential("USER1")?.id)
         }
     }
 
@@ -67,7 +67,7 @@ class AccountRepositoryTest {
         TestSchema.applyTo(dbPath)
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
-            assertNull(repositories.accounts.findCredential("user1"))
+            assertNull(repositories.accountRepository.findCredential("user1"))
         }
     }
 

@@ -22,18 +22,18 @@ class UserSessionStoreTest {
     @Test
     fun `期限内のセッションから持ち主を引ける`() {
         withRepositories { repositories, accountId ->
-            repositories.userSessions.create(tokenHash = TOKEN_HASH, accountId = accountId, createdAt = NOW, expiresAt = EXPIRES_AT)
+            repositories.sessionStore.create(tokenHash = TOKEN_HASH, accountId = accountId, createdAt = NOW, expiresAt = EXPIRES_AT)
 
-            assertEquals(accountId, repositories.userSessions.findAccountId(tokenHash = TOKEN_HASH, now = NOW))
+            assertEquals(accountId, repositories.sessionStore.findAccountId(tokenHash = TOKEN_HASH, now = NOW))
         }
     }
 
     @Test
     fun `期限を過ぎたセッションは引けない`() {
         withRepositories { repositories, accountId ->
-            repositories.userSessions.create(tokenHash = TOKEN_HASH, accountId = accountId, createdAt = NOW, expiresAt = EXPIRES_AT)
+            repositories.sessionStore.create(tokenHash = TOKEN_HASH, accountId = accountId, createdAt = NOW, expiresAt = EXPIRES_AT)
 
-            assertNull(repositories.userSessions.findAccountId(tokenHash = TOKEN_HASH, now = EXPIRES_AT))
+            assertNull(repositories.sessionStore.findAccountId(tokenHash = TOKEN_HASH, now = EXPIRES_AT))
         }
     }
 

@@ -83,7 +83,7 @@ class UserLoginGraphQlTest {
     private fun ApplicationTestBuilder.applicationWithUser() {
         val repositories =
             FakeRepositories().apply {
-                accounts.add(
+                accountRepository.add(
                     username = USERNAME,
                     passwordHash = PASSWORD_HASH,
                     passwordHashType = PasswordHashType.Current.dbValue,

@@ -9,7 +9,7 @@ import kotlin.time.toJavaDuration
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class UserSessionService(
-    private val sessions: UserSessionStore,
+    private val sessionStore: UserSessionStore,
     private val ttl: Duration,
     private val clock: Clock,
 ) {
@@ -20,7 +20,7 @@ class UserSessionService(
     fun create(accountId: AccountId): String {
         val token = BASE64_ENCODER.encodeToString(ByteArray(TOKEN_SIZE_BYTES).also(random::nextBytes))
         val now = clock.instant()
-        sessions.create(
+        sessionStore.create(
             tokenHash = hash(token),
             accountId = accountId,
             createdAt = now,
@@ -29,7 +29,7 @@ class UserSessionService(
         return token
     }
 
-    fun accountIdOf(token: String): AccountId? = sessions.findAccountId(tokenHash = hash(token), now = clock.instant())
+    fun accountIdOf(token: String): AccountId? = sessionStore.findAccountId(tokenHash = hash(token), now = clock.instant())
 
     /**
      * 推測できない長さの乱数なので salt や反復は要らない

@@ -6,7 +6,7 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class AccountService(
-    private val accounts: AccountRepository,
+    private val accountRepository: AccountRepository,
 ) {
     /**
      * ユーザーがいなくても同じだけ計算し、応答時間で名前の有無を分からなくする。
@@ -14,13 +14,13 @@ class AccountService(
      */
     private val dummyPasswordHash: String = checkNotNull(PasswordHashType.Current.encoder.encode("dummy-password"))
 
-    fun account(id: AccountId): Account? = accounts.findById(id)
+    fun account(id: AccountId): Account? = accountRepository.findById(id)
 
     fun authenticate(
         username: String,
         password: String,
     ): AccountId? {
-        val credential = accounts.findCredential(username.trim())
+        val credential = accountRepository.findCredential(username.trim())
         if (credential == null) {
             PasswordHashType.Current.encoder.matches(password, dummyPasswordHash)
             return null

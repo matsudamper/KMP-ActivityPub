@@ -14,10 +14,10 @@ class AppDependencies(
 ) : AutoCloseable {
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
-    val accountService: AccountService = AccountService(accounts = repositories.accounts)
+    val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
 
-    val userSessions: UserSessionService = UserSessionService(
-        sessions = repositories.userSessions,
+    val sessionService: UserSessionService = UserSessionService(
+        sessionStore = repositories.sessionStore,
         ttl = 30.days,
         clock = Clock.systemUTC(),
     )

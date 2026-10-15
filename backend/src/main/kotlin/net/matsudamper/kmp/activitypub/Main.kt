@@ -64,7 +64,7 @@ internal fun Application.module(deps: AppDependencies) {
             createContext = { call ->
                 GraphQlContext(
                     call = call,
-                    userSessions = deps.userSessions,
+                    sessionService = deps.sessionService,
                     cookieSecure = deps.env.cookieSecure,
                 )
             },

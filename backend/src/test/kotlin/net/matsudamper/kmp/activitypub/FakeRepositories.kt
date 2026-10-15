@@ -9,9 +9,9 @@ import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 internal class FakeRepositories : Repositories {
-    override val accounts: FakeAccountRepository = FakeAccountRepository()
+    override val accountRepository: FakeAccountRepository = FakeAccountRepository()
 
-    override val userSessions: UserSessionStore = FakeUserSessionStore()
+    override val sessionStore: UserSessionStore = FakeUserSessionStore()
 
     override fun verifyWritable() = Unit
 

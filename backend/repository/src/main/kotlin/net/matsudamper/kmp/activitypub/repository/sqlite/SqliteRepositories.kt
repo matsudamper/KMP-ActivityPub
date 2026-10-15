@@ -13,9 +13,9 @@ internal class SqliteRepositories(
     private val connectionManager = SqliteConnectionManager(config)
     private val jooq = SqliteJooq(connectionManager)
 
-    override val accounts: AccountRepository = SqliteAccountRepository(jooq)
+    override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
 
-    override val userSessions: UserSessionStore = SqliteUserSessionStore(jooq)
+    override val sessionStore: UserSessionStore = SqliteUserSessionStore(jooq)
 
     override fun verifyWritable() {
         val writtenAt = Instant.now().toString()
