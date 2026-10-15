@@ -44,7 +44,7 @@ class ServerEnvTest {
     }
 
     @Test
-    fun `DB_PATH と COOKIE_SECURE を読む`() {
+    fun `DB_PATH と COOKIE_SECURE に FALSE を指定するとそのパスと false になる`() {
         val env = ServerEnv(mapOf("DB_PATH" to "/srv/db.sqlite", "COOKIE_SECURE" to "FALSE"))
 
         assertEquals(Path("/srv/db.sqlite"), env.dbPath)
