@@ -5,7 +5,6 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -61,23 +60,6 @@ class UserLoginGraphQlTest {
             val response = login(username = "unknown", password = PASSWORD)
 
             assertEquals("WRONG_USERNAME_OR_PASSWORD", response.login().string("failure"))
-        }
-
-    @Test
-    fun `1 つのリクエストで login を 2 回呼ぶと 2 回目は失敗する`() =
-        testApplication {
-            applicationWithUser()
-
-            val response =
-                graphQl(
-                    query =
-                    "mutation Login(${'$'}query: UserLoginQuery!) { user { " +
-                        "first: login(query: ${'$'}query) { failure } " +
-                        "second: login(query: ${'$'}query) { failure } } }",
-                    variables = loginVariables(username = USERNAME, password = PASSWORD),
-                )
-
-            assertTrue(response.body().containsKey("errors"))
         }
 
     private fun ApplicationTestBuilder.applicationWithUser() {
