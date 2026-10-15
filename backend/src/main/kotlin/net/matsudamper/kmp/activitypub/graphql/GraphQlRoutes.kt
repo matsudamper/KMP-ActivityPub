@@ -64,7 +64,9 @@ internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
                 return@post
             }
 
-        val result = withContext(GRAPHQL_DISPATCHER) { engine.execute(request) }
+        val context = GraphQlContext()
+        val result = withContext(GRAPHQL_DISPATCHER) { engine.execute(request, context) }
+        context.writeCookies(call)
 
         call.respondJson(JsonObject.serializer(), result)
     }

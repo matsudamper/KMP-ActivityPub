@@ -82,9 +82,6 @@ internal class LoginScreenViewModel(
         }
     }
 
-    /**
-     * 照合はまだ無い。どの入力でも失敗にする
-     */
     private fun login() {
         val state = viewModelStateFlow.value
         if (state.loginable().not()) return
