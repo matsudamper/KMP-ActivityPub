@@ -19,6 +19,10 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             target.layout.projectDirectory.file("src/main/resources/db/schema.sql"),
         )
         extension.excludes.convention("schema_version|sqlite_.*")
+        // reflect-config の META-INF/native-image/<path>/ の既定。未設定なら group とモジュール名から作る
+        extension.nativeImageReflectConfigOutputPath.convention(
+            target.provider { "${target.group}/${target.name}-jooq" },
+        )
 
         target.pluginManager.apply(CodegenPlugin::class.java)
 
@@ -45,6 +49,7 @@ class DatabaseCodegenPlugin : Plugin<Project> {
                         url = "jdbc:sqlite:${schemaDatabaseFile.get().asFile.absolutePath}"
                     }
                     generator {
+                        name = "org.jooq.codegen.KotlinGenerator"
                         database {
                             name = "org.jooq.meta.sqlite.SQLiteDatabase"
                             includes = ".*"
@@ -86,6 +91,24 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             // afterEvaluate で設定しているので、プラグインの自動配線は使えない
             target.extensions.getByType<SourceSetContainer>().named("main") {
                 java.srcDir(generateJooq.map { it.outputDirectory })
+            }
+            target.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+                target.tasks.named("compileKotlin") {
+                    dependsOn(generateJooq)
+                }
+            }
+
+            val generateJooqReflectConfig =
+                target.tasks.register<GenerateJooqReflectConfigTask>("generateJooqReflectConfig") {
+                    description = "生成コードの native-image 向けリフレクション設定を作る"
+                    dependsOn(generateJooq)
+                    generatedSources.set(generatedDirectory)
+                    nativeImageReflectConfigOutputPath.set(extension.nativeImageReflectConfigOutputPath)
+                    outputDirectory.set(target.layout.buildDirectory.dir("generated/jooqNativeImage"))
+                }
+
+            target.extensions.getByType<SourceSetContainer>().named("main") {
+                resources.srcDir(generateJooqReflectConfig.flatMap { it.outputDirectory })
             }
         }
     }

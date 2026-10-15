@@ -4,7 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.HEALTH_CHECK
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.HEALTH_CHECK
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
 
 internal class SqliteRepositories(

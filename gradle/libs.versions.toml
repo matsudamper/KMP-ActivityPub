@@ -15,8 +15,6 @@ graphqlKickstartTools = "14.0.1"
 graphqlCodegen = "5.10.2"
 apollo = "5.2.0"
 graalvmSdk = "25.4.4.1.1"
-okhttp = "5.5.0"
-androidxCore = "1.16.0"
 slf4j = "2.0.20"
 graalvmBuildtools = "1.1.14"
 ktlintGradle = "14.2.0"
@@ -37,10 +35,16 @@ sqliteJdbc = "3.53.4.0"
 jooq = "3.21.9"
 koin = "4.2.2"
 koinPlugin = "1.2.1"
+okhttp = "5.5.0"
+playServicesAuthBlockstore = "16.4.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+play-services-auth-blockstore = { module = "com.google.android.gms:play-services-auth-blockstore", version.ref = "playServicesAuthBlockstore" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
@@ -54,9 +58,8 @@ graphql-java = { module = "com.graphql-java:graphql-java", version.ref = "graphq
 graphql-kickstart-tools = { module = "com.graphql-java-kickstart:graphql-java-tools", version.ref = "graphqlKickstartTools" }
 apollo-runtime = { module = "com.apollographql.apollo:apollo-runtime", version.ref = "apollo" }
 graalvm-nativeimage = { module = "org.graalvm.sdk:nativeimage", version.ref = "graalvmSdk" }
-okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
-androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 graalvm-native-plugin = { module = "org.graalvm.buildtools:native-gradle-plugin", version.ref = "graalvmBuildtools" }

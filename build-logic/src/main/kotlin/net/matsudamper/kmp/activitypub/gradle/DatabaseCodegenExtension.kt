@@ -12,4 +12,10 @@ interface DatabaseCodegenExtension {
      * 既定では SQLite の内部表と、旧マイグレーションの `schema_version` を外す
      */
     val excludes: Property<String>
+
+    /**
+     * 生成する `reflect-config.json` の出力先。
+     * `META-INF/native-image/<ここ>/reflect-config.json` の `<ここ>` 部分（モジュールごとに一意）
+     */
+    val nativeImageReflectConfigOutputPath: Property<String>
 }

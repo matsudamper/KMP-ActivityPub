@@ -3,8 +3,8 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.ACCOUNTS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.ACCOUNT_PASSWORDS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 internal class SqliteAccountRepository(
@@ -18,9 +18,9 @@ internal class SqliteAccountRepository(
             .fetchOne()
             ?.let { record ->
                 Account(
-                    id = AccountId(record.get(ACCOUNTS.ID)),
-                    username = record.get(ACCOUNTS.USERNAME),
-                    createdAt = StoredInstant.parse(record.get(ACCOUNTS.CREATED_AT)),
+                    id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
+                    username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
+                    createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
                 )
             }
     }
@@ -43,10 +43,10 @@ internal class SqliteAccountRepository(
             .fetchOne()
             ?.let { record ->
                 AccountCredential(
-                    id = AccountId(record.get(ACCOUNTS.ID)),
-                    username = record.get(ACCOUNTS.USERNAME),
-                    passwordHash = record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH),
-                    passwordHashType = record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE),
+                    id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
+                    username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
+                    passwordHash = checkNotNull(record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH)),
+                    passwordHashType = checkNotNull(record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE)),
                 )
             }
     }

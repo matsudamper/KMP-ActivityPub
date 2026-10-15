@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.android
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,6 +13,10 @@ import kotlinx.coroutines.flow.stateIn
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.network.okHttpClient
 import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
+import net.matsudamper.kmp.activitypub.android.session.BlockStoreSessionBackup
+import net.matsudamper.kmp.activitypub.android.session.EncryptedSessionStore
+import net.matsudamper.kmp.activitypub.android.session.SessionHttpInterceptor
+import net.matsudamper.kmp.activitypub.android.session.SessionRepository
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import okhttp3.OkHttpClient
@@ -22,13 +27,17 @@ internal class AndroidGraphQlClientSource(
     context: Context,
     serverSettingStore: ServerSettingStore,
 ) : GraphQlClientSource {
-    private val okHttpClient: OkHttpClient =
-        OkHttpClient
-            .Builder()
-            .cookieJar(PersistentCookieJar(context.getSharedPreferences(COOKIE_PREFERENCES_NAME, Context.MODE_PRIVATE)))
-            .build()
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val sessions = SessionRepository(
+        local = EncryptedSessionStore(context.applicationContext),
+        backup = BlockStoreSessionBackup(context),
+        scope = scope,
+        reportBackupFailure = { Log.w("SessionBackup", "セッションの保存・復元に失敗。次回起動またはセッション更新時に再試行する") },
+    )
+    private val httpClient = OkHttpClient.Builder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .build()
 
     override val client: StateFlow<ApolloClient?> =
         serverSettingStore.serverUrlFlow
@@ -37,14 +46,10 @@ internal class AndroidGraphQlClientSource(
                 if (serverUrl == null) {
                     null
                 } else {
-                    GraphQlClient
-                        .builder("$serverUrl/graphql")
-                        .okHttpClient(okHttpClient)
+                    GraphQlClient.builder("$serverUrl/graphql")
+                        .okHttpClient(httpClient)
+                        .addHttpInterceptor(SessionHttpInterceptor(sessions))
                         .build()
                 }
             }.stateIn(scope, SharingStarted.Eagerly, null)
-
-    private companion object {
-        const val COOKIE_PREFERENCES_NAME = "cookies"
-    }
 }

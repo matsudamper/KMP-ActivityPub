@@ -50,6 +50,15 @@ graalvmNative {
             buildArgs.add("--features=net.matsudamper.kmp.activitypub.graalvm.GraphQlReflectionFeature")
             // native-image が解析中に @Deprecated の既定値を読み、ビルド時初期化で落ちる
             buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
+            // jOOQ の組み込み型登録が Class.arrayType() を使い、native-image では欠けた配列型で NPE になる
+            buildArgs.add("--initialize-at-build-time=org.jooq")
+            // jOOQ 初期化で SimpleLogger がイメージヒープに載る。slf4j-simple は書き込みごとに System.err を引き直す
+            buildArgs.add("--initialize-at-build-time=org.slf4j")
+            // kickstart 経由の Jackson ObjectMapper がビルド時初期化だとイメージヒープに載って失敗する（JSON 型は未使用）
+            buildArgs.add("--initialize-at-run-time=org.jooq.impl.Convert${'$'}_JSON")
+            // ロゴと tip の出力がイメージ生成中の JVM で走る
+            buildArgs.add("-Dorg.jooq.no-logo=true")
+            buildArgs.add("-Dorg.jooq.no-tips=true")
         }
     }
 }
