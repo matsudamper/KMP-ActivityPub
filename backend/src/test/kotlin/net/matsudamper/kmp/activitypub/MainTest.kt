@@ -16,7 +16,7 @@ class MainTest {
     fun `healthz で ok を返す`() =
         testApplication {
             application {
-                module(testDependencies())
+                module(TestDependencies())
             }
 
             val response = client.get("/healthz")
@@ -28,7 +28,7 @@ class MainTest {
     fun `hello で Hello World を返す`() =
         testApplication {
             application {
-                module(testDependencies())
+                module(TestDependencies())
             }
 
             val response = client.get("/hello")
@@ -40,7 +40,7 @@ class MainTest {
     fun `STATIC_SRC_DIR が無いときは 404 を返す`() =
         testApplication {
             application {
-                module(testDependencies())
+                module(TestDependencies())
             }
 
             val response = client.get("/")
@@ -54,7 +54,7 @@ class MainTest {
             tempDir.resolve("index.html").writeText("<html><body>Hello</body></html>")
 
             application {
-                module(testDependencies(env = ServerEnv(mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
+                module(TestDependencies(env = ServerEnv(mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
             }
 
             val response = client.get("/")

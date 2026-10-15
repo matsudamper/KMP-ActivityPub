@@ -22,11 +22,11 @@ import io.ktor.http.setCookie
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.json.ServerJson
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
-import net.matsudamper.kmp.activitypub.testDependencies
 
 class UserLoginGraphQlTest {
     @Test
@@ -90,7 +90,7 @@ class UserLoginGraphQlTest {
                 )
             }
         application {
-            module(testDependencies(repositories = repositories))
+            module(TestDependencies(repositories = repositories))
         }
     }
 
