@@ -4,7 +4,8 @@ import java.nio.file.Path
 import kotlin.io.path.Path
 
 /**
- * 空白だけの値は未設定として扱う。STATIC_SRC_DIR が空だとカレントディレクトリを配信してしまう
+ * 空文字と空白だけの指定は未設定と同じに扱う。docker compose で値が空のまま展開されることがあり、
+ * STATIC_SRC_DIR が空だとカレントディレクトリをそのまま配信してしまう
  */
 class ServerEnv(
     env: Map<String, String> = System.getenv(),
