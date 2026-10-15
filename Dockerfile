@@ -1,9 +1,6 @@
 FROM debian:13-slim
 WORKDIR /app
 
-ENV STATIC_SRC_DIR=/app/static
-ENV DB_PATH=/app/data/kmp-activitypub.db
-
 EXPOSE 8080
 
 RUN useradd --system --no-create-home --shell /usr/sbin/nologin app \

@@ -14,7 +14,7 @@ services:
       STATIC_SRC_DIR: /app/static
       DB_PATH: /app/data/kmp-activitypub.db
       # http では false にする
-      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SECURE: "true"
     volumes:
       # 起動前に作っておく。Docker に作らせると root の持ち物になる
       - ./data:/app/data
