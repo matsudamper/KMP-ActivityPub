@@ -4,7 +4,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
-import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
@@ -19,7 +19,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         query: QlUserLoginQuery,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserLoginResult>> {
-        GraphQlEngine.graphQlContext(env).requestDummySessionCookie()
+        GraphQlContext.from(env).requestDummySessionCookie()
         val result = QlUserLoginResult(failure = null)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
