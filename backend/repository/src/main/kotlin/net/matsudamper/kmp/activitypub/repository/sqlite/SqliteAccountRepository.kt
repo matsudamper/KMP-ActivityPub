@@ -25,9 +25,6 @@ internal class SqliteAccountRepository(
             }
     }
 
-    /**
-     * 列に COLLATE NOCASE が付いているので、綴りの揺れは SQLite 側で吸収される
-     */
     override fun findCredential(username: String): AccountCredential? = jooq.withConnection { dsl ->
         dsl
             .select(
@@ -39,7 +36,7 @@ internal class SqliteAccountRepository(
             .from(ACCOUNTS)
             .join(ACCOUNT_PASSWORDS)
             .on(ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(ACCOUNTS.ID))
-            .where(ACCOUNTS.USERNAME.eq(username))
+            .where(ACCOUNTS.USERNAME.eq(username.uppercase()))
             .fetchOne()
             ?.let { record ->
                 AccountCredential(

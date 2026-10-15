@@ -34,7 +34,8 @@ internal class FakeAccountRepository : AccountRepository {
     override fun findById(id: AccountId): Account? =
         rows.firstOrNull { it.id == id }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
 
-    override fun findCredential(username: String): AccountCredential? = rows.firstOrNull { it.username.equals(username, ignoreCase = true) }
+    override fun findCredential(username: String): AccountCredential? =
+        rows.firstOrNull { it.username.uppercase() == username.uppercase() }
 }
 
 private class FakeUserSessionStore : UserSessionStore {

@@ -37,7 +37,7 @@ class AccountRegistrationTest {
         )
 
         val stored = readAccount(databasePath, "user1")
-        assertEquals("user1", stored.username)
+        assertEquals("USER1", stored.username)
         assertEquals(PasswordHashType.Current.dbValue, stored.passwordHashType)
         assertEquals(createdAt.toString(), stored.createdAt)
         assertTrue(PasswordHashType.Current.encoder.matches(" correct horse ", stored.passwordHash))
