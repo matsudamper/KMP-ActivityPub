@@ -94,6 +94,9 @@ jobs:
       - name: APK のビルド
         run: ./gradlew :frontend:app-android:assembleDebug
 
+      - name: frontend のテスト
+        run: ./gradlew testFrontend
+
       - name: APK の名前にブランチとハッシュを付ける
         env:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
