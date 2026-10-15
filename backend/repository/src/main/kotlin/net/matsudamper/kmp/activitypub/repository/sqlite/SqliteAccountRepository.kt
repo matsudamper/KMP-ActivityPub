@@ -36,7 +36,7 @@ internal class SqliteAccountRepository(
             .from(ACCOUNTS)
             .join(ACCOUNT_PASSWORDS)
             .on(ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(ACCOUNTS.ID))
-            .where(ACCOUNTS.USERNAME.eq(username.uppercase()))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .fetchOne()
             ?.let { record ->
                 AccountCredential(

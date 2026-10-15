@@ -21,7 +21,7 @@ object Accounts {
         passwordHashType: String,
         createdAt: String,
     ) {
-        val storedUsername = username.uppercase()
+        val storedUsername = username.lowercase()
         try {
             SqliteConnections.connect(databasePath) { connection ->
                 DSL.using(connection, SQLDialect.SQLITE).transaction { configuration ->

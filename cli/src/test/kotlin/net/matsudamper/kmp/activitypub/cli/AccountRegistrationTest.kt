@@ -37,7 +37,7 @@ class AccountRegistrationTest {
         )
 
         val stored = readAccount(databasePath, "user1")
-        assertEquals("USER1", stored.username)
+        assertEquals("user1", stored.username)
         assertEquals(PasswordHashType.Current.dbValue, stored.passwordHashType)
         assertEquals(createdAt.toString(), stored.createdAt)
         assertTrue(PasswordHashType.Current.encoder.matches(" correct horse ", stored.passwordHash))
@@ -49,10 +49,11 @@ class AccountRegistrationTest {
         val databasePath = createDatabase()
         AccountRegistration.register(
             databasePath = databasePath,
-            username = "user1",
+            username = "User1",
             password = "secret",
             createdAt = Instant.parse("2026-10-13T00:00:00Z"),
         )
+        assertEquals("user1", readAccount(databasePath, "user1").username)
 
         val error =
             assertFailsWith<AccountRegistrationException> {
