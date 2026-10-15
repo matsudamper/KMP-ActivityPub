@@ -5,11 +5,9 @@ plugins {
     alias(libs.plugins.ktlint)
 }
 
-// Java のツールチェーンは指定しない。ここで作るのはビルド中に Gradle 自身が
-// 読み込むプラグインなので、デーモンが動いている JVM で動く必要がある
+// デーモンの JVM で読み込むので、ツールチェーンはデーモンに合わせる
 
 configure<KtlintExtension> {
-    // 本体と同じバージョンで揃える。別々に動くビルドなので個別に設定が要る
     version.set(libs.versions.ktlint.get())
 }
 
