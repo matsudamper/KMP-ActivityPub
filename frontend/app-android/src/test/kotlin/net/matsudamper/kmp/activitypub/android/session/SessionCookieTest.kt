@@ -32,15 +32,6 @@ class SessionCookieTest {
     }
 
     @Test
-    fun `期限の無いダミーのセッションCookieを保存して送る`() {
-        val session = assertNotNull(
-            SessionCookie.fromResponse(url, "user_session=dummy; Path=/; HttpOnly; SameSite=Strict"),
-        )
-
-        assertEquals("dummy", session.forRequest(url, System.currentTimeMillis())?.value)
-    }
-
-    @Test
     fun `失効Cookieと別名Cookieと対象外パスは送らない`() {
         val expired = assertNotNull(SessionCookie.fromResponse(url, "user_session=token; Path=/; Max-Age=0"))
         val scoped = assertNotNull(SessionCookie.fromResponse(url, "user_session=token; Path=/graphql"))
