@@ -7,6 +7,7 @@ import graphql.GraphQL
 import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.kickstart.tools.GraphQLResolver
 import graphql.kickstart.tools.SchemaParser
+import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import org.slf4j.LoggerFactory
 
@@ -22,7 +23,7 @@ class GraphQlEngine private constructor(
                 .newExecutionInput(request.query)
                 .operationName(request.operationName)
                 .variables(variablesOf(request))
-                .graphQLContext(mapOf(GraphQlContext.KEY to context))
+                .graphQLContext(mapOf(CONTEXT_KEY to context))
                 .build()
 
         val executionResult = graphQl.execute(input)
@@ -46,7 +47,15 @@ class GraphQlEngine private constructor(
             .orEmpty()
 
     companion object {
+        private val CONTEXT_KEY = Any()
+
         private val logger = LoggerFactory.getLogger(GraphQlEngine::class.java)
+
+        internal fun graphQlContext(env: DataFetchingEnvironment): GraphQlContext {
+            return requireNotNull(env.graphQlContext.get(CONTEXT_KEY)) {
+                "GraphQLContext に GraphQlContext が無い"
+            }
+        }
 
         /**
          * alias で並べた数だけ処理するので上限を置く。画面の問い合わせは 10 未満

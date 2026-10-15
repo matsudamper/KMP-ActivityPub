@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.graphql
 
 import java.util.concurrent.atomic.AtomicBoolean
-import graphql.schema.DataFetchingEnvironment
 import io.ktor.http.CookieEncoding
 import io.ktor.http.HttpHeaders
 import io.ktor.http.renderSetCookieHeader
@@ -31,19 +30,11 @@ internal class GraphQlContext {
     }
 
     companion object {
-        internal val KEY = Any()
-
         /**
          * クライアントがこの名前の Cookie だけを保存する
          */
         const val USER_SESSION_COOKIE_NAME: String = "user_session"
 
         const val DUMMY_USER_SESSION: String = "dummy"
-
-        fun from(env: DataFetchingEnvironment): GraphQlContext {
-            return requireNotNull(env.graphQlContext.get(KEY)) {
-                "GraphQLContext に GraphQlContext が無い"
-            }
-        }
     }
 }
