@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.graphql
 
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
@@ -23,12 +22,6 @@ import net.matsudamper.kmp.activitypub.json.respondJson
 internal const val GRAPHQL_PATH = "/graphql"
 
 private const val MAX_BODY_BYTES = 1024 * 1024
-
-/**
- * graphql-java の実行とログインのハッシュ計算はブロックする。受付スレッドを塞がない
- */
-private val GRAPHQL_DISPATCHER: CoroutineDispatcher =
-    Dispatchers.IO.limitedParallelism((Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1))
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
@@ -64,7 +57,8 @@ internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
                 return@post
             }
 
-        val result = withContext(GRAPHQL_DISPATCHER) { engine.execute(request, call) }
+        // graphql-java の execute は blocking で、CIO はルート内の blocking を別スレッドに移さない
+        val result = withContext(Dispatchers.IO) { engine.execute(request, call) }
 
         call.respondJson(JsonObject.serializer(), result)
     }
