@@ -13,6 +13,8 @@ internal class FakeRepositories : Repositories {
 
     override val sessionStore: UserSessionStore = FakeUserSessionStore()
 
+    override fun verifyWritable() = Unit
+
     override fun close() = Unit
 }
 
