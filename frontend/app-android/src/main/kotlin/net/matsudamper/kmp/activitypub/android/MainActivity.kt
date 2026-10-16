@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiSta
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureAndroidScreens
 import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
 import org.koin.compose.KoinApplication
 import org.koin.plugin.module.dsl.koinConfiguration
@@ -60,8 +61,16 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
                             serverSettingUiState = rememberServerSettingUiState(),
                         )
                     }
-                    entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
-                    entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
+                    entry<Screen.Home> {
+                        HomeFeatureAndroidScreens.LoginRequired(navigator = navigator) {
+                            HomeFeatureScreens.Home(navigator = navigator)
+                        }
+                    }
+                    entry<Screen.Post> {
+                        HomeFeatureAndroidScreens.LoginRequired(navigator = navigator) {
+                            HomeFeatureScreens.Post(navigator = navigator)
+                        }
+                    }
                 },
             )
         }

@@ -54,7 +54,7 @@ internal class LoginGateViewModel(
         return LoginGateUiState(
             content = when (viewModelState) {
                 ViewModelState.Checking -> LoginGateUiState.Content.Loading
-                ViewModelState.NotLoggedIn -> LoginGateUiState.Content.LoginDialog
+                ViewModelState.NotLoggedIn -> LoginGateUiState.Content.LoginRequired
                 ViewModelState.LoggedIn -> LoginGateUiState.Content.Screen
                 is ViewModelState.Failed -> LoginGateUiState.Content.Error(viewModelState.message)
             },

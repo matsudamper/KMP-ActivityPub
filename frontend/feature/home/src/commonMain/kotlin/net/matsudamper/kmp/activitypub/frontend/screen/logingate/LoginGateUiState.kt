@@ -9,7 +9,7 @@ data class LoginGateUiState(
     sealed interface Content {
         data object Loading : Content
 
-        data object LoginDialog : Content
+        data object LoginRequired : Content
 
         data object Screen : Content
 

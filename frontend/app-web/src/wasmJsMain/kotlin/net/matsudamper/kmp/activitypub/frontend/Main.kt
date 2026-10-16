@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
 import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureWebScreens
 import org.koin.compose.KoinApplication
 import org.koin.plugin.module.dsl.koinConfiguration
 
@@ -52,12 +53,12 @@ private fun AppNavigation() {
                     )
                 }
                 entry<Screen.Home> {
-                    HomeFeatureScreens.LoginRequired {
+                    HomeFeatureWebScreens.LoginRequired {
                         HomeFeatureScreens.Home(navigator = navigator)
                     }
                 }
                 entry<Screen.Post> {
-                    HomeFeatureScreens.LoginRequired {
+                    HomeFeatureWebScreens.LoginRequired {
                         HomeFeatureScreens.Post(navigator = navigator)
                     }
                 }
