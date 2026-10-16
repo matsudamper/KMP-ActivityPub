@@ -5,3 +5,20 @@ mutation UserLogin($query: UserLoginQuery!) {
         }
     }
 }
+
+mutation PasskeyLoginOptions {
+    user {
+        passkeyLoginOptions {
+            challenge
+            rpId
+        }
+    }
+}
+
+mutation PasskeyLogin($query: UserPasskeyLoginQuery!) {
+    user {
+        passkeyLogin(query: $query) {
+            failure
+        }
+    }
+}

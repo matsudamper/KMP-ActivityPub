@@ -62,6 +62,7 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
                     }
                     entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
                     entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
+                    entry<Screen.Settings> { HomeFeatureScreens.Settings(navigator = navigator) }
                 },
             )
         }

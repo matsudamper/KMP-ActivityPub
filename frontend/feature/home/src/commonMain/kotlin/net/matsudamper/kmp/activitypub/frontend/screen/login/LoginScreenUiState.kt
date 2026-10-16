@@ -9,6 +9,8 @@ data class LoginScreenUiState(
     val inputHasError: Boolean,
     val inputEnabled: Boolean,
     val loginButtonEnabled: Boolean,
+    val passkeyLoginButtonVisible: Boolean,
+    val passkeyLoginButtonEnabled: Boolean,
     val listener: Listener,
 ) {
     @Immutable
@@ -18,5 +20,7 @@ data class LoginScreenUiState(
         fun onPasswordChanged(text: String)
 
         fun onClickLogin()
+
+        fun onClickPasskeyLogin()
     }
 }

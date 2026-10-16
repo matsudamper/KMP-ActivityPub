@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -104,6 +105,15 @@ internal fun LoginContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("ログイン")
+                }
+                if (uiState.passkeyLoginButtonVisible) {
+                    OutlinedButton(
+                        onClick = uiState.listener::onClickPasskeyLogin,
+                        enabled = uiState.passkeyLoginButtonEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("パスキーでログイン")
+                    }
                 }
                 if (serverSettingUiState != null) {
                     ServerSettingContent(uiState = serverSettingUiState)

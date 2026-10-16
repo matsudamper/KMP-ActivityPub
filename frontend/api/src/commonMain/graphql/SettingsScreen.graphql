@@ -1,0 +1,20 @@
+mutation PasskeyRegistrationOptions {
+    user {
+        passkeyRegistrationOptions {
+            challenge
+            rpId
+            userHandle
+            username
+            algorithms
+            excludeCredentialIds
+        }
+    }
+}
+
+mutation RegisterPasskey($query: RegisterPasskeyQuery!) {
+    user {
+        registerPasskey(query: $query) {
+            failure
+        }
+    }
+}

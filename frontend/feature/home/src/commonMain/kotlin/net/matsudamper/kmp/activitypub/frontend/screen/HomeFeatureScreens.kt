@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 
 object HomeFeatureScreens {
     @Composable
@@ -27,5 +28,10 @@ object HomeFeatureScreens {
     @Composable
     fun Post(navigator: Navigator) {
         PostScreen(navigator = navigator)
+    }
+
+    @Composable
+    fun Settings(navigator: Navigator) {
+        SettingsScreen(navigator = navigator)
     }
 }
