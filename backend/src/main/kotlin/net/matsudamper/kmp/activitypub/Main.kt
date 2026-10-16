@@ -15,10 +15,12 @@ import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
+import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 
 fun main() {
     val serverEnv = ServerEnv()
+    DatabaseWriteCheck.verify(serverEnv.dbPath)
     val deps = AppDependencies.create(serverEnv)
 
     val server =

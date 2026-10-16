@@ -21,3 +21,8 @@ CREATE TABLE user_sessions (
 );
 
 CREATE INDEX user_sessions_account_id ON user_sessions (account_id);
+
+CREATE TABLE health_check (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    checked_at TEXT NOT NULL
+);
