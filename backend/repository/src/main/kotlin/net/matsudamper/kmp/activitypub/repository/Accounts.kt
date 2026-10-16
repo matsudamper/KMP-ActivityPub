@@ -21,6 +21,7 @@ object Accounts {
         passwordHashType: String,
         createdAt: String,
     ) {
+        val storedUsername = username.lowercase()
         try {
             SqliteConnections.connect(databasePath) { connection ->
                 DSL.using(connection, SQLDialect.SQLITE).transaction { configuration ->
@@ -30,7 +31,7 @@ object Accounts {
                             ACCOUNTS.USERNAME,
                             ACCOUNTS.CREATED_AT,
                         )
-                        .values(username, createdAt)
+                        .values(storedUsername, createdAt)
                         .execute()
                     val accountId = checkNotNull(dsl.lastID()).toLong()
                     dsl.insertInto(ACCOUNT_PASSWORDS)
