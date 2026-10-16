@@ -12,11 +12,6 @@ interface Repositories : AutoCloseable {
     val sessionStore: UserSessionStore
 
     /**
-     * 書けなければ例外。native バイナリでは SQLite のネイティブライブラリが壊れていても起動は通るため
-     */
-    fun verifyWritable()
-
-    /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい
      */
     override fun close()

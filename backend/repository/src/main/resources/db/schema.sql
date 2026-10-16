@@ -13,11 +13,6 @@ CREATE TABLE account_passwords (
     password_hash_type TEXT NOT NULL
 );
 
-CREATE TABLE health_check (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    checked_at TEXT NOT NULL
-);
-
 CREATE TABLE user_sessions (
     token_hash TEXT NOT NULL PRIMARY KEY,
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
