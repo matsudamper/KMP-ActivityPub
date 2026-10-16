@@ -4,8 +4,6 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
- * Redis などへは実装を差し替える。サーバーの再起動で消えない保存先にすること
- *
  * 保存先が漏れても使えないよう、トークンはハッシュで受け取る
  */
 interface UserSessionStore {
