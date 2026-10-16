@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
-import net.matsudamper.kmp.activitypub.repository.PasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
@@ -18,8 +17,6 @@ internal class SqliteRepositories(
     override val sessionStore: UserSessionStore = SqliteUserSessionStore(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
-
-    override val passkeyChallengeStore: PasskeyChallengeStore = SqlitePasskeyChallengeStore(jooq)
 
     override fun close() {
         connectionManager.close()

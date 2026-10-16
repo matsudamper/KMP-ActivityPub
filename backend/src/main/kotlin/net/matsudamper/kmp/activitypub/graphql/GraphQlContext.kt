@@ -26,7 +26,7 @@ class GraphQlContext(
     fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
 
     /**
-     * challenge は DB に書くので、alias で並べても 1 リクエスト 1 回までにする
+     * alias で並べて challenge の上限を一度に埋められないよう、1 リクエスト 1 回までにする
      */
     fun claimPasskeyChallenge(): Boolean = passkeyChallengeIssued.compareAndSet(false, true)
 

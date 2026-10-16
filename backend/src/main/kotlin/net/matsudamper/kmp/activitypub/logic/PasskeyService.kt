@@ -4,14 +4,11 @@ import java.security.SecureRandom
 import java.time.Clock
 import java.util.Base64
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.toJavaDuration
 import net.matsudamper.kmp.activitypub.passkey.PasskeyClientData
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 import net.matsudamper.kmp.activitypub.passkey.PasskeyVerificationException
 import net.matsudamper.kmp.activitypub.passkey.PasskeyVerifier
 import net.matsudamper.kmp.activitypub.repository.Account
-import net.matsudamper.kmp.activitypub.repository.PasskeyChallengePurpose
-import net.matsudamper.kmp.activitypub.repository.PasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -23,11 +20,11 @@ import org.slf4j.LoggerFactory
 class PasskeyService(
     private val relyingParty: PasskeyRelyingParty,
     private val passkeyRepository: PasskeyRepository,
-    private val challengeStore: PasskeyChallengeStore,
     private val clock: Clock,
 ) {
     private val verifier = PasskeyVerifier(relyingParty)
     private val random = SecureRandom()
+    private val challenges = PasskeyChallenges(clock = clock, ttl = CHALLENGE_TTL)
 
     fun loginOptions(): LoginOptions =
         LoginOptions(
@@ -47,7 +44,7 @@ class PasskeyService(
     ): AccountId? =
         verifyOrNull {
             val clientData = PasskeyClientData.parse(decode(clientDataJson))
-            if (!challengeStore.consume(clientData.challenge, PasskeyChallengePurpose.Authentication, accountId = null, now = clock.instant())) {
+            if (!challenges.consume(clientData.challenge, PasskeyChallengePurpose.Authentication, accountId = null)) {
                 throw PasskeyVerificationException("発行していないか期限切れの challenge")
             }
 
@@ -104,7 +101,7 @@ class PasskeyService(
             verifyOrNull {
                 val clientData = PasskeyClientData.parse(decode(clientDataJson))
                 // 別のアカウント向けに発行した challenge では足させない
-                if (!challengeStore.consume(clientData.challenge, PasskeyChallengePurpose.Registration, accountId = accountId, now = clock.instant())) {
+                if (!challenges.consume(clientData.challenge, PasskeyChallengePurpose.Registration, accountId = accountId)) {
                     throw PasskeyVerificationException("発行していないか期限切れの challenge")
                 }
                 verifier.verifyRegistration(clientData, decode(attestationObject))
@@ -127,14 +124,7 @@ class PasskeyService(
         accountId: AccountId?,
     ): String {
         val challenge = encode(randomBytes(CHALLENGE_SIZE_BYTES))
-        val now = clock.instant()
-        challengeStore.create(
-            challenge = challenge,
-            purpose = purpose,
-            accountId = accountId,
-            createdAt = now,
-            expiresAt = now.plus(CHALLENGE_TTL.toJavaDuration()),
-        )
+        challenges.add(challenge = challenge, purpose = purpose, accountId = accountId)
         return challenge
     }
 

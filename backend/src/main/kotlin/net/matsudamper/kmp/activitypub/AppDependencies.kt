@@ -28,7 +28,6 @@ class AppDependencies(
             PasskeyService(
                 relyingParty = relyingParty,
                 passkeyRepository = repositories.passkeyRepository,
-                challengeStore = repositories.passkeyChallengeStore,
                 clock = Clock.systemUTC(),
             )
         }

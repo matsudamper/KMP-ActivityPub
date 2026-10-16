@@ -80,39 +80,6 @@ class PasskeyRepositoryTest {
     }
 
     @Test
-    fun `challenge は一度だけ使える`() {
-        withRepositories { repositories, _ ->
-            val store = repositories.passkeyChallengeStore
-            store.create(challenge = "c", purpose = PasskeyChallengePurpose.Authentication, accountId = null, createdAt = NOW, expiresAt = EXPIRES_AT)
-
-            assertTrue(store.consume(challenge = "c", purpose = PasskeyChallengePurpose.Authentication, accountId = null, now = NOW))
-            assertFalse(store.consume(challenge = "c", purpose = PasskeyChallengePurpose.Authentication, accountId = null, now = NOW))
-        }
-    }
-
-    @Test
-    fun `用途かアカウントが違う challenge は使えず、消えもしない`() {
-        withRepositories { repositories, accountId ->
-            val store = repositories.passkeyChallengeStore
-            store.create(challenge = "c", purpose = PasskeyChallengePurpose.Registration, accountId = accountId, createdAt = NOW, expiresAt = EXPIRES_AT)
-
-            assertFalse(store.consume(challenge = "c", purpose = PasskeyChallengePurpose.Authentication, accountId = accountId, now = NOW))
-            assertFalse(store.consume(challenge = "c", purpose = PasskeyChallengePurpose.Registration, accountId = null, now = NOW))
-            assertTrue(store.consume(challenge = "c", purpose = PasskeyChallengePurpose.Registration, accountId = accountId, now = NOW))
-        }
-    }
-
-    @Test
-    fun `期限を過ぎた challenge は使えない`() {
-        withRepositories { repositories, _ ->
-            val store = repositories.passkeyChallengeStore
-            store.create(challenge = "c", purpose = PasskeyChallengePurpose.Authentication, accountId = null, createdAt = NOW, expiresAt = EXPIRES_AT)
-
-            assertFalse(store.consume(challenge = "c", purpose = PasskeyChallengePurpose.Authentication, accountId = null, now = EXPIRES_AT))
-        }
-    }
-
-    @Test
     fun `無いパスキーは引けない`() {
         withRepositories { repositories, _ ->
             assertNull(repositories.passkeyRepository.findByCredentialId("unknown"))
@@ -138,6 +105,5 @@ class PasskeyRepositoryTest {
 
     private companion object {
         val NOW: Instant = Instant.parse("2026-09-01T00:00:00Z")
-        val EXPIRES_AT: Instant = Instant.parse("2026-09-01T00:05:00Z")
     }
 }

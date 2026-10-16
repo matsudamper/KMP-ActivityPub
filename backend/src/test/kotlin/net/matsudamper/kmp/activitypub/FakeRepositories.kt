@@ -4,8 +4,6 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
-import net.matsudamper.kmp.activitypub.repository.PasskeyChallengePurpose
-import net.matsudamper.kmp.activitypub.repository.PasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.Repositories
@@ -19,8 +17,6 @@ internal class FakeRepositories : Repositories {
     override val sessionStore: UserSessionStore = FakeUserSessionStore()
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository()
-
-    override val passkeyChallengeStore: PasskeyChallengeStore = FakePasskeyChallengeStore()
 
     override fun close() = Unit
 }
@@ -112,31 +108,5 @@ private class FakePasskeyRepository : PasskeyRepository {
     ) {
         val passkey = passkeys[credentialId] ?: return
         passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.publicKey, signCount)
-    }
-}
-
-private class FakePasskeyChallengeStore : PasskeyChallengeStore {
-    private val rows = mutableMapOf<String, Triple<PasskeyChallengePurpose, AccountId?, Instant>>()
-
-    override fun create(
-        challenge: String,
-        purpose: PasskeyChallengePurpose,
-        accountId: AccountId?,
-        createdAt: Instant,
-        expiresAt: Instant,
-    ) {
-        rows[challenge] = Triple(purpose, accountId, expiresAt)
-    }
-
-    override fun consume(
-        challenge: String,
-        purpose: PasskeyChallengePurpose,
-        accountId: AccountId?,
-        now: Instant,
-    ): Boolean {
-        val row = rows[challenge] ?: return false
-        if (row != Triple(purpose, accountId, row.third) || row.third <= now) return false
-        rows.remove(challenge)
-        return true
     }
 }

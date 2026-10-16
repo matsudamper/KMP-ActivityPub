@@ -19,7 +19,6 @@ class PasskeyServiceTest {
         PasskeyService(
             relyingParty = PasskeyRelyingParty(id = TestAuthenticator.RP_ID, origins = setOf(TestAuthenticator.ORIGIN)),
             passkeyRepository = repositories.passkeyRepository,
-            challengeStore = repositories.passkeyChallengeStore,
             clock = Clock.fixed(Instant.parse("2026-09-01T00:00:00Z"), ZoneOffset.UTC),
         )
 

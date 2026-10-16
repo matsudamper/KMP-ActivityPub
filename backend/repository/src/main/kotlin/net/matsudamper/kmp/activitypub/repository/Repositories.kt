@@ -13,8 +13,6 @@ interface Repositories : AutoCloseable {
 
     val passkeyRepository: PasskeyRepository
 
-    val passkeyChallengeStore: PasskeyChallengeStore
-
     /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい
      */
