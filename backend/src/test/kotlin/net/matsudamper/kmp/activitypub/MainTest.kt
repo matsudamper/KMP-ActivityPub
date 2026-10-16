@@ -9,7 +9,6 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
-import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import org.junit.jupiter.api.io.TempDir
 
 class MainTest {
@@ -17,7 +16,7 @@ class MainTest {
     fun `healthz で ok を返す`() =
         testApplication {
             application {
-                module(staticFiles = null)
+                module(TestDependencies())
             }
 
             val response = client.get("/healthz")
@@ -29,7 +28,7 @@ class MainTest {
     fun `hello で Hello World を返す`() =
         testApplication {
             application {
-                module(staticFiles = null)
+                module(TestDependencies())
             }
 
             val response = client.get("/hello")
@@ -41,7 +40,7 @@ class MainTest {
     fun `STATIC_SRC_DIR が無いときは 404 を返す`() =
         testApplication {
             application {
-                module(staticFiles = null)
+                module(TestDependencies())
             }
 
             val response = client.get("/")
@@ -55,7 +54,7 @@ class MainTest {
             tempDir.resolve("index.html").writeText("<html><body>Hello</body></html>")
 
             application {
-                module(staticFiles = StaticFiles(tempDir))
+                module(TestDependencies(env = ServerEnv(mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
             }
 
             val response = client.get("/")

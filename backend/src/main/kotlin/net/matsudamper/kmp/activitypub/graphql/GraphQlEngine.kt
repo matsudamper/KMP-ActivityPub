@@ -8,28 +8,32 @@ import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.kickstart.tools.GraphQLResolver
 import graphql.kickstart.tools.SchemaParser
 import graphql.schema.DataFetchingEnvironment
+import io.ktor.server.application.ApplicationCall
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import org.slf4j.LoggerFactory
 
 class GraphQlEngine private constructor(
     private val graphQl: GraphQL,
+    private val createContext: (ApplicationCall) -> GraphQlContext,
+    private val diContainer: DiContainer,
 ) {
-    internal fun execute(
+    fun execute(
         request: GraphQlRequest,
-        context: GraphQlContext,
+        call: ApplicationCall,
     ): JsonObject {
         val input =
             ExecutionInput
                 .newExecutionInput(request.query)
                 .operationName(request.operationName)
                 .variables(variablesOf(request))
-                .graphQLContext(mapOf(CONTEXT_KEY to context))
+                .graphQLContext(mapOf(CONTEXT_KEY to createContext(call)))
+                .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
                 .build()
 
         val executionResult = graphQl.execute(input)
         executionResult.errors.forEach { error ->
             val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
-            if (dataFetchingException == null) {
+            if (dataFetchingException == null || dataFetchingException is GraphQlClientException) {
                 logger.debug("GraphQL の実行に失敗した: {}", error.message)
             } else {
                 logger.error("GraphQL の実行に失敗した: {}", error.message, dataFetchingException)
@@ -48,21 +52,20 @@ class GraphQlEngine private constructor(
 
     companion object {
         private val CONTEXT_KEY = Any()
+        private val DI_CONTAINER_KEY = Any()
 
         private val logger = LoggerFactory.getLogger(GraphQlEngine::class.java)
-
-        internal fun graphQlContext(env: DataFetchingEnvironment): GraphQlContext {
-            return requireNotNull(env.graphQlContext.get(CONTEXT_KEY)) {
-                "GraphQLContext に GraphQlContext が無い"
-            }
-        }
 
         /**
          * alias で並べた数だけ処理するので上限を置く。画面の問い合わせは 10 未満
          */
         private const val MAX_QUERY_COMPLEXITY = 100
 
-        fun create(resolvers: List<GraphQLResolver<*>>): GraphQlEngine {
+        fun create(
+            resolvers: List<GraphQLResolver<*>>,
+            createContext: (ApplicationCall) -> GraphQlContext,
+            diContainer: DiContainer,
+        ): GraphQlEngine {
             val schema =
                 SchemaParser
                     .newParser()
@@ -76,7 +79,21 @@ class GraphQlEngine private constructor(
                     .newGraphQL(schema)
                     .instrumentation(MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY))
                     .build(),
+                createContext = createContext,
+                diContainer = diContainer,
             )
+        }
+
+        fun graphQlContext(env: DataFetchingEnvironment): GraphQlContext {
+            return requireNotNull(env.graphQlContext.get(CONTEXT_KEY)) {
+                "GraphQLContext に GraphQlContext が無い"
+            }
+        }
+
+        fun diContainer(env: DataFetchingEnvironment): DiContainer {
+            return requireNotNull(env.graphQlContext.get(DI_CONTAINER_KEY)) {
+                "GraphQLContext に DiContainer が無い"
+            }
         }
 
         /**

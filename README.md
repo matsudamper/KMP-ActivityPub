@@ -22,3 +22,15 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-a
 ```
 
 ユーザー名は大文字小文字を区別せず一意になる。区別しないのは ASCII の英字だけなので、使う文字は英数字と `_` `.` `-` に限る。ログインでは前後の空白を落として照合するので、前後に空白を入れない。
+
+### 起動する
+
+```sh
+COOKIE_SECURE=false ./gradlew :backend:run
+```
+
+環境変数は `docker-compose.yml` を参照。
+
+画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
+`frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
+同じサーバーから出る。

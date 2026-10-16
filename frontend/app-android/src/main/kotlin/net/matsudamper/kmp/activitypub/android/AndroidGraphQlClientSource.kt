@@ -28,7 +28,7 @@ internal class AndroidGraphQlClientSource(
     serverSettingStore: ServerSettingStore,
 ) : GraphQlClientSource {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val sessions = SessionRepository(
+    private val sessionRepository = SessionRepository(
         local = EncryptedSessionStore(context.applicationContext),
         backup = BlockStoreSessionBackup(context),
         scope = scope,
@@ -48,7 +48,7 @@ internal class AndroidGraphQlClientSource(
                 } else {
                     GraphQlClient.builder("$serverUrl/graphql")
                         .okHttpClient(httpClient)
-                        .addHttpInterceptor(SessionHttpInterceptor(sessions))
+                        .addHttpInterceptor(SessionHttpInterceptor(sessionRepository))
                         .build()
                 }
             }.stateIn(scope, SharingStarted.Eagerly, null)

@@ -8,6 +8,9 @@ plugins {
 dependencies {
     implementation(project(":backend:graphql"))
     implementation(project(":backend:repository"))
+    implementation(project(":backend:crypto"))
+    implementation(project(":backend:session"))
+    implementation(project(":shared"))
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
@@ -34,6 +37,11 @@ tasks.test {
 }
 
 graalvmNative {
+    // ライブラリ向けの設定
+    metadataRepository {
+        enabled.set(false)
+    }
+
     binaries {
         named("main") {
             imageName.set("kmp-activitypub")

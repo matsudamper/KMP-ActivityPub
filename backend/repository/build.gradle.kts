@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     api(project(":shared"))
+    api(project(":backend:session"))
 
     implementation(libs.sqlite.jdbc)
     implementation(libs.jooq)
