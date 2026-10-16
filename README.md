@@ -31,6 +31,12 @@ COOKIE_SECURE=false ./gradlew :backend:run
 
 環境変数は `docker-compose.yml` を参照。
 
+パスキーを試すときは RP ID と origin も渡す。`localhost` なら http でも動く。
+
+```sh
+COOKIE_SECURE=false PASSKEY_RP_ID=localhost PASSKEY_ORIGINS=http://localhost:8080 ./gradlew :backend:run
+```
+
 画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
 `frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
 同じサーバーから出る。

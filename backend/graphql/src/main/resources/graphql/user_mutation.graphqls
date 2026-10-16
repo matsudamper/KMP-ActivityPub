@@ -1,5 +1,12 @@
 type UserMutation {
     login(query: UserLoginQuery!): UserLoginResult! @lazy
+    "パスキーでのログインに使う challenge を発行する。challenge は 1 回だけ、5 分以内に使える"
+    passkeyLoginOptions: PasskeyLoginOptions! @lazy
+    "通るとセッションの Cookie を返す"
+    passkeyLogin(query: UserPasskeyLoginQuery!): UserPasskeyLoginResult! @lazy
+    "ログイン中のアカウントにパスキーを足すための値を発行する。ログインしていなければ null"
+    passkeyRegistrationOptions: PasskeyRegistrationOptions @lazy
+    registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
 }
 
 input UserLoginQuery {
@@ -14,4 +21,57 @@ type UserLoginResult {
 enum UserLoginFailure {
     "ユーザーがいないか、パスワードが違う。"
     WRONG_USERNAME_OR_PASSWORD
+}
+
+"バイト列はすべて base64url（パディング無し）"
+type PasskeyLoginOptions {
+    challenge: String!
+    rpId: String!
+}
+
+"バイト列はすべて base64url（パディング無し）"
+type PasskeyRegistrationOptions {
+    challenge: String!
+    rpId: String!
+    userHandle: String!
+    username: String!
+    "COSE Algorithms の値。認証器にはこの中から選ばせる"
+    algorithms: [Int!]!
+    "登録済みのパスキー。同じ認証器に二重に作らせない"
+    excludeCredentialIds: [String!]!
+}
+
+"バイト列はすべて base64url（パディング無し）。WebAuthn の AuthenticatorAssertionResponse の値をそのまま渡す"
+input UserPasskeyLoginQuery {
+    credentialId: String!
+    clientDataJson: String!
+    authenticatorData: String!
+    signature: String!
+    userHandle: String
+}
+
+type UserPasskeyLoginResult {
+    failure: UserPasskeyLoginFailure
+}
+
+enum UserPasskeyLoginFailure {
+    "登録されていないパスキーか、検証に通らなかった。challenge の期限切れも含む"
+    NOT_ACCEPTED
+}
+
+"バイト列はすべて base64url（パディング無し）。WebAuthn の AuthenticatorAttestationResponse の値をそのまま渡す"
+input RegisterPasskeyQuery {
+    clientDataJson: String!
+    attestationObject: String!
+}
+
+type RegisterPasskeyResult {
+    failure: RegisterPasskeyFailure
+}
+
+enum RegisterPasskeyFailure {
+    NOT_LOGGED_IN
+    "検証に通らなかった。challenge の期限切れも含む"
+    NOT_ACCEPTED
+    ALREADY_REGISTERED
 }

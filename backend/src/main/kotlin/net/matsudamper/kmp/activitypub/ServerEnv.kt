@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub
 
 import java.nio.file.Path
 import kotlin.io.path.Path
+import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 
 /**
  * 空白だけの値は未設定として扱う。STATIC_SRC_DIR が空だとカレントディレクトリを配信してしまう
@@ -24,4 +25,22 @@ class ServerEnv(
             raw.lowercase().toBooleanStrictOrNull()
                 ?: throw IllegalArgumentException("COOKIE_SECURE は true か false にすること: $raw")
         } ?: true
+
+    /**
+     * PASSKEY_RP_ID が無ければパスキーを使わない。
+     * PASSKEY_ORIGINS はカンマ区切りで、無ければ https://<PASSKEY_RP_ID> だけを受け付ける
+     */
+    val passkeyRelyingParty: PasskeyRelyingParty? =
+        values["PASSKEY_RP_ID"]?.let { rpId ->
+            PasskeyRelyingParty(
+                id = rpId,
+                origins =
+                values["PASSKEY_ORIGINS"]
+                    ?.split(',')
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?.toSet()
+                    ?: setOf("https://$rpId"),
+            )
+        }
 }

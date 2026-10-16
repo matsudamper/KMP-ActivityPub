@@ -49,6 +49,13 @@ internal fun Application.module(deps: AppDependencies) {
         )
     }
 
+    val passkeyRelyingParty = deps.env.passkeyRelyingParty
+    if (passkeyRelyingParty != null) {
+        log.info("パスキーの RP ID: ${passkeyRelyingParty.id} origin: ${passkeyRelyingParty.origins.joinToString()}")
+    } else {
+        log.info("PASSKEY_RP_ID が未設定のため、パスキーを使わない")
+    }
+
     if (!deps.env.cookieSecure) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
@@ -67,7 +74,10 @@ internal fun Application.module(deps: AppDependencies) {
                     cookieSecure = deps.env.cookieSecure,
                 )
             },
-            diContainer = DiContainer(accountService = deps.accountService),
+            diContainer = DiContainer(
+                accountService = deps.accountService,
+                passkeyService = deps.passkeyService,
+            ),
         )
 
     routing {

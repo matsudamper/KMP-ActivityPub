@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":backend:repository"))
     implementation(project(":backend:crypto"))
     implementation(project(":backend:session"))
+    implementation(project(":backend:passkey"))
     implementation(project(":shared"))
 
     implementation(libs.ktor.server.core)
@@ -22,6 +23,7 @@ dependencies {
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test)
+    testImplementation(testFixtures(project(":backend:passkey")))
 }
 
 application {

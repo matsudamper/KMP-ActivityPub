@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub
 import java.time.Clock
 import kotlin.time.Duration.Companion.days
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.session.UserSessionService
@@ -21,6 +22,16 @@ class AppDependencies(
         ttl = 30.days,
         clock = Clock.systemUTC(),
     )
+
+    val passkeyService: PasskeyService? =
+        env.passkeyRelyingParty?.let { relyingParty ->
+            PasskeyService(
+                relyingParty = relyingParty,
+                passkeyRepository = repositories.passkeyRepository,
+                challengeStore = repositories.passkeyChallengeStore,
+                clock = Clock.systemUTC(),
+            )
+        }
 
     override fun close() {
         repositories.close()

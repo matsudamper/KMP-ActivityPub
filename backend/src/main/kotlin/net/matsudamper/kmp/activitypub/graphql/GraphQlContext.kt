@@ -18,11 +18,22 @@ class GraphQlContext(
     )
 
     private val loginAttempted = AtomicBoolean(false)
+    private val passkeyChallengeIssued = AtomicBoolean(false)
 
     /**
      * alias で login を並べてもハッシュ計算は 1 リクエスト 1 回までにする
      */
     fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
+
+    /**
+     * challenge は DB に書くので、alias で並べても 1 リクエスト 1 回までにする
+     */
+    fun claimPasskeyChallenge(): Boolean = passkeyChallengeIssued.compareAndSet(false, true)
+
+    /**
+     * Cookie のセッションが有効なら持ち主
+     */
+    fun loggedInAccountId(): AccountId? = userCookie.token()?.let { sessionService.accountIdOf(it) }
 
     fun issueUserSession(accountId: AccountId) {
         userCookie.append(token = sessionService.create(accountId), maxAgeSeconds = sessionService.ttlSeconds)
