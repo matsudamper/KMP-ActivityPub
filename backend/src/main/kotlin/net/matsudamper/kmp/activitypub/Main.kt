@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.UserQueryResolverImpl
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 
@@ -59,6 +60,7 @@ internal fun Application.module(deps: AppDependencies) {
                 QueryResolverImpl(),
                 MutationResolverImpl(),
                 UserMutationResolverImpl(),
+                UserQueryResolverImpl(),
             ),
             createContext = { call ->
                 GraphQlContext(

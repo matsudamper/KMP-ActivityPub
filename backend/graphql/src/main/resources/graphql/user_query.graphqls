@@ -1,0 +1,4 @@
+type UserQuery {
+    "有効なセッションの Cookie が付いているか"
+    loggedIn: Boolean! @lazy
+}

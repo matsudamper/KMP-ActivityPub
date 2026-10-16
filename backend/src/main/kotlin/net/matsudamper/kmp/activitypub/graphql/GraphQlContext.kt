@@ -24,6 +24,11 @@ class GraphQlContext(
      */
     fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
 
+    fun userAccountId(): AccountId? {
+        val token = userCookie.token() ?: return null
+        return sessionService.accountIdOf(token)
+    }
+
     fun issueUserSession(accountId: AccountId) {
         userCookie.append(token = sessionService.create(accountId), maxAgeSeconds = sessionService.ttlSeconds)
     }
