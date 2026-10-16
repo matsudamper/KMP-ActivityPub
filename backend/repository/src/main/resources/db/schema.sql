@@ -12,3 +12,8 @@ CREATE TABLE account_passwords (
     -- :backend:crypto の PasswordHashType.dbValue
     password_hash_type TEXT NOT NULL
 );
+
+CREATE TABLE health_check (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    checked_at TEXT NOT NULL
+);

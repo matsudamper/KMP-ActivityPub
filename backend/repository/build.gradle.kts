@@ -8,6 +8,8 @@ dependencies {
     implementation(libs.jooq)
 
     jooqCodegen(libs.sqlite.jdbc)
+
+    testImplementation(libs.kotlin.test)
 }
 
 databaseCodegen {
