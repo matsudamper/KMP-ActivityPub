@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEY_USER_HANDLES
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import org.jooq.impl.DSL
 
 internal class SqlitePasskeyRepository(
     private val jooq: SqliteJooq,
@@ -105,7 +106,7 @@ internal class SqlitePasskeyRepository(
         jooq.withConnection { dsl ->
             dsl
                 .update(PASSKEYS)
-                .set(PASSKEYS.SIGN_COUNT, signCount)
+                .set(PASSKEYS.SIGN_COUNT, DSL.greatest(PASSKEYS.SIGN_COUNT, DSL.inline(signCount)))
                 .set(PASSKEYS.LAST_USED_AT, StoredInstant.format(usedAt))
                 .where(PASSKEYS.CREDENTIAL_ID.eq(credentialId))
                 .execute()

@@ -107,6 +107,6 @@ private class FakePasskeyRepository : PasskeyRepository {
         usedAt: Instant,
     ) {
         val passkey = passkeys[credentialId] ?: return
-        passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.publicKey, signCount)
+        passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.publicKey, maxOf(passkey.signCount, signCount))
     }
 }

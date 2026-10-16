@@ -80,6 +80,18 @@ class PasskeyRepositoryTest {
     }
 
     @Test
+    fun `署名回数は小さい値では戻らない`() {
+        withRepositories { repositories, accountId ->
+            repositories.passkeyRepository.add(accountId = accountId, credentialId = "credential-1", publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW)
+
+            repositories.passkeyRepository.updateSignCount(credentialId = "credential-1", signCount = 10, usedAt = NOW)
+            repositories.passkeyRepository.updateSignCount(credentialId = "credential-1", signCount = 5, usedAt = NOW)
+
+            assertEquals(10, repositories.passkeyRepository.findByCredentialId("credential-1")?.signCount)
+        }
+    }
+
+    @Test
     fun `無いパスキーは引けない`() {
         withRepositories { repositories, _ ->
             assertNull(repositories.passkeyRepository.findByCredentialId("unknown"))

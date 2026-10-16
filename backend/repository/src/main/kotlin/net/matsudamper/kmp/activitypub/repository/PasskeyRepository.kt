@@ -42,6 +42,9 @@ interface PasskeyRepository {
 
     fun findByCredentialId(credentialId: String): StoredPasskey?
 
+    /**
+     * 今より小さい [signCount] では戻さない。同じパスキーのログインが並んで、古い値が後から書かれることがある
+     */
     fun updateSignCount(
         credentialId: String,
         signCount: Long,
