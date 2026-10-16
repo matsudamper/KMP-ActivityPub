@@ -26,7 +26,7 @@ class AppDependenciesTest {
     @Test
     fun `画面を配信する構成でも投函する Create に url が入らない`() {
         staticSrcDir.resolve(StaticFiles.INDEX_FILE_NAME).writeText("<html></html>")
-        val deps = testDependencies(env = TestServerEnv.of("STATIC_SRC_DIR" to staticSrcDir.toString()))
+        val deps = TestDependencies(env = TestServerEnv.of("STATIC_SRC_DIR" to staticSrcDir.toString()))
         deps.acceptFollower()
 
         deps.noteEnqueuer.enqueue(
@@ -40,7 +40,7 @@ class AppDependenciesTest {
 
     @Test
     fun `画面を配信しない構成では投函する Create に url が入らない`() {
-        val deps = testDependencies()
+        val deps = TestDependencies()
         deps.acceptFollower()
 
         deps.noteEnqueuer.enqueue(

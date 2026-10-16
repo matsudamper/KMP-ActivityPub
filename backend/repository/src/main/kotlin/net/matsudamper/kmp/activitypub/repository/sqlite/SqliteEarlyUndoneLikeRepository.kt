@@ -2,7 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.EarlyUndoneLikeRepository
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.EARLY_UNDONE_LIKES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.EARLY_UNDONE_LIKES
 
 internal class SqliteEarlyUndoneLikeRepository(
     private val jooq: SqliteJooq,

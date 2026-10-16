@@ -26,10 +26,9 @@ import net.matsudamper.kmp.activitypub.logic.RepositoryFavouriteStore
 import net.matsudamper.kmp.activitypub.logic.RepositoryFollowerStore
 import net.matsudamper.kmp.activitypub.logic.RepositoryNoteStore
 import net.matsudamper.kmp.activitypub.logic.RepositoryStampStore
-import net.matsudamper.kmp.activitypub.logic.UserSessionService
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
-import net.matsudamper.kmp.activitypub.repository.createRepositories
+import net.matsudamper.kmp.activitypub.session.UserSessionService
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kotpub.actor.ActorAppearance
@@ -93,11 +92,11 @@ class AppDependencies(
         domain = env.domain,
         stored = object : StoredActorNames {
             override fun find(username: String): String? {
-                return repositories.accounts.findByUsername(username)?.username
+                return repositories.accountRepository.findByUsername(username)?.username
             }
 
             override fun finds(usernames: Set<String>): Map<String, String> {
-                return repositories.accounts.findByUsernames(usernames).mapValues { it.value.username }
+                return repositories.accountRepository.findByUsernames(usernames).mapValues { it.value.username }
             }
         },
     )
@@ -115,7 +114,7 @@ class AppDependencies(
     private val deletedActorDirectory: ActorDirectory = ActorDirectory(
         domain = env.domain,
         stored = object : StoredActorNames {
-            override fun find(username: String): String? = repositories.accounts.findDeletedByUsername(username)?.username
+            override fun find(username: String): String? = repositories.accountRepository.findDeletedByUsername(username)?.username
 
             override fun finds(usernames: Set<String>): Map<String, String> {
                 return usernames.mapNotNull { username -> find(username)?.let { username to it } }.toMap()
@@ -130,7 +129,7 @@ class AppDependencies(
         override fun find(username: String): ActorAppearance = ActorAppearance.EMPTY
     }
 
-    val actorProfiles: StoredActorProfiles = RepositoryActorProfiles(repositories.accounts)
+    val actorProfiles: StoredActorProfiles = RepositoryActorProfiles(repositories.accountRepository)
 
     val domainBlockService: DomainBlockService = DomainBlockService(
         domainBlocks = repositories.domainBlocks,
@@ -179,12 +178,12 @@ class AppDependencies(
     )
 
     val accountService: AccountService = AccountService(
-        accounts = repositories.accounts,
+        accountRepository = repositories.accountRepository,
         domain = env.domain,
     )
 
-    val userSessions: UserSessionService = UserSessionService(
-        sessions = repositories.userSessions,
+    val sessionService: UserSessionService = UserSessionService(
+        sessionStore = repositories.sessionStore,
         ttl = 30.days,
         clock = Clock.systemUTC(),
     )
@@ -199,7 +198,7 @@ class AppDependencies(
     fun startDeliveryWorker(): Int {
         // 送る配信が無くなった削除済みアカウントをここで片付ける。名前が空くのもここ。
         // 動いている間に空になった分は次の起動まで残る
-        val purgedAccounts = repositories.accounts.purgeDeleted()
+        val purgedAccounts = repositories.accountRepository.purgeDeleted()
 
         DeliveryWorker(
             queue = repositories.deliveryQueue,
@@ -279,7 +278,7 @@ class AppDependencies(
             env: ServerEnv,
             telemetry: OpenTelemetryInitializer.Handler? = null,
         ): AppDependencies {
-            val repositories = createRepositories(DatabaseConfig(path = env.dbPath), openTelemetry = telemetry?.openTelemetry)
+            val repositories = Repositories.create(DatabaseConfig(path = env.dbPath), openTelemetry = telemetry?.openTelemetry)
             val openTelemetry = telemetry?.openTelemetry
 
             // ここから先で失敗すると、開いた DB が閉じられないまま起動が止まる

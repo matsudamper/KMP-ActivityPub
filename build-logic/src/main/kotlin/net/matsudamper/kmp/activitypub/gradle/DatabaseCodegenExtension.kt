@@ -9,13 +9,13 @@ interface DatabaseCodegenExtension {
     val packageName: Property<String>
 
     /**
-     * 生成の対象から外すテーブルの正規表現。
-     *
-     * 既定では SQLite 自身の内部表と、旧マイグレーション機構の管理表
-     * `schema_version` を外す。後者は、切り替え前の開発用 DB に残っていても
-     * dump と生成物に紛れ込まないようにするため。
+     * 既定では SQLite の内部表と、旧マイグレーションの `schema_version` を外す
      */
     val excludes: Property<String>
 
-    val nativeImageMetadataPath: Property<String>
+    /**
+     * 生成する `reflect-config.json` の出力先。
+     * `META-INF/native-image/<ここ>/reflect-config.json` の `<ここ>` 部分（モジュールごとに一意）
+     */
+    val nativeImageReflectConfigOutputPath: Property<String>
 }

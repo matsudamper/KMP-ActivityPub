@@ -28,7 +28,7 @@ class NoteRepositoryTest {
     }
 
     private fun <T> withRepository(block: (NoteRepository) -> T): T =
-        createRepositories(DatabaseConfig(path = dbPath)).use { block(it.notes) }
+        Repositories.create(DatabaseConfig(path = dbPath)).use { block(it.notes) }
 
     private fun newNote(
         publicId: String,

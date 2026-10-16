@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
-import java.time.Instant
 import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
@@ -12,20 +11,16 @@ import net.matsudamper.kmp.activitypub.repository.NoteFavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteStampRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
-import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.HEALTH_CHECK
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
 
 internal class SqliteRepositories(
     config: DatabaseConfig,
-    openTelemetry: OpenTelemetry? = null,
+    openTelemetry: OpenTelemetry?,
 ) : Repositories {
-    // スキーマの適用はしない。実 DB へは sqlite3def で手適用する運用
-    // （db/schema.sql と同じ場所の README を参照）。空の DB で起動した場合は
-    // verifyWritable() が no such table で落ちるので、適用忘れはそこで分かる
     private val connectionManager = SqliteConnectionManager(config, openTelemetry)
     private val jooq = SqliteJooq(connectionManager)
 
-    override val accounts: AccountRepository = SqliteAccountRepository(jooq)
+    override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
 
     override val followers: FollowerRepository = SqliteFollowerRepository(jooq)
 
@@ -41,33 +36,7 @@ internal class SqliteRepositories(
 
     override val domainBlocks: DomainBlockRepository = SqliteDomainBlockRepository(jooq)
 
-    override val userSessions: UserSessionRepository = SqliteUserSessionRepository(jooq)
-
-    override fun verifyWritable() {
-        val writtenAt = Instant.now().toString()
-
-        val readBack =
-            jooq.transaction { dsl ->
-                dsl
-                    .insertInto(HEALTH_CHECK)
-                    .set(HEALTH_CHECK.ID, 1)
-                    .set(HEALTH_CHECK.CHECKED_AT, writtenAt)
-                    .onConflict(HEALTH_CHECK.ID)
-                    .doUpdate()
-                    .set(HEALTH_CHECK.CHECKED_AT, writtenAt)
-                    .execute()
-
-                dsl
-                    .select(HEALTH_CHECK.CHECKED_AT)
-                    .from(HEALTH_CHECK)
-                    .where(HEALTH_CHECK.ID.eq(1))
-                    .fetchOne(HEALTH_CHECK.CHECKED_AT)
-            }
-
-        check(readBack == writtenAt) {
-            "DB に書き込んだ値を読み戻せなかった: 書き込み=$writtenAt 読み戻し=$readBack"
-        }
-    }
+    override val sessionStore: UserSessionStore = SqliteUserSessionStore(jooq)
 
     override fun close() {
         connectionManager.close()

@@ -13,17 +13,6 @@ fragment UserSessionFields on UserSession {
     }
 }
 
-mutation UserLogin($query: UserLoginQuery!) {
-    user {
-        login(query: $query) {
-            session {
-                ...UserSessionFields
-            }
-            failure
-        }
-    }
-}
-
 mutation UserLogout {
     user {
         logout {

@@ -1,7 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.DELIVERY_QUEUE
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryKindDbValue
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryStateDbValue
 import org.jooq.Condition

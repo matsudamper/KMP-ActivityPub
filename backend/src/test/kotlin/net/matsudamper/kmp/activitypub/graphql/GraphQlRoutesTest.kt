@@ -10,15 +10,15 @@ import io.ktor.http.content.ChannelWriterContent
 import io.ktor.http.contentType
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.writeFully
+import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
-import net.matsudamper.kmp.activitypub.testDependencies
 
 class GraphQlRoutesTest {
     @Test
     fun `ボディが大きすぎれば 413 で読まない`() =
         testApplication {
-            application { module(testDependencies()) }
+            application { module(TestDependencies()) }
 
             val response =
                 client.post(GRAPHQL_PATH) {
@@ -32,7 +32,7 @@ class GraphQlRoutesTest {
     @Test
     fun `Content-Length の無いボディでも大きすぎれば 413`() =
         testApplication {
-            application { module(testDependencies()) }
+            application { module(TestDependencies()) }
 
             val response =
                 client.post(GRAPHQL_PATH) {
@@ -52,7 +52,7 @@ class GraphQlRoutesTest {
     @Test
     fun `上限に収まっていれば読む`() =
         testApplication {
-            application { module(testDependencies()) }
+            application { module(TestDependencies()) }
 
             val response =
                 client.post(GRAPHQL_PATH) {
@@ -67,7 +67,7 @@ class GraphQlRoutesTest {
     @Test
     fun `JSON 以外の Content-Type は 415 で実行しない`() =
         testApplication {
-            application { module(testDependencies()) }
+            application { module(TestDependencies()) }
 
             val response =
                 client.post(GRAPHQL_PATH) {

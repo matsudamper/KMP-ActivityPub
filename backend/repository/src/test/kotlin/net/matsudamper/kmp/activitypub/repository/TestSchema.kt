@@ -4,10 +4,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import org.sqlite.SQLiteDataSource
 
-/**
- * 実運用では sqlite3def で手適用する（`db/schema.sql` と同じ場所の README を参照）ので、
- * 起動時の自動適用は無い。テストも同じ前提で、DB を作るときにこれを呼ぶ。
- */
 internal object TestSchema {
     fun applyTo(dbPath: Path) {
         val schema =
@@ -20,7 +16,6 @@ internal object TestSchema {
         val dataSource = SQLiteDataSource().apply { url = "jdbc:sqlite:$dbPath" }
         dataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
-                // sqlite-jdbc は 1 回の executeUpdate で複数の文を実行する
                 statement.executeUpdate(schema)
             }
         }

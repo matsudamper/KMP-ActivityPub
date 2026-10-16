@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
+    alias(libs.plugins.koin.compiler)
 }
 
 kotlin {
@@ -26,6 +27,10 @@ kotlin {
                 implementation(project(":frontend:api"))
                 implementation(project(":frontend:navigation"))
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.androidx.lifecycle.viewmodel.compose)
+                implementation(libs.koin.core)
+                implementation(libs.koin.annotations)
+                implementation(libs.koin.compose.viewmodel)
             }
         }
 

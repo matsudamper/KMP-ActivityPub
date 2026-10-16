@@ -32,7 +32,7 @@ class DeliveryQueueRepositoryTest {
     }
 
     private fun <T> withRepositories(block: (Repositories) -> T): T =
-        createRepositories(DatabaseConfig(path = dbPath)).use(block)
+        Repositories.create(DatabaseConfig(path = dbPath)).use(block)
 
     @Test
     fun `投函すると投稿と宛先ごとの行が入る`() {
@@ -321,8 +321,8 @@ class DeliveryQueueRepositoryTest {
     @Test
     fun `消したアカウント宛の Follow は記録も投函もしない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accounts.add(username = USERNAME, passwordHash = "hash", createdAt = now))
-            repositories.accounts.markDeleted(
+            val account = assertNotNull(repositories.accountRepository.add(username = USERNAME, passwordHash = "hash", passwordHashType = "hash-type", createdAt = now))
+            repositories.accountRepository.markDeleted(
                 AccountDeletion(
                     id = account.id,
                     username = account.username,
@@ -338,7 +338,7 @@ class DeliveryQueueRepositoryTest {
             // 記録すると、消えたアカウントに Accept が生えて名前が二度と空かない
             assertEquals(0, repositories.followers.count(USERNAME))
             assertEquals(emptyList(), repositories.deliveryQueue.claim(now = now, limit = 10))
-            assertEquals(1, repositories.accounts.purgeDeleted())
+            assertEquals(1, repositories.accountRepository.purgeDeleted())
         }
     }
 

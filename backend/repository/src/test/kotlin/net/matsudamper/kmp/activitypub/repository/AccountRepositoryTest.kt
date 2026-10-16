@@ -23,37 +23,37 @@ class AccountRepositoryTest {
     @Test
     fun `追加したアカウントを引ける`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val added = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
 
             assertEquals("feed1", added.username)
             assertEquals(CREATED_AT, added.createdAt)
-            assertEquals(added, repositories.accounts.findByUsername("feed1"))
+            assertEquals(added, repositories.accountRepository.findByUsername("feed1"))
         }
     }
 
     @Test
     fun `プロフィールを書き換えると引き直したときに反映されている`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val added = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
 
             val updated = assertNotNull(
-                repositories.accounts.updateProfile(id = added.id, displayName = "フィード 1", summary = "説明"),
+                repositories.accountRepository.updateProfile(id = added.id, displayName = "フィード 1", summary = "説明"),
             )
 
             assertEquals("フィード 1", updated.displayName)
             assertEquals("説明", updated.summary)
-            assertEquals(updated, repositories.accounts.findByUsername("feed1"))
+            assertEquals(updated, repositories.accountRepository.findByUsername("feed1"))
         }
     }
 
     @Test
     fun `プロフィールに null を渡すと未設定に戻る`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
-            repositories.accounts.updateProfile(id = added.id, displayName = "フィード 1", summary = "説明")
+            val added = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            repositories.accountRepository.updateProfile(id = added.id, displayName = "フィード 1", summary = "説明")
 
             val cleared = assertNotNull(
-                repositories.accounts.updateProfile(id = added.id, displayName = null, summary = null),
+                repositories.accountRepository.updateProfile(id = added.id, displayName = null, summary = null),
             )
 
             assertNull(cleared.displayName)
@@ -62,25 +62,43 @@ class AccountRepositoryTest {
     }
 
     @Test
+    fun `CLI から登録したアカウントを id で引ける`() {
+        val dbPath = tempDir.resolve("test.db")
+        TestSchema.applyTo(dbPath)
+        Accounts.insert(
+            databasePath = dbPath,
+            username = "user1",
+            passwordHash = PASSWORD_HASH,
+            passwordHashType = PASSWORD_HASH_TYPE,
+            createdAt = CREATED_AT.toString(),
+        )
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
+            assertEquals("user1", repositories.accountRepository.findById(id)?.username)
+        }
+    }
+
+    @Test
     fun `大文字小文字の違いは同じ名前として扱う`() {
         withRepositories { repositories ->
-            repositories.accounts.add(username = "Feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
+            repositories.accountRepository.add(username = "Feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
 
             // 引くときも入れるときも同じ扱いにしないと、引けないアカウントが増える
-            assertEquals("Feed1", repositories.accounts.findByUsername("feed1")?.username)
-            assertNull(repositories.accounts.add(username = "FEED1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            assertEquals("feed1", repositories.accountRepository.findByUsername("feed1")?.username)
+            assertNull(repositories.accountRepository.add(username = "FEED1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
         }
     }
 
     @Test
     fun `複数アカウントをまとめて引ける`() {
         withRepositories { repositories ->
-            repositories.accounts.add(username = "Feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
-            repositories.accounts.add(username = "gihyo", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
+            repositories.accountRepository.add(username = "Feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
+            repositories.accountRepository.add(username = "gihyo", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
 
-            val result = repositories.accounts.findByUsernames(listOf("feed1", "GIHYO", "other"))
+            val result = repositories.accountRepository.findByUsernames(listOf("feed1", "GIHYO", "other"))
             assertEquals(2, result.size)
-            assertEquals("Feed1", result["feed1"]?.username)
+            assertEquals("feed1", result["feed1"]?.username)
             assertEquals("gihyo", result["GIHYO"]?.username)
             assertNull(result["other"])
         }
@@ -90,12 +108,12 @@ class AccountRepositoryTest {
     fun `一覧は追加した順に返る`() {
         withRepositories { repositories ->
             listOf("gihyo", "feed1", "blog").forEach {
-                repositories.accounts.add(username = it, passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
+                repositories.accountRepository.add(username = it, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
             }
 
             assertEquals(
                 listOf("gihyo", "feed1", "blog"),
-                repositories.accounts.list().map { it.username },
+                repositories.accountRepository.list().map { it.username },
             )
         }
     }
@@ -104,10 +122,10 @@ class AccountRepositoryTest {
     fun `秒未満の桁が違っても時刻の順に返る`() {
         withRepositories { repositories ->
             // 文字列で保存しているので、桁が揃っていないと並びが時刻の順にならない
-            repositories.accounts.add(username = "late", passwordHash = PASSWORD_HASH, createdAt = Instant.parse("2026-08-16T00:00:00.5Z"))
-            repositories.accounts.add(username = "early", passwordHash = PASSWORD_HASH, createdAt = Instant.parse("2026-08-16T00:00:00Z"))
+            repositories.accountRepository.add(username = "late", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = Instant.parse("2026-08-16T00:00:00.5Z"))
+            repositories.accountRepository.add(username = "early", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = Instant.parse("2026-08-16T00:00:00Z"))
 
-            assertEquals(listOf("early", "late"), repositories.accounts.list().map { it.username })
+            assertEquals(listOf("early", "late"), repositories.accountRepository.list().map { it.username })
         }
     }
 
@@ -115,19 +133,19 @@ class AccountRepositoryTest {
     fun `カーソルを指定してページングで取得できる`() {
         withRepositories { repositories ->
             listOf("a", "b", "c", "d", "e").forEachIndexed { index, username ->
-                repositories.accounts.add(username = username, passwordHash = PASSWORD_HASH, createdAt = CREATED_AT.plusSeconds(index.toLong()))
+                repositories.accountRepository.add(username = username, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT.plusSeconds(index.toLong()))
             }
 
-            val page1 = repositories.accounts.list(after = null, limit = 2)
+            val page1 = repositories.accountRepository.list(after = null, limit = 2)
             assertEquals(listOf("a", "b"), page1.map { it.username })
 
-            val page2 = repositories.accounts.list(after = page1.last().position(), limit = 2)
+            val page2 = repositories.accountRepository.list(after = page1.last().position(), limit = 2)
             assertEquals(listOf("c", "d"), page2.map { it.username })
 
-            val page3 = repositories.accounts.list(after = page2.last().position(), limit = 2)
+            val page3 = repositories.accountRepository.list(after = page2.last().position(), limit = 2)
             assertEquals(listOf("e"), page3.map { it.username })
 
-            val page4 = repositories.accounts.list(after = page3.last().position(), limit = 2)
+            val page4 = repositories.accountRepository.list(after = page3.last().position(), limit = 2)
             assertEquals(emptyList(), page4.map { it.username })
         }
     }
@@ -136,19 +154,19 @@ class AccountRepositoryTest {
     fun `時刻が同じでもページングで重複や取りこぼしが出ない`() {
         withRepositories { repositories ->
             listOf("a", "b", "c", "d", "e").forEach { username ->
-                repositories.accounts.add(username = username, passwordHash = PASSWORD_HASH, createdAt = CREATED_AT)
+                repositories.accountRepository.add(username = username, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
             }
 
-            val page1 = repositories.accounts.list(after = null, limit = 2)
+            val page1 = repositories.accountRepository.list(after = null, limit = 2)
             assertEquals(listOf("a", "b"), page1.map { it.username })
 
-            val page2 = repositories.accounts.list(after = page1.last().position(), limit = 2)
+            val page2 = repositories.accountRepository.list(after = page1.last().position(), limit = 2)
             assertEquals(listOf("c", "d"), page2.map { it.username })
 
-            val page3 = repositories.accounts.list(after = page2.last().position(), limit = 2)
+            val page3 = repositories.accountRepository.list(after = page2.last().position(), limit = 2)
             assertEquals(listOf("e"), page3.map { it.username })
 
-            val page4 = repositories.accounts.list(after = page3.last().position(), limit = 2)
+            val page4 = repositories.accountRepository.list(after = page3.last().position(), limit = 2)
             assertEquals(emptyList(), page4.map { it.username })
         }
     }
@@ -157,26 +175,26 @@ class AccountRepositoryTest {
     fun `カーソルの指す行が消えていても続きが返る`() {
         withRepositories { repositories ->
             listOf("a", "b", "c", "d").forEachIndexed { index, username ->
-                repositories.accounts.add(username = username, passwordHash = PASSWORD_HASH, createdAt = CREATED_AT.plusSeconds(index.toLong()))
+                repositories.accountRepository.add(username = username, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT.plusSeconds(index.toLong()))
             }
 
-            val page1 = repositories.accounts.list(after = null, limit = 2)
+            val page1 = repositories.accountRepository.list(after = null, limit = 2)
             val after = page1.last().position()
             repositories.deleteAccount(page1.last())
 
-            assertEquals(listOf("c", "d"), repositories.accounts.list(after = after, limit = 2).map { it.username })
+            assertEquals(listOf("c", "d"), repositories.accountRepository.list(after = after, limit = 2).map { it.username })
         }
     }
 
     @Test
     fun `消した名前は作り直せない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
             repositories.deleteAccount(account)
 
             // 作り直せると、送り残した Delete{Actor} が新しいアカウントのものとして配られる
-            assertNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT.plusSeconds(10)))
-            assertNull(repositories.accounts.findByUsername("feed1"))
+            assertNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT.plusSeconds(10)))
+            assertNull(repositories.accountRepository.findByUsername("feed1"))
         }
     }
 
@@ -186,41 +204,42 @@ class AccountRepositoryTest {
         TestSchema.applyTo(dbPath)
         val config = DatabaseConfig(path = dbPath)
 
-        createRepositories(config).use { it.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT) }
+        Repositories.create(config).use { it.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT) }
 
-        createRepositories(config).use {
-            assertEquals(CREATED_AT, it.accounts.findByUsername("feed1")?.createdAt)
+        Repositories.create(config).use {
+            assertEquals(CREATED_AT, it.accountRepository.findByUsername("feed1")?.createdAt)
         }
     }
 
     @Test
-    fun `照合に使うハッシュを名前で引ける`() {
+    fun `照合に使うハッシュと方式を名前で引ける`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accounts.add(username = "Feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val added = assertNotNull(repositories.accountRepository.add(username = "Feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
 
-            val credential = assertNotNull(repositories.accounts.findCredential("feed1"))
+            val credential = assertNotNull(repositories.accountRepository.findCredential("feed1"))
 
             assertEquals(added.id, credential.id)
-            assertEquals("Feed1", credential.username)
+            assertEquals("feed1", credential.username)
             assertEquals(PASSWORD_HASH, credential.passwordHash)
+            assertEquals(PASSWORD_HASH_TYPE, credential.passwordHashType)
         }
     }
 
     @Test
     fun `消したアカウントのハッシュは引けない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
 
             assertNotNull(repositories.deleteAccount(account))
 
-            assertNull(repositories.accounts.findCredential("feed1"))
+            assertNull(repositories.accountRepository.findCredential("feed1"))
         }
     }
 
     @Test
     fun `消えているアカウントを消しても何も起きない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
             repositories.deleteAccount(account)
 
             // 2 回目も投函すると、同じ削除が 2 度配られる
@@ -231,7 +250,7 @@ class AccountRepositoryTest {
     @Test
     fun `消すと宛先ごとに Delete が投函され 送り残した配信は消える`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
             repositories.deliveryQueue.enqueueNote(
                 NotePost(
                     note = NewNote(
@@ -260,23 +279,23 @@ class AccountRepositoryTest {
     @Test
     fun `配信を送り切った削除済みアカウントだけが片付く`() {
         withRepositories { repositories ->
-            val sending = assertNotNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
-            val done = assertNotNull(repositories.accounts.add(username = "feed2", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            val sending = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val done = assertNotNull(repositories.accountRepository.add(username = "feed2", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
             repositories.deleteAccount(sending, inboxes = listOf(INBOX))
             repositories.deleteAccount(done)
 
-            assertEquals(1, repositories.accounts.purgeDeleted())
+            assertEquals(1, repositories.accountRepository.purgeDeleted())
 
             // 送り切るまでは名前を押さえたままにする
-            assertNull(repositories.accounts.add(username = "feed1", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
-            assertNotNull(repositories.accounts.add(username = "feed2", passwordHash = PASSWORD_HASH, createdAt = CREATED_AT))
+            assertNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            assertNotNull(repositories.accountRepository.add(username = "feed2", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
         }
     }
 
     private fun Repositories.deleteAccount(
         account: Account,
         inboxes: List<String> = emptyList(),
-    ): AccountDeletionResult? = accounts.markDeleted(
+    ): AccountDeletionResult? = accountRepository.markDeleted(
         AccountDeletion(
             id = account.id,
             username = account.username,
@@ -290,14 +309,15 @@ class AccountRepositoryTest {
         val dbPath = tempDir.resolve("test.db")
         TestSchema.applyTo(dbPath)
 
-        createRepositories(DatabaseConfig(path = dbPath)).use(block)
+        Repositories.create(DatabaseConfig(path = dbPath)).use(block)
     }
 
     private companion object {
         const val INBOX = "https://remote.example/inbox"
 
-        // 中身は照合しないので、形式に沿っていなくてよい
-        const val PASSWORD_HASH = "pbkdf2-sha256:1:salt:hash"
+        const val PASSWORD_HASH = "hash"
+
+        const val PASSWORD_HASH_TYPE = "hash-type"
 
         // 秒未満まで持つ。文字列で保存しているので、桁が落ちるとここで分かる
         val CREATED_AT: Instant = Instant.parse("2026-08-16T01:02:03.123456Z")

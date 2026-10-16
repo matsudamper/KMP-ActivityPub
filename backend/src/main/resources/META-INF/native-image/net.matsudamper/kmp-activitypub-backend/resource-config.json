@@ -2,7 +2,7 @@
   "resources": {
     "includes": [
       {
-        "comment": "管理 API のスキーマ。入っていないと起動時に GraphQlEngine.create が落ちる",
+        "comment": "GraphQL のスキーマ。入っていないと起動時に GraphQlEngine.create が落ちる",
         "pattern": "\\Qgraphql/\\E.*\\Q.graphqls\\E"
       },
       {

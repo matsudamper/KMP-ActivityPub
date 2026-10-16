@@ -4,13 +4,19 @@
 --   ./gradlew :backend:repository:dumpSchema -PdevDb=/絶対パス/dev.db
 -- で書き出して commit する。実 DB への適用は sqlite3def で手動。
 -- 詳細は同じディレクトリの README.md を参照。
+CREATE TABLE account_passwords (
+    -- 行が無ければパスワードは無い
+    account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+    password_hash TEXT NOT NULL,
+    -- :backend:crypto の PasswordHashType.dbValue
+    password_hash_type TEXT NOT NULL
+);
+
 CREATE TABLE accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     -- acct とパスに入る名前。大文字小文字だけが違う名前を別々に持てると、
     -- 相手からはどちらを指しているか決まらないので NOCASE で一意にする
     username TEXT COLLATE NOCASE NOT NULL UNIQUE,
-    -- ログインに使うパスワードのハッシュ。:backend:crypto の PasswordHash.encode の形
-    password_hash TEXT NOT NULL,
     created_at TEXT NOT NULL,
     -- Actor の name。未設定なら username を出す
     display_name TEXT,

@@ -1,14 +1,14 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.ACCOUNTS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.USER_SESSIONS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.USER_SESSIONS
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-internal class SqliteUserSessionRepository(
+internal class SqliteUserSessionStore(
     private val jooq: SqliteJooq,
-) : UserSessionRepository {
+) : UserSessionStore {
     /**
      * 期限切れの行もここで消す。ログアウトせずに閉じられたセッションは読み直されずに溜まる
      */
@@ -51,7 +51,7 @@ internal class SqliteUserSessionRepository(
     }
 
     override fun delete(tokenHash: String) {
-        jooq.transaction { dsl ->
+        jooq.withConnection { dsl ->
             dsl
                 .deleteFrom(USER_SESSIONS)
                 .where(USER_SESSIONS.TOKEN_HASH.eq(tokenHash))

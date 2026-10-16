@@ -30,7 +30,7 @@ class DomainBlockRepositoryTest {
     }
 
     private fun <T> withRepository(block: (DomainBlockRepository) -> T): T =
-        createRepositories(DatabaseConfig(path = dbPath)).use { block(it.domainBlocks) }
+        Repositories.create(DatabaseConfig(path = dbPath)).use { block(it.domainBlocks) }
 
     @Test
     fun `配信を諦めて止めたドメインは配信だけを止める`() {

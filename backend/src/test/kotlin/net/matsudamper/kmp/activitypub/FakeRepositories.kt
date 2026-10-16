@@ -39,19 +39,17 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.RetryingDelivery
 import net.matsudamper.kmp.activitypub.repository.StoredFollower
-import net.matsudamper.kmp.activitypub.repository.UserSessionRepository
 import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 class FakeRepositories : Repositories {
-    var verifyWritableCallCount: Int = 0
-        private set
     var closed: Boolean = false
         private set
 
-    override val accounts: FakeAccountRepository = FakeAccountRepository(
-        onDeleted = { accountId -> userSessions.deleteByAccountId(accountId) },
+    override val accountRepository: FakeAccountRepository = FakeAccountRepository(
+        onDeleted = { accountId -> sessionStore.deleteByAccountId(accountId) },
         // 名前で持っているものと送り残した配信を消すのと、Delete{Actor} の投函を
         // 1 トランザクションで書くのは本物の repository。ここで繋がないと、
         // 消したアカウントの投稿が後から配られる
@@ -72,7 +70,7 @@ class FakeRepositories : Repositories {
     // Follow の記録と Accept の投函が 1 トランザクションで確定するのは本物の
     // repository。ここで繋がないと、記録だけ残って Accept が送られない
     override val followers: FakeFollowerRepository = FakeFollowerRepository(
-        isDeletedAccount = { username -> accounts.findDeletedByUsername(username) != null },
+        isDeletedAccount = { username -> accountRepository.findDeletedByUsername(username) != null },
         onRecorded = { follow -> deliveryQueue.enqueueAccept(follow) },
         onRemoved = { username, followerActorUri -> deliveryQueue.deletePendingAccept(username, followerActorUri) },
         onAccountRemoved = { username -> deliveryQueue.deletePendingAcceptsOfAccount(username) },
@@ -113,13 +111,9 @@ class FakeRepositories : Repositories {
 
     override val domainBlocks: FakeDomainBlockRepository = FakeDomainBlockRepository()
 
-    override val userSessions: FakeUserSessionRepository = FakeUserSessionRepository(
-        isDeletedAccount = { accountId -> accounts.findById(accountId) == null },
+    override val sessionStore: FakeUserSessionStore = FakeUserSessionStore(
+        isDeletedAccount = { accountId -> accountRepository.findById(accountId) == null },
     )
-
-    override fun verifyWritable() {
-        verifyWritableCallCount++
-    }
 
     override fun close() {
         closed = true
@@ -163,11 +157,12 @@ class FakeAccountRepository(
             username to account
         }.toMap()
 
-    private val passwordHashes = mutableMapOf<AccountId, String>()
+    private val passwordHashes = mutableMapOf<AccountId, Pair<String, String>>()
 
     override fun add(
         username: String,
         passwordHash: String,
+        passwordHashType: String,
         createdAt: Instant,
     ): Account? {
         // 消した行も名前を押さえている。作り直せると、送り残した Delete{Actor} が
@@ -176,21 +171,26 @@ class FakeAccountRepository(
 
         return Account(
             id = AccountId(nextId++),
-            username = username,
+            username = username.lowercase(),
             createdAt = createdAt,
             displayName = null,
             summary = null,
             deletedAt = null,
         ).also {
             stored += it
-            passwordHashes[it.id] = passwordHash
+            passwordHashes[it.id] = passwordHash to passwordHashType
         }
     }
 
     override fun findCredential(username: String): AccountCredential? {
         val account = findByUsername(username) ?: return null
-        val passwordHash = passwordHashes[account.id] ?: return null
-        return AccountCredential(id = account.id, username = account.username, passwordHash = passwordHash)
+        val (passwordHash, passwordHashType) = passwordHashes[account.id] ?: return null
+        return AccountCredential(
+            id = account.id,
+            username = account.username,
+            passwordHash = passwordHash,
+            passwordHashType = passwordHashType,
+        )
     }
 
     override fun updateProfile(
@@ -969,9 +969,9 @@ class FakeDomainBlockRepository : DomainBlockRepository {
     override fun delete(domain: String): Boolean = stored.remove(domain) != null
 }
 
-class FakeUserSessionRepository(
+class FakeUserSessionStore(
     private val isDeletedAccount: (AccountId) -> Boolean,
-) : UserSessionRepository {
+) : UserSessionStore {
     private val stored = mutableMapOf<String, Session>()
 
     override fun create(

@@ -51,6 +51,7 @@ interface AccountRepository {
     fun add(
         username: String,
         passwordHash: String,
+        passwordHashType: String,
         createdAt: Instant,
     ): Account?
 
@@ -149,12 +150,11 @@ data class Account(
 }
 
 /**
- * [Account] に入れないのは、ハッシュを画面や API に渡す経路を作らないため
- *
- * @param passwordHash `:backend:crypto` の `PasswordHash.encode` の形
+ * ハッシュを API に渡す経路を作らないため [Account] と分ける
  */
 data class AccountCredential(
     val id: AccountId,
     val username: String,
     val passwordHash: String,
+    val passwordHashType: String,
 )

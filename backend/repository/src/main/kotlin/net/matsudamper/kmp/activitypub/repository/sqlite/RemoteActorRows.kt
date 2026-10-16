@@ -2,7 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import org.jooq.DSLContext
 import org.jooq.Record1
 import org.jooq.Select
@@ -52,7 +52,7 @@ internal object RemoteActorRows {
         ) { "相手のアクターの行を作れなかった: ${actor.actorUri}" }
     }
 
-    fun id(actorUri: String): Select<Record1<Long>> = DSL
+    fun id(actorUri: String): Select<Record1<Long?>> = DSL
         .select(REMOTE_ACTORS.ID)
         .from(REMOTE_ACTORS)
         .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))

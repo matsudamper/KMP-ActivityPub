@@ -16,9 +16,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.TestServerEnv
 import net.matsudamper.kmp.activitypub.module
-import net.matsudamper.kmp.activitypub.testDependencies
 
 class StaticRoutesTest {
     private val root: Path = Files.createTempDirectory("static-routes-test")
@@ -171,7 +171,7 @@ class StaticRoutesTest {
             }
 
         application {
-            module(testDependencies(env = env))
+            module(TestDependencies(env = env))
         }
     }
 

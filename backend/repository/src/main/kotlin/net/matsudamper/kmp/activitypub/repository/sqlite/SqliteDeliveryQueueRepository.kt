@@ -14,8 +14,8 @@ import net.matsudamper.kmp.activitypub.repository.NoteDeletionPost
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.RetryingDelivery
 import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.DELIVERY_QUEUE
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryKindDbValue
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryStateDbValue
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -177,7 +177,7 @@ internal class SqliteDeliveryQueueRepository(
             .where(DELIVERY_QUEUE.ID.eq(id.value))
             .execute()
 
-        when (DeliveryKindDbValue.parse(row.get(DELIVERY_QUEUE.KIND))) {
+        when (DeliveryKindDbValue.parse(checkNotNull(row.get(DELIVERY_QUEUE.KIND)))) {
             DeliveryKindDbValue.CREATE_NOTE,
             DeliveryKindDbValue.DELETE_NOTE,
             DeliveryKindDbValue.UPDATE_ACTOR,
@@ -185,7 +185,7 @@ internal class SqliteDeliveryQueueRepository(
             -> DeliveredOutcome.None
 
             DeliveryKindDbValue.ACCEPT_FOLLOW -> {
-                val username = row.get(DELIVERY_QUEUE.USERNAME)
+                val username = checkNotNull(row.get(DELIVERY_QUEUE.USERNAME))
                 val followerActorUri = checkNotNull(row.get(DELIVERY_QUEUE.TARGET_ACTOR_URI)) {
                     "accept_follow の行に相手のアクターが無い"
                 }
@@ -201,7 +201,7 @@ internal class SqliteDeliveryQueueRepository(
                     DeliveredOutcome.FollowAccepted(
                         username = username,
                         followerActorUri = followerActorUri,
-                        inbox = row.get(DELIVERY_QUEUE.INBOX),
+                        inbox = checkNotNull(row.get(DELIVERY_QUEUE.INBOX)),
                     )
                 } else {
                     DeliveredOutcome.None
@@ -293,13 +293,13 @@ internal class SqliteDeliveryQueueRepository(
                 .fetch()
                 .map { record ->
                     AccountRetryingDelivery(
-                        id = DeliveryId(record.get(DELIVERY_QUEUE.ID)),
-                        kind = DeliveryKindDbValue.parse(record.get(DELIVERY_QUEUE.KIND)).toDeliveryKind(),
-                        username = record.get(DELIVERY_QUEUE.USERNAME),
-                        inbox = record.get(DELIVERY_QUEUE.INBOX),
-                        attempts = record.get(DELIVERY_QUEUE.ATTEMPTS).toInt(),
+                        id = DeliveryId(checkNotNull(record.get(DELIVERY_QUEUE.ID))),
+                        kind = DeliveryKindDbValue.parse(checkNotNull(record.get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
+                        username = checkNotNull(record.get(DELIVERY_QUEUE.USERNAME)),
+                        inbox = checkNotNull(record.get(DELIVERY_QUEUE.INBOX)),
+                        attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
                         // 諦めた行を除いてあるので、次に送る時刻は必ずある
-                        nextAttemptAt = StoredInstant.parse(record.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT)),
+                        nextAttemptAt = StoredInstant.parse(checkNotNull(record.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT))),
                         sending = record.get(DELIVERY_QUEUE.STATE) == DeliveryStateDbValue.DELIVERING.dbValue,
                         lastError = record.get(DELIVERY_QUEUE.LAST_ERROR),
                     )
@@ -326,11 +326,11 @@ internal class SqliteDeliveryQueueRepository(
                 .fetch()
                 .map { record ->
                     RetryingDelivery(
-                        id = DeliveryId(record.get(DELIVERY_QUEUE.ID)),
-                        kind = DeliveryKindDbValue.parse(record.get(DELIVERY_QUEUE.KIND)).toDeliveryKind(),
-                        inbox = record.get(DELIVERY_QUEUE.INBOX),
-                        attempts = record.get(DELIVERY_QUEUE.ATTEMPTS).toInt(),
-                        nextAttemptAt = StoredInstant.parse(record.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT)),
+                        id = DeliveryId(checkNotNull(record.get(DELIVERY_QUEUE.ID))),
+                        kind = DeliveryKindDbValue.parse(checkNotNull(record.get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
+                        inbox = checkNotNull(record.get(DELIVERY_QUEUE.INBOX)),
+                        attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
+                        nextAttemptAt = StoredInstant.parse(checkNotNull(record.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT))),
                         lastError = record.get(DELIVERY_QUEUE.LAST_ERROR),
                     )
                 }
@@ -365,10 +365,10 @@ internal class SqliteDeliveryQueueRepository(
                 .fetch()
                 .map { record ->
                     FailedDelivery(
-                        id = DeliveryId(record.get(DELIVERY_QUEUE.ID)),
-                        kind = DeliveryKindDbValue.parse(record.get(DELIVERY_QUEUE.KIND)).toDeliveryKind(),
-                        inbox = record.get(DELIVERY_QUEUE.INBOX),
-                        attempts = record.get(DELIVERY_QUEUE.ATTEMPTS).toInt(),
+                        id = DeliveryId(checkNotNull(record.get(DELIVERY_QUEUE.ID))),
+                        kind = DeliveryKindDbValue.parse(checkNotNull(record.get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
+                        inbox = checkNotNull(record.get(DELIVERY_QUEUE.INBOX)),
+                        attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
                         lastError = record.get(DELIVERY_QUEUE.LAST_ERROR),
                     )
                 }
@@ -383,13 +383,13 @@ internal class SqliteDeliveryQueueRepository(
     }
 
     private fun Record.toClaimed(): ClaimedDelivery = ClaimedDelivery(
-        id = DeliveryId(get(DELIVERY_QUEUE.ID)),
-        kind = DeliveryKindDbValue.parse(get(DELIVERY_QUEUE.KIND)).toDeliveryKind(),
-        username = get(DELIVERY_QUEUE.USERNAME),
-        inbox = get(DELIVERY_QUEUE.INBOX),
+        id = DeliveryId(checkNotNull(get(DELIVERY_QUEUE.ID))),
+        kind = DeliveryKindDbValue.parse(checkNotNull(get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
+        username = checkNotNull(get(DELIVERY_QUEUE.USERNAME)),
+        inbox = checkNotNull(get(DELIVERY_QUEUE.INBOX)),
         // delivering にした行は body を消していないので必ずある
         body = checkNotNull(get(DELIVERY_QUEUE.BODY)) { "delivering の行に body が無い" },
-        attempts = get(DELIVERY_QUEUE.ATTEMPTS).toInt(),
-        enqueuedAt = StoredInstant.parse(get(DELIVERY_QUEUE.ENQUEUED_AT)),
+        attempts = checkNotNull(get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
+        enqueuedAt = StoredInstant.parse(checkNotNull(get(DELIVERY_QUEUE.ENQUEUED_AT))),
     )
 }

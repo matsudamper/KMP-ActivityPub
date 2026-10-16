@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import graphql.ExceptionWhileDataFetching
 import graphql.ExecutionInput
 import graphql.GraphQL
+import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.execution.instrumentation.ChainedInstrumentation
 import graphql.kickstart.tools.GraphQLResolver
 import graphql.kickstart.tools.SchemaParser
@@ -54,7 +55,7 @@ class GraphQlEngine private constructor(
                     }
 
                     // 未ログインなど、想定内の業務エラー
-                    dataFetchingException is GraphqlExceptions -> {
+                    dataFetchingException is GraphqlExceptions || dataFetchingException is GraphQlClientException -> {
                         logger.debug("GraphQL の実行に失敗した(既知のエラー): {}", error.message)
                     }
 
@@ -92,6 +93,11 @@ class GraphQlEngine private constructor(
 
         internal const val GENERIC_ERROR_MESSAGE = "GraphQL の実行に失敗した"
 
+        /**
+         * alias で並べた数だけ処理するので上限を置く。画面の問い合わせは 10 未満
+         */
+        private const val MAX_QUERY_COMPLEXITY = 100
+
         fun create(
             resolvers: List<GraphQLResolver<*>>,
             createContext: (ApplicationCall) -> GraphQlContext,
@@ -110,18 +116,26 @@ class GraphQlEngine private constructor(
                 .build()
                 .makeExecutableSchema()
 
-            val graphQlBuilder = GraphQL.newGraphQL(schema)
-            if (openTelemetry != null) {
-                val telemetry =
+            val telemetryInstrumentation =
+                openTelemetry?.let {
                     GraphQLTelemetry
-                        .builder(openTelemetry)
+                        .builder(it)
                         .setOperationNameInSpanNameEnabled(true)
                         .setDataFetcherInstrumentationEnabled(true)
                         .build()
-                graphQlBuilder.instrumentation(
-                    ChainedInstrumentation(telemetry.createInstrumentation()),
-                )
-            }
+                        .createInstrumentation()
+                }
+            val graphQlBuilder =
+                GraphQL
+                    .newGraphQL(schema)
+                    .instrumentation(
+                        ChainedInstrumentation(
+                            listOfNotNull(
+                                MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY),
+                                telemetryInstrumentation,
+                            ),
+                        ),
+                    )
 
             return GraphQlEngine(
                 graphQl = graphQlBuilder.build(),

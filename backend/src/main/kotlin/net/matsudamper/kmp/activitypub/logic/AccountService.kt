@@ -1,7 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
@@ -10,18 +10,16 @@ import net.matsudamper.kotpub.actor.ActorUrls
 import net.matsudamper.kotpub.actor.ActorUsernameUtil
 
 class AccountService(
-    private val accounts: AccountRepository,
+    private val accountRepository: AccountRepository,
     private val domain: String,
 ) {
     /**
-     * ユーザーがいないときの照合に使う。
-     *
-     * いないときにすぐ返すと、応答の速さでユーザー名が存在するかが分かる。
-     * いるときと同じだけ PBKDF2 を回す
+     * ユーザーがいなくても同じだけ計算し、応答時間で名前の有無を分からなくする。
+     * 遅延生成すると最初の 1 回だけ遅くなるので最初から初期化しておく
      */
-    private val dummyPasswordHash: PasswordHash by lazy { PasswordHash.create("dummy-password") }
+    private val dummyPasswordHash: String = checkNotNull(PasswordHashType.Current.encoder.encode("dummy-password"))
 
-    fun account(id: AccountId): ManagedAccount? = accounts.findById(id)?.toManaged()
+    fun account(id: AccountId): ManagedAccount? = accountRepository.findById(id)?.toManaged()
 
     /**
      * 登録した順で [after] の次から [limit] 件返す
@@ -31,7 +29,7 @@ class AccountService(
             return ManagedAccountsPage(accounts = listOf(), hasMore = false, nextPosition = null)
         }
 
-        val fetched = accounts.list(after = after, limit = limit + 1)
+        val fetched = accountRepository.list(after = after, limit = limit + 1)
         val hasMore = fetched.size > limit
         val page = fetched.take(limit)
 
@@ -64,9 +62,10 @@ class AccountService(
             )
         }
 
-        val added = accounts.add(
+        val added = accountRepository.add(
             username = trimmed,
-            passwordHash = PasswordHash.create(password).encode(),
+            passwordHash = checkNotNull(PasswordHashType.Current.encoder.encode(password)),
+            passwordHashType = PasswordHashType.Current.dbValue,
             createdAt = Instant.now(),
         ) ?: return AddAccountResult.Failure(
             unusableCharacters = listOf(),
@@ -86,13 +85,18 @@ class AccountService(
         username: String,
         password: String,
     ): AccountId? {
-        val credential = accounts.findCredential(username.trim())
+        val credential = accountRepository.findCredential(username.trim())
         if (credential == null) {
-            dummyPasswordHash.matches(password)
+            PasswordHashType.Current.encoder.matches(password, dummyPasswordHash)
             return null
         }
 
-        return credential.id.takeIf { PasswordHash.parse(credential.passwordHash).matches(password) }
+        // パスワード違いと区別できるよう失敗にする
+        val hashType =
+            checkNotNull(PasswordHashType.fromDbValue(credential.passwordHashType)) {
+                "対応していない password_hash_type: ${credential.passwordHashType}"
+            }
+        return credential.id.takeIf { hashType.encoder.matches(password, credential.passwordHash) }
     }
 
     private fun Account.toManaged(): ManagedAccount = ManagedAccount(

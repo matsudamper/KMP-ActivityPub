@@ -32,7 +32,7 @@ class SqliteConnectionManagerTest {
             assertEquals("wal", manager.queryString("PRAGMA journal_mode").lowercase())
             assertEquals("1", manager.queryString("PRAGMA foreign_keys"))
             assertEquals("5000", manager.queryString("PRAGMA busy_timeout"))
-            // synchronous は数値で返る。NORMAL は 1
+            // NORMAL は 1
             assertEquals("1", manager.queryString("PRAGMA synchronous"))
         }
     }

@@ -15,28 +15,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
 import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun LoginScreen(
     navigator: Navigator,
-    api: UserApi?,
     serverSettingUiState: ServerSettingUiState?,
 ) {
-    val viewModelScope = rememberCoroutineScope()
-    val viewModel = rememberSaveable(saver = LoginScreenViewModel.saver(viewModelScope, api)) {
-        LoginScreenViewModel(viewModelScope = viewModelScope, api = api, savedState = LoginScreenViewModel.InitialState)
-    }
+    val viewModel = koinViewModel<LoginScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
@@ -82,7 +76,7 @@ internal fun LoginContent(
                     inputId = LOGIN_USERNAME_INPUT_ID,
                     inputName = "username",
                     enabled = uiState.inputEnabled,
-                    hasError = uiState.error != null,
+                    hasError = uiState.inputHasError,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 PasswordField(
@@ -94,10 +88,11 @@ internal fun LoginContent(
                     inputId = LOGIN_PASSWORD_INPUT_ID,
                     inputName = "password",
                     enabled = uiState.inputEnabled,
-                    hasError = uiState.error != null,
+                    hasError = uiState.inputHasError,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                uiState.error?.let { error ->
+                val error = uiState.error
+                if (error != null) {
                     Text(
                         text = error,
                         color = MaterialTheme.colorScheme.error,

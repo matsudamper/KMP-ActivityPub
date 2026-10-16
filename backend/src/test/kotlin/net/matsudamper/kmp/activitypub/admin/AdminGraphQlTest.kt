@@ -32,13 +32,14 @@ import io.ktor.http.setCookie
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.TestServerEnv
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
-import net.matsudamper.kmp.activitypub.testDependencies
 import net.matsudamper.kotpub.json.AppJson
 
 // Cookie の保存はクライアント側の実装に寄るので、テストでは Set-Cookie を自分で読んで付け直す。
@@ -197,7 +198,7 @@ class AdminGraphQlTest {
             applicationWith(passwordConfigured = true)
             val token = assertNotNull(mutateLogin(PASSWORD).sessionCookieValue())
 
-            assertEquals(listOf(), queryAccounts(token).accounts().nodes())
+            assertEquals(listOf(), queryAccounts(token).accountRepository().nodes())
         }
 
     @Test
@@ -216,7 +217,7 @@ class AdminGraphQlTest {
 
             assertEquals(
                 listOf("user1"),
-                queryAccounts(token).accounts().nodes().map { it.string("username") },
+                queryAccounts(token).accountRepository().nodes().map { it.string("username") },
             )
         }
 
@@ -229,25 +230,25 @@ class AdminGraphQlTest {
 
             mutateAddUser("user1", USER_PASSWORD, token)
 
-            val credential = assertNotNull(repositories.accounts.findCredential("user1"))
+            val credential = assertNotNull(repositories.accountRepository.findCredential("user1"))
             assertNotEquals(USER_PASSWORD, credential.passwordHash)
-            assertTrue(PasswordHash.parse(credential.passwordHash).matches(USER_PASSWORD))
+            assertTrue(PasswordHashType.Current.encoder.matches(USER_PASSWORD, credential.passwordHash))
         }
 
     @Test
     fun `1 件ずつでも登録した順に辿れる`() =
         testApplication {
             val repositories = FakeRepositories()
-            repositories.accounts.add(username = "user1", passwordHash = "hash", createdAt = Instant.now())
-            repositories.accounts.add(username = "user2", passwordHash = "hash", createdAt = Instant.now())
+            repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now())
+            repositories.accountRepository.add(username = "user2", passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now())
             applicationWith(passwordConfigured = true, repositories = repositories)
             val token = assertNotNull(mutateLogin(PASSWORD).sessionCookieValue())
 
-            val page1 = queryAccounts(token, limit = 1).accounts()
+            val page1 = queryAccounts(token, limit = 1).accountRepository()
             assertEquals(listOf("user1"), page1.nodes().map { it.string("username") })
             assertEquals(true, page1.pageInfo().boolean("hasMore"))
 
-            val page2 = queryAccounts(token, cursor = page1.pageInfo().string("nextCursor"), limit = 1).accounts()
+            val page2 = queryAccounts(token, cursor = page1.pageInfo().string("nextCursor"), limit = 1).accountRepository()
             assertEquals(listOf("user2"), page2.nodes().map { it.string("username") })
             assertEquals(false, page2.pageInfo().boolean("hasMore"))
         }
@@ -256,11 +257,11 @@ class AdminGraphQlTest {
     fun `limit が上限を超えていても 50 件までしか返さない`() =
         testApplication {
             val repositories = FakeRepositories()
-            repeat(51) { repositories.accounts.add(username = "user$it", passwordHash = "hash", createdAt = Instant.now()) }
+            repeat(51) { repositories.accountRepository.add(username = "user$it", passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now()) }
             applicationWith(passwordConfigured = true, repositories = repositories)
             val token = assertNotNull(mutateLogin(PASSWORD).sessionCookieValue())
 
-            val page = queryAccounts(token, limit = Int.MAX_VALUE).accounts()
+            val page = queryAccounts(token, limit = Int.MAX_VALUE).accountRepository()
 
             assertEquals(50, page.nodes().size)
             assertEquals(true, page.pageInfo().boolean("hasMore"))
@@ -313,7 +314,7 @@ class AdminGraphQlTest {
             applicationWith(passwordConfigured = true, repositories = repositories)
 
             assertTrue(mutateAddUser("user1", USER_PASSWORD).body().containsKey("errors"))
-            assertNull(repositories.accounts.findByUsername("user1"))
+            assertNull(repositories.accountRepository.findByUsername("user1"))
         }
 
     // スキーマに無いものが通ってしまうと、結線の漏れに気付けない
@@ -347,7 +348,7 @@ class AdminGraphQlTest {
             }
         application {
             module(
-                testDependencies(
+                TestDependencies(
                     repositories = repositories,
                     env = TestServerEnv.of(*values.toTypedArray()),
                 ),
@@ -443,7 +444,7 @@ class AdminGraphQlTest {
 
         suspend fun HttpResponse.loginResult(): JsonObject = admin().obj("login")
 
-        suspend fun HttpResponse.accounts(): JsonObject = admin().obj("adminAccounts")
+        suspend fun HttpResponse.accountRepository(): JsonObject = admin().obj("adminAccounts")
 
         fun JsonObject.nodes(): List<JsonObject> = getValue("nodes").jsonArray.map { it.jsonObject }
 

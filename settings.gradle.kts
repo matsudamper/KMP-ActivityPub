@@ -3,44 +3,9 @@ rootProject.name = "kmp-activitypub"
 pluginManagement {
     includeBuild("build-logic")
 
-    // 無いまま進むと「no value available」だけが出て、何を設定すればよいか分からない。
-    // トークンには read:packages が要る
-    fun credential(
-        property: String,
-        environment: String,
-    ): String {
-        val value =
-            providers
-                .gradleProperty(property)
-                .orElse(providers.environmentVariable(environment))
-                .orNull
-
-        return requireNotNull(value) {
-            "GitHub Packages の資格情報が無い。~/.gradle/gradle.properties に $property を書くか、" +
-                "環境変数 $environment を渡すこと"
-        }
-    }
-
     repositories {
-        exclusiveContent {
-            forRepository {
-                maven {
-                    name = "GitHubPackages"
-                    url = uri("https://maven.pkg.github.com/matsudamper/graphql-java-codegen")
-                    credentials {
-                        username = credential("gpr.user", "GITHUB_ACTOR")
-                        password = credential("gpr.key", "GITHUB_TOKEN")
-                    }
-                }
-            }
-            filter {
-                includeGroupByRegex("io\\.github\\.kobylynskyi.*")
-            }
-        }
-
         gradlePluginPortal {
-            // Apollo 5.x はポータルに実体が無く Maven Central へ 303 で飛ばされる。
-            // このリダイレクトの扱いには環境差があり、CI では解決できなかったのでportalはexcludeする
+            // Apollo 5.x はポータルから Maven Central へのリダイレクトが CI で解決できない
             content {
                 excludeGroup("com.apollographql.apollo")
             }
@@ -51,7 +16,7 @@ pluginManagement {
 }
 
 // バージョンを version catalog に置けないのは、settings.gradle.kts の plugins ブロックが
-// 評価される時点で catalog のアクセサがまだ無いため。Renovate はこの記法も追える
+// 評価される時点で catalog のアクセサがまだ無いため
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
@@ -64,9 +29,11 @@ dependencyResolutionManagement {
 }
 
 include(":backend")
-include(":backend:crypto")
 include(":backend:graphql")
+include(":backend:crypto")
 include(":backend:repository")
+include(":backend:session")
+include(":cli")
 include(":frontend:app-web")
 include(":frontend:common-component")
 include(":frontend:ui")

@@ -3,7 +3,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.DomainBlock
 import net.matsudamper.kmp.activitypub.repository.DomainBlockRepository
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.DOMAIN_BLOCKS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DOMAIN_BLOCKS
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DomainBlockReasonDbValue
 import org.jooq.Record
 import org.jooq.impl.DSL
@@ -132,11 +132,11 @@ internal class SqliteDomainBlockRepository(
     }
 
     private fun Record.toDomainBlock(): DomainBlock = DomainBlock(
-        domain = get(DOMAIN_BLOCKS.DOMAIN),
-        reason = DomainBlockReasonDbValue.parse(get(DOMAIN_BLOCKS.REASON)).toDomainBlockReason(),
+        domain = checkNotNull(get(DOMAIN_BLOCKS.DOMAIN)),
+        reason = DomainBlockReasonDbValue.parse(checkNotNull(get(DOMAIN_BLOCKS.REASON))).toDomainBlockReason(),
         reasonDescription = get(DOMAIN_BLOCKS.REASON_DESCRIPTION),
         blockDelivery = get(DOMAIN_BLOCKS.BLOCK_DELIVERY) == 1L,
         blockInbox = get(DOMAIN_BLOCKS.BLOCK_INBOX) == 1L,
-        createdAt = StoredInstant.parse(get(DOMAIN_BLOCKS.CREATED_AT)),
+        createdAt = StoredInstant.parse(checkNotNull(get(DOMAIN_BLOCKS.CREATED_AT))),
     )
 }

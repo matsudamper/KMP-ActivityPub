@@ -25,14 +25,15 @@ kotlin {
 }
 
 tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
-    graphqlSchemaPaths = layout.projectDirectory
-        .dir("src/main/resources/graphql")
-        .asFile
-        .listFiles()
-        .orEmpty()
-        .filter { it.extension == "graphqls" }
-        .map { it.toString() }
-        .sorted()
+    graphqlSchemaPaths =
+        layout.projectDirectory
+            .dir("src/main/resources/graphql")
+            .asFile
+            .listFiles()
+            .orEmpty()
+            .filter { it.extension == "graphqls" }
+            .map { it.toString() }
+            .sorted()
 
     generatedLanguage = GeneratedLanguage.KOTLIN
     outputDir = generatedSourcesDirectory.get().asFile
@@ -48,14 +49,14 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     generateImmutableModels = true
     generateBuilder = false
 
-    // @Generated に生成時刻が入る。付けると中身が毎回変わってビルドキャッシュが効かない
+    // 生成時刻が入るとビルドキャッシュが効かない
     addGeneratedAnnotation = false
 
+    // 付けたフィールドだけリゾルバのインタフェースを作る
     fieldsWithResolvers = setOf("@lazy")
     generateParameterizedFieldsResolvers = true
 
-    // 操作ごとのインタフェースを作らせると、Query.admin から AdminQueryResolver という
-    // 名前が生まれ、AdminQuery 型のリゾルバと衝突して codegen が落ちる
+    // API インタフェースを出すとリゾルバのファイルが二重に作られて落ちる
     apiInterfaceStrategy = ApiInterfaceStrategy.DO_NOT_GENERATE
 
     apiReturnType = "java.util.concurrent.CompletionStage<graphql.execution.DataFetcherResult<{{TYPE}}>>"
@@ -74,8 +75,7 @@ tasks.named("compileKotlin") {
     dependsOn("graphqlCodegen")
 }
 
-// ktlint のタスクはソースセットごと入力として見るので、生成より後に走らせないと
-// Gradle が構成の誤りとして落とす
+// ktlint は生成より後に走らせないと構成の誤りで落ちる
 tasks.matching { it.name.startsWith("runKtlint") }.configureEach {
     dependsOn("graphqlCodegen")
 }

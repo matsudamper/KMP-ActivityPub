@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,14 +11,15 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSessionResult
+import org.koin.core.annotation.KoinViewModel
 
 /**
  * タイムラインはまだサーバーと繋いでいない。決まったダミーの投稿を出す
  */
+@KoinViewModel
 internal class HomeScreenViewModel(
-    private val viewModelScope: CoroutineScope,
     private val api: UserApi,
-) {
+) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
 

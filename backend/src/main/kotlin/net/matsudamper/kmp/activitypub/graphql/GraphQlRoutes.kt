@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.graphql
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.JsonObject
 import io.ktor.http.ContentType
@@ -11,43 +13,41 @@ import io.ktor.server.request.receiveChannel
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
-import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.readBuffer
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
+import net.matsudamper.kmp.activitypub.json.ServerJson
 import net.matsudamper.kmp.activitypub.json.respondJson
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
-import net.matsudamper.kotpub.json.AppJson
 
 private const val MAX_BODY_BYTES = 1024 * 1024
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
-        // text/plain などの CORS safelist の型はプリフライト無しで別オリジンから Cookie 付きで送れる。
-        // SameSite=Strict は同じ site の別オリジンからの送信を止めないので、JSON 以外は受けずにプリフライトを必須にする
+        // text/plain などはプリフライト無しで別オリジンから送れる
         if (!call.request.contentType().match(ContentType.Application.Json)) {
             call.respondText("Content-Type は application/json にすること", status = HttpStatusCode.UnsupportedMediaType)
             return@post
         }
 
-        // 読んでから確かめても、その時点で受け取り終えている
         val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
         if (declaredLength != null && declaredLength > MAX_BODY_BYTES) {
             call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
             return@post
         }
 
-        // Content-Length の無い chunked のボディは上の判定をすり抜けるので、上限の 1 バイト先までで読むのを止める
-        val bodyBytes = call.receiveChannel().readRemaining(MAX_BODY_BYTES + 1L).readByteArray()
+        // chunked は上の判定をすり抜ける
+        val bodyBytes = call.receiveChannel().readBuffer(MAX_BODY_BYTES + 1L).readByteArray()
         if (bodyBytes.size > MAX_BODY_BYTES) {
             call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
             return@post
         }
         val body = bodyBytes.decodeToString()
 
-        val request = runCatching {
-            AppJson.decodeFromString(GraphQlRequest.serializer(), body)
-        }
-            .getOrElse {
+        val request =
+            runCatching {
+                ServerJson.value.decodeFromString(GraphQlRequest.serializer(), body)
+            }.getOrElse {
                 call.respondJson(
                     GraphQlBadRequest.serializer(),
                     GraphQlBadRequest("GraphQL のリクエストとして読めない"),
@@ -56,8 +56,8 @@ internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
                 return@post
             }
 
-        // パスワードの照合で PBKDF2 を回すので、そのまま実行すると他が詰まる
-        val result = engine.execute(request, call)
+        // graphql-java の execute は blocking で、CIO はルート内の blocking を別スレッドに移さない
+        val result = withContext(Dispatchers.IO) { engine.execute(request, call) }
 
         call.respondJson(JsonObject.serializer(), result)
     }

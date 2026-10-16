@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # data の DB をホストのユーザーで編集できるようにする。UID/GID が 1000 でなければ
+    #   HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     ports:
       - "8080:8080"
     environment:
@@ -10,5 +13,10 @@ services:
       HOST: 0.0.0.0
       PORT: 8080
       STATIC_SRC_DIR: /app/static
-#    volumes:
+      DB_PATH: /app/data/kmp-activitypub.db
+      # http では false にする
+      COOKIE_SECURE: "true"
+    volumes:
+      # 起動前に作っておく。Docker に作らせると root の持ち物になる
+      - ./data:/app/data
 #      - ./public:/public:ro

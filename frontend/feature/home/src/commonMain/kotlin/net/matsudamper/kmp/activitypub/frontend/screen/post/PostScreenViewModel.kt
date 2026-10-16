@@ -1,7 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
-import androidx.compose.runtime.saveable.Saver
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,22 +11,25 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 internal class PostScreenViewModel(
-    private val viewModelScope: CoroutineScope,
     private val api: UserApi,
-    savedState: ViewModelState,
-) {
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(savedState)
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(ViewModelState(body = savedStateHandle.get<String>(BODY_KEY).orEmpty()))
 
     val uiStateFlow: StateFlow<PostScreenUiState> =
         MutableStateFlow(
             createUiState(
-                viewModelState = savedState,
+                viewModelState = viewModelStateFlow.value,
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
+                        savedStateHandle[BODY_KEY] = text
                         viewModelStateFlow.update { it.copy(body = text, error = null) }
                     }
 
@@ -107,29 +111,12 @@ internal class PostScreenViewModel(
         fun navigateBack()
     }
 
-    companion object {
-        val InitialState = ViewModelState(body = "")
-
+    private companion object {
         /**
          * Mastodon の既定の投稿長。超えるとサーバーが弾く
          */
-        private const val NOTE_MAX_LENGTH = 500
-
-        /**
-         * 画面回転などで作り直されても書きかけの本文を残す
-         */
-        fun saver(
-            viewModelScope: CoroutineScope,
-            api: UserApi,
-        ): Saver<PostScreenViewModel, String> = Saver(
-            save = { viewModel -> viewModel.viewModelStateFlow.value.body },
-            restore = { body ->
-                PostScreenViewModel(
-                    viewModelScope = viewModelScope,
-                    api = api,
-                    savedState = ViewModelState(body = body),
-                )
-            },
-        )
+        const val NOTE_MAX_LENGTH = 500
     }
 }
+
+private const val BODY_KEY = "body"

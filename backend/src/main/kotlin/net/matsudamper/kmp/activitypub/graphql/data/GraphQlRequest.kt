@@ -4,9 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
-/**
- * `variables` を [JsonObject] のまま受けるのは、型が問い合わせごとに変わるため
- */
 @Serializable
 data class GraphQlRequest(
     @SerialName("query")

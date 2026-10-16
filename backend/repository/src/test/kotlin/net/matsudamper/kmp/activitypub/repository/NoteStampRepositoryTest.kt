@@ -38,7 +38,7 @@ class NoteStampRepositoryTest {
     }
 
     private fun <T> withRepositories(block: (Repositories) -> T): T =
-        createRepositories(DatabaseConfig(path = dbPath)).use { repositories ->
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.notes.add(
                 NewNote(
                     username = "admin",

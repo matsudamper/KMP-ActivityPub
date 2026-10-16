@@ -31,7 +31,7 @@ class EarlyUndoneLikeRepositoryTest {
     }
 
     private fun <T> withRepository(block: (EarlyUndoneLikeRepository) -> T): T =
-        createRepositories(DatabaseConfig(path = dbPath)).use { block(it.earlyUndoneLikes) }
+        Repositories.create(DatabaseConfig(path = dbPath)).use { block(it.earlyUndoneLikes) }
 
     /**
      * 期限切れの行が残っているかは口が無いので、DB を直接見る

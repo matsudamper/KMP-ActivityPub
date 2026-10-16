@@ -1,5 +1,6 @@
 import javax.xml.parsers.DocumentBuilderFactory
 import dev.detekt.gradle.Detekt
+import org.gradle.api.tasks.testing.AbstractTestTask
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import org.w3c.dom.Element
 
@@ -12,9 +13,12 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.compose) apply false
     alias(libs.plugins.graalvm.native) apply false
+    alias(libs.plugins.apollo) apply false
+    alias(libs.plugins.graphql.codegen) apply false
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.paparazzi) apply false
+    alias(libs.plugins.koin.compiler) apply false
 }
 
 // version catalog のアクセサは allprojects の中からは引けないので、ここで取り出しておく
@@ -200,5 +204,25 @@ tasks.register("compileAll") {
                 (isSourceCompile && !isWasmExecutableLink) || task.name == "compileAndroidMain"
             }
         },
+    )
+}
+
+tasks.register("testFrontend") {
+    group = "verification"
+    description = "frontendのテストをまとめて実行する（Androidはdebugのみ、Paparazziは個別実行）"
+    dependsOn(
+        subprojects
+            .filter { project -> project.path.startsWith(":frontend:") }
+            .filter { project ->
+                // テストのないComposeモジュールはWasmテストの実行環境を構成していない。
+                project.fileTree("src") {
+                    include("test*/**/*.kt", "*Test*/**/*.kt", "test*/**/*.java", "*Test*/**/*.java")
+                }.isEmpty.not()
+            }
+            .map { project ->
+                project.tasks.withType<AbstractTestTask>().matching { task ->
+                    task.name != "testReleaseUnitTest"
+                }
+            },
     )
 }

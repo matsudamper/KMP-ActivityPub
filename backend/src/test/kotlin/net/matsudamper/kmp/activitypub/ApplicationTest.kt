@@ -18,7 +18,7 @@ class ApplicationTest {
     fun `healthzにアクセスすると200とstatus okのJSONが返る`() =
         testApplication {
             application {
-                module(testDependencies())
+                module(TestDependencies())
             }
 
             val response = client.get("/healthz")
@@ -32,7 +32,7 @@ class ApplicationTest {
     fun `hello で Hello World を返す`() =
         testApplication {
             application {
-                module(testDependencies())
+                module(TestDependencies())
             }
 
             val response = client.get("/hello")
@@ -45,9 +45,9 @@ class ApplicationTest {
     fun `ActivityPub のエンドポイントが組み込まれている`() =
         testApplication {
             val repositories = FakeRepositories()
-            repositories.accounts.add(username = TestServerEnv.USERNAME, passwordHash = "hash", createdAt = Instant.now())
+            repositories.accountRepository.add(username = TestServerEnv.USERNAME, passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now())
             application {
-                module(testDependencies(repositories = repositories))
+                module(TestDependencies(repositories = repositories))
             }
 
             // 返す中身は kotpub の activitypub 側で確かめる。
@@ -61,19 +61,5 @@ class ApplicationTest {
 
             // 署名が無いので inbox は 401。ルートが無ければ 404 になる
             assertEquals(HttpStatusCode.Unauthorized, client.post("/users/admin/inbox").status)
-        }
-
-    @Test
-    fun `起動時にDBの書き込み確認が走る`() =
-        testApplication {
-            val repositories = FakeRepositories()
-            application {
-                module(testDependencies(repositories = repositories))
-            }
-
-            // testApplication は最初のリクエストまでアプリケーションを起動しない
-            client.get("/healthz")
-
-            assertEquals(1, repositories.verifyWritableCallCount)
         }
 }

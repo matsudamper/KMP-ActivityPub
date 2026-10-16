@@ -4,6 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
+import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
+import net.matsudamper.kmp.activitypub.frontend.navigation.BackStackNavigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
+import org.koin.compose.KoinApplication
+import org.koin.plugin.module.dsl.koinConfiguration
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -11,6 +29,41 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AndroidApp()
+        }
+    }
+}
+
+@Composable
+private fun AndroidApp(modifier: Modifier = Modifier) {
+    KoinApplication(configuration = koinConfiguration<AndroidKoinApp>()) {
+        AndroidNavigation(modifier = modifier)
+    }
+}
+
+@Composable
+private fun AndroidNavigation(modifier: Modifier = Modifier) {
+    val backStack = rememberScreenBackStack(startScreen = Screen.Login)
+    val navigator = remember(backStack) { BackStackNavigator(backStack) }
+    MaterialTheme {
+        Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
+            NavDisplay(
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+                entryProvider = entryProvider {
+                    entry<Screen.Login> {
+                        HomeFeatureScreens.Login(
+                            navigator = navigator,
+                            serverSettingUiState = rememberServerSettingUiState(),
+                        )
+                    }
+                    entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
+                    entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
+                },
+            )
         }
     }
 }

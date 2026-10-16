@@ -6,3 +6,4 @@
 .git/
 .idea/
 local.properties
+data/

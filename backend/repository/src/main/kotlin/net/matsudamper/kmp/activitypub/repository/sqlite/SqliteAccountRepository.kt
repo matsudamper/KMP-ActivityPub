@@ -7,11 +7,12 @@ import net.matsudamper.kmp.activitypub.repository.AccountDeletion
 import net.matsudamper.kmp.activitypub.repository.AccountDeletionResult
 import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.ACCOUNTS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.DELIVERY_QUEUE
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.FOLLOWERS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.NOTES
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.USER_SESSIONS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOWERS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.USER_SESSIONS
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryKindDbValue
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.jooq.Condition
@@ -92,28 +93,36 @@ internal class SqliteAccountRepository(
     override fun add(
         username: String,
         passwordHash: String,
+        passwordHashType: String,
         createdAt: Instant,
     ): Account? = jooq.transaction { dsl ->
+        val storedUsername = username.lowercase()
         // UNIQUE 制約違反を捕まえる形にすると、他の理由で落ちたときと区別が付かない。
         // 書き込みは接続 1 本に直列化されているので、同じトランザクションで
         // 見てから入れれば取りこぼさない。消した行も名前を押さえているので、
         // 作り直せない。作り直せると、送り残した Delete{Actor} が
         // 新しいアカウントのものとして配られる
-        if (dsl.fetchExists(DSL.selectOne().from(ACCOUNTS).where(ACCOUNTS.USERNAME.eq(username)))) return@transaction null
+        if (dsl.fetchExists(DSL.selectOne().from(ACCOUNTS).where(ACCOUNTS.USERNAME.eq(storedUsername)))) return@transaction null
 
         val id = dsl
             .insertInto(ACCOUNTS)
-            .set(ACCOUNTS.USERNAME, username)
-            .set(ACCOUNTS.PASSWORD_HASH, passwordHash)
+            .set(ACCOUNTS.USERNAME, storedUsername)
             .set(ACCOUNTS.CREATED_AT, StoredInstant.format(createdAt))
             .returning(ACCOUNTS.ID)
             .fetchOne()
             ?.get(ACCOUNTS.ID)
             ?: return@transaction null
 
+        dsl
+            .insertInto(ACCOUNT_PASSWORDS)
+            .set(ACCOUNT_PASSWORDS.ACCOUNT_ID, id)
+            .set(ACCOUNT_PASSWORDS.PASSWORD_HASH, passwordHash)
+            .set(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE, passwordHashType)
+            .execute()
+
         Account(
             id = AccountId(id),
-            username = username,
+            username = storedUsername,
             createdAt = createdAt,
             displayName = null,
             summary = null,
@@ -146,16 +155,24 @@ internal class SqliteAccountRepository(
 
     override fun findCredential(username: String): AccountCredential? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.PASSWORD_HASH)
+            .select(
+                ACCOUNTS.ID,
+                ACCOUNTS.USERNAME,
+                ACCOUNT_PASSWORDS.PASSWORD_HASH,
+                ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE,
+            )
             .from(ACCOUNTS)
-            .where(ACCOUNTS.USERNAME.eq(username))
+            .join(ACCOUNT_PASSWORDS)
+            .on(ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(ACCOUNTS.ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .and(ALIVE)
             .fetchOne()
             ?.let { record ->
                 AccountCredential(
-                    id = AccountId(record.get(ACCOUNTS.ID)),
-                    username = record.get(ACCOUNTS.USERNAME),
-                    passwordHash = record.get(ACCOUNTS.PASSWORD_HASH),
+                    id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
+                    username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
+                    passwordHash = checkNotNull(record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH)),
+                    passwordHashType = checkNotNull(record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE)),
                 )
             }
     }
@@ -249,9 +266,9 @@ internal class SqliteAccountRepository(
         ?.toAccount()
 
     private fun Record.toAccount(): Account = Account(
-        id = AccountId(get(ACCOUNTS.ID)),
-        username = get(ACCOUNTS.USERNAME),
-        createdAt = StoredInstant.parse(get(ACCOUNTS.CREATED_AT)),
+        id = AccountId(checkNotNull(get(ACCOUNTS.ID))),
+        username = checkNotNull(get(ACCOUNTS.USERNAME)),
+        createdAt = StoredInstant.parse(checkNotNull(get(ACCOUNTS.CREATED_AT))),
         displayName = get(ACCOUNTS.DISPLAY_NAME),
         summary = get(ACCOUNTS.SUMMARY),
         deletedAt = get(ACCOUNTS.DELETED_AT)?.let { StoredInstant.parse(it) },

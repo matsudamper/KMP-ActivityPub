@@ -1,8 +1,8 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.FOLLOWERS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOWERS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import org.jooq.DSLContext
 import org.jooq.Record1
 import org.jooq.Select
@@ -30,7 +30,7 @@ internal object FollowerRows {
     fun ids(
         username: String,
         followerActorUri: String,
-    ): Select<Record1<Long>> = DSL
+    ): Select<Record1<Long?>> = DSL
         .select(FOLLOWERS.ID)
         .from(FOLLOWERS)
         .join(REMOTE_ACTORS)

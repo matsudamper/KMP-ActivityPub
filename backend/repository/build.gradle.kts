@@ -5,9 +5,8 @@ plugins {
 
 dependencies {
     api(project(":shared"))
+    api(project(":backend:session"))
 
-    // implementation にすることで、JDBC と jOOQ の型が :backend の compile classpath に漏れない。
-    // :backend からは repository パッケージの interface だけが見える状態を保つ
     implementation(libs.sqlite.jdbc)
     implementation(libs.jooq)
     implementation(libs.opentelemetry.jdbc)
@@ -19,7 +18,7 @@ dependencies {
 
 databaseCodegen {
     packageName.set("net.matsudamper.kmp.activitypub.repository.jooq")
-    nativeImageMetadataPath.set("net.matsudamper/kmp-activitypub-repository-jooq")
+    nativeImageReflectConfigOutputPath.set("net.matsudamper/kmp-activitypub-repository-jooq")
 }
 
 kotlin {

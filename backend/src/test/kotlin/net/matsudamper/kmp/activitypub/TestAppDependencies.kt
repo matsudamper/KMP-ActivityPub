@@ -13,7 +13,8 @@ import net.matsudamper.kotpub.delivery.ActivityDelivery
  * ルーティングのテストが必要とするのは大抵 1 つか 2 つなので、
  * 全部を毎回並べると何を差し替えたのかが埋もれる。
  */
-internal fun testDependencies(
+@Suppress("FunctionName")
+internal fun TestDependencies(
     repositories: Repositories = FakeRepositories(),
     actorKey: ActorKey = TestActorKey.value,
     env: ServerEnv = TestServerEnv.value,

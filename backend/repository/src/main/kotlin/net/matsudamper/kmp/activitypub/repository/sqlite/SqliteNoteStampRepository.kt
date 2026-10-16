@@ -3,9 +3,9 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import net.matsudamper.kmp.activitypub.repository.NoteStampRepository
 import net.matsudamper.kmp.activitypub.repository.NoteStampRepository.NewNoteStamp
 import net.matsudamper.kmp.activitypub.repository.NoteStampRepository.StampCount
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.NOTES
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.NOTE_STAMPS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_STAMPS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.impl.DSL
 
@@ -94,10 +94,10 @@ internal class SqliteNoteStampRepository(
                 .orderBy(count.desc(), NOTE_STAMPS.EMOJI.asc())
                 .fetch()
                 .groupBy(
-                    { PublicNoteId(it.value1()) },
+                    { PublicNoteId(checkNotNull(it.value1())) },
                     {
                         StampCount(
-                            emoji = it.value2(),
+                            emoji = checkNotNull(it.value2()),
                             emojiImageUrl = it.value3(),
                             count = it.value4(),
                         )

@@ -1,33 +1,22 @@
 package net.matsudamper.kmp.activitypub
 
 import java.nio.file.Path
+import kotlin.io.path.Path
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 import net.matsudamper.kotpub.actor.ActorPrivateKey
 
 /**
- * 環境変数を読む唯一の場所。起動時にここで全部読み、以降は引数で配る。
- *
- * 各所で `System.getenv` を呼ぶと、どの変数が効くのかがコード全体を追わないと
- * 分からなくなる。テストからも差し替えられず、既定値の確認しかできない。
- * `:backend:repository` のようなライブラリ側のモジュールが環境を読むのも同じ理由でやめる。
- * 何をどこから読むかを決めるのはアプリの入口の仕事にする。
- *
- * 空文字と空白だけの指定はどれも未設定と同じに扱う。docker compose の
- * `VAR` が空で展開されたときに、既定値へ落ちる方が扱いやすい。
- *
- * @param env 環境変数。テストから差し替えるためだけに引数にしている。
- *   JVM から自プロセスの環境変数は設定できないので、差し替えられないと読み取りのテストが書けない
+ * 空白だけの値は未設定として扱う。STATIC_SRC_DIR が空だとカレントディレクトリを配信してしまう
  */
 class ServerEnv(
     env: Map<String, String> = System.getenv(),
 ) {
-    val host: String =
-        run {
-            val raw = env["HOST"]?.trim()
-            if (raw.isNullOrEmpty()) "0.0.0.0" else raw
-        }
+    private val values = env.mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
 
-    val port: Int = env["PORT"]?.trim()?.takeIf { it.isNotEmpty() }?.toInt() ?: 8080
+    val host: String = values["HOST"] ?: "0.0.0.0"
+    val port: Int = values["PORT"]?.toInt() ?: 8080
+    val staticSrcDir: Path? = values["STATIC_SRC_DIR"]?.let { Path(it) }
+    val dbPath: Path = Path(values["DB_PATH"] ?: "./data/kmp-activitypub.db")
 
     /**
      * 外部に公開するドメイン。WebFinger の `acct:` と Actor の `id` に使う。
@@ -38,8 +27,7 @@ class ServerEnv(
             // アクター ID に焼き込まれる値なので、末尾の / は落としておく。
             // https://example.com/ のような URL ごと渡されることも考えて scheme も落とす
             val normalized =
-                env["DOMAIN"]
-                    ?.trim()
+                values["DOMAIN"]
                     ?.removePrefix("https://")
                     ?.removePrefix("http://")
                     ?.trimEnd('/')
@@ -60,21 +48,14 @@ class ServerEnv(
             normalized
         }
 
-    val dbPath: Path =
-        run {
-            val raw = env["DB_PATH"]?.trim()
-            Path.of(if (raw.isNullOrEmpty()) "./data/kmp-activitypub.db" else raw)
-        }
-
     val actorPrivateKey: ActorPrivateKey =
         run {
             // PEM は中身をそのまま鍵として読むので、前後の空白も落とさずに渡す
             val pem = env["ACTOR_PRIVATE_KEY_PEM"]?.takeIf { it.isNotBlank() }
-            val path = env["ACTOR_PRIVATE_KEY_PATH"]?.trim()?.takeIf { it.isNotEmpty() }
+            val path = values["ACTOR_PRIVATE_KEY_PATH"]
 
-            // 両方が設定されていたら落とす。片方を黙って無視すると、意図していない鍵で
-            // 起動したことに気付けない。鍵が変わると相手側は署名検証に失敗し続けるうえ、
-            // Mastodon はアクターをキャッシュするので後から直しても戻りが遅い
+            // 片方を黙って無視すると、意図していない鍵で起動したことに気付けない。
+            // 鍵が変わると相手側は署名検証に失敗し続けるうえ、Mastodon はアクターをキャッシュするので後から直しても戻りが遅い
             require(pem == null || path == null) {
                 "ACTOR_PRIVATE_KEY_PEM と ACTOR_PRIVATE_KEY_PATH は同時に指定できない。どちらか一方にすること"
             }
@@ -82,35 +63,20 @@ class ServerEnv(
             if (pem != null) {
                 ActorPrivateKey.Pem(pem)
             } else {
-                ActorPrivateKey.File(Path.of(path ?: "./data/actor-private-key.pem"))
+                ActorPrivateKey.File(Path(path ?: "./data/actor-private-key.pem"))
             }
         }
 
-    val staticSrcDir: Path? =
-        run {
-            val raw = env["STATIC_SRC_DIR"]?.trim()
-            if (raw.isNullOrEmpty()) null else Path.of(raw)
-        }
-
-    val adminPasswordHash: PasswordHash? =
-        run {
-            val raw = env["ADMIN_PASSWORD_HASH"]?.trim()
-            if (raw.isNullOrEmpty()) null else PasswordHash.parse(raw)
-        }
+    val adminPasswordHash: PasswordHash? = values["ADMIN_PASSWORD_HASH"]?.let { PasswordHash.parse(it) }
 
     /**
-     * 管理画面とユーザーのセッション Cookie に `Secure` を付けるか。付けたまま http で開くとログインできない
+     * true のまま http で開くとログインできない
      */
     val cookieSecure: Boolean =
-        run {
-            val raw = env["COOKIE_SECURE"]?.trim()
-            if (raw.isNullOrEmpty()) {
-                return@run true
-            }
-
+        values["COOKIE_SECURE"]?.let { raw ->
             raw.lowercase().toBooleanStrictOrNull()
                 ?: throw IllegalArgumentException("COOKIE_SECURE は true か false にすること: $raw")
-        }
+        } ?: true
 
     private companion object {
         val DOMAIN_PATTERN = Regex(

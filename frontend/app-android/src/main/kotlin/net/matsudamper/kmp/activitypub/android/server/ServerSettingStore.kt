@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import com.google.protobuf.InvalidProtocolBufferException
+import org.koin.core.annotation.Singleton
 
+@Singleton
 internal class ServerSettingStore(
     context: Context,
 ) {

@@ -1,8 +1,11 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.cache.normalized.FetchPolicy
 import com.apollographql.cache.normalized.fetchPolicy
@@ -14,29 +17,40 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserSessionQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.UserSessionFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
+import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 
 class UserApi(
-    private val client: ApolloClient,
+    private val clients: GraphQlClientSource,
 ) {
+    val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
+
+    fun isReady(): Boolean = clients.client.value != null
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun session(): Flow<UserSessionResult> {
-        return client
-            .query(UserSessionQuery())
-            .fetchPolicy(FetchPolicy.NetworkOnly)
-            .watch()
-            .map { response ->
-                val data = response.data ?: return@map UserSessionResult.Failure(response.failureMessage())
-                data.user.session.userSessionFields.toSessionResult()
-            }
+        return clients.client.flatMapLatest { client ->
+            client
+                ?.query(UserSessionQuery())
+                ?.fetchPolicy(FetchPolicy.NetworkOnly)
+                ?.watch()
+                ?.map { response ->
+                    val data = response.data ?: return@map UserSessionResult.Failure(response.failureMessage())
+                    data.user.session.userSessionFields.toSessionResult()
+                }
+                ?: flowOf(UserSessionResult.Failure(NOT_READY_MESSAGE))
+        }
     }
 
     suspend fun login(
         username: String,
         password: String,
     ): UserLoginResult {
+        val client = clients.client.value ?: return UserLoginResult.Failure(NOT_READY_MESSAGE)
         val response = client
             .mutation(UserLoginMutation(UserLoginQuery(username = username, password = password)))
             .fetchPolicy(FetchPolicy.NetworkOnly)
             .execute()
+        if (response.exception != null || response.hasErrors()) return UserLoginResult.Failure(response.failureMessage())
         val login = response.data?.user?.login ?: return UserLoginResult.Failure(response.failureMessage())
 
         return when (login.failure) {
@@ -53,6 +67,7 @@ class UserApi(
     }
 
     suspend fun logout(): UserSessionResult {
+        val client = clients.client.value ?: return UserSessionResult.Failure(NOT_READY_MESSAGE)
         val response = client
             .mutation(UserLogoutMutation())
             .fetchPolicy(FetchPolicy.NetworkOnly)
@@ -63,6 +78,7 @@ class UserApi(
     }
 
     suspend fun postNote(body: String): UserPostNoteResult {
+        val client = clients.client.value ?: return UserPostNoteResult.Failure(NOT_READY_MESSAGE)
         val response = client
             .mutation(UserPostNoteMutation(body))
             .fetchPolicy(FetchPolicy.NetworkOnly)
@@ -86,5 +102,9 @@ class UserApi(
         return exception?.message
             ?: errors?.joinToString("\n") { it.message }?.takeIf { it.isNotEmpty() }
             ?: "ネットワークエラー"
+    }
+
+    private companion object {
+        const val NOT_READY_MESSAGE = "接続先が未設定"
     }
 }

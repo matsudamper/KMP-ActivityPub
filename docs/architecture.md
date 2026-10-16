@@ -39,8 +39,8 @@ sqlite-jdbc と jOOQ も `implementation` で入れているため、JDBC と jO
 `:backend` の compile classpath にも現れない。jOOQ の生成コードも
 `:backend:repository` の中で閉じていて、外には出さない。
 
-`:backend:crypto` はパスワードのハッシュ（`PasswordHash`）を持つ。管理画面のパスワードと、
-管理画面から登録したユーザーのパスワードの両方に使う。
+`:backend:crypto` はパスワードのハッシュを持つ。管理画面のパスワードは `PasswordHash`、
+ユーザーのパスワードは `PasswordHashType` を使う。
 別モジュールに切り出してあるのは、
 テストを native バイナリとして実行するため。`:backend` のテストは
 `ktor-server-test-host` 経由で ByteBuddy と JNA を引き込み、これらは実行時の
@@ -56,7 +56,7 @@ sqlite-jdbc と jOOQ も `implementation` で入れているため、JDBC と jO
 | モジュール | 持つもの |
 | --- | --- |
 | `:frontend:app-web` | Web アプリの入口。URL と画面の対応、画面遷移、フォントのように Web にしか無いもの |
-| `:frontend:app-android` | Android アプリ。接続先のサーバーの入力と、ログインの Cookie の保存 |
+| `:frontend:app-android` | Android アプリ。接続先のサーバーの入力と、ログインのセッションの保存 |
 | `:frontend:feature:home` | ログイン・ホーム・投稿の画面 |
 | `:frontend:feature:admin` | 管理画面。Web だけが使い、Android アプリには入れない |
 | `:frontend:navigation` | 画面（`Screen`）と Web でのそのパス、画面から遷移を頼む口（`Navigator`） |
@@ -70,10 +70,10 @@ sqlite-jdbc と jOOQ も `implementation` で入れているため、JDBC と jO
 JVM の依存が Kotlin/Wasm のビルドに混ざる。
 
 Android から見て要らないもの（管理画面、URL での画面遷移、Web のフォント）は
-`:frontend:app-android` の依存に入らない位置に置く。逆に Android にしか無いもの（OkHttp の Cookie の保存、
-SharedPreferences）は `:frontend:app-android` に閉じて、画面のモジュールには持ち込まない。
-`UserApi` が `ApolloClient` を受け取るのはこのため。Web は同じオリジンへ、Android は
-入力されたサーバーへ投げるクライアントを、それぞれの入口で作って渡す。
+`:frontend:app-android` の依存に入らない位置に置く。逆に Android にしか無いもの（セッションの保存、
+接続先の保存）は `:frontend:app-android` に閉じて、画面のモジュールには持ち込まない。
+`UserApi` が `GraphQlClientSource` を受け取るのはこのため。Web は同じオリジンへ、Android は
+入力されたサーバーへ投げるクライアントを、それぞれの入口で Koin に登録する。
 
 スキーマだけを root の共有モジュールに切り出す形も採れるが、そうすると
 コード生成の設定と入力が別のモジュールに分かれる。スキーマを触るときに
@@ -202,9 +202,8 @@ dev server はこの経路を通らないため、ハッシュの無い名前の
 スキーマとリゾルバの実装だけで、その間にある型は全部生成する。
 
 - サーバーのモデルとリゾルバのインタフェース: kobylynskyi の
-  graphql-java-codegen（Gradle プラグイン `io.github.kobylynskyi.graphql.codegen`）。
-  取るのは [fork](https://github.com/matsudamper/graphql-java-codegen) のビルドで、
-  GitHub Packages にあるので資格情報が要る（README を参照）。設定は
+  graphql-java-codegen の [fork](https://github.com/matsudamper/graphql-java-codegen)
+  （Gradle プラグイン `net.matsudamper.graphql.codegen`）。設定は
   `backend/graphql/build.gradle.kts`
 - 結線: graphql-java-tools (kickstart) の `SchemaParser`。リゾルバの実装を渡すだけで、
   スキーマのフィールドとメソッドを対応付ける
@@ -273,7 +272,7 @@ JVM のテストはこの経路の問題を出さないので、依存を足し�
 
 パスワードそのものは持たず、`ADMIN_PASSWORD_HASH` にハッシュ（PBKDF2-HMAC-SHA256、
 `:backend:crypto` の `PasswordHash`）を入れる。ハッシュは
-`./gradlew --quiet :backend:crypto:passwordHash` で作る。
+`./gradlew --quiet :backend:crypto:adminPasswordHash` で作る。
 
 やり取りは管理 API（`POST /graphql`）の `admin.session` / `admin.login` / `admin.logout`。
 

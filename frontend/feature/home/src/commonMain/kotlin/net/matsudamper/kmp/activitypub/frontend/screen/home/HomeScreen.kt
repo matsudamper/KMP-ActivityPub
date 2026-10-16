@@ -20,24 +20,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun HomeScreen(
     navigator: Navigator,
-    api: UserApi,
 ) {
-    val viewModelScope = rememberCoroutineScope()
-    val viewModel = remember(viewModelScope, api) { HomeScreenViewModel(viewModelScope = viewModelScope, api = api) }
+    val viewModel = koinViewModel<HomeScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {

@@ -2,9 +2,9 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import net.matsudamper.kmp.activitypub.repository.NoteFavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteFavouriteRepository.NewNoteFavourite
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.NOTES
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.NOTE_FAVOURITES
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_FAVOURITES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.impl.DSL
 
@@ -74,7 +74,7 @@ internal class SqliteNoteFavouriteRepository(
                 .where(NOTE_FAVOURITES.NOTE_PUBLIC_ID.`in`(notePublicIds.map { it.value }))
                 .groupBy(NOTE_FAVOURITES.NOTE_PUBLIC_ID)
                 .fetch()
-                .associate { PublicNoteId(it.value1()) to it.value2() }
+                .associate { PublicNoteId(checkNotNull(it.value1())) to it.value2() }
         }
     }
 }

@@ -1,13 +1,15 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
     alias(libs.plugins.paparazzi)
     alias(libs.plugins.protobuf)
+    alias(libs.plugins.koin.compiler)
 }
 
 // Android アプリ。画面は :frontend:feature:home を使い、ここには Android にしか無いもの
-// （接続先のサーバーの入力、Cookie の保存）だけを置く。管理画面は入れない
+// （接続先のサーバーの入力、セッションの保存）だけを置く。管理画面は入れない
 android {
     namespace = "net.matsudamper.kmp.activitypub.android"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
@@ -67,19 +69,28 @@ dependencies {
     implementation(compose.foundation)
     implementation(compose.material3)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.okhttp)
     implementation(libs.androidx.core.ktx)
 
     implementation(libs.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.datastore)
     implementation(libs.protobuf.javalite)
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
+    implementation(libs.play.services.auth.blockstore)
+    implementation(libs.koin.android)
+    implementation(libs.koin.annotations)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
 
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.paparazzi)
+    testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.test.core.ktx)
     testImplementation(libs.composable.preview.scanner.android)
 }

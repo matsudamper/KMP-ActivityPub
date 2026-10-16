@@ -25,20 +25,6 @@ JDK が 1 つあれば足りる。バージョンは問わない（Gradle を起
 
 Android アプリをビルドするときは Android SDK が要る（`local.properties` の `sdk.dir` か `ANDROID_HOME`）。
 
-### GitHub Packages の資格情報
-
-graphql-java-codegen の fork は GitHub Packages から取る。
-無いと構成の時点で落ちるので、`~/.gradle/gradle.properties` に置く。
-kotpub は Maven Central の `net.matsudamper.kotpub:core` と `client-ktor`（1.2.0）を使う。
-
-```properties
-gpr.user=<GitHub のユーザー名>
-gpr.key=<read:packages を付けたパーソナルアクセストークン>
-```
-
-環境変数 `GITHUB_ACTOR` / `GITHUB_TOKEN` でも読む。CI はそちらを使っている。
-CI の `GITHUB_TOKEN` で読めるよう、graphql-java-codegen のパッケージ設定でこのリポジトリに読み取りを許可しておく。
-
 ## ビルド
 
 ```sh
@@ -63,8 +49,15 @@ DOMAIN=example.com ./backend/build/native/nativeCompile/kmp-activitypub
 
 起動できたかは `GET /healthz` で見る。`{"status":"ok"}` が返れば動いている。
 
-DB のスキーマは起動時に適用しない。先に sqlite3def などで `backend/repository/src/main/resources/db/schema.sql` を
-適用しておく（[backend/repository/src/main/resources/db/README.md](backend/repository/src/main/resources/db/README.md)）。
+DB のスキーマは起動時に適用しない。先に [sqlite3def](https://github.com/sqldef/sqldef) で適用しておく
+（[backend/repository/src/main/resources/db/README.md](backend/repository/src/main/resources/db/README.md)）。
+
+```sh
+mkdir -p data
+sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-activitypub.db
+```
+
+環境変数は `docker-compose.yml` も参照。
 
 ### Web
 
@@ -92,8 +85,7 @@ COOKIE_SECURE=false \
 ./gradlew :frontend:app-android:assembleDebug
 ```
 
-接続先のサーバーの URL はログイン画面の「変更」から入れる。ログインの Cookie はアプリに残るので、
-次からはそのまま投稿できる。Android アプリに管理画面は無い。
+接続先のサーバーの URL はログイン画面の「変更」から入れる。Android アプリに管理画面は無い。
 
 ## 使い方
 
@@ -101,16 +93,18 @@ COOKIE_SECURE=false \
 
    ```sh
    # 表示された 1 行がそのまま ADMIN_PASSWORD_HASH の値
-   ./gradlew --quiet :backend:crypto:passwordHash
+   ./gradlew --quiet :backend:crypto:adminPasswordHash
    ```
 
-2. `/admin` で管理画面にログインし、「ユーザーの登録」でユーザー名とパスワードを決める
+2. `/admin` で管理画面にログインし、「ユーザーの登録」でユーザー名とパスワードを決める。
+   管理画面を使わずに `./gradlew --quiet :cli:addAccount` で `data/kmp-activitypub.db` に直接登録してもよい
 3. `/login`（Android ならアプリ）でそのユーザーとしてログインし、ホームの「投稿」から投稿する
 4. Mastodon の検索窓に `@<ユーザー名>@<DOMAIN>` を入れるとフォローできる。フォロー後の投稿が届く
 
 ユーザー名は後から変えられない。Mastodon はリモートのアカウントを永続キャッシュするので、
 アクターの ID が変わると相手には別のアカウントとして見える。
 使える文字は英数字と `_` `.` `-` で、先頭と末尾は英数字か `_`、長さは 30 文字まで。
+大文字小文字は区別せず、小文字にして保存する。ログインでは前後の空白を落として照合する。
 パスワードは 8 文字以上。
 
 ### 画面のパス
@@ -147,8 +141,10 @@ COOKIE_SECURE=false \
 | --- | --- |
 | `:backend` | サーバーの組み立て。ルーティング・GraphQL のリゾルバ・配信ワーカー |
 | `:backend:crypto` | パスワードのハッシュ |
+| `:backend:session` | ユーザーのセッション |
 | `:backend:graphql` | GraphQL のスキーマと、そこから生成したモデル・リゾルバのインタフェース |
 | `:backend:repository` | SQLite への保存 |
+| `:cli` | DB に直接ユーザーを登録するコマンド |
 | `:shared` | backend と画面の両方から見る値 |
 | `:frontend:app-web` | Web アプリの入口 |
 | `:frontend:feature:home` | ログイン・ホーム・投稿の画面（Web と Android） |

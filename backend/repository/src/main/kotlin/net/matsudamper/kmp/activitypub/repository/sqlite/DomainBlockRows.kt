@@ -1,6 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.DOMAIN_BLOCKS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DOMAIN_BLOCKS
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 

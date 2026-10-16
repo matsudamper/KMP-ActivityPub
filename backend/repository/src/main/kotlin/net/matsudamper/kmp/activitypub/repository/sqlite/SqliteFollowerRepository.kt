@@ -6,9 +6,9 @@ import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.IncomingFollow
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.repository.StoredFollower
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.ACCOUNTS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.FOLLOWERS
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOWERS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryKindDbValue
 import org.jooq.Condition
 import org.jooq.impl.DSL
@@ -240,7 +240,7 @@ internal class SqliteFollowerRepository(
             .limit(limit)
             .fetch { record ->
                 StoredFollower(
-                    actorUri = record[REMOTE_ACTORS.ACTOR_URI],
+                    actorUri = checkNotNull(record[REMOTE_ACTORS.ACTOR_URI]),
                     preferredUsername = record[REMOTE_ACTORS.PREFERRED_USERNAME],
                     displayName = record[REMOTE_ACTORS.DISPLAY_NAME],
                     profileUrl = record[REMOTE_ACTORS.PROFILE_URL],
@@ -276,7 +276,7 @@ internal class SqliteFollowerRepository(
                 .and(FOLLOWERS.STATE.eq(STATE_ACCEPTED))
                 .groupBy(FOLLOWERS.USERNAME)
                 .fetch()
-                .forEach { counted[it.value1()] = it.value2().toLong() }
+                .forEach { counted[checkNotNull(it.value1())] = it.value2().toLong() }
 
             usernames.associateWith { counted[it] ?: 0L }
         }

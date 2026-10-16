@@ -5,7 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.NewNote
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
-import net.matsudamper.kmp.activitypub.repository.jooq.Tables.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
 import org.jooq.Record
@@ -144,21 +144,21 @@ internal class SqliteNoteRepository(
                 .where(NOTES.USERNAME.`in`(usernames))
                 .groupBy(NOTES.USERNAME)
                 .fetch()
-                .forEach { counted[it.value1()] = it.value2().toLong() }
+                .forEach { counted[checkNotNull(it.value1())] = it.value2().toLong() }
 
             usernames.associateWith { counted[it] ?: 0L }
         }
     }
 
     private fun Record.toPosition(): NotePosition = NotePosition(
-        publishedAt = StoredInstant.parse(get(NOTES.PUBLISHED_AT)),
-        publicId = PublicNoteId(get(NOTES.PUBLIC_ID)),
+        publishedAt = StoredInstant.parse(checkNotNull(get(NOTES.PUBLISHED_AT))),
+        publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
     )
 
     private fun Record.toNote(): Note = Note(
-        publicId = PublicNoteId(get(NOTES.PUBLIC_ID)),
-        username = get(NOTES.USERNAME),
-        contentHtml = get(NOTES.CONTENT_HTML),
-        publishedAt = StoredInstant.parse(get(NOTES.PUBLISHED_AT)),
+        publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
+        username = checkNotNull(get(NOTES.USERNAME)),
+        contentHtml = checkNotNull(get(NOTES.CONTENT_HTML)),
+        publishedAt = StoredInstant.parse(checkNotNull(get(NOTES.PUBLISHED_AT))),
     )
 }

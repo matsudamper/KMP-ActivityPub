@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
+    alias(libs.plugins.koin.compiler)
     id("kmp-activitypub.webpack-bundle-hash")
 }
 
@@ -30,7 +31,7 @@ kotlin {
                 implementation(project(":frontend:navigation"))
                 implementation(project(":frontend:feature:home"))
                 implementation(project(":frontend:feature:admin"))
-                // org.jetbrains.compose.* の直接座標は material3 がまだ alpha なので compose.* を使う
+                // material3 の直接座標はまだ alpha
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.ui)
@@ -41,6 +42,11 @@ kotlin {
                 implementation(libs.ktor.client.js)
                 // document 等のブラウザ API。Kotlin/Wasm では stdlib から分離されている
                 implementation(libs.kotlinx.browser)
+                implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+                implementation(libs.koin.core)
+                implementation(libs.koin.annotations)
+                implementation(libs.koin.compose)
+                implementation(libs.koin.compose.viewmodel)
             }
         }
     }

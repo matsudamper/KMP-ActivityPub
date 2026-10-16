@@ -34,7 +34,7 @@ class FollowerRepositoryTest {
         withRepositories { block(it.followers) }
 
     private fun <T> withRepositories(block: (Repositories) -> T): T =
-        createRepositories(DatabaseConfig(path = dbPath)).use { block(it) }
+        Repositories.create(DatabaseConfig(path = dbPath)).use { block(it) }
 
     /**
      * フォローが成立するのは `Accept` を送れたときなので、記録しただけでは数えられない

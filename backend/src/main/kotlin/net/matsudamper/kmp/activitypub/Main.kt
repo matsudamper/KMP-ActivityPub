@@ -29,6 +29,7 @@ import net.matsudamper.kmp.activitypub.nodeinfo.nodeInfoRoutes
 import net.matsudamper.kmp.activitypub.note.featuredRoutes
 import net.matsudamper.kmp.activitypub.note.noteRoutes
 import net.matsudamper.kmp.activitypub.note.outboxRoutes
+import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
@@ -38,6 +39,7 @@ import net.matsudamper.kotpub.actor.ActorKey
 fun main() {
     // DOMAIN が無ければこの時点で落ちる。サーバーを立てる前に止めたいので順番を変えないこと
     val serverEnv = ServerEnv()
+    DatabaseWriteCheck.verify(serverEnv.dbPath)
 
     val telemetry = OpenTelemetryInitializer.start()
     val deps = AppDependencies.create(serverEnv, telemetry = telemetry)
@@ -79,16 +81,12 @@ internal fun Application.module(deps: AppDependencies) {
     val env = deps.env
     val actorKey = deps.actorKey
 
-    // 書けない DB を抱えたまま起動すると、最初のリクエストまで問題に気付けない。
-    // native バイナリでは SQLite のネイティブライブラリ周りで起きやすいので起動時に確かめる
-    deps.repositories.verifyWritable()
-
     // ドメインはアクター ID に焼き込まれ、Mastodon 側にキャッシュされると後から変えられない。
     // 取り違えたまま気付かないのが一番まずいので、起動時に必ず見えるところに出す
     log.info("ドメイン: ${env.domain}")
 
     // 追加したはずのアカウントに応答しないとき、DB を見ているかどうかがここで切り分けられる
-    log.info("アカウント: ${deps.repositories.accounts.list().size} 件")
+    log.info("アカウント: ${deps.repositories.accountRepository.list().size} 件")
 
     // 鍵が入れ替わると相手側は署名検証に失敗し続ける。
     // どこから読んだ鍵なのかが後から追えるよう、取得元を必ず出す
@@ -135,7 +133,7 @@ internal fun Application.module(deps: AppDependencies) {
             GraphQlContext(
                 call = call,
                 adminSessionStore = deps.adminSessionStore,
-                userSessions = deps.userSessions,
+                sessionService = deps.sessionService,
                 cookieSecure = env.cookieSecure,
             )
         },

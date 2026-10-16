@@ -1,8 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,27 +11,49 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginResult
+import org.koin.core.annotation.KoinViewModel
 
+@KoinViewModel
 internal class LoginScreenViewModel(
-    private val viewModelScope: CoroutineScope,
-    private val api: UserApi?,
-    savedState: ViewModelState,
-) {
+    private val api: UserApi,
+    private val savedStateHandle: SavedStateHandle,
+) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(savedState)
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(
+            ViewModelState(
+                username = savedStateHandle.get<String>(USERNAME_KEY).orEmpty(),
+                password = "",
+                submitting = false,
+                error = null,
+                apiReady = api.isReady(),
+            ),
+        )
 
     val uiStateFlow: StateFlow<LoginScreenUiState> =
         MutableStateFlow(
             createUiState(
-                viewModelState = savedState,
-                listener = object : LoginScreenUiState.Listener {
+                viewModelState = viewModelStateFlow.value,
+                listener =
+                object : LoginScreenUiState.Listener {
                     override fun onUsernameChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(username = text, error = null) }
+                        savedStateHandle[USERNAME_KEY] = text
+                        viewModelStateFlow.update {
+                            it.copy(
+                                username = text,
+                                error = null,
+                            )
+                        }
                     }
 
                     override fun onPasswordChanged(text: String) {
-                        viewModelStateFlow.update { it.copy(password = text, error = null) }
+                        viewModelStateFlow.update {
+                            it.copy(
+                                password = text,
+                                error = null,
+                            )
+                        }
                     }
 
                     override fun onClickLogin() {
@@ -43,25 +65,45 @@ internal class LoginScreenViewModel(
             viewModelScope.launch {
                 viewModelStateFlow.collect { viewModelState ->
                     uiStateFlow.update { uiState ->
-                        createUiState(viewModelState = viewModelState, listener = uiState.listener)
+                        createUiState(
+                            viewModelState = viewModelState,
+                            listener = uiState.listener,
+                        )
                     }
                 }
             }
         }.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            api.ready.collect { ready ->
+                viewModelStateFlow.update { it.copy(apiReady = ready) }
+            }
+        }
+    }
+
     private fun login() {
         val state = viewModelStateFlow.value
-        val api = api ?: return
         if (state.loginable().not()) return
 
-        viewModelStateFlow.update { it.copy(submitting = true, error = null) }
+        viewModelStateFlow.update {
+            it.copy(
+                submitting = true,
+                error = null,
+            )
+        }
         viewModelScope.launch {
-            val error = when (val result = api.login(username = state.username.trim(), password = state.password)) {
-                UserLoginResult.Success -> null
-                UserLoginResult.WrongUsernameOrPassword -> "ユーザー名かパスワードが違う"
-                is UserLoginResult.Failure -> result.message
-            }
-            viewModelStateFlow.update { it.copy(submitting = false, error = error) }
+            val error =
+                try {
+                    when (val result = api.login(username = state.username.trim(), password = state.password)) {
+                        UserLoginResult.Success -> null
+                        UserLoginResult.WrongUsernameOrPassword -> "ユーザー名かパスワードが違う"
+                        is UserLoginResult.Failure -> result.message
+                    }
+                } finally {
+                    viewModelStateFlow.update { it.copy(submitting = false) }
+                }
+            viewModelStateFlow.update { it.copy(error = error) }
             if (error == null) {
                 events.send { it.navigateToHome() }
             }
@@ -76,6 +118,7 @@ internal class LoginScreenViewModel(
             username = viewModelState.username,
             password = viewModelState.password,
             error = viewModelState.error,
+            inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
             loginButtonEnabled = viewModelState.loginable(),
             listener = listener,
@@ -83,40 +126,19 @@ internal class LoginScreenViewModel(
     }
 
     private fun ViewModelState.loginable(): Boolean =
-        api != null && submitting.not() && username.isNotBlank() && password.isNotEmpty()
+        apiReady && submitting.not() && username.isNotBlank() && password.isNotEmpty()
 
     data class ViewModelState(
         val username: String,
         val password: String,
-        val submitting: Boolean = false,
-        val error: String? = null,
+        val submitting: Boolean,
+        val error: String?,
+        val apiReady: Boolean,
     )
 
     interface Event {
         fun navigateToHome()
     }
-
-    companion object {
-        val InitialState = ViewModelState(username = "", password = "")
-
-        /**
-         * 画面回転などで作り直されても入力を残す
-         */
-        fun saver(
-            viewModelScope: CoroutineScope,
-            api: UserApi?,
-        ): Saver<LoginScreenViewModel, Any> = listSaver(
-            save = { viewModel ->
-                val state = viewModel.viewModelStateFlow.value
-                listOf(state.username, state.password)
-            },
-            restore = { (username, password) ->
-                LoginScreenViewModel(
-                    viewModelScope = viewModelScope,
-                    api = api,
-                    savedState = ViewModelState(username = username, password = password),
-                )
-            },
-        )
-    }
 }
+
+private const val USERNAME_KEY = "username"

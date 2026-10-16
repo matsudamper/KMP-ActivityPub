@@ -27,15 +27,15 @@ import io.ktor.http.setCookie
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.TestServerEnv
-import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.repository.IncomingFollow
 import net.matsudamper.kmp.activitypub.repository.NewRemoteActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfile
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
-import net.matsudamper.kmp.activitypub.testDependencies
 import net.matsudamper.kotpub.json.AppJson
 
 // Cookie の保存はクライアント側の実装に寄るので、テストでは Set-Cookie を自分で読んで付け直す。
@@ -175,7 +175,12 @@ class UserGraphQlTest {
 
     private fun repositoriesWithUser(): FakeRepositories =
         FakeRepositories().apply {
-            accounts.add(username = USERNAME, passwordHash = PASSWORD_HASH, createdAt = Instant.now())
+            accountRepository.add(
+                username = USERNAME,
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PasswordHashType.Current.dbValue,
+                createdAt = Instant.now(),
+            )
         }
 
     private fun FakeRepositories.addFollower() {
@@ -201,7 +206,7 @@ class UserGraphQlTest {
 
     private fun ApplicationTestBuilder.applicationWith(repositories: FakeRepositories) {
         application {
-            module(testDependencies(repositories = repositories))
+            module(TestDependencies(repositories = repositories))
         }
     }
 
@@ -261,7 +266,7 @@ class UserGraphQlTest {
         /**
          * 反復回数は検証にも使われるので、落としても経路は同じ。既定だとテストのたびに待つ
          */
-        val PASSWORD_HASH: String = PasswordHash.create(PASSWORD, iterations = 1_000).encode()
+        val PASSWORD_HASH: String = checkNotNull(PasswordHashType.Current.encoder.encode(PASSWORD))
 
         suspend fun HttpResponse.body(): JsonObject = AppJson.parseToJsonElement(bodyAsText()).jsonObject
 

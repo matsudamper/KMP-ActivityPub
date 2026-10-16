@@ -4,13 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
 import kotlinx.browser.window
-import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.TransparentScreen
@@ -26,6 +26,8 @@ import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminAccountsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
 import net.matsudamper.kmp.activitypub.frontend.ui.AppTheme
 import net.matsudamper.kmp.activitypub.frontend.ui.RetainedScreenState
+import org.koin.compose.KoinApplication
+import org.koin.plugin.module.dsl.koinConfiguration
 import org.w3c.dom.HTMLElement
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -92,6 +94,13 @@ private fun createWebGl2UnavailableNotice(): HTMLElement {
 
 @Composable
 internal fun App() {
+    KoinApplication(configuration = koinConfiguration<WebKoinApp>()) {
+        AppNavigation()
+    }
+}
+
+@Composable
+private fun AppNavigation() {
     AppTheme {
         val platformNavController = rememberNavController()
         val screenStateStore = rememberScreenStateStore()
@@ -102,6 +111,10 @@ internal fun App() {
         NavDisplay(
             backStack = platformNavController.backStack,
             onBack = { platformNavController.back() },
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
             sceneStrategies = listOf(TransparentScreenSceneStrategy()),
             entryProvider = { historyEntry ->
                 NavEntry(
@@ -128,13 +141,12 @@ private fun ScreenContent(
     navController: Navigator,
     retainedScreenState: RetainedScreenState,
 ) {
-    val userApi = remember { UserApi(GraphQlClient.apollo) }
     when (screen) {
-        Screen.Home -> HomeFeatureScreens.Home(navigator = navController, api = userApi)
+        Screen.Home -> HomeFeatureScreens.Home(navigator = navController)
 
-        Screen.Login -> HomeFeatureScreens.Login(navigator = navController, api = userApi, serverSettingUiState = null)
+        Screen.Login -> HomeFeatureScreens.Login(navigator = navController, serverSettingUiState = null)
 
-        Screen.Post -> HomeFeatureScreens.Post(navigator = navController, api = userApi)
+        Screen.Post -> HomeFeatureScreens.Post(navigator = navController)
 
         Screen.Admin -> AdminScreen(
             retainedScreenState = retainedScreenState,
