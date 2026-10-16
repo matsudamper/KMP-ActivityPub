@@ -36,7 +36,7 @@ internal fun LoginScreen(
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
             object : LoginScreenViewModel.Event {
-                override fun navigateToHome() {
+                override fun loggedIn() {
                     navigator.replaceAll(Screen.Home)
                 }
             },
@@ -63,52 +63,68 @@ internal fun LoginContent(
                 modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    text = "ログイン",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                UsernameField(
-                    value = uiState.username,
-                    onValueChange = uiState.listener::onUsernameChanged,
-                    label = "ユーザー名",
-                    formId = LOGIN_FORM_ID,
-                    inputId = LOGIN_USERNAME_INPUT_ID,
-                    inputName = "username",
-                    enabled = uiState.inputEnabled,
-                    hasError = uiState.inputHasError,
+                LoginForm(
+                    uiState = uiState,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                PasswordField(
-                    value = uiState.password,
-                    onValueChange = uiState.listener::onPasswordChanged,
-                    onSubmit = uiState.listener::onClickLogin,
-                    label = "パスワード",
-                    formId = LOGIN_FORM_ID,
-                    inputId = LOGIN_PASSWORD_INPUT_ID,
-                    inputName = "password",
-                    enabled = uiState.inputEnabled,
-                    hasError = uiState.inputHasError,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                val error = uiState.error
-                if (error != null) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Button(
-                    onClick = uiState.listener::onClickLogin,
-                    enabled = uiState.loginButtonEnabled,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("ログイン")
-                }
                 if (serverSettingUiState != null) {
                     ServerSettingContent(uiState = serverSettingUiState)
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun LoginForm(
+    uiState: LoginScreenUiState,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = "ログイン",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        UsernameField(
+            value = uiState.username,
+            onValueChange = uiState.listener::onUsernameChanged,
+            label = "ユーザー名",
+            formId = LOGIN_FORM_ID,
+            inputId = LOGIN_USERNAME_INPUT_ID,
+            inputName = "username",
+            enabled = uiState.inputEnabled,
+            hasError = uiState.inputHasError,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        PasswordField(
+            value = uiState.password,
+            onValueChange = uiState.listener::onPasswordChanged,
+            onSubmit = uiState.listener::onClickLogin,
+            label = "パスワード",
+            formId = LOGIN_FORM_ID,
+            inputId = LOGIN_PASSWORD_INPUT_ID,
+            inputName = "password",
+            enabled = uiState.inputEnabled,
+            hasError = uiState.inputHasError,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val error = uiState.error
+        if (error != null) {
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Button(
+            onClick = uiState.listener::onClickLogin,
+            enabled = uiState.loginButtonEnabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("ログイン")
         }
     }
 }

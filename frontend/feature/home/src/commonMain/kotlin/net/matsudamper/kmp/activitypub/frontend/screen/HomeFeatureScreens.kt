@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGate
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 
 object HomeFeatureScreens {
@@ -17,6 +18,14 @@ object HomeFeatureScreens {
             navigator = navigator,
             serverSettingUiState = serverSettingUiState,
         )
+    }
+
+    /**
+     * ログインしていなければ、その場でログインのダイアログを出し、通ったら [content] を出す
+     */
+    @Composable
+    fun LoginRequired(content: @Composable () -> Unit) {
+        LoginGate(content = content)
     }
 
     @Composable

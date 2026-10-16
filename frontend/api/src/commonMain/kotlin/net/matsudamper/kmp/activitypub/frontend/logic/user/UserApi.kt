@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
+import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
@@ -38,6 +39,19 @@ class UserApi(
             null -> UserLoginResult.Success
             UserLoginFailure.WRONG_USERNAME_OR_PASSWORD -> UserLoginResult.WrongUsernameOrPassword
             UserLoginFailure.UNKNOWN__ -> UserLoginResult.Failure("Unknown")
+        }
+    }
+
+    suspend fun loginState(): UserLoginStateResult {
+        val client = clients.client.value ?: return UserLoginStateResult.Failure("接続先が未設定")
+        val response = client.query(LoginGateQuery()).execute()
+        if (response.exception != null || response.hasErrors()) return UserLoginStateResult.Failure(response.failureMessage())
+        val user = response.data?.user ?: return UserLoginStateResult.Failure(response.failureMessage())
+
+        return if (user.me == null) {
+            UserLoginStateResult.NotLoggedIn
+        } else {
+            UserLoginStateResult.LoggedIn
         }
     }
 

@@ -1,0 +1,7 @@
+query LoginGate {
+    user {
+        me {
+            id
+        }
+    }
+}
