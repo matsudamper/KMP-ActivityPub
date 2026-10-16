@@ -80,16 +80,32 @@ internal fun PostContent(
                     label = "今なにしてる？",
                     inputId = POST_BODY_INPUT_ID,
                     inputName = "body",
-                    enabled = true,
-                    hasError = false,
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.error != null,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(
-                    onClick = uiState.listener::onClickPost,
-                    enabled = uiState.postButtonEnabled,
-                    modifier = Modifier.align(Alignment.End),
-                ) {
-                    Text("投稿")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = uiState.remainingLength.toString(),
+                        modifier = Modifier.weight(1f),
+                        color = if (uiState.remainingLengthOver) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    Button(
+                        onClick = uiState.listener::onClickPost,
+                        enabled = uiState.postButtonEnabled,
+                    ) {
+                        Text("投稿")
+                    }
+                }
+                uiState.error?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }

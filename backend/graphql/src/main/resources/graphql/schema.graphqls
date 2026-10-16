@@ -4,10 +4,16 @@ schema {
 }
 
 type Query {
-    "GraphQL は query にフィールドが 1 つ要る。空実装"
-    unused: Boolean
+    admin: AdminQuery!
+    user: UserQuery!
 }
 
 type Mutation {
+    admin: AdminMutation!
     user: UserMutation!
+}
+
+type PageInfo {
+    hasMore: Boolean!
+    nextCursor: String
 }

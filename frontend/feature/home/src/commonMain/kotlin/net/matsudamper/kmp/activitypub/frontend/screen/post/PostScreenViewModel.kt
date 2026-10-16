@@ -9,13 +9,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import org.koin.core.annotation.KoinViewModel
 
-/**
- * サーバーとはまだ繋いでいない。投稿は常に成功したことにする
- */
 @KoinViewModel
 internal class PostScreenViewModel(
+    private val api: UserApi,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
@@ -25,13 +25,12 @@ internal class PostScreenViewModel(
 
     val uiStateFlow: StateFlow<PostScreenUiState> =
         MutableStateFlow(
-            PostScreenUiState(
-                body = viewModelStateFlow.value.body,
-                postButtonEnabled = viewModelStateFlow.value.postable(),
+            createUiState(
+                viewModelState = viewModelStateFlow.value,
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
                         savedStateHandle[BODY_KEY] = text
-                        viewModelStateFlow.update { it.copy(body = text) }
+                        viewModelStateFlow.update { it.copy(body = text, error = null) }
                     }
 
                     override fun onClickPost() {
@@ -49,31 +48,74 @@ internal class PostScreenViewModel(
             viewModelScope.launch {
                 viewModelStateFlow.collect { viewModelState ->
                     uiStateFlow.update { uiState ->
-                        uiState.copy(
-                            body = viewModelState.body,
-                            postButtonEnabled = viewModelState.postable(),
-                        )
+                        createUiState(viewModelState = viewModelState, listener = uiState.listener)
                     }
                 }
             }
         }.asStateFlow()
 
     private fun post() {
-        if (viewModelStateFlow.value.postable().not()) return
+        val state = viewModelStateFlow.value
+        if (state.postable().not()) return
 
+        viewModelStateFlow.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
-            events.send { it.navigateBack() }
+            val error = when (val result = api.postNote(state.body)) {
+                UserPostNoteResult.Success -> null
+
+                is UserPostNoteResult.Rejected -> when {
+                    result.isEmpty -> "本文が空"
+                    result.maxLength != null -> "${result.maxLength} 文字までにする"
+                    else -> "投稿できなかった"
+                }
+
+                is UserPostNoteResult.Failure -> result.message
+            }
+            viewModelStateFlow.update { it.copy(submitting = false, error = error) }
+            if (error == null) {
+                events.send { it.navigateBack() }
+            }
         }
     }
 
-    private fun ViewModelState.postable(): Boolean = body.isNotBlank()
+    private fun createUiState(
+        viewModelState: ViewModelState,
+        listener: PostScreenUiState.Listener,
+    ): PostScreenUiState {
+        val remainingLength = viewModelState.remainingLength()
+        return PostScreenUiState(
+            body = viewModelState.body,
+            remainingLength = remainingLength,
+            remainingLengthOver = remainingLength < 0,
+            error = viewModelState.error,
+            inputEnabled = viewModelState.submitting.not(),
+            postButtonEnabled = viewModelState.postable(),
+            listener = listener,
+        )
+    }
+
+    private fun ViewModelState.postable(): Boolean = submitting.not() && body.isNotBlank() && remainingLength() >= 0
+
+    /**
+     * サーバーと同じく、書いた人にとっての文字数に合わせてコードポイントで数える
+     */
+    private fun ViewModelState.remainingLength(): Int = NOTE_MAX_LENGTH - body.trim().count { it.isLowSurrogate().not() }
 
     data class ViewModelState(
         val body: String,
+        val submitting: Boolean = false,
+        val error: String? = null,
     )
 
     interface Event {
         fun navigateBack()
+    }
+
+    private companion object {
+        /**
+         * Mastodon の既定の投稿長。超えるとサーバーが弾く
+         */
+        const val NOTE_MAX_LENGTH = 500
     }
 }
 

@@ -1,0 +1,65 @@
+package net.matsudamper.kmp.activitypub
+
+import java.time.Instant
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
+import io.ktor.server.testing.testApplication
+
+// DB そのものの挙動は :backend:repository 側でテストするので、
+// ここでは FakeRepositories を渡して実ファイルを触らない。
+class ApplicationTest {
+    @Test
+    fun `healthzにアクセスすると200とstatus okのJSONが返る`() =
+        testApplication {
+            application {
+                module(TestDependencies())
+            }
+
+            val response = client.get("/healthz")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("""{"status":"ok"}""", response.bodyAsText())
+            assertEquals(ContentType.Application.Json, response.contentType()?.withoutParameters())
+        }
+
+    @Test
+    fun `hello で Hello World を返す`() =
+        testApplication {
+            application {
+                module(TestDependencies())
+            }
+
+            val response = client.get("/hello")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals("Hello World", response.bodyAsText())
+        }
+
+    @Test
+    fun `ActivityPub のエンドポイントが組み込まれている`() =
+        testApplication {
+            val repositories = FakeRepositories()
+            repositories.accountRepository.add(username = TestServerEnv.USERNAME, passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now())
+            application {
+                module(TestDependencies(repositories = repositories))
+            }
+
+            // 返す中身は kotpub の activitypub 側で確かめる。
+            // ここで見るのは module() がそれらを組み込んでいることだけ
+            assertEquals(
+                HttpStatusCode.OK,
+                client.get("/.well-known/webfinger?resource=acct:admin@example.com").status,
+            )
+            assertEquals(HttpStatusCode.OK, client.get("/users/admin").status)
+            assertEquals(HttpStatusCode.OK, client.get("/.well-known/nodeinfo").status)
+
+            // 署名が無いので inbox は 401。ルートが無ければ 404 になる
+            assertEquals(HttpStatusCode.Unauthorized, client.post("/users/admin/inbox").status)
+        }
+}

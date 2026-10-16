@@ -12,16 +12,31 @@ dependencies {
     implementation(project(":backend:session"))
     implementation(project(":shared"))
 
+    implementation(libs.kotpub.core)
+    implementation(libs.kotpub.client.ktor)
+
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.opentelemetry.api.incubator)
+    implementation(libs.opentelemetry.sdk)
+    implementation(libs.opentelemetry.sdk.autoconfigure)
+    implementation(libs.opentelemetry.exporter.otlp)
+    implementation(libs.opentelemetry.ktor)
+    implementation(libs.opentelemetry.graphql.java)
+    implementation(libs.opentelemetry.runtime.telemetry)
+    implementation(libs.opentelemetry.extension.kotlin)
 
     compileOnly(libs.graalvm.nativeimage)
 
     runtimeOnly(libs.slf4j.simple)
 
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlin.test)
+
+    testImplementation(testFixtures(libs.kotpub.core))
 }
 
 application {

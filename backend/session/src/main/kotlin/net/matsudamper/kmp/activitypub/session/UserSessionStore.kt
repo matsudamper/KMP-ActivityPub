@@ -14,8 +14,13 @@ interface UserSessionStore {
         expiresAt: Instant,
     )
 
+    /**
+     * 期限切れと、消したアカウントのものは返さない
+     */
     fun findAccountId(
         tokenHash: String,
         now: Instant,
     ): AccountId?
+
+    fun delete(tokenHash: String)
 }

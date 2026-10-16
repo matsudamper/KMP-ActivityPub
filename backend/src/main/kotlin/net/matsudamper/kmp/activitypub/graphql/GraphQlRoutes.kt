@@ -18,8 +18,7 @@ import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.json.ServerJson
 import net.matsudamper.kmp.activitypub.json.respondJson
-
-internal const val GRAPHQL_PATH = "/graphql"
+import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 
 private const val MAX_BODY_BYTES = 1024 * 1024
 

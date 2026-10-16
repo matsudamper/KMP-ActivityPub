@@ -16,7 +16,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
-import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.BackStackNavigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
 import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
@@ -43,7 +43,7 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
 @Composable
 private fun AndroidNavigation(modifier: Modifier = Modifier) {
     val backStack = rememberScreenBackStack(startScreen = Screen.Login)
-    val navigator = remember(backStack) { Navigator(backStack) }
+    val navigator = remember(backStack) { BackStackNavigator(backStack) }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
             NavDisplay(

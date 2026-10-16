@@ -31,6 +31,10 @@ class UserSessionService(
 
     fun accountIdOf(token: String): AccountId? = sessionStore.findAccountId(tokenHash = hash(token), now = clock.instant())
 
+    fun delete(token: String) {
+        sessionStore.delete(hash(token))
+    }
+
     /**
      * 推測できない長さの乱数なので salt や反復は要らない
      */

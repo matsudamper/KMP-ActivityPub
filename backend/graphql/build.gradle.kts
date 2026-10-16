@@ -5,11 +5,13 @@ import io.github.kobylynskyi.graphql.codegen.gradle.GraphQLCodegenGradleTask
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.graphql.codegen)
+    id("kmp-activitypub.graphql-schema-list")
 }
 
 dependencies {
     api(libs.graphql.kickstart.tools)
     api(libs.graphql.java)
+    implementation(project(":shared"))
 }
 
 val generatedSourcesDirectory = layout.buildDirectory.dir("generated/codegen")
@@ -36,6 +38,12 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     generatedLanguage = GeneratedLanguage.KOTLIN
     outputDir = generatedSourcesDirectory.get().asFile
     packageName = "net.matsudamper.kmp.activitypub.graphql.model"
+
+    customTypesMapping = mutableMapOf(
+        "UnixTime" to "kotlin.Long",
+        "PublicNoteId" to "net.matsudamper.kmp.activitypub.shared.PublicNoteId",
+        "AccountId" to "net.matsudamper.kmp.activitypub.shared.AccountId",
+    )
 
     modelNamePrefix = "Ql"
     generateImmutableModels = true

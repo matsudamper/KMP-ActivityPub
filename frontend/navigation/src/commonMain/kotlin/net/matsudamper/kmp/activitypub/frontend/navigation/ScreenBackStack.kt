@@ -23,9 +23,13 @@ fun rememberScreenBackStack(startScreen: Screen): NavBackStack<NavKey> {
 private val ScreenSavedStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
-            subclass(Screen.Login::class)
             subclass(Screen.Home::class)
+            subclass(Screen.Login::class)
             subclass(Screen.Post::class)
+            subclass(Screen.Admin::class)
+            subclass(Screen.AdminAccounts::class)
+            subclass(Screen.AdminAccountNew::class)
+            subclass(Screen.NotFound::class)
         }
     }
 }

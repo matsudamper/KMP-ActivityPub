@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.USER_SESSIONS
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -40,9 +41,21 @@ internal class SqliteUserSessionStore(
         dsl
             .select(USER_SESSIONS.ACCOUNT_ID)
             .from(USER_SESSIONS)
+            .join(ACCOUNTS)
+            .on(ACCOUNTS.ID.eq(USER_SESSIONS.ACCOUNT_ID))
             .where(USER_SESSIONS.TOKEN_HASH.eq(tokenHash))
             .and(USER_SESSIONS.EXPIRES_AT.gt(StoredInstant.format(now)))
+            .and(ACCOUNTS.DELETED_AT.isNull)
             .fetchOne(USER_SESSIONS.ACCOUNT_ID)
             ?.let { AccountId(it) }
+    }
+
+    override fun delete(tokenHash: String) {
+        jooq.withConnection { dsl ->
+            dsl
+                .deleteFrom(USER_SESSIONS)
+                .where(USER_SESSIONS.TOKEN_HASH.eq(tokenHash))
+                .execute()
+        }
     }
 }

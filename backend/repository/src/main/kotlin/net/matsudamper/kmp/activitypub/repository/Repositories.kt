@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository
 
+import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
 
@@ -9,6 +10,20 @@ import net.matsudamper.kmp.activitypub.session.UserSessionStore
 interface Repositories : AutoCloseable {
     val accountRepository: AccountRepository
 
+    val followers: FollowerRepository
+
+    val notes: NoteRepository
+
+    val noteFavourites: NoteFavouriteRepository
+
+    val noteStamps: NoteStampRepository
+
+    val earlyUndoneLikes: EarlyUndoneLikeRepository
+
+    val deliveryQueue: DeliveryQueueRepository
+
+    val domainBlocks: DomainBlockRepository
+
     val sessionStore: UserSessionStore
 
     /**
@@ -17,6 +32,9 @@ interface Repositories : AutoCloseable {
     override fun close()
 
     companion object {
-        fun create(config: DatabaseConfig): Repositories = SqliteRepositories(config)
+        fun create(
+            config: DatabaseConfig,
+            openTelemetry: OpenTelemetry? = null,
+        ): Repositories = SqliteRepositories(config, openTelemetry)
     }
 }

@@ -1,0 +1,29 @@
+type AdminQuery {
+    session: AdminSession! @lazy
+
+    "登録したユーザーの一覧。登録した順。limit を渡さないと 10 件、上限は 50 件"
+    adminAccounts(cursor: String, limit: Int): AdminAccountsConnection! @lazy
+}
+
+type AdminAccountsConnection {
+    nodes: [AdminAccount!]!
+    pageInfo: PageInfo!
+}
+
+type AdminSession {
+    loggedIn: Boolean!
+
+    "サーバーに ADMIN_PASSWORD_HASH が設定されているか"
+    passwordConfigured: Boolean!
+}
+
+type AdminAccount {
+    id: AccountId!
+    username: String!
+
+    "Mastodon の検索窓に貼る形。@name@domain"
+    acct: String!
+
+    "登録した時刻"
+    createdAt: UnixTime!
+}

@@ -37,6 +37,36 @@ class UserSessionStoreTest {
         }
     }
 
+    @Test
+    fun `消したセッションは引けない`() {
+        withRepositories { repositories, accountId ->
+            repositories.sessionStore.create(tokenHash = TOKEN_HASH, accountId = accountId, createdAt = NOW, expiresAt = EXPIRES_AT)
+
+            repositories.sessionStore.delete(TOKEN_HASH)
+
+            assertNull(repositories.sessionStore.findAccountId(tokenHash = TOKEN_HASH, now = NOW))
+        }
+    }
+
+    @Test
+    fun `アカウントを消すとセッションも引けなくなる`() {
+        withRepositories { repositories, accountId ->
+            repositories.sessionStore.create(tokenHash = TOKEN_HASH, accountId = accountId, createdAt = NOW, expiresAt = EXPIRES_AT)
+
+            repositories.accountRepository.markDeleted(
+                AccountDeletion(
+                    id = accountId,
+                    username = "user1",
+                    body = """{"type":"Delete"}""",
+                    inboxes = listOf(),
+                    deletedAt = NOW,
+                ),
+            )
+
+            assertNull(repositories.sessionStore.findAccountId(tokenHash = TOKEN_HASH, now = NOW))
+        }
+    }
+
     private fun withRepositories(block: (Repositories, AccountId) -> Unit) {
         val dbPath = tempDir.resolve("test.db")
         TestSchema.applyTo(dbPath)

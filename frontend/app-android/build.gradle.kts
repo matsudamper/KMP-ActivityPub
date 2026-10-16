@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.koin.compiler)
 }
 
+// Android アプリ。画面は :frontend:feature:home を使い、ここには Android にしか無いもの
+// （接続先のサーバーの入力、セッションの保存）だけを置く。管理画面は入れない
 android {
     namespace = "net.matsudamper.kmp.activitypub.android"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
@@ -57,15 +59,18 @@ protobuf {
 }
 
 dependencies {
+    implementation(project(":shared"))
+    implementation(project(":frontend:ui"))
     implementation(project(":frontend:api"))
     implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))
 
     implementation(compose.runtime)
     implementation(compose.foundation)
-    implementation(compose.ui)
     implementation(compose.material3)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
+
     implementation(libs.navigation3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.compose.ui.tooling.preview)
@@ -80,6 +85,8 @@ dependencies {
     implementation(libs.koin.annotations)
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
+
+    debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.paparazzi)
     testImplementation(libs.kotlin.test.junit)

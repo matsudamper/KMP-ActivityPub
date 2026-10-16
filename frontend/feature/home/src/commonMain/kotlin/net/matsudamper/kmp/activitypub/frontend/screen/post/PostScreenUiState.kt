@@ -4,6 +4,10 @@ import androidx.compose.runtime.Immutable
 
 data class PostScreenUiState(
     val body: String,
+    val remainingLength: Int,
+    val remainingLengthOver: Boolean,
+    val error: String?,
+    val inputEnabled: Boolean,
     val postButtonEnabled: Boolean,
     val listener: Listener,
 ) {
