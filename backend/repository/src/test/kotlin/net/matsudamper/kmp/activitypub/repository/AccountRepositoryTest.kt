@@ -20,11 +20,11 @@ class AccountRepositoryTest {
     }
 
     @Test
-    fun `SQL で入れたアカウントを id で引ける`() {
-        TestSchema.applyTo(dbPath)
-        val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
+    fun `登録したアカウントを id で引ける`() {
+        insertAccount()
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
             assertEquals(
                 Account(id = id, username = "user1", createdAt = CREATED_AT),
                 repositories.accountRepository.findById(id),
@@ -34,17 +34,10 @@ class AccountRepositoryTest {
 
     @Test
     fun `照合に使うハッシュと方式を名前で引ける`() {
-        TestSchema.applyTo(dbPath)
-        val id =
-            TestSchema.insertAccount(
-                dbPath,
-                username = "user1",
-                passwordHash = PASSWORD_HASH,
-                passwordHashType = PASSWORD_HASH_TYPE,
-                createdAt = CREATED_AT,
-            )
+        insertAccount()
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
             assertEquals(
                 AccountCredential(id = id, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE),
                 repositories.accountRepository.findCredential("user1"),
@@ -54,10 +47,10 @@ class AccountRepositoryTest {
 
     @Test
     fun `大文字小文字の違いは同じ名前として扱う`() {
-        TestSchema.applyTo(dbPath)
-        val id = TestSchema.insertAccount(dbPath, username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
+        insertAccount()
 
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
             assertEquals(id, repositories.accountRepository.findCredential("USER1")?.id)
         }
     }
@@ -69,6 +62,17 @@ class AccountRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertNull(repositories.accountRepository.findCredential("user1"))
         }
+    }
+
+    private fun insertAccount() {
+        TestSchema.applyTo(dbPath)
+        Accounts.insert(
+            databasePath = dbPath,
+            username = "user1",
+            passwordHash = PASSWORD_HASH,
+            passwordHashType = PASSWORD_HASH_TYPE,
+            createdAt = CREATED_AT.toString(),
+        )
     }
 
     private companion object {
