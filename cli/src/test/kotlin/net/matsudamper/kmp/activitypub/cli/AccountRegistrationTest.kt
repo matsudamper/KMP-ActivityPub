@@ -49,10 +49,11 @@ class AccountRegistrationTest {
         val databasePath = createDatabase()
         AccountRegistration.register(
             databasePath = databasePath,
-            username = "user1",
+            username = "User1",
             password = "secret",
             createdAt = Instant.parse("2026-10-13T00:00:00Z"),
         )
+        assertEquals("user1", readAccount(databasePath, "user1").username)
 
         val error =
             assertFailsWith<AccountRegistrationException> {
