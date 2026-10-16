@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
+import net.matsudamper.kmp.activitypub.wellknown.wellKnownRoutes
 
 fun main() {
     val serverEnv = ServerEnv()
@@ -88,6 +89,7 @@ internal fun Application.module(deps: AppDependencies) {
             call.respondText("Hello World")
         }
         graphQlRoutes(graphQl)
+        wellKnownRoutes(deps.env.passkeyAndroidApp)
         staticRoutes(staticFiles)
     }
 }

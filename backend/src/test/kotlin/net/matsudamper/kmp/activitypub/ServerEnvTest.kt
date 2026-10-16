@@ -65,4 +65,29 @@ class ServerEnvTest {
     fun `COOKIE_SECURE が真偽値でなければ起動しない`() {
         assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("COOKIE_SECURE" to "yes")) }
     }
+
+    @Test
+    fun `Android アプリを設定すると署名証明書から origin を足す`() {
+        val fingerprint = List(32) { "%02X".format(it) }.joinToString(":")
+        val env =
+            ServerEnv(
+                mapOf(
+                    "PASSKEY_RP_ID" to "example.com",
+                    "PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app",
+                    "PASSKEY_ANDROID_CERT_SHA256" to fingerprint,
+                ),
+            )
+
+        assertEquals(
+            setOf("https://example.com", "android:apk-key-hash:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"),
+            env.passkeyRelyingParty?.origins,
+        )
+    }
+
+    @Test
+    fun `Android アプリの署名証明書が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app"))
+        }
+    }
 }

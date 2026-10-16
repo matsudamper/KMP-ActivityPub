@@ -37,6 +37,14 @@ COOKIE_SECURE=false ./gradlew :backend:run
 COOKIE_SECURE=false PASSKEY_RP_ID=localhost PASSKEY_ORIGINS=http://localhost:8080 ./gradlew :backend:run
 ```
 
+Android アプリのパスキーは、RP ID のドメインの `/.well-known/assetlinks.json` でアプリを許可していないと作れない。
+`PASSKEY_ANDROID_PACKAGE_NAME` と `PASSKEY_ANDROID_CERT_SHA256` を渡すとサーバーがこれを返す。
+証明書の SHA-256 は次で出る。デバッグビルドはビルドした環境のデバッグ用キーストアで署名される。
+
+```sh
+keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep SHA256
+```
+
 画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
 `frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
 同じサーバーから出る。

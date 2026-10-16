@@ -61,4 +61,34 @@ class MainTest {
             assertEquals(HttpStatusCode.OK, response.status)
             assertEquals("<html><body>Hello</body></html>", response.bodyAsText())
         }
+
+    @Test
+    fun `Android アプリを設定すると assetlinks json を返す`() =
+        testApplication {
+            application {
+                module(
+                    TestDependencies(
+                        env = ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app", "PASSKEY_ANDROID_CERT_SHA256" to "AA:BB")),
+                    ),
+                )
+            }
+
+            val response = client.get("/.well-known/assetlinks.json")
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(
+                """[{"relation":["delegate_permission/common.get_login_creds"],""" +
+                    """"target":{"namespace":"android_app","package_name":"com.example.app","sha256_cert_fingerprints":["AA:BB"]}}]""",
+                response.bodyAsText(),
+            )
+        }
+
+    @Test
+    fun `Android アプリが未設定なら assetlinks json は 404`() =
+        testApplication {
+            application {
+                module(TestDependencies())
+            }
+
+            assertEquals(HttpStatusCode.NotFound, client.get("/.well-known/assetlinks.json").status)
+        }
 }
