@@ -138,7 +138,7 @@ internal class SettingsScreenViewModel(
             PasskeyRegistrationResult.NotLoggedIn -> Outcome.Error(NOT_LOGGED_IN_MESSAGE)
             PasskeyRegistrationResult.NotAccepted -> Outcome.Error("パスキーを確認できなかった。もう一度試す")
             PasskeyRegistrationResult.AlreadyRegistered -> Outcome.Error("このパスキーは追加済み")
-            PasskeyRegistrationResult.InvalidName -> Outcome.Error("名前は $MAX_NAME_LENGTH 文字までにする")
+            PasskeyRegistrationResult.InvalidName -> Outcome.Error("名前が長すぎる")
             is PasskeyRegistrationResult.Failure -> Outcome.Error(result.message)
         }
     }
@@ -232,8 +232,7 @@ internal class SettingsScreenViewModel(
         passkeyAuthenticator.available &&
             registering.not() &&
             deleting.not() &&
-            passkeyName.isNotBlank() &&
-            passkeyName.trim().length <= MAX_NAME_LENGTH
+            passkeyName.isNotBlank()
 
     data class ViewModelState(
         val passkeys: PasskeysState,
@@ -273,8 +272,3 @@ internal class SettingsScreenViewModel(
 
 private const val PASSKEY_NAME_KEY = "passkeyName"
 private const val NOT_LOGGED_IN_MESSAGE = "ログインし直してから操作する"
-
-/**
- * サーバーが受け付ける長さ
- */
-private const val MAX_NAME_LENGTH = 64
