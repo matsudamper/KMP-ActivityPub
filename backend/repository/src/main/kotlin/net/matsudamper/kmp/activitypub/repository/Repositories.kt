@@ -11,6 +11,10 @@ interface Repositories : AutoCloseable {
 
     val sessionStore: UserSessionStore
 
+    val passkeyRepository: PasskeyRepository
+
+    val passkeyChallengeStore: PasskeyChallengeStore
+
     /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい
      */
