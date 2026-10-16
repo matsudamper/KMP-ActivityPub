@@ -28,7 +28,6 @@ fun main() {
             module(deps)
         }
 
-    // docker stop では main が返らないので、フックで閉じて WAL を畳む
     Runtime.getRuntime().addShutdownHook(
         Thread {
             server.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
