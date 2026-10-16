@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import net.matsudamper.kmp.activitypub.frontend.history.BrowserHistory
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
@@ -32,8 +33,9 @@ private fun App() {
 
 @Composable
 private fun AppNavigation() {
-    val backStack = rememberScreenBackStack(startScreen = Screen.Login)
+    val backStack = rememberScreenBackStack(startScreen = BrowserHistory.currentScreen())
     val navigator = remember(backStack) { Navigator(backStack) }
+    BrowserHistory.SyncEffect(backStack)
     MaterialTheme {
         NavDisplay(
             backStack = backStack,
