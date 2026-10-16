@@ -1,36 +1,3 @@
-# KMP-ActivityPub
-
-## 境界
-- frontendはfrontendとsharedのみ知ってよい（スキーマは例外）
-- backendはbackendとsharedのみ
-- frontendがbackend事情を知るコード/コメントを書かない
-- backend/frontend の短い補足は `backend/AGENTS.md` / `frontend/AGENTS.md` も参照
-
-## コメント例外
-- mastodon / ActivityPub のコメントは詳細に記述してよい
-- 書く前に「その情報が無ければ誤判断するか」を確認
-- 制約は成立する最小スコープに書く。経緯はgit、実装はコードを正とする
-
-## 禁止
-- Global public関数（慣習のremember*等は可）
-
-## ドキュメント
-- KDocは `/** */` 一行にせず改行する
-- 更新前に読み手と作業を決める。不要なら更新しない
-- `README.md` / `docs/architecture.md` の役割分担に従う
-
-## backend
-- pagingはoffset禁止。cursorと最後のid等を使う
-
-## ビルド
-```shell
-./gradlew :compileAll
-```
-
-## その他
-- テスト名も日本語
-- マージコミットは既定文面。`-m` で書き直さない
-
 # 共通ルール
 
 ## docs の参照
