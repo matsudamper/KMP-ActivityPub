@@ -13,11 +13,13 @@ import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
+import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 
 fun main() {
     val serverEnv = ServerEnv()
+    DatabaseWriteCheck.verify(serverEnv.dbPath)
     val staticFiles = serverEnv.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val server =

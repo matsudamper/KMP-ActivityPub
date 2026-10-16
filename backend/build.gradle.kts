@@ -7,6 +7,7 @@ plugins {
 
 dependencies {
     implementation(project(":backend:graphql"))
+    implementation(project(":backend:repository"))
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)

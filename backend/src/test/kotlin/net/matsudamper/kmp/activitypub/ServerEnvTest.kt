@@ -14,24 +14,35 @@ class ServerEnvTest {
         assertEquals("0.0.0.0", env.host)
         assertEquals(8080, env.port)
         assertNull(env.staticSrcDir)
+        assertEquals(Path("./data/kmp-activitypub.db"), env.dbPath)
     }
 
     @Test
     fun `空文字と空白だけの指定は未設定として扱う`() {
-        val env = ServerEnv(mapOf("HOST" to "", "PORT" to " ", "STATIC_SRC_DIR" to "  "))
+        val env = ServerEnv(mapOf("HOST" to "", "PORT" to " ", "STATIC_SRC_DIR" to "  ", "DB_PATH" to " "))
 
         assertEquals("0.0.0.0", env.host)
         assertEquals(8080, env.port)
         assertNull(env.staticSrcDir)
+        assertEquals(Path("./data/kmp-activitypub.db"), env.dbPath)
     }
 
     @Test
     fun `環境変数で上書きできる`() {
-        val env = ServerEnv(mapOf("HOST" to "127.0.0.1", "PORT" to "9000", "STATIC_SRC_DIR" to "/srv/static"))
+        val env =
+            ServerEnv(
+                mapOf(
+                    "HOST" to "127.0.0.1",
+                    "PORT" to "9000",
+                    "STATIC_SRC_DIR" to "/srv/static",
+                    "DB_PATH" to "/srv/db.sqlite",
+                ),
+            )
 
         assertEquals("127.0.0.1", env.host)
         assertEquals(9000, env.port)
         assertEquals(Path("/srv/static"), env.staticSrcDir)
+        assertEquals(Path("/srv/db.sqlite"), env.dbPath)
     }
 
     @Test
