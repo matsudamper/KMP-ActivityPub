@@ -38,6 +38,8 @@ fun main() {
 }
 
 internal fun Application.module(deps: AppDependencies) {
+    deps.repositories.verifyWritable()
+
     val staticFiles = deps.staticFiles
     if (staticFiles != null) {
         log.info("静的ファイルの配信元: ${staticFiles.root}")
