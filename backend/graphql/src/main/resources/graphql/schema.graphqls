@@ -6,6 +6,14 @@ schema {
 type Query {
     "GraphQL は query にフィールドが 1 つ要る。空実装"
     unused: Boolean
+    "ログイン中のアカウントのパスキー。登録した順。ログインしていなければ null"
+    passkeys: [RegisteredPasskey!] @lazy
+}
+
+type RegisteredPasskey {
+    "credential ID の base64url（パディング無し）"
+    id: String!
+    name: String!
 }
 
 type Mutation {

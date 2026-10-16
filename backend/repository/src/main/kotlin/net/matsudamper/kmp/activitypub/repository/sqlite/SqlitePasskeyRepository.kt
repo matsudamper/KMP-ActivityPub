@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
+import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEY_USER_HANDLES
@@ -31,13 +32,20 @@ internal class SqlitePasskeyRepository(
         created
     }
 
-    override fun credentialIds(accountId: AccountId): List<String> = jooq.withConnection { dsl ->
+    override fun passkeys(accountId: AccountId): List<PasskeySummary> = jooq.withConnection { dsl ->
         dsl
-            .select(PASSKEYS.CREDENTIAL_ID)
+            .select(PASSKEYS.CREDENTIAL_ID, PASSKEYS.NAME, PASSKEYS.CREATED_AT, PASSKEYS.LAST_USED_AT)
             .from(PASSKEYS)
             .where(PASSKEYS.ACCOUNT_ID.eq(accountId.value))
-            .fetch(PASSKEYS.CREDENTIAL_ID)
-            .filterNotNull()
+            .orderBy(PASSKEYS.CREATED_AT, PASSKEYS.CREDENTIAL_ID)
+            .fetch { record ->
+                PasskeySummary(
+                    credentialId = checkNotNull(record.get(PASSKEYS.CREDENTIAL_ID)),
+                    name = checkNotNull(record.get(PASSKEYS.NAME)),
+                    createdAt = StoredInstant.parse(checkNotNull(record.get(PASSKEYS.CREATED_AT))),
+                    lastUsedAt = record.get(PASSKEYS.LAST_USED_AT)?.let { StoredInstant.parse(it) },
+                )
+            }
     }
 
     override fun add(
@@ -45,6 +53,7 @@ internal class SqlitePasskeyRepository(
         credentialId: String,
         publicKey: ByteArray,
         signCount: Long,
+        name: String,
         createdAt: Instant,
     ): Boolean = jooq.withConnection { dsl ->
         dsl
@@ -53,8 +62,20 @@ internal class SqlitePasskeyRepository(
             .set(PASSKEYS.ACCOUNT_ID, accountId.value)
             .set(PASSKEYS.PUBLIC_KEY, publicKey)
             .set(PASSKEYS.SIGN_COUNT, signCount)
+            .set(PASSKEYS.NAME, name)
             .set(PASSKEYS.CREATED_AT, StoredInstant.format(createdAt))
             .onConflictDoNothing()
+            .execute() == 1
+    }
+
+    override fun delete(
+        accountId: AccountId,
+        credentialId: String,
+    ): Boolean = jooq.withConnection { dsl ->
+        dsl
+            .deleteFrom(PASSKEYS)
+            .where(PASSKEYS.CREDENTIAL_ID.eq(credentialId))
+            .and(PASSKEYS.ACCOUNT_ID.eq(accountId.value))
             .execute() == 1
     }
 

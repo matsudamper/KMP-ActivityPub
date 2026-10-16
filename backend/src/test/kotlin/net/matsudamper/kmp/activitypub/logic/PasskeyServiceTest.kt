@@ -64,6 +64,7 @@ class PasskeyServiceTest {
         val result =
             service.register(
                 accountId = account.id,
+                name = "端末1",
                 clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = challenge)),
                 attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
             )
@@ -78,6 +79,7 @@ class PasskeyServiceTest {
         val result =
             service.register(
                 accountId = account.id,
+                name = "端末1",
                 clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = service.registrationOptions(account).challenge)),
                 attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
             )
@@ -92,6 +94,28 @@ class PasskeyServiceTest {
         assertEquals(listOf(TestAuthenticator.base64Url(authenticator.credentialId)), service.registrationOptions(account).excludeCredentialIds)
     }
 
+    @Test
+    fun `空の名前では登録できない`() {
+        val result =
+            service.register(
+                accountId = account.id,
+                name = " ",
+                clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = service.registrationOptions(account).challenge)),
+                attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
+            )
+
+        assertEquals(PasskeyService.RegistrationResult.InvalidName, result)
+    }
+
+    @Test
+    fun `消したパスキーではログインできない`() {
+        val userHandle = register(account)
+
+        service.delete(accountId = account.id, credentialId = TestAuthenticator.base64Url(authenticator.credentialId))
+
+        assertNull(login(userHandle = userHandle))
+    }
+
     /**
      * @return user handle
      */
@@ -100,6 +124,7 @@ class PasskeyServiceTest {
         val result =
             service.register(
                 accountId = account.id,
+                name = "端末1",
                 clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = options.challenge)),
                 attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
             )

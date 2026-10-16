@@ -15,7 +15,10 @@ interface PasskeyRepository {
         newUserHandle: () -> String,
     ): String
 
-    fun credentialIds(accountId: AccountId): List<String>
+    /**
+     * 登録した順
+     */
+    fun passkeys(accountId: AccountId): List<PasskeySummary>
 
     /**
      * @return 同じ credential ID が既にあれば追加せず false
@@ -25,7 +28,16 @@ interface PasskeyRepository {
         credentialId: String,
         publicKey: ByteArray,
         signCount: Long,
+        name: String,
         createdAt: Instant,
+    ): Boolean
+
+    /**
+     * @return [accountId] のパスキーが無ければ false
+     */
+    fun delete(
+        accountId: AccountId,
+        credentialId: String,
     ): Boolean
 
     fun findByCredentialId(credentialId: String): StoredPasskey?
@@ -45,4 +57,11 @@ class StoredPasskey(
     val userHandle: String?,
     val publicKey: ByteArray,
     val signCount: Long,
+)
+
+class PasskeySummary(
+    val credentialId: String,
+    val name: String,
+    val createdAt: Instant,
+    val lastUsedAt: Instant?,
 )

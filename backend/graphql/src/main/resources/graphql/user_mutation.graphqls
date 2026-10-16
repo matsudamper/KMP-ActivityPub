@@ -7,6 +7,7 @@ type UserMutation {
     "ログイン中のアカウントにパスキーを足すための値を発行する。ログインしていなければ null"
     passkeyRegistrationOptions: PasskeyRegistrationOptions @lazy
     registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
+    deletePasskey(id: String!): DeletePasskeyResult! @lazy
 }
 
 input UserLoginQuery {
@@ -61,6 +62,8 @@ enum UserPasskeyLoginFailure {
 
 "バイト列はすべて base64url（パディング無し）。WebAuthn の AuthenticatorAttestationResponse の値をそのまま渡す"
 input RegisterPasskeyQuery {
+    "一覧で見分けるための名前。前後の空白は落とし、64 文字まで"
+    name: String!
     clientDataJson: String!
     attestationObject: String!
 }
@@ -74,4 +77,16 @@ enum RegisterPasskeyFailure {
     "検証に通らなかった。challenge の期限切れも含む"
     NOT_ACCEPTED
     ALREADY_REGISTERED
+    "空か、長すぎる"
+    INVALID_NAME
+}
+
+type DeletePasskeyResult {
+    failure: DeletePasskeyFailure
+}
+
+enum DeletePasskeyFailure {
+    NOT_LOGGED_IN
+    "ログイン中のアカウントのパスキーではない"
+    NOT_FOUND
 }

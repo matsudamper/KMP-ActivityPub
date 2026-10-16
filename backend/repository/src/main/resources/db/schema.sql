@@ -36,6 +36,8 @@ CREATE TABLE passkeys (
     -- COSE_Key
     public_key BLOB NOT NULL,
     sign_count INTEGER NOT NULL,
+    -- 一覧でどの端末のものか見分けるため、登録時にユーザーが付ける
+    name TEXT NOT NULL,
     created_at TEXT NOT NULL,
     last_used_at TEXT
 );

@@ -2,10 +2,13 @@ package net.matsudamper.kmp.activitypub.frontend.logic.passkey
 
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
+import net.matsudamper.kmp.activitypub.frontend.graphql.DeletePasskeyMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyLoginOptionsMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyRegistrationOptionsMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.RegisterPasskeyMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.SettingsScreenPasskeysQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPasskeyLoginFailure
@@ -68,13 +71,17 @@ class PasskeyApi(
         )
     }
 
-    suspend fun register(creation: PasskeyCreation): PasskeyRegistrationResult {
+    suspend fun register(
+        name: String,
+        creation: PasskeyCreation,
+    ): PasskeyRegistrationResult {
         val client = clients.client.value ?: return PasskeyRegistrationResult.Failure(NOT_CONFIGURED_MESSAGE)
         val response =
             client
                 .mutation(
                     RegisterPasskeyMutation(
                         RegisterPasskeyQuery(
+                            name = name,
                             clientDataJson = creation.clientDataJson,
                             attestationObject = creation.attestationObject,
                         ),
@@ -88,7 +95,32 @@ class PasskeyApi(
             RegisterPasskeyFailure.NOT_LOGGED_IN -> PasskeyRegistrationResult.NotLoggedIn
             RegisterPasskeyFailure.NOT_ACCEPTED -> PasskeyRegistrationResult.NotAccepted
             RegisterPasskeyFailure.ALREADY_REGISTERED -> PasskeyRegistrationResult.AlreadyRegistered
+            RegisterPasskeyFailure.INVALID_NAME -> PasskeyRegistrationResult.InvalidName
             RegisterPasskeyFailure.UNKNOWN__ -> PasskeyRegistrationResult.Failure("Unknown")
+        }
+    }
+
+    suspend fun passkeys(): PasskeyListResult {
+        val client = clients.client.value ?: return PasskeyListResult.Failure(NOT_CONFIGURED_MESSAGE)
+        val response = client.query(SettingsScreenPasskeysQuery()).execute()
+        val data = response.data
+        if (response.exception != null || response.hasErrors() || data == null) return PasskeyListResult.Failure(response.failureMessage())
+        val passkeys = data.passkeys ?: return PasskeyListResult.NotLoggedIn
+
+        return PasskeyListResult.Success(passkeys.map { RegisteredPasskey(id = it.id, name = it.name) })
+    }
+
+    suspend fun delete(id: String): PasskeyDeleteResult {
+        val client = clients.client.value ?: return PasskeyDeleteResult.Failure(NOT_CONFIGURED_MESSAGE)
+        val response = client.mutation(DeletePasskeyMutation(id = id)).execute()
+        val delete = response.data?.user?.deletePasskey
+        if (response.exception != null || response.hasErrors() || delete == null) return PasskeyDeleteResult.Failure(response.failureMessage())
+
+        return when (delete.failure) {
+            null -> PasskeyDeleteResult.Success
+            DeletePasskeyFailure.NOT_LOGGED_IN -> PasskeyDeleteResult.NotLoggedIn
+            DeletePasskeyFailure.NOT_FOUND -> PasskeyDeleteResult.NotFound
+            DeletePasskeyFailure.UNKNOWN__ -> PasskeyDeleteResult.Failure("Unknown")
         }
     }
 

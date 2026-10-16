@@ -10,6 +10,7 @@ import graphql.kickstart.tools.SchemaParser
 import graphql.schema.DataFetchingEnvironment
 import io.ktor.server.application.ApplicationCall
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
+import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import org.slf4j.LoggerFactory
 
 class GraphQlEngine private constructor(
@@ -95,6 +96,10 @@ class GraphQlEngine private constructor(
                 "GraphQLContext に DiContainer が無い"
             }
         }
+
+        fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
+            diContainer(env).passkeyService
+                ?: throw GraphQlClientException("このサーバーではパスキーを使えない")
 
         /**
          * ディレクトリの列挙は native バイナリで効かない

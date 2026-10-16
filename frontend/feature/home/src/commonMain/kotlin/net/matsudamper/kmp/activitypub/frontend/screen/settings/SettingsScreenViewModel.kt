@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.settings
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,57 +12,88 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyApi
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticatorResult
+import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyDeleteResult
+import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyListResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyOptionsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyRegistrationResult
+import net.matsudamper.kmp.activitypub.frontend.logic.passkey.RegisteredPasskey
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
 internal class SettingsScreenViewModel(
     private val passkeyApi: PasskeyApi,
     private val passkeyAuthenticator: PasskeyAuthenticator,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
+                passkeys = PasskeysState.Loading,
+                passkeyName = savedStateHandle.get<String>(PASSKEY_NAME_KEY).orEmpty(),
                 registering = false,
+                deleteTarget = null,
+                deleting = false,
                 outcome = null,
             ),
         )
 
-    val uiStateFlow: StateFlow<SettingsScreenUiState> =
-        MutableStateFlow(
-            createUiState(
-                viewModelState = viewModelStateFlow.value,
-                listener =
-                object : SettingsScreenUiState.Listener {
-                    override fun onClickAddPasskey() {
-                        addPasskey()
-                    }
+    private val listener =
+        object : SettingsScreenUiState.Listener {
+            override fun onPasskeyNameChanged(text: String) {
+                savedStateHandle[PASSKEY_NAME_KEY] = text
+                viewModelStateFlow.update { it.copy(passkeyName = text) }
+            }
 
-                    override fun onClickBack() {
-                        viewModelScope.launch {
-                            events.send { it.navigateBack() }
-                        }
-                    }
-                },
-            ),
-        ).also { uiStateFlow ->
+            override fun onClickAddPasskey() {
+                addPasskey()
+            }
+
+            override fun onClickConfirmDelete() {
+                deletePasskey()
+            }
+
+            override fun onDismissDeleteDialog() {
+                if (viewModelStateFlow.value.deleting) return
+                viewModelStateFlow.update { it.copy(deleteTarget = null) }
+            }
+
+            override fun onClickBack() {
+                viewModelScope.launch {
+                    events.send { it.navigateBack() }
+                }
+            }
+        }
+
+    val uiStateFlow: StateFlow<SettingsScreenUiState> =
+        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
             viewModelScope.launch {
                 viewModelStateFlow.collect { viewModelState ->
-                    uiStateFlow.update { uiState ->
-                        createUiState(
-                            viewModelState = viewModelState,
-                            listener = uiState.listener,
-                        )
-                    }
+                    uiStateFlow.value = createUiState(viewModelState)
                 }
             }
         }.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            loadPasskeys()
+        }
+    }
+
+    private suspend fun loadPasskeys() {
+        val passkeys =
+            when (val result = passkeyApi.passkeys()) {
+                is PasskeyListResult.Success -> PasskeysState.Loaded(result.passkeys)
+                PasskeyListResult.NotLoggedIn -> PasskeysState.Error(NOT_LOGGED_IN_MESSAGE)
+                is PasskeyListResult.Failure -> PasskeysState.Error(result.message)
+            }
+        viewModelStateFlow.update { it.copy(passkeys = passkeys) }
+    }
+
     private fun addPasskey() {
-        if (viewModelStateFlow.value.registering) return
+        val state = viewModelStateFlow.value
+        if (state.addable().not()) return
 
         viewModelStateFlow.update {
             it.copy(
@@ -72,10 +104,15 @@ internal class SettingsScreenViewModel(
         viewModelScope.launch {
             val outcome =
                 try {
-                    registerPasskey()
+                    registerPasskey(name = state.passkeyName.trim())
                 } finally {
                     viewModelStateFlow.update { it.copy(registering = false) }
                 }
+            if (outcome == Outcome.Added) {
+                savedStateHandle.remove<String>(PASSKEY_NAME_KEY)
+                viewModelStateFlow.update { it.copy(passkeyName = "") }
+                loadPasskeys()
+            }
             viewModelStateFlow.update { it.copy(outcome = outcome) }
         }
     }
@@ -83,33 +120,89 @@ internal class SettingsScreenViewModel(
     /**
      * @return 閉じられたときは何も出さないので null
      */
-    private suspend fun registerPasskey(): RegistrationOutcome? {
+    private suspend fun registerPasskey(name: String): Outcome? {
         val request =
             when (val options = passkeyApi.registrationOptions()) {
                 is PasskeyOptionsResult.Success -> options.options
-                PasskeyOptionsResult.NotLoggedIn -> return RegistrationOutcome.Error(NOT_LOGGED_IN_MESSAGE)
-                is PasskeyOptionsResult.Failure -> return RegistrationOutcome.Error(options.message)
+                PasskeyOptionsResult.NotLoggedIn -> return Outcome.Error(NOT_LOGGED_IN_MESSAGE)
+                is PasskeyOptionsResult.Failure -> return Outcome.Error(options.message)
             }
         val creation =
             when (val result = passkeyAuthenticator.create(request)) {
                 is PasskeyAuthenticatorResult.Success -> result.value
                 PasskeyAuthenticatorResult.Cancelled -> return null
-                is PasskeyAuthenticatorResult.Failure -> return RegistrationOutcome.Error(result.message)
+                is PasskeyAuthenticatorResult.Failure -> return Outcome.Error(result.message)
             }
-        return when (val result = passkeyApi.register(creation)) {
-            PasskeyRegistrationResult.Success -> RegistrationOutcome.Added
-            PasskeyRegistrationResult.NotLoggedIn -> RegistrationOutcome.Error(NOT_LOGGED_IN_MESSAGE)
-            PasskeyRegistrationResult.NotAccepted -> RegistrationOutcome.Error("パスキーを確認できなかった。もう一度試す")
-            PasskeyRegistrationResult.AlreadyRegistered -> RegistrationOutcome.Error("このパスキーは追加済み")
-            is PasskeyRegistrationResult.Failure -> RegistrationOutcome.Error(result.message)
+        return when (val result = passkeyApi.register(name = name, creation = creation)) {
+            PasskeyRegistrationResult.Success -> Outcome.Added
+            PasskeyRegistrationResult.NotLoggedIn -> Outcome.Error(NOT_LOGGED_IN_MESSAGE)
+            PasskeyRegistrationResult.NotAccepted -> Outcome.Error("パスキーを確認できなかった。もう一度試す")
+            PasskeyRegistrationResult.AlreadyRegistered -> Outcome.Error("このパスキーは追加済み")
+            PasskeyRegistrationResult.InvalidName -> Outcome.Error("名前は $MAX_NAME_LENGTH 文字までにする")
+            is PasskeyRegistrationResult.Failure -> Outcome.Error(result.message)
         }
     }
 
-    private fun createUiState(
-        viewModelState: ViewModelState,
-        listener: SettingsScreenUiState.Listener,
-    ): SettingsScreenUiState {
-        val passkeyMessage =
+    private fun requestDelete(passkey: RegisteredPasskey) {
+        if (viewModelStateFlow.value.deleting) return
+        viewModelStateFlow.update { it.copy(deleteTarget = passkey, outcome = null) }
+    }
+
+    private fun deletePasskey() {
+        val target = viewModelStateFlow.value.deleteTarget ?: return
+        if (viewModelStateFlow.value.deleting) return
+
+        viewModelStateFlow.update { it.copy(deleting = true) }
+        viewModelScope.launch {
+            val outcome =
+                try {
+                    when (val result = passkeyApi.delete(target.id)) {
+                        PasskeyDeleteResult.Success -> Outcome.Deleted
+
+                        PasskeyDeleteResult.NotLoggedIn -> Outcome.Error(NOT_LOGGED_IN_MESSAGE)
+
+                        // 別の画面で消してあった。一覧を読み直せば消える
+                        PasskeyDeleteResult.NotFound -> Outcome.Deleted
+
+                        is PasskeyDeleteResult.Failure -> Outcome.Error(result.message)
+                    }
+                } finally {
+                    viewModelStateFlow.update { it.copy(deleting = false, deleteTarget = null) }
+                }
+            if (outcome == Outcome.Deleted) loadPasskeys()
+            viewModelStateFlow.update { it.copy(outcome = outcome) }
+        }
+    }
+
+    private fun createUiState(viewModelState: ViewModelState): SettingsScreenUiState {
+        val passkeys = viewModelState.passkeys
+        val busy = viewModelState.registering || viewModelState.deleting
+        return SettingsScreenUiState(
+            passkeyItems =
+            (passkeys as? PasskeysState.Loaded)?.passkeys.orEmpty().map { passkey ->
+                SettingsScreenUiState.PasskeyItem(
+                    name = passkey.name,
+                    deleteButtonEnabled = busy.not(),
+                    listener =
+                    object : SettingsScreenUiState.PasskeyItemListener {
+                        override fun onClickDelete() {
+                            requestDelete(passkey)
+                        }
+                    },
+                )
+            },
+            passkeyListText =
+            when (passkeys) {
+                PasskeysState.Loading -> "読み込み中"
+                is PasskeysState.Loaded -> if (passkeys.passkeys.isEmpty()) "登録したパスキーは無い" else null
+                is PasskeysState.Error -> passkeys.message
+            },
+            passkeyNameInputVisible = passkeyAuthenticator.available,
+            passkeyName = viewModelState.passkeyName,
+            passkeyNameInputEnabled = busy.not(),
+            addPasskeyButtonVisible = passkeyAuthenticator.available,
+            addPasskeyButtonEnabled = viewModelState.addable(),
+            passkeyMessage =
             when {
                 passkeyAuthenticator.available.not() -> {
                     SettingsScreenUiState.PasskeyMessage(text = "この端末ではパスキーを追加できない", isError = false)
@@ -118,30 +211,59 @@ internal class SettingsScreenViewModel(
                 else -> {
                     when (val outcome = viewModelState.outcome) {
                         null -> null
-                        RegistrationOutcome.Added -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false)
-                        is RegistrationOutcome.Error -> SettingsScreenUiState.PasskeyMessage(text = outcome.message, isError = true)
+                        Outcome.Added -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false)
+                        Outcome.Deleted -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを削除した", isError = false)
+                        is Outcome.Error -> SettingsScreenUiState.PasskeyMessage(text = outcome.message, isError = true)
                     }
                 }
-            }
-        return SettingsScreenUiState(
-            addPasskeyButtonVisible = passkeyAuthenticator.available,
-            addPasskeyButtonEnabled = viewModelState.registering.not(),
-            passkeyMessage = passkeyMessage,
+            },
+            deleteDialog =
+            viewModelState.deleteTarget?.let { target ->
+                SettingsScreenUiState.DeleteDialog(
+                    passkeyName = target.name,
+                    deleteButtonEnabled = viewModelState.deleting.not(),
+                )
+            },
             listener = listener,
         )
     }
 
+    private fun ViewModelState.addable(): Boolean =
+        passkeyAuthenticator.available &&
+            registering.not() &&
+            deleting.not() &&
+            passkeyName.isNotBlank() &&
+            passkeyName.trim().length <= MAX_NAME_LENGTH
+
     data class ViewModelState(
+        val passkeys: PasskeysState,
+        val passkeyName: String,
         val registering: Boolean,
-        val outcome: RegistrationOutcome?,
+        val deleteTarget: RegisteredPasskey?,
+        val deleting: Boolean,
+        val outcome: Outcome?,
     )
 
-    sealed interface RegistrationOutcome {
-        data object Added : RegistrationOutcome
+    sealed interface PasskeysState {
+        data object Loading : PasskeysState
+
+        data class Loaded(
+            val passkeys: List<RegisteredPasskey>,
+        ) : PasskeysState
 
         data class Error(
             val message: String,
-        ) : RegistrationOutcome
+        ) : PasskeysState
+    }
+
+    sealed interface Outcome {
+        data object Added : Outcome
+
+        data object Deleted : Outcome
+
+        data class Error(
+            val message: String,
+        ) : Outcome
     }
 
     interface Event {
@@ -149,4 +271,10 @@ internal class SettingsScreenViewModel(
     }
 }
 
-private const val NOT_LOGGED_IN_MESSAGE = "ログインし直してから追加する"
+private const val PASSKEY_NAME_KEY = "passkeyName"
+private const val NOT_LOGGED_IN_MESSAGE = "ログインし直してから操作する"
+
+/**
+ * サーバーが受け付ける長さ
+ */
+private const val MAX_NAME_LENGTH = 64

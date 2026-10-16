@@ -1,3 +1,10 @@
+query SettingsScreenPasskeys {
+    passkeys {
+        id
+        name
+    }
+}
+
 mutation PasskeyRegistrationOptions {
     user {
         passkeyRegistrationOptions {
@@ -14,6 +21,14 @@ mutation PasskeyRegistrationOptions {
 mutation RegisterPasskey($query: RegisterPasskeyQuery!) {
     user {
         registerPasskey(query: $query) {
+            failure
+        }
+    }
+}
+
+mutation DeletePasskey($id: String!) {
+    user {
+        deletePasskey(id: $id) {
             failure
         }
     }

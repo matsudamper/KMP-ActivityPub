@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyChallengePurpose
 import net.matsudamper.kmp.activitypub.repository.PasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
+import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
@@ -65,23 +66,40 @@ private class FakeUserSessionStore : UserSessionStore {
 private class FakePasskeyRepository : PasskeyRepository {
     private val userHandles = mutableMapOf<AccountId, String>()
     private val passkeys = mutableMapOf<String, StoredPasskey>()
+    private val names = mutableMapOf<String, String>()
 
     override fun userHandle(
         accountId: AccountId,
         newUserHandle: () -> String,
     ): String = userHandles.getOrPut(accountId, newUserHandle)
 
-    override fun credentialIds(accountId: AccountId): List<String> = passkeys.filterValues { it.accountId == accountId }.keys.toList()
+    override fun passkeys(accountId: AccountId): List<PasskeySummary> =
+        passkeys
+            .filterValues { it.accountId == accountId }
+            .keys
+            .map { PasskeySummary(credentialId = it, name = names.getValue(it), createdAt = Instant.EPOCH, lastUsedAt = null) }
 
     override fun add(
         accountId: AccountId,
         credentialId: String,
         publicKey: ByteArray,
         signCount: Long,
+        name: String,
         createdAt: Instant,
     ): Boolean {
         if (credentialId in passkeys) return false
         passkeys[credentialId] = StoredPasskey(accountId = accountId, userHandle = userHandles[accountId], publicKey = publicKey, signCount = signCount)
+        names[credentialId] = name
+        return true
+    }
+
+    override fun delete(
+        accountId: AccountId,
+        credentialId: String,
+    ): Boolean {
+        if (passkeys[credentialId]?.accountId != accountId) return false
+        passkeys.remove(credentialId)
+        names.remove(credentialId)
         return true
     }
 

@@ -13,6 +13,7 @@ import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.PasskeyChallengePurpose
 import net.matsudamper.kmp.activitypub.repository.PasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
+import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.slf4j.LoggerFactory
 
@@ -77,14 +78,28 @@ class PasskeyService(
             userHandle = passkeyRepository.userHandle(account.id) { encode(randomBytes(USER_HANDLE_SIZE_BYTES)) },
             username = account.username,
             algorithms = verifier.supportedAlgorithms,
-            excludeCredentialIds = passkeyRepository.credentialIds(account.id),
+            excludeCredentialIds = passkeyRepository.passkeys(account.id).map { it.credentialId },
         )
+
+    fun passkeys(accountId: AccountId): List<PasskeySummary> = passkeyRepository.passkeys(accountId)
+
+    /**
+     * @return [accountId] のパスキーが無ければ false
+     */
+    fun delete(
+        accountId: AccountId,
+        credentialId: String,
+    ): Boolean = passkeyRepository.delete(accountId = accountId, credentialId = credentialId)
 
     fun register(
         accountId: AccountId,
+        name: String,
         clientDataJson: String,
         attestationObject: String,
     ): RegistrationResult {
+        val trimmedName = name.trim()
+        if (trimmedName.isEmpty() || trimmedName.codePointCount(0, trimmedName.length) > MAX_NAME_LENGTH) return RegistrationResult.InvalidName
+
         val registered =
             verifyOrNull {
                 val clientData = PasskeyClientData.parse(decode(clientDataJson))
@@ -101,6 +116,7 @@ class PasskeyService(
                 credentialId = encode(registered.credentialId),
                 publicKey = registered.publicKey,
                 signCount = registered.signCount,
+                name = trimmedName,
                 createdAt = clock.instant(),
             )
         return if (added) RegistrationResult.Success else RegistrationResult.AlreadyRegistered
@@ -162,6 +178,8 @@ class PasskeyService(
         data object NotAccepted : RegistrationResult
 
         data object AlreadyRegistered : RegistrationResult
+
+        data object InvalidName : RegistrationResult
     }
 
     private companion object {
@@ -181,6 +199,8 @@ class PasskeyService(
          * 本人確認を求めるときに WebAuthn が勧めるタイムアウトの上限に合わせる
          */
         val CHALLENGE_TTL = 5.minutes
+
+        const val MAX_NAME_LENGTH = 64
 
         val BASE64_ENCODER: Base64.Encoder = Base64.getUrlEncoder().withoutPadding()
     }

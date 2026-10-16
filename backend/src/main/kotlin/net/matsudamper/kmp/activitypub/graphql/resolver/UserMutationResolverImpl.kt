@@ -7,6 +7,8 @@ import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlPasskeyLoginOptions
 import net.matsudamper.kmp.activitypub.graphql.model.QlPasskeyRegistrationOptions
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
@@ -125,19 +127,37 @@ class UserMutationResolverImpl : UserMutationResolver {
             if (accountId == null) {
                 QlRegisterPasskeyFailure.NOT_LOGGED_IN
             } else {
-                when (passkeyService.register(accountId = accountId, clientDataJson = query.clientDataJson, attestationObject = query.attestationObject)) {
+                when (passkeyService.register(accountId = accountId, name = query.name, clientDataJson = query.clientDataJson, attestationObject = query.attestationObject)) {
                     PasskeyService.RegistrationResult.Success -> null
                     PasskeyService.RegistrationResult.NotAccepted -> QlRegisterPasskeyFailure.NOT_ACCEPTED
                     PasskeyService.RegistrationResult.AlreadyRegistered -> QlRegisterPasskeyFailure.ALREADY_REGISTERED
+                    PasskeyService.RegistrationResult.InvalidName -> QlRegisterPasskeyFailure.INVALID_NAME
                 }
             }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlRegisterPasskeyResult(failure = failure)).build())
     }
 
-    private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
-        GraphQlEngine.diContainer(env).passkeyService
-            ?: throw GraphQlClientException("このサーバーではパスキーを使えない")
+    override fun deletePasskey(
+        userMutation: QlUserMutation,
+        id: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeletePasskeyResult>> {
+        val context = GraphQlEngine.graphQlContext(env)
+        val passkeyService = passkeyService(env)
+
+        val accountId = context.loggedInAccountId()
+        val failure =
+            when {
+                accountId == null -> QlDeletePasskeyFailure.NOT_LOGGED_IN
+                passkeyService.delete(accountId = accountId, credentialId = id) -> null
+                else -> QlDeletePasskeyFailure.NOT_FOUND
+            }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlDeletePasskeyResult(failure = failure)).build())
+    }
+
+    private fun passkeyService(env: DataFetchingEnvironment): PasskeyService = GraphQlEngine.passkeyService(env)
 
     private fun claimPasskeyChallenge(context: GraphQlContext) {
         if (!context.claimPasskeyChallenge()) throw GraphQlClientException("パスキーの challenge は 1 リクエストにつき 1 回まで")
