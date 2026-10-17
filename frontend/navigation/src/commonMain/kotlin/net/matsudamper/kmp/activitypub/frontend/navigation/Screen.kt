@@ -12,22 +12,27 @@ sealed interface Screen : NavKey {
      */
     val parentScreen: Screen?
 
+    val loginRequired: Boolean
+
     @Serializable
     data object Login : Screen {
         override val path: String get() = "/"
         override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = false
     }
 
     @Serializable
     data object Home : Screen {
         override val path: String get() = "/home"
         override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = true
     }
 
     @Serializable
     data object Post : Screen {
         override val path: String get() = "/post"
         override val parentScreen: Screen get() = Home
+        override val loginRequired: Boolean get() = true
     }
 
     companion object {

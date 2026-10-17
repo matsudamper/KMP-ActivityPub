@@ -12,7 +12,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * ログインしていなければログイン画面へ戻す
  */
 @Composable
-internal fun LoginGate(
+internal actual fun LoginGate(
     navigator: Navigator,
     content: @Composable () -> Unit,
 ) {

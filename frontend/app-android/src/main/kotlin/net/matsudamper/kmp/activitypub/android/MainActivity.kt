@@ -9,17 +9,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
-import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
-import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureAndroidScreens
 import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
 import org.koin.compose.KoinApplication
 import org.koin.plugin.module.dsl.koinConfiguration
@@ -44,26 +37,11 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
 @Composable
 private fun AndroidNavigation(modifier: Modifier = Modifier) {
     val backStack = rememberScreenBackStack(startScreens = listOf(Screen.Login))
-    val navigator = remember(backStack) { Navigator(backStack) }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
-            NavDisplay(
+            HomeFeatureScreens.NavigationHost(
                 backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
-                ),
-                entryProvider = entryProvider {
-                    entry<Screen.Login> {
-                        HomeFeatureScreens.Login(
-                            navigator = navigator,
-                            serverSettingUiState = rememberServerSettingUiState(),
-                        )
-                    }
-                    entry<Screen.Home> { HomeFeatureAndroidScreens.Home(navigator = navigator) }
-                    entry<Screen.Post> { HomeFeatureAndroidScreens.Post(navigator = navigator) }
-                },
+                serverSettingUiState = { rememberServerSettingUiState() },
             )
         }
     }
