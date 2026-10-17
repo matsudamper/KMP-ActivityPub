@@ -6,6 +6,10 @@
         "pattern": "\\Qgraphql/\\E.*\\Q.graphqls\\E"
       },
       {
+        "comment": "GraphQL のスキーマファイル名の一覧。:backend:graphql の generateSchemaList が作る",
+        "pattern": "\\Qgraphql/schema-list.txt\\E"
+      },
+      {
         "comment": "Kotlin の組み込み宣言。kotlin-reflect が最初に読む。kickstart がリゾルバの引数を数えるのに使う",
         "pattern": ".*\\.kotlin_builtins"
       },
