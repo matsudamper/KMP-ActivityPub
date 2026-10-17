@@ -35,7 +35,30 @@ sealed interface Screen : NavKey {
         override val loginRequired: Boolean get() = true
     }
 
+    /**
+     * Mastodon に合わせたパス。ActivityPub の Actor は /users/{username} に置くので分けている
+     */
+    @Serializable
+    data class UserProfile(
+        val username: String,
+    ) : Screen {
+        override val path: String get() = "$USER_PROFILE_PATH_PREFIX$username"
+        override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = false
+    }
+
     companion object {
-        fun fromPath(path: String): Screen? = listOf(Login, Home, Post).firstOrNull { it.path == path }
+        private const val USER_PROFILE_PATH_PREFIX: String = "/@"
+
+        fun fromPath(path: String): Screen? {
+            return listOf(Login, Home, Post).firstOrNull { it.path == path }
+                ?: userProfileOf(path)
+        }
+
+        private fun userProfileOf(path: String): UserProfile? {
+            val username = path.removePrefix(USER_PROFILE_PATH_PREFIX)
+            if (username == path || username.isEmpty() || username.contains('/')) return null
+            return UserProfile(username = username)
+        }
     }
 }
