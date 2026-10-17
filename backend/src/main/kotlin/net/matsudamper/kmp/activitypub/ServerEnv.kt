@@ -61,7 +61,7 @@ class ServerEnv(
                     ?: setOf("https://$rpId")
             PasskeyRelyingParty(
                 id = rpId,
-                origins = webOrigins + passkeyAndroidApp?.origins().orEmpty(),
+                origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
             )
         }
 }
@@ -75,22 +75,18 @@ class PasskeyAndroidApp(
 ) {
     /**
      * Android の Credential Manager は clientDataJSON の origin に
-     * `android:apk-key-hash:<署名証明書の SHA-256 の base64url>` を入れる
+     * `android:apk-key-hash:<署名証明書の SHA-256 の base64url>` を入れる。
+     * 書き間違えると assetlinks.json と origin が実際の証明書と食い違うので、作るときに形を確かめる
      */
-    fun origins(): Set<String> =
+    val origins: Set<String> =
         certSha256Fingerprints
             .map { fingerprint ->
-                val bytes =
-                    fingerprint
-                        .split(':')
-                        .map { it.toIntOrNull(16) ?: throw IllegalArgumentException("PASSKEY_ANDROID_CERT_SHA256 が 16 進ではない: $fingerprint") }
-                        .map { it.toByte() }
-                        .toByteArray()
-                require(bytes.size == SHA256_SIZE_BYTES) { "PASSKEY_ANDROID_CERT_SHA256 が SHA-256 の長さではない: $fingerprint" }
+                require(SHA256_FINGERPRINT.matches(fingerprint)) { "PASSKEY_ANDROID_CERT_SHA256 は AA:BB:... の形の SHA-256 にすること: $fingerprint" }
+                val bytes = fingerprint.split(':').map { it.toInt(16).toByte() }.toByteArray()
                 "android:apk-key-hash:" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
             }.toSet()
 
     private companion object {
-        const val SHA256_SIZE_BYTES = 32
+        val SHA256_FINGERPRINT = Regex("^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}$")
     }
 }

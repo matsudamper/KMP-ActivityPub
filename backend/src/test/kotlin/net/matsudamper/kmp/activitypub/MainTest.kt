@@ -68,7 +68,7 @@ class MainTest {
             application {
                 module(
                     TestDependencies(
-                        env = ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app", "PASSKEY_ANDROID_CERT_SHA256" to "AA:BB")),
+                        env = ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app", "PASSKEY_ANDROID_CERT_SHA256" to FINGERPRINT)),
                     ),
                 )
             }
@@ -77,7 +77,7 @@ class MainTest {
             assertEquals(HttpStatusCode.OK, response.status)
             assertEquals(
                 """[{"relation":["delegate_permission/common.get_login_creds"],""" +
-                    """"target":{"namespace":"android_app","package_name":"com.example.app","sha256_cert_fingerprints":["AA:BB"]}}]""",
+                    """"target":{"namespace":"android_app","package_name":"com.example.app","sha256_cert_fingerprints":["$FINGERPRINT"]}}]""",
                 response.bodyAsText(),
             )
         }
@@ -91,4 +91,8 @@ class MainTest {
 
             assertEquals(HttpStatusCode.NotFound, client.get("/.well-known/assetlinks.json").status)
         }
+
+    private companion object {
+        val FINGERPRINT: String = List(32) { "AB" }.joinToString(":")
+    }
 }

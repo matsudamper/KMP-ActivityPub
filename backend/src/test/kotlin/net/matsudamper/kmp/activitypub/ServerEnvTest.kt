@@ -85,6 +85,15 @@ class ServerEnvTest {
     }
 
     @Test
+    fun `Android アプリの署名証明書が 2 桁区切りの SHA-256 でなければ起動しない`() {
+        val fingerprint = (List(31) { "AB" } + "1FF").joinToString(":")
+
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app", "PASSKEY_ANDROID_CERT_SHA256" to fingerprint))
+        }
+    }
+
+    @Test
     fun `Android アプリの署名証明書が無ければ起動しない`() {
         assertFailsWith<IllegalArgumentException> {
             ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app"))
