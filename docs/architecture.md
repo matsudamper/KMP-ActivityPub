@@ -144,23 +144,18 @@ Kotlin/Wasm のツールチェイン（Node.js と yarn）に引きずられる�
 
 | パス | 画面 |
 | --- | --- |
-| `/` | ホーム。ログインしていなければ `/login` へ移る |
-| `/login` | ログイン |
+| `/` | ログイン |
+| `/home` | ホーム。ログインしていなければその上でログインを求める |
 | `/post` | 投稿 |
-| `/admin` 以下 | 管理画面。ログインが要る |
-| それ以外 | 見つからない |
+| `/settings` | 設定 |
+| `/@{ユーザー名}` | ユーザーの画面。ログインは要らない |
+| `/admin` 以下 | 管理画面。ログインは画面の中で行う |
+| それ以外 | ログイン |
 
-Android アプリは URL を持たないので `Screen` のパスを使わず、`BackStackNavigator` で
-バックスタックを直接積む。接続先のサーバーが決まるまではログイン画面を出し、そこで接続先を入れる。
-
-ダイアログも画面として扱う。`Screen.Overlay` は下に敷く画面を持ち、バックスタックには
-その画面ごと積む。`NavEntry` の metadata に `TransparentScreen` が載っていれば
-`TransparentScreenSceneStrategy` が下の画面を描いたまま重ねる。いまはダイアログの画面は無い。
-
-バックスタックは URL から組み直すので、別の画面へ進むと前の画面はスタックから消える。
-ブラウザの戻る / 進むで同じスクロール位置に戻すため、履歴 1 つごとに id を振って
-`history.state` に持たせ、rememberSaveable の状態は `ScreenStateStore` が
-その id ごとに持ち越す。
+画面遷移は `:frontend:feature:home` の `HomeNavigationHost` が受け持ち、Web では
+`BrowserHistory` がバックスタックをブラウザの履歴と URL に写す。管理画面は
+`:frontend:feature:admin` にあり、Web だけが `HomeNavigationHost` に差し込む。
+Android アプリは URL を持たないので、バックスタックを直接積む。
 
 画面は canvas に描くので、ブラウザが持っているフォントも `@font-face` も効かない。
 日本語のフォントは静的ファイルと一緒に `/fonts/` で配信し、起動後に取ってきて
