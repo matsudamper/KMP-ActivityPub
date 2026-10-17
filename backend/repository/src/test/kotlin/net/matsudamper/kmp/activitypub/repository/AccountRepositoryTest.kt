@@ -94,6 +94,8 @@ class AccountRepositoryTest {
             username = "user1",
             passwordHash = PASSWORD_HASH,
             passwordHashType = PASSWORD_HASH_TYPE,
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
             createdAt = CREATED_AT.toString(),
         )
     }

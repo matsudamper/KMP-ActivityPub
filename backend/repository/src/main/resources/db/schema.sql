@@ -13,6 +13,13 @@ CREATE TABLE account_passwords (
     password_hash_type TEXT NOT NULL
 );
 
+-- ActivityPub の HTTP Signatures に使う
+CREATE TABLE account_keys (
+    account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+    public_key_pem TEXT NOT NULL,
+    private_key_pem TEXT NOT NULL
+);
+
 CREATE TABLE health_check (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     checked_at TEXT NOT NULL
