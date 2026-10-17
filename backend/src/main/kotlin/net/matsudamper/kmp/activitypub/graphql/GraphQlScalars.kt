@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import java.util.Locale
 import graphql.GraphQLContext
-import graphql.Scalars
 import graphql.execution.CoercedVariables
 import graphql.language.StringValue
 import graphql.language.Value
@@ -31,20 +30,6 @@ object GraphQlScalars {
             .name("PasskeyCredentialId")
             .coercing(Base64UrlCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
             .build()
-
-    val passkeyJsonScalars: List<GraphQLScalarType> =
-        listOf(
-            "PasskeyCreationOptionsJson",
-            "PasskeyRequestOptionsJson",
-            "PasskeyRegistrationResponseJson",
-            "PasskeyAuthenticationResponseJson",
-        ).map { name ->
-            GraphQLScalarType
-                .newScalar()
-                .name(name)
-                .coercing(Scalars.GraphQLString.coercing)
-                .build()
-        }
 
     private object UserIdCoercing : Coercing<AccountId, String> {
         override fun serialize(

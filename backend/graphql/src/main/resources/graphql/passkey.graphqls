@@ -1,9 +1,1 @@
 scalar PasskeyCredentialId
-
-scalar PasskeyCreationOptionsJson
-
-scalar PasskeyRequestOptionsJson
-
-scalar PasskeyRegistrationResponseJson
-
-scalar PasskeyAuthenticationResponseJson

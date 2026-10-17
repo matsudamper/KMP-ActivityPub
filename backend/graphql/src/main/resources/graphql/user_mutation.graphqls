@@ -1,9 +1,9 @@
 type UserMutation {
     login(query: UserLoginQuery!): UserLoginResult! @lazy
-    passkeyLoginOptions: PasskeyRequestOptionsJson! @lazy
-    passkeyLogin(credential: PasskeyAuthenticationResponseJson!): UserPasskeyLoginResult! @lazy
+    passkeyLoginOptions: String! @lazy
+    passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
     "ログインしていなければ null"
-    passkeyRegistrationOptions: PasskeyCreationOptionsJson @lazy
+    passkeyRegistrationOptions: String @lazy
     registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
     deletePasskey(id: PasskeyCredentialId!): DeletePasskeyResult! @lazy
 }
@@ -32,7 +32,7 @@ enum UserPasskeyLoginFailure {
 
 input RegisterPasskeyQuery {
     name: String!
-    credential: PasskeyRegistrationResponseJson!
+    credential: String!
 }
 
 type RegisterPasskeyResult {

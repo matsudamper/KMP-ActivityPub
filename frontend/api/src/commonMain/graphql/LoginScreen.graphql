@@ -12,7 +12,7 @@ mutation PasskeyLoginOptions {
     }
 }
 
-mutation PasskeyLogin($credential: PasskeyAuthenticationResponseJson!) {
+mutation PasskeyLogin($credential: String!) {
     user {
         passkeyLogin(credential: $credential) {
             failure
