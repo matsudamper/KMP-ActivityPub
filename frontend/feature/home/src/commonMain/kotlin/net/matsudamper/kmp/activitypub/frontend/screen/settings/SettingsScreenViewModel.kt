@@ -215,19 +215,20 @@ internal class SettingsScreenViewModel(
             addPasskeyButtonVisible = passkeyAuthenticator.available,
             addPasskeyButtonEnabled = viewModelState.addable(),
             passkeyMessage =
-            when {
-                passkeyAuthenticator.available.not() -> {
-                    SettingsScreenUiState.PasskeyMessage(text = "この端末ではパスキーを追加できない", isError = false)
-                }
-
-                else -> {
-                    when (val outcome = viewModelState.outcome) {
-                        null -> null
-                        Outcome.Added -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false)
-                        Outcome.Deleted -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを削除した", isError = false)
-                        is Outcome.Error -> SettingsScreenUiState.PasskeyMessage(text = outcome.message, isError = true)
+            when (val outcome = viewModelState.outcome) {
+                null -> {
+                    if (passkeyAuthenticator.available) {
+                        null
+                    } else {
+                        SettingsScreenUiState.PasskeyMessage(text = "この端末ではパスキーを追加できない", isError = false)
                     }
                 }
+
+                Outcome.Added -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false)
+
+                Outcome.Deleted -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを削除した", isError = false)
+
+                is Outcome.Error -> SettingsScreenUiState.PasskeyMessage(text = outcome.message, isError = true)
             },
             deleteDialog =
             viewModelState.deleteTarget?.let { target ->
