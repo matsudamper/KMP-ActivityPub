@@ -80,8 +80,13 @@ class ServerEnvTest {
 
         assertEquals(
             setOf("https://example.com", "android:apk-key-hash:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"),
-            env.passkeyRelyingParty?.origins,
+            env.passkeyRelyingParty.origins,
         )
+    }
+
+    @Test
+    fun `PASSKEY_RP_ID が無ければパスキーの設定を読めない`() {
+        assertFailsWith<IllegalArgumentException> { ServerEnv(emptyMap()).passkeyRelyingParty }
     }
 
     @Test

@@ -15,8 +15,8 @@ services:
       DB_PATH: /app/data/kmp-activitypub.db
       # http では false にする
       COOKIE_SECURE: "true"
-      # 書かなければパスキーを使わない。RP ID は後から変えると登録済みのパスキーが使えなくなる
-#      PASSKEY_RP_ID: example.com
+      # 必須。後から変えると登録済みのパスキーが使えなくなる
+      PASSKEY_RP_ID: example.com
       # カンマ区切り。書かなければ https://<PASSKEY_RP_ID>
 #      PASSKEY_ORIGINS: https://example.com
       # Android アプリでパスキーを使うとき。/.well-known/assetlinks.json を返し、アプリの origin を受け付ける

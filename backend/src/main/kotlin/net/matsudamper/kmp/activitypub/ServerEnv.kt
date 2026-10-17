@@ -46,24 +46,24 @@ class ServerEnv(
         }
 
     /**
-     * PASSKEY_RP_ID が無ければパスキーを使わない。
+     * PASSKEY_RP_ID は必須。読むのはパスキーの処理を組み立てるときなので、未設定ならそこで起動が止まる。
      * PASSKEY_ORIGINS はカンマ区切りで、無ければ https://<PASSKEY_RP_ID> だけを受け付ける。
      * Android アプリの origin は [passkeyAndroidApp] から足す
      */
-    val passkeyRelyingParty: PasskeyRelyingParty? =
-        values["PASSKEY_RP_ID"]?.let { rpId ->
-            val webOrigins =
-                values["PASSKEY_ORIGINS"]
-                    ?.split(',')
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotEmpty() }
-                    ?.toSet()
-                    ?: setOf("https://$rpId")
-            PasskeyRelyingParty(
-                id = rpId,
-                origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
-            )
-        }
+    val passkeyRelyingParty: PasskeyRelyingParty by lazy {
+        val rpId = requireNotNull(values["PASSKEY_RP_ID"]) { "PASSKEY_RP_ID を設定すること" }
+        val webOrigins =
+            values["PASSKEY_ORIGINS"]
+                ?.split(',')
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                ?.toSet()
+                ?: setOf("https://$rpId")
+        PasskeyRelyingParty(
+            id = rpId,
+            origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
+        )
+    }
 }
 
 /**

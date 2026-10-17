@@ -5,8 +5,5 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 
 class DiContainer(
     val accountService: AccountService,
-    /**
-     * パスキーを設定していなければ null
-     */
-    val passkeyService: PasskeyService?,
+    val passkeyService: PasskeyService,
 )

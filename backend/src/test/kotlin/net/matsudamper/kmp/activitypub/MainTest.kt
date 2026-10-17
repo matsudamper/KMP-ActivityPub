@@ -54,7 +54,7 @@ class MainTest {
             tempDir.resolve("index.html").writeText("<html><body>Hello</body></html>")
 
             application {
-                module(TestDependencies(env = ServerEnv(mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
+                module(TestDependencies(env = ServerEnv(TestEnv.REQUIRED + mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
             }
 
             val response = client.get("/")
@@ -68,7 +68,7 @@ class MainTest {
             application {
                 module(
                     TestDependencies(
-                        env = ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app", "PASSKEY_ANDROID_CERT_SHA256" to FINGERPRINT)),
+                        env = ServerEnv(TestEnv.REQUIRED + mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app", "PASSKEY_ANDROID_CERT_SHA256" to FINGERPRINT)),
                     ),
                 )
             }

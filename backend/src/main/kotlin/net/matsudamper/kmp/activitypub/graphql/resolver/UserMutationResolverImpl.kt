@@ -157,7 +157,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlDeletePasskeyResult(failure = failure)).build())
     }
 
-    private fun passkeyService(env: DataFetchingEnvironment): PasskeyService = GraphQlEngine.passkeyService(env)
+    private fun passkeyService(env: DataFetchingEnvironment): PasskeyService = GraphQlEngine.diContainer(env).passkeyService
 
     private fun claimPasskeyChallenge(context: GraphQlContext) {
         if (!context.claimPasskeyChallenge()) throw GraphQlClientException("パスキーの challenge は 1 リクエストにつき 1 回まで")

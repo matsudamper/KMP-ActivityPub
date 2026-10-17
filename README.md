@@ -25,17 +25,13 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-a
 
 ### 起動する
 
-```sh
-COOKIE_SECURE=false ./gradlew :backend:run
-```
-
-環境変数は `docker-compose.yml` を参照。
-
-パスキーを試すときは RP ID と origin も渡す。`localhost` なら http でも動く。
+パスキーの RP ID と origin は必須。`localhost` なら http でも動く。
 
 ```sh
 COOKIE_SECURE=false PASSKEY_RP_ID=localhost PASSKEY_ORIGINS=http://localhost:8080 ./gradlew :backend:run
 ```
+
+環境変数は `docker-compose.yml` を参照。
 
 Android アプリのパスキーは、RP ID のドメインの `/.well-known/assetlinks.json` でアプリを許可していないと作れない。
 `PASSKEY_ANDROID_PACKAGE_NAME` と `PASSKEY_ANDROID_CERT_SHA256` を渡すとサーバーがこれを返す。

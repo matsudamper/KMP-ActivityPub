@@ -23,14 +23,12 @@ class AppDependencies(
         clock = Clock.systemUTC(),
     )
 
-    val passkeyService: PasskeyService? =
-        env.passkeyRelyingParty?.let { relyingParty ->
-            PasskeyService(
-                relyingParty = relyingParty,
-                passkeyRepository = repositories.passkeyRepository,
-                clock = Clock.systemUTC(),
-            )
-        }
+    val passkeyService: PasskeyService =
+        PasskeyService(
+            relyingParty = env.passkeyRelyingParty,
+            passkeyRepository = repositories.passkeyRepository,
+            clock = Clock.systemUTC(),
+        )
 
     override fun close() {
         repositories.close()
