@@ -15,15 +15,21 @@ class StaticFiles(
 
     fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { isServableFile(it) }
 
-    fun resolve(segments: List<String>): Path? {
+    /**
+     * リクエストのパスに対応する配信するファイルを返す。
+     * ファイルが無いときは、[isHtmlRequest] なら画面の入口の index.html を返し、そうでなければ null を返す。
+     * ページ以外も index.html にすると、.js や .wasm の取得失敗が 200 + HTML になり、画面が出ない理由を追えなくなる
+     */
+    fun resolve(
+        segments: List<String>,
+        isHtmlRequest: Boolean,
+    ): Path? {
         val safeSegments = safeSegments(segments) ?: return null
 
         val requested = fileOf(safeSegments) ?: return null
         if (isServableFile(requested)) return requested
 
-        if (safeSegments.lastOrNull()?.contains('.') == true) return null
-
-        return index()
+        return if (isHtmlRequest) index() else null
     }
 
     /**
