@@ -130,34 +130,53 @@ private fun PasskeyList(
     uiState: SettingsScreenUiState,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        val passkeyListText = uiState.passkeyListText
-        if (passkeyListText != null) {
-            Text(
-                text = passkeyListText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        uiState.passkeyItems.forEach { item ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = item.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                TextButton(
-                    onClick = item.listener::onClickDelete,
-                    enabled = item.deleteButtonEnabled,
-                ) {
-                    Text("削除")
+        when (val passkeyList = uiState.passkeyList) {
+            SettingsScreenUiState.PasskeyList.Loading -> {
+                PasskeyListText(text = "読み込み中")
+            }
+
+            SettingsScreenUiState.PasskeyList.Empty -> {
+                PasskeyListText(text = "登録したパスキーは無い")
+            }
+
+            is SettingsScreenUiState.PasskeyList.Error -> {
+                PasskeyListText(text = passkeyList.message)
+            }
+
+            is SettingsScreenUiState.PasskeyList.Items -> {
+                passkeyList.items.forEach { item ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = item.name,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        TextButton(
+                            onClick = item.listener::onClickDelete,
+                            enabled = item.deleteButtonEnabled,
+                        ) {
+                            Text("削除")
+                        }
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
+}
+
+@Composable
+private fun PasskeyListText(
+    text: String,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

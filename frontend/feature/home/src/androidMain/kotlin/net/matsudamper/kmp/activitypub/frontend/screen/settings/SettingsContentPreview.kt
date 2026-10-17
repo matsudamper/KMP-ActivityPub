@@ -18,8 +18,7 @@ private fun SettingsContentEmptyPreview() {
     MaterialTheme {
         SettingsContent(
             uiState = previewSettingsUiState.copy(
-                passkeyItems = listOf(),
-                passkeyListText = "登録したパスキーは無い",
+                passkeyList = SettingsScreenUiState.PasskeyList.Empty,
                 passkeyName = "",
                 addPasskeyButtonEnabled = false,
                 passkeyMessage = null,
@@ -55,11 +54,12 @@ private fun SettingsContentUnavailablePreview() {
 }
 
 private val previewSettingsUiState = SettingsScreenUiState(
-    passkeyItems = listOf(
-        SettingsScreenUiState.PasskeyItem(name = "Pixel", deleteButtonEnabled = true, listener = AndroidPreviewPasskeyItemListener),
-        SettingsScreenUiState.PasskeyItem(name = "MacBook", deleteButtonEnabled = true, listener = AndroidPreviewPasskeyItemListener),
+    passkeyList = SettingsScreenUiState.PasskeyList.Items(
+        listOf(
+            SettingsScreenUiState.PasskeyItem(name = "Pixel", deleteButtonEnabled = true, listener = AndroidPreviewPasskeyItemListener),
+            SettingsScreenUiState.PasskeyItem(name = "MacBook", deleteButtonEnabled = true, listener = AndroidPreviewPasskeyItemListener),
+        ),
     ),
-    passkeyListText = null,
     passkeyNameInputVisible = true,
     passkeyName = "iPhone",
     passkeyNameInputEnabled = true,

@@ -178,24 +178,36 @@ internal class SettingsScreenViewModel(
         val passkeys = viewModelState.passkeys
         val busy = viewModelState.registering || viewModelState.deleting
         return SettingsScreenUiState(
-            passkeyItems =
-            (passkeys as? PasskeysState.Loaded)?.passkeys.orEmpty().map { passkey ->
-                SettingsScreenUiState.PasskeyItem(
-                    name = passkey.name,
-                    deleteButtonEnabled = busy.not(),
-                    listener =
-                    object : SettingsScreenUiState.PasskeyItemListener {
-                        override fun onClickDelete() {
-                            requestDelete(passkey)
-                        }
-                    },
-                )
-            },
-            passkeyListText =
+            passkeyList =
             when (passkeys) {
-                PasskeysState.Loading -> "読み込み中"
-                is PasskeysState.Loaded -> if (passkeys.passkeys.isEmpty()) "登録したパスキーは無い" else null
-                is PasskeysState.Error -> passkeys.message
+                PasskeysState.Loading -> {
+                    SettingsScreenUiState.PasskeyList.Loading
+                }
+
+                is PasskeysState.Error -> {
+                    SettingsScreenUiState.PasskeyList.Error(passkeys.message)
+                }
+
+                is PasskeysState.Loaded -> {
+                    if (passkeys.passkeys.isEmpty()) {
+                        SettingsScreenUiState.PasskeyList.Empty
+                    } else {
+                        SettingsScreenUiState.PasskeyList.Items(
+                            passkeys.passkeys.map { passkey ->
+                                SettingsScreenUiState.PasskeyItem(
+                                    name = passkey.name,
+                                    deleteButtonEnabled = busy.not(),
+                                    listener =
+                                    object : SettingsScreenUiState.PasskeyItemListener {
+                                        override fun onClickDelete() {
+                                            requestDelete(passkey)
+                                        }
+                                    },
+                                )
+                            },
+                        )
+                    }
+                }
             },
             passkeyNameInputVisible = passkeyAuthenticator.available,
             passkeyName = viewModelState.passkeyName,
