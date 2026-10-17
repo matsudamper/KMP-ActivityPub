@@ -11,7 +11,6 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8080
-      # 画面。./gradlew :frontend:app-web:wasmJsBrowserDistribution で作った frontend/app-web/build/dist/wasmJs/productionExecutable を渡すと、同じサーバーから出る
       STATIC_SRC_DIR: /app/static
       DB_PATH: /app/data/kmp-activitypub.db
       VALKEY_URI: redis://valkey:6379
@@ -24,6 +23,7 @@ services:
       # Android アプリでパスキーを使うとき。/.well-known/assetlinks.json を返し、アプリの origin を受け付ける
 #      PASSKEY_ANDROID_PACKAGE_NAME: net.matsudamper.kmp.activitypub
       # アプリの署名証明書の SHA-256。カンマ区切り
+      # デバッグビルドの証明書は keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep SHA256 で出る
 #      PASSKEY_ANDROID_CERT_SHA256: "AA:BB:..."
     depends_on:
       valkey:

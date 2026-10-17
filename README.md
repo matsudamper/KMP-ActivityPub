@@ -35,8 +35,6 @@ docker run -d --name kmp-activitypub-valkey -p 6379:6379 valkey/valkey:8
 
 環境変数は `docker-compose.yml` を参照。
 
-`PASSKEY_ANDROID_CERT_SHA256` に渡すデバッグビルドの証明書の SHA-256 は次で出る。
-
-```sh
-keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep SHA256
-```
+画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
+`frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
+同じサーバーから出る。
