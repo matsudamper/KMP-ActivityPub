@@ -1,11 +1,13 @@
 package net.matsudamper.kmp.activitypub
 
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -20,6 +22,7 @@ import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
+import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
 fun main() {
     val serverEnv = ServerEnv()
@@ -45,6 +48,15 @@ fun main() {
 internal fun Application.module(deps: AppDependencies) {
     install(KtorServerTelemetry) {
         setOpenTelemetry(OpenTelemetryInitializer.get())
+    }
+    install(StatusPages) {
+        exception<Throwable> { call, cause ->
+            TraceLogger.impl().noticeThrowable(cause, isError = true)
+            call.respondText(
+                status = HttpStatusCode.InternalServerError,
+                text = HttpStatusCode.InternalServerError.description,
+            )
+        }
     }
 
     val staticFiles = deps.staticFiles
