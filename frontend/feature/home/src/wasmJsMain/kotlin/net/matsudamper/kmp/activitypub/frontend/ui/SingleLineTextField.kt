@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import net.matsudamper.frontend.component.HtmlFormComponents
 import net.matsudamper.frontend.component.HtmlInputType
 
@@ -11,6 +12,7 @@ internal actual fun SingleLineTextField(
     onValueChange: (String) -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
+    imeAction: ImeAction,
     inputId: String,
     inputName: String,
     enabled: Boolean,

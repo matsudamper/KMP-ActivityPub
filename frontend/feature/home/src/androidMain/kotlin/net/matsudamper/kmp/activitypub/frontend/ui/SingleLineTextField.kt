@@ -13,6 +13,7 @@ internal actual fun SingleLineTextField(
     onValueChange: (String) -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
+    imeAction: ImeAction,
     inputId: String,
     inputName: String,
     enabled: Boolean,
@@ -26,12 +27,7 @@ internal actual fun SingleLineTextField(
         isError = hasError,
         label = { Text(label) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(
-            imeAction = when (kind) {
-                is SingleLineTextFieldKind.Username -> ImeAction.Next
-                SingleLineTextFieldKind.Plain -> ImeAction.Done
-            },
-        ),
+        keyboardOptions = KeyboardOptions(imeAction = imeAction),
         modifier = modifier,
     )
 }

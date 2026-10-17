@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
@@ -95,6 +96,7 @@ internal fun LoginForm(
             onValueChange = uiState.listener::onUsernameChanged,
             label = "ユーザー名",
             kind = SingleLineTextFieldKind.Username(formId = LOGIN_FORM_ID),
+            imeAction = ImeAction.Next,
             inputId = LOGIN_USERNAME_INPUT_ID,
             inputName = "username",
             enabled = uiState.inputEnabled,
