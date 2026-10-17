@@ -61,16 +61,8 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
                             serverSettingUiState = rememberServerSettingUiState(),
                         )
                     }
-                    entry<Screen.Home> {
-                        HomeFeatureAndroidScreens.LoginRequired(navigator = navigator) {
-                            HomeFeatureScreens.Home(navigator = navigator)
-                        }
-                    }
-                    entry<Screen.Post> {
-                        HomeFeatureAndroidScreens.LoginRequired(navigator = navigator) {
-                            HomeFeatureScreens.Post(navigator = navigator)
-                        }
-                    }
+                    entry<Screen.Home> { HomeFeatureAndroidScreens.Home(navigator = navigator) }
+                    entry<Screen.Post> { HomeFeatureAndroidScreens.Post(navigator = navigator) }
                 },
             )
         }

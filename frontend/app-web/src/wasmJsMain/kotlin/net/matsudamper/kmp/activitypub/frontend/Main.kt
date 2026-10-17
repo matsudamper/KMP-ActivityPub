@@ -52,16 +52,8 @@ private fun AppNavigation() {
                         serverSettingUiState = null,
                     )
                 }
-                entry<Screen.Home> {
-                    HomeFeatureWebScreens.LoginRequired {
-                        HomeFeatureScreens.Home(navigator = navigator)
-                    }
-                }
-                entry<Screen.Post> {
-                    HomeFeatureWebScreens.LoginRequired {
-                        HomeFeatureScreens.Post(navigator = navigator)
-                    }
-                }
+                entry<Screen.Home> { HomeFeatureWebScreens.Home(navigator = navigator) }
+                entry<Screen.Post> { HomeFeatureWebScreens.Post(navigator = navigator) }
             },
         )
     }
