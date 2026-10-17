@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.passkey
 
+import java.nio.charset.CharacterCodingException
+
 /**
  * WebAuthn の attestationObject と COSE 鍵を読むための CBOR。
  * 認証器は CTAP2 の正準形で出すので、長さ不定・浮動小数点・タグは読めないものとして弾く。
@@ -36,7 +38,11 @@ internal class CborReader(
             }
 
             MAJOR_TEXT -> {
-                readBytes(readLength(additional)).decodeToString(throwOnInvalidSequence = true)
+                try {
+                    readBytes(readLength(additional)).decodeToString(throwOnInvalidSequence = true)
+                } catch (e: CharacterCodingException) {
+                    throw PasskeyVerificationException("CBOR の文字列が UTF-8 ではない", e)
+                }
             }
 
             MAJOR_ARRAY -> {

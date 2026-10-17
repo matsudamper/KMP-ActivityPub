@@ -124,6 +124,18 @@ class PasskeyVerifierTest {
         }
     }
 
+    @Test
+    fun `UTF-8 として読めない文字列を含む attestationObject は検証の失敗として扱う`() {
+        val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
+        val clientData = authenticator.clientData(type = "webauthn.create", challenge = TestAuthenticator.challenge())
+        // 要素 1 の map で、キーが 1 バイトの文字列 0xFF、値が 0
+        val attestationObject = byteArrayOf(0xA1.toByte(), 0x61, 0xFF.toByte(), 0x00)
+
+        assertFailsWith<PasskeyVerificationException> {
+            verifier.verifyRegistration(PasskeyClientData.parse(clientData), attestationObject)
+        }
+    }
+
     private fun register(authenticator: TestAuthenticator): RegisteredPasskey {
         val clientData = authenticator.clientData(type = "webauthn.create", challenge = TestAuthenticator.challenge())
         return verifier.verifyRegistration(PasskeyClientData.parse(clientData), authenticator.attestationObject())
