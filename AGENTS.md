@@ -5,8 +5,6 @@
 ./gradlew :compileAll
 ```
 
-同じビルドは `./build.sh` からも実行できる。
-
 # 共通ルール
 
 ## docs の参照
