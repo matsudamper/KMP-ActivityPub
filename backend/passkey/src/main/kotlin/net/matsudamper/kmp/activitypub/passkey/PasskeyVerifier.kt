@@ -36,6 +36,7 @@ class PasskeyVerifier(
         verifyAuthenticatorData(authenticatorData)
         val credential = authenticatorData.attestedCredential ?: throw PasskeyVerificationException("登録なのに credential が入っていない")
 
+        if (credential.publicKey.size > MAX_PUBLIC_KEY_BYTES) throw PasskeyVerificationException("公開鍵が大きすぎる")
         // 組み立てられない鍵や対応しない方式は、保存する前にここで落とす
         CosePublicKey.parse(credential.publicKey)
 
@@ -97,6 +98,12 @@ class PasskeyVerifier(
     private companion object {
         const val TYPE_CREATE = "webauthn.create"
         const val TYPE_GET = "webauthn.get"
+
+        /**
+         * 対応する方式で最も大きい RSA 4096 bit でも 600 バイトに収まる。
+         * 使わない項目を詰め込んだ鍵を保存させ、ログインのたびに読ませないため
+         */
+        const val MAX_PUBLIC_KEY_BYTES = 1024
     }
 }
 
