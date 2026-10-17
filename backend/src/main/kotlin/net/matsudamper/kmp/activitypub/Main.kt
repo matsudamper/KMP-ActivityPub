@@ -2,12 +2,14 @@ package net.matsudamper.kmp.activitypub
 
 import io.ktor.http.ContentType
 import io.ktor.server.application.Application
+import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
@@ -17,11 +19,13 @@ import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 
 fun main() {
     val serverEnv = ServerEnv()
+    val telemetry = OpenTelemetryInitializer.initialize()
     DatabaseWriteCheck.verify(serverEnv.dbPath)
-    val deps = AppDependencies.create(serverEnv)
+    val deps = AppDependencies.create(env = serverEnv, openTelemetry = telemetry.openTelemetry)
 
     val server =
         embeddedServer(CIO, port = serverEnv.port, host = serverEnv.host) {
@@ -32,6 +36,7 @@ fun main() {
         Thread {
             server.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
             deps.close()
+            telemetry.close()
         },
     )
 
@@ -39,6 +44,10 @@ fun main() {
 }
 
 internal fun Application.module(deps: AppDependencies) {
+    install(KtorServerTelemetry) {
+        setOpenTelemetry(deps.openTelemetry)
+    }
+
     val staticFiles = deps.staticFiles
     if (staticFiles != null) {
         log.info("静的ファイルの配信元: ${staticFiles.root}")
@@ -68,6 +77,7 @@ internal fun Application.module(deps: AppDependencies) {
                 )
             },
             diContainer = DiContainer(accountService = deps.accountService),
+            openTelemetry = deps.openTelemetry,
         )
 
     routing {

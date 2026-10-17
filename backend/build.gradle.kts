@@ -15,6 +15,13 @@ dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.opentelemetry.api)
+    implementation(libs.opentelemetry.sdk)
+    implementation(libs.opentelemetry.exporter.otlp)
+    implementation(libs.opentelemetry.sdk.autoconfigure)
+    implementation(libs.opentelemetry.runtime.telemetry)
+    implementation(libs.opentelemetry.ktor3)
+    implementation(libs.opentelemetry.graphql.java)
 
     compileOnly(libs.graalvm.nativeimage)
 
@@ -59,6 +66,9 @@ graalvmNative {
             // ロゴと tip の出力がイメージ生成中の JVM で走る
             buildArgs.add("-Dorg.jooq.no-logo=true")
             buildArgs.add("-Dorg.jooq.no-tips=true")
+            buildArgs.add("--initialize-at-run-time=io.opentelemetry.sdk")
+            buildArgs.add("--initialize-at-run-time=io.opentelemetry.exporter")
+            buildArgs.add("--initialize-at-run-time=io.opentelemetry.instrumentation")
         }
     }
 }

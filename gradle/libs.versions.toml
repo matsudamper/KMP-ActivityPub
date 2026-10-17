@@ -38,6 +38,8 @@ koin = "4.2.2"
 koinPlugin = "1.2.1"
 okhttp = "5.5.0"
 playServicesAuthBlockstore = "16.4.0"
+opentelemetry = "1.67.0"
+opentelemetryInstrumentation = "2.29.0-alpha"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
@@ -84,6 +86,15 @@ koin-annotations = { module = "io.insert-koin:koin-annotations", version.ref = "
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
+opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "opentelemetry" }
+opentelemetry-sdk = { module = "io.opentelemetry:opentelemetry-sdk", version.ref = "opentelemetry" }
+opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp", version.ref = "opentelemetry" }
+opentelemetry-sdk-autoconfigure = { module = "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", version.ref = "opentelemetry" }
+opentelemetry-ktor3 = { module = "io.opentelemetry.instrumentation:opentelemetry-ktor-3.0", version.ref = "opentelemetryInstrumentation" }
+opentelemetry-jdbc = { module = "io.opentelemetry.instrumentation:opentelemetry-jdbc", version.ref = "opentelemetryInstrumentation" }
+opentelemetry-graphql-java = { module = "io.opentelemetry.instrumentation:opentelemetry-graphql-java-20.0", version.ref = "opentelemetryInstrumentation" }
+opentelemetry-lettuce = { module = "io.opentelemetry.instrumentation:opentelemetry-lettuce-5.1", version.ref = "opentelemetryInstrumentation" }
+opentelemetry-runtime-telemetry = { module = "io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry", version.ref = "opentelemetryInstrumentation" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 

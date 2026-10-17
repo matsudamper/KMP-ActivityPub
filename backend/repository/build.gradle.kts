@@ -8,6 +8,8 @@ dependencies {
 
     implementation(libs.sqlite.jdbc)
     implementation(libs.jooq)
+    api(libs.opentelemetry.api)
+    implementation(libs.opentelemetry.jdbc)
 
     jooqCodegen(libs.sqlite.jdbc)
 

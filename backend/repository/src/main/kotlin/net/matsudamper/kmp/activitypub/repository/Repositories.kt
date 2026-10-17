@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository
 
+import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
 
 /**
@@ -14,6 +15,9 @@ interface Repositories : AutoCloseable {
     override fun close()
 
     companion object {
-        fun create(config: DatabaseConfig): Repositories = SqliteRepositories(config)
+        fun create(
+            config: DatabaseConfig,
+            openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
+        ): Repositories = SqliteRepositories(config = config, openTelemetry = openTelemetry)
     }
 }

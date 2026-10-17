@@ -5,10 +5,13 @@ import graphql.ExceptionWhileDataFetching
 import graphql.ExecutionInput
 import graphql.GraphQL
 import graphql.analysis.MaxQueryComplexityInstrumentation
+import graphql.execution.instrumentation.ChainedInstrumentation
 import graphql.kickstart.tools.GraphQLResolver
 import graphql.kickstart.tools.SchemaParser
 import graphql.schema.DataFetchingEnvironment
 import io.ktor.server.application.ApplicationCall
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.instrumentation.graphql.v20_0.GraphQLTelemetry
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import org.slf4j.LoggerFactory
 
@@ -65,6 +68,7 @@ class GraphQlEngine private constructor(
             resolvers: List<GraphQLResolver<*>>,
             createContext: (ApplicationCall) -> GraphQlContext,
             diContainer: DiContainer,
+            openTelemetry: OpenTelemetry,
         ): GraphQlEngine {
             val schema =
                 SchemaParser
@@ -78,7 +82,17 @@ class GraphQlEngine private constructor(
             return GraphQlEngine(
                 graphQl = GraphQL
                     .newGraphQL(schema)
-                    .instrumentation(MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY))
+                    .instrumentation(
+                        ChainedInstrumentation(
+                            MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY),
+                            GraphQLTelemetry
+                                .builder(openTelemetry)
+                                .setAddOperationNameToSpanName(true)
+                                .setDataFetcherInstrumentationEnabled(true)
+                                .build()
+                                .createInstrumentation(),
+                        ),
+                    )
                     .build(),
                 createContext = createContext,
                 diContainer = diContainer,
