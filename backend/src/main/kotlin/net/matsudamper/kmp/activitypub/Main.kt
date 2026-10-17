@@ -85,9 +85,13 @@ internal fun Application.module(deps: AppDependencies) {
                     call = call,
                     sessionService = deps.sessionService,
                     cookieSecure = deps.env.cookieSecure,
+                    trustCfConnectingIp = deps.env.trustCfConnectingIp,
                 )
             },
-            diContainer = DiContainer(accountService = deps.accountService),
+            diContainer = DiContainer(
+                accountService = deps.accountService,
+                loginThrottle = deps.loginThrottle,
+            ),
         )
 
     routing {
