@@ -28,7 +28,8 @@ class UserMutationResolverImpl : UserMutationResolver {
         val loginThrottle = diContainer.loginThrottle
         val clientIp = context.clientIp
         if (loginThrottle.isLocked(clientIp)) {
-            logger.warn("ログインの失敗が続いている IP なので照合せずに断った: $clientIp")
+            loginThrottle.recordFailure(clientIp)
+            logger.warn("ログインの失敗が続いている IP なので照合せずに断り、締め出しを延ばした: $clientIp")
             val result = QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
             return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
         }
