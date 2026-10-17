@@ -24,8 +24,8 @@ internal fun Route.staticRoutes(staticFiles: StaticFiles?) {
 
         val segments = call.parameters.getAll("path").orEmpty()
 
-        val isPageRequest = call.request.acceptItems().any { it.value == ContentType.Text.Html.toString() }
-        val file = staticFiles.resolve(segments = segments, isPageRequest = isPageRequest)
+        val isHtmlRequest = call.request.acceptItems().any { it.value == ContentType.Text.Html.toString() }
+        val file = staticFiles.resolve(segments = segments, isHtmlRequest = isHtmlRequest)
         if (file == null) {
             call.respondText("見つからない: /${segments.joinToString("/")}", status = HttpStatusCode.NotFound)
             return@get
