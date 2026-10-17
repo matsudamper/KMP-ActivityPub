@@ -42,6 +42,8 @@ internal actual fun SingleLineTextField(
         hasError = hasError,
         formId = formId,
         required = formId != null,
+        // formId があれば Enter で form が送信され、FormSubmitHandler が受ける
+        onEnter = if (formId == null) onDone else null,
         modifier = modifier,
     )
 }
