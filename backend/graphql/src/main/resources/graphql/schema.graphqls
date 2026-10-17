@@ -6,6 +6,8 @@ schema {
 type Query {
     "GraphQL は query にフィールドが 1 つ要る。空実装"
     unused: Boolean
+    "有効なセッションの Cookie が無ければ null"
+    userInfo: UserInfo
 }
 
 type Mutation {

@@ -8,4 +8,9 @@ import com.apollographql.apollo.ApolloClient
  */
 interface GraphQlClientSource {
     val client: StateFlow<ApolloClient?>
+
+    /**
+     * 接続先を保存先から読み終えるまで待ってから返す。読み終える前の [client] の null は未設定と区別できない
+     */
+    suspend fun awaitLoadedClient(): ApolloClient?
 }

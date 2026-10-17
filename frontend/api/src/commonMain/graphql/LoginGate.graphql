@@ -1,0 +1,5 @@
+query LoginGate {
+    userInfo {
+        id
+    }
+}
