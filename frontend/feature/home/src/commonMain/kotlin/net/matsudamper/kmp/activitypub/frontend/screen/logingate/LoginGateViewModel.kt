@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.logingate
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,7 @@ internal class LoginGateViewModel(
     private val api: UserApi,
 ) : ViewModel() {
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Checking)
+    private var checkLoginStateJob: Job? = null
 
     private val listener =
         object : LoginGateUiState.Listener {
@@ -39,8 +41,9 @@ internal class LoginGateViewModel(
     }
 
     private fun checkLoginState() {
+        checkLoginStateJob?.cancel()
         viewModelStateFlow.value = ViewModelState.Checking
-        viewModelScope.launch {
+        checkLoginStateJob = viewModelScope.launch {
             viewModelStateFlow.value =
                 when (val result = api.loginState()) {
                     UserLoginStateResult.LoggedIn -> ViewModelState.LoggedIn
