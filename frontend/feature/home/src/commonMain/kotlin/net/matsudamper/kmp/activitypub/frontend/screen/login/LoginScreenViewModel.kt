@@ -116,7 +116,7 @@ internal class LoginScreenViewModel(
                 }
             viewModelStateFlow.update { it.copy(error = error) }
             if (error == null) {
-                events.send { it.navigateToHome() }
+                events.send { it.loggedIn() }
             }
         }
     }
@@ -138,7 +138,7 @@ internal class LoginScreenViewModel(
                     viewModelStateFlow.update { it.copy(submitting = false) }
                 }
             when (result) {
-                PasskeyLoginOutcome.Success -> events.send { it.navigateToHome() }
+                PasskeyLoginOutcome.Success -> events.send { it.loggedIn() }
                 PasskeyLoginOutcome.Cancelled -> Unit
                 is PasskeyLoginOutcome.Error -> viewModelStateFlow.update { it.copy(error = result.message) }
             }
@@ -206,7 +206,7 @@ internal class LoginScreenViewModel(
     }
 
     interface Event {
-        fun navigateToHome()
+        fun loggedIn()
     }
 }
 

@@ -5,15 +5,44 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 sealed interface Screen : NavKey {
-    @Serializable
-    data object Login : Screen
+    val path: String
+
+    /**
+     * path で直接開いたとき、アプリの中で戻ると出す画面
+     */
+    val parentScreen: Screen?
+
+    val loginRequired: Boolean
 
     @Serializable
-    data object Home : Screen
+    data object Login : Screen {
+        override val path: String get() = "/"
+        override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = false
+    }
 
     @Serializable
-    data object Post : Screen
+    data object Home : Screen {
+        override val path: String get() = "/home"
+        override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = true
+    }
 
     @Serializable
-    data object Settings : Screen
+    data object Post : Screen {
+        override val path: String get() = "/post"
+        override val parentScreen: Screen get() = Home
+        override val loginRequired: Boolean get() = true
+    }
+
+    @Serializable
+    data object Settings : Screen {
+        override val path: String get() = "/settings"
+        override val parentScreen: Screen get() = Home
+        override val loginRequired: Boolean get() = true
+    }
+
+    companion object {
+        fun fromPath(path: String): Screen? = listOf(Login, Home, Post, Settings).firstOrNull { it.path == path }
+    }
 }

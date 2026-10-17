@@ -71,6 +71,7 @@ class GraphQlEngine private constructor(
                     .newParser()
                     .schemaString(readSchema())
                     .resolvers(resolvers)
+                    .scalars(GraphQlScalars.userId)
                     .build()
                     .makeExecutableSchema()
 

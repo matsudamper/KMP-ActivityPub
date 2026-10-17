@@ -33,6 +33,7 @@ kotlin {
                 implementation(compose.material3)
                 implementation(libs.navigation3.ui)
                 implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+                implementation(libs.kotlinx.browser)
                 implementation(libs.koin.core)
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose)

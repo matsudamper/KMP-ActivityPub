@@ -96,7 +96,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         val context = GraphQlEngine.graphQlContext(env)
         val passkeyService = passkeyService(env)
         val account =
-            context.loggedInAccountId()?.let { GraphQlEngine.diContainer(env).accountService.account(it) }
+            context.userAccountId()?.let { GraphQlEngine.diContainer(env).accountService.account(it) }
                 ?: return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlPasskeyRegistrationOptions?>(null).build())
         claimPasskeyChallenge(context)
 
@@ -122,7 +122,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         val context = GraphQlEngine.graphQlContext(env)
         val passkeyService = passkeyService(env)
 
-        val accountId = context.loggedInAccountId()
+        val accountId = context.userAccountId()
         val failure =
             if (accountId == null) {
                 QlRegisterPasskeyFailure.NOT_LOGGED_IN
@@ -146,7 +146,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         val context = GraphQlEngine.graphQlContext(env)
         val passkeyService = passkeyService(env)
 
-        val accountId = context.loggedInAccountId()
+        val accountId = context.userAccountId()
         val failure =
             when {
                 accountId == null -> QlDeletePasskeyFailure.NOT_LOGGED_IN

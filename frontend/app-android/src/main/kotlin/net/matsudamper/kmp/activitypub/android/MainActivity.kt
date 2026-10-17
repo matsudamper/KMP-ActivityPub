@@ -11,18 +11,12 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.android.passkey.ForegroundActivityHolder
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
-import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
-import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeNavigationHost
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.plugin.module.dsl.koinConfiguration
@@ -54,28 +48,12 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
             if (activity != null) activityHolder.detach(activity)
         }
     }
-    val backStack = rememberScreenBackStack(startScreen = Screen.Login)
-    val navigator = remember(backStack) { Navigator(backStack) }
+    val backStack = rememberScreenBackStack(startScreens = listOf(Screen.Login))
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
-            NavDisplay(
+            HomeNavigationHost(
                 backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
-                entryDecorators = listOf(
-                    rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator(),
-                ),
-                entryProvider = entryProvider {
-                    entry<Screen.Login> {
-                        HomeFeatureScreens.Login(
-                            navigator = navigator,
-                            serverSettingUiState = rememberServerSettingUiState(),
-                        )
-                    }
-                    entry<Screen.Home> { HomeFeatureScreens.Home(navigator = navigator) }
-                    entry<Screen.Post> { HomeFeatureScreens.Post(navigator = navigator) }
-                    entry<Screen.Settings> { HomeFeatureScreens.Settings(navigator = navigator) }
-                },
+                serverSettingUiState = { rememberServerSettingUiState() },
             )
         }
     }

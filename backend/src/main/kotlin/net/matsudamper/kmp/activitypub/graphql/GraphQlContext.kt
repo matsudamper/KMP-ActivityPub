@@ -30,10 +30,10 @@ class GraphQlContext(
      */
     fun claimPasskeyChallenge(): Boolean = passkeyChallengeIssued.compareAndSet(false, true)
 
-    /**
-     * Cookie のセッションが有効なら持ち主
-     */
-    fun loggedInAccountId(): AccountId? = userCookie.token()?.let { sessionService.accountIdOf(it) }
+    fun userAccountId(): AccountId? {
+        val token = userCookie.token() ?: return null
+        return sessionService.accountIdOf(token)
+    }
 
     fun issueUserSession(accountId: AccountId) {
         userCookie.append(token = sessionService.create(accountId), maxAgeSeconds = sessionService.ttlSeconds)
