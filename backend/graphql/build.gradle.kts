@@ -39,7 +39,10 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     packageName = "net.matsudamper.kmp.activitypub.graphql.model"
 
     modelNamePrefix = "Ql"
-    customTypesMapping = mutableMapOf("UserId" to "net.matsudamper.kmp.activitypub.shared.AccountId")
+    customTypesMapping =
+        mutableMapOf(
+            "UserId" to "net.matsudamper.kmp.activitypub.shared.AccountId",
+        )
     generateImmutableModels = true
     generateBuilder = false
 
