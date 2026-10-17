@@ -87,7 +87,7 @@ internal class CosePublicKey private constructor(
         fun fromMap(key: Map<*, *>): CosePublicKey {
             val algorithm =
                 CoseAlgorithm.entries.firstOrNull { it.coseValue == key[ALGORITHM] }
-                    ?: throw PasskeyVerificationException("対応していない署名方式: ${key[ALGORITHM]}")
+                    ?: throw PasskeyVerificationException("対応していない署名方式")
             val keyType = key[KEY_TYPE]
 
             val publicKey =
@@ -129,7 +129,7 @@ internal class CosePublicKey private constructor(
             actual: Any?,
             expected: Long,
         ) {
-            if (actual != expected) throw PasskeyVerificationException("鍵の種類が署名方式と合わない: $actual")
+            if (actual != expected) throw PasskeyVerificationException("鍵の種類が署名方式と合わない")
         }
 
         private fun Map<*, *>.bytes(

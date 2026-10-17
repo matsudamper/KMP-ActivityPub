@@ -81,8 +81,8 @@ class PasskeyVerifier(
         clientData: PasskeyClientData,
         expectedType: String,
     ) {
-        if (clientData.type != expectedType) throw PasskeyVerificationException("clientDataJSON の type が違う: ${clientData.type}")
-        if (clientData.origin !in relyingParty.origins) throw PasskeyVerificationException("許可していない origin: ${clientData.origin}")
+        if (clientData.type != expectedType) throw PasskeyVerificationException("clientDataJSON の type が違う")
+        if (clientData.origin !in relyingParty.origins) throw PasskeyVerificationException("許可していない origin")
         // iframe の中から呼ばれる使い方はしない
         if (clientData.crossOrigin) throw PasskeyVerificationException("crossOrigin で呼ばれた")
     }
