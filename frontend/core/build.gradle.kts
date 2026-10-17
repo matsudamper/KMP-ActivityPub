@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library)
 }
 
-// Compose を使うモジュールは wasmJs のテストに binaries.executable() が要るので、Compose に依存しない処理をここに置く
 kotlin {
     jvmToolchain(25)
 
