@@ -10,6 +10,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.test.runTest
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class EncryptedSessionStoreTest {
     private val session = SessionState(SessionCookie("https://example.com/", "user_session=token; Path=/"), false)
     private val cleared = SessionState(session = null, backupPending = true)

@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class SessionCookieTest {
     private val url = "https://example.com/graphql".toHttpUrl()
 

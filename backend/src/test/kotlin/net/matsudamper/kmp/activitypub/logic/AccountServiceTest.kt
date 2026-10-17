@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.FakeAccountRepository
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountServiceTest {
     private val accountRepository = FakeAccountRepository()
 
