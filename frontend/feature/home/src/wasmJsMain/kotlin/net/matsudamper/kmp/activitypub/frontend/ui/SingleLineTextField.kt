@@ -13,6 +13,8 @@ internal actual fun SingleLineTextField(
     onDone: () -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
+    autofill: SingleLineTextFieldAutofill?,
+    formId: String?,
     imeAction: ImeAction,
     inputId: String,
     inputName: String,
@@ -20,7 +22,6 @@ internal actual fun SingleLineTextField(
     hasError: Boolean,
     modifier: Modifier,
 ) {
-    val formId = kind.formId
     HtmlFormComponents.PlatformInputField(
         value = value,
         onValueChange = onValueChange,
@@ -28,13 +29,14 @@ internal actual fun SingleLineTextField(
         inputId = inputId,
         inputName = inputName,
         inputType = when (kind) {
-            is SingleLineTextFieldKind.Plain -> HtmlInputType.Text
-            is SingleLineTextFieldKind.Secret -> HtmlInputType.Password
+            SingleLineTextFieldKind.Plain -> HtmlInputType.Text
+            SingleLineTextFieldKind.Secret -> HtmlInputType.Password
         },
-        autocomplete = when {
-            formId == null -> "off"
-            kind is SingleLineTextFieldKind.Plain -> "username"
-            else -> "current-password"
+        autocomplete = when (autofill) {
+            null -> "off"
+            SingleLineTextFieldAutofill.Username -> "username"
+            SingleLineTextFieldAutofill.CurrentPassword -> "current-password"
+            SingleLineTextFieldAutofill.NewPassword -> "new-password"
         },
         enabled = enabled,
         hasError = hasError,

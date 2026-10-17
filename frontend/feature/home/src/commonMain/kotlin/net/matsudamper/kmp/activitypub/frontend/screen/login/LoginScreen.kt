@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.FormSubmitHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldAutofill
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -96,7 +97,9 @@ internal fun LoginForm(
             onValueChange = uiState.listener::onUsernameChanged,
             onDone = {},
             label = "ユーザー名",
-            kind = SingleLineTextFieldKind.Plain(formId = LOGIN_FORM_ID),
+            kind = SingleLineTextFieldKind.Plain,
+            autofill = SingleLineTextFieldAutofill.Username,
+            formId = LOGIN_FORM_ID,
             imeAction = ImeAction.Next,
             inputId = LOGIN_USERNAME_INPUT_ID,
             inputName = "username",
@@ -114,7 +117,9 @@ internal fun LoginForm(
             onValueChange = uiState.listener::onPasswordChanged,
             onDone = uiState.listener::onClickLogin,
             label = "パスワード",
-            kind = SingleLineTextFieldKind.Secret(formId = LOGIN_FORM_ID),
+            kind = SingleLineTextFieldKind.Secret,
+            autofill = SingleLineTextFieldAutofill.CurrentPassword,
+            formId = LOGIN_FORM_ID,
             imeAction = ImeAction.Done,
             inputId = LOGIN_PASSWORD_INPUT_ID,
             inputName = "password",

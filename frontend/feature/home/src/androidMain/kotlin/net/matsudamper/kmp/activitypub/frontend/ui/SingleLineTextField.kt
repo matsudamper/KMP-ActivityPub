@@ -6,6 +6,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -18,6 +21,8 @@ internal actual fun SingleLineTextField(
     onDone: () -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
+    autofill: SingleLineTextFieldAutofill?,
+    formId: String?,
     imeAction: ImeAction,
     inputId: String,
     inputName: String,
@@ -33,17 +38,28 @@ internal actual fun SingleLineTextField(
         label = { Text(label) },
         singleLine = true,
         visualTransformation = when (kind) {
-            is SingleLineTextFieldKind.Plain -> VisualTransformation.None
-            is SingleLineTextFieldKind.Secret -> PasswordVisualTransformation()
+            SingleLineTextFieldKind.Plain -> VisualTransformation.None
+            SingleLineTextFieldKind.Secret -> PasswordVisualTransformation()
         },
         keyboardOptions = KeyboardOptions(
             keyboardType = when (kind) {
-                is SingleLineTextFieldKind.Plain -> KeyboardType.Text
-                is SingleLineTextFieldKind.Secret -> KeyboardType.Password
+                SingleLineTextFieldKind.Plain -> KeyboardType.Text
+                SingleLineTextFieldKind.Secret -> KeyboardType.Password
             },
             imeAction = imeAction,
         ),
         keyboardActions = KeyboardActions(onDone = { onDone() }),
-        modifier = modifier,
+        modifier = if (autofill == null) {
+            modifier
+        } else {
+            modifier.semantics { contentType = autofill.toContentType() }
+        },
     )
 }
+
+private fun SingleLineTextFieldAutofill.toContentType(): ContentType =
+    when (this) {
+        SingleLineTextFieldAutofill.Username -> ContentType.Username
+        SingleLineTextFieldAutofill.CurrentPassword -> ContentType.Password
+        SingleLineTextFieldAutofill.NewPassword -> ContentType.NewPassword
+    }
