@@ -28,7 +28,7 @@ object GraphQlScalars {
         GraphQLScalarType
             .newScalar()
             .name("PasskeyCredentialId")
-            .coercing(Base64UrlCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
+            .coercing(StringIdCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
             .build()
 
     private object UserIdCoercing : Coercing<AccountId, String> {
@@ -61,10 +61,7 @@ object GraphQlScalars {
         }
     }
 
-    /**
-     * 値は base64url（パディング無し）の文字列で受け渡す
-     */
-    private class Base64UrlCoercing<T : Any>(
+    private class StringIdCoercing<T : Any>(
         private val name: String,
         private val type: Class<T>,
         private val wrap: (String) -> T,
@@ -84,7 +81,7 @@ object GraphQlScalars {
             graphQLContext: GraphQLContext,
             locale: Locale,
         ): T {
-            val value = (input as? String)?.takeIf { BASE64URL.matches(it) } ?: throw CoercingParseValueException("$name ではない")
+            val value = input as? String ?: throw CoercingParseValueException("$name ではない")
             return wrap(value)
         }
 
@@ -94,10 +91,8 @@ object GraphQlScalars {
             graphQLContext: GraphQLContext,
             locale: Locale,
         ): T {
-            val value = (input as? StringValue)?.value?.takeIf { BASE64URL.matches(it) } ?: throw CoercingParseLiteralException("$name ではない")
+            val value = (input as? StringValue)?.value ?: throw CoercingParseLiteralException("$name ではない")
             return wrap(value)
         }
     }
-
-    private val BASE64URL = Regex("^[A-Za-z0-9_-]+$")
 }
