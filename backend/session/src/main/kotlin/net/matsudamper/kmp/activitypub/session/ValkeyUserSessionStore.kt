@@ -4,12 +4,20 @@ import java.time.Instant
 import io.lettuce.core.RedisClient
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.resource.ClientResources
+import io.opentelemetry.instrumentation.lettuce.v5_1.LettuceTelemetry
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 
 class ValkeyUserSessionStore(
     uri: String,
 ) : UserSessionStore {
-    private val client: RedisClient = RedisClient.create(uri)
+    private val clientResources: ClientResources =
+        ClientResources
+            .builder()
+            .tracing(LettuceTelemetry.create(OpenTelemetryInitializer.get()).createTracing())
+            .build()
+    private val client: RedisClient = RedisClient.create(clientResources, uri)
     private val connection: StatefulRedisConnection<String, String> = client.connect()
 
     override fun create(
@@ -33,6 +41,7 @@ class ValkeyUserSessionStore(
     override fun close() {
         connection.close()
         client.shutdown()
+        clientResources.shutdown()
     }
 
     private fun keyOf(tokenHash: String): String = "user-session:$tokenHash"
