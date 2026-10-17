@@ -5,6 +5,7 @@ import io.github.kobylynskyi.graphql.codegen.gradle.GraphQLCodegenGradleTask
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.graphql.codegen)
+    id("kmp-activitypub.graphql-schema-list")
 }
 
 dependencies {
@@ -13,44 +14,13 @@ dependencies {
 }
 
 val generatedSourcesDirectory = layout.buildDirectory.dir("generated/codegen")
-val generatedResourcesDirectory = layout.buildDirectory.dir("generated/resources")
 val schemaDirectory = layout.projectDirectory.dir("src/main/resources/graphql")
-
-abstract class GenerateSchemaListTask : DefaultTask() {
-    @get:InputDirectory
-    abstract val schemaDir: DirectoryProperty
-
-    @get:OutputFile
-    abstract val outputFile: RegularFileProperty
-
-    @TaskAction
-    fun generate() {
-        val fileNames =
-            schemaDir
-                .get()
-                .asFile
-                .listFiles()
-                .orEmpty()
-                .filter { it.extension == "graphqls" }
-                .map { it.name }
-                .sorted()
-        outputFile.get().asFile.writeText(fileNames.joinToString("\n"))
-    }
-}
-
-// native バイナリではリソースのディレクトリを列挙できないので、ファイル名の一覧をビルド時に作る
-val generateSchemaList =
-    tasks.register<GenerateSchemaListTask>("generateSchemaList") {
-        schemaDir.set(schemaDirectory)
-        outputFile.set(generatedResourcesDirectory.map { it.file("graphql/schema-list.txt") })
-    }
 
 kotlin {
     jvmToolchain(25)
 
     sourceSets.named("main") {
         kotlin.srcDir(generatedSourcesDirectory)
-        resources.srcDir(generateSchemaList.map { generatedResourcesDirectory })
     }
 }
 

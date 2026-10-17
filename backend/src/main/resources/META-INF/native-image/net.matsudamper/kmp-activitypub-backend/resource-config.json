@@ -6,7 +6,7 @@
         "pattern": "\\Qgraphql/\\E.*\\Q.graphqls\\E"
       },
       {
-        "comment": "GraphQL のスキーマファイル名の一覧。:backend:graphql の generateSchemaList が作る",
+        "comment": "GraphQL のスキーマファイル名の一覧。:backend:graphql の generateGraphqlSchemaList が作る",
         "pattern": "\\Qgraphql/schema-list.txt\\E"
       },
       {
