@@ -15,15 +15,20 @@ class StaticFiles(
 
     fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { isServableFile(it) }
 
-    fun resolve(segments: List<String>): Path? {
+    /**
+     * 無いファイルを index.html に落とすのは [isPageRequest] のときだけ。
+     * .js や .wasm の取得失敗まで 200 + HTML にすると、画面が出ない理由を追えなくなる
+     */
+    fun resolve(
+        segments: List<String>,
+        isPageRequest: Boolean,
+    ): Path? {
         val safeSegments = safeSegments(segments) ?: return null
 
         val requested = fileOf(safeSegments) ?: return null
         if (isServableFile(requested)) return requested
 
-        if (safeSegments.lastOrNull()?.contains('.') == true && !isUserPagePath(safeSegments)) return null
-
-        return index()
+        return if (isPageRequest) index() else null
     }
 
     /**
@@ -53,13 +58,6 @@ class StaticFiles(
         return resolved.takeIf { it.startsWith(root) }
     }
 
-    /**
-     * ユーザー名には `.` を使えるので、拡張子付きのファイル名と見分けられない
-     */
-    private fun isUserPagePath(safeSegments: List<String>): Boolean {
-        return safeSegments.size == 1 && safeSegments.single().startsWith(USER_PAGE_PATH_PREFIX)
-    }
-
     private fun safeSegments(segments: List<String>): List<String>? {
         val filtered = segments.filter { it.isNotEmpty() }
 
@@ -73,7 +71,6 @@ class StaticFiles(
 
     companion object {
         const val INDEX_FILE_NAME: String = "index.html"
-        private const val USER_PAGE_PATH_PREFIX: String = "@"
 
         // 内容が変わると名前も変わるので、同じ名前のまま中身が変わらない。
         // 固定名のファイルに長期キャッシュを付けると、再デプロイ後も古いものが使われ続ける

@@ -27,34 +27,27 @@ class StaticFilesTest {
 
         val staticFiles = StaticFiles(tempDir)
         assertTrue(staticFiles.isAvailable())
-        assertEquals(indexFile, staticFiles.resolve(listOf()))
+        assertEquals(indexFile, staticFiles.resolve(listOf(), isPageRequest = false))
     }
 
     @Test
-    fun `SPA の未知のパスは index html に解決される`(@TempDir tempDir: Path) {
+    fun `ページを開くときは無いファイルを index html に解決する`(@TempDir tempDir: Path) {
         val indexFile = tempDir.resolve("index.html")
         indexFile.writeText("<html></html>")
 
         val staticFiles = StaticFiles(tempDir)
-        assertEquals(indexFile, staticFiles.resolve(listOf("admin", "dashboard")))
+        assertEquals(indexFile, staticFiles.resolve(listOf("admin", "dashboard"), isPageRequest = true))
+        assertEquals(indexFile, staticFiles.resolve(listOf("@john.doe"), isPageRequest = true))
     }
 
     @Test
-    fun `拡張子付きの存在しないファイルは index html に解決されず null`(@TempDir tempDir: Path) {
+    fun `ページ以外の取得では無いファイルを index html に解決せず null`(@TempDir tempDir: Path) {
         val indexFile = tempDir.resolve("index.html")
         indexFile.writeText("<html></html>")
 
         val staticFiles = StaticFiles(tempDir)
-        assertNull(staticFiles.resolve(listOf("assets", "bundle.js")))
-    }
-
-    @Test
-    fun `ドットを含むユーザー名のページは index html に解決される`(@TempDir tempDir: Path) {
-        val indexFile = tempDir.resolve("index.html")
-        indexFile.writeText("<html></html>")
-
-        val staticFiles = StaticFiles(tempDir)
-        assertEquals(indexFile, staticFiles.resolve(listOf("@john.doe")))
+        assertNull(staticFiles.resolve(listOf("assets", "bundle.js"), isPageRequest = false))
+        assertNull(staticFiles.resolve(listOf("admin"), isPageRequest = false))
     }
 
     @Test
@@ -63,7 +56,7 @@ class StaticFilesTest {
         val jsFile = assetsDir.resolve("app.js").apply { writeText("console.log('hi');") }
 
         val staticFiles = StaticFiles(tempDir)
-        assertEquals(jsFile, staticFiles.resolve(listOf("assets", "app.js")))
+        assertEquals(jsFile, staticFiles.resolve(listOf("assets", "app.js"), isPageRequest = false))
     }
 
     @Test
@@ -72,8 +65,8 @@ class StaticFilesTest {
         indexFile.writeText("<html></html>")
 
         val staticFiles = StaticFiles(tempDir)
-        assertNull(staticFiles.resolve(listOf("..", "secret.txt")))
-        assertNull(staticFiles.resolve(listOf("assets", "..", "..", "secret.txt")))
+        assertNull(staticFiles.resolve(listOf("..", "secret.txt"), isPageRequest = true))
+        assertNull(staticFiles.resolve(listOf("assets", "..", "..", "secret.txt"), isPageRequest = true))
     }
 
     @Test
@@ -96,8 +89,8 @@ class StaticFilesTest {
         Files.createSymbolicLink(publicDir.resolve("linked-dir"), tempDir)
 
         val staticFiles = StaticFiles(publicDir)
-        assertNull(staticFiles.resolve(listOf("link.txt")))
-        assertNull(staticFiles.resolve(listOf("linked-dir", "secret.txt")))
+        assertNull(staticFiles.resolve(listOf("link.txt"), isPageRequest = false))
+        assertNull(staticFiles.resolve(listOf("linked-dir", "secret.txt"), isPageRequest = false))
     }
 
     @Test
@@ -108,6 +101,6 @@ class StaticFilesTest {
 
         val staticFiles = StaticFiles(publicDir)
         assertNull(staticFiles.index())
-        assertNull(staticFiles.resolve(listOf("admin")))
+        assertNull(staticFiles.resolve(listOf("admin"), isPageRequest = true))
     }
 }
