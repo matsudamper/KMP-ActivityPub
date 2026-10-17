@@ -17,7 +17,8 @@ services:
       # http では false にする
       COOKIE_SECURE: "true"
     depends_on:
-      - valkey
+      valkey:
+        condition: service_healthy
     volumes:
       # 起動前に作っておく。Docker に作らせると root の持ち物になる
       - ./data:/app/data
@@ -27,6 +28,11 @@ services:
     image: valkey/valkey:8
     # AOF が無いと再起動で全員ログアウトになる
     command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
     volumes:
       - valkey-data:/data
 
