@@ -85,6 +85,7 @@ internal fun Application.module(deps: AppDependencies) {
                     call = call,
                     sessionService = deps.sessionService,
                     cookieSecure = deps.env.cookieSecure,
+                    trustCfConnectingIp = deps.env.trustCfConnectingIp,
                 )
             },
             diContainer = DiContainer(
