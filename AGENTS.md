@@ -1,9 +1,5 @@
 # KMP-ActivityPub
 
-## 開発
-- これからやることは [GitHub の Issue](https://github.com/matsudamper/KMP-ActivityPub/issues) にある
-- 部分的にしか実装しなかったら、残りが分かるように issue へ補足を書く
-
 ## 境界
 - frontendはfrontendとsharedのみ知ってよい（スキーマは例外）
 - backendはbackendとsharedのみ
