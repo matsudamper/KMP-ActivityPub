@@ -23,10 +23,18 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-a
 
 ユーザー名は大文字小文字を区別せず一意になる。区別しないのは ASCII の英字だけなので、使う文字は英数字と `_` `.` `-` に限る。ログインでは前後の空白を落として照合するので、前後に空白を入れない。
 
+### Valkey を起動する
+
+セッションは Valkey に保存する。
+
+```sh
+docker run -d --name kmp-activitypub-valkey -p 6379:6379 valkey/valkey:8
+```
+
 ### 起動する
 
 ```sh
-COOKIE_SECURE=false ./gradlew :backend:run
+COOKIE_SECURE=false VALKEY_URI=redis://localhost:6379 ./gradlew :backend:run
 ```
 
 環境変数は `docker-compose.yml` を参照。
