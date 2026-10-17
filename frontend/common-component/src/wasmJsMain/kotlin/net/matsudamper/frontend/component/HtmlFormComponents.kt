@@ -64,6 +64,7 @@ object HtmlFormComponents {
         modifier: Modifier = Modifier,
         formId: String? = null,
         required: Boolean = false,
+        enterKeyHint: String? = null,
         onEnter: (() -> Unit)? = null,
     ) {
         val currentOnValueChange = rememberUpdatedState(onValueChange)
@@ -104,6 +105,9 @@ object HtmlFormComponents {
                             }
                             input.setAttribute("aria-label", label)
                             input.required = required
+                            if (enterKeyHint != null) {
+                                input.setAttribute("enterkeyhint", enterKeyHint)
+                            }
                             bindDomListeners(
                                 input = input,
                                 onValueChange = { currentOnValueChange.value(it) },

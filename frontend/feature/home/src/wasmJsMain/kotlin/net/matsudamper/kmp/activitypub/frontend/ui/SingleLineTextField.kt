@@ -43,8 +43,20 @@ internal actual fun SingleLineTextField(
         hasError = hasError,
         formId = formId,
         required = required,
+        enterKeyHint = imeAction.toEnterKeyHint(),
         // formId があれば Enter で form が送信され、FormSubmitHandler が受ける
         onEnter = if (formId == null) onDone else null,
         modifier = modifier,
     )
 }
+
+private fun ImeAction.toEnterKeyHint(): String? =
+    when (this) {
+        ImeAction.Done -> "done"
+        ImeAction.Next -> "next"
+        ImeAction.Previous -> "previous"
+        ImeAction.Go -> "go"
+        ImeAction.Search -> "search"
+        ImeAction.Send -> "send"
+        else -> null
+    }
