@@ -26,11 +26,13 @@ class ServerEnv(
     /**
      * true のまま http で開くとログインできない
      */
-    val cookieSecure: Boolean =
-        values["COOKIE_SECURE"]?.let { raw ->
-            raw.lowercase().toBooleanStrictOrNull()
-                ?: throw IllegalArgumentException("COOKIE_SECURE は true か false にすること: $raw")
-        } ?: true
+    val cookieSecure: Boolean = booleanOf("COOKIE_SECURE") ?: true
+
+    /**
+     * Cloudflare の後ろに置くと接続元が Cloudflare の IP になるので、CF-Connecting-IP を接続元として使う。
+     * Cloudflare を通らずに直接届く経路があると、ヘッダーを偽って他人の IP を名乗れる
+     */
+    val trustCfConnectingIp: Boolean = booleanOf("TRUST_CF_CONNECTING_IP") ?: false
 
     /**
      * Android アプリのパスキーを受け付けるときに設定する。
@@ -69,6 +71,12 @@ class ServerEnv(
             origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
         )
     }
+
+    private fun booleanOf(name: String): Boolean? =
+        values[name]?.let { raw ->
+            raw.lowercase().toBooleanStrictOrNull()
+                ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
+        }
 }
 
 /**

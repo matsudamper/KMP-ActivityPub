@@ -5,7 +5,9 @@ import java.sql.Connection
 import java.util.concurrent.locks.ReentrantLock
 import javax.sql.DataSource
 import kotlin.concurrent.withLock
+import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import org.sqlite.SQLiteDataSource
 
 /**
@@ -22,10 +24,11 @@ internal class SqliteConnectionManager(
         Files.createDirectories(path.parent)
 
         // DriverManager の ServiceLoader は native-image で追加設定が要る
-        val dataSource: DataSource =
+        val sqliteDataSource =
             SQLiteDataSource().apply {
                 url = "jdbc:sqlite:$path"
             }
+        val dataSource: DataSource = JdbcTelemetry.create(OpenTelemetryInitializer.get()).wrap(sqliteDataSource)
         connection = dataSource.connection
         try {
             applyPragmas(connection)
