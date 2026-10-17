@@ -64,12 +64,14 @@ internal class SqliteAccountRepository(
             }
     }
 
-    override fun findPrivateKeyPem(id: AccountId): String? = jooq.withConnection { dsl ->
+    override fun findPublicKeyPem(username: String): String? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNT_KEYS.PRIVATE_KEY_PEM)
-            .from(ACCOUNT_KEYS)
-            .where(ACCOUNT_KEYS.ACCOUNT_ID.eq(id.value))
+            .select(ACCOUNT_KEYS.PUBLIC_KEY_PEM)
+            .from(ACCOUNTS)
+            .join(ACCOUNT_KEYS)
+            .on(ACCOUNT_KEYS.ACCOUNT_ID.eq(ACCOUNTS.ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .fetchOne()
-            ?.get(ACCOUNT_KEYS.PRIVATE_KEY_PEM)
+            ?.get(ACCOUNT_KEYS.PUBLIC_KEY_PEM)
     }
 }

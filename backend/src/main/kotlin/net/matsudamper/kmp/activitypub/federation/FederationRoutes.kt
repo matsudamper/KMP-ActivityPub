@@ -19,7 +19,6 @@ import net.matsudamper.kotpub.actor.ActorProfile
 import net.matsudamper.kotpub.actor.StoredActorAppearances
 import net.matsudamper.kotpub.actor.StoredActorProfiles
 import net.matsudamper.kotpub.http.EndpointResponse
-import net.matsudamper.kotpub.http.HttpStatusCodes
 import net.matsudamper.kotpub.webfinger.WebFingerEndpoint
 
 internal fun Route.federationRoutes(
@@ -28,6 +27,14 @@ internal fun Route.federationRoutes(
 ) {
     val directory = ActorDirectory(domain = localDomain, stored = AccountActorNames(accountService))
     val webFingerEndpoint = WebFingerEndpoint(directory)
+    val actorEndpoint =
+        ActorEndpoint(
+            directory = directory,
+            publicKeys = AccountActorPublicKeys(accountService),
+            appearances = EmptyActorAppearances,
+            profiles = EmptyActorProfiles,
+            webPages = null,
+        )
 
     get("/.well-known/webfinger") {
         // ActorDirectory が DB を引く
@@ -36,22 +43,9 @@ internal fun Route.federationRoutes(
     }
 
     get("/users/{username}") {
-        val username = call.parameters["username"]
         val response =
             withContext(Dispatchers.IO) {
-                // kotpub の ActorEndpoint は鍵を 1 つしか受け取らないので、アカウントの鍵ごとに作る
-                val actorKey = username?.let { accountService.account(it) }?.let { accountService.actorKey(it.id) }
-                if (actorKey == null) {
-                    EndpointResponse.text(status = HttpStatusCodes.NOT_FOUND, text = "アクターが見つからない: $username", headers = mapOf())
-                } else {
-                    ActorEndpoint(
-                        directory = directory,
-                        actorKey = actorKey,
-                        appearances = EmptyActorAppearances,
-                        profiles = EmptyActorProfiles,
-                        webPages = null,
-                    ).get(username = username, accept = call.request.header(HttpHeaders.Accept))
-                }
+                actorEndpoint.get(username = call.parameters["username"], accept = call.request.header(HttpHeaders.Accept))
             }
         call.respondEndpoint(response)
     }

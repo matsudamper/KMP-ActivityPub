@@ -92,7 +92,7 @@ class FederationRoutesTest {
 
     private fun ApplicationTestBuilder.setUp() {
         val id = repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "type")
-        repositories.accountRepository.addPrivateKeyPem(id = id, privateKeyPem = RsaKeys.encodeToPem(keyPair.private))
+        repositories.accountRepository.addPublicKeyPem(id = id, publicKeyPem = RsaKeys.encodeToPem(keyPair.public))
         application {
             module(TestDependencies(repositories = repositories, env = ServerEnv(mapOf("DOMAIN" to "example.com"))))
         }
