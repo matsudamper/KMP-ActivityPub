@@ -60,20 +60,27 @@ internal object BrowserHistory {
     private class BackStackHistorySync(
         private val backStack: NavBackStack<NavKey>,
     ) {
-        // 再読み込みすると積み上げは作り直されるが、それより前の履歴は残るので 0 とは限らない
-        private var stackBottomHistoryIndex = historyIndexOf(window.history.state) ?: 0
-        private var currentHistoryIndex = stackBottomHistoryIndex
+        private var stackBottomHistoryIndex = 0
+        private var currentHistoryIndex = 0
         private val popStateListener: (Event) -> Unit = { event ->
             onPopState(historyIndexOf((event as PopStateEvent).state))
         }
 
         fun start() {
-            backStack.forEachIndexed { stackIndex, key ->
-                val historyIndex = stackBottomHistoryIndex + stackIndex
-                if (stackIndex == 0) {
-                    window.history.replaceState(historyIndex.toJsNumber(), "", pathOf(key))
-                } else {
-                    window.history.pushState(historyIndex.toJsNumber(), "", pathOf(key))
+            val reloadedHistoryIndex = historyIndexOf(window.history.state)
+            if (reloadedHistoryIndex != null && reloadedHistoryIndex >= backStack.lastIndex) {
+                // 再読み込み。下に積んだ画面の履歴は前回の起動で載せてあるので、そのまま使う
+                stackBottomHistoryIndex = reloadedHistoryIndex - backStack.lastIndex
+                window.history.replaceState(reloadedHistoryIndex.toJsNumber(), "", pathOf(backStack.last()))
+            } else {
+                stackBottomHistoryIndex = reloadedHistoryIndex ?: 0
+                backStack.forEachIndexed { stackIndex, key ->
+                    val historyIndex = stackBottomHistoryIndex + stackIndex
+                    if (stackIndex == 0) {
+                        window.history.replaceState(historyIndex.toJsNumber(), "", pathOf(key))
+                    } else {
+                        window.history.pushState(historyIndex.toJsNumber(), "", pathOf(key))
+                    }
                 }
             }
             currentHistoryIndex = stackBottomHistoryIndex + backStack.lastIndex
