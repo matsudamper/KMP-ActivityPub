@@ -19,7 +19,7 @@ class QueryResolverImpl : QueryResolver {
             if (accountId == null) {
                 null
             } else {
-                QlUserInfo(id = accountId.value.toString())
+                QlUserInfo(id = accountId)
             }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlUserInfo?>(userInfo).build())
     }

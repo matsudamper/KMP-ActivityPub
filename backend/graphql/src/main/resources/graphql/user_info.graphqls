@@ -1,3 +1,5 @@
+scalar UserId
+
 type UserInfo {
-    id: ID!
+    id: UserId!
 }

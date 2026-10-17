@@ -10,6 +10,7 @@ plugins {
 dependencies {
     api(libs.graphql.kickstart.tools)
     api(libs.graphql.java)
+    api(project(":shared"))
 }
 
 val generatedSourcesDirectory = layout.buildDirectory.dir("generated/codegen")
@@ -38,6 +39,7 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     packageName = "net.matsudamper.kmp.activitypub.graphql.model"
 
     modelNamePrefix = "Ql"
+    customTypesMapping = mutableMapOf("UserId" to "net.matsudamper.kmp.activitypub.shared.AccountId")
     generateImmutableModels = true
     generateBuilder = false
 
