@@ -1,6 +1,8 @@
 import com.kobylynskyi.graphql.codegen.model.ApiInterfaceStrategy
 import com.kobylynskyi.graphql.codegen.model.GeneratedLanguage
 import io.github.kobylynskyi.graphql.codegen.gradle.GraphQLCodegenGradleTask
+import net.matsudamper.kmp.activitypub.gradle.GenerateGraphqlSchemaListTask
+import net.matsudamper.kmp.activitypub.gradle.GraphqlSchemaListPlugin
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -14,19 +16,27 @@ dependencies {
 }
 
 val generatedSourcesDirectory = layout.buildDirectory.dir("generated/codegen")
-val schemaDirectory = layout.projectDirectory.dir("src/main/resources/graphql")
+val generatedSchemaListDirectory = layout.buildDirectory.dir("generated/graphql-schema-list")
+val graphqlSchemaDirectory = layout.projectDirectory.dir("src/main/resources/graphql")
+
+val generateGraphqlSchemaList =
+    tasks.named<GenerateGraphqlSchemaListTask>(GraphqlSchemaListPlugin.TASK_NAME) {
+        schemaDirectory.set(graphqlSchemaDirectory)
+        outputFile.set(generatedSchemaListDirectory.map { it.file("graphql/schema-list.txt") })
+    }
 
 kotlin {
     jvmToolchain(25)
 
     sourceSets.named("main") {
         kotlin.srcDir(generatedSourcesDirectory)
+        resources.srcDir(generateGraphqlSchemaList.map { generatedSchemaListDirectory })
     }
 }
 
 tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     graphqlSchemaPaths =
-        schemaDirectory.asFile
+        graphqlSchemaDirectory.asFile
             .listFiles()
             .orEmpty()
             .filter { it.extension == "graphqls" }
