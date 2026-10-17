@@ -19,7 +19,7 @@ class ServerEnv(
     /**
      * Valkey を使わないテストでも ServerEnv を作れるよう、読んだときに検査する
      */
-    val valkeyUri: String get() = checkNotNull(values["VALKEY_URI"]) { "VALKEY_URI を指定すること" }
+    val valkeyUri: String by lazy { checkNotNull(values["VALKEY_URI"]) { "VALKEY_URI を指定すること" } }
 
     /**
      * true のまま http で開くとログインできない
