@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
+import net.matsudamper.kmp.activitypub.wellknown.wellKnownRoutes
 
 fun main() {
     val serverEnv = ServerEnv()
@@ -49,6 +50,9 @@ internal fun Application.module(deps: AppDependencies) {
         )
     }
 
+    val passkeyRelyingParty = deps.env.passkeyRelyingParty
+    log.info("パスキーの RP ID: ${passkeyRelyingParty.id} origin: ${passkeyRelyingParty.origins.joinToString()}")
+
     if (!deps.env.cookieSecure) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
@@ -67,7 +71,10 @@ internal fun Application.module(deps: AppDependencies) {
                     cookieSecure = deps.env.cookieSecure,
                 )
             },
-            diContainer = DiContainer(accountService = deps.accountService),
+            diContainer = DiContainer(
+                accountService = deps.accountService,
+                passkeyService = deps.passkeyService,
+            ),
         )
 
     routing {
@@ -78,6 +85,7 @@ internal fun Application.module(deps: AppDependencies) {
             call.respondText("Hello World")
         }
         graphQlRoutes(graphQl)
+        wellKnownRoutes(deps.env.passkeyAndroidApp)
         staticRoutes(staticFiles)
     }
 }

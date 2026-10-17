@@ -57,7 +57,7 @@ class MainTest {
             tempDir.resolve("index.html").writeText("<html><body>Hello</body></html>")
 
             application {
-                module(TestDependencies(env = ServerEnv(mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
+                module(TestDependencies(env = ServerEnv(TestEnv.REQUIRED + mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
             }
 
             val response = client.get("/")
@@ -72,7 +72,7 @@ class MainTest {
             tempDir.resolve("index.html").writeText("<html><body>Hello</body></html>")
 
             application {
-                module(TestDependencies(env = ServerEnv(mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
+                module(TestDependencies(env = ServerEnv(TestEnv.REQUIRED + mapOf("STATIC_SRC_DIR" to tempDir.toString()))))
             }
 
             val pageResponse = client.get("/@john.doe") { header(HttpHeaders.Accept, "text/html,*/*;q=0.8") }
@@ -82,4 +82,38 @@ class MainTest {
             val scriptResponse = client.get("/missing.js") { header(HttpHeaders.Accept, "*/*") }
             assertEquals(HttpStatusCode.NotFound, scriptResponse.status)
         }
+
+    @Test
+    fun `Android アプリを設定すると assetlinks json を返す`() =
+        testApplication {
+            application {
+                module(
+                    TestDependencies(
+                        env = ServerEnv(TestEnv.REQUIRED + mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app", "PASSKEY_ANDROID_CERT_SHA256" to FINGERPRINT)),
+                    ),
+                )
+            }
+
+            val response = client.get("/.well-known/assetlinks.json")
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(
+                """[{"relation":["delegate_permission/common.get_login_creds"],""" +
+                    """"target":{"namespace":"android_app","package_name":"com.example.app","sha256_cert_fingerprints":["$FINGERPRINT"]}}]""",
+                response.bodyAsText(),
+            )
+        }
+
+    @Test
+    fun `Android アプリが未設定なら assetlinks json は 404`() =
+        testApplication {
+            application {
+                module(TestDependencies())
+            }
+
+            assertEquals(HttpStatusCode.NotFound, client.get("/.well-known/assetlinks.json").status)
+        }
+
+    private companion object {
+        val FINGERPRINT: String = List(32) { "AB" }.joinToString(":")
+    }
 }

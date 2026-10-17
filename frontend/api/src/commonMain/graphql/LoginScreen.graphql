@@ -5,3 +5,17 @@ mutation UserLogin($query: UserLoginQuery!) {
         }
     }
 }
+
+mutation PasskeyLoginOptions {
+    user {
+        passkeyLoginOptions
+    }
+}
+
+mutation PasskeyLogin($credential: String!) {
+    user {
+        passkeyLogin(credential: $credential) {
+            failure
+        }
+    }
+}

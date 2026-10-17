@@ -9,6 +9,13 @@ type Query {
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
     user(username: String!): User
+    "ログイン中のアカウントのパスキー。ログインしていなければ null"
+    passkeys: [RegisteredPasskey!] @lazy
+}
+
+type RegisteredPasskey {
+    id: PasskeyCredentialId!
+    name: String!
 }
 
 type Mutation {

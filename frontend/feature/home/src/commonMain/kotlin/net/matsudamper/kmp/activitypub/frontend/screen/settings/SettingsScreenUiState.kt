@@ -3,10 +3,61 @@ package net.matsudamper.kmp.activitypub.frontend.screen.settings
 import androidx.compose.runtime.Immutable
 
 data class SettingsScreenUiState(
+    val passkeyList: PasskeyList,
+    val passkeyNameInputVisible: Boolean,
+    val passkeyName: String,
+    val passkeyNameInputEnabled: Boolean,
+    val addPasskeyButtonVisible: Boolean,
+    val addPasskeyButtonEnabled: Boolean,
+    val passkeyMessage: PasskeyMessage?,
+    val deleteDialog: DeleteDialog?,
     val listener: Listener,
 ) {
+    sealed interface PasskeyList {
+        data object Loading : PasskeyList
+
+        data object Empty : PasskeyList
+
+        data class Error(
+            val message: String,
+        ) : PasskeyList
+
+        data class Items(
+            val items: List<PasskeyItem>,
+        ) : PasskeyList
+    }
+
+    data class PasskeyItem(
+        val name: String,
+        val deleteButtonEnabled: Boolean,
+        val listener: PasskeyItemListener,
+    )
+
+    data class PasskeyMessage(
+        val text: String,
+        val isError: Boolean,
+    )
+
+    data class DeleteDialog(
+        val passkeyName: String,
+        val deleteButtonEnabled: Boolean,
+    )
+
+    @Immutable
+    interface PasskeyItemListener {
+        fun onClickDelete()
+    }
+
     @Immutable
     interface Listener {
+        fun onPasskeyNameChanged(text: String)
+
+        fun onClickAddPasskey()
+
+        fun onClickConfirmDelete()
+
+        fun onDismissDeleteDialog()
+
         fun onClickBack()
 
         fun onClickLogout()

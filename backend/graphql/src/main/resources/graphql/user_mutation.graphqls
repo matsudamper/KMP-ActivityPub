@@ -1,5 +1,11 @@
 type UserMutation {
     login(query: UserLoginQuery!): UserLoginResult! @lazy
+    passkeyLoginOptions: String! @lazy
+    passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
+    "ログインしていなければ null"
+    passkeyRegistrationOptions: String @lazy
+    registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
+    deletePasskey(id: PasskeyCredentialId!): DeletePasskeyResult! @lazy
 }
 
 input UserLoginQuery {
@@ -14,4 +20,38 @@ type UserLoginResult {
 enum UserLoginFailure {
     "ユーザーがいないか、パスワードが違う。"
     WRONG_USERNAME_OR_PASSWORD
+}
+
+type UserPasskeyLoginResult {
+    failure: UserPasskeyLoginFailure
+}
+
+enum UserPasskeyLoginFailure {
+    NOT_ACCEPTED
+}
+
+input RegisterPasskeyQuery {
+    name: String!
+    credential: String!
+}
+
+type RegisterPasskeyResult {
+    failure: RegisterPasskeyFailure
+}
+
+enum RegisterPasskeyFailure {
+    NOT_LOGGED_IN
+    NOT_ACCEPTED
+    ALREADY_REGISTERED
+    INVALID_NAME
+}
+
+type DeletePasskeyResult {
+    failure: DeletePasskeyFailure
+}
+
+enum DeletePasskeyFailure {
+    NOT_LOGGED_IN
+    "ログイン中のアカウントのパスキーではない"
+    NOT_FOUND
 }

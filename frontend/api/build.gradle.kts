@@ -37,5 +37,6 @@ apollo {
             rootProject.fileTree("backend/graphql/src/main/resources/graphql") { include("*.graphqls") },
         )
         mapScalarToKotlinString("UserId")
+        mapScalarToKotlinString("PasskeyCredentialId")
     }
 }

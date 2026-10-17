@@ -4,11 +4,18 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
+import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.Repositories
+import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository()
+
+    override val passkeyRepository: PasskeyRepository = FakePasskeyRepository()
 
     override fun close() = Unit
 }
@@ -34,4 +41,56 @@ internal class FakeAccountRepository : AccountRepository {
 
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }
+}
+
+private class FakePasskeyRepository : PasskeyRepository {
+    private val userHandles = mutableMapOf<AccountId, PasskeyUserHandle>()
+    private val passkeys = mutableMapOf<PasskeyCredentialId, StoredPasskey>()
+    private val names = mutableMapOf<PasskeyCredentialId, String>()
+
+    override fun userHandle(
+        accountId: AccountId,
+        newUserHandle: () -> PasskeyUserHandle,
+    ): PasskeyUserHandle = userHandles.getOrPut(accountId, newUserHandle)
+
+    override fun passkeys(accountId: AccountId): List<PasskeySummary> =
+        passkeys
+            .filterValues { it.accountId == accountId }
+            .keys
+            .map { PasskeySummary(credentialId = it, name = names.getValue(it), createdAt = Instant.EPOCH, lastUsedAt = null) }
+
+    override fun add(
+        accountId: AccountId,
+        credentialId: PasskeyCredentialId,
+        publicKey: ByteArray,
+        signCount: Long,
+        name: String,
+        createdAt: Instant,
+    ): Boolean {
+        if (credentialId in passkeys) return false
+        passkeys[credentialId] = StoredPasskey(accountId = accountId, userHandle = userHandles[accountId], publicKey = publicKey, signCount = signCount)
+        names[credentialId] = name
+        return true
+    }
+
+    override fun delete(
+        accountId: AccountId,
+        credentialId: PasskeyCredentialId,
+    ): Boolean {
+        if (passkeys[credentialId]?.accountId != accountId) return false
+        passkeys.remove(credentialId)
+        names.remove(credentialId)
+        return true
+    }
+
+    override fun findByCredentialId(credentialId: PasskeyCredentialId): StoredPasskey? = passkeys[credentialId]
+
+    override fun updateSignCount(
+        credentialId: PasskeyCredentialId,
+        signCount: Long,
+        usedAt: Instant,
+    ) {
+        val passkey = passkeys[credentialId] ?: return
+        passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.publicKey, maxOf(passkey.signCount, signCount))
+    }
 }

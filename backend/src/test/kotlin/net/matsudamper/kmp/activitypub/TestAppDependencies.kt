@@ -3,5 +3,9 @@ package net.matsudamper.kmp.activitypub
 @Suppress("FunctionName")
 internal fun TestDependencies(
     repositories: FakeRepositories = FakeRepositories(),
-    env: ServerEnv = ServerEnv(emptyMap()),
-): AppDependencies = AppDependencies(repositories = repositories, sessionStore = FakeUserSessionStore(), env = env)
+    env: ServerEnv = ServerEnv(TestEnv.REQUIRED),
+): AppDependencies = AppDependencies(repositories = repositories, sessionStore = FakeUserSessionStore(), passkeyChallengeStore = FakePasskeyChallengeStore(), env = env)
+
+internal object TestEnv {
+    val REQUIRED: Map<String, String> = mapOf("PASSKEY_RP_ID" to "localhost")
+}
