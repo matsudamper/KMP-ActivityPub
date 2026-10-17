@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.ktor.server.cio)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.opentelemetry.ktor3)
+    implementation(libs.opentelemetry.extension.kotlin)
     implementation(libs.opentelemetry.graphql.java)
 
     compileOnly(libs.graalvm.nativeimage)
