@@ -22,29 +22,20 @@ class ValkeyLoginFailureStore(
     private val client: RedisClient = RedisClient.create(clientResources, uri)
     private val connection: StatefulRedisConnection<String, String> = client.connect()
 
-    override fun totalCount(clientIp: String): Long =
-        connection.sync().hvals(keyOf(clientIp)).sumOf { it.toLong() }
-
-    override fun increment(
+    override fun reserve(
         clientIp: String,
         username: String,
+        maxFailures: Int,
         ttl: Duration,
-    ) {
+    ): Boolean =
         connection.sync().eval<Long>(
-            INCREMENT_WITH_TTL_SCRIPT,
+            RESERVE_SCRIPT,
             ScriptOutputType.INTEGER,
             arrayOf(keyOf(clientIp)),
             username,
             ttl.inWholeSeconds.toString(),
-        )
-    }
-
-    override fun extend(
-        clientIp: String,
-        ttl: Duration,
-    ) {
-        connection.sync().expire(keyOf(clientIp), ttl.inWholeSeconds)
-    }
+            maxFailures.toString(),
+        ) == 1L
 
     override fun clear(
         clientIp: String,
@@ -63,12 +54,20 @@ class ValkeyLoginFailureStore(
 
     private companion object {
         /**
-         * HINCRBY と EXPIRE の間で落ちると期限の無いキーが残り、締め出しが解けなくなるので 1 回で行う
+         * 合計の判定と加算の間に他のリクエストが入ると上限を超えて照合できるので、1 回で行う
          */
-        const val INCREMENT_WITH_TTL_SCRIPT = """
-            local count = redis.call('HINCRBY', KEYS[1], ARGV[1], 1)
+        const val RESERVE_SCRIPT = """
+            local total = 0
+            for _, count in ipairs(redis.call('HVALS', KEYS[1])) do
+                total = total + tonumber(count)
+            end
+            if total >= tonumber(ARGV[3]) then
+                redis.call('EXPIRE', KEYS[1], ARGV[2])
+                return 0
+            end
+            redis.call('HINCRBY', KEYS[1], ARGV[1], 1)
             redis.call('EXPIRE', KEYS[1], ARGV[2])
-            return count
+            return 1
         """
     }
 }
