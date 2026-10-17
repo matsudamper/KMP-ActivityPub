@@ -29,7 +29,10 @@ class UserMutationResolverImpl : UserMutationResolver {
         val clientIp = context.clientIp
         val username = query.username.trim()
         if (!loginThrottle.tryReserve(clientIp = clientIp, username = username)) {
-            TraceLogger.impl().noticeInfo("ログインの失敗が続いている IP なので照合せずに断り、締め出しを延ばした: $clientIp")
+            val traceLogger = TraceLogger.impl()
+            traceLogger.setAttribute("login.client_ip", clientIp)
+            traceLogger.setAttribute("login.username", username)
+            traceLogger.noticeInfo("ログインの失敗が続いている IP なので照合せずに断り、締め出しを延ばした")
             val result = QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
             return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
         }
