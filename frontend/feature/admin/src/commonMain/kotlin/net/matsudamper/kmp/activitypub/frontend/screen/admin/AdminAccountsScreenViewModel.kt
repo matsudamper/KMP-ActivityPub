@@ -65,10 +65,14 @@ class AdminAccountsScreenViewModel(
         }.asStateFlow()
 
     /**
-     * 履歴から戻ってきたときも呼ばれる。読み込み済みの続きのページを捨てないよう、読み込むのは初回だけ
+     * 履歴から戻ってきたときも呼ばれる。読み込み済みの続きのページを捨てないよう、一覧を読み込むのは初回だけ。
+     * 離れている間にログアウトしているかもしれないので、セッションは毎回確認し直す
      */
     fun onStart() {
-        if (started) return
+        if (started) {
+            watchSession()
+            return
+        }
         started = true
         reload()
     }
@@ -88,6 +92,11 @@ class AdminAccountsScreenViewModel(
         loadMoreJob?.cancel()
         accountsJob = null
         viewModelStateFlow.update { ViewModelState() }
+        watchSession()
+    }
+
+    private fun watchSession() {
+        sessionJob?.cancel()
         sessionJob = viewModelScope.launch {
             api.session().collect { session ->
                 viewModelStateFlow.update { it.copy(session = session) }
