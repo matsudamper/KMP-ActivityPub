@@ -5,7 +5,6 @@ import java.time.Clock
 import java.util.Base64
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
-import net.matsudamper.kmp.activitypub.passkey.PasskeyClientData
 import net.matsudamper.kmp.activitypub.passkey.PasskeyJson
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 import net.matsudamper.kmp.activitypub.passkey.PasskeyVerificationException
@@ -48,25 +47,22 @@ class PasskeyService(
      */
     fun login(credentialJson: String): AccountId? =
         verifyOrNull {
-            val response = PasskeyJson.parseAuthenticationResponse(credentialJson)
-            val clientData = PasskeyClientData.parse(response.clientDataJson)
-            if (!challengeStore.consume(clientData.challenge, PasskeyChallengePurpose.Authentication, accountId = null)) {
+            val authentication = verifier.parseAuthentication(credentialJson)
+            if (!challengeStore.consume(authentication.challenge, PasskeyChallengePurpose.Authentication, accountId = null)) {
                 throw PasskeyVerificationException("発行していないか期限切れの challenge")
             }
 
-            val credentialId = PasskeyCredentialId(encode(response.credentialId))
+            val credentialId = PasskeyCredentialId(encode(authentication.credentialId))
             val passkey =
                 passkeyRepository.findByCredentialId(credentialId)
                     ?: throw PasskeyVerificationException("登録されていない credential ID")
             // 別のアカウントのパスキーで、このアカウントの user handle を名乗っていないかを見る
-            val userHandle = response.userHandle
+            val userHandle = authentication.userHandle
             if (userHandle != null && PasskeyUserHandle(encode(userHandle)) != passkey.userHandle) throw PasskeyVerificationException("user handle が持ち主と合わない")
 
             val signCount =
                 verifier.verifyAuthentication(
-                    clientData = clientData,
-                    authenticatorData = response.authenticatorData,
-                    signature = response.signature,
+                    authentication = authentication,
                     publicKey = passkey.publicKey,
                     storedSignCount = passkey.signCount,
                 )
@@ -111,13 +107,12 @@ class PasskeyService(
 
         val registered =
             verifyOrNull {
-                val response = PasskeyJson.parseRegistrationResponse(credentialJson)
-                val clientData = PasskeyClientData.parse(response.clientDataJson)
+                val registration = verifier.parseRegistration(credentialJson)
                 // 別のアカウント向けに発行した challenge では足させない
-                if (!challengeStore.consume(clientData.challenge, PasskeyChallengePurpose.Registration, accountId = accountId)) {
+                if (!challengeStore.consume(registration.challenge, PasskeyChallengePurpose.Registration, accountId = accountId)) {
                     throw PasskeyVerificationException("発行していないか期限切れの challenge")
                 }
-                verifier.verifyRegistration(clientData, response.attestationObject)
+                verifier.verifyRegistration(registration)
             } ?: return RegistrationResult.NotAccepted
 
         val added =

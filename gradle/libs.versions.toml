@@ -34,6 +34,7 @@ springCore = "7.0.9"
 sqliteJdbc = "3.53.4.0"
 jooq = "3.21.9"
 lettuce = "7.9.0.RELEASE"
+webauthn4j = "0.31.11.RELEASE"
 koin = "4.2.2"
 koinPlugin = "1.2.1"
 okhttp = "5.5.0"
@@ -80,6 +81,7 @@ spring-core = { module = "org.springframework:spring-core", version.ref = "sprin
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqliteJdbc" }
 jooq = { module = "org.jooq:jooq", version.ref = "jooq" }
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
+webauthn4j-core = { module = "com.webauthn4j:webauthn4j-core", version.ref = "webauthn4j" }
 jooq-codegen = { module = "org.jooq:jooq-codegen", version.ref = "jooq" }
 jooq-codegen-gradle = { module = "org.jooq:jooq-codegen-gradle", version.ref = "jooq" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }

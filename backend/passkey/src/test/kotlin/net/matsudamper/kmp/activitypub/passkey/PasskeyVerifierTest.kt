@@ -25,6 +25,13 @@ class PasskeyVerifierTest {
     }
 
     @Test
+    fun `応答から challenge を取り出せる`() {
+        val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
+
+        assertEquals(TestAuthenticator.challenge(), verifier.parseRegistration(registrationJson(authenticator)).challenge)
+    }
+
+    @Test
     fun `別の鍵の署名は通らない`() {
         val registered = register(TestAuthenticator(TestPasskeyAlgorithm.ES256))
 
@@ -36,40 +43,36 @@ class PasskeyVerifierTest {
     @Test
     fun `許可していない origin は通らない`() {
         val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
-        val clientData = authenticator.clientData(type = "webauthn.create", challenge = TestAuthenticator.challenge(), origin = "https://evil.example")
 
         assertFailsWith<PasskeyVerificationException> {
-            verifier.verifyRegistration(PasskeyClientData.parse(clientData), authenticator.attestationObject())
+            verifier.verifyRegistration(verifier.parseRegistration(registrationJson(authenticator, origin = "https://evil.example")))
         }
     }
 
     @Test
     fun `ログイン用の clientDataJSON では登録できない`() {
         val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
-        val clientData = authenticator.clientData(type = "webauthn.get", challenge = TestAuthenticator.challenge())
 
         assertFailsWith<PasskeyVerificationException> {
-            verifier.verifyRegistration(PasskeyClientData.parse(clientData), authenticator.attestationObject())
+            verifier.verifyRegistration(verifier.parseRegistration(registrationJson(authenticator, type = "webauthn.get")))
         }
     }
 
     @Test
     fun `別の RP ID で作られたパスキーは登録できない`() {
         val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256, rpId = "evil.example")
-        val clientData = authenticator.clientData(type = "webauthn.create", challenge = TestAuthenticator.challenge())
 
         assertFailsWith<PasskeyVerificationException> {
-            verifier.verifyRegistration(PasskeyClientData.parse(clientData), authenticator.attestationObject())
+            verifier.verifyRegistration(verifier.parseRegistration(registrationJson(authenticator)))
         }
     }
 
     @Test
     fun `本人確認の無い登録は通らない`() {
         val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
-        val clientData = authenticator.clientData(type = "webauthn.create", challenge = TestAuthenticator.challenge())
 
         assertFailsWith<PasskeyVerificationException> {
-            verifier.verifyRegistration(PasskeyClientData.parse(clientData), authenticator.attestationObject(flags = 0x01))
+            verifier.verifyRegistration(verifier.parseRegistration(registrationJson(authenticator, flags = 0x01)))
         }
     }
 
@@ -92,54 +95,27 @@ class PasskeyVerifierTest {
     }
 
     @Test
-    fun `authenticator data の後ろに余分なバイトがあれば通らない`() {
-        val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
-        val registered = register(authenticator)
-        val clientData = authenticator.clientData(type = "webauthn.get", challenge = TestAuthenticator.challenge())
-        val authenticatorData = authenticator.authenticatorData(signCount = 1) + byteArrayOf(0)
-
+    fun `JSON として読めない応答は検証の失敗として扱う`() {
         assertFailsWith<PasskeyVerificationException> {
-            verifier.verifyAuthentication(
-                clientData = PasskeyClientData.parse(clientData),
-                authenticatorData = authenticatorData,
-                signature = authenticator.sign(authenticatorData, clientData),
-                publicKey = registered.publicKey,
-                storedSignCount = 0,
-            )
+            verifier.parseRegistration("{")
+        }
+        assertFailsWith<PasskeyVerificationException> {
+            verifier.parseAuthentication("{")
         }
     }
 
-    @Test
-    fun `clientDataJSON から challenge を取り出せる`() {
-        val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
-        val clientData = authenticator.clientData(type = "webauthn.get", challenge = TestAuthenticator.challenge())
+    private fun registrationJson(
+        authenticator: TestAuthenticator,
+        type: String = "webauthn.create",
+        origin: String = TestAuthenticator.ORIGIN,
+        flags: Int = TestAuthenticator.FLAGS_UP_UV,
+    ): String =
+        authenticator.registrationResponseJson(
+            clientData = authenticator.clientData(type = type, challenge = TestAuthenticator.challenge(), origin = origin),
+            attestationObject = authenticator.attestationObject(flags = flags),
+        )
 
-        assertEquals(TestAuthenticator.challenge(), PasskeyClientData.parse(clientData).challenge)
-    }
-
-    @Test
-    fun `JSON として読めない clientDataJSON は検証の失敗として扱う`() {
-        assertFailsWith<PasskeyVerificationException> {
-            PasskeyClientData.parse("{".encodeToByteArray())
-        }
-    }
-
-    @Test
-    fun `UTF-8 として読めない文字列を含む attestationObject は検証の失敗として扱う`() {
-        val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
-        val clientData = authenticator.clientData(type = "webauthn.create", challenge = TestAuthenticator.challenge())
-        // 要素 1 の map で、キーが 1 バイトの文字列 0xFF、値が 0
-        val attestationObject = byteArrayOf(0xA1.toByte(), 0x61, 0xFF.toByte(), 0x00)
-
-        assertFailsWith<PasskeyVerificationException> {
-            verifier.verifyRegistration(PasskeyClientData.parse(clientData), attestationObject)
-        }
-    }
-
-    private fun register(authenticator: TestAuthenticator): RegisteredPasskey {
-        val clientData = authenticator.clientData(type = "webauthn.create", challenge = TestAuthenticator.challenge())
-        return verifier.verifyRegistration(PasskeyClientData.parse(clientData), authenticator.attestationObject())
-    }
+    private fun register(authenticator: TestAuthenticator): RegisteredPasskey = verifier.verifyRegistration(verifier.parseRegistration(registrationJson(authenticator)))
 
     private fun authenticate(
         authenticator: TestAuthenticator,
@@ -147,14 +123,12 @@ class PasskeyVerifierTest {
         signCount: Long,
         storedSignCount: Long,
     ): Long {
-        val clientData = authenticator.clientData(type = "webauthn.get", challenge = TestAuthenticator.challenge())
-        val authenticatorData = authenticator.authenticatorData(signCount = signCount)
-        return verifier.verifyAuthentication(
-            clientData = PasskeyClientData.parse(clientData),
-            authenticatorData = authenticatorData,
-            signature = authenticator.sign(authenticatorData, clientData),
-            publicKey = publicKey,
-            storedSignCount = storedSignCount,
-        )
+        val json =
+            authenticator.authenticationResponseJson(
+                clientData = authenticator.clientData(type = "webauthn.get", challenge = TestAuthenticator.challenge()),
+                authenticatorData = authenticator.authenticatorData(signCount = signCount),
+                userHandle = null,
+            )
+        return verifier.verifyAuthentication(verifier.parseAuthentication(json), publicKey = publicKey, storedSignCount = storedSignCount)
     }
 }

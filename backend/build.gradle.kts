@@ -50,6 +50,7 @@ graalvmNative {
             mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
             buildArgs.add("--no-fallback")
             buildArgs.add("--features=net.matsudamper.kmp.activitypub.graalvm.GraphQlReflectionFeature")
+            buildArgs.add("--features=net.matsudamper.kmp.activitypub.passkey.graalvm.WebAuthn4jReflectionFeature")
             // native-image が解析中に @Deprecated の既定値を読み、ビルド時初期化で落ちる
             buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
             // jOOQ の組み込み型登録が Class.arrayType() を使い、native-image では欠けた配列型で NPE になる

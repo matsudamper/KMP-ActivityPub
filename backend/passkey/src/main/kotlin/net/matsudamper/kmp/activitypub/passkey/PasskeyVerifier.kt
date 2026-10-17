@@ -1,103 +1,140 @@
 package net.matsudamper.kmp.activitypub.passkey
 
-import java.security.MessageDigest
+import java.util.Base64
+import com.webauthn4j.WebAuthnManager
+import com.webauthn4j.converter.exception.DataConversionException
+import com.webauthn4j.converter.util.ObjectConverter
+import com.webauthn4j.credential.CredentialRecordImpl
+import com.webauthn4j.data.AuthenticationData
+import com.webauthn4j.data.AuthenticationParameters
+import com.webauthn4j.data.PublicKeyCredentialParameters
+import com.webauthn4j.data.PublicKeyCredentialType
+import com.webauthn4j.data.RegistrationData
+import com.webauthn4j.data.RegistrationParameters
+import com.webauthn4j.data.attestation.authenticator.AAGUID
+import com.webauthn4j.data.attestation.authenticator.AttestedCredentialData
+import com.webauthn4j.data.attestation.authenticator.COSEKey
+import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier
+import com.webauthn4j.data.attestation.statement.NoneAttestationStatement
+import com.webauthn4j.data.client.Origin
+import com.webauthn4j.data.client.challenge.DefaultChallenge
+import com.webauthn4j.server.ServerProperty
+import com.webauthn4j.verifier.exception.VerificationException
+import tools.jackson.core.JacksonException
 
 /**
- * WebAuthn Level 3 の 7.1 / 7.2 の検証のうち、challenge の照合と保存した鍵の出し入れ以外を行う。
- * challenge は呼び出し側が [PasskeyClientData.challenge] を発行済みのものと突き合わせ、使い捨てにする。
+ * 受け取った応答を [parseRegistration] / [parseAuthentication] で読み、呼び出し側が challenge を
+ * 発行済みのものと突き合わせて使い捨てにしてから、[verifyRegistration] / [verifyAuthentication] で検証する。
  *
- * attestation は求めない（"none"）。認証器の機種を問わないので、届いた attestation statement は検証しない
+ * attestation は求めない（"none"）。パスワードの代わりにするので、本人確認（UV）は必須にする
  */
 class PasskeyVerifier(
     private val relyingParty: PasskeyRelyingParty,
 ) {
+    private val objectConverter = ObjectConverter()
+    private val webAuthnManager = WebAuthnManager.createNonStrictWebAuthnManager(objectConverter)
+    private val origins = relyingParty.origins.map(Origin::create).toSet()
+
     /**
      * 登録で受け付ける署名方式の COSE の値。登録の要求に載せて、認証器にこの中から選ばせる
      */
-    val supportedAlgorithms: List<Long> = CoseAlgorithm.entries.map { it.coseValue }
+    val supportedAlgorithms: List<Long> = SUPPORTED_ALGORITHMS.map { it.value }
 
-    private val rpIdHash: ByteArray = MessageDigest.getInstance("SHA-256").digest(relyingParty.id.encodeToByteArray())
+    /**
+     * @param credentialJson RegistrationResponseJSON
+     * @throws PasskeyVerificationException
+     */
+    fun parseRegistration(credentialJson: String): PasskeyRegistration = PasskeyRegistration(convert { webAuthnManager.parseRegistrationResponseJSON(credentialJson) })
 
     /**
      * @throws PasskeyVerificationException
      */
-    fun verifyRegistration(
-        clientData: PasskeyClientData,
-        attestationObject: ByteArray,
-    ): RegisteredPasskey {
-        verifyClientData(clientData, expectedType = TYPE_CREATE)
+    fun verifyRegistration(registration: PasskeyRegistration): RegisteredPasskey {
+        val parameters =
+            RegistrationParameters(
+                serverProperty(registration.data.collectedClientData?.challenge?.value),
+                SUPPORTED_ALGORITHMS.map { PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, it) },
+                true,
+                true,
+            )
+        val verified = convert { webAuthnManager.verify(registration.data, parameters) }
+        val authenticatorData = verified.attestationObject?.authenticatorData ?: throw PasskeyVerificationException("attestationObject が無い")
+        val credential = authenticatorData.attestedCredentialData ?: throw PasskeyVerificationException("登録なのに credential が入っていない")
 
-        val reader = CborReader(attestationObject, startIndex = 0)
-        val attestation = reader.read() as? Map<*, *> ?: throw PasskeyVerificationException("attestationObject が map ではない")
-        if (reader.position != attestationObject.size) throw PasskeyVerificationException("attestationObject の後ろに余分なバイトがある")
-        val authenticatorDataBytes = attestation["authData"] as? ByteArray ?: throw PasskeyVerificationException("authData が無い")
-
-        val authenticatorData = AuthenticatorData.parse(authenticatorDataBytes)
-        verifyAuthenticatorData(authenticatorData)
-        val credential = authenticatorData.attestedCredential ?: throw PasskeyVerificationException("登録なのに credential が入っていない")
-
-        if (credential.publicKey.size > MAX_PUBLIC_KEY_BYTES) throw PasskeyVerificationException("公開鍵が大きすぎる")
-        // 組み立てられない鍵や対応しない方式は、保存する前にここで落とす
-        CosePublicKey.parse(credential.publicKey)
-
+        val publicKey = objectConverter.cborConverter.writeValueAsBytes(credential.coseKey)
+        if (publicKey.size > MAX_PUBLIC_KEY_BYTES) throw PasskeyVerificationException("公開鍵が大きすぎる")
         return RegisteredPasskey(
             credentialId = credential.credentialId,
-            publicKey = credential.publicKey,
+            publicKey = publicKey,
             signCount = authenticatorData.signCount,
         )
     }
 
     /**
+     * @param credentialJson AuthenticationResponseJSON
+     * @throws PasskeyVerificationException
+     */
+    fun parseAuthentication(credentialJson: String): PasskeyAuthentication = PasskeyAuthentication(convert { webAuthnManager.parseAuthenticationResponseJSON(credentialJson) })
+
+    /**
      * @param publicKey 登録時の [RegisteredPasskey.publicKey]
-     * @param storedSignCount 前回までに受け取った署名回数
+     * @param storedSignCount 前回までに受け取った署名回数。増えていなければ通さない（どちらも 0 なら比べない）
      * @return 今回の署名回数。次回の [storedSignCount] に渡す
      * @throws PasskeyVerificationException
      */
     fun verifyAuthentication(
-        clientData: PasskeyClientData,
-        authenticatorData: ByteArray,
-        signature: ByteArray,
+        authentication: PasskeyAuthentication,
         publicKey: ByteArray,
         storedSignCount: Long,
     ): Long {
-        verifyClientData(clientData, expectedType = TYPE_GET)
+        val coseKey = convert { objectConverter.cborConverter.readValue(publicKey, COSEKey::class.java) } ?: throw PasskeyVerificationException("保存した公開鍵を読めない")
+        val credentialRecord =
+            CredentialRecordImpl(
+                NoneAttestationStatement(),
+                true,
+                null,
+                null,
+                storedSignCount,
+                AttestedCredentialData(AAGUID.NULL, authentication.credentialId, coseKey),
+                null,
+                null,
+                null,
+                null,
+            )
+        val parameters =
+            AuthenticationParameters(
+                serverProperty(authentication.data.collectedClientData?.challenge?.value),
+                credentialRecord,
+                null,
+                true,
+                true,
+            )
+        val verified = convert { webAuthnManager.verify(authentication.data, parameters) }
+        return verified.authenticatorData?.signCount ?: throw PasskeyVerificationException("authenticatorData が無い")
+    }
 
-        val parsed = AuthenticatorData.parse(authenticatorData)
-        verifyAuthenticatorData(parsed)
+    private fun serverProperty(challenge: ByteArray?): ServerProperty =
+        ServerProperty(origins, relyingParty.id, DefaultChallenge(challenge ?: throw PasskeyVerificationException("challenge が無い")))
 
-        if (!CosePublicKey.parse(publicKey).verify(authenticatorData + clientData.hash(), signature)) {
-            throw PasskeyVerificationException("署名が合わない")
+    /**
+     * 受け取った値は例外の文言に入りうるので、ログに出す文言には型名だけを使う
+     */
+    private fun <T> convert(block: () -> T): T =
+        try {
+            block()
+        } catch (e: DataConversionException) {
+            throw PasskeyVerificationException("読めない: ${e::class.simpleName}", e)
+        } catch (e: VerificationException) {
+            throw PasskeyVerificationException("検証に通らない: ${e::class.simpleName}", e)
+        } catch (e: JacksonException) {
+            throw PasskeyVerificationException("読めない: ${e::class.simpleName}", e)
+        } catch (e: IllegalArgumentException) {
+            throw PasskeyVerificationException("読めない: ${e::class.simpleName}", e)
         }
-
-        // 回数を数えない認証器（同期されるパスキーなど）は常に 0 を返す。
-        // どちらかが 0 なら比べない。増えていなければ複製された認証器の疑いがある
-        if (parsed.signCount != 0L || storedSignCount != 0L) {
-            if (parsed.signCount <= storedSignCount) throw PasskeyVerificationException("署名回数が増えていない")
-        }
-
-        return parsed.signCount
-    }
-
-    private fun verifyClientData(
-        clientData: PasskeyClientData,
-        expectedType: String,
-    ) {
-        if (clientData.type != expectedType) throw PasskeyVerificationException("clientDataJSON の type が違う")
-        if (clientData.origin !in relyingParty.origins) throw PasskeyVerificationException("許可していない origin")
-        // iframe の中から呼ばれる使い方はしない
-        if (clientData.crossOrigin) throw PasskeyVerificationException("crossOrigin で呼ばれた")
-    }
-
-    private fun verifyAuthenticatorData(authenticatorData: AuthenticatorData) {
-        if (!MessageDigest.isEqual(authenticatorData.rpIdHash, rpIdHash)) throw PasskeyVerificationException("RP ID が違う")
-        if (!authenticatorData.userPresent) throw PasskeyVerificationException("ユーザーの操作が無い")
-        // パスワードの代わりにするので、生体認証や PIN による本人確認を必須にする
-        if (!authenticatorData.userVerified) throw PasskeyVerificationException("本人確認がされていない")
-    }
 
     private companion object {
-        const val TYPE_CREATE = "webauthn.create"
-        const val TYPE_GET = "webauthn.get"
+        val SUPPORTED_ALGORITHMS: List<COSEAlgorithmIdentifier> =
+            listOf(COSEAlgorithmIdentifier.ES256, COSEAlgorithmIdentifier.EdDSA, COSEAlgorithmIdentifier.RS256)
 
         /**
          * 対応する方式で最も大きい RSA 4096 bit でも 600 バイトに収まる。
@@ -105,6 +142,27 @@ class PasskeyVerifier(
          */
         const val MAX_PUBLIC_KEY_BYTES = 1024
     }
+}
+
+class PasskeyRegistration internal constructor(
+    internal val data: RegistrationData,
+) {
+    /**
+     * base64url（パディング無し）
+     */
+    val challenge: String = encodeBase64Url(data.collectedClientData?.challenge?.value ?: throw PasskeyVerificationException("challenge が無い"))
+}
+
+class PasskeyAuthentication internal constructor(
+    internal val data: AuthenticationData,
+) {
+    val credentialId: ByteArray = data.credentialId ?: throw PasskeyVerificationException("credential ID が無い")
+    val userHandle: ByteArray? = data.userHandle
+
+    /**
+     * base64url（パディング無し）
+     */
+    val challenge: String = encodeBase64Url(data.collectedClientData?.challenge?.value ?: throw PasskeyVerificationException("challenge が無い"))
 }
 
 /**
@@ -129,3 +187,5 @@ class PasskeyVerificationException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause)
+
+private fun encodeBase64Url(bytes: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
