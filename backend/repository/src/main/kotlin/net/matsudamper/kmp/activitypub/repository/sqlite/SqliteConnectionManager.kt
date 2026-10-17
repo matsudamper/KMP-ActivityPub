@@ -5,9 +5,9 @@ import java.sql.Connection
 import java.util.concurrent.locks.ReentrantLock
 import javax.sql.DataSource
 import kotlin.concurrent.withLock
-import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.instrumentation.jdbc.datasource.JdbcTelemetry
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import org.sqlite.SQLiteDataSource
 
 /**
@@ -15,7 +15,6 @@ import org.sqlite.SQLiteDataSource
  */
 internal class SqliteConnectionManager(
     config: DatabaseConfig,
-    openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) : AutoCloseable {
     private val lock = ReentrantLock()
     private val connection: Connection
@@ -29,7 +28,7 @@ internal class SqliteConnectionManager(
             SQLiteDataSource().apply {
                 url = "jdbc:sqlite:$path"
             }
-        val dataSource: DataSource = JdbcTelemetry.create(openTelemetry).wrap(sqliteDataSource)
+        val dataSource: DataSource = JdbcTelemetry.create(OpenTelemetryInitializer.get()).wrap(sqliteDataSource)
         connection = dataSource.connection
         try {
             applyPragmas(connection)

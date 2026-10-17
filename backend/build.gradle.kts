@@ -10,16 +10,12 @@ dependencies {
     implementation(project(":backend:repository"))
     implementation(project(":backend:crypto"))
     implementation(project(":backend:session"))
+    implementation(project(":backend:telemetry"))
     implementation(project(":shared"))
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.opentelemetry.api)
-    implementation(libs.opentelemetry.sdk)
-    implementation(libs.opentelemetry.exporter.otlp)
-    implementation(libs.opentelemetry.sdk.autoconfigure)
-    implementation(libs.opentelemetry.runtime.telemetry)
     implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.graphql.java)
 

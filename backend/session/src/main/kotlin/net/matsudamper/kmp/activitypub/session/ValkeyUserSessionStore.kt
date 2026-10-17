@@ -5,18 +5,17 @@ import io.lettuce.core.RedisClient
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.resource.ClientResources
-import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.instrumentation.lettuce.v5_1.LettuceTelemetry
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 
 class ValkeyUserSessionStore(
     uri: String,
-    openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) : UserSessionStore {
     private val clientResources: ClientResources =
         ClientResources
             .builder()
-            .tracing(LettuceTelemetry.create(openTelemetry).createTracing())
+            .tracing(LettuceTelemetry.create(OpenTelemetryInitializer.get()).createTracing())
             .build()
     private val client: RedisClient = RedisClient.create(clientResources, uri)
     private val connection: StatefulRedisConnection<String, String> = client.connect()

@@ -23,9 +23,9 @@ import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 
 fun main() {
     val serverEnv = ServerEnv()
-    val telemetry = OpenTelemetryInitializer.initialize()
+    OpenTelemetryInitializer.initialize()
     DatabaseWriteCheck.verify(serverEnv.dbPath)
-    val deps = AppDependencies.create(env = serverEnv, openTelemetry = telemetry.openTelemetry)
+    val deps = AppDependencies.create(serverEnv)
 
     val server =
         embeddedServer(CIO, port = serverEnv.port, host = serverEnv.host) {
@@ -36,7 +36,6 @@ fun main() {
         Thread {
             server.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
             deps.close()
-            telemetry.close()
         },
     )
 
@@ -45,7 +44,7 @@ fun main() {
 
 internal fun Application.module(deps: AppDependencies) {
     install(KtorServerTelemetry) {
-        setOpenTelemetry(deps.openTelemetry)
+        setOpenTelemetry(OpenTelemetryInitializer.get())
     }
 
     val staticFiles = deps.staticFiles
@@ -77,7 +76,6 @@ internal fun Application.module(deps: AppDependencies) {
                 )
             },
             diContainer = DiContainer(accountService = deps.accountService),
-            openTelemetry = deps.openTelemetry,
         )
 
     routing {

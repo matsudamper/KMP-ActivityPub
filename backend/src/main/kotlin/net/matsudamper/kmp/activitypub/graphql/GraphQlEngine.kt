@@ -10,9 +10,9 @@ import graphql.kickstart.tools.GraphQLResolver
 import graphql.kickstart.tools.SchemaParser
 import graphql.schema.DataFetchingEnvironment
 import io.ktor.server.application.ApplicationCall
-import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.instrumentation.graphql.v20_0.GraphQLTelemetry
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import org.slf4j.LoggerFactory
 
 class GraphQlEngine private constructor(
@@ -68,7 +68,6 @@ class GraphQlEngine private constructor(
             resolvers: List<GraphQLResolver<*>>,
             createContext: (ApplicationCall) -> GraphQlContext,
             diContainer: DiContainer,
-            openTelemetry: OpenTelemetry,
         ): GraphQlEngine {
             val schema =
                 SchemaParser
@@ -86,7 +85,7 @@ class GraphQlEngine private constructor(
                         ChainedInstrumentation(
                             MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY),
                             GraphQLTelemetry
-                                .builder(openTelemetry)
+                                .builder(OpenTelemetryInitializer.get())
                                 .setAddOperationNameToSpanName(true)
                                 .setDataFetcherInstrumentationEnabled(true)
                                 .build()

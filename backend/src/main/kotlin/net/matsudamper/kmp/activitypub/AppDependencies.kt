@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub
 
 import java.time.Clock
 import kotlin.time.Duration.Companion.days
-import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
@@ -15,7 +14,6 @@ class AppDependencies(
     val repositories: Repositories,
     private val sessionStore: UserSessionStore,
     val env: ServerEnv,
-    val openTelemetry: OpenTelemetry = OpenTelemetry.noop(),
 ) : AutoCloseable {
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
@@ -33,18 +31,11 @@ class AppDependencies(
     }
 
     companion object {
-        fun create(
-            env: ServerEnv,
-            openTelemetry: OpenTelemetry,
-        ): AppDependencies =
+        fun create(env: ServerEnv): AppDependencies =
             AppDependencies(
-                repositories = Repositories.create(
-                    config = DatabaseConfig(path = env.dbPath),
-                    openTelemetry = openTelemetry,
-                ),
-                sessionStore = ValkeyUserSessionStore(uri = env.valkeyUri, openTelemetry = openTelemetry),
+                repositories = Repositories.create(DatabaseConfig(path = env.dbPath)),
+                sessionStore = ValkeyUserSessionStore(uri = env.valkeyUri),
                 env = env,
-                openTelemetry = openTelemetry,
             )
     }
 }
