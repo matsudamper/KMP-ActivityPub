@@ -36,29 +36,33 @@ sealed interface Screen : NavKey {
     }
 
     /**
-     * Mastodon に合わせたパス。ActivityPub の Actor は /users/{username} に置くので分けている
+     * Mastodon に合わせたパス。
      */
     @Serializable
     data class UserProfile(
         val username: String,
     ) : Screen {
-        override val path: String get() = "$USER_PROFILE_PATH_PREFIX$username"
+        override val path: String get() = USER_PROFILE_PATH.pathOf(mapOf(USERNAME_PARAMETER to username))
         override val parentScreen: Screen? get() = null
         override val loginRequired: Boolean get() = false
     }
 
     companion object {
-        private const val USER_PROFILE_PATH_PREFIX: String = "/@"
+        private const val USERNAME_PARAMETER: String = "username"
+        private val USER_PROFILE_PATH = PathPattern("/@{$USERNAME_PARAMETER}")
+
+        private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> =
+            listOf(
+                PathPattern(Login.path) to { _ -> Login },
+                PathPattern(Home.path) to { _ -> Home },
+                PathPattern(Post.path) to { _ -> Post },
+                USER_PROFILE_PATH to { parameters -> UserProfile(username = parameters.getValue(USERNAME_PARAMETER)) },
+            )
 
         fun fromPath(path: String): Screen? {
-            return listOf(Login, Home, Post).firstOrNull { it.path == path }
-                ?: userProfileOf(path)
-        }
-
-        private fun userProfileOf(path: String): UserProfile? {
-            val username = path.removePrefix(USER_PROFILE_PATH_PREFIX)
-            if (username == path || username.isEmpty() || username.contains('/')) return null
-            return UserProfile(username = username)
+            return routes.firstNotNullOfOrNull { (pattern, screenOf) ->
+                pattern.match(path)?.let(screenOf)
+            }
         }
     }
 }
