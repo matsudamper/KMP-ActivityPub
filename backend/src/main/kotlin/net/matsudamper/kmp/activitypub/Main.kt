@@ -54,9 +54,9 @@ internal fun Application.module(deps: AppDependencies) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
 
-    val localDomain = deps.env.localDomain
+    val localDomain = deps.env.domain
     if (localDomain == null) {
-        log.info("LOCAL_DOMAIN が未設定なので、他のサーバーから見つけられない")
+        log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
     }
 
     val graphQl =

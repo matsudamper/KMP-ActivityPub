@@ -81,7 +81,7 @@ class FederationRoutesTest {
         }
 
     @Test
-    fun `LOCAL_DOMAIN が無いときは WebFinger を返さない`() =
+    fun `DOMAIN が無いときは WebFinger を返さない`() =
         testApplication {
             application {
                 module(TestDependencies(repositories = repositories))
@@ -94,7 +94,7 @@ class FederationRoutesTest {
         val id = repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "type")
         repositories.accountRepository.addPrivateKeyPem(id = id, privateKeyPem = RsaKeys.encodeToPem(keyPair.private))
         application {
-            module(TestDependencies(repositories = repositories, env = ServerEnv(mapOf("LOCAL_DOMAIN" to "example.com"))))
+            module(TestDependencies(repositories = repositories, env = ServerEnv(mapOf("DOMAIN" to "example.com"))))
         }
     }
 
