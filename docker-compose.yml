@@ -26,7 +26,7 @@ services:
 
   valkey:
     image: valkey/valkey:8
-    # AOF が無いと再起動で全員ログアウトになる
+    # AOF（Append Only File）が無いと再起動で全員ログアウトになる
     command: ["valkey-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
