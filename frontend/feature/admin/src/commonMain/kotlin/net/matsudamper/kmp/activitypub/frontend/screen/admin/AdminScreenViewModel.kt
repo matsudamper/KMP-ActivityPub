@@ -115,6 +115,7 @@ internal class AdminScreenViewModel(
                 AdminLoginResult.Success -> {
                     viewModelStateFlow.update {
                         it.copy(
+                            password = "",
                             submitting = false,
                         )
                     }
