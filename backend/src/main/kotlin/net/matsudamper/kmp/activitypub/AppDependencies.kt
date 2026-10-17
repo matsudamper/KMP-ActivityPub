@@ -175,6 +175,7 @@ class AppDependencies(
         publisher = notePublisher,
         followers = repositories.followers,
         deliveryQueue = repositories.deliveryQueue,
+        domainBlocks = domainBlockService,
     )
 
     val accountService: AccountService = AccountService(

@@ -24,6 +24,7 @@ class NoteEnqueuer(
     private val publisher: NotePublisher,
     private val followers: FollowerRepository,
     private val deliveryQueue: DeliveryQueueRepository,
+    private val domainBlocks: DomainBlockService,
 ) {
     private val logger = LoggerFactory.getLogger(NoteEnqueuer::class.java)
 
@@ -35,7 +36,9 @@ class NoteEnqueuer(
         contentHtml: String,
     ): QueuedNote {
         val prepared = publisher.prepare(sender = sender, contentHtml = contentHtml)
+        // 止めているドメインの行は配信ワーカーが送らずに failed にするだけで、消えずに溜まり続ける
         val inboxes = followers.deliveryTargets(sender.username)
+            .filterNot { domainBlocks.blocksDeliveryTo(it) }
 
         val result = deliveryQueue.enqueueNote(
             NotePost(
