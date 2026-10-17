@@ -23,6 +23,7 @@ internal actual fun SingleLineTextField(
     kind: SingleLineTextFieldKind,
     autofill: SingleLineTextFieldAutofill?,
     formId: String?,
+    required: Boolean,
     imeAction: ImeAction,
     inputId: String,
     inputName: String,

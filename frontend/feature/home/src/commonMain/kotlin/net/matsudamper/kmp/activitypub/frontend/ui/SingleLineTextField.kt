@@ -7,6 +7,7 @@ import androidx.compose.ui.text.input.ImeAction
 /**
  * @param formId 同じ formId の [FormSubmitHandler] と入力欄を一つのフォームとして扱う
  * @param autofill null ならパスワードマネージャーに自動入力させない
+ * @param required Web では空欄のままフォームを送信させない
  */
 @Composable
 internal expect fun SingleLineTextField(
@@ -17,6 +18,7 @@ internal expect fun SingleLineTextField(
     kind: SingleLineTextFieldKind,
     autofill: SingleLineTextFieldAutofill?,
     formId: String?,
+    required: Boolean,
     imeAction: ImeAction,
     inputId: String,
     inputName: String,

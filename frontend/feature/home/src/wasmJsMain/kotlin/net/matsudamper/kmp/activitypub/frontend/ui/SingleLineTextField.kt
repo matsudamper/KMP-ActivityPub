@@ -15,6 +15,7 @@ internal actual fun SingleLineTextField(
     kind: SingleLineTextFieldKind,
     autofill: SingleLineTextFieldAutofill?,
     formId: String?,
+    required: Boolean,
     imeAction: ImeAction,
     inputId: String,
     inputName: String,
@@ -41,7 +42,7 @@ internal actual fun SingleLineTextField(
         enabled = enabled,
         hasError = hasError,
         formId = formId,
-        required = formId != null,
+        required = required,
         // formId があれば Enter で form が送信され、FormSubmitHandler が受ける
         onEnter = if (formId == null) onDone else null,
         modifier = modifier,
