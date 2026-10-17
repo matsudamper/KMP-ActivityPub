@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.navigation
 
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
+import net.matsudamper.kmp.activitypub.frontend.core.PathPattern
 
 @Serializable
 sealed interface Screen : NavKey {

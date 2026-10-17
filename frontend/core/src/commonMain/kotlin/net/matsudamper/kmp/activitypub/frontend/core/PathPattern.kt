@@ -1,9 +1,9 @@
-package net.matsudamper.kmp.activitypub.frontend.navigation
+package net.matsudamper.kmp.activitypub.frontend.core
 
 /**
  * `/@{username}` のように `{名前}` の部分を 1 階層分の可変部分として扱う
  */
-internal class PathPattern(
+class PathPattern(
     private val pattern: String,
 ) {
     private val parameterNames: List<String> = PARAMETER.findAll(pattern).map { it.groupValues[1] }.toList()
