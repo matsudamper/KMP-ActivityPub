@@ -9,7 +9,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
  * ログイン画面へ戻す
  */
 @Composable
-internal actual fun LoginRequiredContent(
+internal actual fun LoginRequestContent(
     uiState: LoginGateUiState,
     navigator: Navigator,
 ) {

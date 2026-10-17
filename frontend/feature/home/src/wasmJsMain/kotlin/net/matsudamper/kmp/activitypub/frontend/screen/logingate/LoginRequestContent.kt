@@ -8,7 +8,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginDialog
  * 開いた画面の上でログインさせ、通ったら URL を変えずにその画面を出す
  */
 @Composable
-internal actual fun LoginRequiredContent(
+internal actual fun LoginRequestContent(
     uiState: LoginGateUiState,
     navigator: Navigator,
 ) {

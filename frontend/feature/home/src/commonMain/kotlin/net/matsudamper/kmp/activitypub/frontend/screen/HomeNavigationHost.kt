@@ -19,7 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiStat
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateStatusContent
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewModel
-import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequiredContent
+import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -54,7 +54,7 @@ fun HomeNavigationHost(
                         }
 
                         LoginGateUiState.Content.LoginRequired -> {
-                            LoginRequiredContent(uiState = loginGateUiState, navigator = navigator)
+                            LoginRequestContent(uiState = loginGateUiState, navigator = navigator)
                         }
 
                         LoginGateUiState.Content.Loading,

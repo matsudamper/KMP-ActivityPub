@@ -7,7 +7,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
  * ログインしていないと分かったときに、画面の代わりに出すもの。扱いはプラットフォームごとに違う
  */
 @Composable
-internal expect fun LoginRequiredContent(
+internal expect fun LoginRequestContent(
     uiState: LoginGateUiState,
     navigator: Navigator,
 )
