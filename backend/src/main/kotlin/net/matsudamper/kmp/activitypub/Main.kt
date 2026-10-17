@@ -8,7 +8,6 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
-import net.matsudamper.kmp.activitypub.federation.FederationUrls
 import net.matsudamper.kmp.activitypub.federation.federationRoutes
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
@@ -86,7 +85,7 @@ internal fun Application.module(deps: AppDependencies) {
         }
         graphQlRoutes(graphQl)
         if (localDomain != null) {
-            federationRoutes(accountService = deps.accountService, urls = FederationUrls(localDomain))
+            federationRoutes(accountService = deps.accountService, localDomain = localDomain)
         }
         staticRoutes(staticFiles)
     }

@@ -15,7 +15,7 @@ internal class FakeRepositories : Repositories {
 
 internal class FakeAccountRepository : AccountRepository {
     private val rows = mutableListOf<AccountCredential>()
-    private val publicKeyPems = mutableMapOf<AccountId, String>()
+    private val privateKeyPems = mutableMapOf<AccountId, String>()
 
     fun add(
         username: String,
@@ -27,11 +27,11 @@ internal class FakeAccountRepository : AccountRepository {
         return id
     }
 
-    fun addPublicKeyPem(
+    fun addPrivateKeyPem(
         id: AccountId,
-        publicKeyPem: String,
+        privateKeyPem: String,
     ) {
-        publicKeyPems[id] = publicKeyPem
+        privateKeyPems[id] = privateKeyPem
     }
 
     override fun findById(id: AccountId): Account? =
@@ -43,5 +43,5 @@ internal class FakeAccountRepository : AccountRepository {
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }
 
-    override fun findPublicKeyPem(id: AccountId): String? = publicKeyPems[id]
+    override fun findPrivateKeyPem(id: AccountId): String? = privateKeyPems[id]
 }

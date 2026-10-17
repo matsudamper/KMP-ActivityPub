@@ -13,7 +13,7 @@ interface AccountRepository {
 
     fun findCredential(username: String): AccountCredential?
 
-    fun findPublicKeyPem(id: AccountId): String?
+    fun findPrivateKeyPem(id: AccountId): String?
 }
 
 data class Account(

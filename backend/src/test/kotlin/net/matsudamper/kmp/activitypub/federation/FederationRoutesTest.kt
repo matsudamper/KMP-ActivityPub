@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub.federation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -19,10 +18,12 @@ import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.ServerEnv
 import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.module
+import net.matsudamper.kotpub.crypto.RsaKeys
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class FederationRoutesTest {
     private val repositories = FakeRepositories()
+    private val keyPair = RsaKeys.generateKeyPair()
 
     @Test
     fun `WebFinger で Actor の URL を返す`() =
@@ -61,24 +62,22 @@ class FederationRoutesTest {
             assertEquals(ContentType("application", "activity+json"), response.contentType()?.withoutParameters())
             val body = parse(response.bodyAsText())
             assertEquals("https://example.com/users/user1", body.getValue("id").jsonPrimitive.content)
-            assertEquals("Person", body.getValue("type").jsonPrimitive.content)
+            assertEquals("Service", body.getValue("type").jsonPrimitive.content)
             assertEquals("user1", body.getValue("preferredUsername").jsonPrimitive.content)
             assertEquals("https://example.com/users/user1/inbox", body.getValue("inbox").jsonPrimitive.content)
             val publicKey = body.getValue("publicKey").jsonObject
             assertEquals("https://example.com/users/user1#main-key", publicKey.getValue("id").jsonPrimitive.content)
             assertEquals("https://example.com/users/user1", publicKey.getValue("owner").jsonPrimitive.content)
-            assertEquals(PUBLIC_KEY_PEM, publicKey.getValue("publicKeyPem").jsonPrimitive.content)
+            assertEquals(RsaKeys.encodeToPem(keyPair.public), publicKey.getValue("publicKeyPem").jsonPrimitive.content)
         }
 
     @Test
-    fun `鍵の無いアカウントの Actor には publicKey を載せない`() =
+    fun `鍵の無いアカウントの Actor は 404 を返す`() =
         testApplication {
             repositories.accountRepository.add(username = "nokey", passwordHash = "hash", passwordHashType = "type")
             setUp()
 
-            val body = parse(client.get("/users/nokey").bodyAsText())
-
-            assertFalse("publicKey" in body)
+            assertEquals(HttpStatusCode.NotFound, client.get("/users/nokey").status)
         }
 
     @Test
@@ -93,15 +92,11 @@ class FederationRoutesTest {
 
     private fun ApplicationTestBuilder.setUp() {
         val id = repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "type")
-        repositories.accountRepository.addPublicKeyPem(id = id, publicKeyPem = PUBLIC_KEY_PEM)
+        repositories.accountRepository.addPrivateKeyPem(id = id, privateKeyPem = RsaKeys.encodeToPem(keyPair.private))
         application {
             module(TestDependencies(repositories = repositories, env = ServerEnv(mapOf("LOCAL_DOMAIN" to "example.com"))))
         }
     }
 
     private fun parse(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
-
-    private companion object {
-        const val PUBLIC_KEY_PEM = "-----BEGIN PUBLIC KEY-----\nkey\n-----END PUBLIC KEY-----\n"
-    }
 }
