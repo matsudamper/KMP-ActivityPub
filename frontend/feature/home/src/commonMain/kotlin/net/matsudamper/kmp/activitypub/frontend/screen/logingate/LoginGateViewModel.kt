@@ -4,10 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginStateResult
@@ -20,21 +19,33 @@ internal class LoginGateViewModel(
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Checking)
     private var checkLoginStateJob: Job? = null
 
-    private val listener =
-        object : LoginGateUiState.Listener {
-            override fun onLoggedIn() {
-                viewModelStateFlow.value = ViewModelState.LoggedIn
-            }
-
-            override fun onClickRetry() {
-                checkLoginState()
-            }
-        }
-
     val uiStateFlow: StateFlow<LoginGateUiState> =
-        viewModelStateFlow
-            .map { createUiState(it) }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, createUiState(viewModelStateFlow.value))
+        MutableStateFlow(
+            createUiState(
+                viewModelState = viewModelStateFlow.value,
+                listener =
+                object : LoginGateUiState.Listener {
+                    override fun onLoggedIn() {
+                        viewModelStateFlow.value = ViewModelState.LoggedIn
+                    }
+
+                    override fun onClickRetry() {
+                        checkLoginState()
+                    }
+                },
+            ),
+        ).also { uiStateFlow ->
+            viewModelScope.launch {
+                viewModelStateFlow.collect { viewModelState ->
+                    uiStateFlow.update { uiState ->
+                        createUiState(
+                            viewModelState = viewModelState,
+                            listener = uiState.listener,
+                        )
+                    }
+                }
+            }
+        }.asStateFlow()
 
     init {
         checkLoginState()
@@ -53,7 +64,10 @@ internal class LoginGateViewModel(
         }
     }
 
-    private fun createUiState(viewModelState: ViewModelState): LoginGateUiState {
+    private fun createUiState(
+        viewModelState: ViewModelState,
+        listener: LoginGateUiState.Listener,
+    ): LoginGateUiState {
         return LoginGateUiState(
             content = when (viewModelState) {
                 ViewModelState.Checking -> LoginGateUiState.Content.Loading
