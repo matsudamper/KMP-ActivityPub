@@ -8,11 +8,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 
 @Composable
-internal actual fun UsernameField(
+internal actual fun SingleLineTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    formId: String,
+    kind: SingleLineTextFieldKind,
     inputId: String,
     inputName: String,
     enabled: Boolean,
@@ -26,7 +26,12 @@ internal actual fun UsernameField(
         isError = hasError,
         label = { Text(label) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        keyboardOptions = KeyboardOptions(
+            imeAction = when (kind) {
+                is SingleLineTextFieldKind.Username -> ImeAction.Next
+                SingleLineTextFieldKind.Plain -> ImeAction.Done
+            },
+        ),
         modifier = modifier,
     )
 }

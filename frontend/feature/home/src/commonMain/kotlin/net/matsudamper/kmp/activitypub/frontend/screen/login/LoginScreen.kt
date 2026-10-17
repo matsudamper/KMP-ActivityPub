@@ -22,7 +22,8 @@ import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
-import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -89,11 +90,11 @@ internal fun LoginForm(
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
-        UsernameField(
+        SingleLineTextField(
             value = uiState.username,
             onValueChange = uiState.listener::onUsernameChanged,
             label = "ユーザー名",
-            formId = LOGIN_FORM_ID,
+            kind = SingleLineTextFieldKind.Username(formId = LOGIN_FORM_ID),
             inputId = LOGIN_USERNAME_INPUT_ID,
             inputName = "username",
             enabled = uiState.inputEnabled,
