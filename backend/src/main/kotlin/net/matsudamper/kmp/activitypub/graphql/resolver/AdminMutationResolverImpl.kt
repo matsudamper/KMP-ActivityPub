@@ -5,6 +5,7 @@ import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.GraphqlExceptions
+import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.AdminMutationResolver
@@ -26,6 +27,7 @@ class AdminMutationResolverImpl : AdminMutationResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlAdminLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
+        if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
         val adminLoginService = GraphQlEngine.diContainer(env).adminLoginService
 
         val result = when {

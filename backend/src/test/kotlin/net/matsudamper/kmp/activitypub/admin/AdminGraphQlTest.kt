@@ -109,6 +109,23 @@ class AdminGraphQlTest {
         }
 
     @Test
+    fun `alias で login を並べても 2 回目以降は照合せずエラーになる`() =
+        testApplication {
+            applicationWith(passwordConfigured = true)
+
+            val response = graphQl(
+                query =
+                "mutation Login(${'$'}password: String!) { admin { " +
+                    "a: login(password: ${'$'}password) { failure } " +
+                    "b: login(password: ${'$'}password) { failure } } }",
+                variables = """{"password":${JsonPrimitive(PASSWORD)}}""",
+            )
+
+            val errors = AppJson.parseToJsonElement(response.bodyAsText()).jsonObject.getValue("errors").jsonArray
+            assertEquals(1, errors.size)
+        }
+
+    @Test
     fun `COOKIE_SECURE が false なら Secure を付けない`() =
         testApplication {
             applicationWith(passwordConfigured = true, cookieSecure = false)
