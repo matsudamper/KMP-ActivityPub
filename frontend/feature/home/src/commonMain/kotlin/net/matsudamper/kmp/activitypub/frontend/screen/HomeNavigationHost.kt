@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateUiStat
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewModel
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -95,6 +96,10 @@ private fun ScreenContent(
 
         Screen.Post -> {
             PostScreen(navigator = navigator)
+        }
+
+        Screen.Settings -> {
+            SettingsScreen(navigator = navigator)
         }
     }
 }

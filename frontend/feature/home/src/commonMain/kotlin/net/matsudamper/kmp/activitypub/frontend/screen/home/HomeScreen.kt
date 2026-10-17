@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -41,6 +42,10 @@ internal fun HomeScreen(
                 override fun navigateToPost() {
                     navigator.navigate(Screen.Post)
                 }
+
+                override fun navigateToSettings() {
+                    navigator.navigate(Screen.Settings)
+                }
             },
         )
     }
@@ -55,12 +60,23 @@ internal fun HomeContent(
     Scaffold(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface) {
-                Text(
-                    text = "ホーム",
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "ホーム",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    IconButton(onClick = uiState.listener::onClickSettings) {
+                        Icon(
+                            imageVector = AppIcons.Settings,
+                            contentDescription = "設定",
+                        )
+                    }
+                }
             }
         },
         floatingActionButton = {

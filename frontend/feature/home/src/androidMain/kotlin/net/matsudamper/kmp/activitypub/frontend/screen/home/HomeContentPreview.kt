@@ -32,4 +32,6 @@ private fun HomeContentPreview() {
 
 private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickPost() = Unit
+
+    override fun onClickSettings() = Unit
 }

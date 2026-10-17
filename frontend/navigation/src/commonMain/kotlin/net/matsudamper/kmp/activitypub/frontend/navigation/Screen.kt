@@ -35,7 +35,14 @@ sealed interface Screen : NavKey {
         override val loginRequired: Boolean get() = true
     }
 
+    @Serializable
+    data object Settings : Screen {
+        override val path: String get() = "/settings"
+        override val parentScreen: Screen get() = Home
+        override val loginRequired: Boolean get() = true
+    }
+
     companion object {
-        fun fromPath(path: String): Screen? = listOf(Login, Home, Post).firstOrNull { it.path == path }
+        fun fromPath(path: String): Screen? = listOf(Login, Home, Post, Settings).firstOrNull { it.path == path }
     }
 }
