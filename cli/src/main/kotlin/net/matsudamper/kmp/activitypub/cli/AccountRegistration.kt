@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.cli
 import java.nio.file.Path
 import java.time.Instant
 import kotlin.io.path.isRegularFile
+import net.matsudamper.kmp.activitypub.crypto.AccountKeyPair
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.repository.AccountAlreadyExists
 import net.matsudamper.kmp.activitypub.repository.AccountTableMissing
@@ -28,6 +29,7 @@ internal object AccountRegistration {
         }
 
         val passwordHash = checkNotNull(PasswordHashType.Current.encoder.encode(password))
+        val keyPair = AccountKeyPair.generate()
 
         try {
             Accounts.insert(
@@ -35,12 +37,14 @@ internal object AccountRegistration {
                 username = username,
                 passwordHash = passwordHash,
                 passwordHashType = PasswordHashType.Current.dbValue,
+                publicKeyPem = keyPair.publicKeyPem,
+                privateKeyPem = keyPair.privateKeyPem,
                 createdAt = createdAt.toString(),
             )
         } catch (exception: AccountAlreadyExists) {
             throw AccountRegistrationException("同じユーザー名が既にある: ${exception.username}")
         } catch (exception: AccountTableMissing) {
-            throw AccountRegistrationException("accounts か account_passwords が無い。sqlite3def でスキーマを適用すること")
+            throw AccountRegistrationException("accounts, account_passwords, account_keys のどれかが無い。sqlite3def でスキーマを適用すること")
         }
     }
 }

@@ -11,6 +11,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.io.TempDir
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class StaticFilesTest {
     @Test
     fun `ディレクトリが無ければ利用不可`(@TempDir tempDir: Path) {

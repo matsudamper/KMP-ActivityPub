@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-account-test")
     private val dbPath: Path = tempDir.resolve("test.db")
@@ -93,6 +94,8 @@ class AccountRepositoryTest {
             username = "user1",
             passwordHash = PASSWORD_HASH,
             passwordHashType = PASSWORD_HASH_TYPE,
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
             createdAt = CREATED_AT.toString(),
         )
     }

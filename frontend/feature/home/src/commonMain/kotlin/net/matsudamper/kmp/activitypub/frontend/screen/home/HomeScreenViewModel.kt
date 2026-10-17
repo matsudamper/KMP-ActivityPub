@@ -27,6 +27,12 @@ internal class HomeScreenViewModel : ViewModel() {
                             events.send { it.navigateToPost() }
                         }
                     }
+
+                    override fun onClickSettings() {
+                        viewModelScope.launch {
+                            events.send { it.navigateToSettings() }
+                        }
+                    }
                 },
             ),
         ).asStateFlow()
@@ -44,5 +50,7 @@ internal class HomeScreenViewModel : ViewModel() {
 
     interface Event {
         fun navigateToPost()
+
+        fun navigateToSettings()
     }
 }
