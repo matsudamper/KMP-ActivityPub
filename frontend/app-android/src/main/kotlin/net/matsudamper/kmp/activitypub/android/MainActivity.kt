@@ -43,7 +43,7 @@ private fun AndroidApp(modifier: Modifier = Modifier) {
 
 @Composable
 private fun AndroidNavigation(modifier: Modifier = Modifier) {
-    val backStack = rememberScreenBackStack(startScreen = Screen.Login)
+    val backStack = rememberScreenBackStack(startScreens = listOf(Screen.Login))
     val navigator = remember(backStack) { Navigator(backStack) }
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {

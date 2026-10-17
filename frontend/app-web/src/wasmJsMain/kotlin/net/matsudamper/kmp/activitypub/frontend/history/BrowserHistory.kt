@@ -13,7 +13,15 @@ import org.w3c.dom.PopStateEvent
 import org.w3c.dom.events.Event
 
 internal object BrowserHistory {
-    fun currentScreen(): Screen = screenOf(window.location.pathname)
+    /**
+     * URL で直接開いた画面の下に、アプリの中で戻ったときに出す画面も積む
+     */
+    fun initialScreens(): List<Screen> {
+        return when (val screen = screenOf(window.location.pathname)) {
+            Screen.Post -> listOf(Screen.Home, Screen.Post)
+            Screen.Login, Screen.Home -> listOf(screen)
+        }
+    }
 
     /**
      * 画面の積み上げをブラウザの履歴と URL に写し、ブラウザの戻る/進むを積み上げに反映する
@@ -52,7 +60,7 @@ internal object BrowserHistory {
     private class BackStackHistorySync(
         private val backStack: NavBackStack<NavKey>,
     ) {
-        // 再読み込みすると積み上げは 1 枚に戻るが、それより前の履歴は残るので 0 とは限らない
+        // 再読み込みすると積み上げは作り直されるが、それより前の履歴は残るので 0 とは限らない
         private var stackBottomHistoryIndex = historyIndexOf(window.history.state) ?: 0
         private var currentHistoryIndex = stackBottomHistoryIndex
         private val popStateListener: (Event) -> Unit = { event ->
@@ -60,7 +68,15 @@ internal object BrowserHistory {
         }
 
         fun start() {
-            window.history.replaceState(currentHistoryIndex.toJsNumber(), "", pathOf(backStack.last()))
+            backStack.forEachIndexed { stackIndex, key ->
+                val historyIndex = stackBottomHistoryIndex + stackIndex
+                if (stackIndex == 0) {
+                    window.history.replaceState(historyIndex.toJsNumber(), "", pathOf(key))
+                } else {
+                    window.history.pushState(historyIndex.toJsNumber(), "", pathOf(key))
+                }
+            }
+            currentHistoryIndex = stackBottomHistoryIndex + backStack.lastIndex
             window.addEventListener("popstate", popStateListener)
         }
 

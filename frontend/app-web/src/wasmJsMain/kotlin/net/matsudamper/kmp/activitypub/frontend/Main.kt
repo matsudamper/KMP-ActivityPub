@@ -34,7 +34,7 @@ private fun App() {
 
 @Composable
 private fun AppNavigation() {
-    val backStack = rememberScreenBackStack(startScreen = BrowserHistory.currentScreen())
+    val backStack = rememberScreenBackStack(startScreens = BrowserHistory.initialScreens())
     val navigator = remember(backStack) { Navigator(backStack) }
     BrowserHistory.SyncEffect(backStack)
     MaterialTheme {
