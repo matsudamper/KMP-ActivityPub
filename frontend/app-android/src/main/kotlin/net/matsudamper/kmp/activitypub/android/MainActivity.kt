@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
-import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeNavigationHost
 import org.koin.compose.KoinApplication
 import org.koin.plugin.module.dsl.koinConfiguration
 
@@ -39,7 +39,7 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
     val backStack = rememberScreenBackStack(startScreens = listOf(Screen.Login))
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
-            HomeFeatureScreens.NavigationHost(
+            HomeNavigationHost(
                 backStack = backStack,
                 serverSettingUiState = { rememberServerSettingUiState() },
             )

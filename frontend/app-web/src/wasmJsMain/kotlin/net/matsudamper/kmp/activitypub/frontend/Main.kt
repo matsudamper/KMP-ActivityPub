@@ -7,7 +7,7 @@ import androidx.compose.ui.window.ComposeViewport
 import net.matsudamper.kmp.activitypub.frontend.history.BrowserHistory
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
-import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeNavigationHost
 import org.koin.compose.KoinApplication
 import org.koin.plugin.module.dsl.koinConfiguration
 
@@ -30,7 +30,7 @@ private fun AppNavigation() {
     val backStack = rememberScreenBackStack(startScreens = BrowserHistory.initialScreens(unknownPathScreen = UNKNOWN_PATH_SCREEN))
     BrowserHistory.SyncEffect(backStack = backStack, unknownPathScreen = UNKNOWN_PATH_SCREEN)
     MaterialTheme {
-        HomeFeatureScreens.NavigationHost(
+        HomeNavigationHost(
             backStack = backStack,
             serverSettingUiState = { null },
         )
