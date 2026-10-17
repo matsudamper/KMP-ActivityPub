@@ -8,15 +8,12 @@ import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
-import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository()
-
-    override val sessionStore: UserSessionStore = FakeUserSessionStore()
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository()
 
@@ -41,24 +38,6 @@ internal class FakeAccountRepository : AccountRepository {
 
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }
-}
-
-private class FakeUserSessionStore : UserSessionStore {
-    private val rows = mutableMapOf<String, Pair<AccountId, Instant>>()
-
-    override fun create(
-        tokenHash: String,
-        accountId: AccountId,
-        createdAt: Instant,
-        expiresAt: Instant,
-    ) {
-        rows[tokenHash] = accountId to expiresAt
-    }
-
-    override fun findAccountId(
-        tokenHash: String,
-        now: Instant,
-    ): AccountId? = rows[tokenHash]?.takeIf { (_, expiresAt) -> expiresAt > now }?.first
 }
 
 private class FakePasskeyRepository : PasskeyRepository {

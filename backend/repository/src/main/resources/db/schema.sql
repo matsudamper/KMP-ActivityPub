@@ -13,15 +13,6 @@ CREATE TABLE account_passwords (
     password_hash_type TEXT NOT NULL
 );
 
-CREATE TABLE user_sessions (
-    token_hash TEXT NOT NULL PRIMARY KEY,
-    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    created_at TEXT NOT NULL,
-    expires_at TEXT NOT NULL
-);
-
-CREATE INDEX user_sessions_account_id ON user_sessions (account_id);
-
 -- WebAuthn の user.id。アカウントの id を認証器に渡さないよう、乱数を別に持つ
 CREATE TABLE passkey_user_handles (
     account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,

@@ -4,7 +4,6 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
-import net.matsudamper.kmp.activitypub.session.UserSessionStore
 
 internal class SqliteRepositories(
     config: DatabaseConfig,
@@ -13,8 +12,6 @@ internal class SqliteRepositories(
     private val jooq = SqliteJooq(connectionManager)
 
     override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
-
-    override val sessionStore: UserSessionStore = SqliteUserSessionStore(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

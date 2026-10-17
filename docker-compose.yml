@@ -13,6 +13,7 @@ services:
       PORT: 8080
       STATIC_SRC_DIR: /app/static
       DB_PATH: /app/data/kmp-activitypub.db
+      VALKEY_URI: redis://valkey:6379
       # http では false にする
       COOKIE_SECURE: "true"
       # 必須。後から変えると登録済みのパスキーが使えなくなる
@@ -23,7 +24,25 @@ services:
 #      PASSKEY_ANDROID_PACKAGE_NAME: net.matsudamper.kmp.activitypub
       # アプリの署名証明書の SHA-256。カンマ区切り
 #      PASSKEY_ANDROID_CERT_SHA256: "AA:BB:..."
+    depends_on:
+      valkey:
+        condition: service_healthy
     volumes:
       # 起動前に作っておく。Docker に作らせると root の持ち物になる
       - ./data:/app/data
 #      - ./public:/public:ro
+
+  valkey:
+    image: valkey/valkey:8
+    # Append Only File が無いと再起動で全員ログアウトになる
+    command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - valkey-data:/data
+
+volumes:
+  valkey-data:

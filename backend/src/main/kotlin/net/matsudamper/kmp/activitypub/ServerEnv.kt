@@ -19,6 +19,11 @@ class ServerEnv(
     val dbPath: Path = Path(values["DB_PATH"] ?: "./data/kmp-activitypub.db")
 
     /**
+     * Valkey を使わないテストでも ServerEnv を作れるよう、読んだときに検査する
+     */
+    val valkeyUri: String get() = checkNotNull(values["VALKEY_URI"]) { "VALKEY_URI を指定すること" }
+
+    /**
      * true のまま http で開くとログインできない
      */
     val cookieSecure: Boolean =
