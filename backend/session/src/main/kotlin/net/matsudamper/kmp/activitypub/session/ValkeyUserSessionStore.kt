@@ -6,9 +6,6 @@ import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
-/**
- * 期限切れのキーは Valkey が消すので、こちらで掃除しない
- */
 class ValkeyUserSessionStore(
     uri: String,
 ) : UserSessionStore {
