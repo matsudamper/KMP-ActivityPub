@@ -206,7 +206,7 @@ private fun Application.logStaticFiles(
     if (srcDir == null) {
         log.info(
             "STATIC_SRC_DIR が未設定なので静的ファイルを配信しない。" +
-                "画面を出すには :frontend の成果物を置いたディレクトリを指定する",
+                "画面を出すには静的配布物のディレクトリを指定する",
         )
         return
     }
