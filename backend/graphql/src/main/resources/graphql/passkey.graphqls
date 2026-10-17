@@ -1,3 +1,9 @@
 scalar PasskeyCredentialId
 
-scalar PasskeyUserHandle
+scalar PasskeyCreationOptionsJson
+
+scalar PasskeyRequestOptionsJson
+
+scalar PasskeyRegistrationResponseJson
+
+scalar PasskeyAuthenticationResponseJson

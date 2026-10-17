@@ -8,16 +8,13 @@ mutation UserLogin($query: UserLoginQuery!) {
 
 mutation PasskeyLoginOptions {
     user {
-        passkeyLoginOptions {
-            challenge
-            rpId
-        }
+        passkeyLoginOptions
     }
 }
 
-mutation PasskeyLogin($query: UserPasskeyLoginQuery!) {
+mutation PasskeyLogin($credential: PasskeyAuthenticationResponseJson!) {
     user {
-        passkeyLogin(query: $query) {
+        passkeyLogin(credential: $credential) {
             failure
         }
     }

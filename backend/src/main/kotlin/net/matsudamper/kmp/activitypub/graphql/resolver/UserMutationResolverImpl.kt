@@ -9,8 +9,6 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
-import net.matsudamper.kmp.activitypub.graphql.model.QlPasskeyLoginOptions
-import net.matsudamper.kmp.activitypub.graphql.model.QlPasskeyRegistrationOptions
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
@@ -19,7 +17,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginFailure
-import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
@@ -53,32 +50,22 @@ class UserMutationResolverImpl : UserMutationResolver {
     override fun passkeyLoginOptions(
         userMutation: QlUserMutation,
         env: DataFetchingEnvironment,
-    ): CompletionStage<DataFetcherResult<QlPasskeyLoginOptions>> {
+    ): CompletionStage<DataFetcherResult<String>> {
         val context = GraphQlEngine.graphQlContext(env)
         claimPasskeyChallenge(context)
-        val options = passkeyService(env).loginOptions()
 
-        return CompletableFuture.completedFuture(
-            DataFetcherResult.Builder(QlPasskeyLoginOptions(challenge = options.challenge, rpId = options.rpId)).build(),
-        )
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(passkeyService(env).loginOptions()).build())
     }
 
     override fun passkeyLogin(
         userMutation: QlUserMutation,
-        query: QlUserPasskeyLoginQuery,
+        credential: String,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPasskeyLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
         if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
 
-        val accountId =
-            passkeyService(env).login(
-                credentialId = query.credentialId,
-                clientDataJson = query.clientDataJson,
-                authenticatorData = query.authenticatorData,
-                signature = query.signature,
-                userHandle = query.userHandle,
-            )
+        val accountId = passkeyService(env).login(credentialJson = credential)
         val result =
             if (accountId == null) {
                 QlUserPasskeyLoginResult(failure = QlUserPasskeyLoginFailure.NOT_ACCEPTED)
@@ -93,26 +80,14 @@ class UserMutationResolverImpl : UserMutationResolver {
     override fun passkeyRegistrationOptions(
         userMutation: QlUserMutation,
         env: DataFetchingEnvironment,
-    ): CompletionStage<DataFetcherResult<QlPasskeyRegistrationOptions?>> {
+    ): CompletionStage<DataFetcherResult<String?>> {
         val context = GraphQlEngine.graphQlContext(env)
-        val passkeyService = passkeyService(env)
         val account =
             context.userAccountId()?.let { GraphQlEngine.diContainer(env).accountService.account(it) }
-                ?: return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlPasskeyRegistrationOptions?>(null).build())
+                ?: return CompletableFuture.completedFuture(DataFetcherResult.Builder<String?>(null).build())
         claimPasskeyChallenge(context)
 
-        val options = passkeyService.registrationOptions(account)
-        val result =
-            QlPasskeyRegistrationOptions(
-                challenge = options.challenge,
-                rpId = options.rpId,
-                userHandle = options.userHandle,
-                username = options.username,
-                algorithms = options.algorithms.map { it.toInt() },
-                excludeCredentialIds = options.excludeCredentialIds,
-            )
-
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlPasskeyRegistrationOptions?>(result).build())
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<String?>(passkeyService(env).registrationOptions(account)).build())
     }
 
     override fun registerPasskey(
@@ -128,7 +103,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             if (accountId == null) {
                 QlRegisterPasskeyFailure.NOT_LOGGED_IN
             } else {
-                when (passkeyService.register(accountId = accountId, name = query.name, clientDataJson = query.clientDataJson, attestationObject = query.attestationObject)) {
+                when (passkeyService.register(accountId = accountId, name = query.name, credentialJson = query.credential)) {
                     PasskeyService.RegistrationResult.Success -> null
                     PasskeyService.RegistrationResult.NotAccepted -> QlRegisterPasskeyFailure.NOT_ACCEPTED
                     PasskeyService.RegistrationResult.AlreadyRegistered -> QlRegisterPasskeyFailure.ALREADY_REGISTERED

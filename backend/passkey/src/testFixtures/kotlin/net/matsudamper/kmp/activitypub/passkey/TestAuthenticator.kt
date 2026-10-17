@@ -108,6 +108,33 @@ class TestAuthenticator(
             sign()
         }
 
+    /**
+     * RegistrationResponseJSON
+     */
+    fun registrationResponseJson(
+        clientData: ByteArray,
+        attestationObject: ByteArray,
+    ): String {
+        val id = base64Url(credentialId)
+        return """{"id":"$id","rawId":"$id","type":"public-key",""" +
+            """"response":{"clientDataJSON":"${base64Url(clientData)}","attestationObject":"${base64Url(attestationObject)}"}}"""
+    }
+
+    /**
+     * AuthenticationResponseJSON
+     */
+    fun authenticationResponseJson(
+        clientData: ByteArray,
+        authenticatorData: ByteArray,
+        userHandle: String?,
+    ): String {
+        val id = base64Url(credentialId)
+        val userHandleJson = userHandle?.let { "\"$it\"" } ?: "null"
+        return """{"id":"$id","rawId":"$id","type":"public-key",""" +
+            """"response":{"clientDataJSON":"${base64Url(clientData)}","authenticatorData":"${base64Url(authenticatorData)}",""" +
+            """"signature":"${base64Url(sign(authenticatorData, clientData))}","userHandle":$userHandleJson}}"""
+    }
+
     companion object {
         const val RP_ID = "example.com"
         const val ORIGIN = "https://example.com"

@@ -1,7 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.passkey
 
 /**
- * 端末のパスキーを作る・使う。バイト列はすべて base64url（パディング無し）で受け渡す
+ * 端末のパスキーを作る・使う。サーバーが返した WebAuthn の JSON をそのまま認証器に渡し、認証器の応答も JSON のまま返す
  */
 interface PasskeyAuthenticator {
     /**
@@ -29,32 +29,30 @@ sealed interface PasskeyAuthenticatorResult<out T> {
     ) : PasskeyAuthenticatorResult<Nothing>
 }
 
+/**
+ * @param optionsJson PublicKeyCredentialCreationOptionsJSON
+ */
 data class PasskeyCreationRequest(
-    val challenge: String,
-    val rpId: String,
-    val userHandle: String,
-    val username: String,
-    /**
-     * COSE Algorithms の値。先頭ほど優先する
-     */
-    val algorithms: List<Int>,
-    val excludeCredentialIds: List<String>,
+    val optionsJson: String,
 )
 
+/**
+ * @param credentialJson RegistrationResponseJSON
+ */
 data class PasskeyCreation(
-    val clientDataJson: String,
-    val attestationObject: String,
+    val credentialJson: String,
 )
 
+/**
+ * @param optionsJson PublicKeyCredentialRequestOptionsJSON
+ */
 data class PasskeyAssertionRequest(
-    val challenge: String,
-    val rpId: String,
+    val optionsJson: String,
 )
 
+/**
+ * @param credentialJson AuthenticationResponseJSON
+ */
 data class PasskeyAssertion(
-    val credentialId: String,
-    val clientDataJson: String,
-    val authenticatorData: String,
-    val signature: String,
-    val userHandle: String?,
+    val credentialJson: String,
 )

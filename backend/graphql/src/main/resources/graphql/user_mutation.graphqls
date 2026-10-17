@@ -1,9 +1,9 @@
 type UserMutation {
     login(query: UserLoginQuery!): UserLoginResult! @lazy
-    passkeyLoginOptions: PasskeyLoginOptions! @lazy
-    passkeyLogin(query: UserPasskeyLoginQuery!): UserPasskeyLoginResult! @lazy
-    "ログイン中のアカウントにパスキーを足すための値を発行する。ログインしていなければ null"
-    passkeyRegistrationOptions: PasskeyRegistrationOptions @lazy
+    passkeyLoginOptions: PasskeyRequestOptionsJson! @lazy
+    passkeyLogin(credential: PasskeyAuthenticationResponseJson!): UserPasskeyLoginResult! @lazy
+    "ログインしていなければ null"
+    passkeyRegistrationOptions: PasskeyCreationOptionsJson @lazy
     registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
     deletePasskey(id: PasskeyCredentialId!): DeletePasskeyResult! @lazy
 }
@@ -22,32 +22,6 @@ enum UserLoginFailure {
     WRONG_USERNAME_OR_PASSWORD
 }
 
-"バイト列はすべて base64url（パディング無し）"
-type PasskeyLoginOptions {
-    challenge: String!
-    rpId: String!
-}
-
-"バイト列はすべて base64url（パディング無し）"
-type PasskeyRegistrationOptions {
-    challenge: String!
-    rpId: String!
-    userHandle: PasskeyUserHandle!
-    username: String!
-    "COSE Algorithms の値"
-    algorithms: [Int!]!
-    excludeCredentialIds: [PasskeyCredentialId!]!
-}
-
-"バイト列はすべて base64url（パディング無し）。WebAuthn の AuthenticatorAssertionResponse の値をそのまま渡す"
-input UserPasskeyLoginQuery {
-    credentialId: PasskeyCredentialId!
-    clientDataJson: String!
-    authenticatorData: String!
-    signature: String!
-    userHandle: PasskeyUserHandle
-}
-
 type UserPasskeyLoginResult {
     failure: UserPasskeyLoginFailure
 }
@@ -56,11 +30,9 @@ enum UserPasskeyLoginFailure {
     NOT_ACCEPTED
 }
 
-"バイト列はすべて base64url（パディング無し）。WebAuthn の AuthenticatorAttestationResponse の値をそのまま渡す"
 input RegisterPasskeyQuery {
     name: String!
-    clientDataJson: String!
-    attestationObject: String!
+    credential: PasskeyRegistrationResponseJson!
 }
 
 type RegisterPasskeyResult {

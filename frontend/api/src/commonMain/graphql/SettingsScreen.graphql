@@ -7,14 +7,7 @@ query SettingsScreenPasskeys {
 
 mutation PasskeyRegistrationOptions {
     user {
-        passkeyRegistrationOptions {
-            challenge
-            rpId
-            userHandle
-            username
-            algorithms
-            excludeCredentialIds
-        }
+        passkeyRegistrationOptions
     }
 }
 

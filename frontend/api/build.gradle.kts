@@ -38,6 +38,9 @@ apollo {
         )
         mapScalarToKotlinString("UserId")
         mapScalarToKotlinString("PasskeyCredentialId")
-        mapScalarToKotlinString("PasskeyUserHandle")
+        mapScalarToKotlinString("PasskeyCreationOptionsJson")
+        mapScalarToKotlinString("PasskeyRequestOptionsJson")
+        mapScalarToKotlinString("PasskeyRegistrationResponseJson")
+        mapScalarToKotlinString("PasskeyAuthenticationResponseJson")
     }
 }

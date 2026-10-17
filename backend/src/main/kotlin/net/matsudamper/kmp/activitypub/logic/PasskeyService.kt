@@ -6,6 +6,7 @@ import java.util.Base64
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 import net.matsudamper.kmp.activitypub.passkey.PasskeyClientData
+import net.matsudamper.kmp.activitypub.passkey.PasskeyJson
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 import net.matsudamper.kmp.activitypub.passkey.PasskeyVerificationException
 import net.matsudamper.kmp.activitypub.passkey.PasskeyVerifier
@@ -20,7 +21,7 @@ import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 import org.slf4j.LoggerFactory
 
 /**
- * バイト列の受け渡しはすべて base64url（パディング無し）
+ * 認証器との受け渡しは [PasskeyJson] の JSON で行う
  */
 class PasskeyService(
     private val relyingParty: PasskeyRelyingParty,
@@ -31,56 +32,60 @@ class PasskeyService(
     private val verifier = PasskeyVerifier(relyingParty)
     private val random = SecureRandom()
 
-    fun loginOptions(): LoginOptions =
-        LoginOptions(
+    /**
+     * @return PublicKeyCredentialRequestOptionsJSON
+     */
+    fun loginOptions(): String =
+        PasskeyJson.requestOptions(
+            relyingParty = relyingParty,
             challenge = issueChallenge(PasskeyChallengePurpose.Authentication, accountId = null),
-            rpId = relyingParty.id,
+            timeout = CHALLENGE_TTL,
         )
 
     /**
+     * @param credentialJson AuthenticationResponseJSON
      * @return 通ればログインするアカウント
      */
-    fun login(
-        credentialId: PasskeyCredentialId,
-        clientDataJson: String,
-        authenticatorData: String,
-        signature: String,
-        userHandle: PasskeyUserHandle?,
-    ): AccountId? =
+    fun login(credentialJson: String): AccountId? =
         verifyOrNull {
-            val clientData = PasskeyClientData.parse(decode(clientDataJson))
+            val response = PasskeyJson.parseAuthenticationResponse(credentialJson)
+            val clientData = PasskeyClientData.parse(response.clientDataJson)
             if (!challengeStore.consume(clientData.challenge, PasskeyChallengePurpose.Authentication, accountId = null)) {
                 throw PasskeyVerificationException("発行していないか期限切れの challenge")
             }
 
-            // 認証器が返した id と照合するため、表記を揃える
-            val normalizedCredentialId = PasskeyCredentialId(encode(decode(credentialId.value)))
+            val credentialId = PasskeyCredentialId(encode(response.credentialId))
             val passkey =
-                passkeyRepository.findByCredentialId(normalizedCredentialId)
+                passkeyRepository.findByCredentialId(credentialId)
                     ?: throw PasskeyVerificationException("登録されていない credential ID")
             // 別のアカウントのパスキーで、このアカウントの user handle を名乗っていないかを見る
-            if (userHandle != null && PasskeyUserHandle(encode(decode(userHandle.value))) != passkey.userHandle) throw PasskeyVerificationException("user handle が持ち主と合わない")
+            val userHandle = response.userHandle
+            if (userHandle != null && PasskeyUserHandle(encode(userHandle)) != passkey.userHandle) throw PasskeyVerificationException("user handle が持ち主と合わない")
 
             val signCount =
                 verifier.verifyAuthentication(
                     clientData = clientData,
-                    authenticatorData = decode(authenticatorData),
-                    signature = decode(signature),
+                    authenticatorData = response.authenticatorData,
+                    signature = response.signature,
                     publicKey = passkey.publicKey,
                     storedSignCount = passkey.signCount,
                 )
-            passkeyRepository.updateSignCount(credentialId = normalizedCredentialId, signCount = signCount, usedAt = clock.instant())
+            passkeyRepository.updateSignCount(credentialId = credentialId, signCount = signCount, usedAt = clock.instant())
             passkey.accountId
         }
 
-    fun registrationOptions(account: Account): RegistrationOptions =
-        RegistrationOptions(
+    /**
+     * @return PublicKeyCredentialCreationOptionsJSON
+     */
+    fun registrationOptions(account: Account): String =
+        PasskeyJson.creationOptions(
+            relyingParty = relyingParty,
             challenge = issueChallenge(PasskeyChallengePurpose.Registration, accountId = account.id),
-            rpId = relyingParty.id,
-            userHandle = passkeyRepository.userHandle(account.id) { PasskeyUserHandle(encode(randomBytes(USER_HANDLE_SIZE_BYTES))) },
+            userHandle = passkeyRepository.userHandle(account.id) { PasskeyUserHandle(encode(randomBytes(USER_HANDLE_SIZE_BYTES))) }.value,
             username = account.username,
             algorithms = verifier.supportedAlgorithms,
-            excludeCredentialIds = passkeyRepository.passkeys(account.id).map { it.credentialId },
+            excludeCredentialIds = passkeyRepository.passkeys(account.id).map { it.credentialId.value },
+            timeout = CHALLENGE_TTL,
         )
 
     fun passkeys(accountId: AccountId): List<PasskeySummary> = passkeyRepository.passkeys(accountId)
@@ -93,23 +98,26 @@ class PasskeyService(
         credentialId: PasskeyCredentialId,
     ): Boolean = passkeyRepository.delete(accountId = accountId, credentialId = credentialId)
 
+    /**
+     * @param credentialJson RegistrationResponseJSON
+     */
     fun register(
         accountId: AccountId,
         name: String,
-        clientDataJson: String,
-        attestationObject: String,
+        credentialJson: String,
     ): RegistrationResult {
         val trimmedName = name.trim()
         if (trimmedName.isEmpty() || trimmedName.codePointCount(0, trimmedName.length) > MAX_NAME_LENGTH) return RegistrationResult.InvalidName
 
         val registered =
             verifyOrNull {
-                val clientData = PasskeyClientData.parse(decode(clientDataJson))
+                val response = PasskeyJson.parseRegistrationResponse(credentialJson)
+                val clientData = PasskeyClientData.parse(response.clientDataJson)
                 // 別のアカウント向けに発行した challenge では足させない
                 if (!challengeStore.consume(clientData.challenge, PasskeyChallengePurpose.Registration, accountId = accountId)) {
                     throw PasskeyVerificationException("発行していないか期限切れの challenge")
                 }
-                verifier.verifyRegistration(clientData, decode(attestationObject))
+                verifier.verifyRegistration(clientData, response.attestationObject)
             } ?: return RegistrationResult.NotAccepted
 
         val added =
@@ -145,27 +153,6 @@ class PasskeyService(
     private fun randomBytes(size: Int): ByteArray = ByteArray(size).also(random::nextBytes)
 
     private fun encode(bytes: ByteArray): String = BASE64_ENCODER.encodeToString(bytes)
-
-    private fun decode(value: String): ByteArray =
-        try {
-            Base64.getUrlDecoder().decode(value)
-        } catch (e: IllegalArgumentException) {
-            throw PasskeyVerificationException("base64url として読めない", e)
-        }
-
-    class LoginOptions(
-        val challenge: String,
-        val rpId: String,
-    )
-
-    class RegistrationOptions(
-        val challenge: String,
-        val rpId: String,
-        val userHandle: PasskeyUserHandle,
-        val username: String,
-        val algorithms: List<Long>,
-        val excludeCredentialIds: List<PasskeyCredentialId>,
-    )
 
     sealed interface RegistrationResult {
         data object Success : RegistrationResult

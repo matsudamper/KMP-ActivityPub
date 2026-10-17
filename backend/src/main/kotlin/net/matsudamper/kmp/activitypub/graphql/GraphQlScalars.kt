@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import java.util.Locale
 import graphql.GraphQLContext
+import graphql.Scalars
 import graphql.execution.CoercedVariables
 import graphql.language.StringValue
 import graphql.language.Value
@@ -12,7 +13,6 @@ import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
-import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 object GraphQlScalars {
     /**
@@ -32,12 +32,19 @@ object GraphQlScalars {
             .coercing(Base64UrlCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
             .build()
 
-    val passkeyUserHandle: GraphQLScalarType =
-        GraphQLScalarType
-            .newScalar()
-            .name("PasskeyUserHandle")
-            .coercing(Base64UrlCoercing(name = "PasskeyUserHandle", type = PasskeyUserHandle::class.java, wrap = ::PasskeyUserHandle, unwrap = PasskeyUserHandle::value))
-            .build()
+    val passkeyJsonScalars: List<GraphQLScalarType> =
+        listOf(
+            "PasskeyCreationOptionsJson",
+            "PasskeyRequestOptionsJson",
+            "PasskeyRegistrationResponseJson",
+            "PasskeyAuthenticationResponseJson",
+        ).map { name ->
+            GraphQLScalarType
+                .newScalar()
+                .name(name)
+                .coercing(Scalars.GraphQLString.coercing)
+                .build()
+        }
 
     private object UserIdCoercing : Coercing<AccountId, String> {
         override fun serialize(

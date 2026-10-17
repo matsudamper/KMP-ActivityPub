@@ -6,6 +6,11 @@ import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import net.matsudamper.kmp.activitypub.FakePasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
@@ -14,7 +19,6 @@ import net.matsudamper.kmp.activitypub.passkey.TestPasskeyAlgorithm
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
-import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 class PasskeyServiceTest {
     private val repositories = FakeRepositories()
@@ -39,7 +43,7 @@ class PasskeyServiceTest {
     @Test
     fun `同じ challenge では二度ログインできない`() {
         val userHandle = register(account)
-        val challenge = service.loginOptions().challenge
+        val challenge = loginChallenge()
 
         assertEquals(account.id, login(userHandle = userHandle, challenge = challenge, signCount = 1))
         assertNull(login(userHandle = userHandle, challenge = challenge, signCount = 2))
@@ -55,59 +59,50 @@ class PasskeyServiceTest {
     @Test
     fun `別のアカウントの user handle を名乗るとログインできない`() {
         register(account)
-        val otherUserHandle = service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH)).userHandle
+        val otherOptions = parse(service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH)))
 
-        assertNull(login(userHandle = otherUserHandle))
+        assertNull(login(userHandle = otherOptions.userHandle()))
     }
 
     @Test
     fun `別のアカウント向けの challenge では登録できない`() {
-        val challenge = service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH)).challenge
+        val otherOptions = parse(service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH)))
 
-        val result =
-            service.register(
-                accountId = account.id,
-                name = "端末1",
-                clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = challenge)),
-                attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
-            )
-
-        assertEquals(PasskeyService.RegistrationResult.NotAccepted, result)
+        assertEquals(PasskeyService.RegistrationResult.NotAccepted, register(account, challenge = otherOptions.challenge()))
     }
 
     @Test
     fun `同じパスキーは二度登録できない`() {
         register(account)
 
-        val result =
-            service.register(
-                accountId = account.id,
-                name = "端末1",
-                clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = service.registrationOptions(account).challenge)),
-                attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
-            )
-
-        assertEquals(PasskeyService.RegistrationResult.AlreadyRegistered, result)
+        assertEquals(PasskeyService.RegistrationResult.AlreadyRegistered, register(account, challenge = parse(service.registrationOptions(account)).challenge()))
     }
 
     @Test
     fun `登録済みのパスキーを除外の対象に返す`() {
         register(account)
 
-        assertEquals(listOf(PasskeyCredentialId(TestAuthenticator.base64Url(authenticator.credentialId))), service.registrationOptions(account).excludeCredentialIds)
+        val excludeCredentialIds =
+            parse(service.registrationOptions(account))
+                .getValue("excludeCredentials")
+                .jsonArray
+                .map { it.jsonObject.getValue("id").jsonPrimitive.content }
+        assertEquals(listOf(TestAuthenticator.base64Url(authenticator.credentialId)), excludeCredentialIds)
     }
 
     @Test
     fun `空の名前では登録できない`() {
-        val result =
-            service.register(
-                accountId = account.id,
-                name = " ",
-                clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = service.registrationOptions(account).challenge)),
-                attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
-            )
+        val result = register(account, challenge = parse(service.registrationOptions(account)).challenge(), name = " ")
 
         assertEquals(PasskeyService.RegistrationResult.InvalidName, result)
+    }
+
+    @Test
+    fun `JSON として読めない応答ではログインできない`() {
+        register(account)
+        loginChallenge()
+
+        assertNull(service.login(credentialJson = "{"))
     }
 
     @Test
@@ -122,32 +117,46 @@ class PasskeyServiceTest {
     /**
      * @return user handle
      */
-    private fun register(account: Account): PasskeyUserHandle {
-        val options = service.registrationOptions(account)
-        val result =
-            service.register(
-                accountId = account.id,
-                name = "端末1",
-                clientDataJson = TestAuthenticator.base64Url(authenticator.clientData(type = "webauthn.create", challenge = options.challenge)),
-                attestationObject = TestAuthenticator.base64Url(authenticator.attestationObject()),
-            )
-        assertEquals(PasskeyService.RegistrationResult.Success, result)
-        return options.userHandle
+    private fun register(account: Account): String {
+        val options = parse(service.registrationOptions(account))
+        assertEquals(PasskeyService.RegistrationResult.Success, register(account, challenge = options.challenge()))
+        return options.userHandle()
     }
 
+    private fun register(
+        account: Account,
+        challenge: String,
+        name: String = "端末1",
+    ): PasskeyService.RegistrationResult {
+        val clientData = authenticator.clientData(type = "webauthn.create", challenge = challenge)
+        return service.register(
+            accountId = account.id,
+            name = name,
+            credentialJson = authenticator.registrationResponseJson(clientData = clientData, attestationObject = authenticator.attestationObject()),
+        )
+    }
+
+    private fun loginChallenge(): String = parse(service.loginOptions()).challenge()
+
     private fun login(
-        userHandle: PasskeyUserHandle,
-        challenge: String = service.loginOptions().challenge,
+        userHandle: String,
+        challenge: String = loginChallenge(),
         signCount: Long = 1,
     ): AccountId? {
         val clientData = authenticator.clientData(type = "webauthn.get", challenge = challenge)
-        val authenticatorData = authenticator.authenticatorData(signCount = signCount)
         return service.login(
-            credentialId = PasskeyCredentialId(TestAuthenticator.base64Url(authenticator.credentialId)),
-            clientDataJson = TestAuthenticator.base64Url(clientData),
-            authenticatorData = TestAuthenticator.base64Url(authenticatorData),
-            signature = TestAuthenticator.base64Url(authenticator.sign(authenticatorData, clientData)),
-            userHandle = userHandle,
+            credentialJson =
+            authenticator.authenticationResponseJson(
+                clientData = clientData,
+                authenticatorData = authenticator.authenticatorData(signCount = signCount),
+                userHandle = userHandle,
+            ),
         )
     }
+
+    private fun parse(json: String): JsonObject = Json.parseToJsonElement(json).jsonObject
+
+    private fun JsonObject.challenge(): String = getValue("challenge").jsonPrimitive.content
+
+    private fun JsonObject.userHandle(): String = getValue("user").jsonObject.getValue("id").jsonPrimitive.content
 }

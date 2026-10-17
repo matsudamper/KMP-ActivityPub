@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.passkey
 
 import com.apollographql.apollo.api.ApolloResponse
-import com.apollographql.apollo.api.Optional
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeletePasskeyMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyLoginOptionsMutation
@@ -12,7 +11,6 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeletePasskeyFailur
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPasskeyLoginFailure
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPasskeyLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 
 class PasskeyApi(
@@ -24,24 +22,15 @@ class PasskeyApi(
         val options = response.data?.user?.passkeyLoginOptions
         if (response.exception != null || response.hasErrors() || options == null) return PasskeyOptionsResult.Failure(response.failureMessage())
 
-        return PasskeyOptionsResult.Success(PasskeyAssertionRequest(challenge = options.challenge, rpId = options.rpId))
+        return PasskeyOptionsResult.Success(PasskeyAssertionRequest(optionsJson = options))
     }
 
     suspend fun login(assertion: PasskeyAssertion): PasskeyLoginResult {
         val client = clients.client.value ?: return PasskeyLoginResult.Failure(NOT_CONFIGURED_MESSAGE)
         val response =
             client
-                .mutation(
-                    PasskeyLoginMutation(
-                        UserPasskeyLoginQuery(
-                            credentialId = assertion.credentialId,
-                            clientDataJson = assertion.clientDataJson,
-                            authenticatorData = assertion.authenticatorData,
-                            signature = assertion.signature,
-                            userHandle = Optional.presentIfNotNull(assertion.userHandle),
-                        ),
-                    ),
-                ).execute()
+                .mutation(PasskeyLoginMutation(credential = assertion.credentialJson))
+                .execute()
         val login = response.data?.user?.passkeyLogin
         if (response.exception != null || response.hasErrors() || login == null) return PasskeyLoginResult.Failure(response.failureMessage())
 
@@ -59,16 +48,7 @@ class PasskeyApi(
         if (response.exception != null || response.hasErrors() || user == null) return PasskeyOptionsResult.Failure(response.failureMessage())
         val options = user.passkeyRegistrationOptions ?: return PasskeyOptionsResult.NotLoggedIn
 
-        return PasskeyOptionsResult.Success(
-            PasskeyCreationRequest(
-                challenge = options.challenge,
-                rpId = options.rpId,
-                userHandle = options.userHandle,
-                username = options.username,
-                algorithms = options.algorithms,
-                excludeCredentialIds = options.excludeCredentialIds,
-            ),
-        )
+        return PasskeyOptionsResult.Success(PasskeyCreationRequest(optionsJson = options))
     }
 
     suspend fun register(
@@ -82,8 +62,7 @@ class PasskeyApi(
                     RegisterPasskeyMutation(
                         RegisterPasskeyQuery(
                             name = name,
-                            clientDataJson = creation.clientDataJson,
-                            attestationObject = creation.attestationObject,
+                            credential = creation.credentialJson,
                         ),
                     ),
                 ).execute()
