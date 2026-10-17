@@ -24,15 +24,15 @@ internal data class ActorResponse(
      * 既定値と同じ値は出力されないので、null のときは項目ごと出ない
      */
     @SerialName("publicKey")
-    val publicKey: ActorPublicKey? = null,
-)
-
-@Serializable
-internal data class ActorPublicKey(
-    @SerialName("id")
-    val id: String,
-    @SerialName("owner")
-    val owner: String,
-    @SerialName("publicKeyPem")
-    val publicKeyPem: String,
-)
+    val publicKey: PublicKey? = null,
+) {
+    @Serializable
+    data class PublicKey(
+        @SerialName("id")
+        val id: String,
+        @SerialName("owner")
+        val owner: String,
+        @SerialName("publicKeyPem")
+        val publicKeyPem: String,
+    )
+}

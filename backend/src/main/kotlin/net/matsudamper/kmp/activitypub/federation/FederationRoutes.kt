@@ -7,9 +7,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
-import net.matsudamper.kmp.activitypub.federation.data.ActorPublicKey
 import net.matsudamper.kmp.activitypub.federation.data.ActorResponse
-import net.matsudamper.kmp.activitypub.federation.data.WebFingerLink
 import net.matsudamper.kmp.activitypub.federation.data.WebFingerResponse
 import net.matsudamper.kmp.activitypub.json.respondJson
 import net.matsudamper.kmp.activitypub.logic.AccountService
@@ -43,8 +41,8 @@ internal fun Route.federationRoutes(
                 subject = urls.acct(account.username),
                 aliases = listOf(actorUrl, profileUrl),
                 links = listOf(
-                    WebFingerLink(rel = "self", type = ActivityJson.toString(), href = actorUrl),
-                    WebFingerLink(
+                    WebFingerResponse.Link(rel = "self", type = ActivityJson.toString(), href = actorUrl),
+                    WebFingerResponse.Link(
                         rel = "http://webfinger.net/rel/profile-page",
                         type = ContentType.Text.Html.toString(),
                         href = profileUrl,
@@ -70,7 +68,7 @@ internal fun Route.federationRoutes(
                     url = urls.profilePage(account.username),
                     inbox = urls.inbox(account.username),
                     publicKey = accountService.publicKeyPem(account.id)?.let { publicKeyPem ->
-                        ActorPublicKey(id = urls.publicKey(account.username), owner = actorUrl, publicKeyPem = publicKeyPem)
+                        ActorResponse.PublicKey(id = urls.publicKey(account.username), owner = actorUrl, publicKeyPem = publicKeyPem)
                     },
                 )
             }

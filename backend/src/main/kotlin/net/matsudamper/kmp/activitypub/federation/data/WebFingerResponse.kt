@@ -10,15 +10,15 @@ internal data class WebFingerResponse(
     @SerialName("aliases")
     val aliases: List<String>,
     @SerialName("links")
-    val links: List<WebFingerLink>,
-)
-
-@Serializable
-internal data class WebFingerLink(
-    @SerialName("rel")
-    val rel: String,
-    @SerialName("type")
-    val type: String,
-    @SerialName("href")
-    val href: String,
-)
+    val links: List<Link>,
+) {
+    @Serializable
+    data class Link(
+        @SerialName("rel")
+        val rel: String,
+        @SerialName("type")
+        val type: String,
+        @SerialName("href")
+        val href: String,
+    )
+}
