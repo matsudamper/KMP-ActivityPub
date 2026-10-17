@@ -22,7 +22,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
-import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
+import net.matsudamper.kmp.activitypub.frontend.ui.FormSubmitHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import org.koin.compose.viewmodel.koinViewModel
@@ -95,7 +95,7 @@ internal fun LoginForm(
             value = uiState.username,
             onValueChange = uiState.listener::onUsernameChanged,
             label = "ユーザー名",
-            kind = SingleLineTextFieldKind.Username(formId = LOGIN_FORM_ID),
+            kind = SingleLineTextFieldKind.Plain(formId = LOGIN_FORM_ID),
             imeAction = ImeAction.Next,
             inputId = LOGIN_USERNAME_INPUT_ID,
             inputName = "username",
@@ -103,17 +103,23 @@ internal fun LoginForm(
             hasError = uiState.inputHasError,
             modifier = Modifier.fillMaxWidth(),
         )
-        PasswordField(
+        FormSubmitHandler(
+            formId = LOGIN_FORM_ID,
+            onSubmit = uiState.listener::onClickLogin,
+            enabled = uiState.inputEnabled,
+        )
+        SingleLineTextField(
             value = uiState.password,
             onValueChange = uiState.listener::onPasswordChanged,
-            onSubmit = uiState.listener::onClickLogin,
             label = "パスワード",
-            formId = LOGIN_FORM_ID,
+            kind = SingleLineTextFieldKind.Secret(formId = LOGIN_FORM_ID),
+            imeAction = ImeAction.Done,
             inputId = LOGIN_PASSWORD_INPUT_ID,
             inputName = "password",
             enabled = uiState.inputEnabled,
             hasError = uiState.inputHasError,
             modifier = Modifier.fillMaxWidth(),
+            onDone = uiState.listener::onClickLogin,
         )
         val error = uiState.error
         if (error != null) {

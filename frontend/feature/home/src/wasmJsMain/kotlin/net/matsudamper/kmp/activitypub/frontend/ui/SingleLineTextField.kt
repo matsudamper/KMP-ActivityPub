@@ -18,38 +18,28 @@ internal actual fun SingleLineTextField(
     enabled: Boolean,
     hasError: Boolean,
     modifier: Modifier,
+    onDone: () -> Unit,
 ) {
-    when (kind) {
-        is SingleLineTextFieldKind.Username -> {
-            HtmlFormComponents.PlatformInputField(
-                value = value,
-                onValueChange = onValueChange,
-                label = label,
-                inputId = inputId,
-                inputName = inputName,
-                inputType = HtmlInputType.Text,
-                autocomplete = "username",
-                enabled = enabled,
-                hasError = hasError,
-                formId = kind.formId,
-                required = true,
-                modifier = modifier,
-            )
-        }
-
-        SingleLineTextFieldKind.Plain -> {
-            HtmlFormComponents.PlatformInputField(
-                value = value,
-                onValueChange = onValueChange,
-                label = label,
-                inputId = inputId,
-                inputName = inputName,
-                inputType = HtmlInputType.Text,
-                autocomplete = "off",
-                enabled = enabled,
-                hasError = hasError,
-                modifier = modifier,
-            )
-        }
-    }
+    val formId = kind.formId
+    HtmlFormComponents.PlatformInputField(
+        value = value,
+        onValueChange = onValueChange,
+        label = label,
+        inputId = inputId,
+        inputName = inputName,
+        inputType = when (kind) {
+            is SingleLineTextFieldKind.Plain -> HtmlInputType.Text
+            is SingleLineTextFieldKind.Secret -> HtmlInputType.Password
+        },
+        autocomplete = when {
+            formId == null -> "off"
+            kind is SingleLineTextFieldKind.Plain -> "username"
+            else -> "current-password"
+        },
+        enabled = enabled,
+        hasError = hasError,
+        formId = formId,
+        required = formId != null,
+        modifier = modifier,
+    )
 }

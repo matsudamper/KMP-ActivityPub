@@ -16,18 +16,21 @@ internal expect fun SingleLineTextField(
     enabled: Boolean,
     hasError: Boolean,
     modifier: Modifier = Modifier,
+    onDone: () -> Unit = {},
 )
 
 internal sealed interface SingleLineTextFieldKind {
     /**
-     * @param formId 同じフォームの [PasswordField] と揃える。パスワードマネージャーが組で扱えるようにするため
+     * null 以外なら、パスワードマネージャーに自動入力させる。
+     * 同じ formId の [FormSubmitHandler] と入力欄を組で扱う
      */
-    data class Username(
-        val formId: String,
+    val formId: String?
+
+    data class Plain(
+        override val formId: String?,
     ) : SingleLineTextFieldKind
 
-    /**
-     * パスワードマネージャーに自動入力させない
-     */
-    data object Plain : SingleLineTextFieldKind
+    data class Secret(
+        override val formId: String?,
+    ) : SingleLineTextFieldKind
 }
