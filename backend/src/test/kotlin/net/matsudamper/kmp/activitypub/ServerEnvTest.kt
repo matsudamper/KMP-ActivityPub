@@ -19,6 +19,7 @@ class ServerEnvTest {
         assertNull(env.staticSrcDir)
         assertEquals(Path("./data/kmp-activitypub.db"), env.dbPath)
         assertTrue(env.cookieSecure)
+        assertNull(env.localDomain)
     }
 
     @Test
@@ -40,6 +41,7 @@ class ServerEnvTest {
                     "PORT" to "9000",
                     "STATIC_SRC_DIR" to "/srv/static",
                     "DB_PATH" to "/srv/db.sqlite",
+                    "LOCAL_DOMAIN" to "Example.com",
                 ),
             )
 
@@ -47,6 +49,7 @@ class ServerEnvTest {
         assertEquals(9000, env.port)
         assertEquals(Path("/srv/static"), env.staticSrcDir)
         assertEquals(Path("/srv/db.sqlite"), env.dbPath)
+        assertEquals("example.com", env.localDomain)
     }
 
     @Test

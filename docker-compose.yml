@@ -16,6 +16,8 @@ services:
       VALKEY_URI: redis://valkey:6379
       # http では false にする
       COOKIE_SECURE: "true"
+      # 他のサーバーから @user@example.com で見つけてもらうためのドメイン
+      LOCAL_DOMAIN: example.com
     depends_on:
       valkey:
         condition: service_healthy
