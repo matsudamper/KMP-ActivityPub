@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.session
 
 import kotlin.time.Duration
 import io.lettuce.core.RedisClient
+import io.lettuce.core.ScriptOutputType
 import io.lettuce.core.api.StatefulRedisConnection
 
 class ValkeyLoginFailureStore(
@@ -16,9 +17,12 @@ class ValkeyLoginFailureStore(
         clientIp: String,
         ttl: Duration,
     ) {
-        val commands = connection.sync()
-        commands.incr(keyOf(clientIp))
-        commands.expire(keyOf(clientIp), ttl.inWholeSeconds)
+        connection.sync().eval<Long>(
+            INCREMENT_WITH_TTL_SCRIPT,
+            ScriptOutputType.INTEGER,
+            arrayOf(keyOf(clientIp)),
+            ttl.inWholeSeconds.toString(),
+        )
     }
 
     override fun clear(clientIp: String) {
@@ -31,4 +35,15 @@ class ValkeyLoginFailureStore(
     }
 
     private fun keyOf(clientIp: String): String = "login-failure:$clientIp"
+
+    private companion object {
+        /**
+         * INCR と EXPIRE の間で落ちると期限の無いキーが残り、締め出しが解けなくなるので 1 回で行う
+         */
+        const val INCREMENT_WITH_TTL_SCRIPT = """
+            local count = redis.call('INCR', KEYS[1])
+            redis.call('EXPIRE', KEYS[1], ARGV[1])
+            return count
+        """
+    }
 }
