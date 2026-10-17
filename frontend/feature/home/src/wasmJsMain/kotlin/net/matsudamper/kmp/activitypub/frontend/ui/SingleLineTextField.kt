@@ -10,7 +10,7 @@ import net.matsudamper.frontend.component.HtmlInputType
 internal actual fun SingleLineTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    onDone: () -> Unit,
+    onImeAction: () -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
     autofill: SingleLineTextFieldAutofill?,
@@ -45,7 +45,7 @@ internal actual fun SingleLineTextField(
         required = required,
         enterKeyHint = imeAction.toEnterKeyHint(),
         // formId があれば Enter で form が送信され、FormSubmitHandler が受ける
-        onEnter = if (formId == null) onDone else null,
+        onEnter = if (formId == null && imeAction.isSubmitAction()) onImeAction else null,
         modifier = modifier,
     )
 }
@@ -59,4 +59,10 @@ private fun ImeAction.toEnterKeyHint(): String? =
         ImeAction.Search -> "search"
         ImeAction.Send -> "send"
         else -> null
+    }
+
+private fun ImeAction.isSubmitAction(): Boolean =
+    when (this) {
+        ImeAction.Done, ImeAction.Go, ImeAction.Search, ImeAction.Send -> true
+        else -> false
     }

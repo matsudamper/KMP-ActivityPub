@@ -18,7 +18,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 internal actual fun SingleLineTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    onDone: () -> Unit,
+    onImeAction: () -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
     autofill: SingleLineTextFieldAutofill?,
@@ -49,7 +49,12 @@ internal actual fun SingleLineTextField(
             },
             imeAction = imeAction,
         ),
-        keyboardActions = KeyboardActions(onDone = { onDone() }),
+        keyboardActions = KeyboardActions(
+            onDone = { onImeAction() },
+            onGo = { onImeAction() },
+            onSearch = { onImeAction() },
+            onSend = { onImeAction() },
+        ),
         modifier = if (autofill == null) {
             modifier
         } else {

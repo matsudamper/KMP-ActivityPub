@@ -95,7 +95,7 @@ internal fun LoginForm(
         SingleLineTextField(
             value = uiState.username,
             onValueChange = uiState.listener::onUsernameChanged,
-            onDone = {},
+            onImeAction = {},
             label = "ユーザー名",
             kind = SingleLineTextFieldKind.Plain,
             autofill = SingleLineTextFieldAutofill.Username,
@@ -116,7 +116,7 @@ internal fun LoginForm(
         SingleLineTextField(
             value = uiState.password,
             onValueChange = uiState.listener::onPasswordChanged,
-            onDone = uiState.listener::onClickLogin,
+            onImeAction = uiState.listener::onClickLogin,
             label = "パスワード",
             kind = SingleLineTextFieldKind.Secret,
             autofill = SingleLineTextFieldAutofill.CurrentPassword,
