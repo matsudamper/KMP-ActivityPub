@@ -16,19 +16,22 @@ internal object BrowserHistory {
     /**
      * URL で直接開いた画面の下に、アプリの中で戻ったときに出す画面も積む
      */
-    fun initialScreens(): List<Screen> {
-        return when (val screen = screenOf(window.location.pathname)) {
-            Screen.Post -> listOf(Screen.Home, Screen.Post)
-            Screen.Login, Screen.Home -> listOf(screen)
-        }
+    fun initialScreens(unknownPathScreen: Screen): List<Screen> {
+        val screen = screenOf(path = window.location.pathname, unknownPathScreen = unknownPathScreen)
+        return generateSequence(screen) { it.parentScreen }.toList().asReversed()
     }
 
     /**
      * 画面の積み上げをブラウザの履歴と URL に写し、ブラウザの戻る/進むを積み上げに反映する
      */
     @Composable
-    fun SyncEffect(backStack: NavBackStack<NavKey>) {
-        val sync = remember(backStack) { BackStackHistorySync(backStack) }
+    fun SyncEffect(
+        backStack: NavBackStack<NavKey>,
+        unknownPathScreen: Screen,
+    ) {
+        val sync = remember(backStack, unknownPathScreen) {
+            BackStackHistorySync(backStack = backStack, unknownPathScreen = unknownPathScreen)
+        }
         DisposableEffect(sync) {
             sync.start()
             onDispose { sync.stop() }
@@ -38,27 +41,17 @@ internal object BrowserHistory {
         }
     }
 
-    private fun screenOf(path: String): Screen {
-        return when (path) {
-            HOME_PATH -> Screen.Home
-            POST_PATH -> Screen.Post
-            else -> Screen.Login
-        }
-    }
-
-    private fun pathOf(key: NavKey): String {
-        return when (key as? Screen) {
-            Screen.Home -> HOME_PATH
-            Screen.Post -> POST_PATH
-            Screen.Login, null -> LOGIN_PATH
-        }
-    }
+    private fun screenOf(
+        path: String,
+        unknownPathScreen: Screen,
+    ): Screen = Screen.fromPath(path) ?: unknownPathScreen
 
     /**
      * 履歴の各エントリの state に、履歴上の位置を持たせて積み上げとの対応を取る
      */
     private class BackStackHistorySync(
         private val backStack: NavBackStack<NavKey>,
+        private val unknownPathScreen: Screen,
     ) {
         private var stackBottomHistoryIndex = 0
         private var currentHistoryIndex = 0
@@ -119,7 +112,7 @@ internal object BrowserHistory {
         }
 
         private fun onPopState(historyIndex: Int?) {
-            val screen = screenOf(window.location.pathname)
+            val screen = screenOf(path = window.location.pathname, unknownPathScreen = unknownPathScreen)
             if (historyIndex == null) {
                 // このアプリが積んでいない履歴。位置が分からないので、そこを起点に積み直す
                 stackBottomHistoryIndex = 0
@@ -154,6 +147,8 @@ internal object BrowserHistory {
             currentHistoryIndex = historyIndex
         }
 
+        private fun pathOf(key: NavKey): String = ((key as? Screen) ?: unknownPathScreen).path
+
         private fun resetBackStack(screen: Screen) {
             backStack.clear()
             backStack.add(screen)
@@ -163,8 +158,4 @@ internal object BrowserHistory {
             return (state as? JsNumber)?.toInt()
         }
     }
-
-    private const val LOGIN_PATH = "/"
-    private const val HOME_PATH = "/home"
-    private const val POST_PATH = "/post"
 }

@@ -34,9 +34,9 @@ private fun App() {
 
 @Composable
 private fun AppNavigation() {
-    val backStack = rememberScreenBackStack(startScreens = BrowserHistory.initialScreens())
+    val backStack = rememberScreenBackStack(startScreens = BrowserHistory.initialScreens(unknownPathScreen = UNKNOWN_PATH_SCREEN))
     val navigator = remember(backStack) { Navigator(backStack) }
-    BrowserHistory.SyncEffect(backStack)
+    BrowserHistory.SyncEffect(backStack = backStack, unknownPathScreen = UNKNOWN_PATH_SCREEN)
     MaterialTheme {
         NavDisplay(
             backStack = backStack,
@@ -58,3 +58,5 @@ private fun AppNavigation() {
         )
     }
 }
+
+private val UNKNOWN_PATH_SCREEN: Screen = Screen.Login
