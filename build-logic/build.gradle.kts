@@ -33,5 +33,10 @@ gradlePlugin {
             id = "kmp-activitypub.native-image"
             implementationClass = "net.matsudamper.kmp.activitypub.gradle.NativeImagePlugin"
         }
+
+        create("graphqlSchemaList") {
+            id = "kmp-activitypub.graphql-schema-list"
+            implementationClass = "net.matsudamper.kmp.activitypub.gradle.GraphqlSchemaListPlugin"
+        }
     }
 }

@@ -1,2 +1,4 @@
-# 実装のルール
-pagingはoffset利用禁止。cursorと最後のid等を使用した実装にする。  
+# Backend
+
+## ページング
+- offset によるページングは禁止。最後に取得した ID などを cursor として使う方式にする
