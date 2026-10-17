@@ -4,6 +4,8 @@ plugins {
 
 dependencies {
     api(project(":shared"))
+
+    implementation(libs.lettuce.core)
 }
 
 kotlin {

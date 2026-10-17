@@ -64,8 +64,11 @@ object HtmlFormComponents {
         modifier: Modifier = Modifier,
         formId: String? = null,
         required: Boolean = false,
+        enterKeyHint: String? = null,
+        onEnter: (() -> Unit)? = null,
     ) {
         val currentOnValueChange = rememberUpdatedState(onValueChange)
+        val currentOnEnter = rememberUpdatedState(onEnter)
         val colors = MaterialTheme.colorScheme
         val textStyle = MaterialTheme.typography.bodyLarge
         val interactionSource = remember { MutableInteractionSource() }
@@ -102,10 +105,20 @@ object HtmlFormComponents {
                             }
                             input.setAttribute("aria-label", label)
                             input.required = required
+                            if (enterKeyHint != null) {
+                                input.setAttribute("enterkeyhint", enterKeyHint)
+                            }
                             bindDomListeners(
                                 input = input,
                                 onValueChange = { currentOnValueChange.value(it) },
                             )
+                            input.addEventListener("keydown") { event ->
+                                val onEnterValue = currentOnEnter.value ?: return@addEventListener
+                                if (keyboardKey(event) == "Enter" && !isComposing(event)) {
+                                    event.preventDefault()
+                                    onEnterValue()
+                                }
+                            }
                             input
                         },
                         update = { input ->
@@ -383,6 +396,10 @@ private fun hasClipboardModifier(event: Event): Boolean =
 
 private fun keyboardKey(event: Event): String =
     js("String(event.key || '')")
+
+// Safari は変換確定の Enter を isComposing = false、keyCode = 229 で送ることがある
+private fun isComposing(event: Event): Boolean =
+    js("event.isComposing === true || event.keyCode === 229")
 
 private fun bindFocusHandlers(
     input: HTMLElement,
