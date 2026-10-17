@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.nio.file.Path
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_KEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
 import org.jooq.SQLDialect
 import org.jooq.exception.DataAccessException
@@ -12,13 +13,15 @@ import org.sqlite.SQLiteException
 object Accounts {
     /**
      * @throws AccountAlreadyExists 同じユーザー名が既にある
-     * @throws AccountTableMissing accounts か account_passwords が無い
+     * @throws AccountTableMissing accounts, account_passwords, account_keys のどれかが無い
      */
     fun insert(
         databasePath: Path,
         username: String,
         passwordHash: String,
         passwordHashType: String,
+        publicKeyPem: String,
+        privateKeyPem: String,
         createdAt: String,
     ) {
         val storedUsername = username.lowercase()
@@ -41,6 +44,14 @@ object Accounts {
                             ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE,
                         )
                         .values(accountId, passwordHash, passwordHashType)
+                        .execute()
+                    dsl.insertInto(ACCOUNT_KEYS)
+                        .columns(
+                            ACCOUNT_KEYS.ACCOUNT_ID,
+                            ACCOUNT_KEYS.PUBLIC_KEY_PEM,
+                            ACCOUNT_KEYS.PRIVATE_KEY_PEM,
+                        )
+                        .values(accountId, publicKeyPem, privateKeyPem)
                         .execute()
                 }
             }

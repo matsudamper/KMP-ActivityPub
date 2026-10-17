@@ -112,6 +112,8 @@ class PasskeyRepositoryTest {
             username = "user1",
             passwordHash = "hash",
             passwordHashType = "hash-type",
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
             createdAt = NOW.toString(),
         )
 

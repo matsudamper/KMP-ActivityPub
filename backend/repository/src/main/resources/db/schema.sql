@@ -13,6 +13,13 @@ CREATE TABLE account_passwords (
     password_hash_type TEXT NOT NULL
 );
 
+-- ActivityPub の HTTP Signatures に使う
+CREATE TABLE account_keys (
+    account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+    public_key_pem TEXT NOT NULL,
+    private_key_pem TEXT NOT NULL
+);
+
 -- WebAuthn の user.id。アカウントの id を認証器に渡さないよう、乱数を別に持つ
 CREATE TABLE passkey_user_handles (
     account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
