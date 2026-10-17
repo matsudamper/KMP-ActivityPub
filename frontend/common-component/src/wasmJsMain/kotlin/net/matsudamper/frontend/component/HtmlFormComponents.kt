@@ -397,8 +397,9 @@ private fun hasClipboardModifier(event: Event): Boolean =
 private fun keyboardKey(event: Event): String =
     js("String(event.key || '')")
 
+// Safari は変換確定の Enter を isComposing = false、keyCode = 229 で送ることがある
 private fun isComposing(event: Event): Boolean =
-    js("event.isComposing === true")
+    js("event.isComposing === true || event.keyCode === 229")
 
 private fun bindFocusHandlers(
     input: HTMLElement,
