@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import java.util.concurrent.atomic.AtomicBoolean
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.plugins.origin
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.session.UserSessionService
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -16,6 +17,11 @@ class GraphQlContext(
         secure = cookieSecure,
         cookieName = SessionCookieManager.USER_COOKIE_NAME,
     )
+
+    /**
+     * リバースプロキシの後ろに置くとプロキシの IP になり、全員がまとめて締め出される
+     */
+    val clientIp: String = call.request.origin.remoteAddress
 
     private val loginAttempted = AtomicBoolean(false)
 

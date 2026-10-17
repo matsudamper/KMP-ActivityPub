@@ -67,7 +67,10 @@ internal fun Application.module(deps: AppDependencies) {
                     cookieSecure = deps.env.cookieSecure,
                 )
             },
-            diContainer = DiContainer(accountService = deps.accountService),
+            diContainer = DiContainer(
+                accountService = deps.accountService,
+                loginThrottle = deps.loginThrottle,
+            ),
         )
 
     routing {
