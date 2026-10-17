@@ -6,6 +6,7 @@ import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import net.matsudamper.kmp.activitypub.FakePasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 import net.matsudamper.kmp.activitypub.passkey.TestAuthenticator
@@ -21,6 +22,7 @@ class PasskeyServiceTest {
         PasskeyService(
             relyingParty = PasskeyRelyingParty(id = TestAuthenticator.RP_ID, origins = setOf(TestAuthenticator.ORIGIN)),
             passkeyRepository = repositories.passkeyRepository,
+            challengeStore = FakePasskeyChallengeStore(),
             clock = Clock.fixed(Instant.parse("2026-09-01T00:00:00Z"), ZoneOffset.UTC),
         )
 
