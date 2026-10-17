@@ -6,6 +6,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.days
 import net.matsudamper.kmp.activitypub.FakeLoginFailureStore
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class LoginThrottleTest {
     private fun throttle() = LoginThrottle(failureStore = FakeLoginFailureStore(), maxFailures = 5, lockDuration = 30.days)
 
