@@ -39,6 +39,7 @@ koinPlugin = "1.2.1"
 okhttp = "5.5.0"
 playServicesAuthBlockstore = "16.4.0"
 opentelemetry = "1.67.0"
+opentelemetryApiIncubator = "1.67.0-alpha"
 opentelemetryInstrumentation = "2.29.0-alpha"
 
 [libraries]
@@ -90,6 +91,7 @@ koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", ver
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "opentelemetry" }
 opentelemetry-extension-kotlin = { module = "io.opentelemetry:opentelemetry-extension-kotlin", version.ref = "opentelemetry" }
+opentelemetry-api-incubator = { module = "io.opentelemetry:opentelemetry-api-incubator", version.ref = "opentelemetryApiIncubator" }
 opentelemetry-sdk = { module = "io.opentelemetry:opentelemetry-sdk", version.ref = "opentelemetry" }
 opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp", version.ref = "opentelemetry" }
 opentelemetry-sdk-autoconfigure = { module = "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", version.ref = "opentelemetry" }
