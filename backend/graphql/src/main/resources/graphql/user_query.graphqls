@@ -1,8 +1,0 @@
-type UserQuery {
-    "有効なセッションの Cookie が無ければ null"
-    me: Me @lazy
-}
-
-type Me {
-    id: ID!
-}

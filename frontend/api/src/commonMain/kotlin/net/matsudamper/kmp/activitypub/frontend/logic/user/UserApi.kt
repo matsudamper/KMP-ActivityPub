@@ -47,9 +47,9 @@ class UserApi(
         val client = clients.awaitLoadedClient() ?: return UserLoginStateResult.NotLoggedIn
         val response = client.query(LoginGateQuery()).execute()
         if (response.exception != null || response.hasErrors()) return UserLoginStateResult.Failure(response.failureMessage())
-        val user = response.data?.user ?: return UserLoginStateResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserLoginStateResult.Failure(response.failureMessage())
 
-        return if (user.me == null) {
+        return if (data.userInfo == null) {
             UserLoginStateResult.NotLoggedIn
         } else {
             UserLoginStateResult.LoggedIn

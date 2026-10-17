@@ -104,7 +104,7 @@ class GraphQlEngine private constructor(
                 "directive.graphqls",
                 "schema.graphqls",
                 "user_mutation.graphqls",
-                "user_query.graphqls",
+                "user_info.graphqls",
             )
 
         private fun readSchema(): String = SCHEMA_FILES.joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }

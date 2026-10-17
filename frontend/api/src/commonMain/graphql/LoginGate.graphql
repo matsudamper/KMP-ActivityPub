@@ -1,7 +1,5 @@
 query LoginGate {
-    user {
-        me {
-            id
-        }
+    userInfo {
+        id
     }
 }

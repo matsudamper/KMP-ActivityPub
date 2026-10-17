@@ -4,7 +4,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
-import net.matsudamper.kmp.activitypub.graphql.model.QlUserQuery
+import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 
 class QueryResolverImpl : QueryResolver {
@@ -12,7 +13,14 @@ class QueryResolverImpl : QueryResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<Boolean?>(null).build())
     }
 
-    override fun user(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserQuery>> {
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlUserQuery()).build())
+    override fun userInfo(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserInfo?>> {
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val userInfo =
+            if (accountId == null) {
+                null
+            } else {
+                QlUserInfo(id = accountId.value.toString())
+            }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlUserInfo?>(userInfo).build())
     }
 }
