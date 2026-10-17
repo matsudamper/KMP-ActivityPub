@@ -18,11 +18,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
-import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
-import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
+import net.matsudamper.kmp.activitypub.frontend.ui.FormSubmitHandler
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldAutofill
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -89,23 +92,37 @@ internal fun LoginForm(
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
-        UsernameField(
+        SingleLineTextField(
             value = uiState.username,
             onValueChange = uiState.listener::onUsernameChanged,
+            onImeAction = {},
             label = "ユーザー名",
+            kind = SingleLineTextFieldKind.Plain,
+            autofill = SingleLineTextFieldAutofill.Username,
             formId = LOGIN_FORM_ID,
+            required = true,
+            imeAction = ImeAction.Next,
             inputId = LOGIN_USERNAME_INPUT_ID,
             inputName = "username",
             enabled = uiState.inputEnabled,
             hasError = uiState.inputHasError,
             modifier = Modifier.fillMaxWidth(),
         )
-        PasswordField(
+        FormSubmitHandler(
+            formId = LOGIN_FORM_ID,
+            onSubmit = uiState.listener::onClickLogin,
+            enabled = uiState.inputEnabled,
+        )
+        SingleLineTextField(
             value = uiState.password,
             onValueChange = uiState.listener::onPasswordChanged,
-            onSubmit = uiState.listener::onClickLogin,
+            onImeAction = uiState.listener::onClickLogin,
             label = "パスワード",
+            kind = SingleLineTextFieldKind.Secret,
+            autofill = SingleLineTextFieldAutofill.CurrentPassword,
             formId = LOGIN_FORM_ID,
+            required = true,
+            imeAction = ImeAction.Done,
             inputId = LOGIN_PASSWORD_INPUT_ID,
             inputName = "password",
             enabled = uiState.inputEnabled,
