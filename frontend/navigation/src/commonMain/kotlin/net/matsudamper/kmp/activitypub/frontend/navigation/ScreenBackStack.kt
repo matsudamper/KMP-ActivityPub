@@ -26,6 +26,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
             subclass(Screen.Login::class)
             subclass(Screen.Home::class)
             subclass(Screen.Post::class)
+            subclass(Screen.Settings::class)
             subclass(Screen.UserProfile::class)
         }
     }
