@@ -15,6 +15,7 @@ class ServerEnv(
     val port: Int = values["PORT"]?.toInt() ?: 8080
     val staticSrcDir: Path? = values["STATIC_SRC_DIR"]?.let { Path(it) }
     val dbPath: Path = Path(values["DB_PATH"] ?: "./data/kmp-activitypub.db")
+    val valkeyUri: String = values["VALKEY_URI"] ?: "redis://localhost:6379"
 
     /**
      * true のまま http で開くとログインできない

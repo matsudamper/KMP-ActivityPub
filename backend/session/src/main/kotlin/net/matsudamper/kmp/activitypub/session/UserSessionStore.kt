@@ -6,7 +6,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 /**
  * 保存先が漏れても使えないよう、トークンはハッシュで受け取る
  */
-interface UserSessionStore {
+interface UserSessionStore : AutoCloseable {
     fun create(
         tokenHash: String,
         accountId: AccountId,
