@@ -1,12 +1,16 @@
 package net.matsudamper.kmp.activitypub.graphql
 
-import kotlin.reflect.full.memberProperties
+import java.lang.reflect.Modifier
 import graphql.execution.instrumentation.Instrumentation
 import graphql.execution.instrumentation.InstrumentationState
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters
 import graphql.schema.DataFetcher
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
+/**
+ * kotlin-reflect のメタデータは native-image に載らないので Java のリフレクションで読む。
+ * 型は GraphQlReflectionFeature がメソッドとフィールドを登録している
+ */
 internal class IdLoggerInstrumentation(
     private val tracer: TraceLogger,
 ) : Instrumentation {
@@ -17,28 +21,23 @@ internal class IdLoggerInstrumentation(
     ): DataFetcher<*> =
         DataFetcher { environment ->
             val source: Any? = environment.getSource<Any>()
-            // native-image でメタデータが引けず失敗しても、計測のために本来の取得を止めない
             if (source != null) {
-                runCatching { recordSource(source) }
+                val id =
+                    source.javaClass.methods
+                        .firstOrNull { it.name == "getId" && it.parameterCount == 0 }
+                        ?.invoke(source)
+
+                if (id != null) {
+                    tracer.setAttribute("graphql.id", id.toString())
+                }
+                tracer.setAttribute(
+                    "graphql.members",
+                    source.javaClass.declaredFields
+                        .filterNot { Modifier.isStatic(it.modifiers) }
+                        .joinToString { it.name },
+                )
             }
 
             dataFetcher?.get(environment)
         }
-
-    private fun recordSource(source: Any) {
-        val id =
-            source::class
-                .memberProperties
-                .firstOrNull { it.name == "id" }
-                ?.getter
-                ?.call(source)
-                ?: runCatching {
-                    source.javaClass.getMethod("getId").invoke(source)
-                }.getOrNull()
-
-        if (id != null) {
-            tracer.setAttribute("graphql.id", id.toString())
-        }
-        tracer.setAttribute("graphql.members", source::class.memberProperties.joinToString { it.name })
-    }
 }
