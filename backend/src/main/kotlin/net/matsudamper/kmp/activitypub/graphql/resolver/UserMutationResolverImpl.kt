@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
+import org.slf4j.LoggerFactory
 
 class UserMutationResolverImpl : UserMutationResolver {
     /**
@@ -23,17 +24,30 @@ class UserMutationResolverImpl : UserMutationResolver {
     ): CompletionStage<DataFetcherResult<QlUserLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
         if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
-        val accountService = GraphQlEngine.diContainer(env).accountService
+        val diContainer = GraphQlEngine.diContainer(env)
+        val loginThrottle = diContainer.loginThrottle
+        val clientIp = context.clientIp
+        if (loginThrottle.isLocked(clientIp)) {
+            logger.warn("ログインの失敗が続いている IP なので照合せずに断った: $clientIp")
+            val result = QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
+            return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+        }
 
-        val accountId = accountService.authenticate(username = query.username, password = query.password)
+        val accountId = diContainer.accountService.authenticate(username = query.username, password = query.password)
         val result =
             if (accountId == null) {
+                loginThrottle.recordFailure(clientIp)
                 QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
             } else {
+                loginThrottle.recordSuccess(clientIp)
                 context.issueUserSession(accountId)
                 QlUserLoginResult(failure = null)
             }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    private companion object {
+        val logger = LoggerFactory.getLogger(UserMutationResolverImpl::class.java)
     }
 }
