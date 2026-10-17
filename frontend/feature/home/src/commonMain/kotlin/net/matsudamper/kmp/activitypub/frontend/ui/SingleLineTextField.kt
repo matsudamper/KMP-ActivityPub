@@ -2,15 +2,40 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 
+/**
+ * @param formId 同じ formId の [FormSubmitHandler] と入力欄を一つのフォームとして扱う
+ * @param autofill null ならパスワードマネージャーに自動入力させない
+ * @param required Web では空欄のままフォームを送信させない
+ * @param onImeAction [imeAction] が Done / Go / Search / Send のとき、確定キーで呼ぶ。Web ではフォームに属さない入力欄の Enter で呼ぶ
+ */
 @Composable
 internal expect fun SingleLineTextField(
     value: String,
     onValueChange: (String) -> Unit,
+    onImeAction: () -> Unit,
     label: String,
+    kind: SingleLineTextFieldKind,
+    autofill: SingleLineTextFieldAutofill?,
+    formId: String?,
+    required: Boolean,
+    imeAction: ImeAction,
     inputId: String,
     inputName: String,
     enabled: Boolean,
     hasError: Boolean,
     modifier: Modifier = Modifier,
 )
+
+internal sealed interface SingleLineTextFieldKind {
+    data object Plain : SingleLineTextFieldKind
+
+    data object Secret : SingleLineTextFieldKind
+}
+
+internal enum class SingleLineTextFieldAutofill {
+    Username,
+    CurrentPassword,
+    NewPassword,
+}

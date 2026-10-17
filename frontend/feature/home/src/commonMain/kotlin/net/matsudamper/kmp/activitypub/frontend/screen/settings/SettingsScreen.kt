@@ -24,9 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -93,7 +95,13 @@ internal fun SettingsContent(
                     SingleLineTextField(
                         value = uiState.passkeyName,
                         onValueChange = uiState.listener::onPasskeyNameChanged,
+                        onImeAction = {},
                         label = "名前（どの端末か分かるように）",
+                        kind = SingleLineTextFieldKind.Plain,
+                        autofill = null,
+                        formId = null,
+                        required = false,
+                        imeAction = ImeAction.Default,
                         inputId = PASSKEY_NAME_INPUT_ID,
                         inputName = "passkey-name",
                         enabled = uiState.passkeyNameInputEnabled,
