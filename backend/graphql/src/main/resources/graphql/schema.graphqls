@@ -8,6 +8,8 @@ type Query {
     unused: Boolean
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
+    "ログインしていなくても引ける。いなければ null"
+    user(username: String!): User
 }
 
 type Mutation {
