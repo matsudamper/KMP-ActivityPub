@@ -8,6 +8,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import com.apollographql.apollo.ApolloClient
@@ -39,17 +41,34 @@ internal class AndroidGraphQlClientSource(
         .followSslRedirects(false)
         .build()
 
-    override val client: StateFlow<ApolloClient?> =
+    private val clientState: StateFlow<ClientState> =
         serverSettingStore.serverUrlFlow
             .distinctUntilChanged()
             .map { serverUrl ->
                 if (serverUrl == null) {
-                    null
+                    ClientState.Loaded(client = null)
                 } else {
-                    GraphQlClient.builder("$serverUrl/graphql")
-                        .okHttpClient(httpClient)
-                        .addHttpInterceptor(SessionHttpInterceptor(sessionRepository))
-                        .build()
+                    ClientState.Loaded(
+                        client = GraphQlClient.builder("$serverUrl/graphql")
+                            .okHttpClient(httpClient)
+                            .addHttpInterceptor(SessionHttpInterceptor(sessionRepository))
+                            .build(),
+                    )
                 }
-            }.stateIn(scope, SharingStarted.Eagerly, null)
+            }.stateIn(scope, SharingStarted.Eagerly, ClientState.Loading)
+
+    override val client: StateFlow<ApolloClient?> =
+        clientState
+            .map { (it as? ClientState.Loaded)?.client }
+            .stateIn(scope, SharingStarted.Eagerly, null)
+
+    override suspend fun awaitLoadedClient(): ApolloClient? = clientState.filterIsInstance<ClientState.Loaded>().first().client
+
+    private sealed interface ClientState {
+        data object Loading : ClientState
+
+        data class Loaded(
+            val client: ApolloClient?,
+        ) : ClientState
+    }
 }

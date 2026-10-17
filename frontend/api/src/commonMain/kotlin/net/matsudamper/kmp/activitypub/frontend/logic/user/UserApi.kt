@@ -44,7 +44,7 @@ class UserApi(
 
     suspend fun loginState(): UserLoginStateResult {
         // 接続先が無ければセッションも無い。接続先はログイン画面で決める
-        val client = clients.client.value ?: return UserLoginStateResult.NotLoggedIn
+        val client = clients.awaitLoadedClient() ?: return UserLoginStateResult.NotLoggedIn
         val response = client.query(LoginGateQuery()).execute()
         if (response.exception != null || response.hasErrors()) return UserLoginStateResult.Failure(response.failureMessage())
         val user = response.data?.user ?: return UserLoginStateResult.Failure(response.failureMessage())
