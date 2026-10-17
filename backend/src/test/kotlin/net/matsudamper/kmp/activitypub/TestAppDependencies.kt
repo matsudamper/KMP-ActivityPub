@@ -4,4 +4,9 @@ package net.matsudamper.kmp.activitypub
 internal fun TestDependencies(
     repositories: FakeRepositories = FakeRepositories(),
     env: ServerEnv = ServerEnv(emptyMap()),
-): AppDependencies = AppDependencies(repositories = repositories, sessionStore = FakeUserSessionStore(), env = env)
+): AppDependencies = AppDependencies(
+    repositories = repositories,
+    sessionStore = FakeUserSessionStore(),
+    loginFailureStore = FakeLoginFailureStore(),
+    env = env,
+)

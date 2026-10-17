@@ -20,6 +20,7 @@ class ServerEnvTest {
         assertEquals(Path("./data/kmp-activitypub.db"), env.dbPath)
         assertTrue(env.cookieSecure)
         assertNull(env.domain)
+        assertFalse(env.trustCfConnectingIp)
     }
 
     @Test
@@ -63,6 +64,16 @@ class ServerEnvTest {
 
         assertEquals(Path("/srv/db.sqlite"), env.dbPath)
         assertFalse(env.cookieSecure)
+    }
+
+    @Test
+    fun `TRUST_CF_CONNECTING_IP に true を指定すると true になる`() {
+        assertTrue(ServerEnv(mapOf("TRUST_CF_CONNECTING_IP" to "true")).trustCfConnectingIp)
+    }
+
+    @Test
+    fun `TRUST_CF_CONNECTING_IP が真偽値でなければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("TRUST_CF_CONNECTING_IP" to "yes")) }
     }
 
     @Test
