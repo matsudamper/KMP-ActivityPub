@@ -45,6 +45,18 @@ class AccountServiceTest {
         assertFailsWith<IllegalStateException> { service.authenticate(username = "user1", password = PASSWORD) }
     }
 
+    @Test
+    fun `大文字小文字が違ってもユーザー名でユーザーを引ける`() {
+        val id = accountRepository.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
+
+        assertEquals(id, service.account(username = "USER1")?.id)
+    }
+
+    @Test
+    fun `いないユーザー名では引けない`() {
+        assertNull(service.account(username = "user1"))
+    }
+
     private companion object {
         const val PASSWORD = "user-password"
 
