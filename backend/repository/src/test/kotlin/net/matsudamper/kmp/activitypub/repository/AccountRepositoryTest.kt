@@ -33,6 +33,28 @@ class AccountRepositoryTest {
     }
 
     @Test
+    fun `登録したアカウントを名前で引ける`() {
+        insertAccount()
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
+            assertEquals(
+                Account(id = id, username = "user1", createdAt = CREATED_AT),
+                repositories.accountRepository.findByUsername("USER1"),
+            )
+        }
+    }
+
+    @Test
+    fun `いない名前のアカウントは引けない`() {
+        TestSchema.applyTo(dbPath)
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertNull(repositories.accountRepository.findByUsername("user1"))
+        }
+    }
+
+    @Test
     fun `照合に使うハッシュと方式を名前で引ける`() {
         insertAccount()
 
