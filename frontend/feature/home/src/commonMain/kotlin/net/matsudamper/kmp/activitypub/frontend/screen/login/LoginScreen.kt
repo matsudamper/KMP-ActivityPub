@@ -94,6 +94,7 @@ internal fun LoginForm(
         SingleLineTextField(
             value = uiState.username,
             onValueChange = uiState.listener::onUsernameChanged,
+            onDone = {},
             label = "ユーザー名",
             kind = SingleLineTextFieldKind.Plain(formId = LOGIN_FORM_ID),
             imeAction = ImeAction.Next,
@@ -111,6 +112,7 @@ internal fun LoginForm(
         SingleLineTextField(
             value = uiState.password,
             onValueChange = uiState.listener::onPasswordChanged,
+            onDone = uiState.listener::onClickLogin,
             label = "パスワード",
             kind = SingleLineTextFieldKind.Secret(formId = LOGIN_FORM_ID),
             imeAction = ImeAction.Done,
@@ -119,7 +121,6 @@ internal fun LoginForm(
             enabled = uiState.inputEnabled,
             hasError = uiState.inputHasError,
             modifier = Modifier.fillMaxWidth(),
-            onDone = uiState.listener::onClickLogin,
         )
         val error = uiState.error
         if (error != null) {

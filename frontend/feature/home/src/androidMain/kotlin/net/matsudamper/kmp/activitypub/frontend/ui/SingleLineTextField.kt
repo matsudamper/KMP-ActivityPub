@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 internal actual fun SingleLineTextField(
     value: String,
     onValueChange: (String) -> Unit,
+    onDone: () -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
     imeAction: ImeAction,
@@ -23,7 +24,6 @@ internal actual fun SingleLineTextField(
     enabled: Boolean,
     hasError: Boolean,
     modifier: Modifier,
-    onDone: () -> Unit,
 ) {
     OutlinedTextField(
         value = value,

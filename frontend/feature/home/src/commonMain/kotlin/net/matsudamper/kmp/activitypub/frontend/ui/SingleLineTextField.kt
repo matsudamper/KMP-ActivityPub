@@ -8,6 +8,7 @@ import androidx.compose.ui.text.input.ImeAction
 internal expect fun SingleLineTextField(
     value: String,
     onValueChange: (String) -> Unit,
+    onDone: () -> Unit,
     label: String,
     kind: SingleLineTextFieldKind,
     imeAction: ImeAction,
@@ -16,7 +17,6 @@ internal expect fun SingleLineTextField(
     enabled: Boolean,
     hasError: Boolean,
     modifier: Modifier = Modifier,
-    onDone: () -> Unit = {},
 )
 
 internal sealed interface SingleLineTextFieldKind {
