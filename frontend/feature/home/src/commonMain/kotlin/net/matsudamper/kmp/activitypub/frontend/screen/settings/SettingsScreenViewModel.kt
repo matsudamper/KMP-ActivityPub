@@ -11,7 +11,6 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyApi
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticatorResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyListResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyOptionsResult
@@ -134,9 +133,9 @@ internal class SettingsScreenViewModel(
             }
         val creation =
             when (val result = passkeyAuthenticator.create(request)) {
-                is PasskeyAuthenticatorResult.Success -> result.value
-                PasskeyAuthenticatorResult.Cancelled -> return null
-                is PasskeyAuthenticatorResult.Failure -> return Outcome.Error(result.message)
+                is PasskeyAuthenticator.Result.Success -> result.value
+                PasskeyAuthenticator.Result.Cancelled -> return null
+                is PasskeyAuthenticator.Result.Failure -> return Outcome.Error(result.message)
             }
         return when (val result = passkeyApi.register(name = name, creation = creation)) {
             PasskeyRegistrationResult.Success -> Outcome.Added

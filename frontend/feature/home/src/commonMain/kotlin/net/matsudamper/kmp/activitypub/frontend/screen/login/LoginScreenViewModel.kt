@@ -11,7 +11,6 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyApi
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticatorResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyLoginResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyOptionsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
@@ -154,9 +153,9 @@ internal class LoginScreenViewModel(
             }
         val assertion =
             when (val result = passkeyAuthenticator.get(request)) {
-                is PasskeyAuthenticatorResult.Success -> result.value
-                PasskeyAuthenticatorResult.Cancelled -> return PasskeyLoginOutcome.Cancelled
-                is PasskeyAuthenticatorResult.Failure -> return PasskeyLoginOutcome.Error(result.message)
+                is PasskeyAuthenticator.Result.Success -> result.value
+                PasskeyAuthenticator.Result.Cancelled -> return PasskeyLoginOutcome.Cancelled
+                is PasskeyAuthenticator.Result.Failure -> return PasskeyLoginOutcome.Error(result.message)
             }
         return when (val result = passkeyApi.login(assertion)) {
             PasskeyLoginResult.Success -> PasskeyLoginOutcome.Success

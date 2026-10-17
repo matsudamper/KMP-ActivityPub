@@ -2,45 +2,40 @@ package net.matsudamper.kmp.activitypub.frontend
 
 import kotlin.js.Promise
 import kotlinx.coroutines.await
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAssertion
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAssertionRequest
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticatorResult
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyCreation
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyCreationRequest
 
 internal class WebPasskeyAuthenticator : PasskeyAuthenticator {
     override val available: Boolean = isWebAuthnJsonAvailable()
 
-    override suspend fun create(request: PasskeyCreationRequest): PasskeyAuthenticatorResult<PasskeyCreation> {
+    override suspend fun create(request: PasskeyAuthenticator.CreationRequest): PasskeyAuthenticator.Result<PasskeyAuthenticator.Creation> {
         val result = createCredential(optionsJson = request.optionsJson).await<JsCredentialResult>()
         val credentialJson = result.credentialJson
         return when {
-            credentialJson != null -> PasskeyAuthenticatorResult.Success(PasskeyCreation(credentialJson = credentialJson))
+            credentialJson != null -> PasskeyAuthenticator.Result.Success(PasskeyAuthenticator.Creation(credentialJson = credentialJson))
 
             // excludeCredentials に当たった。この端末には追加済み
-            result.errorName == "InvalidStateError" -> PasskeyAuthenticatorResult.Failure("この端末のパスキーは追加済み")
+            result.errorName == "InvalidStateError" -> PasskeyAuthenticator.Result.Failure("この端末のパスキーは追加済み")
 
             else -> result.toFailure()
         }
     }
 
-    override suspend fun get(request: PasskeyAssertionRequest): PasskeyAuthenticatorResult<PasskeyAssertion> {
+    override suspend fun get(request: PasskeyAuthenticator.AssertionRequest): PasskeyAuthenticator.Result<PasskeyAuthenticator.Assertion> {
         val result = getCredential(optionsJson = request.optionsJson).await<JsCredentialResult>()
         val credentialJson = result.credentialJson
         return if (credentialJson != null) {
-            PasskeyAuthenticatorResult.Success(PasskeyAssertion(credentialJson = credentialJson))
+            PasskeyAuthenticator.Result.Success(PasskeyAuthenticator.Assertion(credentialJson = credentialJson))
         } else {
             result.toFailure()
         }
     }
 
-    private fun JsCredentialResult.toFailure(): PasskeyAuthenticatorResult<Nothing> =
+    private fun JsCredentialResult.toFailure(): PasskeyAuthenticator.Result<Nothing> =
         when (errorName) {
             // 閉じた・タイムアウトした・使えるパスキーが無い、を WebAuthn は区別させない
-            "NotAllowedError", "AbortError" -> PasskeyAuthenticatorResult.Cancelled
+            "NotAllowedError", "AbortError" -> PasskeyAuthenticator.Result.Cancelled
 
-            else -> PasskeyAuthenticatorResult.Failure(errorMessage ?: "パスキーを使えなかった")
+            else -> PasskeyAuthenticator.Result.Failure(errorMessage ?: "パスキーを使えなかった")
         }
 }
 

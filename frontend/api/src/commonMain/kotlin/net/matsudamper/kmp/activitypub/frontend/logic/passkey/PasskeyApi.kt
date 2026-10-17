@@ -16,16 +16,16 @@ import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 class PasskeyApi(
     private val clients: GraphQlClientSource,
 ) {
-    suspend fun loginOptions(): PasskeyOptionsResult<PasskeyAssertionRequest> {
+    suspend fun loginOptions(): PasskeyOptionsResult<PasskeyAuthenticator.AssertionRequest> {
         val client = clients.client.value ?: return PasskeyOptionsResult.Failure(NOT_CONFIGURED_MESSAGE)
         val response = client.mutation(PasskeyLoginOptionsMutation()).execute()
         val options = response.data?.user?.passkeyLoginOptions
         if (response.exception != null || response.hasErrors() || options == null) return PasskeyOptionsResult.Failure(response.failureMessage())
 
-        return PasskeyOptionsResult.Success(PasskeyAssertionRequest(optionsJson = options))
+        return PasskeyOptionsResult.Success(PasskeyAuthenticator.AssertionRequest(optionsJson = options))
     }
 
-    suspend fun login(assertion: PasskeyAssertion): PasskeyLoginResult {
+    suspend fun login(assertion: PasskeyAuthenticator.Assertion): PasskeyLoginResult {
         val client = clients.client.value ?: return PasskeyLoginResult.Failure(NOT_CONFIGURED_MESSAGE)
         val response =
             client
@@ -41,19 +41,19 @@ class PasskeyApi(
         }
     }
 
-    suspend fun registrationOptions(): PasskeyOptionsResult<PasskeyCreationRequest> {
+    suspend fun registrationOptions(): PasskeyOptionsResult<PasskeyAuthenticator.CreationRequest> {
         val client = clients.client.value ?: return PasskeyOptionsResult.Failure(NOT_CONFIGURED_MESSAGE)
         val response = client.mutation(PasskeyRegistrationOptionsMutation()).execute()
         val user = response.data?.user
         if (response.exception != null || response.hasErrors() || user == null) return PasskeyOptionsResult.Failure(response.failureMessage())
         val options = user.passkeyRegistrationOptions ?: return PasskeyOptionsResult.NotLoggedIn
 
-        return PasskeyOptionsResult.Success(PasskeyCreationRequest(optionsJson = options))
+        return PasskeyOptionsResult.Success(PasskeyAuthenticator.CreationRequest(optionsJson = options))
     }
 
     suspend fun register(
         name: String,
-        creation: PasskeyCreation,
+        creation: PasskeyAuthenticator.Creation,
     ): PasskeyRegistrationResult {
         val client = clients.client.value ?: return PasskeyRegistrationResult.Failure(NOT_CONFIGURED_MESSAGE)
         val response =

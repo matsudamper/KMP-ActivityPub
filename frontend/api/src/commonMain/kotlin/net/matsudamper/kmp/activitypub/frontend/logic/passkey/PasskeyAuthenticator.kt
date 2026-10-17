@@ -9,50 +9,50 @@ interface PasskeyAuthenticator {
      */
     val available: Boolean
 
-    suspend fun create(request: PasskeyCreationRequest): PasskeyAuthenticatorResult<PasskeyCreation>
+    suspend fun create(request: CreationRequest): Result<Creation>
 
-    suspend fun get(request: PasskeyAssertionRequest): PasskeyAuthenticatorResult<PasskeyAssertion>
-}
+    suspend fun get(request: AssertionRequest): Result<Assertion>
 
-sealed interface PasskeyAuthenticatorResult<out T> {
-    data class Success<T>(
-        val value: T,
-    ) : PasskeyAuthenticatorResult<T>
+    sealed interface Result<out T> {
+        data class Success<T>(
+            val value: T,
+        ) : Result<T>
+
+        /**
+         * ユーザーが閉じた。タイムアウトや、該当するパスキーが無いときもこれになる
+         */
+        data object Cancelled : Result<Nothing>
+
+        data class Failure(
+            val message: String,
+        ) : Result<Nothing>
+    }
 
     /**
-     * ユーザーが閉じた。タイムアウトや、該当するパスキーが無いときもこれになる
+     * @param optionsJson PublicKeyCredentialCreationOptionsJSON
      */
-    data object Cancelled : PasskeyAuthenticatorResult<Nothing>
+    data class CreationRequest(
+        val optionsJson: String,
+    )
 
-    data class Failure(
-        val message: String,
-    ) : PasskeyAuthenticatorResult<Nothing>
+    /**
+     * @param credentialJson RegistrationResponseJSON
+     */
+    data class Creation(
+        val credentialJson: String,
+    )
+
+    /**
+     * @param optionsJson PublicKeyCredentialRequestOptionsJSON
+     */
+    data class AssertionRequest(
+        val optionsJson: String,
+    )
+
+    /**
+     * @param credentialJson AuthenticationResponseJSON
+     */
+    data class Assertion(
+        val credentialJson: String,
+    )
 }
-
-/**
- * @param optionsJson PublicKeyCredentialCreationOptionsJSON
- */
-data class PasskeyCreationRequest(
-    val optionsJson: String,
-)
-
-/**
- * @param credentialJson RegistrationResponseJSON
- */
-data class PasskeyCreation(
-    val credentialJson: String,
-)
-
-/**
- * @param optionsJson PublicKeyCredentialRequestOptionsJSON
- */
-data class PasskeyAssertionRequest(
-    val optionsJson: String,
-)
-
-/**
- * @param credentialJson AuthenticationResponseJSON
- */
-data class PasskeyAssertion(
-    val credentialJson: String,
-)

@@ -14,12 +14,7 @@ import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import androidx.credentials.exceptions.domerrors.InvalidStateError
 import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialDomException
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAssertion
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAssertionRequest
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticatorResult
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyCreation
-import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyCreationRequest
 import org.koin.core.annotation.Singleton
 
 @Singleton
@@ -31,27 +26,27 @@ internal class AndroidPasskeyAuthenticator(
      */
     override val available: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
 
-    override suspend fun create(request: PasskeyCreationRequest): PasskeyAuthenticatorResult<PasskeyCreation> {
-        val activity = activityHolder.current ?: return PasskeyAuthenticatorResult.Failure(NO_ACTIVITY_MESSAGE)
+    override suspend fun create(request: PasskeyAuthenticator.CreationRequest): PasskeyAuthenticator.Result<PasskeyAuthenticator.Creation> {
+        val activity = activityHolder.current ?: return PasskeyAuthenticator.Result.Failure(NO_ACTIVITY_MESSAGE)
         val response =
             try {
                 CredentialManager.create(activity).createCredential(activity, CreatePublicKeyCredentialRequest(request.optionsJson))
             } catch (_: CreateCredentialCancellationException) {
-                return PasskeyAuthenticatorResult.Cancelled
+                return PasskeyAuthenticator.Result.Cancelled
             } catch (e: CreatePublicKeyCredentialDomException) {
                 // excludeCredentials に当たった。この端末には追加済み
-                if (e.domError is InvalidStateError) return PasskeyAuthenticatorResult.Failure("この端末のパスキーは追加済み")
-                return PasskeyAuthenticatorResult.Failure(e.message ?: e.type)
+                if (e.domError is InvalidStateError) return PasskeyAuthenticator.Result.Failure("この端末のパスキーは追加済み")
+                return PasskeyAuthenticator.Result.Failure(e.message ?: e.type)
             } catch (e: CreateCredentialException) {
-                return PasskeyAuthenticatorResult.Failure(e.message ?: e.type)
+                return PasskeyAuthenticator.Result.Failure(e.message ?: e.type)
             }
-        if (response !is CreatePublicKeyCredentialResponse) return PasskeyAuthenticatorResult.Failure(UNEXPECTED_RESPONSE_MESSAGE)
+        if (response !is CreatePublicKeyCredentialResponse) return PasskeyAuthenticator.Result.Failure(UNEXPECTED_RESPONSE_MESSAGE)
 
-        return PasskeyAuthenticatorResult.Success(PasskeyCreation(credentialJson = response.registrationResponseJson))
+        return PasskeyAuthenticator.Result.Success(PasskeyAuthenticator.Creation(credentialJson = response.registrationResponseJson))
     }
 
-    override suspend fun get(request: PasskeyAssertionRequest): PasskeyAuthenticatorResult<PasskeyAssertion> {
-        val activity = activityHolder.current ?: return PasskeyAuthenticatorResult.Failure(NO_ACTIVITY_MESSAGE)
+    override suspend fun get(request: PasskeyAuthenticator.AssertionRequest): PasskeyAuthenticator.Result<PasskeyAuthenticator.Assertion> {
+        val activity = activityHolder.current ?: return PasskeyAuthenticator.Result.Failure(NO_ACTIVITY_MESSAGE)
         val response =
             try {
                 CredentialManager.create(activity).getCredential(
@@ -59,15 +54,15 @@ internal class AndroidPasskeyAuthenticator(
                     GetCredentialRequest(listOf(GetPublicKeyCredentialOption(request.optionsJson))),
                 )
             } catch (_: GetCredentialCancellationException) {
-                return PasskeyAuthenticatorResult.Cancelled
+                return PasskeyAuthenticator.Result.Cancelled
             } catch (_: NoCredentialException) {
-                return PasskeyAuthenticatorResult.Failure("この端末に使えるパスキーが無い")
+                return PasskeyAuthenticator.Result.Failure("この端末に使えるパスキーが無い")
             } catch (e: GetCredentialException) {
-                return PasskeyAuthenticatorResult.Failure(e.message ?: e.type)
+                return PasskeyAuthenticator.Result.Failure(e.message ?: e.type)
             }
-        val credential = response.credential as? PublicKeyCredential ?: return PasskeyAuthenticatorResult.Failure(UNEXPECTED_RESPONSE_MESSAGE)
+        val credential = response.credential as? PublicKeyCredential ?: return PasskeyAuthenticator.Result.Failure(UNEXPECTED_RESPONSE_MESSAGE)
 
-        return PasskeyAuthenticatorResult.Success(PasskeyAssertion(credentialJson = credential.authenticationResponseJson))
+        return PasskeyAuthenticator.Result.Success(PasskeyAuthenticator.Assertion(credentialJson = credential.authenticationResponseJson))
     }
 
     private companion object {
