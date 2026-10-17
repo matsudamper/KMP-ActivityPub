@@ -5,6 +5,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlReflectionTargetsTest {
     @Test
     fun `走査するパッケージにクラスがある`() {

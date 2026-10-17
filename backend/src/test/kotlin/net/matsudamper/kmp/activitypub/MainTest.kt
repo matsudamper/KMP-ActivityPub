@@ -13,6 +13,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.io.TempDir
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class MainTest {
     @Test
     fun `healthz で ok を返す`() =
