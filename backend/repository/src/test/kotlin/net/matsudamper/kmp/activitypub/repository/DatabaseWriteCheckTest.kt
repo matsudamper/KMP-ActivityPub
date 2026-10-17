@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class DatabaseWriteCheckTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-write-check")
 

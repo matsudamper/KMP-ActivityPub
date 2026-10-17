@@ -13,6 +13,7 @@ import io.ktor.utils.io.writeFully
 import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.module
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlRoutesTest {
     @Test
     fun `ボディが大きすぎれば 413 で読まない`() =

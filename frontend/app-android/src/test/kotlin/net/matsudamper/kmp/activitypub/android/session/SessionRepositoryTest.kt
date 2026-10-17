@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class SessionRepositoryTest {
     private val url = "https://example.com/graphql".toHttpUrl()
     private val session = SessionCookie(origin = "https://example.com/", cookie = "user_session=token; Path=/; Secure; HttpOnly")

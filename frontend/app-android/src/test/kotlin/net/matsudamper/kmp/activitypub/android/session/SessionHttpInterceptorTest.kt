@@ -12,6 +12,7 @@ import com.apollographql.apollo.api.http.HttpResponse
 import com.apollographql.apollo.network.http.HttpInterceptorChain
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class SessionHttpInterceptorTest {
     @Test
     fun `Cookieヘッダーを付けてセッションCookieだけ保存する`() = runTest {

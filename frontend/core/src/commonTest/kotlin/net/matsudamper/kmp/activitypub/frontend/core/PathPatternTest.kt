@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class PathPatternTest {
     @Test
     fun 可変部分の無いパターンは同じパスだけに合う() {
