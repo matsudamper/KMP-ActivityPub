@@ -29,7 +29,6 @@ class OpenTelemetryInitializer private constructor(
                     .builder()
                     .addPropertiesSupplier {
                         mapOf(
-                            "otel.service.name" to "kmp-activitypub",
                             "otel.exporter.otlp.protocol" to "http/protobuf",
                         )
                     }.addSpanExporterCustomizer { exporter, _ -> FilteringSpanExporter(exporter) }
