@@ -1,5 +1,4 @@
 type UserMutation {
-    "通るとセッションの Cookie が返る"
     login(query: UserLoginQuery!): UserLoginResult! @lazy
 
     "サーバー側のセッションも消える"
@@ -15,12 +14,11 @@ input UserLoginQuery {
 }
 
 type UserLoginResult {
-    session: UserSession!
     failure: UserLoginFailure
 }
 
 enum UserLoginFailure {
-    "ユーザーがいないか、パスワードが違う。どちらかは教えない"
+    "ユーザーがいないか、パスワードが違う。"
     WRONG_USERNAME_OR_PASSWORD
 }
 

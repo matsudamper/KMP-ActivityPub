@@ -1,0 +1,11 @@
+type UserSession {
+    "ログインしていなければ null"
+    account: UserAccount
+}
+
+type UserAccount {
+    username: String!
+
+    "Mastodon の検索窓に貼る形。@name@domain"
+    acct: String!
+}

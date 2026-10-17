@@ -4,6 +4,7 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -41,11 +42,11 @@ import net.matsudamper.kotpub.json.AppJson
 // Cookie の保存はクライアント側の実装に寄るので、テストでは Set-Cookie を自分で読んで付け直す。
 class UserGraphQlTest {
     @Test
-    fun `ログインしていなければ account は null`() =
+    fun `ログインしていなければ userInfo は null`() =
         testApplication {
             applicationWith(repositoriesWithUser())
 
-            assertEquals(JsonNull, querySession().user().obj("session").getValue("account"))
+            assertEquals(JsonNull, queryUserInfo().data().getValue("userInfo"))
         }
 
     @Test
@@ -57,7 +58,6 @@ class UserGraphQlTest {
 
             val result = response.user().obj("login")
             assertEquals(JsonNull, result.getValue("failure"))
-            assertEquals("@$USERNAME@${TestServerEnv.DOMAIN}", result.obj("session").obj("account").string("acct"))
             val setCookie = assertNotNull(response.headers[HttpHeaders.SetCookie])
             assertContains(setCookie, "HttpOnly")
             assertContains(setCookie, "Secure")
@@ -90,9 +90,7 @@ class UserGraphQlTest {
             applicationWith(repositoriesWithUser())
             val token = assertNotNull(mutateLogin(USERNAME, PASSWORD).sessionCookieValue())
 
-            val account = querySession(token).user().obj("session").obj("account")
-
-            assertEquals(USERNAME, account.string("username"))
+            assertNotEquals(JsonNull, queryUserInfo(token).data().getValue("userInfo"))
         }
 
     @Test
@@ -103,7 +101,7 @@ class UserGraphQlTest {
 
             graphQl("mutation { user { logout { account { username } } } }", token = token)
 
-            assertEquals(JsonNull, querySession(token).user().obj("session").getValue("account"))
+            assertEquals(JsonNull, queryUserInfo(token).data().getValue("userInfo"))
         }
 
     @Test
@@ -115,10 +113,10 @@ class UserGraphQlTest {
             val response = client.post(GRAPHQL_PATH) {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Cookie, "${SessionCookieManager.ADMIN_COOKIE_NAME}=$token")
-                setBody("""{"query":"query { user { session { account { username } } } }"}""")
+                setBody("""{"query":"query { userInfo { id } }"}""")
             }
 
-            assertEquals(JsonNull, response.user().obj("session").getValue("account"))
+            assertEquals(JsonNull, response.data().getValue("userInfo"))
         }
 
     @Test
@@ -179,6 +177,8 @@ class UserGraphQlTest {
                 username = USERNAME,
                 passwordHash = PASSWORD_HASH,
                 passwordHashType = PasswordHashType.Current.dbValue,
+                publicKeyPem = "public",
+                privateKeyPem = "private",
                 createdAt = Instant.now(),
             )
         }
@@ -210,8 +210,8 @@ class UserGraphQlTest {
         }
     }
 
-    private suspend fun ApplicationTestBuilder.querySession(token: String? = null): HttpResponse =
-        graphQl("query { user { session { account { username acct } } } }", token = token)
+    private suspend fun ApplicationTestBuilder.queryUserInfo(token: String? = null): HttpResponse =
+        graphQl("query { userInfo { id } }", token = token)
 
     private suspend fun ApplicationTestBuilder.mutateLogin(
         username: String,
@@ -220,7 +220,7 @@ class UserGraphQlTest {
         graphQl(
             query =
             "mutation Login(${'$'}query: UserLoginQuery!) { user { " +
-                "login(query: ${'$'}query) { session { account { username acct } } failure } } }",
+                "login(query: ${'$'}query) { failure } } }",
             variables = """{"query":{"username":${JsonPrimitive(username)},"password":${JsonPrimitive(password)}}}""",
         )
 
@@ -273,7 +273,9 @@ class UserGraphQlTest {
         /**
          * `data.user` まで降りる。errors が入っていたらここで落ちる
          */
-        suspend fun HttpResponse.user(): JsonObject = body().obj("data").obj("user")
+        suspend fun HttpResponse.user(): JsonObject = data().obj("user")
+
+        suspend fun HttpResponse.data(): JsonObject = body().obj("data")
 
         fun JsonObject.obj(name: String): JsonObject = getValue(name).jsonObject
 

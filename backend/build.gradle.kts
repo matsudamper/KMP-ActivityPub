@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":backend:repository"))
     implementation(project(":backend:crypto"))
     implementation(project(":backend:session"))
+    implementation(project(":backend:telemetry"))
     implementation(project(":shared"))
 
     implementation(libs.kotpub.core)
@@ -17,16 +18,12 @@ dependencies {
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.status.pages)
+    implementation(kotlin("reflect"))
     implementation(libs.kotlinx.serialization.json)
-
-    implementation(libs.opentelemetry.api.incubator)
-    implementation(libs.opentelemetry.sdk)
-    implementation(libs.opentelemetry.sdk.autoconfigure)
-    implementation(libs.opentelemetry.exporter.otlp)
-    implementation(libs.opentelemetry.ktor)
-    implementation(libs.opentelemetry.graphql.java)
-    implementation(libs.opentelemetry.runtime.telemetry)
+    implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.extension.kotlin)
+    implementation(libs.opentelemetry.graphql.java)
 
     compileOnly(libs.graalvm.nativeimage)
 
@@ -34,6 +31,7 @@ dependencies {
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.opentelemetry.sdk)
     testImplementation(libs.kotlin.test)
 
     testImplementation(testFixtures(libs.kotpub.core))
@@ -74,6 +72,9 @@ graalvmNative {
             // ロゴと tip の出力がイメージ生成中の JVM で走る
             buildArgs.add("-Dorg.jooq.no-logo=true")
             buildArgs.add("-Dorg.jooq.no-tips=true")
+            buildArgs.add("--initialize-at-run-time=io.opentelemetry.sdk")
+            buildArgs.add("--initialize-at-run-time=io.opentelemetry.exporter")
+            buildArgs.add("--initialize-at-run-time=io.opentelemetry.instrumentation")
         }
     }
 }

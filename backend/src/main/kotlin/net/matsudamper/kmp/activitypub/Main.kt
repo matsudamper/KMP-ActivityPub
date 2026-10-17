@@ -1,12 +1,15 @@
 package net.matsudamper.kmp.activitypub
 
 import java.nio.file.Path
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ServerReady
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -22,9 +25,7 @@ import net.matsudamper.kmp.activitypub.graphql.resolver.AdminQueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
-import net.matsudamper.kmp.activitypub.graphql.resolver.UserQueryResolverImpl
 import net.matsudamper.kmp.activitypub.inbox.inboxRoutes
-import net.matsudamper.kmp.activitypub.json.respondJson
 import net.matsudamper.kmp.activitypub.nodeinfo.nodeInfoRoutes
 import net.matsudamper.kmp.activitypub.note.featuredRoutes
 import net.matsudamper.kmp.activitypub.note.noteRoutes
@@ -33,16 +34,16 @@ import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
+import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 import net.matsudamper.kmp.activitypub.webfinger.webFingerRoutes
 import net.matsudamper.kotpub.actor.ActorKey
 
 fun main() {
     // DOMAIN が無ければこの時点で落ちる。サーバーを立てる前に止めたいので順番を変えないこと
     val serverEnv = ServerEnv()
+    OpenTelemetryInitializer.initialize()
     DatabaseWriteCheck.verify(serverEnv.dbPath)
-
-    val telemetry = OpenTelemetryInitializer.start()
-    val deps = AppDependencies.create(serverEnv, telemetry = telemetry)
+    val deps = AppDependencies.create(serverEnv)
     val server = embeddedServer(CIO, port = serverEnv.port, host = serverEnv.host) {
         module(deps)
     }
@@ -78,6 +79,19 @@ fun main() {
 }
 
 internal fun Application.module(deps: AppDependencies) {
+    install(KtorServerTelemetry) {
+        setOpenTelemetry(OpenTelemetryInitializer.get())
+    }
+    install(StatusPages) {
+        exception<Throwable> { call, cause ->
+            TraceLogger.impl().noticeThrowable(cause, isError = true)
+            call.respondText(
+                status = HttpStatusCode.InternalServerError,
+                text = HttpStatusCode.InternalServerError.description,
+            )
+        }
+    }
+
     val env = deps.env
     val actorKey = deps.actorKey
 
@@ -117,6 +131,7 @@ internal fun Application.module(deps: AppDependencies) {
     val diContainer = DiContainer(
         passwordHash = env.adminPasswordHash,
         accountService = deps.accountService,
+        loginThrottle = deps.loginThrottle,
         noteEnqueuer = deps.noteEnqueuer,
     )
 
@@ -126,7 +141,6 @@ internal fun Application.module(deps: AppDependencies) {
             MutationResolverImpl(),
             AdminQueryResolverImpl(),
             AdminMutationResolverImpl(),
-            UserQueryResolverImpl(),
             UserMutationResolverImpl(),
         ),
         createContext = { call ->
@@ -135,23 +149,15 @@ internal fun Application.module(deps: AppDependencies) {
                 adminSessionStore = deps.adminSessionStore,
                 sessionService = deps.sessionService,
                 cookieSecure = env.cookieSecure,
+                trustCfConnectingIp = env.trustCfConnectingIp,
             )
         },
         diContainer = diContainer,
-        openTelemetry = deps.openTelemetry,
     )
-
-    // ContentNegotiation は入れていない。serializer をリフレクションで引く実装のため
-    // native-image で解決できず 500 になる。詳細は json/JsonResponse.kt を参照
-    deps.openTelemetry?.let { openTelemetry ->
-        install(KtorServerTelemetry) {
-            setOpenTelemetry(openTelemetry)
-        }
-    }
 
     routing {
         get("/healthz") {
-            call.respondJson(HealthResponse.serializer(), HealthResponse(status = "ok"))
+            call.respondText("""{"status":"ok"}""", ContentType.Application.Json)
         }
         get("/hello") {
             call.respondText("Hello World")

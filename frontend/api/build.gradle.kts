@@ -42,6 +42,7 @@ apollo {
         mapScalarToKotlinLong("UnixTime")
         mapScalarToKotlinString("PublicNoteId")
         mapScalarToKotlinLong("AccountId")
+        mapScalarToKotlinString("UserId")
 
         plugin("com.apollographql.cache:normalized-cache-apollo-compiler-plugin:${libs.versions.apollo.cache.get()}")
         pluginArgument("com.apollographql.cache.packageName", packageName.get())

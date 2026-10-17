@@ -11,6 +11,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-account-test")
 
@@ -23,7 +24,17 @@ class AccountRepositoryTest {
     @Test
     fun `追加したアカウントを引ける`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val added =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
 
             assertEquals("feed1", added.username)
             assertEquals(CREATED_AT, added.createdAt)
@@ -34,7 +45,17 @@ class AccountRepositoryTest {
     @Test
     fun `プロフィールを書き換えると引き直したときに反映されている`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val added =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
 
             val updated = assertNotNull(
                 repositories.accountRepository.updateProfile(id = added.id, displayName = "フィード 1", summary = "説明"),
@@ -49,7 +70,17 @@ class AccountRepositoryTest {
     @Test
     fun `プロフィールに null を渡すと未設定に戻る`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val added =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
             repositories.accountRepository.updateProfile(id = added.id, displayName = "フィード 1", summary = "説明")
 
             val cleared = assertNotNull(
@@ -70,6 +101,8 @@ class AccountRepositoryTest {
             username = "user1",
             passwordHash = PASSWORD_HASH,
             passwordHashType = PASSWORD_HASH_TYPE,
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
             createdAt = CREATED_AT.toString(),
         )
 
@@ -82,19 +115,49 @@ class AccountRepositoryTest {
     @Test
     fun `大文字小文字の違いは同じ名前として扱う`() {
         withRepositories { repositories ->
-            repositories.accountRepository.add(username = "Feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
+            repositories.accountRepository.add(
+                username = "Feed1",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = PRIVATE_KEY_PEM,
+                createdAt = CREATED_AT,
+            )
 
             // 引くときも入れるときも同じ扱いにしないと、引けないアカウントが増える
             assertEquals("feed1", repositories.accountRepository.findByUsername("feed1")?.username)
-            assertNull(repositories.accountRepository.add(username = "FEED1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            assertNull(
+                repositories.accountRepository.add(
+                    username = "FEED1",
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT,
+                ),
+            )
         }
     }
 
     @Test
     fun `複数アカウントをまとめて引ける`() {
         withRepositories { repositories ->
-            repositories.accountRepository.add(username = "Feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
-            repositories.accountRepository.add(username = "gihyo", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
+            repositories.accountRepository.add(
+                username = "Feed1",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = PRIVATE_KEY_PEM,
+                createdAt = CREATED_AT,
+            )
+            repositories.accountRepository.add(
+                username = "gihyo",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = PRIVATE_KEY_PEM,
+                createdAt = CREATED_AT,
+            )
 
             val result = repositories.accountRepository.findByUsernames(listOf("feed1", "GIHYO", "other"))
             assertEquals(2, result.size)
@@ -108,7 +171,14 @@ class AccountRepositoryTest {
     fun `一覧は追加した順に返る`() {
         withRepositories { repositories ->
             listOf("gihyo", "feed1", "blog").forEach {
-                repositories.accountRepository.add(username = it, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
+                repositories.accountRepository.add(
+                    username = it,
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT,
+                )
             }
 
             assertEquals(
@@ -122,8 +192,22 @@ class AccountRepositoryTest {
     fun `秒未満の桁が違っても時刻の順に返る`() {
         withRepositories { repositories ->
             // 文字列で保存しているので、桁が揃っていないと並びが時刻の順にならない
-            repositories.accountRepository.add(username = "late", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = Instant.parse("2026-08-16T00:00:00.5Z"))
-            repositories.accountRepository.add(username = "early", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = Instant.parse("2026-08-16T00:00:00Z"))
+            repositories.accountRepository.add(
+                username = "late",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = PRIVATE_KEY_PEM,
+                createdAt = Instant.parse("2026-08-16T00:00:00.5Z"),
+            )
+            repositories.accountRepository.add(
+                username = "early",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = PRIVATE_KEY_PEM,
+                createdAt = Instant.parse("2026-08-16T00:00:00Z"),
+            )
 
             assertEquals(listOf("early", "late"), repositories.accountRepository.list().map { it.username })
         }
@@ -133,7 +217,14 @@ class AccountRepositoryTest {
     fun `カーソルを指定してページングで取得できる`() {
         withRepositories { repositories ->
             listOf("a", "b", "c", "d", "e").forEachIndexed { index, username ->
-                repositories.accountRepository.add(username = username, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT.plusSeconds(index.toLong()))
+                repositories.accountRepository.add(
+                    username = username,
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT.plusSeconds(index.toLong()),
+                )
             }
 
             val page1 = repositories.accountRepository.list(after = null, limit = 2)
@@ -154,7 +245,14 @@ class AccountRepositoryTest {
     fun `時刻が同じでもページングで重複や取りこぼしが出ない`() {
         withRepositories { repositories ->
             listOf("a", "b", "c", "d", "e").forEach { username ->
-                repositories.accountRepository.add(username = username, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT)
+                repositories.accountRepository.add(
+                    username = username,
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT,
+                )
             }
 
             val page1 = repositories.accountRepository.list(after = null, limit = 2)
@@ -175,7 +273,14 @@ class AccountRepositoryTest {
     fun `カーソルの指す行が消えていても続きが返る`() {
         withRepositories { repositories ->
             listOf("a", "b", "c", "d").forEachIndexed { index, username ->
-                repositories.accountRepository.add(username = username, passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT.plusSeconds(index.toLong()))
+                repositories.accountRepository.add(
+                    username = username,
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT.plusSeconds(index.toLong()),
+                )
             }
 
             val page1 = repositories.accountRepository.list(after = null, limit = 2)
@@ -189,11 +294,30 @@ class AccountRepositoryTest {
     @Test
     fun `消した名前は作り直せない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val account =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
             repositories.deleteAccount(account)
 
             // 作り直せると、送り残した Delete{Actor} が新しいアカウントのものとして配られる
-            assertNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT.plusSeconds(10)))
+            assertNull(
+                repositories.accountRepository.add(
+                    username = "feed1",
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT.plusSeconds(10),
+                ),
+            )
             assertNull(repositories.accountRepository.findByUsername("feed1"))
         }
     }
@@ -204,7 +328,16 @@ class AccountRepositoryTest {
         TestSchema.applyTo(dbPath)
         val config = DatabaseConfig(path = dbPath)
 
-        Repositories.create(config).use { it.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT) }
+        Repositories.create(config).use {
+            it.accountRepository.add(
+                username = "feed1",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = PRIVATE_KEY_PEM,
+                createdAt = CREATED_AT,
+            )
+        }
 
         Repositories.create(config).use {
             assertEquals(CREATED_AT, it.accountRepository.findByUsername("feed1")?.createdAt)
@@ -214,7 +347,17 @@ class AccountRepositoryTest {
     @Test
     fun `照合に使うハッシュと方式を名前で引ける`() {
         withRepositories { repositories ->
-            val added = assertNotNull(repositories.accountRepository.add(username = "Feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val added =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "Feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
 
             val credential = assertNotNull(repositories.accountRepository.findCredential("feed1"))
 
@@ -228,7 +371,17 @@ class AccountRepositoryTest {
     @Test
     fun `消したアカウントのハッシュは引けない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val account =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
 
             assertNotNull(repositories.deleteAccount(account))
 
@@ -239,7 +392,17 @@ class AccountRepositoryTest {
     @Test
     fun `消えているアカウントを消しても何も起きない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val account =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
             repositories.deleteAccount(account)
 
             // 2 回目も投函すると、同じ削除が 2 度配られる
@@ -250,7 +413,17 @@ class AccountRepositoryTest {
     @Test
     fun `消すと宛先ごとに Delete が投函され 送り残した配信は消える`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val account =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
             repositories.deliveryQueue.enqueueNote(
                 NotePost(
                     note = NewNote(
@@ -279,16 +452,54 @@ class AccountRepositoryTest {
     @Test
     fun `配信を送り切った削除済みアカウントだけが片付く`() {
         withRepositories { repositories ->
-            val sending = assertNotNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
-            val done = assertNotNull(repositories.accountRepository.add(username = "feed2", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            val sending =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed1",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
+            val done =
+                assertNotNull(
+                    repositories.accountRepository.add(
+                        username = "feed2",
+                        passwordHash = PASSWORD_HASH,
+                        passwordHashType = PASSWORD_HASH_TYPE,
+                        publicKeyPem = PUBLIC_KEY_PEM,
+                        privateKeyPem = PRIVATE_KEY_PEM,
+                        createdAt = CREATED_AT,
+                    ),
+                )
             repositories.deleteAccount(sending, inboxes = listOf(INBOX))
             repositories.deleteAccount(done)
 
             assertEquals(1, repositories.accountRepository.purgeDeleted())
 
             // 送り切るまでは名前を押さえたままにする
-            assertNull(repositories.accountRepository.add(username = "feed1", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
-            assertNotNull(repositories.accountRepository.add(username = "feed2", passwordHash = PASSWORD_HASH, passwordHashType = PASSWORD_HASH_TYPE, createdAt = CREATED_AT))
+            assertNull(
+                repositories.accountRepository.add(
+                    username = "feed1",
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT,
+                ),
+            )
+            assertNotNull(
+                repositories.accountRepository.add(
+                    username = "feed2",
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = PRIVATE_KEY_PEM,
+                    createdAt = CREATED_AT,
+                ),
+            )
         }
     }
 
@@ -318,6 +529,10 @@ class AccountRepositoryTest {
         const val PASSWORD_HASH = "hash"
 
         const val PASSWORD_HASH_TYPE = "hash-type"
+
+        const val PUBLIC_KEY_PEM = "public-key"
+
+        const val PRIVATE_KEY_PEM = "private-key"
 
         // 秒未満まで持つ。文字列で保存しているので、桁が落ちるとここで分かる
         val CREATED_AT: Instant = Instant.parse("2026-08-16T01:02:03.123456Z")

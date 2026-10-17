@@ -9,6 +9,7 @@ import kotlin.test.assertTrue
  * [GraphQlReflectionFeature] 自体はイメージのビルド中しか動かないので、走査だけを見る。
  * 登録が足りているかは native バイナリを動かして確かめる。
  */
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlReflectionTargetsTest {
     @Test
     fun `走査するパッケージにクラスがある`() {

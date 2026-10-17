@@ -52,6 +52,8 @@ interface AccountRepository {
         username: String,
         passwordHash: String,
         passwordHashType: String,
+        publicKeyPem: String,
+        privateKeyPem: String,
         createdAt: Instant,
     ): Account?
 

@@ -13,8 +13,8 @@ import kotlinx.serialization.modules.subclass
  * 画面回転などで Activity が作り直されても、積んである画面を復元する
  */
 @Composable
-fun rememberScreenBackStack(startScreen: Screen): NavBackStack<NavKey> {
-    return rememberNavBackStack(ScreenSavedStateConfiguration, startScreen)
+fun rememberScreenBackStack(startScreens: List<Screen>): NavBackStack<NavKey> {
+    return rememberNavBackStack(ScreenSavedStateConfiguration, *startScreens.toTypedArray())
 }
 
 /**
@@ -23,13 +23,14 @@ fun rememberScreenBackStack(startScreen: Screen): NavBackStack<NavKey> {
 private val ScreenSavedStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
-            subclass(Screen.Home::class)
             subclass(Screen.Login::class)
+            subclass(Screen.Home::class)
             subclass(Screen.Post::class)
+            subclass(Screen.Settings::class)
             subclass(Screen.Admin::class)
             subclass(Screen.AdminAccounts::class)
             subclass(Screen.AdminAccountNew::class)
-            subclass(Screen.NotFound::class)
+            subclass(Screen.UserProfile::class)
         }
     }
 }

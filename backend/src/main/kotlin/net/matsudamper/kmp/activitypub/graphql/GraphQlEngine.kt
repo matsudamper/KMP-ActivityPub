@@ -1,8 +1,7 @@
 package net.matsudamper.kmp.activitypub.graphql
 
-import kotlinx.serialization.json.JsonArray
+import kotlin.time.TimeSource
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import graphql.ExceptionWhileDataFetching
 import graphql.ExecutionInput
 import graphql.GraphQL
@@ -12,28 +11,37 @@ import graphql.kickstart.tools.GraphQLResolver
 import graphql.kickstart.tools.SchemaParser
 import graphql.schema.DataFetchingEnvironment
 import io.ktor.server.application.ApplicationCall
-import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.common.AttributeKey
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.api.metrics.DoubleHistogram
 import io.opentelemetry.instrumentation.graphql.v20_0.GraphQLTelemetry
 import net.matsudamper.kmp.activitypub.GraphqlExceptions
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
-import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
+import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 import org.slf4j.LoggerFactory
 
-/**
- * 結線は graphql-java-tools (kickstart) がリフレクションで行う。native-image 向けの
- * 登録は `graalvm/GraphQlReflectionFeature` がまとめて行う。
- */
 class GraphQlEngine private constructor(
     private val graphQl: GraphQL,
     private val createContext: (ApplicationCall) -> GraphQlContext,
     private val diContainer: DiContainer,
 ) {
-    suspend fun execute(
+    private val operationDurationHistogram: DoubleHistogram =
+        OpenTelemetryInitializer
+            .get()
+            .getMeter("net.matsudamper.kmp.activitypub.backend")
+            .histogramBuilder("graphql.operation.duration")
+            .setDescription("GraphQLのOperationNameごとの合計処理時間")
+            .setUnit("ms")
+            .build()
+
+    fun execute(
         request: GraphQlRequest,
         call: ApplicationCall,
     ): JsonObject {
-        return withOpenTelemetryContext {
-            val input = ExecutionInput
+        val mark = TimeSource.Monotonic.markNow()
+        val input =
+            ExecutionInput
                 .newExecutionInput(request.query)
                 .operationName(request.operationName)
                 .variables(variablesOf(request))
@@ -41,57 +49,43 @@ class GraphQlEngine private constructor(
                 .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
                 .build()
 
-            val executionResult = graphQl.execute(input)
-            val response = GraphQlValues.toJsonElement(executionResult.toSpecification()) as JsonObject
-            if (executionResult.errors.isEmpty()) return@withOpenTelemetryContext response
-
-            executionResult.errors.forEach { error ->
-                val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
-                when {
-                    // 構文エラーや検証エラーなど、DataFetcher に到達する前にクライアントの入力で弾かれたもの。
-                    // 未認証のクライアントが不正なクエリを送るだけで ERROR ログを埋められてしまうため記録しない
-                    error !is ExceptionWhileDataFetching -> {
-                        logger.debug("GraphQL の実行に失敗した(クライアント起因): {}", error.message)
-                    }
-
-                    // 未ログインなど、想定内の業務エラー
-                    dataFetchingException is GraphqlExceptions || dataFetchingException is GraphQlClientException -> {
-                        logger.debug("GraphQL の実行に失敗した(既知のエラー): {}", error.message)
-                    }
-
-                    else -> {
-                        logger.error(
-                            "GraphQL の実行に失敗した: {}",
-                            error.message,
-                            dataFetchingException,
-                        )
-                    }
-                }
+        val executionResult = graphQl.execute(input)
+        executionResult.errors.forEach { error ->
+            val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
+            if (dataFetchingException == null ||
+                dataFetchingException is GraphQlClientException ||
+                dataFetchingException is GraphqlExceptions
+            ) {
+                logger.debug("GraphQL の実行に失敗した: {}", error.message)
+            } else {
+                TraceLogger.impl().noticeThrowable(dataFetchingException, isError = true)
             }
-            val genericErrors =
-                JsonArray(
-                    listOf(JsonObject(mapOf("message" to JsonPrimitive(GENERIC_ERROR_MESSAGE)))),
-                )
-            JsonObject(
-                response + ("errors" to genericErrors),
-            )
         }
+
+        val response = GraphQlValues.toJsonElement(executionResult.toSpecification())
+        check(response is JsonObject) { "GraphQL の結果がオブジェクトではない" }
+
+        operationDurationHistogram.record(
+            mark.elapsedNow().inWholeMilliseconds.toDouble(),
+            Attributes.of(
+                AttributeKey.stringKey("graphql.operation.name"),
+                request.operationName?.ifEmpty { null } ?: "anonymous",
+            ),
+        )
+
+        return response
     }
 
-    private fun variablesOf(request: GraphQlRequest): Map<String, Any?> {
-        val raw = request.variables?.let { GraphQlValues.toRawValue(it) }
-
-        @Suppress("UNCHECKED_CAST")
-        return raw as? Map<String, Any?> ?: emptyMap()
-    }
+    private fun variablesOf(request: GraphQlRequest): Map<String, Any?> =
+        request.variables
+            ?.mapValues { (_, value) -> GraphQlValues.toRawValue(value) }
+            .orEmpty()
 
     companion object {
         private val CONTEXT_KEY = Any()
         private val DI_CONTAINER_KEY = Any()
 
         private val logger = LoggerFactory.getLogger(GraphQlEngine::class.java)
-
-        internal const val GENERIC_ERROR_MESSAGE = "GraphQL の実行に失敗した"
 
         /**
          * alias で並べた数だけ処理するので上限を置く。画面の問い合わせは 10 未満
@@ -102,43 +96,37 @@ class GraphQlEngine private constructor(
             resolvers: List<GraphQLResolver<*>>,
             createContext: (ApplicationCall) -> GraphQlContext,
             diContainer: DiContainer,
-            openTelemetry: OpenTelemetry? = null,
         ): GraphQlEngine {
-            val schema = SchemaParser
-                .newParser()
-                .schemaString(readSchema())
-                .scalars(
-                    UnixTimeScalar.value,
-                    PublicNoteIdScalar.value,
-                    AccountIdScalar.value,
-                )
-                .resolvers(resolvers)
-                .build()
-                .makeExecutableSchema()
+            val schema =
+                SchemaParser
+                    .newParser()
+                    .schemaString(readSchema())
+                    .resolvers(resolvers)
+                    .scalars(
+                        GraphQlScalars.userId,
+                        UnixTimeScalar.value,
+                        PublicNoteIdScalar.value,
+                        AccountIdScalar.value,
+                    )
+                    .build()
+                    .makeExecutableSchema()
 
-            val telemetryInstrumentation =
-                openTelemetry?.let {
-                    GraphQLTelemetry
-                        .builder(it)
-                        .setOperationNameInSpanNameEnabled(true)
-                        .setDataFetcherInstrumentationEnabled(true)
-                        .build()
-                        .createInstrumentation()
-                }
-            val graphQlBuilder =
-                GraphQL
+            return GraphQlEngine(
+                graphQl = GraphQL
                     .newGraphQL(schema)
                     .instrumentation(
                         ChainedInstrumentation(
-                            listOfNotNull(
-                                MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY),
-                                telemetryInstrumentation,
-                            ),
+                            MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY),
+                            IdLoggerInstrumentation(TraceLogger.impl()),
+                            GraphQLTelemetry
+                                .builder(OpenTelemetryInitializer.get())
+                                .setAddOperationNameToSpanName(true)
+                                .setDataFetcherInstrumentationEnabled(true)
+                                .build()
+                                .createInstrumentation(),
                         ),
                     )
-
-            return GraphQlEngine(
-                graphQl = graphQlBuilder.build(),
+                    .build(),
                 createContext = createContext,
                 diContainer = diContainer,
             )
@@ -156,24 +144,13 @@ class GraphQlEngine private constructor(
             }
         }
 
-        /**
-         *  読むファイルは一覧から引く。ディレクトリの列挙は native バイナリで効かない
-         */
-        private fun readSchema(): String {
-            val fileNames =
-                readResource(SCHEMA_LIST_RESOURCE)
-                    .lineSequence()
-                    .map { it.trim() }
-                    .filter { it.isNotEmpty() }
-                    .toList()
-
-            check(fileNames.isNotEmpty()) { "$SCHEMA_LIST_RESOURCE が空。スキーマが 1 つも無い" }
-
-            return fileNames.joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }
-        }
+        private fun readSchema(): String =
+            readResource("$SCHEMA_DIRECTORY/schema-list.txt")
+                .lines()
+                .filter { it.isNotBlank() }
+                .joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }
 
         private const val SCHEMA_DIRECTORY = "graphql"
-        private const val SCHEMA_LIST_RESOURCE = "$SCHEMA_DIRECTORY/schema-list.txt"
 
         private fun readResource(resource: String): String {
             val stream =

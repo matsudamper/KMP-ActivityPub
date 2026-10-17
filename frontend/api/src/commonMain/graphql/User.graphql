@@ -1,26 +1,3 @@
-query UserSession {
-    user {
-        session {
-            ...UserSessionFields
-        }
-    }
-}
-
-fragment UserSessionFields on UserSession {
-    account {
-        username
-        acct
-    }
-}
-
-mutation UserLogout {
-    user {
-        logout {
-            ...UserSessionFields
-        }
-    }
-}
-
 mutation UserPostNote($body: String!) {
     user {
         postNote(body: $body) {

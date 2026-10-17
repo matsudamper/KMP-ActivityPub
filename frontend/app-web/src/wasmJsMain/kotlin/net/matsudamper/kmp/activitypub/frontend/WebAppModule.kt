@@ -21,4 +21,6 @@ class WebAppModule {
 private class WebGraphQlClientSource : GraphQlClientSource {
     override val client: StateFlow<ApolloClient?> =
         MutableStateFlow(GraphQlClient.apollo)
+
+    override suspend fun awaitLoadedClient(): ApolloClient? = client.value
 }

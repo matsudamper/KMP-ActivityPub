@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlRoutesTest {
     @Test
     fun `ボディが大きすぎれば 413 で読まない`() =

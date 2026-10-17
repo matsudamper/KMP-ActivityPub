@@ -18,11 +18,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
-import net.matsudamper.kmp.activitypub.frontend.ui.PasswordField
-import net.matsudamper.kmp.activitypub.frontend.ui.UsernameField
+import net.matsudamper.kmp.activitypub.frontend.ui.FormSubmitHandler
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldAutofill
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -36,7 +39,7 @@ internal fun LoginScreen(
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
             object : LoginScreenViewModel.Event {
-                override fun navigateToHome() {
+                override fun loggedIn() {
                     navigator.replaceAll(Screen.Home)
                 }
             },
@@ -63,52 +66,82 @@ internal fun LoginContent(
                 modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    text = "ログイン",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                UsernameField(
-                    value = uiState.username,
-                    onValueChange = uiState.listener::onUsernameChanged,
-                    label = "ユーザー名",
-                    formId = LOGIN_FORM_ID,
-                    inputId = LOGIN_USERNAME_INPUT_ID,
-                    inputName = "username",
-                    enabled = uiState.inputEnabled,
-                    hasError = uiState.inputHasError,
+                LoginForm(
+                    uiState = uiState,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                PasswordField(
-                    value = uiState.password,
-                    onValueChange = uiState.listener::onPasswordChanged,
-                    onSubmit = uiState.listener::onClickLogin,
-                    label = "パスワード",
-                    formId = LOGIN_FORM_ID,
-                    inputId = LOGIN_PASSWORD_INPUT_ID,
-                    inputName = "password",
-                    enabled = uiState.inputEnabled,
-                    hasError = uiState.inputHasError,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                val error = uiState.error
-                if (error != null) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Button(
-                    onClick = uiState.listener::onClickLogin,
-                    enabled = uiState.loginButtonEnabled,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("ログイン")
-                }
                 if (serverSettingUiState != null) {
                     ServerSettingContent(uiState = serverSettingUiState)
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun LoginForm(
+    uiState: LoginScreenUiState,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = "ログイン",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        SingleLineTextField(
+            value = uiState.username,
+            onValueChange = uiState.listener::onUsernameChanged,
+            onImeAction = {},
+            label = "ユーザー名",
+            kind = SingleLineTextFieldKind.Plain,
+            autofill = SingleLineTextFieldAutofill.Username,
+            formId = LOGIN_FORM_ID,
+            required = true,
+            imeAction = ImeAction.Next,
+            inputId = LOGIN_USERNAME_INPUT_ID,
+            inputName = "username",
+            enabled = uiState.inputEnabled,
+            hasError = uiState.inputHasError,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        FormSubmitHandler(
+            formId = LOGIN_FORM_ID,
+            onSubmit = uiState.listener::onClickLogin,
+            enabled = uiState.inputEnabled,
+        )
+        SingleLineTextField(
+            value = uiState.password,
+            onValueChange = uiState.listener::onPasswordChanged,
+            onImeAction = uiState.listener::onClickLogin,
+            label = "パスワード",
+            kind = SingleLineTextFieldKind.Secret,
+            autofill = SingleLineTextFieldAutofill.CurrentPassword,
+            formId = LOGIN_FORM_ID,
+            required = true,
+            imeAction = ImeAction.Done,
+            inputId = LOGIN_PASSWORD_INPUT_ID,
+            inputName = "password",
+            enabled = uiState.inputEnabled,
+            hasError = uiState.inputHasError,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val error = uiState.error
+        if (error != null) {
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Button(
+            onClick = uiState.listener::onClickLogin,
+            enabled = uiState.loginButtonEnabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("ログイン")
         }
     }
 }

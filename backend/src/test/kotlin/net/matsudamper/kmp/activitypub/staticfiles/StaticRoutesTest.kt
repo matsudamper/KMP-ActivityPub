@@ -9,6 +9,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -61,7 +62,9 @@ class StaticRoutesTest {
             putFile("index.html", "<html></html>")
             applicationWith(root)
 
-            val response = client.get("/admin/password-hash")
+            val response = client.get("/admin/password-hash") {
+                header(HttpHeaders.Accept, ContentType.Text.Html.toString())
+            }
 
             assertEquals(HttpStatusCode.OK, response.status)
             assertEquals("<html></html>", response.bodyAsText())
@@ -84,7 +87,9 @@ class StaticRoutesTest {
             putFile("index.html", "<html></html>")
             applicationWith(root)
 
-            val response = client.get("/admin/accounts")
+            val response = client.get("/admin/accounts") {
+                header(HttpHeaders.Accept, ContentType.Text.Html.toString())
+            }
 
             assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
         }

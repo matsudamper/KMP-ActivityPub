@@ -8,6 +8,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.FakeRepositories
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountServiceTest {
     private val repositories = FakeRepositories()
 
@@ -46,6 +47,8 @@ class AccountServiceTest {
             username = "user1",
             passwordHash = "hash",
             passwordHashType = "unknown",
+            publicKeyPem = "public",
+            privateKeyPem = "private",
             createdAt = Instant.EPOCH,
         )
 
@@ -58,6 +61,18 @@ class AccountServiceTest {
 
         assertEquals(true, failure.passwordTooShort)
         assertNull(repositories.accountRepository.findByUsername("user1"))
+    }
+
+    @Test
+    fun `大文字小文字が違ってもユーザー名でユーザーを引ける`() {
+        val added = assertIs<AccountService.AddAccountResult.Success>(service.add(username = "user1", password = PASSWORD))
+
+        assertEquals(added.account.accountId, service.account(username = "USER1")?.id)
+    }
+
+    @Test
+    fun `いないユーザー名では引けない`() {
+        assertNull(service.account(username = "user1"))
     }
 
     private companion object {

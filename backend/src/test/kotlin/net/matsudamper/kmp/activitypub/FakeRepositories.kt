@@ -40,7 +40,6 @@ import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.RetryingDelivery
 import net.matsudamper.kmp.activitypub.repository.StoredFollower
 import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
-import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
@@ -49,7 +48,6 @@ class FakeRepositories : Repositories {
         private set
 
     override val accountRepository: FakeAccountRepository = FakeAccountRepository(
-        onDeleted = { accountId -> sessionStore.deleteByAccountId(accountId) },
         // 名前で持っているものと送り残した配信を消すのと、Delete{Actor} の投函を
         // 1 トランザクションで書くのは本物の repository。ここで繋がないと、
         // 消したアカウントの投稿が後から配られる
@@ -111,17 +109,12 @@ class FakeRepositories : Repositories {
 
     override val domainBlocks: FakeDomainBlockRepository = FakeDomainBlockRepository()
 
-    override val sessionStore: FakeUserSessionStore = FakeUserSessionStore(
-        isDeletedAccount = { accountId -> accountRepository.findById(accountId) == null },
-    )
-
     override fun close() {
         closed = true
     }
 }
 
 class FakeAccountRepository(
-    private val onDeleted: (accountId: AccountId) -> Unit = {},
     private val onAccountDeletion: (AccountDeletion) -> AccountDeletionCounts = { AccountDeletionCounts(0, 0) },
     private val hasDeliveries: (username: String) -> Boolean = { false },
 ) : AccountRepository {
@@ -163,6 +156,8 @@ class FakeAccountRepository(
         username: String,
         passwordHash: String,
         passwordHashType: String,
+        publicKeyPem: String,
+        privateKeyPem: String,
         createdAt: Instant,
     ): Account? {
         // 消した行も名前を押さえている。作り直せると、送り残した Delete{Actor} が
@@ -215,7 +210,6 @@ class FakeAccountRepository(
 
         stored[index] = stored[index].copy(deletedAt = deletion.deletedAt)
 
-        onDeleted(deletion.id)
         val counts = onAccountDeletion(deletion)
 
         return AccountDeletionResult(
@@ -967,41 +961,4 @@ class FakeDomainBlockRepository : DomainBlockRepository {
     }
 
     override fun delete(domain: String): Boolean = stored.remove(domain) != null
-}
-
-class FakeUserSessionStore(
-    private val isDeletedAccount: (AccountId) -> Boolean,
-) : UserSessionStore {
-    private val stored = mutableMapOf<String, Session>()
-
-    override fun create(
-        tokenHash: String,
-        accountId: AccountId,
-        createdAt: Instant,
-        expiresAt: Instant,
-    ) {
-        stored[tokenHash] = Session(accountId = accountId, expiresAt = expiresAt)
-    }
-
-    override fun findAccountId(
-        tokenHash: String,
-        now: Instant,
-    ): AccountId? {
-        val session = stored[tokenHash] ?: return null
-        if (!session.expiresAt.isAfter(now) || isDeletedAccount(session.accountId)) return null
-        return session.accountId
-    }
-
-    override fun delete(tokenHash: String) {
-        stored.remove(tokenHash)
-    }
-
-    fun deleteByAccountId(accountId: AccountId) {
-        stored.values.removeAll { it.accountId == accountId }
-    }
-
-    private data class Session(
-        val accountId: AccountId,
-        val expiresAt: Instant,
-    )
 }

@@ -14,9 +14,32 @@ services:
       PORT: 8080
       STATIC_SRC_DIR: /app/static
       DB_PATH: /app/data/kmp-activitypub.db
+      VALKEY_URI: redis://valkey:6379
       # http では false にする
       COOKIE_SECURE: "true"
+      # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
+#      TRUST_CF_CONNECTING_IP: "true"
+      # OpenTelemetry の送り先。未設定だと localhost:4318 に送ろうとして失敗し続ける
+#      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+#      OTEL_RESOURCE_ATTRIBUTES: service.name=kmp-activitypub,deployment.environment.name=production
+      # 送らないとき
+#      OTEL_SDK_DISABLED: "true"
+    depends_on:
+      valkey:
+        condition: service_healthy
     volumes:
       # 起動前に作っておく。Docker に作らせると root の持ち物になる
       - ./data:/app/data
 #      - ./public:/public:ro
+
+  valkey:
+    image: valkey/valkey:8
+    # Append Only File が無いと再起動で全員ログアウトになる
+    command: ["valkey-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - ./valkey-data:/data

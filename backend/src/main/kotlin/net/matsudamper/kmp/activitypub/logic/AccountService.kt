@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.crypto.AccountKeyPair
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountPosition
@@ -62,10 +63,13 @@ class AccountService(
             )
         }
 
+        val keyPair = AccountKeyPair.generate()
         val added = accountRepository.add(
             username = trimmed,
             passwordHash = checkNotNull(PasswordHashType.Current.encoder.encode(password)),
             passwordHashType = PasswordHashType.Current.dbValue,
+            publicKeyPem = keyPair.publicKeyPem,
+            privateKeyPem = keyPair.privateKeyPem,
             createdAt = Instant.now(),
         ) ?: return AddAccountResult.Failure(
             unusableCharacters = listOf(),
@@ -81,6 +85,8 @@ class AccountService(
     /**
      * @return 名前とパスワードが合えばそのユーザー。合わなければ null
      */
+    fun account(username: String): Account? = accountRepository.findByUsername(username)
+
     fun authenticate(
         username: String,
         password: String,

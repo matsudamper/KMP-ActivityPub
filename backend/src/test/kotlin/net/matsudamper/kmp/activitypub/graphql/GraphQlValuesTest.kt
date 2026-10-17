@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlValuesTest {
     @Test
     fun `実行結果を JSON にする`() {

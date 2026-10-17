@@ -43,6 +43,8 @@ kotlin {
                 // document 等のブラウザ API。Kotlin/Wasm では stdlib から分離されている
                 implementation(libs.kotlinx.browser)
                 implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+                implementation(libs.androidx.lifecycle.viewmodel.compose)
+                implementation(libs.kotlinx.browser)
                 implementation(libs.koin.core)
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose)

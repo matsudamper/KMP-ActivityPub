@@ -11,6 +11,7 @@ import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 import net.matsudamper.kotpub.actor.ActorPrivateKey
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class ServerEnvTest {
     private fun env(vararg values: Pair<String, String>): ServerEnv =
         ServerEnv(values.toMap() + ("DOMAIN" to "example.com"))
@@ -175,5 +176,20 @@ class ServerEnvTest {
     @Test
     fun `Cookie の Secure が true でも false でもなければ落ちる`() {
         assertFailsWith<IllegalArgumentException> { env("COOKIE_SECURE" to "no") }
+    }
+
+    @Test
+    fun `TRUST_CF_CONNECTING_IP は既定で false になる`() {
+        assertFalse(env().trustCfConnectingIp)
+    }
+
+    @Test
+    fun `TRUST_CF_CONNECTING_IP に true を指定すると true になる`() {
+        assertTrue(env("TRUST_CF_CONNECTING_IP" to "true").trustCfConnectingIp)
+    }
+
+    @Test
+    fun `TRUST_CF_CONNECTING_IP が真偽値でなければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> { env("TRUST_CF_CONNECTING_IP" to "yes") }
     }
 }

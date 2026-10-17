@@ -1,25 +1,19 @@
 package net.matsudamper.kmp.activitypub.frontend
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
-import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
-import androidx.navigation3.runtime.NavEntry
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.ui.NavDisplay
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
 import kotlinx.browser.window
+import net.matsudamper.kmp.activitypub.frontend.history.BrowserHistory
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
-import net.matsudamper.kmp.activitypub.frontend.navigation.TransparentScreen
-import net.matsudamper.kmp.activitypub.frontend.navigation.TransparentScreenSceneStrategy
-import net.matsudamper.kmp.activitypub.frontend.navigation.WasmNavigator
-import net.matsudamper.kmp.activitypub.frontend.navigation.rememberNavController
-import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenStateStore
-import net.matsudamper.kmp.activitypub.frontend.screen.HomeFeatureScreens
-import net.matsudamper.kmp.activitypub.frontend.screen.NotFoundScreen
+import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
+import net.matsudamper.kmp.activitypub.frontend.screen.HomeNavigationHost
 import net.matsudamper.kmp.activitypub.frontend.screen.ScreenPlatform
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminAccountNewScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminAccountsScreen
@@ -93,7 +87,7 @@ private fun createWebGl2UnavailableNotice(): HTMLElement {
 }
 
 @Composable
-internal fun App() {
+private fun App() {
     KoinApplication(configuration = koinConfiguration<WebKoinApp>()) {
         AppNavigation()
     }
@@ -101,73 +95,54 @@ internal fun App() {
 
 @Composable
 private fun AppNavigation() {
+    val backStack = rememberScreenBackStack(startScreens = BrowserHistory.initialScreens(unknownPathScreen = UNKNOWN_PATH_SCREEN))
+    BrowserHistory.SyncEffect(backStack = backStack, unknownPathScreen = UNKNOWN_PATH_SCREEN)
     AppTheme {
-        val platformNavController = rememberNavController()
-        val screenStateStore = rememberScreenStateStore()
-        val navController: Navigator = remember(platformNavController) {
-            WasmNavigator(platformNavController)
-        }
-
-        NavDisplay(
-            backStack = platformNavController.backStack,
-            onBack = { platformNavController.back() },
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-            sceneStrategies = listOf(TransparentScreenSceneStrategy()),
-            entryProvider = { historyEntry ->
-                NavEntry(
-                    key = historyEntry,
-                    contentKey = historyEntry.id,
-                    metadata = if (historyEntry.screen is Screen.Overlay) TransparentScreen.asMetadata() else mapOf(),
-                ) {
-                    screenStateStore.Provide(historyEntry.id) { retainedScreenState ->
-                        ScreenContent(
-                            screen = historyEntry.screen,
-                            navController = navController,
-                            retainedScreenState = retainedScreenState,
-                        )
-                    }
-                }
+        HomeNavigationHost(
+            backStack = backStack,
+            serverSettingUiState = { null },
+            otherScreenContent = { screen, navigator ->
+                AdminScreenContent(screen = screen, navigator = navigator)
             },
         )
     }
 }
 
 @Composable
-private fun ScreenContent(
+private fun AdminScreenContent(
     screen: Screen,
-    navController: Navigator,
-    retainedScreenState: RetainedScreenState,
+    navigator: Navigator,
 ) {
+    val retainedScreenState = viewModel { RetainedScreenStateViewModel() }.retainedScreenState
     when (screen) {
-        Screen.Home -> HomeFeatureScreens.Home(navigator = navController)
-
-        Screen.Login -> HomeFeatureScreens.Login(navigator = navController, serverSettingUiState = null)
-
-        Screen.Post -> HomeFeatureScreens.Post(navigator = navController)
-
         Screen.Admin -> AdminScreen(
             retainedScreenState = retainedScreenState,
             platform = WasmScreenPlatform,
-            navController = navController,
+            navController = navigator,
         )
 
         Screen.AdminAccounts -> AdminAccountsScreen(
             retainedScreenState = retainedScreenState,
-            navController = navController,
+            navController = navigator,
         )
 
         Screen.AdminAccountNew -> AdminAccountNewScreen(
             retainedScreenState = retainedScreenState,
-            navController = navController,
+            navController = navigator,
         )
 
-        is Screen.NotFound -> NotFoundScreen(
-            requestedPath = screen.path,
-            navController = navController,
-        )
+        else -> Unit
+    }
+}
+
+/**
+ * 画面の ViewModel の置き場を履歴のエントリごとに持たせる。エントリが積まれている間は残る
+ */
+private class RetainedScreenStateViewModel : ViewModel() {
+    val retainedScreenState: RetainedScreenState = RetainedScreenState(viewModelScope)
+
+    override fun onCleared() {
+        retainedScreenState.dispose()
     }
 }
 
@@ -183,3 +158,5 @@ private object WasmScreenPlatform : ScreenPlatform {
         net.matsudamper.kmp.activitypub.frontend.ui.copyToClipboard(text, onResult)
     }
 }
+
+private val UNKNOWN_PATH_SCREEN: Screen = Screen.Login

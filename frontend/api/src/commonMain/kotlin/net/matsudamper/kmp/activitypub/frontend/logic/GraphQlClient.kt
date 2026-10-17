@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.logic
 
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.cache.normalized.FetchPolicy
+import com.apollographql.cache.normalized.fetchPolicy
 import com.apollographql.cache.normalized.memory.MemoryCacheFactory
 import net.matsudamper.kmp.activitypub.frontend.graphql.cache.Cache.cache
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
@@ -21,4 +23,6 @@ object GraphQlClient {
             .Builder()
             .serverUrl(serverUrl)
             .cache(MemoryCacheFactory(maxSizeBytes = CACHE_SIZE_BYTES))
+            // キャッシュを使う問い合わせだけが個別に指定する
+            .fetchPolicy(FetchPolicy.NetworkOnly)
 }

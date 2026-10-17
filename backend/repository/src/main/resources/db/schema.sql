@@ -4,6 +4,13 @@
 --   ./gradlew :backend:repository:dumpSchema -PdevDb=/絶対パス/dev.db
 -- で書き出して commit する。実 DB への適用は sqlite3def で手動。
 -- 詳細は同じディレクトリの README.md を参照。
+-- ActivityPub の HTTP Signatures に使う
+CREATE TABLE account_keys (
+    account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+    public_key_pem TEXT NOT NULL,
+    private_key_pem TEXT NOT NULL
+);
+
 CREATE TABLE account_passwords (
     -- 行が無ければパスワードは無い
     account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
@@ -183,15 +190,6 @@ CREATE TABLE remote_actors (
     icon_url TEXT
 );
 
-CREATE TABLE user_sessions (
-    -- ログイン中のセッション。Cookie に入れるトークンそのものは持たず、SHA-256 のハッシュを持つ。
-    -- DB が漏れても、そのままセッションとして使えない
-    token_hash TEXT NOT NULL PRIMARY KEY,
-    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    created_at TEXT NOT NULL,
-    expires_at TEXT NOT NULL
-);
-
 CREATE INDEX delivery_queue_note_public_id ON delivery_queue (note_public_id);
 
 CREATE INDEX delivery_queue_target_actor_uri ON delivery_queue (target_actor_uri);
@@ -209,5 +207,3 @@ CREATE INDEX note_favourites_remote_actor_id ON note_favourites (remote_actor_id
 CREATE INDEX note_stamps_remote_actor_id ON note_stamps (remote_actor_id);
 
 CREATE INDEX early_undone_likes_expires_at ON early_undone_likes (expires_at);
-
-CREATE INDEX user_sessions_account_id ON user_sessions (account_id);

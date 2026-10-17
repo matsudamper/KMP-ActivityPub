@@ -105,7 +105,7 @@ internal class LoginScreenViewModel(
                 }
             viewModelStateFlow.update { it.copy(error = error) }
             if (error == null) {
-                events.send { it.navigateToHome() }
+                events.send { it.loggedIn() }
             }
         }
     }
@@ -137,7 +137,7 @@ internal class LoginScreenViewModel(
     )
 
     interface Event {
-        fun navigateToHome()
+        fun loggedIn()
     }
 }
 

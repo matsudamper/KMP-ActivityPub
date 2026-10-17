@@ -321,7 +321,10 @@ class DeliveryQueueRepositoryTest {
     @Test
     fun `消したアカウント宛の Follow は記録も投函もしない`() {
         withRepositories { repositories ->
-            val account = assertNotNull(repositories.accountRepository.add(username = USERNAME, passwordHash = "hash", passwordHashType = "hash-type", createdAt = now))
+            val account =
+                assertNotNull(
+                    repositories.accountRepository.add(username = USERNAME, passwordHash = "hash", passwordHashType = "hash-type", publicKeyPem = "public", privateKeyPem = "private", createdAt = now),
+                )
             repositories.accountRepository.markDeleted(
                 AccountDeletion(
                     id = account.id,

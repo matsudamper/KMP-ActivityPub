@@ -1,0 +1,4 @@
+"外から見えるユーザーの情報"
+type User {
+    username: String!
+}

@@ -8,11 +8,11 @@ import net.matsudamper.kmp.activitypub.repository.AccountDeletionResult
 import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_KEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
-import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.USER_SESSIONS
 import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryKindDbValue
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.jooq.Condition
@@ -94,6 +94,8 @@ internal class SqliteAccountRepository(
         username: String,
         passwordHash: String,
         passwordHashType: String,
+        publicKeyPem: String,
+        privateKeyPem: String,
         createdAt: Instant,
     ): Account? = jooq.transaction { dsl ->
         val storedUsername = username.lowercase()
@@ -118,6 +120,13 @@ internal class SqliteAccountRepository(
             .set(ACCOUNT_PASSWORDS.ACCOUNT_ID, id)
             .set(ACCOUNT_PASSWORDS.PASSWORD_HASH, passwordHash)
             .set(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE, passwordHashType)
+            .execute()
+
+        dsl
+            .insertInto(ACCOUNT_KEYS)
+            .set(ACCOUNT_KEYS.ACCOUNT_ID, id)
+            .set(ACCOUNT_KEYS.PUBLIC_KEY_PEM, publicKeyPem)
+            .set(ACCOUNT_KEYS.PRIVATE_KEY_PEM, privateKeyPem)
             .execute()
 
         Account(
@@ -203,9 +212,7 @@ internal class SqliteAccountRepository(
         // 同時に呼ばれても、消せた 1 つだけが配信を投函する
         if (marked == 0) return@transaction null
 
-        // 投稿とフォロワーは accounts を参照していないので名前で消す。
-        // セッションは外部キーで消えない（行を残すため）ので、ここで消す
-        dsl.deleteFrom(USER_SESSIONS).where(USER_SESSIONS.ACCOUNT_ID.eq(deletion.id.value)).execute()
+        // 投稿とフォロワーは accounts を参照していないので名前で消す
 
         val deletedNotes = dsl
             .deleteFrom(NOTES)

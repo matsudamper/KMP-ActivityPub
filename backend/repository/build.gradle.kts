@@ -5,10 +5,10 @@ plugins {
 
 dependencies {
     api(project(":shared"))
-    api(project(":backend:session"))
 
     implementation(libs.sqlite.jdbc)
     implementation(libs.jooq)
+    implementation(project(":backend:telemetry"))
     implementation(libs.opentelemetry.jdbc)
 
     jooqCodegen(libs.sqlite.jdbc)

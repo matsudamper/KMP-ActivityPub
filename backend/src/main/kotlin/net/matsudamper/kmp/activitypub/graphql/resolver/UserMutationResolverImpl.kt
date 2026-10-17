@@ -18,8 +18,12 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserSession
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.logic.NoteComposer
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
 class UserMutationResolverImpl : UserMutationResolver {
+    /**
+     * 通るとセッションの Cookie を返す
+     */
     override fun login(
         userMutation: QlUserMutation,
         query: QlUserLoginQuery,
@@ -27,23 +31,28 @@ class UserMutationResolverImpl : UserMutationResolver {
     ): CompletionStage<DataFetcherResult<QlUserLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
         if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
-        val accountService = GraphQlEngine.diContainer(env).accountService
-
-        val accountId = accountService.authenticate(username = query.username, password = query.password)
-        val account = accountId?.let { accountService.account(it) }
-
-        val result = if (account == null) {
-            QlUserLoginResult(
-                session = QlUserSession(account = null),
-                failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD,
-            )
-        } else {
-            context.issueUserSession(account.accountId)
-            QlUserLoginResult(
-                session = QlUserSession(account = account.toUserGraphqlResponse()),
-                failure = null,
-            )
+        val diContainer = GraphQlEngine.diContainer(env)
+        val loginThrottle = diContainer.loginThrottle
+        val clientIp = context.clientIp
+        val username = query.username.trim()
+        if (!loginThrottle.tryReserve(clientIp = clientIp, username = username)) {
+            val traceLogger = TraceLogger.impl()
+            traceLogger.setAttribute("login.client_ip", clientIp)
+            traceLogger.setAttribute("login.username", username)
+            traceLogger.noticeInfo("ログインの失敗が続いている IP なので照合せずに断り、締め出しを延ばした")
+            val result = QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
+            return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
         }
+
+        val accountId = diContainer.accountService.authenticate(username = username, password = query.password)
+        val result =
+            if (accountId == null) {
+                QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
+            } else {
+                loginThrottle.recordSuccess(clientIp = clientIp, username = username)
+                context.issueUserSession(accountId)
+                QlUserLoginResult(failure = null)
+            }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }

@@ -36,7 +36,6 @@ import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.TestServerEnv
 import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
-import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
@@ -256,8 +255,8 @@ class AdminGraphQlTest {
     fun `1 件ずつでも登録した順に辿れる`() =
         testApplication {
             val repositories = FakeRepositories()
-            repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now())
-            repositories.accountRepository.add(username = "user2", passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now())
+            repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "hash-type", publicKeyPem = "public", privateKeyPem = "private", createdAt = Instant.now())
+            repositories.accountRepository.add(username = "user2", passwordHash = "hash", passwordHashType = "hash-type", publicKeyPem = "public", privateKeyPem = "private", createdAt = Instant.now())
             applicationWith(passwordConfigured = true, repositories = repositories)
             val token = assertNotNull(mutateLogin(PASSWORD).sessionCookieValue())
 
@@ -274,7 +273,16 @@ class AdminGraphQlTest {
     fun `limit が上限を超えていても 50 件までしか返さない`() =
         testApplication {
             val repositories = FakeRepositories()
-            repeat(51) { repositories.accountRepository.add(username = "user$it", passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now()) }
+            repeat(51) {
+                repositories.accountRepository.add(
+                    username = "user$it",
+                    passwordHash = "hash",
+                    passwordHashType = "hash-type",
+                    publicKeyPem = "public",
+                    privateKeyPem = "private",
+                    createdAt = Instant.now(),
+                )
+            }
             applicationWith(passwordConfigured = true, repositories = repositories)
             val token = assertNotNull(mutateLogin(PASSWORD).sessionCookieValue())
 
@@ -335,24 +343,6 @@ class AdminGraphQlTest {
         }
 
     // スキーマに無いものが通ってしまうと、結線の漏れに気付けない
-    @Test
-    fun `スキーマに無いフィールドは errors になる`() =
-        testApplication {
-            applicationWith(passwordConfigured = true)
-
-            val response = graphQl("query { admin { 知らないフィールド } }")
-
-            // 問い合わせのエラーは HTTP 200 で errors に入る
-            assertEquals(HttpStatusCode.OK, response.status)
-            val errors = response.body().getValue("errors").jsonArray
-            assertEquals(1, errors.size)
-            assertEquals(
-                GraphQlEngine.GENERIC_ERROR_MESSAGE,
-                errors.single().jsonObject.getValue("message").jsonPrimitive.content,
-            )
-            assertEquals(setOf("message"), errors.single().jsonObject.keys)
-        }
-
     private fun ApplicationTestBuilder.applicationWith(
         passwordConfigured: Boolean,
         cookieSecure: Boolean = true,

@@ -12,7 +12,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
-import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.admin.AdminSessionInMemoryStore
 import net.matsudamper.kmp.activitypub.delivery.DeliveryCircuitBreaker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
@@ -28,7 +27,12 @@ import net.matsudamper.kmp.activitypub.logic.RepositoryNoteStore
 import net.matsudamper.kmp.activitypub.logic.RepositoryStampStore
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
+import net.matsudamper.kmp.activitypub.session.LoginFailureStore
+import net.matsudamper.kmp.activitypub.session.LoginThrottle
 import net.matsudamper.kmp.activitypub.session.UserSessionService
+import net.matsudamper.kmp.activitypub.session.UserSessionStore
+import net.matsudamper.kmp.activitypub.session.ValkeyLoginFailureStore
+import net.matsudamper.kmp.activitypub.session.ValkeyUserSessionStore
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kotpub.actor.ActorAppearance
@@ -65,12 +69,12 @@ import net.matsudamper.kotpub.url.WebPageUrls
 class AppDependencies(
     val repositories: Repositories,
     val actorKey: ActorKey,
+    private val sessionStore: UserSessionStore,
+    private val loginFailureStore: LoginFailureStore,
     val env: ServerEnv,
     val remoteActors: RemoteActors,
     val delivery: ActivityDelivery,
     val adminSessionStore: AdminSessionInMemoryStore = AdminSessionInMemoryStore(),
-    val openTelemetry: OpenTelemetry? = null,
-    private val telemetry: OpenTelemetryInitializer.Handler? = null,
 ) : AutoCloseable {
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
@@ -184,9 +188,15 @@ class AppDependencies(
     )
 
     val sessionService: UserSessionService = UserSessionService(
-        sessionStore = repositories.sessionStore,
+        sessionStore = sessionStore,
         ttl = 30.days,
         clock = Clock.systemUTC(),
+    )
+
+    val loginThrottle: LoginThrottle = LoginThrottle(
+        failureStore = loginFailureStore,
+        maxFailures = 5,
+        lockDuration = 30.days,
     )
 
     private val deliveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -218,7 +228,7 @@ class AppDependencies(
             sendConcurrency = 8,
             idleInterval = 1.seconds,
             clock = Instant::now,
-            openTelemetry = openTelemetry ?: OpenTelemetry.noop(),
+            openTelemetry = OpenTelemetryInitializer.get(),
         ).start(deliveryScope)
 
         return purgedAccounts
@@ -260,8 +270,9 @@ class AppDependencies(
         val failures = listOf<() -> Unit>(
             { delivery.close() },
             { remoteActors.close() },
+            { sessionStore.close() },
+            { loginFailureStore.close() },
             { repositories.close() },
-            { telemetry?.close() },
         ).mapNotNull { close -> runCatching(close).exceptionOrNull() }
 
         val failure = failures.firstOrNull() ?: return
@@ -275,12 +286,9 @@ class AppDependencies(
          * フォロワーが記録されているかどうかで決まるため。
          * 開いた後に失敗した場合は、開いた分を閉じてから投げ直す。
          */
-        fun create(
-            env: ServerEnv,
-            telemetry: OpenTelemetryInitializer.Handler? = null,
-        ): AppDependencies {
-            val repositories = Repositories.create(DatabaseConfig(path = env.dbPath), openTelemetry = telemetry?.openTelemetry)
-            val openTelemetry = telemetry?.openTelemetry
+        fun create(env: ServerEnv): AppDependencies {
+            val repositories = Repositories.create(DatabaseConfig(path = env.dbPath))
+            val openTelemetry = OpenTelemetryInitializer.get()
 
             // ここから先で失敗すると、開いた DB が閉じられないまま起動が止まる
             return runCatching {
@@ -317,11 +325,11 @@ class AppDependencies(
                 AppDependencies(
                     repositories = repositories,
                     actorKey = actorKey,
+                    sessionStore = ValkeyUserSessionStore(uri = env.valkeyUri),
+                    loginFailureStore = ValkeyLoginFailureStore(uri = env.valkeyUri),
                     env = env,
                     remoteActors = remoteActors,
                     delivery = delivery,
-                    openTelemetry = openTelemetry,
-                    telemetry = telemetry,
                 )
             }.getOrElse { failure ->
                 repositories.close()

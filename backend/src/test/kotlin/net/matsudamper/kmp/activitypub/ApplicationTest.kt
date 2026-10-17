@@ -45,7 +45,14 @@ class ApplicationTest {
     fun `ActivityPub のエンドポイントが組み込まれている`() =
         testApplication {
             val repositories = FakeRepositories()
-            repositories.accountRepository.add(username = TestServerEnv.USERNAME, passwordHash = "hash", passwordHashType = "hash-type", createdAt = Instant.now())
+            repositories.accountRepository.add(
+                username = TestServerEnv.USERNAME,
+                passwordHash = "hash",
+                passwordHashType = "hash-type",
+                publicKeyPem = "public",
+                privateKeyPem = "private",
+                createdAt = Instant.now(),
+            )
             application {
                 module(TestDependencies(repositories = repositories))
             }

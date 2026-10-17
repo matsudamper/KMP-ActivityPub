@@ -40,11 +40,11 @@ Android アプリをビルドするときは Android SDK が要る（`local.prop
 ```sh
 # JVM で起動する（http://localhost:8080）
 # DOMAIN は必須。Mastodon から実際に引かせるときは公開しているホスト名にすること
-DOMAIN=example.com ./gradlew :backend:run
+DOMAIN=example.com VALKEY_URI=redis://localhost:6379 ./gradlew :backend:run
 
 # ネイティブバイナリを生成して起動する
 ./gradlew :backend:nativeCompile
-DOMAIN=example.com ./backend/build/native/nativeCompile/kmp-activitypub
+DOMAIN=example.com VALKEY_URI=redis://localhost:6379 ./backend/build/native/nativeCompile/kmp-activitypub
 ```
 
 起動できたかは `GET /healthz` で見る。`{"status":"ok"}` が返れば動いている。
@@ -69,6 +69,18 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-a
 ./gradlew :frontend:app-web:wasmJsBrowserDistribution
 ```
 
+ユーザー名は大文字小文字を区別せず一意になる。区別しないのは ASCII の英字だけなので、使う文字は英数字と `_` `.` `-` に限る。ログインでは前後の空白を落として照合するので、前後に空白を入れない。
+
+### Valkey を起動する
+
+セッションは Valkey に保存する。
+
+```sh
+docker run -d --name kmp-activitypub-valkey -p 6379:6379 valkey/valkey:8
+```
+
+### 起動する
+
 backend から画面を出すときは、配布物のディレクトリを `STATIC_SRC_DIR` に渡す。
 
 ```sh
@@ -76,6 +88,7 @@ DOMAIN=example.com \
 STATIC_SRC_DIR=frontend/app-web/build/dist/wasmJs/productionExecutable \
 ADMIN_PASSWORD_HASH='pbkdf2-sha256:...' \
 COOKIE_SECURE=false \
+VALKEY_URI=redis://localhost:6379 \
   ./gradlew :backend:run
 ```
 

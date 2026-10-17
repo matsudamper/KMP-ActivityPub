@@ -1,8 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository
 
-import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
-import net.matsudamper.kmp.activitypub.session.UserSessionStore
 
 /**
  * JDBC と jOOQ をモジュールの外に出さないための入口
@@ -24,17 +22,12 @@ interface Repositories : AutoCloseable {
 
     val domainBlocks: DomainBlockRepository
 
-    val sessionStore: UserSessionStore
-
     /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい
      */
     override fun close()
 
     companion object {
-        fun create(
-            config: DatabaseConfig,
-            openTelemetry: OpenTelemetry? = null,
-        ): Repositories = SqliteRepositories(config, openTelemetry)
+        fun create(config: DatabaseConfig): Repositories = SqliteRepositories(config)
     }
 }

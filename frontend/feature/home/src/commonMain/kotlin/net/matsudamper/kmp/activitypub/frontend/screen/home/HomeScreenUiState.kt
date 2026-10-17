@@ -17,6 +17,6 @@ data class HomeScreenUiState(
     interface Listener {
         fun onClickPost()
 
-        fun onClickLogout()
+        fun onClickSettings()
     }
 }

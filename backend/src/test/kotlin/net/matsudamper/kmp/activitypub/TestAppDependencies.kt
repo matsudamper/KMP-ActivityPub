@@ -24,6 +24,8 @@ internal fun TestDependencies(
     AppDependencies(
         repositories = repositories,
         actorKey = actorKey,
+        sessionStore = FakeUserSessionStore(),
+        loginFailureStore = FakeLoginFailureStore(),
         env = env,
         remoteActors = remoteActors,
         delivery = delivery,
