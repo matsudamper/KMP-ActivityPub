@@ -84,4 +84,6 @@ private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
     override fun onDismissDeleteDialog() = Unit
 
     override fun onClickBack() = Unit
+
+    override fun onClickLogout() = Unit
 }

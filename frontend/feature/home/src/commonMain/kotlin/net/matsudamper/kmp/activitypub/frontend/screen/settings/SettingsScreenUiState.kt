@@ -59,5 +59,7 @@ data class SettingsScreenUiState(
         fun onDismissDeleteDialog()
 
         fun onClickBack()
+
+        fun onClickLogout()
     }
 }

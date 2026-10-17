@@ -19,6 +19,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyRegistratio
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.RegisteredPasskey
 import org.koin.core.annotation.KoinViewModel
 
+/**
+ * ログアウトはまだサーバーと繋いでいない。ボタンを押しても何も起きない
+ */
 @KoinViewModel
 internal class SettingsScreenViewModel(
     private val passkeyApi: PasskeyApi,
@@ -64,6 +67,8 @@ internal class SettingsScreenViewModel(
                     events.send { it.navigateBack() }
                 }
             }
+
+            override fun onClickLogout() = Unit
         }
 
     val uiStateFlow: StateFlow<SettingsScreenUiState> =
