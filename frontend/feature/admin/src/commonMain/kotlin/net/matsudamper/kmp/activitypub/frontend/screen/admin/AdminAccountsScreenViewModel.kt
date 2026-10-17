@@ -105,7 +105,13 @@ class AdminAccountsScreenViewModel(
                     if (accountsJob == null) {
                         accountsJob = viewModelScope.launch {
                             accountsPaging.watch().collect { accounts ->
-                                viewModelStateFlow.update { it.copy(accounts = accounts) }
+                                viewModelStateFlow.update {
+                                    it.copy(
+                                        accounts = accounts,
+                                        loadingMoreCursor = it.loadingMoreCursor
+                                            .takeIf { cursor -> cursor == (accounts as? AdminAccountsResult.Success)?.nextCursor },
+                                    )
+                                }
                             }
                         }
                     }
@@ -113,7 +119,7 @@ class AdminAccountsScreenViewModel(
                     accountsJob?.cancel()
                     loadMoreJob?.cancel()
                     accountsJob = null
-                    viewModelStateFlow.update { it.copy(accounts = null, loadingMore = false, loadMoreErrorMessage = null) }
+                    viewModelStateFlow.update { it.copy(accounts = null, loadingMoreCursor = null, loadMoreErrorMessage = null) }
                 }
             }
         }
@@ -125,18 +131,18 @@ class AdminAccountsScreenViewModel(
         if (state.loadingMore) return
         val cursor = accounts.nextCursor ?: return
 
-        viewModelStateFlow.update { it.copy(loadingMore = true, loadMoreErrorMessage = null) }
+        viewModelStateFlow.update { it.copy(loadingMoreCursor = cursor, loadMoreErrorMessage = null) }
 
         loadMoreJob?.cancel()
         loadMoreJob = viewModelScope.launch {
             when (val result = accountsPaging.loadMore(cursor)) {
-                PagingLoadMoreResult.Success -> {
-                    viewModelStateFlow.update { it.copy(loadingMore = false, loadMoreErrorMessage = null) }
-                }
+                // 足したページは watch 側に別のコルーチンで届く。ここで読み込み中を解除すると、
+                // 古いカーソルのまま末尾の検知が走って同じページを二重に足すので、解除は watch 側で行う
+                PagingLoadMoreResult.Success -> Unit
 
                 // 続きが取れなくても既に出ている一覧は消さない
                 is PagingLoadMoreResult.Failure -> {
-                    viewModelStateFlow.update { it.copy(loadingMore = false, loadMoreErrorMessage = result.message) }
+                    viewModelStateFlow.update { it.copy(loadingMoreCursor = null, loadMoreErrorMessage = result.message) }
                 }
             }
         }
@@ -180,9 +186,14 @@ class AdminAccountsScreenViewModel(
     private data class ViewModelState(
         val session: AdminSessionResult? = null,
         val accounts: AdminAccountsResult? = null,
-        val loadingMore: Boolean = false,
+        /**
+         * 続きを要求したカーソル。一覧の nextCursor が変わるまで読み込み中として扱う
+         */
+        val loadingMoreCursor: String? = null,
         val loadMoreErrorMessage: String? = null,
-    )
+    ) {
+        val loadingMore: Boolean get() = loadingMoreCursor != null
+    }
 
     interface Event {
         suspend fun navigate(screen: Screen)
