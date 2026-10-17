@@ -49,6 +49,15 @@ class StaticFilesTest {
     }
 
     @Test
+    fun `ドットを含むユーザー名のページは index html に解決される`(@TempDir tempDir: Path) {
+        val indexFile = tempDir.resolve("index.html")
+        indexFile.writeText("<html></html>")
+
+        val staticFiles = StaticFiles(tempDir)
+        assertEquals(indexFile, staticFiles.resolve(listOf("@john.doe")))
+    }
+
+    @Test
     fun `存在する静的ファイルは正しく解決される`(@TempDir tempDir: Path) {
         val assetsDir = tempDir.resolve("assets").apply { createDirectories() }
         val jsFile = assetsDir.resolve("app.js").apply { writeText("console.log('hi');") }
