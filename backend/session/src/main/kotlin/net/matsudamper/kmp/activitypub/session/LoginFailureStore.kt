@@ -3,15 +3,27 @@ package net.matsudamper.kmp.activitypub.session
 import kotlin.time.Duration
 
 interface LoginFailureStore : AutoCloseable {
-    fun count(clientIp: String): Long
+    /**
+     * 送信元の失敗を、どのユーザー名に対するものかを問わず合計する
+     */
+    fun totalCount(clientIp: String): Long
 
     /**
-     * 期限は最後の失敗から数え直す
+     * 送信元の記録全体の期限を、最後の失敗から数え直す
      */
     fun increment(
+        clientIp: String,
+        username: String,
+        ttl: Duration,
+    )
+
+    fun extend(
         clientIp: String,
         ttl: Duration,
     )
 
-    fun clear(clientIp: String)
+    fun clear(
+        clientIp: String,
+        username: String,
+    )
 }

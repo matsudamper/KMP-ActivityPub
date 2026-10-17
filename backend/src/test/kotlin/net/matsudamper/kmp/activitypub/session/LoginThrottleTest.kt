@@ -13,24 +13,27 @@ class LoginThrottleTest {
     @Test
     fun `4 回の失敗ではまだ締め出さない`() {
         val throttle = throttle()
-        repeat(4) { throttle.recordFailure("192.0.2.1") }
+        repeat(4) { throttle.recordFailure(clientIp = "192.0.2.1", username = "alice") }
         assertFalse(throttle.isLocked("192.0.2.1"))
     }
 
     @Test
-    fun `5 回失敗するとその IP を締め出す`() {
+    fun `ユーザー名を変えても 5 回失敗するとその IP を締め出す`() {
         val throttle = throttle()
-        repeat(5) { throttle.recordFailure("192.0.2.1") }
+        listOf("a", "b", "c", "d", "e").forEach { throttle.recordFailure(clientIp = "192.0.2.1", username = it) }
         assertTrue(throttle.isLocked("192.0.2.1"))
         assertFalse(throttle.isLocked("192.0.2.2"))
     }
 
     @Test
-    fun `成功すると失敗の回数を数え直す`() {
+    fun `成功するとそのユーザー名への失敗だけを消す`() {
         val throttle = throttle()
-        repeat(4) { throttle.recordFailure("192.0.2.1") }
-        throttle.recordSuccess("192.0.2.1")
-        throttle.recordFailure("192.0.2.1")
+        repeat(3) { throttle.recordFailure(clientIp = "192.0.2.1", username = "alice") }
+        repeat(2) { throttle.recordFailure(clientIp = "192.0.2.1", username = "bob") }
+        throttle.recordSuccess(clientIp = "192.0.2.1", username = "bob")
+        throttle.recordFailure(clientIp = "192.0.2.1", username = "carol")
         assertFalse(throttle.isLocked("192.0.2.1"))
+        throttle.recordFailure(clientIp = "192.0.2.1", username = "carol")
+        assertTrue(throttle.isLocked("192.0.2.1"))
     }
 }

@@ -4,19 +4,29 @@ import kotlin.time.Duration
 import net.matsudamper.kmp.activitypub.session.LoginFailureStore
 
 internal class FakeLoginFailureStore : LoginFailureStore {
-    private val counts = mutableMapOf<String, Long>()
+    private val counts = mutableMapOf<String, MutableMap<String, Long>>()
 
-    override fun count(clientIp: String): Long = counts[clientIp] ?: 0
+    override fun totalCount(clientIp: String): Long = counts[clientIp]?.values?.sum() ?: 0
 
     override fun increment(
         clientIp: String,
+        username: String,
         ttl: Duration,
     ) {
-        counts[clientIp] = count(clientIp) + 1
+        val countsOfIp = counts.getOrPut(clientIp) { mutableMapOf() }
+        countsOfIp[username] = (countsOfIp[username] ?: 0) + 1
     }
 
-    override fun clear(clientIp: String) {
-        counts.remove(clientIp)
+    override fun extend(
+        clientIp: String,
+        ttl: Duration,
+    ) = Unit
+
+    override fun clear(
+        clientIp: String,
+        username: String,
+    ) {
+        counts[clientIp]?.remove(username)
     }
 
     override fun close() = Unit

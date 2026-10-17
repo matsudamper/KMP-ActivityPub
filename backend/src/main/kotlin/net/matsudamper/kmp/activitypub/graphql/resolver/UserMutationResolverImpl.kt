@@ -28,19 +28,20 @@ class UserMutationResolverImpl : UserMutationResolver {
         val loginThrottle = diContainer.loginThrottle
         val clientIp = context.clientIp
         if (loginThrottle.isLocked(clientIp)) {
-            loginThrottle.recordFailure(clientIp)
+            loginThrottle.extendLock(clientIp)
             logger.warn("ログインの失敗が続いている IP なので照合せずに断り、締め出しを延ばした: $clientIp")
             val result = QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
             return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
         }
 
-        val accountId = diContainer.accountService.authenticate(username = query.username, password = query.password)
+        val username = query.username.trim()
+        val accountId = diContainer.accountService.authenticate(username = username, password = query.password)
         val result =
             if (accountId == null) {
-                loginThrottle.recordFailure(clientIp)
+                loginThrottle.recordFailure(clientIp = clientIp, username = username)
                 QlUserLoginResult(failure = QlUserLoginFailure.WRONG_USERNAME_OR_PASSWORD)
             } else {
-                loginThrottle.recordSuccess(clientIp)
+                loginThrottle.recordSuccess(clientIp = clientIp, username = username)
                 context.issueUserSession(accountId)
                 QlUserLoginResult(failure = null)
             }
