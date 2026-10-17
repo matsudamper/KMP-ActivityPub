@@ -16,6 +16,8 @@ class AccountService(
 
     fun account(id: AccountId): Account? = accountRepository.findById(id)
 
+    fun account(username: String): Account? = accountRepository.findByUsername(username)
+
     fun authenticate(
         username: String,
         password: String,

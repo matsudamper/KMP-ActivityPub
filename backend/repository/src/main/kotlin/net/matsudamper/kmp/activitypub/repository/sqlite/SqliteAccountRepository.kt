@@ -25,6 +25,21 @@ internal class SqliteAccountRepository(
             }
     }
 
+    override fun findByUsername(username: String): Account? = jooq.withConnection { dsl ->
+        dsl
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT)
+            .from(ACCOUNTS)
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .fetchOne()
+            ?.let { record ->
+                Account(
+                    id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
+                    username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
+                    createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
+                )
+            }
+    }
+
     override fun findCredential(username: String): AccountCredential? = jooq.withConnection { dsl ->
         dsl
             .select(
