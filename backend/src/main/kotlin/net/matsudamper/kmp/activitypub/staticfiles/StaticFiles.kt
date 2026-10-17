@@ -16,8 +16,9 @@ class StaticFiles(
     fun index(): Path? = root.resolve(INDEX_FILE_NAME).takeIf { isServableFile(it) }
 
     /**
-     * 無いファイルを index.html に落とすのは [isPageRequest] のときだけ。
-     * .js や .wasm の取得失敗まで 200 + HTML にすると、画面が出ない理由を追えなくなる
+     * リクエストのパスに対応する配信するファイルを返す。
+     * ファイルが無いときは、[isPageRequest] なら画面の入口の index.html を返し、そうでなければ null を返す。
+     * ページ以外も index.html にすると、.js や .wasm の取得失敗が 200 + HTML になり、画面が出ない理由を追えなくなる
      */
     fun resolve(
         segments: List<String>,
