@@ -1,8 +1,6 @@
 type UserMutation {
     login(query: UserLoginQuery!): UserLoginResult! @lazy
-    "パスキーでのログインに使う challenge を発行する。challenge は 1 回だけ、5 分以内に使える"
     passkeyLoginOptions: PasskeyLoginOptions! @lazy
-    "通るとセッションの Cookie を返す"
     passkeyLogin(query: UserPasskeyLoginQuery!): UserPasskeyLoginResult! @lazy
     "ログイン中のアカウントにパスキーを足すための値を発行する。ログインしていなければ null"
     passkeyRegistrationOptions: PasskeyRegistrationOptions @lazy
@@ -36,9 +34,8 @@ type PasskeyRegistrationOptions {
     rpId: String!
     userHandle: PasskeyUserHandle!
     username: String!
-    "COSE Algorithms の値。認証器にはこの中から選ばせる"
+    "COSE Algorithms の値"
     algorithms: [Int!]!
-    "登録済みのパスキー。同じ認証器に二重に作らせない"
     excludeCredentialIds: [PasskeyCredentialId!]!
 }
 
@@ -56,13 +53,11 @@ type UserPasskeyLoginResult {
 }
 
 enum UserPasskeyLoginFailure {
-    "登録されていないパスキーか、検証に通らなかった。challenge の期限切れも含む"
     NOT_ACCEPTED
 }
 
 "バイト列はすべて base64url（パディング無し）。WebAuthn の AuthenticatorAttestationResponse の値をそのまま渡す"
 input RegisterPasskeyQuery {
-    "一覧で見分けるための名前。前後の空白は落とし、64 文字まで"
     name: String!
     clientDataJson: String!
     attestationObject: String!
@@ -74,10 +69,8 @@ type RegisterPasskeyResult {
 
 enum RegisterPasskeyFailure {
     NOT_LOGGED_IN
-    "検証に通らなかった。challenge の期限切れも含む"
     NOT_ACCEPTED
     ALREADY_REGISTERED
-    "空か、長すぎる"
     INVALID_NAME
 }
 
