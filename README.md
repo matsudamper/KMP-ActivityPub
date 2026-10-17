@@ -38,7 +38,3 @@ COOKIE_SECURE=false VALKEY_URI=redis://localhost:6379 PASSKEY_RP_ID=localhost PA
 ```
 
 環境変数は `docker-compose.yml` を参照。
-
-画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
-`frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
-同じサーバーから出る。

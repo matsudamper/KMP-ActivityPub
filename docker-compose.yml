@@ -11,6 +11,7 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8080
+      # 画面。./gradlew :frontend:app-web:wasmJsBrowserDistribution で作った frontend/app-web/build/dist/wasmJs/productionExecutable を渡すと、同じサーバーから出る
       STATIC_SRC_DIR: /app/static
       DB_PATH: /app/data/kmp-activitypub.db
       VALKEY_URI: redis://valkey:6379
