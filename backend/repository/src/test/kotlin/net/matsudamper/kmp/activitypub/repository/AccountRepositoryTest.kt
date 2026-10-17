@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-account-test")
     private val dbPath: Path = tempDir.resolve("test.db")
@@ -29,6 +30,28 @@ class AccountRepositoryTest {
                 Account(id = id, username = "user1", createdAt = CREATED_AT),
                 repositories.accountRepository.findById(id),
             )
+        }
+    }
+
+    @Test
+    fun `登録したアカウントを名前で引ける`() {
+        insertAccount()
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
+            assertEquals(
+                Account(id = id, username = "user1", createdAt = CREATED_AT),
+                repositories.accountRepository.findByUsername("USER1"),
+            )
+        }
+    }
+
+    @Test
+    fun `いない名前のアカウントは引けない`() {
+        TestSchema.applyTo(dbPath)
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertNull(repositories.accountRepository.findByUsername("user1"))
         }
     }
 

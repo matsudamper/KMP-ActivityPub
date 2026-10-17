@@ -8,6 +8,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class ServerEnvTest {
     @Test
     fun `未設定なら既定値になる`() {

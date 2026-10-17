@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
@@ -54,6 +55,16 @@ class UserApi(
         } else {
             UserLoginStateResult.LoggedIn
         }
+    }
+
+    suspend fun userProfile(username: String): UserProfileResult {
+        val client = clients.awaitLoadedClient() ?: return UserProfileResult.Failure("接続先が未設定")
+        val response = client.query(UserProfileQuery(username = username)).execute()
+        if (response.exception != null || response.hasErrors()) return UserProfileResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserProfileResult.Failure(response.failureMessage())
+        val user = data.user ?: return UserProfileResult.NotFound
+
+        return UserProfileResult.Found(username = user.username)
     }
 
     private fun ApolloResponse<*>.failureMessage(): String {

@@ -13,6 +13,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class SqliteConnectionManagerTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-connection-test")
 

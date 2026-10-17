@@ -42,7 +42,4 @@ services:
       timeout: 3s
       retries: 30
     volumes:
-      - valkey-data:/data
-
-volumes:
-  valkey-data:
+      - ./valkey-data:/data

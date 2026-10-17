@@ -6,6 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class PasswordHashTypeTest {
     private val encoder = PasswordHashType.Current.encoder
 

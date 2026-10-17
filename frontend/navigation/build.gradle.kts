@@ -27,6 +27,7 @@ kotlin {
                 // Screen が NavKey を実装する
                 api(libs.navigation3.ui)
                 implementation(libs.kotlinx.serialization.core)
+                implementation(project(":frontend:core"))
             }
         }
     }

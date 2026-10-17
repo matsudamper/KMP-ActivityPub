@@ -7,6 +7,7 @@ import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.FakeAccountRepository
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountServiceTest {
     private val accountRepository = FakeAccountRepository()
 
@@ -43,6 +44,18 @@ class AccountServiceTest {
         accountRepository.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = "unknown")
 
         assertFailsWith<IllegalStateException> { service.authenticate(username = "user1", password = PASSWORD) }
+    }
+
+    @Test
+    fun `大文字小文字が違ってもユーザー名でユーザーを引ける`() {
+        val id = accountRepository.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
+
+        assertEquals(id, service.account(username = "USER1")?.id)
+    }
+
+    @Test
+    fun `いないユーザー名では引けない`() {
+        assertNull(service.account(username = "user1"))
     }
 
     private companion object {

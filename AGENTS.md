@@ -5,6 +5,9 @@
 ./gradlew :compileAll
 ```
 
+## テスト
+- SQL や GraphQL のクエリを直接書くテストは書かない。Repository や Service など、Kotlin の呼び出しで確かめる
+
 # 共通ルール
 
 ## docs の参照

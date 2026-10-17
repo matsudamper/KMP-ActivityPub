@@ -1,9 +1,11 @@
 package net.matsudamper.kmp.activitypub.staticfiles
 
 import kotlin.io.path.name
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.http.content.LocalFileContent
+import io.ktor.server.request.acceptItems
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -22,7 +24,8 @@ internal fun Route.staticRoutes(staticFiles: StaticFiles?) {
 
         val segments = call.parameters.getAll("path").orEmpty()
 
-        val file = staticFiles.resolve(segments)
+        val isHtmlRequest = call.request.acceptItems().any { it.value == ContentType.Text.Html.toString() }
+        val file = staticFiles.resolve(segments = segments, isHtmlRequest = isHtmlRequest)
         if (file == null) {
             call.respondText("見つからない: /${segments.joinToString("/")}", status = HttpStatusCode.NotFound)
             return@get

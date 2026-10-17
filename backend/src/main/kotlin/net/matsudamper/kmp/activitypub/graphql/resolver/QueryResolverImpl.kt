@@ -6,6 +6,7 @@ import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
+import net.matsudamper.kmp.activitypub.graphql.model.QlUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 
@@ -33,5 +34,19 @@ class QueryResolverImpl : QueryResolver {
             }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<List<QlRegisteredPasskey>?>(passkeys).build())
+    }
+
+    override fun user(
+        username: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUser?>> {
+        val account = GraphQlEngine.diContainer(env).accountService.account(username = username)
+        val user =
+            if (account == null) {
+                null
+            } else {
+                QlUser(username = account.username)
+            }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlUser?>(user).build())
     }
 }

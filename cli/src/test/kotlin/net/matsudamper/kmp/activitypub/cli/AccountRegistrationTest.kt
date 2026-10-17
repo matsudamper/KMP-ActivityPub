@@ -15,6 +15,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountRegistrationTest {
     private val tempDir: Path = createTempDirectory("account-registration")
 
