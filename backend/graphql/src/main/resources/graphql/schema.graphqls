@@ -13,8 +13,7 @@ type Query {
 }
 
 type RegisteredPasskey {
-    "credential ID の base64url（パディング無し）"
-    id: String!
+    id: PasskeyCredentialId!
     name: String!
 }
 

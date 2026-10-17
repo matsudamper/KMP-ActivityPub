@@ -26,7 +26,7 @@ mutation RegisterPasskey($query: RegisterPasskeyQuery!) {
     }
 }
 
-mutation DeletePasskey($id: String!) {
+mutation DeletePasskey($id: PasskeyCredentialId!) {
     user {
         deletePasskey(id: $id) {
             failure

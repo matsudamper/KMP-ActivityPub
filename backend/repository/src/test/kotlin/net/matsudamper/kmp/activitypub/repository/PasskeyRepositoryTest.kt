@@ -12,6 +12,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 class PasskeyRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-passkey-test")
@@ -25,76 +27,80 @@ class PasskeyRepositoryTest {
     @Test
     fun `user handle は一度作ったものを返し続ける`() {
         withRepositories { repositories, accountId ->
-            val first = repositories.passkeyRepository.userHandle(accountId) { "handle-1" }
-            val second = repositories.passkeyRepository.userHandle(accountId) { "handle-2" }
+            val first = repositories.passkeyRepository.userHandle(accountId) { PasskeyUserHandle("handle-1") }
+            val second = repositories.passkeyRepository.userHandle(accountId) { PasskeyUserHandle("handle-2") }
 
-            assertEquals("handle-1", first)
-            assertEquals("handle-1", second)
+            assertEquals(PasskeyUserHandle("handle-1"), first)
+            assertEquals(PasskeyUserHandle("handle-1"), second)
         }
     }
 
     @Test
     fun `登録したパスキーを credential ID で引ける`() {
         withRepositories { repositories, accountId ->
-            repositories.passkeyRepository.userHandle(accountId) { "handle-1" }
-            repositories.passkeyRepository.add(accountId = accountId, credentialId = "credential-1", publicKey = byteArrayOf(1, 2), signCount = 3, name = "端末1", createdAt = NOW)
+            repositories.passkeyRepository.userHandle(accountId) { PasskeyUserHandle("handle-1") }
+            repositories.passkeyRepository.add(accountId = accountId, credentialId = PasskeyCredentialId("credential-1"), publicKey = byteArrayOf(1, 2), signCount = 3, name = "端末1", createdAt = NOW)
 
-            val passkey = checkNotNull(repositories.passkeyRepository.findByCredentialId("credential-1"))
+            val passkey = checkNotNull(repositories.passkeyRepository.findByCredentialId(PasskeyCredentialId("credential-1")))
 
             assertEquals(accountId, passkey.accountId)
-            assertEquals("handle-1", passkey.userHandle)
+            assertEquals(PasskeyUserHandle("handle-1"), passkey.userHandle)
             assertContentEquals(byteArrayOf(1, 2), passkey.publicKey)
             assertEquals(3, passkey.signCount)
-            assertEquals(listOf("credential-1" to "端末1"), repositories.passkeyRepository.passkeys(accountId).map { it.credentialId to it.name })
+            assertEquals(listOf(PasskeyCredentialId("credential-1") to "端末1"), repositories.passkeyRepository.passkeys(accountId).map { it.credentialId to it.name })
         }
     }
 
     @Test
     fun `同じ credential ID は二度登録できない`() {
         withRepositories { repositories, accountId ->
-            assertTrue(repositories.passkeyRepository.add(accountId = accountId, credentialId = "credential-1", publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW))
-            assertFalse(repositories.passkeyRepository.add(accountId = accountId, credentialId = "credential-1", publicKey = byteArrayOf(2), signCount = 0, name = "端末1", createdAt = NOW))
+            assertTrue(
+                repositories.passkeyRepository.add(accountId = accountId, credentialId = PasskeyCredentialId("credential-1"), publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW),
+            )
+            assertFalse(
+                repositories.passkeyRepository.add(accountId = accountId, credentialId = PasskeyCredentialId("credential-1"), publicKey = byteArrayOf(2), signCount = 0, name = "端末1", createdAt = NOW),
+            )
         }
     }
 
     @Test
     fun `自分のパスキーだけを消せる`() {
         withRepositories { repositories, accountId ->
-            repositories.passkeyRepository.add(accountId = accountId, credentialId = "credential-1", publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW)
+            repositories.passkeyRepository.add(accountId = accountId, credentialId = PasskeyCredentialId("credential-1"), publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW)
 
-            assertFalse(repositories.passkeyRepository.delete(accountId = AccountId(accountId.value + 1), credentialId = "credential-1"))
-            assertTrue(repositories.passkeyRepository.delete(accountId = accountId, credentialId = "credential-1"))
-            assertNull(repositories.passkeyRepository.findByCredentialId("credential-1"))
+            assertFalse(repositories.passkeyRepository.delete(accountId = AccountId(accountId.value + 1), credentialId = PasskeyCredentialId("credential-1")))
+            assertTrue(repositories.passkeyRepository.delete(accountId = accountId, credentialId = PasskeyCredentialId("credential-1")))
+            assertNull(repositories.passkeyRepository.findByCredentialId(PasskeyCredentialId("credential-1")))
         }
     }
 
     @Test
     fun `署名回数を更新できる`() {
         withRepositories { repositories, accountId ->
-            repositories.passkeyRepository.add(accountId = accountId, credentialId = "credential-1", publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW)
+            repositories.passkeyRepository.add(accountId = accountId, credentialId = PasskeyCredentialId("credential-1"), publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW)
 
-            repositories.passkeyRepository.updateSignCount(credentialId = "credential-1", signCount = 10, usedAt = NOW)
+            repositories.passkeyRepository.updateSignCount(credentialId = PasskeyCredentialId("credential-1"), signCount = 10, usedAt = NOW)
 
-            assertEquals(10, repositories.passkeyRepository.findByCredentialId("credential-1")?.signCount)
+            assertEquals(10, repositories.passkeyRepository.findByCredentialId(PasskeyCredentialId("credential-1"))?.signCount)
         }
     }
 
     @Test
     fun `署名回数は小さい値では戻らない`() {
         withRepositories { repositories, accountId ->
-            repositories.passkeyRepository.add(accountId = accountId, credentialId = "credential-1", publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW)
+            repositories.passkeyRepository.add(accountId = accountId, credentialId = PasskeyCredentialId("credential-1"), publicKey = byteArrayOf(1), signCount = 0, name = "端末1", createdAt = NOW)
 
-            repositories.passkeyRepository.updateSignCount(credentialId = "credential-1", signCount = 10, usedAt = NOW)
-            repositories.passkeyRepository.updateSignCount(credentialId = "credential-1", signCount = 5, usedAt = NOW)
+            repositories.passkeyRepository.updateSignCount(credentialId = PasskeyCredentialId("credential-1"), signCount = 10, usedAt = NOW)
+            repositories.passkeyRepository.updateSignCount(credentialId = PasskeyCredentialId("credential-1"), signCount = 5, usedAt = NOW)
 
-            assertEquals(10, repositories.passkeyRepository.findByCredentialId("credential-1")?.signCount)
+            assertEquals(10, repositories.passkeyRepository.findByCredentialId(PasskeyCredentialId("credential-1"))?.signCount)
         }
     }
 
     @Test
     fun `無いパスキーは引けない`() {
         withRepositories { repositories, _ ->
-            assertNull(repositories.passkeyRepository.findByCredentialId("unknown"))
+            assertNull(repositories.passkeyRepository.findByCredentialId(PasskeyCredentialId("unknown")))
         }
     }
 

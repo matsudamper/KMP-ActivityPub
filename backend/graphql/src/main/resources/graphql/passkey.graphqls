@@ -1,0 +1,5 @@
+"WebAuthn の credential ID の base64url（パディング無し）"
+scalar PasskeyCredentialId
+
+"WebAuthn の user handle（user.id）の base64url（パディング無し）"
+scalar PasskeyUserHandle

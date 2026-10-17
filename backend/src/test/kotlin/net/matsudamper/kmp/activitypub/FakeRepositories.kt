@@ -10,6 +10,8 @@ import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository()
@@ -60,14 +62,14 @@ private class FakeUserSessionStore : UserSessionStore {
 }
 
 private class FakePasskeyRepository : PasskeyRepository {
-    private val userHandles = mutableMapOf<AccountId, String>()
-    private val passkeys = mutableMapOf<String, StoredPasskey>()
-    private val names = mutableMapOf<String, String>()
+    private val userHandles = mutableMapOf<AccountId, PasskeyUserHandle>()
+    private val passkeys = mutableMapOf<PasskeyCredentialId, StoredPasskey>()
+    private val names = mutableMapOf<PasskeyCredentialId, String>()
 
     override fun userHandle(
         accountId: AccountId,
-        newUserHandle: () -> String,
-    ): String = userHandles.getOrPut(accountId, newUserHandle)
+        newUserHandle: () -> PasskeyUserHandle,
+    ): PasskeyUserHandle = userHandles.getOrPut(accountId, newUserHandle)
 
     override fun passkeys(accountId: AccountId): List<PasskeySummary> =
         passkeys
@@ -77,7 +79,7 @@ private class FakePasskeyRepository : PasskeyRepository {
 
     override fun add(
         accountId: AccountId,
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
         publicKey: ByteArray,
         signCount: Long,
         name: String,
@@ -91,7 +93,7 @@ private class FakePasskeyRepository : PasskeyRepository {
 
     override fun delete(
         accountId: AccountId,
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
     ): Boolean {
         if (passkeys[credentialId]?.accountId != accountId) return false
         passkeys.remove(credentialId)
@@ -99,10 +101,10 @@ private class FakePasskeyRepository : PasskeyRepository {
         return true
     }
 
-    override fun findByCredentialId(credentialId: String): StoredPasskey? = passkeys[credentialId]
+    override fun findByCredentialId(credentialId: PasskeyCredentialId): StoredPasskey? = passkeys[credentialId]
 
     override fun updateSignCount(
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
         signCount: Long,
         usedAt: Instant,
     ) {

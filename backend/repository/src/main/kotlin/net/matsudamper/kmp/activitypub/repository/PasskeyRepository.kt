@@ -2,18 +2,17 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
-/**
- * credential ID と user handle は base64url（パディング無し）で受け渡す
- */
 interface PasskeyRepository {
     /**
      * まだ無ければ [newUserHandle] で作ったものを保存して返す
      */
     fun userHandle(
         accountId: AccountId,
-        newUserHandle: () -> String,
-    ): String
+        newUserHandle: () -> PasskeyUserHandle,
+    ): PasskeyUserHandle
 
     /**
      * 登録した順
@@ -25,7 +24,7 @@ interface PasskeyRepository {
      */
     fun add(
         accountId: AccountId,
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
         publicKey: ByteArray,
         signCount: Long,
         name: String,
@@ -37,16 +36,16 @@ interface PasskeyRepository {
      */
     fun delete(
         accountId: AccountId,
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
     ): Boolean
 
-    fun findByCredentialId(credentialId: String): StoredPasskey?
+    fun findByCredentialId(credentialId: PasskeyCredentialId): StoredPasskey?
 
     /**
      * 今より小さい [signCount] では戻さない。同じパスキーのログインが並んで、古い値が後から書かれることがある
      */
     fun updateSignCount(
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
         signCount: Long,
         usedAt: Instant,
     )
@@ -57,13 +56,13 @@ class StoredPasskey(
     /**
      * 登録時に作っているので通常は null にならない
      */
-    val userHandle: String?,
+    val userHandle: PasskeyUserHandle?,
     val publicKey: ByteArray,
     val signCount: Long,
 )
 
 class PasskeySummary(
-    val credentialId: String,
+    val credentialId: PasskeyCredentialId,
     val name: String,
     val createdAt: Instant,
     val lastUsedAt: Instant?,

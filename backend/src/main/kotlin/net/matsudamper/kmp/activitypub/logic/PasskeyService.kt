@@ -12,6 +12,8 @@ import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 import org.slf4j.LoggerFactory
 
 /**
@@ -36,11 +38,11 @@ class PasskeyService(
      * @return 通ればログインするアカウント
      */
     fun login(
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
         clientDataJson: String,
         authenticatorData: String,
         signature: String,
-        userHandle: String?,
+        userHandle: PasskeyUserHandle?,
     ): AccountId? =
         verifyOrNull {
             val clientData = PasskeyClientData.parse(decode(clientDataJson))
@@ -49,12 +51,12 @@ class PasskeyService(
             }
 
             // 認証器が返した id と照合するため、表記を揃える
-            val normalizedCredentialId = encode(decode(credentialId))
+            val normalizedCredentialId = PasskeyCredentialId(encode(decode(credentialId.value)))
             val passkey =
                 passkeyRepository.findByCredentialId(normalizedCredentialId)
                     ?: throw PasskeyVerificationException("登録されていない credential ID")
             // 別のアカウントのパスキーで、このアカウントの user handle を名乗っていないかを見る
-            if (userHandle != null && encode(decode(userHandle)) != passkey.userHandle) throw PasskeyVerificationException("user handle が持ち主と合わない")
+            if (userHandle != null && PasskeyUserHandle(encode(decode(userHandle.value))) != passkey.userHandle) throw PasskeyVerificationException("user handle が持ち主と合わない")
 
             val signCount =
                 verifier.verifyAuthentication(
@@ -72,7 +74,7 @@ class PasskeyService(
         RegistrationOptions(
             challenge = issueChallenge(PasskeyChallengePurpose.Registration, accountId = account.id),
             rpId = relyingParty.id,
-            userHandle = passkeyRepository.userHandle(account.id) { encode(randomBytes(USER_HANDLE_SIZE_BYTES)) },
+            userHandle = passkeyRepository.userHandle(account.id) { PasskeyUserHandle(encode(randomBytes(USER_HANDLE_SIZE_BYTES))) },
             username = account.username,
             algorithms = verifier.supportedAlgorithms,
             excludeCredentialIds = passkeyRepository.passkeys(account.id).map { it.credentialId },
@@ -85,7 +87,7 @@ class PasskeyService(
      */
     fun delete(
         accountId: AccountId,
-        credentialId: String,
+        credentialId: PasskeyCredentialId,
     ): Boolean = passkeyRepository.delete(accountId = accountId, credentialId = credentialId)
 
     fun register(
@@ -110,7 +112,7 @@ class PasskeyService(
         val added =
             passkeyRepository.add(
                 accountId = accountId,
-                credentialId = encode(registered.credentialId),
+                credentialId = PasskeyCredentialId(encode(registered.credentialId)),
                 publicKey = registered.publicKey,
                 signCount = registered.signCount,
                 name = trimmedName,
@@ -156,10 +158,10 @@ class PasskeyService(
     class RegistrationOptions(
         val challenge: String,
         val rpId: String,
-        val userHandle: String,
+        val userHandle: PasskeyUserHandle,
         val username: String,
         val algorithms: List<Long>,
-        val excludeCredentialIds: List<String>,
+        val excludeCredentialIds: List<PasskeyCredentialId>,
     )
 
     sealed interface RegistrationResult {

@@ -11,6 +11,8 @@ import graphql.schema.CoercingParseValueException
 import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 object GraphQlScalars {
     /**
@@ -21,6 +23,20 @@ object GraphQlScalars {
             .newScalar()
             .name("UserId")
             .coercing(UserIdCoercing)
+            .build()
+
+    val passkeyCredentialId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("PasskeyCredentialId")
+            .coercing(Base64UrlCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
+            .build()
+
+    val passkeyUserHandle: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("PasskeyUserHandle")
+            .coercing(Base64UrlCoercing(name = "PasskeyUserHandle", type = PasskeyUserHandle::class.java, wrap = ::PasskeyUserHandle, unwrap = PasskeyUserHandle::value))
             .build()
 
     private object UserIdCoercing : Coercing<AccountId, String> {
@@ -52,4 +68,44 @@ object GraphQlScalars {
             return AccountId(value)
         }
     }
+
+    /**
+     * 値は base64url（パディング無し）の文字列で受け渡す
+     */
+    private class Base64UrlCoercing<T : Any>(
+        private val name: String,
+        private val type: Class<T>,
+        private val wrap: (String) -> T,
+        private val unwrap: (T) -> String,
+    ) : Coercing<T, String> {
+        override fun serialize(
+            dataFetcherResult: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): String {
+            if (!type.isInstance(dataFetcherResult)) throw CoercingSerializeException("$name ではない: $dataFetcherResult")
+            return unwrap(type.cast(dataFetcherResult))
+        }
+
+        override fun parseValue(
+            input: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): T {
+            val value = (input as? String)?.takeIf { BASE64URL.matches(it) } ?: throw CoercingParseValueException("$name ではない")
+            return wrap(value)
+        }
+
+        override fun parseLiteral(
+            input: Value<*>,
+            variables: CoercedVariables,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): T {
+            val value = (input as? StringValue)?.value?.takeIf { BASE64URL.matches(it) } ?: throw CoercingParseLiteralException("$name ではない")
+            return wrap(value)
+        }
+    }
+
+    private val BASE64URL = Regex("^[A-Za-z0-9_-]+$")
 }

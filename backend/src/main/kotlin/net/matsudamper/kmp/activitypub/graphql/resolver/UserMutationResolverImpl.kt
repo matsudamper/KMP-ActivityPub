@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 
 class UserMutationResolverImpl : UserMutationResolver {
     /**
@@ -140,7 +141,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     override fun deletePasskey(
         userMutation: QlUserMutation,
-        id: String,
+        id: PasskeyCredentialId,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlDeletePasskeyResult>> {
         val context = GraphQlEngine.graphQlContext(env)

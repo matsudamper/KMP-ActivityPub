@@ -12,6 +12,8 @@ import net.matsudamper.kmp.activitypub.passkey.TestAuthenticator
 import net.matsudamper.kmp.activitypub.passkey.TestPasskeyAlgorithm
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 class PasskeyServiceTest {
     private val repositories = FakeRepositories()
@@ -90,7 +92,7 @@ class PasskeyServiceTest {
     fun `登録済みのパスキーを除外の対象に返す`() {
         register(account)
 
-        assertEquals(listOf(TestAuthenticator.base64Url(authenticator.credentialId)), service.registrationOptions(account).excludeCredentialIds)
+        assertEquals(listOf(PasskeyCredentialId(TestAuthenticator.base64Url(authenticator.credentialId))), service.registrationOptions(account).excludeCredentialIds)
     }
 
     @Test
@@ -110,7 +112,7 @@ class PasskeyServiceTest {
     fun `消したパスキーではログインできない`() {
         val userHandle = register(account)
 
-        service.delete(accountId = account.id, credentialId = TestAuthenticator.base64Url(authenticator.credentialId))
+        service.delete(accountId = account.id, credentialId = PasskeyCredentialId(TestAuthenticator.base64Url(authenticator.credentialId)))
 
         assertNull(login(userHandle = userHandle))
     }
@@ -118,7 +120,7 @@ class PasskeyServiceTest {
     /**
      * @return user handle
      */
-    private fun register(account: Account): String {
+    private fun register(account: Account): PasskeyUserHandle {
         val options = service.registrationOptions(account)
         val result =
             service.register(
@@ -132,14 +134,14 @@ class PasskeyServiceTest {
     }
 
     private fun login(
-        userHandle: String,
+        userHandle: PasskeyUserHandle,
         challenge: String = service.loginOptions().challenge,
         signCount: Long = 1,
     ): AccountId? {
         val clientData = authenticator.clientData(type = "webauthn.get", challenge = challenge)
         val authenticatorData = authenticator.authenticatorData(signCount = signCount)
         return service.login(
-            credentialId = TestAuthenticator.base64Url(authenticator.credentialId),
+            credentialId = PasskeyCredentialId(TestAuthenticator.base64Url(authenticator.credentialId)),
             clientDataJson = TestAuthenticator.base64Url(clientData),
             authenticatorData = TestAuthenticator.base64Url(authenticatorData),
             signature = TestAuthenticator.base64Url(authenticator.sign(authenticatorData, clientData)),
