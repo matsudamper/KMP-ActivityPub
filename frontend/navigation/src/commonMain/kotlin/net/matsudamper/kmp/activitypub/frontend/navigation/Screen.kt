@@ -6,7 +6,11 @@ import net.matsudamper.kmp.activitypub.frontend.core.PathPattern
 
 @Serializable
 sealed interface Screen : NavKey {
-    val path: String
+    val pathPattern: PathPattern
+
+    val pathParameters: Map<String, String>
+
+    val path: String get() = pathPattern.pathOf(pathParameters)
 
     /**
      * path で直接開いたとき、アプリの中で戻ると出す画面
@@ -17,21 +21,24 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object Login : Screen {
-        override val path: String get() = "/"
+        override val pathPattern: PathPattern get() = PathPattern("/")
+        override val pathParameters: Map<String, String> get() = mapOf()
         override val parentScreen: Screen? get() = null
         override val loginRequired: Boolean get() = false
     }
 
     @Serializable
     data object Home : Screen {
-        override val path: String get() = "/home"
+        override val pathPattern: PathPattern get() = PathPattern("/home")
+        override val pathParameters: Map<String, String> get() = mapOf()
         override val parentScreen: Screen? get() = null
         override val loginRequired: Boolean get() = true
     }
 
     @Serializable
     data object Post : Screen {
-        override val path: String get() = "/post"
+        override val pathPattern: PathPattern get() = PathPattern("/post")
+        override val pathParameters: Map<String, String> get() = mapOf()
         override val parentScreen: Screen get() = Home
         override val loginRequired: Boolean get() = true
     }
@@ -43,21 +50,26 @@ sealed interface Screen : NavKey {
     data class UserProfile(
         val username: String,
     ) : Screen {
-        override val path: String get() = USER_PROFILE_PATH.pathOf(mapOf(USERNAME_PARAMETER to username))
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(USERNAME_PARAMETER to username)
         override val parentScreen: Screen? get() = null
         override val loginRequired: Boolean get() = false
+
+        companion object {
+            const val USERNAME_PARAMETER: String = "username"
+            val PATH_PATTERN: PathPattern = PathPattern("/@{$USERNAME_PARAMETER}")
+        }
     }
 
     companion object {
-        private const val USERNAME_PARAMETER: String = "username"
-        private val USER_PROFILE_PATH = PathPattern("/@{$USERNAME_PARAMETER}")
-
         private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> =
             listOf(
-                PathPattern(Login.path) to { _ -> Login },
-                PathPattern(Home.path) to { _ -> Home },
-                PathPattern(Post.path) to { _ -> Post },
-                USER_PROFILE_PATH to { parameters -> UserProfile(username = parameters.getValue(USERNAME_PARAMETER)) },
+                Login.pathPattern to { _ -> Login },
+                Home.pathPattern to { _ -> Home },
+                Post.pathPattern to { _ -> Post },
+                UserProfile.PATH_PATTERN to { parameters ->
+                    UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
+                },
             )
 
         fun fromPath(path: String): Screen? {
