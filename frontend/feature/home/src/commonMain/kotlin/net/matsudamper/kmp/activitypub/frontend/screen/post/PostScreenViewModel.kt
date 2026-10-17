@@ -71,9 +71,12 @@ internal class PostScreenViewModel(
 
                 is UserPostNoteResult.Failure -> result.message
             }
-            viewModelStateFlow.update { it.copy(submitting = false, error = error) }
             if (error == null) {
+                savedStateHandle[BODY_KEY] = ""
+                viewModelStateFlow.update { it.copy(body = "", submitting = false, error = null) }
                 events.send { it.navigateBack() }
+            } else {
+                viewModelStateFlow.update { it.copy(submitting = false, error = error) }
             }
         }
     }
