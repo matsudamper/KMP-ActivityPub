@@ -4,6 +4,7 @@ import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_KEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
@@ -61,5 +62,14 @@ internal class SqliteAccountRepository(
                     passwordHashType = checkNotNull(record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE)),
                 )
             }
+    }
+
+    override fun findPrivateKeyPem(id: AccountId): String? = jooq.withConnection { dsl ->
+        dsl
+            .select(ACCOUNT_KEYS.PRIVATE_KEY_PEM)
+            .from(ACCOUNT_KEYS)
+            .where(ACCOUNT_KEYS.ACCOUNT_ID.eq(id.value))
+            .fetchOne()
+            ?.get(ACCOUNT_KEYS.PRIVATE_KEY_PEM)
     }
 }

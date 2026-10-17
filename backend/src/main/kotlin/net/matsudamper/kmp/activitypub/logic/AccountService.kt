@@ -4,6 +4,8 @@ import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kotpub.actor.ActorKey
+import net.matsudamper.kotpub.crypto.RsaKeys
 
 class AccountService(
     private val accountRepository: AccountRepository,
@@ -17,6 +19,14 @@ class AccountService(
     fun account(id: AccountId): Account? = accountRepository.findById(id)
 
     fun account(username: String): Account? = accountRepository.findByUsername(username)
+
+    /**
+     * kotpub の ActorKey は読み込み元を持つが、DB から読む種類が無いので Environment にしている。起動ログ以外には使われない
+     */
+    fun actorKey(id: AccountId): ActorKey? {
+        val privateKeyPem = accountRepository.findPrivateKeyPem(id) ?: return null
+        return ActorKey(privateKey = RsaKeys.decodePrivateKeyPem(privateKeyPem), origin = ActorKey.Origin.Environment)
+    }
 
     fun authenticate(
         username: String,
