@@ -4,11 +4,15 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.condition.DisabledInNativeImage
 
 /**
  * [GraphQlReflectionFeature] 自体はイメージのビルド中しか動かないので、走査だけを見る。
  * 登録が足りているかは native バイナリを動かして確かめる。
+ *
+ * 走査するのはイメージをビルドする JVM のクラスパスで、native バイナリの中には無いので JVM でだけ動かす
  */
+@DisabledInNativeImage
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlReflectionTargetsTest {
     @Test

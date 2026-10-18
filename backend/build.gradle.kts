@@ -56,9 +56,8 @@ graalvmNative {
     }
 
     binaries {
-        named("main") {
-            imageName.set("kmp-activitypub")
-            mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
+        // テストも同じ設定のイメージで動かす。揃えないと、本番では動くリフレクションがテストだけ落ちる
+        all {
             buildArgs.add("--no-fallback")
             buildArgs.add("--features=net.matsudamper.kmp.activitypub.graalvm.GraphQlReflectionFeature")
             // native-image が解析中に @Deprecated の既定値を読み、ビルド時初期化で落ちる
@@ -75,6 +74,10 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.sdk")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.exporter")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.instrumentation")
+        }
+        named("main") {
+            imageName.set("kmp-activitypub")
+            mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
         }
     }
 }
