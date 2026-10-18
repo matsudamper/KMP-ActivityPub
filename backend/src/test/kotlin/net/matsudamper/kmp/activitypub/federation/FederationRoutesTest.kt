@@ -17,6 +17,7 @@ import io.ktor.server.testing.testApplication
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.ServerEnv
 import net.matsudamper.kmp.activitypub.TestDependencies
+import net.matsudamper.kmp.activitypub.TestEnv
 import net.matsudamper.kmp.activitypub.module
 import net.matsudamper.kotpub.crypto.RsaKeys
 
@@ -94,7 +95,7 @@ class FederationRoutesTest {
         val id = repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "type")
         repositories.accountRepository.addPublicKeyPem(id = id, publicKeyPem = RsaKeys.encodeToPem(keyPair.public))
         application {
-            module(TestDependencies(repositories = repositories, env = ServerEnv(mapOf("DOMAIN" to "example.com"))))
+            module(TestDependencies(repositories = repositories, env = ServerEnv(TestEnv.REQUIRED + mapOf("DOMAIN" to "example.com"))))
         }
     }
 
