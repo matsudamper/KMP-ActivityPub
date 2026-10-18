@@ -5,8 +5,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class ServerEnvTest {
@@ -79,5 +81,66 @@ class ServerEnvTest {
     @Test
     fun `COOKIE_SECURE が真偽値でなければ起動しない`() {
         assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("COOKIE_SECURE" to "yes")) }
+    }
+
+    @Test
+    fun `DOMAIN の scheme と末尾のスラッシュを落とす`() {
+        fun domain(raw: String): String? = ServerEnv(mapOf("DOMAIN" to raw)).domain
+
+        assertEquals("example.com", domain("https://example.com"))
+        assertEquals("example.com", domain("http://example.com/"))
+        assertEquals("example.com", domain(" example.com/ "))
+    }
+
+    @Test
+    fun `DOMAIN はポート付きのホスト名を受け付ける`() {
+        assertEquals("localhost:8080", ServerEnv(mapOf("DOMAIN" to "localhost:8080")).domain)
+        val longestLabel = "${"a".repeat(63)}.com"
+        assertEquals(longestLabel, ServerEnv(mapOf("DOMAIN" to longestLabel)).domain)
+    }
+
+    @Test
+    fun `DOMAIN にホスト名以外が付いていたら起動しない`() {
+        listOf(
+            "https://",
+            "example.com/path",
+            "https://example.com/path/",
+            "example.com?q=1",
+            "example.com#top",
+            "user@example.com",
+            "example.com:port",
+            "example..com",
+            "example.-com",
+            "example-.com",
+            ".example.com",
+            "${"a".repeat(64)}.com",
+            List(64) { "abc" }.joinToString("."),
+            "example.com:0",
+            "example.com:00080",
+            "example.com:65536",
+            "example.com:",
+        ).forEach { raw ->
+            assertFailsWith<IllegalArgumentException>(raw) { ServerEnv(mapOf("DOMAIN" to raw)) }
+        }
+    }
+
+    @Test
+    fun `ADMIN_PASSWORD_HASH が未設定なら null になる`() {
+        assertNull(ServerEnv(emptyMap()).adminPasswordHash)
+        assertNull(ServerEnv(mapOf("ADMIN_PASSWORD_HASH" to "  ")).adminPasswordHash)
+    }
+
+    @Test
+    fun `ADMIN_PASSWORD_HASH を読める`() {
+        val encoded = PasswordHash.create("とても長いパスワード", iterations = 1_000).encode()
+
+        val hash = assertNotNull(ServerEnv(mapOf("ADMIN_PASSWORD_HASH" to encoded)).adminPasswordHash)
+
+        assertTrue(hash.matches("とても長いパスワード"))
+    }
+
+    @Test
+    fun `ADMIN_PASSWORD_HASH の形式が違えば起動しない`() {
+        assertFailsWith<IllegalArgumentException> { ServerEnv(mapOf("ADMIN_PASSWORD_HASH" to "パスワード")) }
     }
 }

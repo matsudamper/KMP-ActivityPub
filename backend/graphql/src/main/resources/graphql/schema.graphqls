@@ -9,8 +9,15 @@ type Query {
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
     user(username: String!): User
+    admin: AdminQuery!
 }
 
 type Mutation {
+    admin: AdminMutation!
     user: UserMutation!
+}
+
+type PageInfo {
+    hasMore: Boolean!
+    nextCursor: String
 }

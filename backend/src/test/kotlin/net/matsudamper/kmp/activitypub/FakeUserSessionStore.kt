@@ -21,5 +21,9 @@ internal class FakeUserSessionStore : UserSessionStore {
         now: Instant,
     ): AccountId? = rows[tokenHash]?.takeIf { (_, expiresAt) -> expiresAt > now }?.first
 
+    override fun delete(tokenHash: String) {
+        rows.remove(tokenHash)
+    }
+
     override fun close() = Unit
 }

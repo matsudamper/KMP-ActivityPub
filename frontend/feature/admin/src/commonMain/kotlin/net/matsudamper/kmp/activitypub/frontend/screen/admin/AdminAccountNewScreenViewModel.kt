@@ -1,0 +1,152 @@
+package net.matsudamper.kmp.activitypub.frontend.screen.admin
+
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.admin.AdminAddAccountResult
+import net.matsudamper.kmp.activitypub.frontend.logic.admin.AdminApi
+import net.matsudamper.kmp.activitypub.frontend.logic.admin.AdminSessionResult
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+
+class AdminAccountNewScreenViewModel(
+    private val viewModelScope: CoroutineScope,
+    private val api: AdminApi = AdminApi(),
+) {
+    private val events = EventSender<Event>()
+    internal val eventHandler = events.asHandler()
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState())
+    private var sessionJob: Job? = null
+
+    val uiStateFlow: StateFlow<AdminAccountNewScreenUiState> =
+        MutableStateFlow(
+            AdminAccountNewScreenUiState(
+                content = AdminAccountNewScreenUiState.Content.Loading,
+                listener =
+                object : AdminAccountNewScreenUiState.Listener {
+                    override fun onClickHome() {
+                        navigate(Screen.Home)
+                    }
+
+                    override fun onClickAdmin() {
+                        navigate(Screen.Admin)
+                    }
+
+                    override fun onUsernameChanged(text: String) {
+                        viewModelStateFlow.update { it.copy(username = text, error = null) }
+                    }
+
+                    override fun onPasswordChanged(text: String) {
+                        viewModelStateFlow.update { it.copy(password = text, error = null) }
+                    }
+
+                    override fun onClickAdd() {
+                        add()
+                    }
+                },
+            ),
+        ).also { uiStateFlow ->
+            viewModelScope.launch {
+                viewModelStateFlow.collect { viewModelState ->
+                    uiStateFlow.update { uiState ->
+                        uiState.copy(content = createContent(viewModelState))
+                    }
+                }
+            }
+        }.asStateFlow()
+
+    fun onStart() {
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
+            api.session().collect { session ->
+                viewModelStateFlow.update { it.copy(session = session) }
+            }
+        }
+    }
+
+    private fun navigate(screen: Screen) {
+        viewModelScope.launch {
+            events.send { it.navigate(screen) }
+        }
+    }
+
+    private fun add() {
+        val state = viewModelStateFlow.value
+        if (state.submitting || state.username.isBlank() || state.password.isEmpty()) return
+
+        viewModelStateFlow.update { it.copy(submitting = true, error = null) }
+        viewModelScope.launch {
+            when (val result = api.addUser(username = state.username.trim(), password = state.password)) {
+                is AdminAddAccountResult.Success -> {
+                    // ViewModel は履歴に残るので、戻ってきたときに次を登録できる状態にしておく
+                    viewModelStateFlow.update { it.copy(username = "", password = "", submitting = false) }
+                    navigate(Screen.AdminAccounts)
+                }
+
+                is AdminAddAccountResult.Rejected -> {
+                    failed(rejectedMessage(result))
+                }
+
+                is AdminAddAccountResult.Failure -> {
+                    failed(result.message)
+                }
+            }
+        }
+    }
+
+    private fun failed(message: String) {
+        viewModelStateFlow.update { it.copy(submitting = false, error = message) }
+    }
+
+    /**
+     * 当てはまる理由を全部並べる。1 つ直しても次で弾かれるのが分からないと直しようがない
+     */
+    private fun rejectedMessage(rejected: AdminAddAccountResult.Rejected): String = buildList {
+        if (rejected.unusableCharacters.isNotEmpty()) {
+            add("使えない文字が入っている: ${rejected.unusableCharacters.joinToString(" ")}")
+        }
+        if (rejected.minLength != null) add("${rejected.minLength} 文字以上にする")
+        if (rejected.maxLength != null) add("${rejected.maxLength} 文字までにする")
+        if (rejected.isDuplicated) add("同じ名前のユーザーが既にいる")
+        if (rejected.passwordMinLength != null) add("パスワードは ${rejected.passwordMinLength} 文字以上にする")
+    }.joinToString("\n").ifEmpty { "登録できなかった" }
+
+    private fun createContent(state: ViewModelState): AdminAccountNewScreenUiState.Content {
+        val session = state.session ?: return AdminAccountNewScreenUiState.Content.Loading
+
+        when (session) {
+            is AdminSessionResult.Failure -> {
+                return AdminAccountNewScreenUiState.Content.Error(session.message)
+            }
+
+            is AdminSessionResult.Success -> {
+                if (!session.loggedIn) return AdminAccountNewScreenUiState.Content.RequireLogin
+            }
+        }
+
+        return AdminAccountNewScreenUiState.Content.Input(
+            username = state.username,
+            password = state.password,
+            submitting = state.submitting,
+            error = state.error,
+            inputEnabled = !state.submitting,
+            addButtonEnabled = !state.submitting && state.username.isNotBlank() && state.password.isNotEmpty(),
+        )
+    }
+
+    private data class ViewModelState(
+        val session: AdminSessionResult? = null,
+        val username: String = "",
+        val password: String = "",
+        val submitting: Boolean = false,
+        val error: String? = null,
+    )
+
+    interface Event {
+        suspend fun navigate(screen: Screen)
+    }
+}

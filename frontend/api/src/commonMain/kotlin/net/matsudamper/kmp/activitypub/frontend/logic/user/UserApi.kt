@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
@@ -65,6 +66,19 @@ class UserApi(
         val user = data.user ?: return UserProfileResult.NotFound
 
         return UserProfileResult.Found(username = user.username)
+    }
+
+    suspend fun postNote(body: String): UserPostNoteResult {
+        val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
+        val response = client.mutation(UserPostNoteMutation(body)).execute()
+        val posted = response.data?.user?.postNote ?: return UserPostNoteResult.Failure(response.failureMessage())
+
+        val failure = posted.failure
+        return when {
+            failure != null -> UserPostNoteResult.Rejected(isEmpty = failure.isEmpty, maxLength = failure.maxLength)
+            posted.note != null -> UserPostNoteResult.Success
+            else -> UserPostNoteResult.Failure("投稿できたが内容が返ってこない")
+        }
     }
 
     private fun ApolloResponse<*>.failureMessage(): String {

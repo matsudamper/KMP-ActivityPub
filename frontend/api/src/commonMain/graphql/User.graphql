@@ -1,0 +1,14 @@
+mutation UserPostNote($body: String!) {
+    user {
+        postNote(body: $body) {
+            note {
+                id
+                url
+            }
+            failure {
+                isEmpty
+                maxLength
+            }
+        }
+    }
+}

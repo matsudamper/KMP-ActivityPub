@@ -21,8 +21,10 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
+                implementation(project(":shared"))
                 // Android が ApolloClient を渡せるように api にする
                 api(libs.apollo.runtime)
+                implementation(libs.apollo.normalized.cache)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
@@ -36,6 +38,13 @@ apollo {
         schemaFiles.from(
             rootProject.fileTree("backend/graphql/src/main/resources/graphql") { include("*.graphqls") },
         )
+
+        mapScalarToKotlinLong("UnixTime")
+        mapScalarToKotlinString("PublicNoteId")
+        mapScalarToKotlinLong("AccountId")
         mapScalarToKotlinString("UserId")
+
+        plugin("com.apollographql.cache:normalized-cache-apollo-compiler-plugin:${libs.versions.apollo.cache.get()}")
+        pluginArgument("com.apollographql.cache.packageName", packageName.get())
     }
 }

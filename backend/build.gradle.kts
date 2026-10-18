@@ -13,12 +13,14 @@ dependencies {
     implementation(project(":backend:telemetry"))
     implementation(project(":shared"))
 
+    implementation(libs.kotpub.core)
+    implementation(libs.kotpub.client.ktor)
+
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.status.pages)
     implementation(kotlin("reflect"))
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.kotpub.core)
     implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.extension.kotlin)
     implementation(libs.opentelemetry.graphql.java)
@@ -28,7 +30,11 @@ dependencies {
     runtimeOnly(libs.slf4j.simple)
 
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.opentelemetry.sdk)
     testImplementation(libs.kotlin.test)
+
+    testImplementation(testFixtures(libs.kotpub.core))
 }
 
 application {
@@ -50,9 +56,8 @@ graalvmNative {
     }
 
     binaries {
-        named("main") {
-            imageName.set("kmp-activitypub")
-            mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
+        // テストも同じ設定のイメージで動かす。揃えないと、本番では動くリフレクションがテストだけ落ちる
+        all {
             buildArgs.add("--no-fallback")
             buildArgs.add("--features=net.matsudamper.kmp.activitypub.graalvm.GraphQlReflectionFeature")
             // native-image が解析中に @Deprecated の既定値を読み、ビルド時初期化で落ちる
@@ -69,6 +74,10 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.sdk")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.exporter")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.instrumentation")
+        }
+        named("main") {
+            imageName.set("kmp-activitypub")
+            mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
         }
     }
 }

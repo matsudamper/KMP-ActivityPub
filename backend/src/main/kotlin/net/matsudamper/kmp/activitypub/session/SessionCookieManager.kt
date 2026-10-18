@@ -41,6 +41,8 @@ class SessionCookieManager(
     }
 
     companion object {
+        const val ADMIN_COOKIE_NAME: String = "admin_session"
+
         const val USER_COOKIE_NAME: String = "user_session"
 
         private val ENCODING = CookieEncoding.RAW
