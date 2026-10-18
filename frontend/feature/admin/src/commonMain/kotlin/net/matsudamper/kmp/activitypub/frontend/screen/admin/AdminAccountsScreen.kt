@@ -105,8 +105,17 @@ private fun Accounts(
 ) {
     if (content.accounts.isEmpty()) {
         SectionCard("ユーザー") { Text("まだユーザーはいません。「追加」から登録できます。") }
-        return
+    } else {
+        AccountList(content = content, wide = wide, listener = listener)
     }
+}
+
+@Composable
+private fun AccountList(
+    content: AdminAccountsScreenUiState.Content.Loaded,
+    wide: Boolean,
+    listener: AdminAccountsScreenUiState.Listener,
+) {
     val columns = if (wide) 2 else 1
     val scrollState = rememberScrollState()
     Column(Modifier.fillMaxWidth().verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(16.dp)) {
