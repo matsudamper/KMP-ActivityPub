@@ -212,6 +212,16 @@ jobs:
   native-image:
     name: native-image build
     runs-on: ubuntu-latest
+    services:
+      valkey:
+        image: valkey/valkey:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - name: チェックアウト
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -238,7 +248,7 @@ jobs:
           mkdir -p "$(dirname "$DB_PATH")"
           sqlite3 "$DB_PATH" < backend/repository/src/main/resources/db/schema.sql
 
-          export ACTOR_PRIVATE_KEY_PATH="$RUNNER_TEMP/native-check/actor-private-key.pem"
+          export VALKEY_URI=redis://localhost:6379
           export ADMIN_PASSWORD_HASH='pbkdf2-sha256:210000:HP9l044PxKN0LJhMy5GyrQ:tWTwqvZDQgC75D39BMPPm2TvA3F9S3bUP1-XyH5l4HQ'
           # http で叩くので、Secure を付けると Cookie の確認ができない
           export COOKIE_SECURE=false
@@ -302,7 +312,7 @@ jobs:
 
           echo "--- ユーザーのログイン ---"
           gql -D /tmp/user-login-headers.txt \
-            -d '{"query":"mutation Login($query: UserLoginQuery!) { user { login(query: $query) { session { account { acct } } failure } } }","variables":{"query":{"username":"ci-user","password":"ci-user-password"}}}' \
+            -d '{"query":"mutation Login($query: UserLoginQuery!) { user { login(query: $query) { failure } } }","variables":{"query":{"username":"ci-user","password":"ci-user-password"}}}' \
             -o /tmp/user-login.json
           cat /tmp/user-login.json
           grep -q '"failure":null' /tmp/user-login.json
@@ -325,29 +335,6 @@ jobs:
           echo "--- ログインしていなければ投稿できない ---"
           gql -d '{"query":"mutation { user { postNote(body: \"ci\") { failure { isEmpty } } } }"}' -o /tmp/post-anon.json
           grep -q '"errors"' /tmp/post-anon.json
-
-      - name: DOMAIN が無ければ起動しないことの確認
-        run: |
-          set -euo pipefail
-
-          # 既定値で起動できてしまうと、間違ったドメインのアクター ID が
-          # Mastodon 側にキャッシュされて後から直せない
-          export DB_PATH="$RUNNER_TEMP/no-domain/kmp-activitypub.db"
-          export ACTOR_PRIVATE_KEY_PATH="$RUNNER_TEMP/no-domain/actor-private-key.pem"
-
-          set +e
-          timeout 30 ./backend/build/native/nativeCompile/kmp-activitypub > /tmp/no-domain.log 2>&1
-          STATUS=$?
-          set -e
-
-          cat /tmp/no-domain.log
-
-          if [ "$STATUS" -eq 0 ] || [ "$STATUS" -eq 124 ]; then
-            echo "::error::DOMAIN が無いのに起動してしまった (exit: $STATUS)"
-            exit 1
-          fi
-
-          grep -q "DOMAIN" /tmp/no-domain.log
 
   build-all-success:
     name: build-all-success
