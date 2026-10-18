@@ -2,11 +2,17 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Instant
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountServiceTest {
@@ -61,6 +67,47 @@ class AccountServiceTest {
 
         assertEquals(true, failure.passwordTooShort)
         assertNull(repositories.accountRepository.findByUsername("user1"))
+    }
+
+    @Test
+    fun `使えない文字は入力にあったものを返して登録しない`() {
+        val failure = assertIs<AccountService.AddAccountResult.Failure>(service.add(username = "user 1/あ", password = PASSWORD))
+
+        assertEquals(listOf(' ', '/', 'あ'), failure.unusableCharacters)
+        assertNull(repositories.accountRepository.findByUsername("user 1/あ"))
+    }
+
+    @Test
+    fun `大文字小文字だけが違う名前は登録できない`() {
+        service.add(username = "user1", password = PASSWORD)
+
+        val failure = assertIs<AccountService.AddAccountResult.Failure>(service.add(username = "USER1", password = PASSWORD))
+
+        assertTrue(failure.duplicated)
+    }
+
+    @Test
+    fun `登録したユーザーのパスワードはハッシュで持ち鍵も持つ`() {
+        service.add(username = "user1", password = PASSWORD)
+
+        val credential = assertNotNull(repositories.accountRepository.findCredential("user1"))
+        assertNotEquals(PASSWORD, credential.passwordHash)
+        assertTrue(PasswordHashType.Current.encoder.matches(PASSWORD, credential.passwordHash))
+        assertContains(assertNotNull(service.publicKeyPem("user1")), "BEGIN PUBLIC KEY")
+    }
+
+    @Test
+    fun `1 件ずつでも登録した順に辿れる`() {
+        service.add(username = "user1", password = PASSWORD)
+        service.add(username = "user2", password = PASSWORD)
+
+        val page1 = service.accounts(after = null, limit = 1)
+        assertEquals(listOf("user1"), page1.accounts.map { it.username })
+        assertTrue(page1.hasMore)
+
+        val page2 = service.accounts(after = page1.nextPosition, limit = 1)
+        assertEquals(listOf("user2"), page2.accounts.map { it.username })
+        assertFalse(page2.hasMore)
     }
 
     @Test
