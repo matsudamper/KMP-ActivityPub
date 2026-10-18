@@ -7,12 +7,10 @@ import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountPosition
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
-import net.matsudamper.kotpub.actor.ActorUrls
 import net.matsudamper.kotpub.actor.ActorUsernameUtil
 
 class AccountService(
     private val accountRepository: AccountRepository,
-    private val domain: String,
 ) {
     /**
      * ユーザーがいなくても同じだけ計算し、応答時間で名前の有無を分からなくする。
@@ -87,6 +85,8 @@ class AccountService(
      */
     fun account(username: String): Account? = accountRepository.findByUsername(username)
 
+    fun publicKeyPem(username: String): String? = accountRepository.findPublicKeyPem(username)
+
     fun authenticate(
         username: String,
         password: String,
@@ -106,13 +106,13 @@ class AccountService(
     }
 
     private fun Account.toManaged(): ManagedAccount = ManagedAccount(
-        urls = ActorUrls(domain = domain, username = username),
+        username = username,
         accountId = id,
         createdAt = createdAt,
     )
 
     data class ManagedAccount(
-        val urls: ActorUrls,
+        val username: String,
         val accountId: AccountId,
         val createdAt: Instant,
     )

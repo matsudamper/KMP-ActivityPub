@@ -262,6 +262,28 @@ internal class SqliteAccountRepository(
             .execute()
     }
 
+    override fun findPublicKeyPem(username: String): String? = jooq.withConnection { dsl ->
+        dsl
+            .select(ACCOUNT_KEYS.PUBLIC_KEY_PEM)
+            .from(ACCOUNTS)
+            .join(ACCOUNT_KEYS)
+            .on(ACCOUNT_KEYS.ACCOUNT_ID.eq(ACCOUNTS.ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .fetchOne()
+            ?.get(ACCOUNT_KEYS.PUBLIC_KEY_PEM)
+    }
+
+    override fun findPrivateKeyPem(username: String): String? = jooq.withConnection { dsl ->
+        dsl
+            .select(ACCOUNT_KEYS.PRIVATE_KEY_PEM)
+            .from(ACCOUNTS)
+            .join(ACCOUNT_KEYS)
+            .on(ACCOUNT_KEYS.ACCOUNT_ID.eq(ACCOUNTS.ID))
+            .where(ACCOUNTS.USERNAME.eq(username))
+            .fetchOne()
+            ?.get(ACCOUNT_KEYS.PRIVATE_KEY_PEM)
+    }
+
     /**
      * 列に COLLATE NOCASE が付いているので、綴りの揺れは SQLite 側で吸収される
      */

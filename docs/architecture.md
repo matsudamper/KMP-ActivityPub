@@ -398,14 +398,11 @@ Mastodon のドメインごとの「利用不可」と同じ条件で、失敗�
 ```mermaid
 sequenceDiagram
     participant M as main
-    participant A as ActorKeyLoader
     participant R as Repositories
     participant DB as SQLite
     participant K as Ktor CIO
 
-    Note over M: 環境変数を読む（DOMAIN が無ければここで落ちる）
-    M->>A: load
-    A->>A: PEM を読む（ファイルが無ければ生成して書き出す）
+    Note over M: 環境変数を読む
     M->>R: createRepositories
     R->>DB: 接続して PRAGMA を適用
     M->>K: embeddedServer で起動

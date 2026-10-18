@@ -206,7 +206,7 @@ class UserGraphQlTest {
 
     private fun ApplicationTestBuilder.applicationWith(repositories: FakeRepositories) {
         application {
-            module(TestDependencies(repositories = repositories))
+            module(TestDependencies(repositories = repositories, env = TestServerEnv.value))
         }
     }
 

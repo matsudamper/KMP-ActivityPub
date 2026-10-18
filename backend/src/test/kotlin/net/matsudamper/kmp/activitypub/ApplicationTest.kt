@@ -54,7 +54,7 @@ class ApplicationTest {
                 createdAt = Instant.now(),
             )
             application {
-                module(TestDependencies(repositories = repositories))
+                module(TestDependencies(repositories = repositories, env = TestServerEnv.value))
             }
 
             // 返す中身は kotpub の activitypub 側で確かめる。

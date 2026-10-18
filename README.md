@@ -39,7 +39,7 @@ Android アプリをビルドするときは Android SDK が要る（`local.prop
 
 ```sh
 # JVM で起動する（http://localhost:8080）
-# DOMAIN は必須。Mastodon から実際に引かせるときは公開しているホスト名にすること
+# DOMAIN が無いと他のサーバーから見つけられない。Mastodon から実際に引かせるときは公開しているホスト名にすること
 DOMAIN=example.com VALKEY_URI=redis://localhost:6379 ./gradlew :backend:run
 
 # ネイティブバイナリを生成して起動する
@@ -141,9 +141,7 @@ VALKEY_URI=redis://localhost:6379 \
 | `HOST` | `0.0.0.0` | バインドするアドレス |
 | `PORT` | `8080` | 待ち受けポート |
 | `DB_PATH` | `./data/kmp-activitypub.db` | SQLite の DB ファイル |
-| `DOMAIN` | 必須 | 外部に公開するドメイン。WebFinger の `acct:` とアクターの `id` に使う |
-| `ACTOR_PRIVATE_KEY_PATH` | `./data/actor-private-key.pem` | アクターの秘密鍵 (PEM)。無ければ起動時に生成して書き出す |
-| `ACTOR_PRIVATE_KEY_PEM` | なし | 秘密鍵の PEM を直接渡す場合に使う。`ACTOR_PRIVATE_KEY_PATH` とは併用できない |
+| `DOMAIN` | なし | 外部に公開するドメイン。WebFinger の `acct:` とアクターの `id` に使う。未設定なら他のサーバーとやり取りせず、投稿もできない |
 | `STATIC_SRC_DIR` | なし | 配信する静的ファイルのディレクトリ。未設定なら画面を出さない |
 | `ADMIN_PASSWORD_HASH` | なし | 管理画面のパスワードハッシュ。未設定でも起動するが、その間は管理画面にログインできない |
 | `COOKIE_SECURE` | `true` | 管理画面とユーザーのセッション Cookie に `Secure` を付けるか。手元で http で試すときだけ `false` にする |

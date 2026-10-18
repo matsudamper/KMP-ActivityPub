@@ -21,8 +21,8 @@ type AdminAccount {
     id: AccountId!
     username: String!
 
-    "Mastodon の検索窓に貼る形。@name@domain"
-    acct: String!
+    "Mastodon の検索窓に貼る形。@name@domain。サーバーのドメインが未設定なら null"
+    acct: String
 
     "登録した時刻"
     createdAt: UnixTime!

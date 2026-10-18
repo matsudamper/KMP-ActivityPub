@@ -29,7 +29,7 @@ data class AdminAccountsScreenUiState(
 
     data class Account(
         val username: String,
-        val acct: String,
+        val acct: String?,
         val createdAt: String,
     )
 

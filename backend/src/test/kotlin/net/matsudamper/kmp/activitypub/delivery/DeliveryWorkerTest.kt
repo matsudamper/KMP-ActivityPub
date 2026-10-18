@@ -42,10 +42,12 @@ import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.FakeNoteStore
 import net.matsudamper.kotpub.FakeStoredActorNames
+import net.matsudamper.kotpub.TestActorPrivateKey
 import net.matsudamper.kotpub.TestLocalActor
 import net.matsudamper.kotpub.TestWebPageUrls
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.actor.LocalActor
 import net.matsudamper.kotpub.delivery.ActivityDelivery
 import net.matsudamper.kotpub.delivery.DeliveryResult
 import net.matsudamper.kotpub.entity.PublicNoteId as MastodonPublicNoteId
@@ -149,6 +151,7 @@ class DeliveryWorkerTest {
             queue = repositories.deliveryQueue,
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory(),
             idleInterval = IDLE,
             clock = { current },
@@ -347,6 +350,7 @@ class DeliveryWorkerTest {
             queue = queue,
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory(),
             idleInterval = IDLE,
             clock = { now },
@@ -376,6 +380,7 @@ class DeliveryWorkerTest {
             queue = queue,
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory(),
             idleInterval = IDLE,
             clock = { current },
@@ -411,6 +416,7 @@ class DeliveryWorkerTest {
             queue = queue,
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory(),
             idleInterval = IDLE,
             clock = { now },
@@ -469,6 +475,7 @@ class DeliveryWorkerTest {
             queue = repositories.deliveryQueue,
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory(),
             idleInterval = IDLE,
             clock = { now },
@@ -536,6 +543,7 @@ class DeliveryWorkerTest {
             queue = TracingClaim(repositories.deliveryQueue, openTelemetry),
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory(),
             idleInterval = IDLE,
             clock = { now },
@@ -579,6 +587,7 @@ class DeliveryWorkerTest {
             queue = repositories.deliveryQueue,
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory(),
             idleInterval = IDLE,
             clock = { now },
@@ -618,6 +627,7 @@ class DeliveryWorkerTest {
             queue = queue,
             delivery = delivery,
             directory = TestLocalActor.directory,
+            actorKeys = { TestActorPrivateKey.value },
             deletedActorDirectory = deletedActorDirectory,
             retryPolicy = retryPolicy,
             backfill = backfillPublisher(delivery = delivery, notes = notes),
@@ -777,7 +787,7 @@ class DeliveryWorkerTest {
 
         override suspend fun deliver(
             inbox: String,
-            sender: ActorUrls,
+            sender: LocalActor,
             body: ByteArray,
         ): DeliveryResult {
             calls++
@@ -818,7 +828,7 @@ class DeliveryWorkerTest {
 
         override suspend fun deliver(
             inbox: String,
-            sender: ActorUrls,
+            sender: LocalActor,
             body: ByteArray,
         ): DeliveryResult {
             attempts++
@@ -832,7 +842,7 @@ class DeliveryWorkerTest {
                     return DeliveryResult.Failed(reason = "届かない", retryable = retryable)
                 }
                 delivered += inbox
-                senders += sender
+                senders += sender.urls
                 return DeliveryResult.Delivered
             } finally {
                 concurrent--

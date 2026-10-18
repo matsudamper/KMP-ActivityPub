@@ -79,7 +79,7 @@ class AdminMutationResolverImpl : AdminMutationResolver {
         val accountService = GraphQlEngine.diContainer(env).accountService
         val result = when (val added = accountService.add(username = query.username, password = query.password)) {
             is AccountService.AddAccountResult.Success -> {
-                QlAdminAddUserResult(adminAccount = added.account.toAdminGraphqlResponse(), failure = null)
+                QlAdminAddUserResult(adminAccount = added.account.toAdminGraphqlResponse(GraphQlEngine.diContainer(env).localDomain), failure = null)
             }
 
             is AccountService.AddAccountResult.Failure -> {

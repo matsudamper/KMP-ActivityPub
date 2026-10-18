@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub
 
-import java.nio.file.Path
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -11,10 +10,11 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respondText
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
-import net.matsudamper.kmp.activitypub.actor.actorRoutes
+import net.matsudamper.kmp.activitypub.federation.federationRoutes
 import net.matsudamper.kmp.activitypub.follower.followerRoutes
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
@@ -31,36 +31,27 @@ import net.matsudamper.kmp.activitypub.note.featuredRoutes
 import net.matsudamper.kmp.activitypub.note.noteRoutes
 import net.matsudamper.kmp.activitypub.note.outboxRoutes
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
-import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
-import net.matsudamper.kmp.activitypub.webfinger.webFingerRoutes
-import net.matsudamper.kotpub.actor.ActorKey
 
 fun main() {
-    // DOMAIN が無ければこの時点で落ちる。サーバーを立てる前に止めたいので順番を変えないこと
     val serverEnv = ServerEnv()
     OpenTelemetryInitializer.initialize()
     DatabaseWriteCheck.verify(serverEnv.dbPath)
     val deps = AppDependencies.create(serverEnv)
-    val server = embeddedServer(CIO, port = serverEnv.port, host = serverEnv.host) {
-        module(deps)
-    }
 
-    // 終了処理を `use` に任せない。docker stop で来る SIGTERM では main が返らないまま
-    // JVM が終わるので finally まで届かず、閉じずに終わると書き込みが DB のファイルに
-    // 確定しない。JVM が終わる経路は必ずシャットダウンフックを通るため、
-    // start が例外で終わった場合も含めてここ 1 か所で閉じられる
+    val server =
+        embeddedServer(CIO, port = serverEnv.port, host = serverEnv.host) {
+            module(deps)
+        }
+
     Runtime.getRuntime().addShutdownHook(
         Thread {
             // 待ち受けを止める前に配信を止める。投稿を受け取った相手はその場で
             // Note やアクターの URL を引きに来るので、止めた後に送ると繋げずに終わる。
             // 送信中の配信は待たない。行は delivering のまま残り、次の起動で送り直される
-            deps.stopBackgroundWork()
-
-            // 処理中のリクエストが DB を触っている最中に閉じないよう、次にサーバーを止める。
-            // 待ち時間は docker stop の既定の猶予（10 秒）に収まる範囲にする
+            deps.federation?.stopBackgroundWork()
             server.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
             deps.close()
         },
@@ -69,7 +60,7 @@ fun main() {
     // 受け付けが始まってから動かす。投稿を受け取った相手はその場で Note やアクターの
     // URL を引きに来るので、待ち受ける前に送ると相手は繋げずに終わる
     server.monitor.subscribe(ServerReady) { application ->
-        val purgedAccounts = deps.startDeliveryWorker()
+        val purgedAccounts = deps.federation?.startDeliveryWorker() ?: 0
         if (purgedAccounts > 0) {
             application.log.info("配信を送り切った削除済みアカウント $purgedAccounts 件を片付けた")
         }
@@ -92,68 +83,55 @@ internal fun Application.module(deps: AppDependencies) {
         }
     }
 
-    val env = deps.env
-    val actorKey = deps.actorKey
-
-    // ドメインはアクター ID に焼き込まれ、Mastodon 側にキャッシュされると後から変えられない。
-    // 取り違えたまま気付かないのが一番まずいので、起動時に必ず見えるところに出す
-    log.info("ドメイン: ${env.domain}")
-
-    // 追加したはずのアカウントに応答しないとき、DB を見ているかどうかがここで切り分けられる
-    log.info("アカウント: ${deps.repositories.accountRepository.list().size} 件")
-
-    // 鍵が入れ替わると相手側は署名検証に失敗し続ける。
-    // どこから読んだ鍵なのかが後から追えるよう、取得元を必ず出す
-    when (val origin = actorKey.origin) {
-        is ActorKey.Origin.Environment -> {
-            log.info("アクターの秘密鍵: ACTOR_PRIVATE_KEY_PEM から読んだ")
-        }
-
-        is ActorKey.Origin.LoadedFile -> {
-            log.info("アクターの秘密鍵: ${origin.path} から読んだ")
-        }
-
-        is ActorKey.Origin.GeneratedFile -> {
-            log.warn(
-                "アクターの秘密鍵を新しく生成して ${origin.path} に書き出した。" +
-                    "既にフォロワーがいる状態でこれが出たら、以前の鍵を失っている",
-            )
-        }
+    val staticFiles = deps.staticFiles
+    if (staticFiles != null) {
+        log.info("静的ファイルの配信元: ${staticFiles.root}")
+    } else {
+        log.info(
+            "STATIC_SRC_DIR が未設定またはディレクトリが存在しないため、静的ファイルを配信しない。" +
+                "画面を出すには画面の配布物を置いたディレクトリを指定する",
+        )
     }
 
-    // 画面が出ないときに理由を追えるよう、配信元を起動時に必ず出す。
-    // 黙って 404 になると、設定し忘れなのか置き忘れなのかが分からない
-    val staticFiles = deps.staticFiles
-    logStaticFiles(srcDir = env.staticSrcDir, staticFiles = staticFiles)
+    if (!deps.env.cookieSecure) {
+        log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
+    }
 
-    logAdminLogin(env)
+    if (deps.env.adminPasswordHash == null) {
+        log.warn("ADMIN_PASSWORD_HASH が未設定なので管理画面にログインできない")
+    }
 
-    val diContainer = DiContainer(
-        passwordHash = env.adminPasswordHash,
-        accountService = deps.accountService,
-        loginThrottle = deps.loginThrottle,
-        noteEnqueuer = deps.noteEnqueuer,
-    )
+    val localDomain = deps.env.domain
+    if (localDomain == null) {
+        log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
+    }
 
-    val graphQl = GraphQlEngine.create(
-        resolvers = listOf(
-            QueryResolverImpl(),
-            MutationResolverImpl(),
-            AdminQueryResolverImpl(),
-            AdminMutationResolverImpl(),
-            UserMutationResolverImpl(),
-        ),
-        createContext = { call ->
-            GraphQlContext(
-                call = call,
-                adminSessionStore = deps.adminSessionStore,
-                sessionService = deps.sessionService,
-                cookieSecure = env.cookieSecure,
-                trustCfConnectingIp = env.trustCfConnectingIp,
-            )
-        },
-        diContainer = diContainer,
-    )
+    val graphQl =
+        GraphQlEngine.create(
+            resolvers = listOf(
+                QueryResolverImpl(),
+                MutationResolverImpl(),
+                AdminQueryResolverImpl(),
+                AdminMutationResolverImpl(),
+                UserMutationResolverImpl(),
+            ),
+            createContext = { call ->
+                GraphQlContext(
+                    call = call,
+                    adminSessionStore = deps.adminSessionStore,
+                    sessionService = deps.sessionService,
+                    cookieSecure = deps.env.cookieSecure,
+                    trustCfConnectingIp = deps.env.trustCfConnectingIp,
+                )
+            },
+            diContainer = DiContainer(
+                passwordHash = deps.env.adminPasswordHash,
+                accountService = deps.accountService,
+                loginThrottle = deps.loginThrottle,
+                localDomain = localDomain,
+                federation = deps.federation,
+            ),
+        )
 
     routing {
         get("/healthz") {
@@ -162,60 +140,23 @@ internal fun Application.module(deps: AppDependencies) {
         get("/hello") {
             call.respondText("Hello World")
         }
-
-        // Mastodon はこの 2 つを WebFinger → Actor の順に引いてアカウントを見つける
-        webFingerRoutes(deps.directory)
-        actorRoutes(deps.directory, actorKey, deps.actorAppearances, deps.actorProfiles, deps.webPageUrls)
-
-        // 見つけた後、フォローなどのアクティビティはここに POST されてくる
-        inboxRoutes(directory = deps.directory, service = deps.inboxService)
-
-        followerRoutes(deps.directory, deps.followerStore)
-        outboxRoutes(deps.directory, deps.noteStore, deps.webPageUrls)
-        featuredRoutes(deps.directory)
-        noteRoutes(env.domain, deps.noteStore, deps.webPageUrls)
-
-        nodeInfoRoutes(env.domain)
-
         graphQlRoutes(graphQl)
-
-        // 残り全部を受けるので最後に置く
+        if (localDomain != null) {
+            federationRoutes(accountService = deps.accountService, localDomain = localDomain)
+        }
+        deps.federation?.let { activityPubRoutes(it) }
         staticRoutes(staticFiles)
     }
 }
 
-private fun Application.logAdminLogin(env: ServerEnv) {
-    if (env.adminPasswordHash == null) {
-        log.warn("ADMIN_PASSWORD_HASH が未設定なので管理画面にログインできない")
-        return
-    }
+private fun Route.activityPubRoutes(federation: FederationDependencies) {
+    // フォローなどのアクティビティはここに POST されてくる
+    inboxRoutes(directory = federation.directory, service = federation.inboxService)
 
-    if (env.cookieSecure) {
-        log.info("管理画面のログインを受け付ける。セッション Cookie には Secure を付ける")
-    } else {
-        log.warn(
-            "管理画面のログインを受け付ける。COOKIE_SECURE=false なので" +
-                "セッション Cookie に Secure を付けない。http で試すとき以外は外すこと",
-        )
-    }
-}
+    followerRoutes(federation.directory, federation.followerStore)
+    outboxRoutes(federation.directory, federation.noteStore, federation.webPageUrls)
+    featuredRoutes(federation.directory)
+    noteRoutes(federation.domain, federation.noteStore, federation.webPageUrls)
 
-private fun Application.logStaticFiles(
-    srcDir: Path?,
-    staticFiles: StaticFiles?,
-) {
-    if (staticFiles != null) {
-        log.info("静的ファイルを ${staticFiles.root} から配信する")
-        return
-    }
-
-    if (srcDir == null) {
-        log.info(
-            "STATIC_SRC_DIR が未設定なので静的ファイルを配信しない。" +
-                "画面を出すには静的配布物のディレクトリを指定する",
-        )
-        return
-    }
-
-    log.warn("$srcDir が無いので静的ファイルを配信しない")
+    nodeInfoRoutes(federation.domain)
 }

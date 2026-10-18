@@ -101,6 +101,13 @@ interface AccountRepository {
      * 分からなくなる。消すまでその名前は空かない。
      */
     fun purgeDeleted(): Int
+
+    fun findPublicKeyPem(username: String): String?
+
+    /**
+     * 配信の署名に使う。消したアカウントも引く。`Delete{Actor}` は消したアカウントとして署名する
+     */
+    fun findPrivateKeyPem(username: String): String?
 }
 
 /**

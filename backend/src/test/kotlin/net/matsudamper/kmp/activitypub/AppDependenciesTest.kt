@@ -29,7 +29,7 @@ class AppDependenciesTest {
         val deps = TestDependencies(env = TestServerEnv.of("STATIC_SRC_DIR" to staticSrcDir.toString()))
         deps.acceptFollower()
 
-        deps.noteEnqueuer.enqueue(
+        checkNotNull(deps.federation).noteEnqueuer.enqueue(
             sender = ActorUrls(domain = TestServerEnv.DOMAIN, username = TestServerEnv.USERNAME),
             contentHtml = "<p>本文</p>",
         )
@@ -40,10 +40,10 @@ class AppDependenciesTest {
 
     @Test
     fun `画面を配信しない構成では投函する Create に url が入らない`() {
-        val deps = TestDependencies()
+        val deps = TestDependencies(env = TestServerEnv.value)
         deps.acceptFollower()
 
-        deps.noteEnqueuer.enqueue(
+        checkNotNull(deps.federation).noteEnqueuer.enqueue(
             sender = ActorUrls(domain = TestServerEnv.DOMAIN, username = TestServerEnv.USERNAME),
             contentHtml = "<p>本文</p>",
         )

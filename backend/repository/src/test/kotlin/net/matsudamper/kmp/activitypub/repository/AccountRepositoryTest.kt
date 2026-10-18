@@ -101,7 +101,7 @@ class AccountRepositoryTest {
             username = "user1",
             passwordHash = PASSWORD_HASH,
             passwordHashType = PASSWORD_HASH_TYPE,
-            publicKeyPem = "public-key",
+            publicKeyPem = PUBLIC_KEY_PEM,
             privateKeyPem = "private-key",
             createdAt = CREATED_AT.toString(),
         )
@@ -109,6 +109,23 @@ class AccountRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
             assertEquals("user1", repositories.accountRepository.findById(id)?.username)
+        }
+    }
+
+    @Test
+    fun `追加したアカウントの鍵を名前で引ける`() {
+        withRepositories { repositories ->
+            repositories.accountRepository.add(
+                username = "feed1",
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = PRIVATE_KEY_PEM,
+                createdAt = CREATED_AT,
+            )
+
+            assertEquals(PUBLIC_KEY_PEM, repositories.accountRepository.findPublicKeyPem("Feed1"))
+            assertEquals(PRIVATE_KEY_PEM, repositories.accountRepository.findPrivateKeyPem("Feed1"))
         }
     }
 

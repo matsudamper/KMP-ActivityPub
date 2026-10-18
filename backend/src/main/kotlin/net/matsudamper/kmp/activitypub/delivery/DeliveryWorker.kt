@@ -25,7 +25,7 @@ import net.matsudamper.kmp.activitypub.repository.DeliveredOutcome
 import net.matsudamper.kmp.activitypub.repository.DeliveryKind
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kotpub.actor.ActorDirectory
-import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.actor.LocalActor
 import net.matsudamper.kotpub.delivery.ActivityDelivery
 import net.matsudamper.kotpub.delivery.DeliveryResult
 import net.matsudamper.kotpub.note.FollowBackfillPublisher
@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory
  * @param directory 署名するこちらのアカウントの引き先
  * @param deletedActorDirectory 消したアカウントの引き先。消したことを伝える `Delete{Actor}` は
  *   これで引いて署名する
+ * @param actorKeys 署名に使う、こちらのアカウントごとの秘密鍵
  * @param backfill フォローが成立した相手に過去の投稿を配る。成立するのは `Accept` が
  *   届いたときなので、始められるのはここになる
  * @param domainBlocks 配信を止めているドメイン。諦めた宛先のドメインをここで止め、
@@ -60,6 +61,7 @@ class DeliveryWorker(
     private val delivery: ActivityDelivery,
     private val directory: ActorDirectory,
     private val deletedActorDirectory: ActorDirectory,
+    private val actorKeys: LocalActorKeys,
     private val retryPolicy: DeliveryRetryPolicy,
     private val backfill: FollowBackfillPublisher,
     private val circuitBreaker: DeliveryCircuitBreaker,
@@ -244,7 +246,7 @@ class DeliveryWorker(
                         DeliveredOutcome.None -> Unit
 
                         is DeliveredOutcome.FollowAccepted -> {
-                            logger.info("Accept が届いてフォローが成立した: ${sender.acct} ← ${outcome.followerActorUri}")
+                            logger.info("Accept が届いてフォローが成立した: ${sender.urls.acct} ← ${outcome.followerActorUri}")
                             backfillRecentNotes(sender = sender, accepted = outcome, scope = backfillScope)
                         }
                     }
@@ -282,11 +284,12 @@ class DeliveryWorker(
      * 他の種別まで引けると、消した後に投函された行が旧アクターとして送られて、
      * `Delete` の後から投稿が届く
      */
-    private fun resolveSender(row: ClaimedDelivery): ActorUrls? {
-        directory.resolve(row.username)?.let { return it }
-        if (row.kind != DeliveryKind.DELETE_ACTOR) return null
-
-        return deletedActorDirectory.resolve(row.username)
+    private fun resolveSender(row: ClaimedDelivery): LocalActor? {
+        val urls = directory.resolve(row.username)
+            ?: deletedActorDirectory.resolve(row.username)?.takeIf { row.kind == DeliveryKind.DELETE_ACTOR }
+            ?: return null
+        val privateKey = actorKeys.find(urls.username) ?: return null
+        return LocalActor(urls = urls, privateKey = privateKey)
     }
 
     /**
@@ -294,7 +297,7 @@ class DeliveryWorker(
      * フォローは成立していて、次の新着からは普通に届く
      */
     private fun backfillRecentNotes(
-        sender: ActorUrls,
+        sender: LocalActor,
         accepted: DeliveredOutcome.FollowAccepted,
         scope: CoroutineScope,
     ) {
@@ -311,7 +314,7 @@ class DeliveryWorker(
                     publishedBefore = backfillUntil,
                 )
             }.onFailure { failure ->
-                logger.warn("過去の投稿を配れなかった: ${sender.acct} → ${accepted.followerActorUri}", failure)
+                logger.warn("過去の投稿を配れなかった: ${sender.urls.acct} → ${accepted.followerActorUri}", failure)
             }
         }
     }

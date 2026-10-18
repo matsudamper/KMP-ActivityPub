@@ -120,6 +120,8 @@ class FakeAccountRepository(
 ) : AccountRepository {
     private val stored = mutableListOf<Account>()
     private var nextId = 1L
+    private val publicKeyPems = mutableMapOf<AccountId, String>()
+    private val privateKeyPems = mutableMapOf<AccountId, String>()
 
     /**
      * 消していないものだけ。消した行は名前を押さえるためだけに残る
@@ -174,6 +176,8 @@ class FakeAccountRepository(
         ).also {
             stored += it
             passwordHashes[it.id] = passwordHash to passwordHashType
+            publicKeyPems[it.id] = publicKeyPem
+            privateKeyPems[it.id] = privateKeyPem
         }
     }
 
@@ -186,6 +190,42 @@ class FakeAccountRepository(
             passwordHash = passwordHash,
             passwordHashType = passwordHashType,
         )
+    }
+
+    override fun findPublicKeyPem(username: String): String? = findByUsername(username)?.let { publicKeyPems[it.id] }
+
+    /**
+     * 消したアカウントも引ける。`Delete{Actor}` は消したアカウントとして署名する
+     */
+    override fun findPrivateKeyPem(username: String): String? =
+        stored.firstOrNull { it.username.equals(username, ignoreCase = true) }?.let { privateKeyPems[it.id] }
+
+    /**
+     * 鍵を持たないアカウントを作る
+     */
+    fun add(
+        username: String,
+        passwordHash: String,
+        passwordHashType: String,
+    ): AccountId {
+        val account = Account(
+            id = AccountId(nextId++),
+            username = username.lowercase(),
+            createdAt = Instant.EPOCH,
+            displayName = null,
+            summary = null,
+            deletedAt = null,
+        )
+        stored += account
+        passwordHashes[account.id] = passwordHash to passwordHashType
+        return account.id
+    }
+
+    fun addPublicKeyPem(
+        id: AccountId,
+        publicKeyPem: String,
+    ) {
+        publicKeyPems[id] = publicKeyPem
     }
 
     override fun updateProfile(

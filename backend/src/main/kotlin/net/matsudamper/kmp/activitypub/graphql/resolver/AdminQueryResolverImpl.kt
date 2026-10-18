@@ -54,7 +54,7 @@ class AdminQueryResolverImpl : AdminQueryResolver {
             )
 
             QlAdminAccountsConnection(
-                nodes = page.accounts.map { it.toAdminGraphqlResponse() },
+                nodes = page.accounts.map { it.toAdminGraphqlResponse(GraphQlEngine.diContainer(env).localDomain) },
                 pageInfo = QlPageInfo(
                     hasMore = page.hasMore,
                     nextCursor = page.nextPosition?.let { AccountsCursor.of(it).encode() },

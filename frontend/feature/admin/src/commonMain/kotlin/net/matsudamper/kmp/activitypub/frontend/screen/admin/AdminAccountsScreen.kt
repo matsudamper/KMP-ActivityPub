@@ -160,13 +160,15 @@ private fun AccountCard(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
-            SelectionContainer {
-                Text(
-                    text = account.acct,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = FontFamily.Monospace,
-                )
+            if (account.acct != null) {
+                SelectionContainer {
+                    Text(
+                        text = account.acct,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
             }
             Text("登録: ${account.createdAt}", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

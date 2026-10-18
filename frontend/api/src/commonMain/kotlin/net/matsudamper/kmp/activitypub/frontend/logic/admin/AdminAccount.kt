@@ -1,11 +1,11 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.admin
 
 /**
- * @param acct Mastodon の検索窓に貼る形
+ * @param acct Mastodon の検索窓に貼る形。サーバーのドメインが未設定なら null
  * @param createdAt 登録した時刻。エポックからの秒数
  */
 data class AdminAccount(
     val username: String,
-    val acct: String,
+    val acct: String?,
     val createdAt: Long,
 )

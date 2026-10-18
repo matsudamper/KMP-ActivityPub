@@ -12,7 +12,7 @@ import net.matsudamper.kmp.activitypub.FakeRepositories
 class AccountServiceTest {
     private val repositories = FakeRepositories()
 
-    private val service = AccountService(accountRepository = repositories.accountRepository, domain = "example.com")
+    private val service = AccountService(accountRepository = repositories.accountRepository)
 
     @Test
     fun `登録したユーザーは同じパスワードで照合が通る`() {
@@ -25,7 +25,7 @@ class AccountServiceTest {
     fun `名前の前後の空白は落として照合する`() {
         val added = assertIs<AccountService.AddAccountResult.Success>(service.add(username = " user1 ", password = PASSWORD))
 
-        assertEquals("user1", added.account.urls.username)
+        assertEquals("user1", added.account.username)
         assertEquals(added.account.accountId, service.authenticate(username = "user1 ", password = PASSWORD))
     }
 

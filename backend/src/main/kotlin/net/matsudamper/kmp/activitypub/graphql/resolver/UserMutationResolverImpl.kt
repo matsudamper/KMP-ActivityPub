@@ -74,11 +74,15 @@ class UserMutationResolverImpl : UserMutationResolver {
         val diContainer = GraphQlEngine.diContainer(env)
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId() ?: throw GraphqlExceptions.User()
         val account = diContainer.accountService.account(accountId) ?: throw GraphqlExceptions.User()
+        val federation = diContainer.federation ?: throw GraphQlClientException("DOMAIN が未設定なので投稿を配れない")
+        // 鍵の無いアカウントはアクターとして引けない。署名できないので投稿も受け付けない
+        val sender = federation.directory.resolve(account.username)
+            ?: throw GraphQlClientException("このアカウントには配信に使う鍵が無い")
 
         val result = when (val composed = NoteComposer.compose(body)) {
             is NoteComposer.ComposeResult.Composed -> {
-                val queued = diContainer.noteEnqueuer.enqueue(
-                    sender = account.urls,
+                val queued = federation.noteEnqueuer.enqueue(
+                    sender = sender,
                     contentHtml = composed.contentHtml,
                 )
 
