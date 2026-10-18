@@ -62,13 +62,13 @@ private class FakePasskeyRepository : PasskeyRepository {
     override fun add(
         accountId: AccountId,
         credentialId: PasskeyCredentialId,
-        publicKey: ByteArray,
+        attestedCredentialData: ByteArray,
         signCount: Long,
         name: String,
         createdAt: Instant,
     ): Boolean {
         if (credentialId in passkeys) return false
-        passkeys[credentialId] = StoredPasskey(accountId = accountId, userHandle = userHandles[accountId], publicKey = publicKey, signCount = signCount)
+        passkeys[credentialId] = StoredPasskey(accountId = accountId, userHandle = userHandles[accountId], attestedCredentialData = attestedCredentialData, signCount = signCount)
         names[credentialId] = name
         return true
     }
@@ -91,6 +91,6 @@ private class FakePasskeyRepository : PasskeyRepository {
         usedAt: Instant,
     ) {
         val passkey = passkeys[credentialId] ?: return
-        passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.publicKey, maxOf(passkey.signCount, signCount))
+        passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.attestedCredentialData, maxOf(passkey.signCount, signCount))
     }
 }

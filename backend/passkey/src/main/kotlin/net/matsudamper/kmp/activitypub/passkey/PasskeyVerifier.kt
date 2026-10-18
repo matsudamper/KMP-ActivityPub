@@ -1,7 +1,7 @@
 package net.matsudamper.kmp.activitypub.passkey
 
-import java.util.Base64
 import com.webauthn4j.WebAuthnManager
+import com.webauthn4j.converter.AttestedCredentialDataConverter
 import com.webauthn4j.converter.exception.DataConversionException
 import com.webauthn4j.converter.util.ObjectConverter
 import com.webauthn4j.credential.CredentialRecordImpl
@@ -11,14 +11,12 @@ import com.webauthn4j.data.PublicKeyCredentialParameters
 import com.webauthn4j.data.PublicKeyCredentialType
 import com.webauthn4j.data.RegistrationData
 import com.webauthn4j.data.RegistrationParameters
-import com.webauthn4j.data.attestation.authenticator.AAGUID
-import com.webauthn4j.data.attestation.authenticator.AttestedCredentialData
-import com.webauthn4j.data.attestation.authenticator.COSEKey
 import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier
 import com.webauthn4j.data.attestation.statement.NoneAttestationStatement
 import com.webauthn4j.data.client.Origin
-import com.webauthn4j.data.client.challenge.DefaultChallenge
+import com.webauthn4j.data.client.challenge.Challenge
 import com.webauthn4j.server.ServerProperty
+import com.webauthn4j.util.Base64UrlUtil
 import com.webauthn4j.verifier.exception.VerificationException
 import tools.jackson.core.JacksonException
 
@@ -34,6 +32,7 @@ class PasskeyVerifier(
     private val objectConverter = ObjectConverter()
     private val webAuthnManager = WebAuthnManager.createNonStrictWebAuthnManager(objectConverter)
     private val origins = relyingParty.origins.map(Origin::create).toSet()
+    private val attestedCredentialDataConverter = AttestedCredentialDataConverter(objectConverter)
 
     /**
      * 登録で受け付ける署名方式の COSE の値。登録の要求に載せて、認証器にこの中から選ばせる
@@ -52,20 +51,20 @@ class PasskeyVerifier(
     fun verifyRegistration(registration: PasskeyRegistration): RegisteredPasskey {
         val parameters =
             RegistrationParameters(
-                serverProperty(registration.data.collectedClientData?.challenge?.value),
+                serverProperty(registration.clientChallenge),
                 SUPPORTED_ALGORITHMS.map { PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, it) },
                 true,
                 true,
             )
         val verified = convert { webAuthnManager.verify(registration.data, parameters) }
-        val authenticatorData = verified.attestationObject?.authenticatorData ?: throw PasskeyVerificationException("attestationObject が無い")
-        val credential = authenticatorData.attestedCredentialData ?: throw PasskeyVerificationException("登録なのに credential が入っていない")
+        val authenticatorData = verified.attestationObject!!.authenticatorData
+        val credential = authenticatorData.attestedCredentialData!!
 
-        val publicKey = objectConverter.cborConverter.writeValueAsBytes(credential.coseKey)
-        if (publicKey.size > MAX_PUBLIC_KEY_BYTES) throw PasskeyVerificationException("公開鍵が大きすぎる")
+        val attestedCredentialData = attestedCredentialDataConverter.convert(credential)
+        if (attestedCredentialData.size > MAX_ATTESTED_CREDENTIAL_DATA_BYTES) throw PasskeyVerificationException("公開鍵が大きすぎる")
         return RegisteredPasskey(
             credentialId = credential.credentialId,
-            publicKey = publicKey,
+            attestedCredentialData = attestedCredentialData,
             signCount = authenticatorData.signCount,
         )
     }
@@ -77,17 +76,16 @@ class PasskeyVerifier(
     fun parseAuthentication(credentialJson: String): PasskeyAuthentication = PasskeyAuthentication(convert { webAuthnManager.parseAuthenticationResponseJSON(credentialJson) })
 
     /**
-     * @param publicKey 登録時の [RegisteredPasskey.publicKey]
+     * @param attestedCredentialData 登録時の [RegisteredPasskey.attestedCredentialData]
      * @param storedSignCount 前回までに受け取った署名回数。増えていなければ通さない（どちらも 0 なら比べない）
      * @return 今回の署名回数。次回の [storedSignCount] に渡す
      * @throws PasskeyVerificationException
      */
     fun verifyAuthentication(
         authentication: PasskeyAuthentication,
-        publicKey: ByteArray,
+        attestedCredentialData: ByteArray,
         storedSignCount: Long,
     ): Long {
-        val coseKey = convert { objectConverter.cborConverter.readValue(publicKey, COSEKey::class.java) } ?: throw PasskeyVerificationException("保存した公開鍵を読めない")
         val credentialRecord =
             CredentialRecordImpl(
                 NoneAttestationStatement(),
@@ -95,7 +93,7 @@ class PasskeyVerifier(
                 null,
                 null,
                 storedSignCount,
-                AttestedCredentialData(AAGUID.NULL, authentication.credentialId, coseKey),
+                convert { attestedCredentialDataConverter.convert(attestedCredentialData) },
                 null,
                 null,
                 null,
@@ -103,18 +101,17 @@ class PasskeyVerifier(
             )
         val parameters =
             AuthenticationParameters(
-                serverProperty(authentication.data.collectedClientData?.challenge?.value),
+                serverProperty(authentication.clientChallenge),
                 credentialRecord,
                 null,
                 true,
                 true,
             )
         val verified = convert { webAuthnManager.verify(authentication.data, parameters) }
-        return verified.authenticatorData?.signCount ?: throw PasskeyVerificationException("authenticatorData が無い")
+        return verified.authenticatorData!!.signCount
     }
 
-    private fun serverProperty(challenge: ByteArray?): ServerProperty =
-        ServerProperty(origins, relyingParty.id, DefaultChallenge(challenge ?: throw PasskeyVerificationException("challenge が無い")))
+    private fun serverProperty(challenge: Challenge): ServerProperty = ServerProperty(origins, relyingParty.id, challenge)
 
     /**
      * 受け取った値は例外の文言に入りうるので、ログに出す文言には型名だけを使う
@@ -137,20 +134,22 @@ class PasskeyVerifier(
             listOf(COSEAlgorithmIdentifier.ES256, COSEAlgorithmIdentifier.EdDSA, COSEAlgorithmIdentifier.RS256)
 
         /**
-         * 対応する方式で最も大きい RSA 4096 bit でも 600 バイトに収まる。
-         * 使わない項目を詰め込んだ鍵を保存させ、ログインのたびに読ませないため
+         * webauthn4j は RSA の鍵長を制限しない。巨大な鍵を保存させ、ログインのたびに読ませないため。
+         * credential ID の上限 1023 バイトと RSA 4096 bit の公開鍵が収まる大きさにしている
          */
-        const val MAX_PUBLIC_KEY_BYTES = 1024
+        const val MAX_ATTESTED_CREDENTIAL_DATA_BYTES = 2048
     }
 }
 
 class PasskeyRegistration internal constructor(
     internal val data: RegistrationData,
 ) {
+    internal val clientChallenge: Challenge = data.collectedClientData?.challenge ?: throw PasskeyVerificationException("challenge が無い")
+
     /**
      * base64url（パディング無し）
      */
-    val challenge: String = encodeBase64Url(data.collectedClientData?.challenge?.value ?: throw PasskeyVerificationException("challenge が無い"))
+    val challenge: String = Base64UrlUtil.encodeToString(clientChallenge.value)
 }
 
 class PasskeyAuthentication internal constructor(
@@ -159,10 +158,12 @@ class PasskeyAuthentication internal constructor(
     val credentialId: ByteArray = data.credentialId ?: throw PasskeyVerificationException("credential ID が無い")
     val userHandle: ByteArray? = data.userHandle
 
+    internal val clientChallenge: Challenge = data.collectedClientData?.challenge ?: throw PasskeyVerificationException("challenge が無い")
+
     /**
      * base64url（パディング無し）
      */
-    val challenge: String = encodeBase64Url(data.collectedClientData?.challenge?.value ?: throw PasskeyVerificationException("challenge が無い"))
+    val challenge: String = Base64UrlUtil.encodeToString(clientChallenge.value)
 }
 
 /**
@@ -177,9 +178,9 @@ class PasskeyRelyingParty(
 class RegisteredPasskey(
     val credentialId: ByteArray,
     /**
-     * COSE_Key のバイト列。ログインの検証で [PasskeyVerifier.verifyAuthentication] に渡す
+     * ログインの検証で [PasskeyVerifier.verifyAuthentication] に渡す
      */
-    val publicKey: ByteArray,
+    val attestedCredentialData: ByteArray,
     val signCount: Long,
 )
 
@@ -187,5 +188,3 @@ class PasskeyVerificationException(
     message: String,
     cause: Throwable? = null,
 ) : Exception(message, cause)
-
-private fun encodeBase64Url(bytes: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)

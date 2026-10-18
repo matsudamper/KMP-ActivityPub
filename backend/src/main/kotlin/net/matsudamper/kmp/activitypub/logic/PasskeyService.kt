@@ -63,7 +63,7 @@ class PasskeyService(
             val signCount =
                 verifier.verifyAuthentication(
                     authentication = authentication,
-                    publicKey = passkey.publicKey,
+                    attestedCredentialData = passkey.attestedCredentialData,
                     storedSignCount = passkey.signCount,
                 )
             passkeyRepository.updateSignCount(credentialId = credentialId, signCount = signCount, usedAt = clock.instant())
@@ -119,7 +119,7 @@ class PasskeyService(
             passkeyRepository.add(
                 accountId = accountId,
                 credentialId = PasskeyCredentialId(encode(registered.credentialId)),
-                publicKey = registered.publicKey,
+                attestedCredentialData = registered.attestedCredentialData,
                 signCount = registered.signCount,
                 name = trimmedName,
                 createdAt = clock.instant(),

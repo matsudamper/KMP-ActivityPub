@@ -17,7 +17,7 @@ class PasskeyVerifierTest {
             val authenticator = TestAuthenticator(algorithm)
 
             val registered = register(authenticator)
-            val signCount = authenticate(authenticator, publicKey = registered.publicKey, signCount = 1, storedSignCount = 0)
+            val signCount = authenticate(authenticator, attestedCredentialData = registered.attestedCredentialData, signCount = 1, storedSignCount = 0)
 
             assertContentEquals(authenticator.credentialId, registered.credentialId, "$algorithm")
             assertEquals(1, signCount, "$algorithm")
@@ -36,7 +36,7 @@ class PasskeyVerifierTest {
         val registered = register(TestAuthenticator(TestPasskeyAlgorithm.ES256))
 
         assertFailsWith<PasskeyVerificationException> {
-            authenticate(TestAuthenticator(TestPasskeyAlgorithm.ES256), publicKey = registered.publicKey, signCount = 1, storedSignCount = 0)
+            authenticate(TestAuthenticator(TestPasskeyAlgorithm.ES256), attestedCredentialData = registered.attestedCredentialData, signCount = 1, storedSignCount = 0)
         }
     }
 
@@ -82,7 +82,7 @@ class PasskeyVerifierTest {
         val registered = register(authenticator)
 
         assertFailsWith<PasskeyVerificationException> {
-            authenticate(authenticator, publicKey = registered.publicKey, signCount = 5, storedSignCount = 5)
+            authenticate(authenticator, attestedCredentialData = registered.attestedCredentialData, signCount = 5, storedSignCount = 5)
         }
     }
 
@@ -91,7 +91,7 @@ class PasskeyVerifierTest {
         val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
         val registered = register(authenticator)
 
-        assertEquals(0, authenticate(authenticator, publicKey = registered.publicKey, signCount = 0, storedSignCount = 0))
+        assertEquals(0, authenticate(authenticator, attestedCredentialData = registered.attestedCredentialData, signCount = 0, storedSignCount = 0))
     }
 
     @Test
@@ -119,7 +119,7 @@ class PasskeyVerifierTest {
 
     private fun authenticate(
         authenticator: TestAuthenticator,
-        publicKey: ByteArray,
+        attestedCredentialData: ByteArray,
         signCount: Long,
         storedSignCount: Long,
     ): Long {
@@ -129,6 +129,6 @@ class PasskeyVerifierTest {
                 authenticatorData = authenticator.authenticatorData(signCount = signCount),
                 userHandle = null,
             )
-        return verifier.verifyAuthentication(verifier.parseAuthentication(json), publicKey = publicKey, storedSignCount = storedSignCount)
+        return verifier.verifyAuthentication(verifier.parseAuthentication(json), attestedCredentialData = attestedCredentialData, storedSignCount = storedSignCount)
     }
 }

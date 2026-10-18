@@ -54,7 +54,7 @@ internal class SqlitePasskeyRepository(
     override fun add(
         accountId: AccountId,
         credentialId: PasskeyCredentialId,
-        publicKey: ByteArray,
+        attestedCredentialData: ByteArray,
         signCount: Long,
         name: String,
         createdAt: Instant,
@@ -63,7 +63,7 @@ internal class SqlitePasskeyRepository(
             .insertInto(PASSKEYS)
             .set(PASSKEYS.CREDENTIAL_ID, credentialId.value)
             .set(PASSKEYS.ACCOUNT_ID, accountId.value)
-            .set(PASSKEYS.PUBLIC_KEY, publicKey)
+            .set(PASSKEYS.ATTESTED_CREDENTIAL_DATA, attestedCredentialData)
             .set(PASSKEYS.SIGN_COUNT, signCount)
             .set(PASSKEYS.NAME, name)
             .set(PASSKEYS.CREATED_AT, StoredInstant.format(createdAt))
@@ -84,7 +84,7 @@ internal class SqlitePasskeyRepository(
 
     override fun findByCredentialId(credentialId: PasskeyCredentialId): StoredPasskey? = jooq.withConnection { dsl ->
         dsl
-            .select(PASSKEYS.ACCOUNT_ID, PASSKEY_USER_HANDLES.USER_HANDLE, PASSKEYS.PUBLIC_KEY, PASSKEYS.SIGN_COUNT)
+            .select(PASSKEYS.ACCOUNT_ID, PASSKEY_USER_HANDLES.USER_HANDLE, PASSKEYS.ATTESTED_CREDENTIAL_DATA, PASSKEYS.SIGN_COUNT)
             .from(PASSKEYS)
             .leftJoin(PASSKEY_USER_HANDLES)
             .on(PASSKEY_USER_HANDLES.ACCOUNT_ID.eq(PASSKEYS.ACCOUNT_ID))
@@ -94,7 +94,7 @@ internal class SqlitePasskeyRepository(
                 StoredPasskey(
                     accountId = AccountId(checkNotNull(record.get(PASSKEYS.ACCOUNT_ID))),
                     userHandle = record.get(PASSKEY_USER_HANDLES.USER_HANDLE)?.let { PasskeyUserHandle(it) },
-                    publicKey = checkNotNull(record.get(PASSKEYS.PUBLIC_KEY)),
+                    attestedCredentialData = checkNotNull(record.get(PASSKEYS.ATTESTED_CREDENTIAL_DATA)),
                     signCount = checkNotNull(record.get(PASSKEYS.SIGN_COUNT)),
                 )
             }

@@ -31,8 +31,8 @@ CREATE TABLE passkeys (
     -- base64url
     credential_id TEXT NOT NULL PRIMARY KEY,
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    -- COSE_Key
-    public_key BLOB NOT NULL,
+    -- webauthn4j の AttestedCredentialDataConverter の形
+    attested_credential_data BLOB NOT NULL,
     sign_count INTEGER NOT NULL,
     -- 一覧でどの端末のものか見分けるため、登録時にユーザーが付ける
     name TEXT NOT NULL,

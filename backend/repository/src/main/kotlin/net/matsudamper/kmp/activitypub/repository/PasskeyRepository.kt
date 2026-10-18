@@ -25,7 +25,7 @@ interface PasskeyRepository {
     fun add(
         accountId: AccountId,
         credentialId: PasskeyCredentialId,
-        publicKey: ByteArray,
+        attestedCredentialData: ByteArray,
         signCount: Long,
         name: String,
         createdAt: Instant,
@@ -57,7 +57,7 @@ class StoredPasskey(
      * 登録時に作っているので通常は null にならない
      */
     val userHandle: PasskeyUserHandle?,
-    val publicKey: ByteArray,
+    val attestedCredentialData: ByteArray,
     val signCount: Long,
 )
 
