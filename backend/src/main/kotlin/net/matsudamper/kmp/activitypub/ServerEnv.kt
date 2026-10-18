@@ -19,6 +19,11 @@ class ServerEnv(
     val dbPath: Path = Path(values["DB_PATH"] ?: "./data/kmp-activitypub.db")
 
     /**
+     * `@user@example.com` の example.com。未設定なら他のサーバーから見つけられない
+     */
+    val domain: String? = values["DOMAIN"]?.lowercase()
+
+    /**
      * Valkey を使わないテストでも ServerEnv を作れるよう、読んだときに検査する
      */
     val valkeyUri: String by lazy { checkNotNull(values["VALKEY_URI"]) { "VALKEY_URI を指定すること" } }

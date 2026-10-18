@@ -12,6 +12,7 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
+import net.matsudamper.kmp.activitypub.federation.federationRoutes
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
@@ -77,6 +78,11 @@ internal fun Application.module(deps: AppDependencies) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
 
+    val localDomain = deps.env.domain
+    if (localDomain == null) {
+        log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
+    }
+
     val graphQl =
         GraphQlEngine.create(
             resolvers = listOf(
@@ -108,6 +114,9 @@ internal fun Application.module(deps: AppDependencies) {
         }
         graphQlRoutes(graphQl)
         wellKnownRoutes(deps.env.passkeyAndroidApp)
+        if (localDomain != null) {
+            federationRoutes(accountService = deps.accountService, localDomain = localDomain)
+        }
         staticRoutes(staticFiles)
     }
 }

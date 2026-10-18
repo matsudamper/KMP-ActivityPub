@@ -87,6 +87,15 @@ class AccountRepositoryTest {
         }
     }
 
+    @Test
+    fun `登録したアカウントの公開鍵を名前で引ける`() {
+        insertAccount()
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(PUBLIC_KEY_PEM, repositories.accountRepository.findPublicKeyPem("User1"))
+        }
+    }
+
     private fun insertAccount() {
         TestSchema.applyTo(dbPath)
         Accounts.insert(
@@ -94,7 +103,7 @@ class AccountRepositoryTest {
             username = "user1",
             passwordHash = PASSWORD_HASH,
             passwordHashType = PASSWORD_HASH_TYPE,
-            publicKeyPem = "public-key",
+            publicKeyPem = PUBLIC_KEY_PEM,
             privateKeyPem = "private-key",
             createdAt = CREATED_AT.toString(),
         )
@@ -104,6 +113,8 @@ class AccountRepositoryTest {
         const val PASSWORD_HASH = "hash"
 
         const val PASSWORD_HASH_TYPE = "hash-type"
+
+        const val PUBLIC_KEY_PEM = "public-key"
 
         val CREATED_AT: Instant = Instant.parse("2026-09-01T00:00:00Z")
     }
