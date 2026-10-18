@@ -8,6 +8,8 @@ import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
 interface Repositories : AutoCloseable {
     val accountRepository: AccountRepository
 
+    val followerRepository: FollowerRepository
+
     /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい
      */
