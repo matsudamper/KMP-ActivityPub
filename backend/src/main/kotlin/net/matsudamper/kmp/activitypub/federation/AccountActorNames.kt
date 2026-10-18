@@ -4,7 +4,7 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kotpub.actor.StoredActorNames
 
 /**
- * kotpub は存在するアクターには必ず鍵がある前提なので、鍵を作る前に登録したアカウントはアクターとして扱わない
+ * kotpub は存在するアクターには必ず鍵がある前提なので、無いアカウントはアクターとして扱わない
  */
 internal class AccountActorNames(
     private val accountService: AccountService,
