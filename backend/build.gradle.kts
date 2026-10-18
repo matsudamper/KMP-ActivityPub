@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     implementation(kotlin("reflect"))
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotpub.core)
     implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.extension.kotlin)
     implementation(libs.opentelemetry.graphql.java)
