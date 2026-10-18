@@ -28,11 +28,18 @@ class AdminMutationResolverImpl : AdminMutationResolver {
     ): CompletionStage<DataFetcherResult<QlAdminLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
         if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
-        val adminLoginService = GraphQlEngine.diContainer(env).adminLoginService
+        val diContainer = GraphQlEngine.diContainer(env)
+        val adminLoginService = diContainer.adminLoginService
+        val loginThrottle = diContainer.loginThrottle
 
         val result = when {
             adminLoginService.adminPasswordConfigured.not() -> {
                 loginFailure(context = context, failure = QlAdminLoginFailure.NOT_CONFIGURED, adminLoginService = adminLoginService)
+            }
+
+            // 照合の前に数える。リクエストを並べて送られても、締め出した後はハッシュを計算しない
+            loginThrottle.tryReserve(clientIp = context.clientIp, username = ADMIN_THROTTLE_USERNAME).not() -> {
+                loginFailure(context = context, failure = QlAdminLoginFailure.WRONG_PASSWORD, adminLoginService = adminLoginService)
             }
 
             adminLoginService.matchesAdminPassword(password).not() -> {
@@ -40,6 +47,7 @@ class AdminMutationResolverImpl : AdminMutationResolver {
             }
 
             else -> {
+                loginThrottle.recordSuccess(clientIp = context.clientIp, username = ADMIN_THROTTLE_USERNAME)
                 context.issueAdminSession()
                 QlAdminLoginResult(
                     session = QlAdminSession(loggedIn = true, passwordConfigured = true),
@@ -111,5 +119,12 @@ class AdminMutationResolverImpl : AdminMutationResolver {
             ),
             failure = failure,
         )
+    }
+
+    private companion object {
+        /**
+         * ユーザー名に使えない文字を入れて、同じ名前のユーザーの締め出しと混ざらないようにする
+         */
+        const val ADMIN_THROTTLE_USERNAME = ":admin"
     }
 }
