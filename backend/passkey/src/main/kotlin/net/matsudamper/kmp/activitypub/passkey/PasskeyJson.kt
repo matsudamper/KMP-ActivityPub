@@ -1,17 +1,29 @@
 package net.matsudamper.kmp.activitypub.passkey
 
 import kotlin.time.Duration
-import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
+import com.webauthn4j.converter.util.ObjectConverter
+import com.webauthn4j.data.AttestationConveyancePreference
+import com.webauthn4j.data.AuthenticatorSelectionCriteria
+import com.webauthn4j.data.PublicKeyCredentialCreationOptions
+import com.webauthn4j.data.PublicKeyCredentialDescriptor
+import com.webauthn4j.data.PublicKeyCredentialParameters
+import com.webauthn4j.data.PublicKeyCredentialRequestOptions
+import com.webauthn4j.data.PublicKeyCredentialRpEntity
+import com.webauthn4j.data.PublicKeyCredentialType
+import com.webauthn4j.data.PublicKeyCredentialUserEntity
+import com.webauthn4j.data.ResidentKeyRequirement
+import com.webauthn4j.data.UserVerificationRequirement
+import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier
+import com.webauthn4j.data.client.challenge.DefaultChallenge
+import com.webauthn4j.util.Base64UrlUtil
 
 /**
  * WebAuthn Level 3 の options の JSON 表現。Web の parseCreationOptionsFromJSON と
  * Android の Credential Manager がそのまま扱える形で、バイト列は base64url（パディング無し）
  */
 object PasskeyJson {
+    private val objectConverter = ObjectConverter()
+
     /**
      * PublicKeyCredentialCreationOptionsJSON
      */
@@ -24,41 +36,19 @@ object PasskeyJson {
         excludeCredentialIds: List<String>,
         timeout: Duration,
     ): String =
-        buildJsonObject {
-            putJsonObject("rp") {
-                put("id", relyingParty.id)
-                put("name", relyingParty.id)
-            }
-            putJsonObject("user") {
-                put("id", userHandle)
-                put("name", username)
-                put("displayName", username)
-            }
-            put("challenge", challenge)
-            putJsonArray("pubKeyCredParams") {
-                algorithms.forEach { algorithm ->
-                    addJsonObject {
-                        put("type", PUBLIC_KEY)
-                        put("alg", algorithm)
-                    }
-                }
-            }
-            put("timeout", timeout.inWholeMilliseconds)
-            putJsonArray("excludeCredentials") {
-                excludeCredentialIds.forEach { id ->
-                    addJsonObject {
-                        put("type", PUBLIC_KEY)
-                        put("id", id)
-                    }
-                }
-            }
-            putJsonObject("authenticatorSelection") {
-                put("residentKey", "required")
-                put("requireResidentKey", true)
-                put("userVerification", "required")
-            }
-            put("attestation", "none")
-        }.toString()
+        objectConverter.jsonConverter.writeValueAsString(
+            PublicKeyCredentialCreationOptions(
+                PublicKeyCredentialRpEntity(relyingParty.id, relyingParty.id),
+                PublicKeyCredentialUserEntity(Base64UrlUtil.decode(userHandle), username, username),
+                DefaultChallenge(challenge),
+                algorithms.map { PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, COSEAlgorithmIdentifier.create(it)) },
+                timeout.inWholeMilliseconds,
+                excludeCredentialIds.map { PublicKeyCredentialDescriptor(PublicKeyCredentialType.PUBLIC_KEY, Base64UrlUtil.decode(it), null) },
+                AuthenticatorSelectionCriteria(null, true, ResidentKeyRequirement.REQUIRED, UserVerificationRequirement.REQUIRED),
+                AttestationConveyancePreference.NONE,
+                null,
+            ),
+        )
 
     /**
      * PublicKeyCredentialRequestOptionsJSON。allowCredentials を空にして、端末にあるこの RP のパスキーから選ばせる
@@ -68,13 +58,14 @@ object PasskeyJson {
         challenge: String,
         timeout: Duration,
     ): String =
-        buildJsonObject {
-            put("challenge", challenge)
-            put("timeout", timeout.inWholeMilliseconds)
-            put("rpId", relyingParty.id)
-            putJsonArray("allowCredentials") {}
-            put("userVerification", "required")
-        }.toString()
-
-    private const val PUBLIC_KEY = "public-key"
+        objectConverter.jsonConverter.writeValueAsString(
+            PublicKeyCredentialRequestOptions(
+                DefaultChallenge(challenge),
+                timeout.inWholeMilliseconds,
+                relyingParty.id,
+                emptyList(),
+                UserVerificationRequirement.REQUIRED,
+                null,
+            ),
+        )
 }

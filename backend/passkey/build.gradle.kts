@@ -5,7 +5,6 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.kotlinx.serialization.json)
     implementation(libs.webauthn4j.core)
     compileOnly(libs.graalvm.nativeimage)
     testImplementation(libs.kotlin.test)
