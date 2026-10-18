@@ -243,9 +243,11 @@ internal class SqliteFollowerRepository(
         acceptedAt: Instant,
     ) {
         jooq.transaction { dsl ->
-            dsl.deleteFrom(FOLLOW_ACCEPT_DELIVERIES)
+            // 置き換えられた後なら、新しい Follow への Accept はまだ送れていないので成立させない
+            val deleted = dsl.deleteFrom(FOLLOW_ACCEPT_DELIVERIES)
                 .where(FOLLOW_ACCEPT_DELIVERIES.ID.eq(delivery.id))
                 .execute()
+            if (deleted == 0) return@transaction
             dsl.update(ACCOUNT_FOLLOWERS)
                 .set(ACCOUNT_FOLLOWERS.ACCEPTED_AT, StoredInstant.format(acceptedAt))
                 .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(delivery.followeeId.value))

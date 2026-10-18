@@ -86,6 +86,21 @@ class FollowerRepositoryTest {
     }
 
     @Test
+    fun `置き換えられた古い Accept を送れてもフォローは成立させない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            followers.recordFollow(FOLLOWER)
+            val oldPending = followers.findDueAcceptDeliveries(now = NOW, limit = 10).single()
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
+
+            followers.completeAcceptDelivery(oldPending, acceptedAt = NOW)
+
+            assertEquals(0, followers.countAcceptedFollowers("user1"))
+            assertEquals("accept-2", followers.findDueAcceptDeliveries(now = NOW, limit = 10).single().body)
+        }
+    }
+
+    @Test
     fun `送り直しの時刻が来るまでは配信対象に出さない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val followers = repositories.followerRepository
