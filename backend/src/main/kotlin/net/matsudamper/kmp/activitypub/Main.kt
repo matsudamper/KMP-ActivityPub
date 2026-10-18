@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub
 
+import kotlinx.coroutines.launch
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -34,6 +35,12 @@ fun main() {
     val server =
         embeddedServer(CIO, port = serverEnv.port, host = serverEnv.host) {
             module(deps)
+            // テストでは送るタイミングを決めたいので module の外で動かす
+            val domain = serverEnv.domain
+            if (domain != null) {
+                val followAcceptSender = deps.followAcceptSender(domain)
+                launch { followAcceptSender.run() }
+            }
         }
 
     Runtime.getRuntime().addShutdownHook(
@@ -109,7 +116,12 @@ internal fun Application.module(deps: AppDependencies) {
         }
         graphQlRoutes(graphQl)
         if (localDomain != null) {
-            federationRoutes(accountService = deps.accountService, localDomain = localDomain)
+            federationRoutes(
+                accountService = deps.accountService,
+                followerRepository = deps.repositories.followerRepository,
+                remoteActors = deps.remoteActors,
+                localDomain = localDomain,
+            )
         }
         staticRoutes(staticFiles)
     }

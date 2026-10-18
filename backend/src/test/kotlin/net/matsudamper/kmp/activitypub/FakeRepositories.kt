@@ -10,12 +10,15 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository()
 
+    override val followerRepository: FakeFollowerRepository = FakeFollowerRepository(accountRepository)
+
     override fun close() = Unit
 }
 
 internal class FakeAccountRepository : AccountRepository {
     private val rows = mutableListOf<AccountCredential>()
     private val publicKeyPems = mutableMapOf<AccountId, String>()
+    private val privateKeyPems = mutableMapOf<AccountId, String>()
 
     fun add(
         username: String,
@@ -34,6 +37,13 @@ internal class FakeAccountRepository : AccountRepository {
         publicKeyPems[id] = publicKeyPem
     }
 
+    fun addPrivateKeyPem(
+        id: AccountId,
+        privateKeyPem: String,
+    ) {
+        privateKeyPems[id] = privateKeyPem
+    }
+
     override fun findById(id: AccountId): Account? =
         rows.firstOrNull { it.id == id }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
 
@@ -44,4 +54,6 @@ internal class FakeAccountRepository : AccountRepository {
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }
 
     override fun findPublicKeyPem(username: String): String? = findCredential(username)?.let { publicKeyPems[it.id] }
+
+    override fun findPrivateKeyPem(username: String): String? = findCredential(username)?.let { privateKeyPems[it.id] }
 }

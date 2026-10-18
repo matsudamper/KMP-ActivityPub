@@ -20,6 +20,8 @@ class AccountService(
 
     fun publicKeyPem(username: String): String? = accountRepository.findPublicKeyPem(username)
 
+    fun privateKeyPem(username: String): String? = accountRepository.findPrivateKeyPem(username)
+
     fun authenticate(
         username: String,
         password: String,
