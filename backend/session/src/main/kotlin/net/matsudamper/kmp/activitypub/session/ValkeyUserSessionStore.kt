@@ -38,6 +38,10 @@ class ValkeyUserSessionStore(
         now: Instant,
     ): AccountId? = connection.sync().get(keyOf(tokenHash))?.let { AccountId(it.toLong()) }
 
+    override fun delete(tokenHash: String) {
+        connection.sync().del(keyOf(tokenHash))
+    }
+
     override fun close() {
         connection.close()
         client.shutdown()
