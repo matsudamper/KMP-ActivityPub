@@ -2,16 +2,19 @@ package net.matsudamper.kmp.activitypub.federation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -71,6 +74,34 @@ class FederationRoutesTest {
             assertEquals("https://example.com/users/user1#main-key", publicKey.getValue("id").jsonPrimitive.content)
             assertEquals("https://example.com/users/user1", publicKey.getValue("owner").jsonPrimitive.content)
             assertEquals(RsaKeys.encodeToPem(keyPair.public), publicKey.getValue("publicKeyPem").jsonPrimitive.content)
+        }
+
+    @Test
+    fun `プロフィールページの URL でも ActivityPub の取得なら Actor を返す`() =
+        testApplication {
+            setUp()
+
+            val response =
+                client.get("/@user1") {
+                    header(HttpHeaders.Accept, "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"")
+                }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(ContentType("application", "ld+json"), response.contentType()?.withoutParameters())
+            assertEquals("https://example.com/users/user1", parse(response.bodyAsText()).getValue("id").jsonPrimitive.content)
+        }
+
+    @Test
+    fun `プロフィールページの URL をブラウザで開いたときは Actor を返さない`() =
+        testApplication {
+            setUp()
+
+            val response =
+                client.get("/@user1") {
+                    header(HttpHeaders.Accept, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                }
+
+            assertNotEquals(ContentType("application", "activity+json"), response.contentType()?.withoutParameters())
         }
 
     @Test
