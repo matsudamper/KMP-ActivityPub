@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub
 
 import java.time.Clock
 import kotlin.time.Duration.Companion.days
+import net.matsudamper.kmp.activitypub.federation.Federation
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
@@ -15,6 +16,7 @@ import net.matsudamper.kmp.activitypub.session.ValkeyLoginFailureStore
 import net.matsudamper.kmp.activitypub.session.ValkeyPasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.session.ValkeyUserSessionStore
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
+import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 
 class AppDependencies(
     val repositories: Repositories,
@@ -26,6 +28,19 @@ class AppDependencies(
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
+
+    /**
+     * DOMAIN が無いと他のサーバーから見つけられないので作らない
+     */
+    internal val federation: Federation? =
+        env.domain?.let { domain ->
+            Federation(
+                domain = domain,
+                accountService = accountService,
+                followerRepository = repositories.followerRepository,
+                openTelemetry = OpenTelemetryInitializer.get(),
+            )
+        }
 
     val sessionService: UserSessionService = UserSessionService(
         sessionStore = sessionStore,
@@ -48,6 +63,7 @@ class AppDependencies(
 
     override fun close() {
         passkeyChallengeStore.close()
+        federation?.close()
         sessionStore.close()
         loginFailureStore.close()
         repositories.close()

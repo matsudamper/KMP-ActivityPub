@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub
 
+import kotlinx.coroutines.launch
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -78,9 +79,11 @@ internal fun Application.module(deps: AppDependencies) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
 
-    val localDomain = deps.env.domain
-    if (localDomain == null) {
+    val federation = deps.federation
+    if (federation == null) {
         log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
+    } else {
+        launch { federation.acceptDeliveryWorker.run() }
     }
 
     val graphQl =
@@ -114,8 +117,8 @@ internal fun Application.module(deps: AppDependencies) {
         }
         graphQlRoutes(graphQl)
         wellKnownRoutes(deps.env.passkeyAndroidApp)
-        if (localDomain != null) {
-            federationRoutes(accountService = deps.accountService, localDomain = localDomain)
+        if (federation != null) {
+            federationRoutes(federation)
         }
         staticRoutes(staticFiles)
     }

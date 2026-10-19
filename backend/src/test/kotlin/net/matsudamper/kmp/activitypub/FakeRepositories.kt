@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository()
+    override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository()
 
@@ -51,6 +52,8 @@ internal class FakeAccountRepository : AccountRepository {
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }
 
     override fun findPublicKeyPem(username: String): String? = findCredential(username)?.let { publicKeyPems[it.id] }
+
+    override fun findPrivateKeyPem(username: String): String? = null
 }
 
 private class FakePasskeyRepository : PasskeyRepository {
