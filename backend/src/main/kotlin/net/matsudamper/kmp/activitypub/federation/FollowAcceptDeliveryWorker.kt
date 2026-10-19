@@ -57,7 +57,17 @@ internal class FollowAcceptDeliveryWorker(
         val dueDeliveries = withContext(Dispatchers.IO) {
             followerRepository.findDueAcceptDeliveries(now = clock.instant(), limit = BATCH_SIZE)
         }
-        dueDeliveries.forEach { deliverOne(it) }
+        dueDeliveries.forEach { pending ->
+            try {
+                deliverOne(pending)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 例外のまま抜けると、同じ行が次の巡回でも先頭に来て後ろの配信が止まり続ける
+                logger.warn("Accept の配信を処理できなかった: ${pending.followeeUsername} → ${pending.inbox}", e)
+                withContext(Dispatchers.IO) { recordFailure(pending, reason = e.toString(), retryable = true) }
+            }
+        }
         return dueDeliveries.size >= BATCH_SIZE
     }
 
@@ -78,17 +88,25 @@ internal class FollowAcceptDeliveryWorker(
                 }
 
                 is DeliveryResult.Failed -> {
-                    val attempts = pending.attempts + 1
-                    if (!result.retryable || attempts >= MAX_ATTEMPTS) {
-                        followerRepository.abandonAcceptDelivery(pending)
-                        logger.warn("Accept を送れないので諦めた: ${pending.followeeUsername} 試行=$attempts 回 ${result.reason}")
-                    } else {
-                        val nextAttemptAt = clock.instant().plus(retryDelay(attempts).toJavaDuration())
-                        followerRepository.rescheduleAcceptDelivery(pending, nextAttemptAt = nextAttemptAt)
-                        logger.info("Accept を送れなかったので $nextAttemptAt に送り直す: ${pending.followeeUsername} ${result.reason}")
-                    }
+                    recordFailure(pending, reason = result.reason, retryable = result.retryable)
                 }
             }
+        }
+    }
+
+    private fun recordFailure(
+        pending: PendingFollowAccept,
+        reason: String,
+        retryable: Boolean,
+    ) {
+        val attempts = pending.attempts + 1
+        if (!retryable || attempts >= MAX_ATTEMPTS) {
+            followerRepository.abandonAcceptDelivery(pending)
+            logger.warn("Accept を送れないので諦めた: ${pending.followeeUsername} 試行=$attempts 回 $reason")
+        } else {
+            val nextAttemptAt = clock.instant().plus(retryDelay(attempts).toJavaDuration())
+            followerRepository.rescheduleAcceptDelivery(pending, nextAttemptAt = nextAttemptAt)
+            logger.info("Accept を送れなかったので $nextAttemptAt に送り直す: ${pending.followeeUsername} $reason")
         }
     }
 
