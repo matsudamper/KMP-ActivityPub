@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
@@ -6,6 +8,13 @@ plugins {
     alias(libs.plugins.paparazzi)
     alias(libs.plugins.protobuf)
     alias(libs.plugins.koin.compiler)
+}
+
+val localProperties = Properties().also { properties ->
+    val propertiesFile = rootDir.resolve("local.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use(properties::load)
+    }
 }
 
 android {
@@ -18,6 +27,24 @@ android {
         targetSdk = libs.versions.androidCompileSdk.get().toInt()
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        val debugKeystorePath = System.getenv("DEBUG_KEYSTORE_PATH") ?: localProperties["DEBUG_KEYSTORE_PATH"] as? String
+        if (debugKeystorePath != null) {
+            create("sharedDebug") {
+                storeFile = file(debugKeystorePath)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
+    buildTypes {
+        named("debug") {
+            signingConfig = signingConfigs.findByName("sharedDebug") ?: signingConfigs.getByName("debug")
+        }
     }
 
     buildFeatures {
