@@ -18,4 +18,6 @@ interface UserSessionStore : AutoCloseable {
         tokenHash: String,
         now: Instant,
     ): AccountId?
+
+    fun delete(tokenHash: String)
 }

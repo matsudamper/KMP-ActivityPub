@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -46,6 +47,10 @@ internal fun SettingsScreen(
             object : SettingsScreenViewModel.Event {
                 override fun navigateBack() {
                     navigator.back()
+                }
+
+                override fun loggedOut() {
+                    navigator.replaceAll(Screen.Login)
                 }
             },
         )
@@ -129,10 +134,18 @@ internal fun SettingsContent(
                 HorizontalDivider()
                 OutlinedButton(
                     onClick = uiState.listener::onClickLogout,
+                    enabled = uiState.logoutButtonEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 ) {
                     Text("ログアウト")
+                }
+                val error = uiState.error
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }

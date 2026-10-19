@@ -6,6 +6,8 @@ type UserMutation {
     passkeyRegistrationOptions: String @lazy
     registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
     deletePasskey(id: PasskeyCredentialId!): DeletePasskeyResult! @lazy
+    "セッションが無くても成功する"
+    logout: Boolean! @lazy
 }
 
 input UserLoginQuery {

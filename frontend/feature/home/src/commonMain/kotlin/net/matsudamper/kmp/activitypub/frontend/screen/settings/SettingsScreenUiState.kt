@@ -11,6 +11,8 @@ data class SettingsScreenUiState(
     val addPasskeyButtonEnabled: Boolean,
     val passkeyMessage: PasskeyMessage?,
     val deleteDialog: DeleteDialog?,
+    val logoutButtonEnabled: Boolean,
+    val error: String?,
     val listener: Listener,
 ) {
     sealed interface PasskeyList {

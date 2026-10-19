@@ -146,6 +146,14 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlDeletePasskeyResult(failure = failure)).build())
     }
 
+    override fun logout(
+        userMutation: QlUserMutation,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<Boolean>> {
+        GraphQlEngine.graphQlContext(env).revokeUserSession()
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(true).build())
+    }
+
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService = GraphQlEngine.diContainer(env).passkeyService
 
     private fun claimPasskeyChallenge(context: GraphQlContext) {

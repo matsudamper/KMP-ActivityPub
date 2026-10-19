@@ -67,6 +67,8 @@ private val previewSettingsUiState = SettingsScreenUiState(
     addPasskeyButtonEnabled = true,
     passkeyMessage = SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false),
     deleteDialog = null,
+    logoutButtonEnabled = true,
+    error = null,
     listener = AndroidPreviewSettingsListener,
 )
 

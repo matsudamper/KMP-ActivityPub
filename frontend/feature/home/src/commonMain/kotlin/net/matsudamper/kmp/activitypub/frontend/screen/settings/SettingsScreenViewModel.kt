@@ -16,6 +16,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyListResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyOptionsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyRegistrationResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.RegisteredPasskey
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLogoutResult
 import org.koin.core.annotation.KoinViewModel
 
 /**
@@ -26,6 +28,7 @@ internal class SettingsScreenViewModel(
     private val passkeyApi: PasskeyApi,
     private val passkeyAuthenticator: PasskeyAuthenticator,
     private val savedStateHandle: SavedStateHandle,
+    private val api: UserApi,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -38,6 +41,8 @@ internal class SettingsScreenViewModel(
                 deleteTarget = null,
                 deleting = false,
                 outcome = null,
+                loggingOut = false,
+                error = null,
             ),
         )
 
@@ -67,7 +72,9 @@ internal class SettingsScreenViewModel(
                 }
             }
 
-            override fun onClickLogout() = Unit
+            override fun onClickLogout() {
+                logout()
+            }
         }
 
     val uiStateFlow: StateFlow<SettingsScreenUiState> =
@@ -178,6 +185,32 @@ internal class SettingsScreenViewModel(
         }
     }
 
+    private fun logout() {
+        if (viewModelStateFlow.value.loggingOut) return
+
+        viewModelStateFlow.update {
+            it.copy(
+                loggingOut = true,
+                error = null,
+            )
+        }
+        viewModelScope.launch {
+            val error =
+                try {
+                    when (val result = api.logout()) {
+                        UserLogoutResult.Success -> null
+                        is UserLogoutResult.Failure -> result.message
+                    }
+                } finally {
+                    viewModelStateFlow.update { it.copy(loggingOut = false) }
+                }
+            viewModelStateFlow.update { it.copy(error = error) }
+            if (error == null) {
+                events.send { it.loggedOut() }
+            }
+        }
+    }
+
     private fun createUiState(viewModelState: ViewModelState): SettingsScreenUiState {
         val passkeys = viewModelState.passkeys
         val busy = viewModelState.registering || viewModelState.deleting
@@ -241,6 +274,8 @@ internal class SettingsScreenViewModel(
                     deleteButtonEnabled = viewModelState.deleting.not(),
                 )
             },
+            logoutButtonEnabled = viewModelState.loggingOut.not(),
+            error = viewModelState.error,
             listener = listener,
         )
     }
@@ -258,6 +293,8 @@ internal class SettingsScreenViewModel(
         val deleteTarget: RegisteredPasskey?,
         val deleting: Boolean,
         val outcome: Outcome?,
+        val loggingOut: Boolean,
+        val error: String?,
     )
 
     sealed interface PasskeysState {
@@ -284,6 +321,8 @@ internal class SettingsScreenViewModel(
 
     interface Event {
         fun navigateBack()
+
+        fun loggedOut()
     }
 }
 

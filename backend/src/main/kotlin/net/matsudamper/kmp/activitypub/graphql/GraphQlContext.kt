@@ -47,4 +47,9 @@ class GraphQlContext(
     fun issueUserSession(accountId: AccountId) {
         userCookie.append(token = sessionService.create(accountId), maxAgeSeconds = sessionService.ttlSeconds)
     }
+
+    fun revokeUserSession() {
+        userCookie.token()?.let(sessionService::delete)
+        userCookie.expire()
+    }
 }
