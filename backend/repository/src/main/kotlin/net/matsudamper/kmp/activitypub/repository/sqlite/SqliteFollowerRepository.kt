@@ -2,14 +2,12 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
-import net.matsudamper.kmp.activitypub.repository.PendingFollowAccept
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
-import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOW_ACCEPT_DELIVERIES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
-import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
@@ -63,17 +61,22 @@ internal class SqliteFollowerRepository(
             .set(ACCOUNT_FOLLOWERS.RECEIVED_AT, storedReceivedAt)
             .execute()
 
-        // 置き換えで id を振り直す。送っている最中の古い Accept の完了で、新しい Accept を消さないため
-        dsl.deleteFrom(FOLLOW_ACCEPT_DELIVERIES)
-            .where(FOLLOW_ACCEPT_DELIVERIES.ACCOUNT_ID.eq(accountId))
-            .and(FOLLOW_ACCEPT_DELIVERIES.REMOTE_ACTOR_ID.eq(remoteActorId))
+        // 置き換えで id を振り直す。送っている最中の古い Accept の完了で、新しい Follow を成立させないため
+        dsl.deleteFrom(DELIVERY_QUEUE)
+            .where(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_ACCEPT_FOLLOW))
+            .and(DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId))
+            .and(DELIVERY_QUEUE.REMOTE_ACTOR_ID.eq(remoteActorId))
             .execute()
-        dsl.insertInto(FOLLOW_ACCEPT_DELIVERIES)
-            .set(FOLLOW_ACCEPT_DELIVERIES.ACCOUNT_ID, accountId)
-            .set(FOLLOW_ACCEPT_DELIVERIES.REMOTE_ACTOR_ID, remoteActorId)
-            .set(FOLLOW_ACCEPT_DELIVERIES.BODY, acceptBody)
-            .set(FOLLOW_ACCEPT_DELIVERIES.ATTEMPTS, 0L)
-            .set(FOLLOW_ACCEPT_DELIVERIES.NEXT_ATTEMPT_AT, storedReceivedAt)
+        dsl.insertInto(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_ACCEPT_FOLLOW)
+            .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+            .set(DELIVERY_QUEUE.REMOTE_ACTOR_ID, remoteActorId)
+            .set(DELIVERY_QUEUE.INBOX, follower.inbox)
+            .set(DELIVERY_QUEUE.BODY, acceptBody)
+            .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+            .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, storedReceivedAt)
+            .set(DELIVERY_QUEUE.ENQUEUED_AT, storedReceivedAt)
             .execute()
         true
     }
@@ -204,85 +207,6 @@ internal class SqliteFollowerRepository(
             .and(ACCOUNT_FOLLOWERS.ACCEPTED_AT.isNotNull)
             .fetch(deliveryInbox)
             .filterNotNull()
-    }
-
-    override fun findDueAcceptDeliveries(
-        now: Instant,
-        limit: Int,
-    ): List<PendingFollowAccept> = jooq.withConnection { dsl ->
-        dsl.select(
-            FOLLOW_ACCEPT_DELIVERIES.ID,
-            FOLLOW_ACCEPT_DELIVERIES.ACCOUNT_ID,
-            ACCOUNTS.USERNAME,
-            FOLLOW_ACCEPT_DELIVERIES.REMOTE_ACTOR_ID,
-            REMOTE_ACTORS.INBOX,
-            FOLLOW_ACCEPT_DELIVERIES.BODY,
-            FOLLOW_ACCEPT_DELIVERIES.ATTEMPTS,
-        )
-            .from(FOLLOW_ACCEPT_DELIVERIES)
-            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(FOLLOW_ACCEPT_DELIVERIES.ACCOUNT_ID))
-            .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(FOLLOW_ACCEPT_DELIVERIES.REMOTE_ACTOR_ID))
-            .where(FOLLOW_ACCEPT_DELIVERIES.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
-            .orderBy(FOLLOW_ACCEPT_DELIVERIES.NEXT_ATTEMPT_AT)
-            .limit(limit)
-            .fetch { record ->
-                PendingFollowAccept(
-                    id = checkNotNull(record.get(FOLLOW_ACCEPT_DELIVERIES.ID)),
-                    followeeId = AccountId(checkNotNull(record.get(FOLLOW_ACCEPT_DELIVERIES.ACCOUNT_ID))),
-                    followeeUsername = checkNotNull(record.get(ACCOUNTS.USERNAME)),
-                    remoteActorId = checkNotNull(record.get(FOLLOW_ACCEPT_DELIVERIES.REMOTE_ACTOR_ID)),
-                    inbox = checkNotNull(record.get(REMOTE_ACTORS.INBOX)),
-                    body = checkNotNull(record.get(FOLLOW_ACCEPT_DELIVERIES.BODY)),
-                    attempts = checkNotNull(record.get(FOLLOW_ACCEPT_DELIVERIES.ATTEMPTS)).toInt(),
-                )
-            }
-    }
-
-    override fun completeAcceptDelivery(
-        delivery: PendingFollowAccept,
-        acceptedAt: Instant,
-    ) {
-        jooq.transaction { dsl ->
-            // 置き換えられた後なら、新しい Follow への Accept はまだ送れていないので成立させない
-            val deleted = dsl.deleteFrom(FOLLOW_ACCEPT_DELIVERIES)
-                .where(FOLLOW_ACCEPT_DELIVERIES.ID.eq(delivery.id))
-                .execute()
-            if (deleted == 0) return@transaction
-            dsl.update(ACCOUNT_FOLLOWERS)
-                .set(ACCOUNT_FOLLOWERS.ACCEPTED_AT, StoredInstant.format(acceptedAt))
-                .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(delivery.followeeId.value))
-                .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(delivery.remoteActorId))
-                .and(ACCOUNT_FOLLOWERS.ACCEPTED_AT.isNull)
-                .execute()
-        }
-    }
-
-    override fun rescheduleAcceptDelivery(
-        delivery: PendingFollowAccept,
-        nextAttemptAt: Instant,
-    ) {
-        jooq.withConnection { dsl ->
-            dsl.update(FOLLOW_ACCEPT_DELIVERIES)
-                .set(FOLLOW_ACCEPT_DELIVERIES.ATTEMPTS, delivery.attempts + 1L)
-                .set(FOLLOW_ACCEPT_DELIVERIES.NEXT_ATTEMPT_AT, StoredInstant.format(nextAttemptAt))
-                .where(FOLLOW_ACCEPT_DELIVERIES.ID.eq(delivery.id))
-                .execute()
-        }
-    }
-
-    override fun abandonAcceptDelivery(delivery: PendingFollowAccept) {
-        jooq.transaction { dsl ->
-            // 置き換えられた後なら、新しい Follow への Accept がまだ残っているのでフォローは消さない
-            val deleted = dsl.deleteFrom(FOLLOW_ACCEPT_DELIVERIES)
-                .where(FOLLOW_ACCEPT_DELIVERIES.ID.eq(delivery.id))
-                .execute()
-            if (deleted == 0) return@transaction
-            dsl.deleteFrom(ACCOUNT_FOLLOWERS)
-                .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(delivery.followeeId.value))
-                .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(delivery.remoteActorId))
-                .and(ACCOUNT_FOLLOWERS.ACCEPTED_AT.isNull)
-                .execute()
-        }
     }
 
     private fun DSLContext.findAccountId(username: String): Long? =

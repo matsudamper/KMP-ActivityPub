@@ -34,6 +34,7 @@ class AppDependencies(
                 domain = domain,
                 accountService = accountService,
                 followerRepository = repositories.followerRepository,
+                deliveryQueueRepository = repositories.deliveryQueueRepository,
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
         }

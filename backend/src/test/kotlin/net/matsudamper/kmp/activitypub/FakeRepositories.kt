@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository()
     override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()
+    override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository()
 
     override fun close() = Unit
 }

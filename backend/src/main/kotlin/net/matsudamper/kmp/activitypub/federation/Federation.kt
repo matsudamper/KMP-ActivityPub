@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.federation
 import java.time.Clock
 import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
@@ -29,15 +30,16 @@ internal class Federation(
     domain: String,
     accountService: AccountService,
     followerRepository: FollowerRepository,
+    deliveryQueueRepository: DeliveryQueueRepository,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
     private val httpClient = OkHttpActivityPubClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
 
-    val acceptDeliveryWorker: FollowAcceptDeliveryWorker =
-        FollowAcceptDeliveryWorker(
-            followerRepository = followerRepository,
+    val deliveryQueueWorker: DeliveryQueueWorker =
+        DeliveryQueueWorker(
+            queue = deliveryQueueRepository,
             localActors = LocalActors(directory = directory, accountService = accountService),
             delivery = HttpActivityDelivery(client = httpClient),
             clock = Clock.systemUTC(),
@@ -46,7 +48,7 @@ internal class Federation(
     private val followers =
         AccountFollowerStore(
             followerRepository = followerRepository,
-            onAcceptEnqueued = acceptDeliveryWorker::wakeUp,
+            onAcceptEnqueued = deliveryQueueWorker::wakeUp,
         )
 
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)

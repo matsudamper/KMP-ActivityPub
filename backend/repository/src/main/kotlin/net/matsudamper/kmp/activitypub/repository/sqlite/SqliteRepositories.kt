@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
+import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
 
@@ -13,6 +14,7 @@ internal class SqliteRepositories(
 
     override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
     override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)
+    override val deliveryQueueRepository: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
 
     override fun close() {
         connectionManager.close()

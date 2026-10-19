@@ -79,7 +79,7 @@ internal fun Application.module(deps: AppDependencies) {
     if (federation == null) {
         log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
     } else {
-        launch { federation.acceptDeliveryWorker.run() }
+        launch { federation.deliveryQueueWorker.run() }
     }
 
     val graphQl =

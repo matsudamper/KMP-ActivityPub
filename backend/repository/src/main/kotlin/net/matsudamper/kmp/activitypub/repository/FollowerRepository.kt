@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
  * 他のサーバーからこちらのアカウントへのフォロー。
@@ -11,7 +10,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
  */
 interface FollowerRepository {
     /**
-     * フォローを記録して、Accept を送るものとして積む。
+     * フォローを記録して、Accept を配信キューに積む。
      * 同じ相手から受け直したら行は増やさず、まだ送れていない Accept を置き換える
      *
      * @return 宛先のアカウントが無ければ false
@@ -74,29 +73,6 @@ interface FollowerRepository {
      * 成立したフォローの相手の inbox。sharedInbox があればそちらにまとめる
      */
     fun findDeliveryInboxes(username: String): List<String>
-
-    fun findDueAcceptDeliveries(
-        now: Instant,
-        limit: Int,
-    ): List<PendingFollowAccept>
-
-    /**
-     * Accept を送れたのでフォローを成立させる
-     */
-    fun completeAcceptDelivery(
-        delivery: PendingFollowAccept,
-        acceptedAt: Instant,
-    )
-
-    fun rescheduleAcceptDelivery(
-        delivery: PendingFollowAccept,
-        nextAttemptAt: Instant,
-    )
-
-    /**
-     * Accept を送れないまま諦めるので、フォローごと消す
-     */
-    fun abandonAcceptDelivery(delivery: PendingFollowAccept)
 }
 
 data class RemoteActorRecord(
@@ -112,17 +88,4 @@ data class RemoteActorProfileRecord(
     val displayName: String?,
     val profileUrl: String?,
     val iconUrl: String?,
-)
-
-/**
- * @param attempts これまでに送ろうとして失敗した回数
- */
-data class PendingFollowAccept(
-    val id: Long,
-    val followeeId: AccountId,
-    val followeeUsername: String,
-    val remoteActorId: Long,
-    val inbox: String,
-    val body: String,
-    val attempts: Int,
 )
