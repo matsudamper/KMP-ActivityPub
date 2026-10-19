@@ -49,4 +49,12 @@ class UserMutationResolverImpl : UserMutationResolver {
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
+
+    override fun logout(
+        userMutation: QlUserMutation,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<Boolean>> {
+        GraphQlEngine.graphQlContext(env).revokeUserSession()
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(true).build())
+    }
 }

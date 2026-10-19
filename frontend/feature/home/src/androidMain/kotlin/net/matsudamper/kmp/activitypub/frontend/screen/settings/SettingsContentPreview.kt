@@ -10,6 +10,8 @@ private fun SettingsContentPreview() {
     MaterialTheme {
         SettingsContent(
             uiState = SettingsScreenUiState(
+                logoutButtonEnabled = true,
+                error = null,
                 listener = AndroidPreviewSettingsListener,
             ),
         )
