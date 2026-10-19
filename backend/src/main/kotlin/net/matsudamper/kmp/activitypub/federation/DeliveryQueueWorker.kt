@@ -48,6 +48,9 @@ internal class DeliveryQueueWorker(
                     throw e
                 } catch (e: Exception) {
                     logger.warn("配信キューを処理できなかった", e)
+                    // 失敗を記録できずに抜けると、取り出した行が delivering のまま残る。
+                    // 送っているのはこのループだけなので、ここで戻しても送信中の行を巻き戻さない
+                    recoverDelivering()
                     false
                 }
             if (!hasMore) {
@@ -76,7 +79,7 @@ internal class DeliveryQueueWorker(
     }
 
     /**
-     * 戻せないまま始めると、delivering の行が次の起動まで送られない
+     * 戻せないまま続けると、delivering の行が次の起動まで送られない
      */
     private suspend fun recoverDelivering() {
         while (true) {
