@@ -10,6 +10,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -112,6 +114,36 @@ class FederationRoutesTest {
         }
 
     @Test
+    fun `フォロワーの一覧は Accept を送れた相手だけを数える`() =
+        testApplication {
+            setUp()
+
+            val response = client.get("/users/user1/followers")
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = parse(response.bodyAsText())
+            assertEquals("https://example.com/users/user1/followers", body.getValue("id").jsonPrimitive.content)
+            assertEquals("0", body.getValue("totalItems").jsonPrimitive.content)
+        }
+
+    @Test
+    fun `署名の無い inbox への POST は 401 を返す`() =
+        testApplication {
+            setUp()
+
+            assertEquals(HttpStatusCode.Unauthorized, client.post("/users/user1/inbox") { setBody(FOLLOW_BODY) }.status)
+            assertEquals(HttpStatusCode.Unauthorized, client.post("/inbox") { setBody(FOLLOW_BODY) }.status)
+        }
+
+    @Test
+    fun `いないアカウントの inbox は 404 を返す`() =
+        testApplication {
+            setUp()
+
+            assertEquals(HttpStatusCode.NotFound, client.post("/users/nobody/inbox") { setBody(FOLLOW_BODY) }.status)
+        }
+
+    @Test
     fun `DOMAIN が無いときは WebFinger を返さない`() =
         testApplication {
             application {
@@ -130,4 +162,9 @@ class FederationRoutesTest {
     }
 
     private fun parse(text: String): JsonObject = Json.parseToJsonElement(text).jsonObject
+
+    private companion object {
+        const val FOLLOW_BODY =
+            """{"id":"https://remote.example/follows/1","type":"Follow","actor":"https://remote.example/users/alice","object":"https://example.com/users/user1"}"""
+    }
 }
