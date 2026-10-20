@@ -73,7 +73,7 @@ CREATE TABLE delivery_queue (
     kind TEXT NOT NULL CHECK (kind IN ('accept_follow')),
     -- 署名するこちらのアカウント
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    -- accept_follow で、送れたときに成立させるフォローの相手。関係しない種別では NULL
+    -- accept_follow で、送れたときに成立させるフォローの相手。関係しない種別と、諦めた行では NULL
     remote_actor_id INTEGER,
     inbox TEXT NOT NULL,
     -- 諦めた行は二度と送らないので NULL にする

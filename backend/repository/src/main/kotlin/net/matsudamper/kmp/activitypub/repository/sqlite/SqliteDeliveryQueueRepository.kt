@@ -98,8 +98,12 @@ internal class SqliteDeliveryQueueRepository(
                 .set(DELIVERY_QUEUE.LAST_ERROR, error)
                 .where(DELIVERY_QUEUE.ID.eq(id))
                 .execute()
-            // フォローが消えると、この行も外部キーで一緒に消える
             if (row.kind == DeliveryQueueValues.KIND_ACCEPT_FOLLOW) {
+                // 参照したままフォローを消すと、外部キーで failed の行まで消える
+                dsl.update(DELIVERY_QUEUE)
+                    .setNull(DELIVERY_QUEUE.REMOTE_ACTOR_ID)
+                    .where(DELIVERY_QUEUE.ID.eq(id))
+                    .execute()
                 dsl.deleteFrom(ACCOUNT_FOLLOWERS)
                     .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(row.accountId))
                     .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(row.remoteActorId))
