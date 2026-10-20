@@ -41,17 +41,18 @@ class FollowerRepositoryTest {
     fun `Accept を送れるまではフォロワーに数えない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
             assertTrue(followers.recordFollow(FOLLOWER))
 
             assertEquals(0, followers.countAcceptedFollowers("user1"))
             assertEquals(listOf(), followers.listAcceptedFollowerActorUris(username = "user1", after = null, limit = 10))
 
-            val pending = followers.findDueAcceptDeliveries(now = NOW, limit = 10).single()
-            assertEquals("user1", pending.followeeUsername)
-            assertEquals(FOLLOWER.inbox, pending.inbox)
-            assertEquals(ACCEPT_BODY, pending.body)
+            val claimed = queue.claim(now = NOW, limit = 10).single()
+            assertEquals("user1", claimed.username)
+            assertEquals(FOLLOWER.inbox, claimed.inbox)
+            assertEquals(ACCEPT_BODY, claimed.body)
 
-            followers.completeAcceptDelivery(pending, acceptedAt = NOW)
+            queue.markDelivered(claimed.id, deliveredAt = NOW)
 
             assertEquals(1, followers.countAcceptedFollowers("user1"))
             assertEquals(
@@ -59,7 +60,8 @@ class FollowerRepositoryTest {
                 followers.listAcceptedFollowerActorUris(username = "user1", after = null, limit = 10),
             )
             assertEquals(listOf(FOLLOWER.sharedInbox), followers.findDeliveryInboxes("user1"))
-            assertEquals(listOf(), followers.findDueAcceptDeliveries(now = NOW, limit = 10))
+            assertEquals(0, queue.recoverDelivering(now = NOW))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
         }
     }
 
@@ -78,8 +80,8 @@ class FollowerRepositoryTest {
             followers.recordFollow(FOLLOWER)
             followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
 
-            val pending = followers.findDueAcceptDeliveries(now = NOW, limit = 10).single()
-            assertEquals("accept-2", pending.body)
+            val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single()
+            assertEquals("accept-2", claimed.body)
             assertEquals("user1", followers.findFolloweeUsername(FOLLOWER.actorUri, "https://remote.example/follows/2"))
             assertNull(followers.findFolloweeUsername(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI))
         }
@@ -89,28 +91,58 @@ class FollowerRepositoryTest {
     fun `置き換えられた古い Accept を送れてもフォローは成立させない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
             followers.recordFollow(FOLLOWER)
-            val oldPending = followers.findDueAcceptDeliveries(now = NOW, limit = 10).single()
+            val oldClaimed = queue.claim(now = NOW, limit = 10).single()
             followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
 
-            followers.completeAcceptDelivery(oldPending, acceptedAt = NOW)
+            queue.markDelivered(oldClaimed.id, deliveredAt = NOW)
 
             assertEquals(0, followers.countAcceptedFollowers("user1"))
-            assertEquals("accept-2", followers.findDueAcceptDeliveries(now = NOW, limit = 10).single().body)
+            assertEquals("accept-2", queue.claim(now = NOW, limit = 10).single().body)
+        }
+    }
+
+    @Test
+    fun `置き換えられた古い Accept を諦めても新しいフォローは消さない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
+            followers.recordFollow(FOLLOWER)
+            val oldClaimed = queue.claim(now = NOW, limit = 10).single()
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
+
+            queue.giveUp(oldClaimed.id, error = "410")
+
+            assertEquals("user1", followers.findFolloweeUsername(FOLLOWER.actorUri, "https://remote.example/follows/2"))
+            assertEquals("accept-2", queue.claim(now = NOW, limit = 10).single().body)
         }
     }
 
     @Test
     fun `送り直しの時刻が来るまでは配信対象に出さない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
-            val followers = repositories.followerRepository
-            followers.recordFollow(FOLLOWER)
-            val pending = followers.findDueAcceptDeliveries(now = NOW, limit = 10).single()
+            val queue = repositories.deliveryQueueRepository
+            repositories.followerRepository.recordFollow(FOLLOWER)
+            val claimed = queue.claim(now = NOW, limit = 10).single()
 
-            followers.rescheduleAcceptDelivery(pending, nextAttemptAt = NOW.plusSeconds(60))
+            queue.scheduleRetry(claimed.id, nextAttemptAt = NOW.plusSeconds(60), error = "503")
 
-            assertEquals(listOf(), followers.findDueAcceptDeliveries(now = NOW, limit = 10))
-            assertEquals(1, followers.findDueAcceptDeliveries(now = NOW.plusSeconds(60), limit = 10).single().attempts)
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(2, queue.claim(now = NOW.plusSeconds(60), limit = 10).single().attempts)
+        }
+    }
+
+    @Test
+    fun `送っている途中で止まった Accept は起動時に戻す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            repositories.followerRepository.recordFollow(FOLLOWER)
+            queue.claim(now = NOW, limit = 10)
+
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(1, queue.recoverDelivering(now = NOW))
+            assertEquals(ACCEPT_BODY, queue.claim(now = NOW, limit = 10).single().body)
         }
     }
 
@@ -118,13 +150,15 @@ class FollowerRepositoryTest {
     fun `Accept を諦めたらフォローも消す`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
             followers.recordFollow(FOLLOWER)
-            val pending = followers.findDueAcceptDeliveries(now = NOW, limit = 10).single()
+            val claimed = queue.claim(now = NOW, limit = 10).single()
 
-            followers.abandonAcceptDelivery(pending)
+            queue.giveUp(claimed.id, error = "410")
 
             assertNull(followers.findFolloweeUsername(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI))
-            assertEquals(listOf(), followers.findDueAcceptDeliveries(now = NOW, limit = 10))
+            assertEquals(0, queue.recoverDelivering(now = NOW))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
         }
     }
 
@@ -133,7 +167,8 @@ class FollowerRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val followers = repositories.followerRepository
             followers.recordFollow(FOLLOWER)
-            followers.completeAcceptDelivery(followers.findDueAcceptDeliveries(now = NOW, limit = 10).single(), acceptedAt = NOW)
+            val queue = repositories.deliveryQueueRepository
+            queue.markDelivered(queue.claim(now = NOW, limit = 10).single().id, deliveredAt = NOW)
 
             assertFalse(followers.remove(username = "user1", followerActorUri = FOLLOWER.actorUri, followActivityUri = "https://remote.example/other"))
             assertTrue(followers.remove(username = "user1", followerActorUri = FOLLOWER.actorUri, followActivityUri = FOLLOW_ACTIVITY_URI))
@@ -152,7 +187,7 @@ class FollowerRepositoryTest {
             assertEquals(1, followers.removeRemoteActor(FOLLOWER.actorUri))
 
             assertNull(followers.findPublicKeyPem(FOLLOWER.actorUri))
-            assertEquals(listOf(), followers.findDueAcceptDeliveries(now = NOW, limit = 10))
+            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10))
         }
     }
 

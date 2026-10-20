@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
 interface Repositories : AutoCloseable {
     val accountRepository: AccountRepository
     val followerRepository: FollowerRepository
+    val deliveryQueueRepository: DeliveryQueueRepository
 
     val passkeyRepository: PasskeyRepository
 
