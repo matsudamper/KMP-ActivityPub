@@ -140,7 +140,7 @@ internal fun HomeContent(
 @Composable
 private fun TimelineTabContent(
     timelineItems: List<HomeScreenUiState.TimelineItem>,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
     LazyColumn(modifier = modifier) {
         items(timelineItems) { item ->
@@ -154,7 +154,7 @@ private fun TimelineTabContent(
 private fun SearchTabContent(
     search: HomeScreenUiState.Search,
     listener: HomeScreenUiState.Listener,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         SingleLineTextField(
