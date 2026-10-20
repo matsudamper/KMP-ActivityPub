@@ -1,19 +1,26 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -24,12 +31,18 @@ internal fun LoginDialog(onLoggedIn: () -> Unit) {
     val viewModel = koinViewModel<LoginScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
     val currentOnLoggedIn by rememberUpdatedState(onLoggedIn)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler) {
         viewModel.eventHandler.collect(
             object : LoginScreenViewModel.Event {
                 override fun loggedIn() {
                     currentOnLoggedIn()
+                }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
                 }
             },
         )
@@ -46,10 +59,17 @@ internal fun LoginDialog(onLoggedIn: () -> Unit) {
             modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
         ) {
-            LoginForm(
-                uiState = uiState,
-                modifier = Modifier.padding(24.dp),
-            )
+            Box {
+                LoginForm(
+                    uiState = uiState,
+                    modifier = Modifier.padding(24.dp),
+                )
+                // ダイアログの外に出すと背面に隠れる
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
         }
     }
 }

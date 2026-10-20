@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.settings
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -8,7 +9,7 @@ import androidx.compose.ui.tooling.preview.Preview
 @Composable
 private fun SettingsContentPreview() {
     MaterialTheme {
-        SettingsContent(uiState = previewSettingsUiState)
+        SettingsContent(uiState = previewSettingsUiState, snackbarHostState = SnackbarHostState())
     }
 }
 
@@ -21,8 +22,8 @@ private fun SettingsContentEmptyPreview() {
                 passkeyList = SettingsScreenUiState.PasskeyList.Empty,
                 passkeyName = "",
                 addPasskeyButtonEnabled = false,
-                passkeyMessage = null,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -35,6 +36,7 @@ private fun SettingsContentDeleteDialogPreview() {
             uiState = previewSettingsUiState.copy(
                 deleteDialog = SettingsScreenUiState.DeleteDialog(passkeyName = "Pixel", deleteButtonEnabled = true),
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -47,8 +49,9 @@ private fun SettingsContentUnavailablePreview() {
             uiState = previewSettingsUiState.copy(
                 passkeyNameInputVisible = false,
                 addPasskeyButtonVisible = false,
-                passkeyMessage = SettingsScreenUiState.PasskeyMessage(text = "この端末ではパスキーを追加できない", isError = false),
+                passkeyUnavailableMessageVisible = true,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -65,10 +68,9 @@ private val previewSettingsUiState = SettingsScreenUiState(
     passkeyNameInputEnabled = true,
     addPasskeyButtonVisible = true,
     addPasskeyButtonEnabled = true,
-    passkeyMessage = SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false),
+    passkeyUnavailableMessageVisible = false,
     deleteDialog = null,
     logoutButtonEnabled = true,
-    error = null,
     listener = AndroidPreviewSettingsListener,
 )
 
