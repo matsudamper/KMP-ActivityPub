@@ -32,12 +32,12 @@ interface PasskeyRepository {
     ): Boolean
 
     /**
-     * @return [accountId] のパスキーが無ければ false
+     * パスワードが無いアカウントの最後のパスキーは、ログインできなくなるので消さない
      */
     fun delete(
         accountId: AccountId,
         credentialId: PasskeyCredentialId,
-    ): Boolean
+    ): PasskeyDeleteResult
 
     fun findByCredentialId(credentialId: PasskeyCredentialId): StoredPasskey?
 
@@ -67,3 +67,14 @@ class PasskeySummary(
     val createdAt: Instant,
     val lastUsedAt: Instant?,
 )
+
+sealed interface PasskeyDeleteResult {
+    data object Deleted : PasskeyDeleteResult
+
+    /**
+     * [accountId][PasskeyRepository.delete] のパスキーではない
+     */
+    data object NotFound : PasskeyDeleteResult
+
+    data object LastLoginMethod : PasskeyDeleteResult
+}

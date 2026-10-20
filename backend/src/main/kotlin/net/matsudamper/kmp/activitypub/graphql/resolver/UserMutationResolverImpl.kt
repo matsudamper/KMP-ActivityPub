@@ -9,6 +9,8 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
@@ -19,7 +21,9 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
+import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
@@ -137,13 +141,35 @@ class UserMutationResolverImpl : UserMutationResolver {
 
         val accountId = context.userAccountId()
         val failure =
-            when {
-                accountId == null -> QlDeletePasskeyFailure.NOT_LOGGED_IN
-                passkeyService.delete(accountId = accountId, credentialId = id) -> null
-                else -> QlDeletePasskeyFailure.NOT_FOUND
+            if (accountId == null) {
+                QlDeletePasskeyFailure.NOT_LOGGED_IN
+            } else {
+                when (passkeyService.delete(accountId = accountId, credentialId = id)) {
+                    PasskeyDeleteResult.Deleted -> null
+                    PasskeyDeleteResult.NotFound -> QlDeletePasskeyFailure.NOT_FOUND
+                    PasskeyDeleteResult.LastLoginMethod -> QlDeletePasskeyFailure.LAST_LOGIN_METHOD
+                }
             }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlDeletePasskeyResult(failure = failure)).build())
+    }
+
+    override fun deletePassword(
+        userMutation: QlUserMutation,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeletePasswordResult>> {
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val failure =
+            if (accountId == null) {
+                QlDeletePasswordFailure.NOT_LOGGED_IN
+            } else {
+                when (GraphQlEngine.diContainer(env).accountService.deletePassword(accountId)) {
+                    AccountService.DeletePasswordResult.Success -> null
+                    AccountService.DeletePasswordResult.NoPasskey -> QlDeletePasswordFailure.NO_PASSKEY
+                }
+            }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlDeletePasswordResult(failure = failure)).build())
     }
 
     override fun logout(

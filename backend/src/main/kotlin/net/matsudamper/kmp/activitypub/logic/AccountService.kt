@@ -22,6 +22,15 @@ class AccountService(
 
     fun privateKeyPem(username: String): String? = accountRepository.findPrivateKeyPem(username)
 
+    fun hasPassword(id: AccountId): Boolean = accountRepository.hasPassword(id)
+
+    fun deletePassword(id: AccountId): DeletePasswordResult =
+        when {
+            accountRepository.deletePasswordIfPasskeyExists(id) -> DeletePasswordResult.Success
+            accountRepository.hasPassword(id) -> DeletePasswordResult.NoPasskey
+            else -> DeletePasswordResult.Success
+        }
+
     fun authenticate(
         username: String,
         password: String,
@@ -38,5 +47,11 @@ class AccountService(
                 "対応していない password_hash_type: ${credential.passwordHashType}"
             }
         return credential.id.takeIf { hashType.encoder.matches(password, credential.passwordHash) }
+    }
+
+    sealed interface DeletePasswordResult {
+        data object Success : DeletePasswordResult
+
+        data object NoPasskey : DeletePasswordResult
     }
 }

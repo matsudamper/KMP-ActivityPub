@@ -11,6 +11,8 @@ type Query {
     user(username: String!): User
     "ログイン中のアカウントのパスキー。ログインしていなければ null"
     passkeys: [RegisteredPasskey!] @lazy
+    "ログイン中のアカウントにパスワードがあるか。ログインしていなければ null"
+    hasPassword: Boolean @lazy
 }
 
 type RegisteredPasskey {
