@@ -78,6 +78,8 @@ CREATE TABLE notes (
 
 CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, public_id);
 
+CREATE INDEX notes_published_at ON notes (published_at, public_id);
+
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,6 +109,9 @@ CREATE TABLE delivery_queue (
 );
 
 CREATE INDEX delivery_queue_state_next_attempt_at ON delivery_queue (state, next_attempt_at);
+
+-- 投稿を消したときに、外部キーで消す行をこれで引く
+CREATE INDEX delivery_queue_note_id ON delivery_queue (note_id);
 
 CREATE TABLE health_check (
     id INTEGER PRIMARY KEY CHECK (id = 1),
