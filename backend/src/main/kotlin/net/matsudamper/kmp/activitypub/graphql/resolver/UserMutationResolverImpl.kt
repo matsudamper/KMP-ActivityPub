@@ -18,8 +18,11 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
@@ -154,9 +157,42 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(true).build())
     }
 
+    override fun postNote(
+        userMutation: QlUserMutation,
+        body: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
+        val result = postNote(body = body, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService = GraphQlEngine.diContainer(env).passkeyService
 
     private fun claimPasskeyChallenge(context: GraphQlContext) {
         if (!context.claimPasskeyChallenge()) throw GraphQlClientException("パスキーの challenge は 1 リクエストにつき 1 回まで")
+    }
+
+    private fun postNote(
+        body: String,
+        env: DataFetchingEnvironment,
+    ): QlUserPostNoteResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId =
+            GraphQlEngine.graphQlContext(env).userAccountId()
+                ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
+        // セッションが残っていてもアカウントが消えていることがある
+        val account =
+            diContainer.accountService.account(accountId)
+                ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
+        val notePostService =
+            diContainer.notePostService
+                ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.FEDERATION_DISABLED)
+
+        return when (val result = notePostService.post(username = account.username, body = body)) {
+            is PostNoteResult.Posted -> QlUserPostNoteResult(url = result.url, failure = null)
+            PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
+            PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)
+            PostNoteResult.AccountNotFound -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
+        }
     }
 }

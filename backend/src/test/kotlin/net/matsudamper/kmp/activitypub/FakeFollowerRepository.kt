@@ -6,9 +6,11 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 
 /**
- * フォロワーのいない状態だけを返す
+ * フォロワーのいない状態だけを返す。配信先だけは [deliveryInboxes] で足せる
  */
 internal class FakeFollowerRepository : FollowerRepository {
+    val deliveryInboxes = mutableListOf<String>()
+
     override fun record(
         username: String,
         follower: RemoteActorRecord,
@@ -52,5 +54,5 @@ internal class FakeFollowerRepository : FollowerRepository {
 
     override fun countAcceptedFollowers(username: String): Long = 0
 
-    override fun findDeliveryInboxes(username: String): List<String> = listOf()
+    override fun findDeliveryInboxes(username: String): List<String> = deliveryInboxes.toList()
 }
