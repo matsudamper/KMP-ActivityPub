@@ -131,6 +131,11 @@ internal fun SettingsContent(
                         color = if (passkeyMessage.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                val password = uiState.password
+                if (password != null) {
+                    HorizontalDivider()
+                    PasswordSection(password = password, listener = uiState.listener)
+                }
                 HorizontalDivider()
                 OutlinedButton(
                     onClick = uiState.listener::onClickLogout,
@@ -152,6 +157,10 @@ internal fun SettingsContent(
         val deleteDialog = uiState.deleteDialog
         if (deleteDialog != null) {
             DeletePasskeyDialog(dialog = deleteDialog, listener = uiState.listener)
+        }
+        val passwordDeleteDialog = uiState.passwordDeleteDialog
+        if (passwordDeleteDialog != null) {
+            DeletePasswordDialog(dialog = passwordDeleteDialog, listener = uiState.listener)
         }
     }
 }
@@ -200,6 +209,38 @@ private fun PasskeyList(
 }
 
 @Composable
+private fun PasswordSection(
+    password: SettingsScreenUiState.Password,
+    listener: SettingsScreenUiState.Listener,
+) {
+    Text(
+        text = "パスワード",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
+    Text(
+        text = password.description,
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    if (password.deleteButtonVisible) {
+        OutlinedButton(
+            onClick = listener::onClickDeletePassword,
+            enabled = password.deleteButtonEnabled,
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+        ) {
+            Text("パスワードを削除")
+        }
+    }
+    val message = password.message
+    if (message != null) {
+        Text(
+            text = message.text,
+            color = if (message.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun PasskeyListText(
     text: String,
 ) {
@@ -229,6 +270,31 @@ private fun DeletePasskeyDialog(
         },
         dismissButton = {
             TextButton(onClick = listener::onDismissDeleteDialog) {
+                Text("キャンセル")
+            }
+        },
+    )
+}
+
+@Composable
+private fun DeletePasswordDialog(
+    dialog: SettingsScreenUiState.PasswordDeleteDialog,
+    listener: SettingsScreenUiState.Listener,
+) {
+    AlertDialog(
+        onDismissRequest = listener::onDismissDeletePasswordDialog,
+        title = { Text("パスワードを削除") },
+        text = { Text("パスワードではログインできなくなる。パスキーを無くすとログインできなくなるので、複数の端末で登録しておく") },
+        confirmButton = {
+            TextButton(
+                onClick = listener::onClickConfirmDeletePassword,
+                enabled = dialog.deleteButtonEnabled,
+            ) {
+                Text("削除")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = listener::onDismissDeletePasswordDialog) {
                 Text("キャンセル")
             }
         },

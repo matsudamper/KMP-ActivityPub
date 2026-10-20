@@ -41,6 +41,7 @@ sealed interface PasskeyRegistrationResult {
 sealed interface PasskeyListResult {
     data class Success(
         val passkeys: List<RegisteredPasskey>,
+        val hasPassword: Boolean,
     ) : PasskeyListResult
 
     data object NotLoggedIn : PasskeyListResult
@@ -62,7 +63,21 @@ sealed interface PasskeyDeleteResult {
 
     data object NotFound : PasskeyDeleteResult
 
+    data object LastLoginMethod : PasskeyDeleteResult
+
     data class Failure(
         val message: String,
     ) : PasskeyDeleteResult
+}
+
+sealed interface PasswordDeleteResult {
+    data object Success : PasswordDeleteResult
+
+    data object NotLoggedIn : PasswordDeleteResult
+
+    data object NoPasskey : PasswordDeleteResult
+
+    data class Failure(
+        val message: String,
+    ) : PasswordDeleteResult
 }

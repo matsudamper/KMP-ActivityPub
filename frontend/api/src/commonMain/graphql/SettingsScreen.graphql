@@ -3,6 +3,7 @@ query SettingsScreenPasskeys {
         id
         name
     }
+    hasPassword
 }
 
 mutation PasskeyRegistrationOptions {
@@ -22,6 +23,14 @@ mutation RegisterPasskey($query: RegisterPasskeyQuery!) {
 mutation DeletePasskey($id: PasskeyCredentialId!) {
     user {
         deletePasskey(id: $id) {
+            failure
+        }
+    }
+}
+
+mutation DeletePassword {
+    user {
+        deletePassword {
             failure
         }
     }

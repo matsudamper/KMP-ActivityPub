@@ -53,6 +53,36 @@ private fun SettingsContentUnavailablePreview() {
     }
 }
 
+@Preview
+@Composable
+private fun SettingsContentPasswordDeleteDialogPreview() {
+    MaterialTheme {
+        SettingsContent(
+            uiState = previewSettingsUiState.copy(
+                passwordDeleteDialog = SettingsScreenUiState.PasswordDeleteDialog(deleteButtonEnabled = true),
+            ),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun SettingsContentPasswordDeletedPreview() {
+    MaterialTheme {
+        SettingsContent(
+            uiState = previewSettingsUiState.copy(
+                passkeyMessage = null,
+                password = SettingsScreenUiState.Password(
+                    description = "パスワードは無い。パスキーでログインする",
+                    deleteButtonVisible = false,
+                    deleteButtonEnabled = false,
+                    message = SettingsScreenUiState.PasswordMessage(text = "パスワードを削除した", isError = false),
+                ),
+            ),
+        )
+    }
+}
+
 private val previewSettingsUiState = SettingsScreenUiState(
     passkeyList = SettingsScreenUiState.PasskeyList.Items(
         listOf(
@@ -67,6 +97,13 @@ private val previewSettingsUiState = SettingsScreenUiState(
     addPasskeyButtonEnabled = true,
     passkeyMessage = SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false),
     deleteDialog = null,
+    password = SettingsScreenUiState.Password(
+        description = "パスワードを削除すると、パスキーでしかログインできなくなる",
+        deleteButtonVisible = true,
+        deleteButtonEnabled = true,
+        message = null,
+    ),
+    passwordDeleteDialog = null,
     logoutButtonEnabled = true,
     error = null,
     listener = AndroidPreviewSettingsListener,
@@ -84,6 +121,12 @@ private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
     override fun onClickConfirmDelete() = Unit
 
     override fun onDismissDeleteDialog() = Unit
+
+    override fun onClickDeletePassword() = Unit
+
+    override fun onClickConfirmDeletePassword() = Unit
+
+    override fun onDismissDeletePasswordDialog() = Unit
 
     override fun onClickBack() = Unit
 
