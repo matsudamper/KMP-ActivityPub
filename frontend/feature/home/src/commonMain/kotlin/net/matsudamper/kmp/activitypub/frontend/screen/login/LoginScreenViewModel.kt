@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyApi
+import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
+import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyLoginResult
+import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyOptionsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginResult
 import org.koin.core.annotation.KoinViewModel
@@ -16,6 +20,8 @@ import org.koin.core.annotation.KoinViewModel
 @KoinViewModel
 internal class LoginScreenViewModel(
     private val api: UserApi,
+    private val passkeyApi: PasskeyApi,
+    private val passkeyAuthenticator: PasskeyAuthenticator,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
@@ -58,6 +64,10 @@ internal class LoginScreenViewModel(
 
                     override fun onClickLogin() {
                         login()
+                    }
+
+                    override fun onClickPasskeyLogin() {
+                        loginWithPasskey()
                     }
                 },
             ),
@@ -110,6 +120,50 @@ internal class LoginScreenViewModel(
         }
     }
 
+    private fun loginWithPasskey() {
+        if (viewModelStateFlow.value.passkeyLoginable().not()) return
+
+        viewModelStateFlow.update {
+            it.copy(
+                submitting = true,
+                error = null,
+            )
+        }
+        viewModelScope.launch {
+            val result =
+                try {
+                    authenticateWithPasskey()
+                } finally {
+                    viewModelStateFlow.update { it.copy(submitting = false) }
+                }
+            when (result) {
+                PasskeyLoginOutcome.Success -> events.send { it.loggedIn() }
+                PasskeyLoginOutcome.Cancelled -> Unit
+                is PasskeyLoginOutcome.Error -> viewModelStateFlow.update { it.copy(error = result.message) }
+            }
+        }
+    }
+
+    private suspend fun authenticateWithPasskey(): PasskeyLoginOutcome {
+        val request =
+            when (val options = passkeyApi.loginOptions()) {
+                is PasskeyOptionsResult.Success -> options.options
+                PasskeyOptionsResult.NotLoggedIn -> return PasskeyLoginOutcome.Error("パスキーでログインできない")
+                is PasskeyOptionsResult.Failure -> return PasskeyLoginOutcome.Error(options.message)
+            }
+        val assertion =
+            when (val result = passkeyAuthenticator.get(request)) {
+                is PasskeyAuthenticator.Result.Success -> result.value
+                PasskeyAuthenticator.Result.Cancelled -> return PasskeyLoginOutcome.Cancelled
+                is PasskeyAuthenticator.Result.Failure -> return PasskeyLoginOutcome.Error(result.message)
+            }
+        return when (val result = passkeyApi.login(assertion)) {
+            PasskeyLoginResult.Success -> PasskeyLoginOutcome.Success
+            PasskeyLoginResult.NotAccepted -> PasskeyLoginOutcome.Error("このパスキーではログインできない")
+            is PasskeyLoginResult.Failure -> PasskeyLoginOutcome.Error(result.message)
+        }
+    }
+
     private fun createUiState(
         viewModelState: ViewModelState,
         listener: LoginScreenUiState.Listener,
@@ -121,12 +175,16 @@ internal class LoginScreenViewModel(
             inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
             loginButtonEnabled = viewModelState.loginable(),
+            passkeyLoginButtonVisible = passkeyAuthenticator.available,
+            passkeyLoginButtonEnabled = viewModelState.passkeyLoginable(),
             listener = listener,
         )
     }
 
     private fun ViewModelState.loginable(): Boolean =
         apiReady && submitting.not() && username.isNotBlank() && password.isNotEmpty()
+
+    private fun ViewModelState.passkeyLoginable(): Boolean = apiReady && submitting.not() && passkeyAuthenticator.available
 
     data class ViewModelState(
         val username: String,
@@ -135,6 +193,16 @@ internal class LoginScreenViewModel(
         val error: String?,
         val apiReady: Boolean,
     )
+
+    private sealed interface PasskeyLoginOutcome {
+        data object Success : PasskeyLoginOutcome
+
+        data object Cancelled : PasskeyLoginOutcome
+
+        data class Error(
+            val message: String,
+        ) : PasskeyLoginOutcome
+    }
 
     interface Event {
         fun loggedIn()

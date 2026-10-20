@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
+import net.matsudamper.kmp.activitypub.wellknown.wellKnownRoutes
 
 fun main() {
     val serverEnv = ServerEnv()
@@ -71,6 +72,9 @@ internal fun Application.module(deps: AppDependencies) {
         )
     }
 
+    val passkeyRelyingParty = deps.env.passkeyRelyingParty
+    log.info("パスキーの RP ID: ${passkeyRelyingParty.id} origin: ${passkeyRelyingParty.origins.joinToString()}")
+
     if (!deps.env.cookieSecure) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
@@ -99,6 +103,7 @@ internal fun Application.module(deps: AppDependencies) {
             },
             diContainer = DiContainer(
                 accountService = deps.accountService,
+                passkeyService = deps.passkeyService,
                 loginThrottle = deps.loginThrottle,
             ),
         )
@@ -111,6 +116,7 @@ internal fun Application.module(deps: AppDependencies) {
             call.respondText("Hello World")
         }
         graphQlRoutes(graphQl)
+        wellKnownRoutes(deps.env.passkeyAndroidApp)
         if (federation != null) {
             federationRoutes(federation)
         }

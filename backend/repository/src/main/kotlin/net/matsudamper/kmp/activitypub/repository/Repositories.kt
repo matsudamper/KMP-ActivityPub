@@ -10,6 +10,8 @@ interface Repositories : AutoCloseable {
     val followerRepository: FollowerRepository
     val deliveryQueueRepository: DeliveryQueueRepository
 
+    val passkeyRepository: PasskeyRepository
+
     /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい
      */

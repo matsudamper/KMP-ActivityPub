@@ -33,10 +33,6 @@ docker run -d --name kmp-activitypub-valkey -p 6379:6379 valkey/valkey:8
 
 ### 起動する
 
-```sh
-COOKIE_SECURE=false VALKEY_URI=redis://localhost:6379 ./gradlew :backend:run
-```
-
 環境変数は `docker-compose.yml` を参照。
 
 画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った

@@ -98,7 +98,7 @@ class GraphQlEngine private constructor(
                     .newParser()
                     .schemaString(readSchema())
                     .resolvers(resolvers)
-                    .scalars(GraphQlScalars.userId)
+                    .scalars(GraphQlScalars.userId, GraphQlScalars.passkeyCredentialId)
                     .build()
                     .makeExecutableSchema()
 
