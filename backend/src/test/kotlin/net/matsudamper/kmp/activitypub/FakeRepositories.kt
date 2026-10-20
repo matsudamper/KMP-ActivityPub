@@ -15,7 +15,8 @@ import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository()
     override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()
-    override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository()
+    override val noteRepository: FakeNoteRepository = FakeNoteRepository()
+    override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository()
 

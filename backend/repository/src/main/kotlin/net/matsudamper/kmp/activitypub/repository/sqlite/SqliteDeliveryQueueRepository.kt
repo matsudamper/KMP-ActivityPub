@@ -3,14 +3,53 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import org.jooq.DSLContext
 
 internal class SqliteDeliveryQueueRepository(
     private val jooq: SqliteJooq,
 ) : DeliveryQueueRepository {
+    override fun enqueueNote(post: NotePost): Int? = jooq.transaction { dsl ->
+        val accountId =
+            dsl.select(ACCOUNTS.ID)
+                .from(ACCOUNTS)
+                .where(ACCOUNTS.USERNAME.eq(post.username.lowercase()))
+                .fetchOne(ACCOUNTS.ID)
+                ?: return@transaction null
+        val publishedAt = StoredInstant.format(post.publishedAt)
+
+        val noteId =
+            checkNotNull(
+                dsl.insertInto(NOTES)
+                    .set(NOTES.ACCOUNT_ID, accountId)
+                    .set(NOTES.PUBLIC_ID, post.publicId.value)
+                    .set(NOTES.CONTENT_HTML, post.contentHtml)
+                    .set(NOTES.PUBLISHED_AT, publishedAt)
+                    .returning(NOTES.ID)
+                    .fetchOne(NOTES.ID),
+            ) { "記録した投稿の id を引けない: ${post.publicId}" }
+
+        val inboxes = post.inboxes.distinct()
+        inboxes.forEach { inbox ->
+            dsl.insertInto(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_CREATE_NOTE)
+                .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+                .set(DELIVERY_QUEUE.NOTE_ID, noteId)
+                .set(DELIVERY_QUEUE.INBOX, inbox)
+                .set(DELIVERY_QUEUE.BODY, post.body)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+                .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+                .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, publishedAt)
+                .set(DELIVERY_QUEUE.ENQUEUED_AT, publishedAt)
+                .execute()
+        }
+        inboxes.size
+    }
+
     override fun claim(
         now: Instant,
         limit: Int,

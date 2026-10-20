@@ -66,15 +66,31 @@ CREATE TABLE account_followers (
     PRIMARY KEY (account_id, remote_actor_id)
 );
 
+-- 相手がパーマリンクや outbox を引きに来るので、配った投稿は残す
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    public_id TEXT NOT NULL UNIQUE,
+    -- サニタイズ済みの HTML
+    content_html TEXT NOT NULL,
+    published_at TEXT NOT NULL
+);
+
+CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, public_id);
+
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- accept_follow: Follow への Accept。行の形は種別に依らないので、種別を足しても作り直さずに済む
-    kind TEXT NOT NULL CHECK (kind IN ('accept_follow')),
+    -- accept_follow: Follow への Accept / create_note: 投稿の Create。
+    -- 行の形は種別に依らないので、種別を足しても作り直さずに済む
+    kind TEXT NOT NULL CHECK (kind IN ('accept_follow', 'create_note')),
     -- 署名するこちらのアカウント
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     -- accept_follow で、送れたときに成立させるフォローの相手。関係しない種別と、諦めた行では NULL
     remote_actor_id INTEGER,
+    -- create_note で配る投稿。投稿を消したら、まだ送っていない Create も消す。
+    -- 残すと消したはずの投稿が後から届く。関係しない種別では NULL
+    note_id INTEGER REFERENCES notes (id) ON DELETE CASCADE,
     inbox TEXT NOT NULL,
     -- 諦めた行は二度と送らないので NULL にする
     body TEXT,
