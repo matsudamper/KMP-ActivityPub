@@ -34,7 +34,7 @@ CREATE TABLE passkeys (
     -- webauthn4j の AttestedCredentialDataConverter の形
     attested_credential_data BLOB NOT NULL,
     sign_count INTEGER NOT NULL,
-    -- 一覧でどの端末のものか見分けるため、登録時にユーザーが付ける
+    -- ユーザー入力値
     name TEXT NOT NULL,
     created_at TEXT NOT NULL,
     last_used_at TEXT

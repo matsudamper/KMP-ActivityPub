@@ -103,7 +103,7 @@ internal fun SettingsContent(
                         value = uiState.passkeyName,
                         onValueChange = uiState.listener::onPasskeyNameChanged,
                         onImeAction = {},
-                        label = "名前（どの端末か分かるように）",
+                        label = "キーの名前",
                         kind = SingleLineTextFieldKind.Plain,
                         autofill = null,
                         formId = null,
