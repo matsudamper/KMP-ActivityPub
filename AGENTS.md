@@ -8,6 +8,9 @@
 ## テスト
 - SQL や GraphQL のクエリを直接書くテストは書かない。Repository や Service など、Kotlin の呼び出しで確かめる
 
+## ActivityPub
+ライブラリは https://github.com/matsudamper/kotpub を使用する。ライブラリ側に必要な機能はそちらに実装する。  
+
 # 共通ルール
 
 ## docs の参照
