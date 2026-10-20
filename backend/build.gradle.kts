@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":backend:graphql"))
     implementation(project(":backend:repository"))
     implementation(project(":backend:crypto"))
+    implementation(project(":backend:delivery"))
     implementation(project(":backend:session"))
     implementation(project(":backend:telemetry"))
     implementation(project(":shared"))

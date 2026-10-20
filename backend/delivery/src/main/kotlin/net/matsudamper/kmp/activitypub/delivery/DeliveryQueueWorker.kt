@@ -1,12 +1,8 @@
-package net.matsudamper.kmp.activitypub.federation
+package net.matsudamper.kmp.activitypub.delivery
 
 import java.time.Clock
-import java.time.Instant
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.days
-import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.toJavaDuration
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -25,10 +21,11 @@ import org.slf4j.LoggerFactory
  * 起動時に delivering のまま残った行を戻すので、同じ DB に対してプロセスを 2 つ動かすと、
  * 動いている方が送っている行まで巻き戻して二重に送る
  */
-internal class DeliveryQueueWorker(
+class DeliveryQueueWorker(
     private val queue: DeliveryQueueRepository,
-    private val localActors: LocalActors,
+    private val senders: DeliverySenders,
     private val delivery: ActivityDelivery,
+    private val retryPolicy: DeliveryRetryPolicy,
     private val clock: Clock,
 ) {
     private val logger = LoggerFactory.getLogger(DeliveryQueueWorker::class.java)
@@ -97,7 +94,7 @@ internal class DeliveryQueueWorker(
     }
 
     private suspend fun deliverOne(row: ClaimedDelivery) {
-        val sender = withContext(Dispatchers.IO) { localActors.find(row.username) }
+        val sender = withContext(Dispatchers.IO) { senders.find(row.username) }
         if (sender == null) {
             logger.warn("配信の送り主の鍵が無いので諦める: ${row.username} → ${row.inbox}")
             withContext(Dispatchers.IO) { queue.giveUp(row.id, error = "送り主の鍵が無い") }
@@ -124,7 +121,7 @@ internal class DeliveryQueueWorker(
         reason: String,
         retryable: Boolean,
     ) {
-        val nextAttemptAt = nextAttemptAt(row)
+        val nextAttemptAt = retryPolicy.nextAttemptAt(attempts = row.attempts, enqueuedAt = row.enqueuedAt, now = clock.instant())
         if (!retryable || nextAttemptAt == null) {
             queue.giveUp(row.id, error = reason)
             logger.warn("配信を諦めた: ${row.username} → ${row.inbox} 試行=${row.attempts} 回 $reason")
@@ -134,24 +131,8 @@ internal class DeliveryQueueWorker(
         }
     }
 
-    /**
-     * 間を 2 倍ずつ空けて、投函から [GIVE_UP_AFTER] を過ぎるなら諦める。
-     * 相手が数日止まっていても復帰後に届き、消えたサーバーには送り続けない
-     *
-     * @return 諦めるなら null
-     */
-    private fun nextAttemptAt(row: ClaimedDelivery): Instant? {
-        val retryDelay = (INITIAL_RETRY_DELAY * (1 shl (row.attempts - 1).coerceIn(0, MAX_BACKOFF_SHIFT))).coerceAtMost(MAX_RETRY_DELAY)
-        val next = clock.instant().plus(retryDelay.toJavaDuration())
-        return next.takeIf { it <= row.enqueuedAt.plus(GIVE_UP_AFTER.toJavaDuration()) }
-    }
-
     private companion object {
         const val BATCH_SIZE = 20
-        const val MAX_BACKOFF_SHIFT = 20
-        val INITIAL_RETRY_DELAY: Duration = 30.seconds
-        val MAX_RETRY_DELAY: Duration = 24.hours
-        val GIVE_UP_AFTER: Duration = 7.days
         val POLL_INTERVAL: Duration = 30.seconds
     }
 }

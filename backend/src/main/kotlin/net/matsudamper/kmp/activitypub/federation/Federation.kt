@@ -1,7 +1,12 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.seconds
 import io.opentelemetry.api.OpenTelemetry
+import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
+import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
@@ -40,8 +45,9 @@ internal class Federation(
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
             queue = deliveryQueueRepository,
-            localActors = LocalActors(directory = directory, accountService = accountService),
+            senders = LocalActors(directory = directory, accountService = accountService),
             delivery = HttpActivityDelivery(client = httpClient),
+            retryPolicy = DeliveryRetryPolicy(initialDelay = 30.seconds, maxDelay = 24.hours, giveUpAfter = 7.days),
             clock = Clock.systemUTC(),
         )
 

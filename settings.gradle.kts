@@ -31,6 +31,7 @@ dependencyResolutionManagement {
 include(":backend")
 include(":backend:graphql")
 include(":backend:crypto")
+include(":backend:delivery")
 include(":backend:repository")
 include(":backend:session")
 include(":backend:telemetry")
