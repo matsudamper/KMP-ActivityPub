@@ -97,7 +97,7 @@ class MainTest {
             val response = client.get("/.well-known/assetlinks.json")
             assertEquals(HttpStatusCode.OK, response.status)
             assertEquals(
-                """[{"relation":["delegate_permission/common.get_login_creds"],""" +
+                """[{"relation":["delegate_permission/common.handle_all_urls","delegate_permission/common.get_login_creds"],""" +
                     """"target":{"namespace":"android_app","package_name":"com.example.app","sha256_cert_fingerprints":["$FINGERPRINT"]}}]""",
                 response.bodyAsText(),
             )

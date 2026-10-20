@@ -22,7 +22,7 @@ internal fun Route.wellKnownRoutes(passkeyAndroidApp: PasskeyAndroidApp?) {
             ListSerializer(AssetLink.serializer()),
             listOf(
                 AssetLink(
-                    relation = listOf("delegate_permission/common.get_login_creds"),
+                    relation = listOf("delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"),
                     target =
                     AssetLink.Target(
                         namespace = "android_app",
