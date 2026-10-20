@@ -13,6 +13,7 @@ private fun LoginContentPreview() {
             uiState = LoginScreenUiState(
                 username = "kotlin",
                 password = "password",
+                error = null,
                 inputHasError = false,
                 inputEnabled = true,
                 loginButtonEnabled = true,
@@ -64,6 +65,7 @@ private fun LoginContentErrorPreview() {
     MaterialTheme {
         LoginContent(
             uiState = previewLoginUiState.copy(
+                error = "ユーザー名かパスワードが違う",
                 inputHasError = true,
             ),
             serverSettingUiState = null,
@@ -75,6 +77,7 @@ private fun LoginContentErrorPreview() {
 private val previewLoginUiState = LoginScreenUiState(
     username = "kotlin",
     password = "password",
+    error = null,
     inputHasError = false,
     inputEnabled = true,
     loginButtonEnabled = true,

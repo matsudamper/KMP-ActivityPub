@@ -32,7 +32,7 @@ internal class LoginScreenViewModel(
                 username = savedStateHandle.get<String>(USERNAME_KEY).orEmpty(),
                 password = "",
                 submitting = false,
-                inputHasError = false,
+                error = null,
                 apiReady = api.isReady(),
             ),
         )
@@ -48,7 +48,7 @@ internal class LoginScreenViewModel(
                         viewModelStateFlow.update {
                             it.copy(
                                 username = text,
-                                inputHasError = false,
+                                error = null,
                             )
                         }
                     }
@@ -57,7 +57,7 @@ internal class LoginScreenViewModel(
                         viewModelStateFlow.update {
                             it.copy(
                                 password = text,
-                                inputHasError = false,
+                                error = null,
                             )
                         }
                     }
@@ -99,7 +99,7 @@ internal class LoginScreenViewModel(
         viewModelStateFlow.update {
             it.copy(
                 submitting = true,
-                inputHasError = false,
+                error = null,
             )
         }
         viewModelScope.launch {
@@ -113,10 +113,9 @@ internal class LoginScreenViewModel(
                 } finally {
                     viewModelStateFlow.update { it.copy(submitting = false) }
                 }
+            viewModelStateFlow.update { it.copy(error = error) }
             if (error == null) {
                 events.send { it.loggedIn() }
-            } else {
-                showError(error)
             }
         }
     }
@@ -127,7 +126,7 @@ internal class LoginScreenViewModel(
         viewModelStateFlow.update {
             it.copy(
                 submitting = true,
-                inputHasError = false,
+                error = null,
             )
         }
         viewModelScope.launch {
@@ -140,14 +139,9 @@ internal class LoginScreenViewModel(
             when (result) {
                 PasskeyLoginOutcome.Success -> events.send { it.loggedIn() }
                 PasskeyLoginOutcome.Cancelled -> Unit
-                is PasskeyLoginOutcome.Error -> showError(result.message)
+                is PasskeyLoginOutcome.Error -> viewModelStateFlow.update { it.copy(error = result.message) }
             }
         }
-    }
-
-    private suspend fun showError(message: String) {
-        viewModelStateFlow.update { it.copy(inputHasError = true) }
-        events.send { it.showMessage(message) }
     }
 
     private suspend fun authenticateWithPasskey(): PasskeyLoginOutcome {
@@ -177,7 +171,8 @@ internal class LoginScreenViewModel(
         return LoginScreenUiState(
             username = viewModelState.username,
             password = viewModelState.password,
-            inputHasError = viewModelState.inputHasError,
+            error = viewModelState.error,
+            inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
             loginButtonEnabled = viewModelState.loginable(),
             passkeyLoginButtonVisible = passkeyAuthenticator.available,
@@ -195,7 +190,7 @@ internal class LoginScreenViewModel(
         val username: String,
         val password: String,
         val submitting: Boolean,
-        val inputHasError: Boolean,
+        val error: String?,
         val apiReady: Boolean,
     )
 
@@ -211,8 +206,6 @@ internal class LoginScreenViewModel(
 
     interface Event {
         fun loggedIn()
-
-        fun showMessage(message: String)
     }
 }
 
