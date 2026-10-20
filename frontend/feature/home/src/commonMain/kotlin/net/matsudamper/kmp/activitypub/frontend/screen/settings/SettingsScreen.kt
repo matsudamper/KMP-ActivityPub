@@ -213,30 +213,35 @@ private fun PasswordSection(
     password: SettingsScreenUiState.Password,
     listener: SettingsScreenUiState.Listener,
 ) {
-    Text(
-        text = "パスワード",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-    )
-    Text(
-        text = password.description,
-        style = MaterialTheme.typography.bodyMedium,
-    )
-    if (password.deleteButtonVisible) {
-        OutlinedButton(
-            onClick = listener::onClickDeletePassword,
-            enabled = password.deleteButtonEnabled,
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-        ) {
-            Text("パスワードを削除")
-        }
-    }
-    val message = password.message
-    if (message != null) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Text(
-            text = message.text,
-            color = if (message.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            text = "パスワード",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
         )
+        Text(
+            text = password.description,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        if (password.deleteButtonVisible) {
+            OutlinedButton(
+                onClick = listener::onClickDeletePassword,
+                enabled = password.deleteButtonEnabled,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                Text("パスワードを削除")
+            }
+        }
+        val message = password.message
+        if (message != null) {
+            Text(
+                text = message.text,
+                color = if (message.isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
