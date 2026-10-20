@@ -9,29 +9,34 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import org.koin.core.annotation.KoinViewModel
 
-/**
- * サーバーとはまだ繋いでいない。投稿は常に成功したことにする
- */
 @KoinViewModel
 internal class PostScreenViewModel(
+    private val api: UserApi,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
-        MutableStateFlow(ViewModelState(body = savedStateHandle.get<String>(BODY_KEY).orEmpty()))
+        MutableStateFlow(
+            ViewModelState(
+                body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                submitting = false,
+                error = null,
+            ),
+        )
 
     val uiStateFlow: StateFlow<PostScreenUiState> =
         MutableStateFlow(
-            PostScreenUiState(
-                body = viewModelStateFlow.value.body,
-                postButtonEnabled = viewModelStateFlow.value.postable(),
+            createUiState(
+                viewModelState = viewModelStateFlow.value,
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
                         savedStateHandle[BODY_KEY] = text
-                        viewModelStateFlow.update { it.copy(body = text) }
+                        viewModelStateFlow.update { it.copy(body = text, error = null) }
                     }
 
                     override fun onClickPost() {
@@ -49,9 +54,9 @@ internal class PostScreenViewModel(
             viewModelScope.launch {
                 viewModelStateFlow.collect { viewModelState ->
                     uiStateFlow.update { uiState ->
-                        uiState.copy(
-                            body = viewModelState.body,
-                            postButtonEnabled = viewModelState.postable(),
+                        createUiState(
+                            viewModelState = viewModelState,
+                            listener = uiState.listener,
                         )
                     }
                 }
@@ -59,17 +64,52 @@ internal class PostScreenViewModel(
         }.asStateFlow()
 
     private fun post() {
-        if (viewModelStateFlow.value.postable().not()) return
+        val state = viewModelStateFlow.value
+        if (state.postable().not()) return
 
+        viewModelStateFlow.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
+            val error =
+                try {
+                    when (val result = api.postNote(body = state.body)) {
+                        UserPostNoteResult.Success -> null
+                        UserPostNoteResult.NotLoggedIn -> "ログインしていない"
+                        UserPostNoteResult.EmptyBody -> "本文が空"
+                        UserPostNoteResult.TooLong -> "本文が長すぎる"
+                        UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていない"
+                        is UserPostNoteResult.Failure -> result.message
+                    }
+                } finally {
+                    viewModelStateFlow.update { it.copy(submitting = false) }
+                }
+            if (error != null) {
+                viewModelStateFlow.update { it.copy(error = error) }
+                return@launch
+            }
+            savedStateHandle[BODY_KEY] = ""
+            viewModelStateFlow.update { it.copy(body = "") }
             events.send { it.navigateBack() }
         }
     }
 
-    private fun ViewModelState.postable(): Boolean = body.isNotBlank()
+    private fun createUiState(
+        viewModelState: ViewModelState,
+        listener: PostScreenUiState.Listener,
+    ): PostScreenUiState =
+        PostScreenUiState(
+            body = viewModelState.body,
+            error = viewModelState.error,
+            inputEnabled = viewModelState.submitting.not(),
+            postButtonEnabled = viewModelState.postable(),
+            listener = listener,
+        )
+
+    private fun ViewModelState.postable(): Boolean = submitting.not() && body.isNotBlank()
 
     data class ViewModelState(
         val body: String,
+        val submitting: Boolean,
+        val error: String?,
     )
 
     interface Event {

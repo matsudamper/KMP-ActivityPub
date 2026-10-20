@@ -11,6 +11,8 @@ private fun PostContentPreview() {
         PostContent(
             uiState = PostScreenUiState(
                 body = "Kotlin 2.4 がリリースされました",
+                error = null,
+                inputEnabled = true,
                 postButtonEnabled = true,
                 listener = AndroidPreviewPostListener,
             ),

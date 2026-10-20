@@ -80,10 +80,17 @@ internal fun PostContent(
                     label = "今なにしてる？",
                     inputId = POST_BODY_INPUT_ID,
                     inputName = "body",
-                    enabled = true,
-                    hasError = false,
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.error != null,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                val error = uiState.error
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Button(
                     onClick = uiState.listener::onClickPost,
                     enabled = uiState.postButtonEnabled,

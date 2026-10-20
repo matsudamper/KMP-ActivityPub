@@ -1,0 +1,8 @@
+mutation UserPostNote($body: String!) {
+    user {
+        postNote(body: $body) {
+            url
+            failure
+        }
+    }
+}
