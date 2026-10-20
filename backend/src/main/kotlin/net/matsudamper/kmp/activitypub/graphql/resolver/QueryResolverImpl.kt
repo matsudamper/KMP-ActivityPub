@@ -5,6 +5,7 @@ import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
@@ -23,6 +24,16 @@ class QueryResolverImpl : QueryResolver {
                 QlUserInfo(id = accountId)
             }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlUserInfo?>(userInfo).build())
+    }
+
+    override fun passkeys(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlRegisteredPasskey>?>> {
+        val passkeyService = GraphQlEngine.diContainer(env).passkeyService
+        val passkeys =
+            GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountId ->
+                passkeyService.passkeys(accountId).map { QlRegisteredPasskey(id = it.credentialId, name = it.name) }
+            }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<List<QlRegisteredPasskey>?>(passkeys).build())
     }
 
     override fun user(

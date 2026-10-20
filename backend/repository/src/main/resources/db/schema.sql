@@ -20,6 +20,28 @@ CREATE TABLE account_keys (
     private_key_pem TEXT NOT NULL
 );
 
+-- WebAuthn の user.id。アカウントの id を認証器に渡さないよう、乱数を別に持つ
+CREATE TABLE passkey_user_handles (
+    account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+    -- base64url
+    user_handle TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE passkeys (
+    -- base64url
+    credential_id TEXT NOT NULL PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    -- webauthn4j の AttestedCredentialDataConverter の形
+    attested_credential_data BLOB NOT NULL,
+    sign_count INTEGER NOT NULL,
+    -- ユーザー入力値
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used_at TEXT
+);
+
+CREATE INDEX passkeys_account_id ON passkeys (account_id);
+
 -- 他のサーバーのアクター。フォロワーが消えた後の Delete を検証できるよう、フォローが外れても鍵は残す
 CREATE TABLE remote_actors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

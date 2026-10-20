@@ -70,7 +70,7 @@ sealed interface Screen : NavKey {
     }
 
     companion object {
-        private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> =
+        private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> by lazy {
             listOf(
                 Login.pathPattern to { _ -> Login },
                 Home.pathPattern to { _ -> Home },
@@ -80,6 +80,7 @@ sealed interface Screen : NavKey {
                     UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
                 },
             )
+        }
 
         fun fromPath(path: String): Screen? {
             return routes.firstNotNullOfOrNull { (pattern, screenOf) ->

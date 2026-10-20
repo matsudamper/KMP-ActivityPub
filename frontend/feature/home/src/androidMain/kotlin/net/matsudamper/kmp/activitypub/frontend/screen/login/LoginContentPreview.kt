@@ -16,6 +16,8 @@ private fun LoginContentPreview() {
                 inputHasError = false,
                 inputEnabled = true,
                 loginButtonEnabled = true,
+                passkeyLoginButtonVisible = true,
+                passkeyLoginButtonEnabled = true,
                 listener = AndroidPreviewLoginListener,
             ),
             serverSettingUiState = null,
@@ -74,6 +76,8 @@ private val previewLoginUiState = LoginScreenUiState(
     inputHasError = false,
     inputEnabled = true,
     loginButtonEnabled = true,
+    passkeyLoginButtonVisible = false,
+    passkeyLoginButtonEnabled = false,
     listener = AndroidPreviewLoginListener,
 )
 
@@ -89,6 +93,8 @@ private object AndroidPreviewLoginListener : LoginScreenUiState.Listener {
     override fun onPasswordChanged(text: String) = Unit
 
     override fun onClickLogin() = Unit
+
+    override fun onClickPasskeyLogin() = Unit
 }
 
 private object AndroidPreviewServerSettingListener : ServerSettingUiState.Listener {

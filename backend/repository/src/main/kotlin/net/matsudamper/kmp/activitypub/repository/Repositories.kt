@@ -9,6 +9,8 @@ interface Repositories : AutoCloseable {
     val accountRepository: AccountRepository
     val followerRepository: FollowerRepository
 
+    val passkeyRepository: PasskeyRepository
+
     /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい
      */

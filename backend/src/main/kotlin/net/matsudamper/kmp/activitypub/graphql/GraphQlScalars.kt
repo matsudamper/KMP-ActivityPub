@@ -11,6 +11,7 @@ import graphql.schema.CoercingParseValueException
 import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 
 object GraphQlScalars {
     /**
@@ -21,6 +22,13 @@ object GraphQlScalars {
             .newScalar()
             .name("UserId")
             .coercing(UserIdCoercing)
+            .build()
+
+    val passkeyCredentialId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("PasskeyCredentialId")
+            .coercing(StringIdCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
             .build()
 
     private object UserIdCoercing : Coercing<AccountId, String> {
@@ -50,6 +58,41 @@ object GraphQlScalars {
         ): AccountId {
             val value = (input as? StringValue)?.value?.toLongOrNull() ?: throw CoercingParseLiteralException("UserId ではない: $input")
             return AccountId(value)
+        }
+    }
+
+    private class StringIdCoercing<T : Any>(
+        private val name: String,
+        private val type: Class<T>,
+        private val wrap: (String) -> T,
+        private val unwrap: (T) -> String,
+    ) : Coercing<T, String> {
+        override fun serialize(
+            dataFetcherResult: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): String {
+            if (!type.isInstance(dataFetcherResult)) throw CoercingSerializeException("$name ではない: $dataFetcherResult")
+            return unwrap(type.cast(dataFetcherResult))
+        }
+
+        override fun parseValue(
+            input: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): T {
+            val value = input as? String ?: throw CoercingParseValueException("$name ではない")
+            return wrap(value)
+        }
+
+        override fun parseLiteral(
+            input: Value<*>,
+            variables: CoercedVariables,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): T {
+            val value = (input as? StringValue)?.value ?: throw CoercingParseLiteralException("$name ではない")
+            return wrap(value)
         }
     }
 }
