@@ -44,6 +44,8 @@ internal class PostScreenViewModel(
                     }
 
                     override fun onClickBack() {
+                        // 送信中に画面を閉じると、投稿できたか分からないまま送信が取り消される
+                        if (viewModelStateFlow.value.submitting) return
                         viewModelScope.launch {
                             events.send { it.navigateBack() }
                         }

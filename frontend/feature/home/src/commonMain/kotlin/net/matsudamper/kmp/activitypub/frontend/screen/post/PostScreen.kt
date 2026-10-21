@@ -58,7 +58,10 @@ internal fun PostContent(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = uiState.listener::onClickBack) {
+                IconButton(
+                    onClick = uiState.listener::onClickBack,
+                    enabled = uiState.inputEnabled,
+                ) {
                     Icon(
                         imageVector = AppIcons.ArrowBack,
                         contentDescription = "戻る",
