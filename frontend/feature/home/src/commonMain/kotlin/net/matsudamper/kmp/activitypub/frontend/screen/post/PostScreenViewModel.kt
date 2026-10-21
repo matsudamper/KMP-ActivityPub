@@ -103,6 +103,7 @@ internal class PostScreenViewModel(
             body = viewModelState.body,
             inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
+            backButtonEnabled = viewModelState.submitting.not(),
             postButtonEnabled = viewModelState.postable(),
             listener = listener,
         )

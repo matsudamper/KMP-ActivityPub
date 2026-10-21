@@ -14,6 +14,7 @@ private fun PostContentPreview() {
                 body = "Kotlin 2.4 がリリースされました",
                 inputHasError = false,
                 inputEnabled = true,
+                backButtonEnabled = true,
                 postButtonEnabled = true,
                 listener = AndroidPreviewPostListener,
             ),

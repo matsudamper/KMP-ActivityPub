@@ -72,7 +72,7 @@ internal fun PostContent(
             ) {
                 IconButton(
                     onClick = uiState.listener::onClickBack,
-                    enabled = uiState.inputEnabled,
+                    enabled = uiState.backButtonEnabled,
                 ) {
                     Icon(
                         imageVector = AppIcons.ArrowBack,
