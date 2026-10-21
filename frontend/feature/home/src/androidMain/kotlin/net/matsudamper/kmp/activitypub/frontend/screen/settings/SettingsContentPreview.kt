@@ -56,6 +56,36 @@ private fun SettingsContentUnavailablePreview() {
     }
 }
 
+@Preview
+@Composable
+private fun SettingsContentPasswordDeleteDialogPreview() {
+    MaterialTheme {
+        SettingsContent(
+            uiState = previewSettingsUiState.copy(
+                passwordDeleteDialog = SettingsScreenUiState.PasswordDeleteDialog(deleteButtonEnabled = true),
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun SettingsContentNoPasswordPreview() {
+    MaterialTheme {
+        SettingsContent(
+            uiState = previewSettingsUiState.copy(
+                password = SettingsScreenUiState.Password(
+                    description = "パスワードは無い。パスキーでログインする",
+                    deleteButtonVisible = false,
+                    deleteButtonEnabled = false,
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 private val previewSettingsUiState = SettingsScreenUiState(
     passkeyList = SettingsScreenUiState.PasskeyList.Items(
         listOf(
@@ -70,6 +100,12 @@ private val previewSettingsUiState = SettingsScreenUiState(
     addPasskeyButtonEnabled = true,
     passkeyUnavailableMessageVisible = false,
     deleteDialog = null,
+    password = SettingsScreenUiState.Password(
+        description = "パスワードを削除すると、パスキーでしかログインできなくなる",
+        deleteButtonVisible = true,
+        deleteButtonEnabled = true,
+    ),
+    passwordDeleteDialog = null,
     logoutButtonEnabled = true,
     listener = AndroidPreviewSettingsListener,
 )
@@ -86,6 +122,12 @@ private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
     override fun onClickConfirmDelete() = Unit
 
     override fun onDismissDeleteDialog() = Unit
+
+    override fun onClickDeletePassword() = Unit
+
+    override fun onClickConfirmDeletePassword() = Unit
+
+    override fun onDismissDeletePasswordDialog() = Unit
 
     override fun onClickBack() = Unit
 

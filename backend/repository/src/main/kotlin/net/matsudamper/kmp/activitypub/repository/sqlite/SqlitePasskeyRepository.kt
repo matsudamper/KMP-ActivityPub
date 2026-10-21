@@ -1,9 +1,11 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEY_USER_HANDLES
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -74,12 +76,44 @@ internal class SqlitePasskeyRepository(
     override fun delete(
         accountId: AccountId,
         credentialId: PasskeyCredentialId,
-    ): Boolean = jooq.withConnection { dsl ->
-        dsl
-            .deleteFrom(PASSKEYS)
-            .where(PASSKEYS.CREDENTIAL_ID.eq(credentialId.value))
-            .and(PASSKEYS.ACCOUNT_ID.eq(accountId.value))
-            .execute() == 1
+    ): PasskeyDeleteResult = jooq.withConnection { dsl ->
+        val otherPasskeys = PASSKEYS.`as`("other_passkeys")
+        // 確認と削除を 1 文にし、並んだ削除で最後のログイン手段まで消えることを防ぐ
+        val deleted =
+            dsl
+                .deleteFrom(PASSKEYS)
+                .where(PASSKEYS.CREDENTIAL_ID.eq(credentialId.value))
+                .and(PASSKEYS.ACCOUNT_ID.eq(accountId.value))
+                .and(
+                    DSL
+                        .exists(DSL.selectOne().from(ACCOUNT_PASSWORDS).where(ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(accountId.value)))
+                        .or(
+                            DSL.exists(
+                                DSL
+                                    .selectOne()
+                                    .from(otherPasskeys)
+                                    .where(otherPasskeys.ACCOUNT_ID.eq(accountId.value))
+                                    .and(otherPasskeys.CREDENTIAL_ID.ne(credentialId.value)),
+                            ),
+                        ),
+                ).execute() == 1
+        when {
+            deleted -> {
+                PasskeyDeleteResult.Deleted
+            }
+
+            dsl.fetchExists(
+                PASSKEYS,
+                PASSKEYS.CREDENTIAL_ID.eq(credentialId.value)
+                    .and(PASSKEYS.ACCOUNT_ID.eq(accountId.value)),
+            ) -> {
+                PasskeyDeleteResult.LastLoginMethod
+            }
+
+            else -> {
+                PasskeyDeleteResult.NotFound
+            }
+        }
     }
 
     override fun findByCredentialId(credentialId: PasskeyCredentialId): StoredPasskey? = jooq.withConnection { dsl ->

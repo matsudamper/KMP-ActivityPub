@@ -9,7 +9,7 @@ import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class AccountServiceTest {
-    private val accountRepository = FakeAccountRepository()
+    private val accountRepository = FakeAccountRepository(hasPasskey = { false })
 
     private val service = AccountService(accountRepository = accountRepository)
 
