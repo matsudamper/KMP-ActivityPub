@@ -97,7 +97,14 @@ internal class SqliteAccountRepository(
         dsl
             .deleteFrom(ACCOUNT_PASSWORDS)
             .where(ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(id.value))
-            .and(DSL.exists(DSL.selectOne().from(PASSKEYS).where(PASSKEYS.ACCOUNT_ID.eq(id.value))))
+            .and(
+                DSL.exists(
+                    DSL
+                        .selectOne()
+                        .from(PASSKEYS)
+                        .where(PASSKEYS.ACCOUNT_ID.eq(id.value)),
+                ),
+            )
             .execute() == 1
     }
 }

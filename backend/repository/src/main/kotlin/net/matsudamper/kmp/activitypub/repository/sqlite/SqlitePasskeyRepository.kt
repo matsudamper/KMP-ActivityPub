@@ -102,7 +102,11 @@ internal class SqlitePasskeyRepository(
                 PasskeyDeleteResult.Deleted
             }
 
-            dsl.fetchExists(PASSKEYS, PASSKEYS.CREDENTIAL_ID.eq(credentialId.value).and(PASSKEYS.ACCOUNT_ID.eq(accountId.value))) -> {
+            dsl.fetchExists(
+                PASSKEYS,
+                PASSKEYS.CREDENTIAL_ID.eq(credentialId.value)
+                    .and(PASSKEYS.ACCOUNT_ID.eq(accountId.value)),
+            ) -> {
                 PasskeyDeleteResult.LastLoginMethod
             }
 
