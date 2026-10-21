@@ -22,6 +22,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +31,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
@@ -49,6 +54,8 @@ internal fun HomeScreen(
 ) {
     val viewModel = koinViewModel<HomeScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -64,16 +71,21 @@ internal fun HomeScreen(
                 override fun navigateToUserProfile(username: String) {
                     navigator.navigate(Screen.UserProfile(username = username))
                 }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
     }
 
-    HomeContent(uiState = uiState)
+    HomeContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
 @Composable
 internal fun HomeContent(
     uiState: HomeScreenUiState,
+    snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
         topBar = {
@@ -114,6 +126,7 @@ internal fun HomeContent(
                 }
             }
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
                 ExtendedFloatingActionButton(
@@ -195,10 +208,6 @@ private fun SearchTabContent(
                 ) {
                     CircularProgressIndicator()
                 }
-            }
-
-            is HomeScreenUiState.SearchResult.Error -> {
-                SearchMessage(text = result.message)
             }
 
             is HomeScreenUiState.SearchResult.Loaded -> {

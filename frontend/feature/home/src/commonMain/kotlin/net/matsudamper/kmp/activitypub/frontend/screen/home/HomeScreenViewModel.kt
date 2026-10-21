@@ -86,16 +86,20 @@ internal class HomeScreenViewModel(
         }
         searchStateFlow.value = SearchState.Loading
         searchJob = viewModelScope.launch {
-            searchStateFlow.value =
-                when (val result = userApi.searchUsers(query = trimmedQuery, after = null)) {
-                    is UserSearchResult.Success -> SearchState.Loaded(
+            when (val result = userApi.searchUsers(query = trimmedQuery, after = null)) {
+                is UserSearchResult.Success -> {
+                    searchStateFlow.value = SearchState.Loaded(
                         query = trimmedQuery,
                         usernames = result.usernames,
                         nextCursor = result.nextCursor,
                     )
-
-                    is UserSearchResult.Failure -> SearchState.Failed(result.message)
                 }
+
+                is UserSearchResult.Failure -> {
+                    searchStateFlow.value = SearchState.NotSearched
+                    events.send { it.showMessage(result.message) }
+                }
+            }
         }
     }
 
@@ -104,15 +108,18 @@ internal class HomeScreenViewModel(
         val loaded = searchStateFlow.value as? SearchState.Loaded ?: return
         val nextCursor = loaded.nextCursor ?: return
         searchJob = viewModelScope.launch {
-            searchStateFlow.value =
-                when (val result = userApi.searchUsers(query = loaded.query, after = nextCursor)) {
-                    is UserSearchResult.Success -> loaded.copy(
+            when (val result = userApi.searchUsers(query = loaded.query, after = nextCursor)) {
+                is UserSearchResult.Success -> {
+                    searchStateFlow.value = loaded.copy(
                         usernames = loaded.usernames + result.usernames,
                         nextCursor = result.nextCursor,
                     )
-
-                    is UserSearchResult.Failure -> SearchState.Failed(result.message)
                 }
+
+                is UserSearchResult.Failure -> {
+                    events.send { it.showMessage(result.message) }
+                }
+            }
         }
     }
 
@@ -139,8 +146,6 @@ internal class HomeScreenViewModel(
                 },
                 canLoadMore = searchState.nextCursor != null,
             )
-
-            is SearchState.Failed -> HomeScreenUiState.SearchResult.Error(searchState.message)
         }
     }
 
@@ -161,6 +166,8 @@ internal class HomeScreenViewModel(
         fun navigateToSettings()
 
         fun navigateToUserProfile(username: String)
+
+        fun showMessage(message: String)
     }
 
     private sealed interface SearchState {
@@ -172,10 +179,6 @@ internal class HomeScreenViewModel(
             val query: String,
             val usernames: List<String>,
             val nextCursor: String?,
-        ) : SearchState
-
-        data class Failed(
-            val message: String,
         ) : SearchState
     }
 }

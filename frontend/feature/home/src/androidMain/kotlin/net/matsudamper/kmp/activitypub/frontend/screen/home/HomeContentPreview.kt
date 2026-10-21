@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -31,6 +32,7 @@ private fun HomeContentPreview() {
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -65,6 +67,7 @@ private fun HomeSearchContentPreview() {
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -86,6 +89,7 @@ private fun HomeSearchEmptyContentPreview() {
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }

@@ -34,10 +34,6 @@ data class HomeScreenUiState(
             val accounts: List<SearchAccount>,
             val canLoadMore: Boolean,
         ) : SearchResult
-
-        data class Error(
-            val message: String,
-        ) : SearchResult
     }
 
     data class SearchAccount(
