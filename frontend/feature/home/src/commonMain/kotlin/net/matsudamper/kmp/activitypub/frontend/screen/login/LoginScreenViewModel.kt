@@ -107,7 +107,7 @@ internal class LoginScreenViewModel(
                 try {
                     when (val result = api.login(username = state.username.trim(), password = state.password)) {
                         UserLoginResult.Success -> null
-                        UserLoginResult.WrongUsernameOrPassword -> "ユーザー名かパスワードが違う"
+                        UserLoginResult.WrongUsernameOrPassword -> "ユーザー名かパスワードが違います"
                         is UserLoginResult.Failure -> result.message
                     }
                 } finally {
