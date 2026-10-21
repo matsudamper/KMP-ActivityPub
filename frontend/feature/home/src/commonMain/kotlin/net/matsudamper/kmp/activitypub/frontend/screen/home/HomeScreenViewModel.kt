@@ -148,7 +148,7 @@ internal class HomeScreenViewModel(
                         },
                     )
                 },
-                canLoadMore = searchState.nextCursor != null,
+                loadMoreButtonVisible = searchState.nextCursor != null,
             )
         }
     }

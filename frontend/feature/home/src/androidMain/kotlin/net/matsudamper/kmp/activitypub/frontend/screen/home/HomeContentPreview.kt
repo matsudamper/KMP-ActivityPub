@@ -64,7 +64,7 @@ private fun HomeSearchContentPreview() {
                                 listener = AndroidPreviewSearchAccountListener,
                             ),
                         ),
-                        canLoadMore = true,
+                        loadMoreButtonVisible = true,
                     ),
                 ),
                 listener = AndroidPreviewHomeListener,
@@ -87,7 +87,7 @@ private fun HomeSearchEmptyContentPreview() {
                     query = "unknown",
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(),
-                        canLoadMore = false,
+                        loadMoreButtonVisible = false,
                     ),
                 ),
                 listener = AndroidPreviewHomeListener,

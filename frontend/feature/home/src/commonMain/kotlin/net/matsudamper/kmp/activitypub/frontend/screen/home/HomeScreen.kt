@@ -230,7 +230,7 @@ private fun SearchTabContent(
                             SearchAccountItem(account = account)
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
-                        if (result.canLoadMore) {
+                        if (result.loadMoreButtonVisible) {
                             item {
                                 TextButton(
                                     onClick = listener::onClickLoadMoreSearchResult,

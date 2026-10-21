@@ -33,7 +33,7 @@ data class HomeScreenUiState(
 
         data class Loaded(
             val accounts: List<SearchAccount>,
-            val canLoadMore: Boolean,
+            val loadMoreButtonVisible: Boolean,
         ) : SearchResult
     }
 
