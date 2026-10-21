@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NotePost
 
@@ -14,10 +15,12 @@ internal class FakeDeliveryQueueRepository(
 ) : DeliveryQueueRepository {
     val posts = mutableListOf<NotePost>()
 
-    override fun enqueueNote(post: NotePost): Int {
+    override fun enqueueNote(post: NotePost): EnqueueNoteResult {
+        val alreadyPosted = posts.firstOrNull { it.username.equals(post.username, ignoreCase = true) && it.requestId == post.requestId }
+        if (alreadyPosted != null) return EnqueueNoteResult.AlreadyPosted(alreadyPosted.publicId)
         posts += post
         notes.notes += Note(publicId = post.publicId, username = post.username, contentHtml = post.contentHtml, publishedAt = post.publishedAt)
-        return post.inboxes.distinct().size
+        return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)
     }
 
     override fun claim(

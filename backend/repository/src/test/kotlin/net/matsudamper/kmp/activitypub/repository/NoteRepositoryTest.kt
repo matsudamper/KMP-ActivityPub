@@ -40,7 +40,7 @@ class NoteRepositoryTest {
     fun `投稿を記録して宛先ごとに積む`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
-            assertEquals(2, queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A, INBOX_B, INBOX_A))))
+            assertEquals(EnqueueNoteResult.Enqueued(deliveries = 2), queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A, INBOX_B, INBOX_A))))
 
             val note = repositories.noteRepository.find(PublicNoteId("note-1"))
             assertEquals("user1", note?.username)
@@ -56,7 +56,7 @@ class NoteRepositoryTest {
     @Test
     fun `宛先が無くても投稿は記録する`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
-            assertEquals(0, repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf())))
+            assertEquals(EnqueueNoteResult.Enqueued(deliveries = 0), repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf())))
 
             assertEquals(1, repositories.noteRepository.count("user1"))
         }
@@ -65,7 +65,10 @@ class NoteRepositoryTest {
     @Test
     fun `いないアカウントの投稿は記録しない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
-            assertNull(repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)).copy(username = "missing")))
+            assertEquals(
+                EnqueueNoteResult.AccountNotFound,
+                repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)).copy(username = "missing")),
+            )
 
             assertNull(repositories.noteRepository.find(PublicNoteId("note-1")))
         }
@@ -146,12 +149,27 @@ class NoteRepositoryTest {
         }
     }
 
+    @Test
+    fun `同じ requestId で送り直されたら 2 つ目の投稿も配信も作らない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
+
+            val resent = queue.enqueueNote(notePost(publicId = "note-2", inboxes = listOf(INBOX_A)).copy(requestId = "request-note-1"))
+
+            assertEquals(EnqueueNoteResult.AlreadyPosted(PublicNoteId("note-1")), resent)
+            assertNull(repositories.noteRepository.find(PublicNoteId("note-2")))
+            assertEquals(1, queue.claim(now = NOW, limit = 10).size)
+        }
+    }
+
     private fun notePost(
         publicId: String,
         inboxes: List<String>,
     ): NotePost =
         NotePost(
             username = "user1",
+            requestId = "request-$publicId",
             publicId = PublicNoteId(publicId),
             contentHtml = "<p>hello</p>",
             publishedAt = NOW,

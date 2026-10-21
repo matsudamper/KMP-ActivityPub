@@ -186,9 +186,10 @@ class UserMutationResolverImpl : UserMutationResolver {
     override fun postNote(
         userMutation: QlUserMutation,
         body: String,
+        requestId: String,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val result = postNote(body = body, env = env)
+        val result = postNote(body = body, requestId = requestId, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -200,6 +201,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     private fun postNote(
         body: String,
+        requestId: String,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -214,7 +216,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.notePostService
                 ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.FEDERATION_DISABLED)
 
-        return when (val result = notePostService.post(username = account.username, body = body)) {
+        return when (val result = notePostService.post(username = account.username, body = body, requestId = requestId)) {
             is PostNoteResult.Posted -> QlUserPostNoteResult(url = result.url, failure = null)
             PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
             PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)

@@ -3,23 +3,34 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.DSLContext
 
 internal class SqliteDeliveryQueueRepository(
     private val jooq: SqliteJooq,
 ) : DeliveryQueueRepository {
-    override fun enqueueNote(post: NotePost): Int? = jooq.transaction { dsl ->
+    override fun enqueueNote(post: NotePost): EnqueueNoteResult = jooq.transaction { dsl ->
         val accountId =
             dsl.select(ACCOUNTS.ID)
                 .from(ACCOUNTS)
                 .where(ACCOUNTS.USERNAME.eq(post.username.lowercase()))
                 .fetchOne(ACCOUNTS.ID)
-                ?: return@transaction null
+                ?: return@transaction EnqueueNoteResult.AccountNotFound
+        val alreadyPostedPublicId =
+            dsl.select(NOTES.PUBLIC_ID)
+                .from(NOTES)
+                .where(NOTES.ACCOUNT_ID.eq(accountId))
+                .and(NOTES.REQUEST_ID.eq(post.requestId))
+                .fetchOne(NOTES.PUBLIC_ID)
+        if (alreadyPostedPublicId != null) {
+            return@transaction EnqueueNoteResult.AlreadyPosted(PublicNoteId(alreadyPostedPublicId))
+        }
         val publishedAt = StoredInstant.format(post.publishedAt)
 
         val noteId =
@@ -29,6 +40,7 @@ internal class SqliteDeliveryQueueRepository(
                     .set(NOTES.PUBLIC_ID, post.publicId.value)
                     .set(NOTES.CONTENT_HTML, post.contentHtml)
                     .set(NOTES.PUBLISHED_AT, publishedAt)
+                    .set(NOTES.REQUEST_ID, post.requestId)
                     .returning(NOTES.ID)
                     .fetchOne(NOTES.ID),
             ) { "記録した投稿の id を引けない: ${post.publicId}" }
@@ -47,7 +59,7 @@ internal class SqliteDeliveryQueueRepository(
                 .set(DELIVERY_QUEUE.ENQUEUED_AT, publishedAt)
                 .execute()
         }
-        inboxes.size
+        EnqueueNoteResult.Enqueued(deliveries = inboxes.size)
     }
 
     override fun claim(

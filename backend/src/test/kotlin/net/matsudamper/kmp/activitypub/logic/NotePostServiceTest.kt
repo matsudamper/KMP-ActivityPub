@@ -32,7 +32,7 @@ class NotePostServiceTest {
     fun `投稿すると本文を HTML にしてフォロワーの inbox ごとに積む`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
 
-        val result = service.post(username = "user1", body = "<b>hello</b>\nworld")
+        val result = service.post(username = "user1", body = "<b>hello</b>\nworld", requestId = REQUEST_ID)
 
         val posted = assertIs<PostNoteResult.Posted>(result)
         assertTrue(posted.url.startsWith("https://$DOMAIN/"))
@@ -47,7 +47,7 @@ class NotePostServiceTest {
 
     @Test
     fun `空の本文は積まない`() {
-        assertEquals(PostNoteResult.EmptyBody, service.post(username = "user1", body = " \n "))
+        assertEquals(PostNoteResult.EmptyBody, service.post(username = "user1", body = " \n ", requestId = REQUEST_ID))
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
         assertEquals(0, enqueuedCount)
@@ -55,16 +55,28 @@ class NotePostServiceTest {
 
     @Test
     fun `長すぎる本文は積まない`() {
-        assertEquals(PostNoteResult.TooLong, service.post(username = "user1", body = "あ".repeat(NoteComposer.MAX_LENGTH + 1)))
+        assertEquals(PostNoteResult.TooLong, service.post(username = "user1", body = "あ".repeat(NoteComposer.MAX_LENGTH + 1), requestId = REQUEST_ID))
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
     }
 
     @Test
     fun `アクターとして扱えないアカウントでは積まない`() {
-        assertEquals(PostNoteResult.AccountNotFound, service.post(username = "other", body = "hello"))
+        assertEquals(PostNoteResult.AccountNotFound, service.post(username = "other", body = "hello", requestId = REQUEST_ID))
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
+    }
+
+    @Test
+    fun `同じ requestId で送り直されたら最初の投稿の URL を返して積み直さない`() {
+        followerRepository.deliveryInboxes += listOf(INBOX_A)
+
+        val first = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID))
+        val resent = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID))
+
+        assertEquals(first, resent)
+        assertEquals(1, deliveryQueueRepository.posts.size)
+        assertEquals(1, enqueuedCount)
     }
 
     private object OnlyUser1 : StoredActorNames {
@@ -78,5 +90,6 @@ class NotePostServiceTest {
         const val DOMAIN = "example.com"
         const val INBOX_A = "https://a.example/inbox"
         const val INBOX_B = "https://b.example/inbox"
+        const val REQUEST_ID = "request-1"
     }
 }

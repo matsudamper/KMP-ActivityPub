@@ -16,9 +16,9 @@ interface DeliveryQueueRepository {
      *
      * 宛先が無くても投稿は記録する。フォロワーがいない間の投稿も outbox には並ぶ
      *
-     * @return 積んだ配信の数。投稿したアカウントが無ければ null
+     * 同じアカウントで同じ [NotePost.requestId] の投稿が既にあれば、何も書かずにその投稿を返す
      */
-    fun enqueueNote(post: NotePost): Int?
+    fun enqueueNote(post: NotePost): EnqueueNoteResult
 
     /**
      * 送る時刻を過ぎた pending を古い順に delivering にして返す。attempts はここで増やす
@@ -63,11 +63,28 @@ interface DeliveryQueueRepository {
     fun recoverDelivering(now: Instant): Int
 }
 
+sealed interface EnqueueNoteResult {
+    /**
+     * @param deliveries 積んだ配信の数
+     */
+    data class Enqueued(
+        val deliveries: Int,
+    ) : EnqueueNoteResult
+
+    data class AlreadyPosted(
+        val publicId: PublicNoteId,
+    ) : EnqueueNoteResult
+
+    data object AccountNotFound : EnqueueNoteResult
+}
+
 /**
+ * @param requestId 画面が送信ごとに作る ID。応答を受け取れずに送り直されたときに同じ投稿だと分かる
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
  */
 data class NotePost(
     val username: String,
+    val requestId: String,
     val publicId: PublicNoteId,
     val contentHtml: String,
     val publishedAt: Instant,

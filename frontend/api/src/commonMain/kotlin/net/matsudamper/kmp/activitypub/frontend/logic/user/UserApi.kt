@@ -79,9 +79,12 @@ class UserApi(
         return UserProfileResult.Found(username = user.username)
     }
 
-    suspend fun postNote(body: String): UserPostNoteResult {
+    suspend fun postNote(
+        body: String,
+        requestId: String,
+    ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
-        val response = client.mutation(UserPostNoteMutation(body = body)).execute()
+        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
         val postNote = response.data?.user?.postNote ?: return UserPostNoteResult.Failure(response.failureMessage())
 

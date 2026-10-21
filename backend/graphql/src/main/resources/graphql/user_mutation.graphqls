@@ -10,8 +10,8 @@ type UserMutation {
     deletePassword: DeletePasswordResult! @lazy
     "セッションが無くても成功する"
     logout: Boolean! @lazy
-    "ログインしているアカウントで投稿し、フォロワーへの配信を積む"
-    postNote(body: String!): UserPostNoteResult! @lazy
+    "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
+    postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
 }
 
 input UserLoginQuery {

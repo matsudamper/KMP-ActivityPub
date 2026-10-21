@@ -18,5 +18,8 @@ internal class PostNoteSubmitter(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    suspend fun submit(body: String): UserPostNoteResult = scope.async { api.postNote(body = body) }.await()
+    suspend fun submit(
+        body: String,
+        requestId: String,
+    ): UserPostNoteResult = scope.async { api.postNote(body = body, requestId = requestId) }.await()
 }

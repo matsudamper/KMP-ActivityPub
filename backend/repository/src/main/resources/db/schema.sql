@@ -73,12 +73,16 @@ CREATE TABLE notes (
     public_id TEXT NOT NULL UNIQUE,
     -- サニタイズ済みの HTML
     content_html TEXT NOT NULL,
-    published_at TEXT NOT NULL
+    published_at TEXT NOT NULL,
+    -- 画面が送信ごとに作る ID。応答だけ失われて送り直されても 2 つ目を作らない
+    request_id TEXT
 );
 
 CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, public_id);
 
 CREATE INDEX notes_published_at ON notes (published_at, public_id);
+
+CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id);
 
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
