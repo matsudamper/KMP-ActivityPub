@@ -51,7 +51,7 @@ internal class SqliteAccountRepository(
         dsl
             .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT)
             .from(ACCOUNTS)
-            .where(ACCOUNTS.USERNAME.containsIgnoreCase(keyword))
+            .where(ACCOUNTS.USERNAME.containsIgnoreCase(keyword.lowercase()))
             .and(
                 if (afterUsername == null) {
                     DSL.noCondition()

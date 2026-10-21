@@ -112,6 +112,21 @@ class AccountRepositoryTest {
     }
 
     @Test
+    fun `ASCII 以外の大文字を含む検索語でも探せる`() {
+        TestSchema.applyTo(dbPath)
+        insertAccountRow("Älice")
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(
+                listOf("älice"),
+                repositories.accountRepository
+                    .searchByUsername(keyword = "Ä", afterUsername = null, limit = 10)
+                    .map { it.username },
+            )
+        }
+    }
+
+    @Test
     fun `指定した名前より後ろを件数まで探せる`() {
         TestSchema.applyTo(dbPath)
         listOf("user1", "user2", "user3", "user4").forEach { insertAccountRow(it) }
