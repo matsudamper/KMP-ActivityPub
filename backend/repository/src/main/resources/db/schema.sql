@@ -84,8 +84,8 @@ CREATE INDEX notes_published_at ON notes (published_at, public_id);
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     -- accept_follow: Follow への Accept / create_note: 投稿の Create。
-    -- 行の形は種別に依らないので、種別を足しても作り直さずに済む
-    kind TEXT NOT NULL CHECK (kind IN ('accept_follow', 'create_note')),
+    -- 行の形は種別に依らないので、種別を足しても作り直さずに済む。取りうる値は DeliveryQueueValues が持つ
+    kind TEXT NOT NULL,
     -- 署名するこちらのアカウント
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     -- accept_follow で、送れたときに成立させるフォローの相手。関係しない種別と、諦めた行では NULL
@@ -97,7 +97,7 @@ CREATE TABLE delivery_queue (
     -- 諦めた行は二度と送らないので NULL にする
     body TEXT,
     -- delivering のまま残った行は、送っている途中で落ちた分
-    state TEXT NOT NULL CHECK (state IN ('pending', 'delivering', 'failed')),
+    state TEXT NOT NULL,
     -- 送っている途中で落ちた分も数えるため、送り終えたときではなく取り出したときに増やす
     attempts INTEGER NOT NULL,
     -- failed では NULL

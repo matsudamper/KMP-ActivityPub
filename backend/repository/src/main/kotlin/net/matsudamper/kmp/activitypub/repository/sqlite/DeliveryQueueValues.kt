@@ -1,7 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 /**
- * delivery_queue の kind と state に入れる綴り。schema.sql の CHECK と揃える
+ * delivery_queue の kind と state に入れる綴り。DB の CHECK では縛らないので、取りうる値はここだけが持つ
  */
 internal object DeliveryQueueValues {
     const val KIND_ACCEPT_FOLLOW = "accept_follow"
