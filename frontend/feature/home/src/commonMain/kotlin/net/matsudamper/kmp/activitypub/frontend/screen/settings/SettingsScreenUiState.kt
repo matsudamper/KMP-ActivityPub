@@ -9,12 +9,11 @@ data class SettingsScreenUiState(
     val passkeyNameInputEnabled: Boolean,
     val addPasskeyButtonVisible: Boolean,
     val addPasskeyButtonEnabled: Boolean,
-    val passkeyMessage: PasskeyMessage?,
+    val passkeyUnavailableMessageVisible: Boolean,
     val deleteDialog: DeleteDialog?,
     val password: Password?,
     val passwordDeleteDialog: PasswordDeleteDialog?,
     val logoutButtonEnabled: Boolean,
-    val error: String?,
     val listener: Listener,
 ) {
     sealed interface PasskeyList {
@@ -37,11 +36,6 @@ data class SettingsScreenUiState(
         val listener: PasskeyItemListener,
     )
 
-    data class PasskeyMessage(
-        val text: String,
-        val isError: Boolean,
-    )
-
     data class DeleteDialog(
         val passkeyName: String,
         val deleteButtonEnabled: Boolean,
@@ -51,12 +45,6 @@ data class SettingsScreenUiState(
         val description: String,
         val deleteButtonVisible: Boolean,
         val deleteButtonEnabled: Boolean,
-        val message: PasswordMessage?,
-    )
-
-    data class PasswordMessage(
-        val text: String,
-        val isError: Boolean,
     )
 
     data class PasswordDeleteDialog(
