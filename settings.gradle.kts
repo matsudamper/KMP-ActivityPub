@@ -23,6 +23,15 @@ plugins {
 
 dependencyResolutionManagement {
     repositories {
+        // kotpub の正式版は Maven Central に出ないことがあるので、ここからだけ取得する
+        exclusiveContent {
+            forRepository {
+                maven { url = uri("https://maven.matsudamper.net/releases") }
+            }
+            filter {
+                includeGroup("net.matsudamper.kotpub")
+            }
+        }
         mavenCentral()
         google()
     }
