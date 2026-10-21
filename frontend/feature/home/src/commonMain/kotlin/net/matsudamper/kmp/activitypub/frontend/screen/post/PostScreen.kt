@@ -11,15 +11,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -31,6 +36,8 @@ internal fun PostScreen(
 ) {
     val viewModel = koinViewModel<PostScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -38,20 +45,26 @@ internal fun PostScreen(
                 override fun navigateBack() {
                     navigator.back()
                 }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
     }
 
-    PostContent(uiState = uiState)
+    PostContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
 @Composable
 internal fun PostContent(
     uiState: PostScreenUiState,
+    snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
@@ -85,16 +98,9 @@ internal fun PostContent(
                 inputId = POST_BODY_INPUT_ID,
                 inputName = "body",
                 enabled = uiState.inputEnabled,
-                hasError = uiState.error != null,
+                hasError = uiState.inputHasError,
                 modifier = Modifier.fillMaxWidth(),
             )
-            val error = uiState.error
-            if (error != null) {
-                Text(
-                    text = error,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
             Button(
                 onClick = uiState.listener::onClickPost,
                 enabled = uiState.postButtonEnabled,

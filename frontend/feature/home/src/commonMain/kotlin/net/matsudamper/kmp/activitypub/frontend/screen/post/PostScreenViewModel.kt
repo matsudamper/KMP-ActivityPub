@@ -75,10 +75,10 @@ internal class PostScreenViewModel(
                 try {
                     when (val result = api.postNote(body = state.body)) {
                         UserPostNoteResult.Success -> null
-                        UserPostNoteResult.NotLoggedIn -> "ログインしていない"
-                        UserPostNoteResult.EmptyBody -> "本文が空"
-                        UserPostNoteResult.TooLong -> "本文が長すぎる"
-                        UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていない"
+                        UserPostNoteResult.NotLoggedIn -> "ログインしていません"
+                        UserPostNoteResult.EmptyBody -> "本文が空です"
+                        UserPostNoteResult.TooLong -> "本文が長すぎます"
+                        UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
                         is UserPostNoteResult.Failure -> result.message
                     }
                 } finally {
@@ -86,6 +86,7 @@ internal class PostScreenViewModel(
                 }
             if (error != null) {
                 viewModelStateFlow.update { it.copy(error = error) }
+                events.send { it.showMessage(error) }
                 return@launch
             }
             savedStateHandle[BODY_KEY] = ""
@@ -100,7 +101,7 @@ internal class PostScreenViewModel(
     ): PostScreenUiState =
         PostScreenUiState(
             body = viewModelState.body,
-            error = viewModelState.error,
+            inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
             postButtonEnabled = viewModelState.postable(),
             listener = listener,
@@ -116,6 +117,8 @@ internal class PostScreenViewModel(
 
     interface Event {
         fun navigateBack()
+
+        fun showMessage(message: String)
     }
 }
 

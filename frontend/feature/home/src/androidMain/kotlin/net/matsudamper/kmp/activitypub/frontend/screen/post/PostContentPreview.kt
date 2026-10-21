@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -11,11 +12,12 @@ private fun PostContentPreview() {
         PostContent(
             uiState = PostScreenUiState(
                 body = "Kotlin 2.4 がリリースされました",
-                error = null,
+                inputHasError = false,
                 inputEnabled = true,
                 postButtonEnabled = true,
                 listener = AndroidPreviewPostListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
