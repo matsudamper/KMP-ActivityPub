@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginCheckFailedContent
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateStatusContent
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewModel
@@ -59,14 +60,12 @@ fun HomeNavigationHost(
                             LoginRequestContent(uiState = loginGateUiState, navigator = navigator)
                         }
 
-                        LoginGateUiState.Content.Loading,
-                        is LoginGateUiState.Content.Error,
-                        -> {
-                            // 接続先を直せるのはログイン画面だけなので、確認に失敗しても移れるようにする
-                            LoginGateStatusContent(
-                                uiState = loginGateUiState,
-                                onClickOpenLogin = { navigator.replaceAll(Screen.Login) },
-                            )
+                        LoginGateUiState.Content.Loading -> {
+                            LoginGateStatusContent(uiState = loginGateUiState)
+                        }
+
+                        is LoginGateUiState.Content.Error -> {
+                            LoginCheckFailedContent(uiState = loginGateUiState, navigator = navigator)
                         }
                     }
                 } else {
