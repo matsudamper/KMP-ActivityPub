@@ -30,7 +30,12 @@ class PasskeyServiceTest {
             clock = Clock.fixed(Instant.parse("2026-09-01T00:00:00Z"), ZoneOffset.UTC),
         )
 
-    private val account = Account(id = AccountId(1), username = "user1", createdAt = Instant.EPOCH)
+    private val account =
+        Account(
+            id = repositories.accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "type"),
+            username = "user1",
+            createdAt = Instant.EPOCH,
+        )
     private val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
 
     @Test

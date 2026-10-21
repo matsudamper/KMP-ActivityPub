@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 import net.matsudamper.kmp.activitypub.passkey.PasskeyVerificationException
 import net.matsudamper.kmp.activitypub.passkey.PasskeyVerifier
 import net.matsudamper.kmp.activitypub.repository.Account
+import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.session.PasskeyChallengePurpose
@@ -86,13 +87,10 @@ class PasskeyService(
 
     fun passkeys(accountId: AccountId): List<PasskeySummary> = passkeyRepository.passkeys(accountId)
 
-    /**
-     * @return [accountId] のパスキーが無ければ false
-     */
     fun delete(
         accountId: AccountId,
         credentialId: PasskeyCredentialId,
-    ): Boolean = passkeyRepository.delete(accountId = accountId, credentialId = credentialId)
+    ): PasskeyDeleteResult = passkeyRepository.delete(accountId = accountId, credentialId = credentialId)
 
     /**
      * @param credentialJson RegistrationResponseJSON

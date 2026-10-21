@@ -2,12 +2,14 @@ package net.matsudamper.kmp.activitypub.frontend.logic.passkey
 
 import com.apollographql.apollo.api.ApolloResponse
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeletePasskeyMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.DeletePasswordMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyLoginOptionsMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.PasskeyRegistrationOptionsMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.RegisterPasskeyMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SettingsScreenPasskeysQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeletePasskeyFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeletePasswordFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPasskeyLoginFailure
@@ -85,8 +87,12 @@ class PasskeyApi(
         val data = response.data
         if (response.exception != null || response.hasErrors() || data == null) return PasskeyListResult.Failure(response.failureMessage())
         val passkeys = data.passkeys ?: return PasskeyListResult.NotLoggedIn
+        val hasPassword = data.hasPassword ?: return PasskeyListResult.NotLoggedIn
 
-        return PasskeyListResult.Success(passkeys.map { RegisteredPasskey(id = it.id, name = it.name) })
+        return PasskeyListResult.Success(
+            passkeys = passkeys.map { RegisteredPasskey(id = it.id, name = it.name) },
+            hasPassword = hasPassword,
+        )
     }
 
     suspend fun delete(id: String): PasskeyDeleteResult {
@@ -99,7 +105,22 @@ class PasskeyApi(
             null -> PasskeyDeleteResult.Success
             DeletePasskeyFailure.NOT_LOGGED_IN -> PasskeyDeleteResult.NotLoggedIn
             DeletePasskeyFailure.NOT_FOUND -> PasskeyDeleteResult.NotFound
+            DeletePasskeyFailure.LAST_LOGIN_METHOD -> PasskeyDeleteResult.LastLoginMethod
             DeletePasskeyFailure.UNKNOWN__ -> PasskeyDeleteResult.Failure("Unknown")
+        }
+    }
+
+    suspend fun deletePassword(): PasswordDeleteResult {
+        val client = clients.client.value ?: return PasswordDeleteResult.Failure(NOT_CONFIGURED_MESSAGE)
+        val response = client.mutation(DeletePasswordMutation()).execute()
+        val delete = response.data?.user?.deletePassword
+        if (response.exception != null || response.hasErrors() || delete == null) return PasswordDeleteResult.Failure(response.failureMessage())
+
+        return when (delete.failure) {
+            null -> PasswordDeleteResult.Success
+            DeletePasswordFailure.NOT_LOGGED_IN -> PasswordDeleteResult.NotLoggedIn
+            DeletePasswordFailure.NO_PASSKEY -> PasswordDeleteResult.NoPasskey
+            DeletePasswordFailure.UNKNOWN__ -> PasswordDeleteResult.Failure("Unknown")
         }
     }
 

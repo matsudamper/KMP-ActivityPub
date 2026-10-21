@@ -6,6 +6,8 @@ type UserMutation {
     passkeyRegistrationOptions: String @lazy
     registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
     deletePasskey(id: PasskeyCredentialId!): DeletePasskeyResult! @lazy
+    "パスワードが既に無くても成功する"
+    deletePassword: DeletePasswordResult! @lazy
     "セッションが無くても成功する"
     logout: Boolean! @lazy
     "ログインしているアカウントで投稿し、フォロワーへの配信を積む"
@@ -58,6 +60,18 @@ enum DeletePasskeyFailure {
     NOT_LOGGED_IN
     "ログイン中のアカウントのパスキーではない"
     NOT_FOUND
+    "パスワードが無く、最後のパスキーなので消すとログインできなくなる"
+    LAST_LOGIN_METHOD
+}
+
+type DeletePasswordResult {
+    failure: DeletePasswordFailure
+}
+
+enum DeletePasswordFailure {
+    NOT_LOGGED_IN
+    "パスキーが無いので消すとログインできなくなる"
+    NO_PASSKEY
 }
 
 type UserPostNoteResult {

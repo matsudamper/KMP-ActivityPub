@@ -96,9 +96,44 @@ class PasskeyRepositoryTest {
                 createdAt = NOW,
             )
 
-            assertFalse(repositories.passkeyRepository.delete(accountId = AccountId(accountId.value + 1), credentialId = PasskeyCredentialId("credential-1")))
-            assertTrue(repositories.passkeyRepository.delete(accountId = accountId, credentialId = PasskeyCredentialId("credential-1")))
+            assertEquals(
+                PasskeyDeleteResult.NotFound,
+                repositories.passkeyRepository.delete(accountId = AccountId(accountId.value + 1), credentialId = PasskeyCredentialId("credential-1")),
+            )
+            assertEquals(PasskeyDeleteResult.Deleted, repositories.passkeyRepository.delete(accountId = accountId, credentialId = PasskeyCredentialId("credential-1")))
             assertNull(repositories.passkeyRepository.findByCredentialId(PasskeyCredentialId("credential-1")))
+        }
+    }
+
+    @Test
+    fun `パスキーがあればパスワードを消せる`() {
+        withRepositories { repositories, accountId ->
+            addPasskey(repositories, accountId, PasskeyCredentialId("credential-1"))
+
+            assertTrue(repositories.accountRepository.deletePasswordIfPasskeyExists(accountId))
+            assertFalse(repositories.accountRepository.hasPassword(accountId))
+            assertNull(repositories.accountRepository.findCredential("user1"))
+        }
+    }
+
+    @Test
+    fun `パスキーが無ければパスワードは消せない`() {
+        withRepositories { repositories, accountId ->
+            assertFalse(repositories.accountRepository.deletePasswordIfPasskeyExists(accountId))
+            assertTrue(repositories.accountRepository.hasPassword(accountId))
+        }
+    }
+
+    @Test
+    fun `パスワードが無ければ最後のパスキーは消せない`() {
+        withRepositories { repositories, accountId ->
+            addPasskey(repositories, accountId, PasskeyCredentialId("credential-1"))
+            addPasskey(repositories, accountId, PasskeyCredentialId("credential-2"))
+            repositories.accountRepository.deletePasswordIfPasskeyExists(accountId)
+
+            assertEquals(PasskeyDeleteResult.Deleted, repositories.passkeyRepository.delete(accountId = accountId, credentialId = PasskeyCredentialId("credential-1")))
+            assertEquals(PasskeyDeleteResult.LastLoginMethod, repositories.passkeyRepository.delete(accountId = accountId, credentialId = PasskeyCredentialId("credential-2")))
+            assertEquals(listOf(PasskeyCredentialId("credential-2")), repositories.passkeyRepository.passkeys(accountId).map { it.credentialId })
         }
     }
 
@@ -144,6 +179,21 @@ class PasskeyRepositoryTest {
         withRepositories { repositories, _ ->
             assertNull(repositories.passkeyRepository.findByCredentialId(PasskeyCredentialId("unknown")))
         }
+    }
+
+    private fun addPasskey(
+        repositories: Repositories,
+        accountId: AccountId,
+        credentialId: PasskeyCredentialId,
+    ) {
+        repositories.passkeyRepository.add(
+            accountId = accountId,
+            credentialId = credentialId,
+            attestedCredentialData = byteArrayOf(1),
+            signCount = 0,
+            name = "端末",
+            createdAt = NOW,
+        )
     }
 
     private fun withRepositories(block: (Repositories, AccountId) -> Unit) {

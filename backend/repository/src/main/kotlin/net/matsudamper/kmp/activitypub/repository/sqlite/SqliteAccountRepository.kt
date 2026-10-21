@@ -6,7 +6,9 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_KEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEYS
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import org.jooq.impl.DSL
 
 internal class SqliteAccountRepository(
     private val jooq: SqliteJooq,
@@ -84,5 +86,25 @@ internal class SqliteAccountRepository(
             .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .fetchOne()
             ?.get(ACCOUNT_KEYS.PRIVATE_KEY_PEM)
+    }
+
+    override fun hasPassword(id: AccountId): Boolean = jooq.withConnection { dsl ->
+        dsl.fetchExists(ACCOUNT_PASSWORDS, ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(id.value))
+    }
+
+    override fun deletePasswordIfPasskeyExists(id: AccountId): Boolean = jooq.withConnection { dsl ->
+        // 確認と削除を 1 文にし、並んだパスキー削除と合わせて両方消えることを防ぐ
+        dsl
+            .deleteFrom(ACCOUNT_PASSWORDS)
+            .where(ACCOUNT_PASSWORDS.ACCOUNT_ID.eq(id.value))
+            .and(
+                DSL.exists(
+                    DSL
+                        .selectOne()
+                        .from(PASSKEYS)
+                        .where(PASSKEYS.ACCOUNT_ID.eq(id.value)),
+                ),
+            )
+            .execute() == 1
     }
 }

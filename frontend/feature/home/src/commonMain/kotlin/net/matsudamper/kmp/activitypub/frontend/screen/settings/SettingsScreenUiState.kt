@@ -11,6 +11,8 @@ data class SettingsScreenUiState(
     val addPasskeyButtonEnabled: Boolean,
     val passkeyUnavailableMessageVisible: Boolean,
     val deleteDialog: DeleteDialog?,
+    val password: Password?,
+    val passwordDeleteDialog: PasswordDeleteDialog?,
     val logoutButtonEnabled: Boolean,
     val listener: Listener,
 ) {
@@ -39,6 +41,16 @@ data class SettingsScreenUiState(
         val deleteButtonEnabled: Boolean,
     )
 
+    data class Password(
+        val description: String,
+        val deleteButtonVisible: Boolean,
+        val deleteButtonEnabled: Boolean,
+    )
+
+    data class PasswordDeleteDialog(
+        val deleteButtonEnabled: Boolean,
+    )
+
     @Immutable
     interface PasskeyItemListener {
         fun onClickDelete()
@@ -53,6 +65,12 @@ data class SettingsScreenUiState(
         fun onClickConfirmDelete()
 
         fun onDismissDeleteDialog()
+
+        fun onClickDeletePassword()
+
+        fun onClickConfirmDeletePassword()
+
+        fun onDismissDeletePasswordDialog()
 
         fun onClickBack()
 
