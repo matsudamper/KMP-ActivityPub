@@ -15,8 +15,7 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql /path/to/k
 
 SQLite の CHECK はテーブル定義の一部で、`ALTER TABLE` では変えられない。sqlite3def もテーブルを作り直すところまではしないので、`schema.sql` の CHECK を書き換えても既存の DB には反映されず、新しい値の INSERT が失敗する。
 
-既存の DB に残った CHECK を外すには、テーブルを作り直す（サーバーを止めてバックアップしてから）。インデックスは名前を変えた古いテーブルに同じ名前で付いたまま残るので、古いテーブルを消してから作る。
-先に sqlite3def で `schema.sql` を適用しておく。足りない列（`note_id` など）や参照先のテーブルが揃っていないと、INSERT の SELECT が失敗する。`delivery_queue` の例:
+既存の DB に残った CHECK を外すには、テーブルを作り直す（サーバーを止めてバックアップしてから）。インデックスは名前を変えた古いテーブルに同じ名前で付いたまま残るので、古いテーブルを消してから作る。`delivery_queue` の例:
 
 ```sql
 PRAGMA foreign_keys = OFF;
