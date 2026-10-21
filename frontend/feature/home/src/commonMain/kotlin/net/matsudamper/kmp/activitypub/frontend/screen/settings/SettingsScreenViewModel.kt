@@ -40,9 +40,7 @@ internal class SettingsScreenViewModel(
                 registering = false,
                 deleteTarget = null,
                 deleting = false,
-                outcome = null,
                 loggingOut = false,
-                error = null,
             ),
         )
 
@@ -106,12 +104,7 @@ internal class SettingsScreenViewModel(
         val state = viewModelStateFlow.value
         if (state.addable().not()) return
 
-        viewModelStateFlow.update {
-            it.copy(
-                registering = true,
-                outcome = null,
-            )
-        }
+        viewModelStateFlow.update { it.copy(registering = true) }
         viewModelScope.launch {
             val outcome =
                 try {
@@ -124,7 +117,7 @@ internal class SettingsScreenViewModel(
                 viewModelStateFlow.update { it.copy(passkeyName = "") }
                 loadPasskeys()
             }
-            viewModelStateFlow.update { it.copy(outcome = outcome) }
+            showOutcome(outcome)
         }
     }
 
@@ -156,7 +149,7 @@ internal class SettingsScreenViewModel(
 
     private fun requestDelete(passkey: RegisteredPasskey) {
         if (viewModelStateFlow.value.deleting) return
-        viewModelStateFlow.update { it.copy(deleteTarget = passkey, outcome = null) }
+        viewModelStateFlow.update { it.copy(deleteTarget = passkey) }
     }
 
     private fun deletePasskey() {
@@ -181,19 +174,25 @@ internal class SettingsScreenViewModel(
                     viewModelStateFlow.update { it.copy(deleting = false, deleteTarget = null) }
                 }
             if (outcome == Outcome.Deleted) loadPasskeys()
-            viewModelStateFlow.update { it.copy(outcome = outcome) }
+            showOutcome(outcome)
         }
+    }
+
+    private suspend fun showOutcome(outcome: Outcome?) {
+        val message =
+            when (outcome) {
+                null -> return
+                Outcome.Added -> "パスキーを追加した"
+                Outcome.Deleted -> "パスキーを削除した"
+                is Outcome.Error -> outcome.message
+            }
+        events.send { it.showMessage(message) }
     }
 
     private fun logout() {
         if (viewModelStateFlow.value.loggingOut) return
 
-        viewModelStateFlow.update {
-            it.copy(
-                loggingOut = true,
-                error = null,
-            )
-        }
+        viewModelStateFlow.update { it.copy(loggingOut = true) }
         viewModelScope.launch {
             val error =
                 try {
@@ -204,9 +203,10 @@ internal class SettingsScreenViewModel(
                 } finally {
                     viewModelStateFlow.update { it.copy(loggingOut = false) }
                 }
-            viewModelStateFlow.update { it.copy(error = error) }
             if (error == null) {
                 events.send { it.loggedOut() }
+            } else {
+                events.send { it.showMessage(error) }
             }
         }
     }
@@ -251,22 +251,7 @@ internal class SettingsScreenViewModel(
             passkeyNameInputEnabled = busy.not(),
             addPasskeyButtonVisible = passkeyAuthenticator.available,
             addPasskeyButtonEnabled = viewModelState.addable(),
-            passkeyMessage =
-            when (val outcome = viewModelState.outcome) {
-                null -> {
-                    if (passkeyAuthenticator.available) {
-                        null
-                    } else {
-                        SettingsScreenUiState.PasskeyMessage(text = "この端末ではパスキーを追加できない", isError = false)
-                    }
-                }
-
-                Outcome.Added -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを追加した", isError = false)
-
-                Outcome.Deleted -> SettingsScreenUiState.PasskeyMessage(text = "パスキーを削除した", isError = false)
-
-                is Outcome.Error -> SettingsScreenUiState.PasskeyMessage(text = outcome.message, isError = true)
-            },
+            passkeyUnavailableMessageVisible = passkeyAuthenticator.available.not(),
             deleteDialog =
             viewModelState.deleteTarget?.let { target ->
                 SettingsScreenUiState.DeleteDialog(
@@ -275,7 +260,6 @@ internal class SettingsScreenViewModel(
                 )
             },
             logoutButtonEnabled = viewModelState.loggingOut.not(),
-            error = viewModelState.error,
             listener = listener,
         )
     }
@@ -292,9 +276,7 @@ internal class SettingsScreenViewModel(
         val registering: Boolean,
         val deleteTarget: RegisteredPasskey?,
         val deleting: Boolean,
-        val outcome: Outcome?,
         val loggingOut: Boolean,
-        val error: String?,
     )
 
     sealed interface PasskeysState {
@@ -323,6 +305,8 @@ internal class SettingsScreenViewModel(
         fun navigateBack()
 
         fun loggedOut()
+
+        fun showMessage(message: String)
     }
 }
 
