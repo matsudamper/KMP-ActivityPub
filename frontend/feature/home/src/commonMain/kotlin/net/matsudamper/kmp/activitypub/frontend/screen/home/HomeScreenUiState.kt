@@ -41,6 +41,7 @@ data class HomeScreenUiState(
     }
 
     data class SearchAccount(
+        val avatarInitial: String,
         val displayName: String,
         val acct: String,
         val listener: SearchAccountListener,

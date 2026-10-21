@@ -48,11 +48,13 @@ private fun HomeSearchContentPreview() {
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(
                             HomeScreenUiState.SearchAccount(
+                                avatarInitial = "K",
                                 displayName = "kotlin",
                                 acct = "@kotlin",
                                 listener = AndroidPreviewSearchAccountListener,
                             ),
                             HomeScreenUiState.SearchAccount(
+                                avatarInitial = "K",
                                 displayName = "kotlinweekly",
                                 acct = "@kotlinweekly",
                                 listener = AndroidPreviewSearchAccountListener,

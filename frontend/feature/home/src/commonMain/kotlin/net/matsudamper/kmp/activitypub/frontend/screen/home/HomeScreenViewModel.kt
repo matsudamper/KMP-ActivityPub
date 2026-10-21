@@ -125,6 +125,7 @@ internal class HomeScreenViewModel(
             is SearchState.Loaded -> HomeScreenUiState.SearchResult.Loaded(
                 accounts = searchState.usernames.map { username ->
                     HomeScreenUiState.SearchAccount(
+                        avatarInitial = username.take(1).uppercase(),
                         displayName = username,
                         acct = "@$username",
                         listener = object : HomeScreenUiState.SearchAccountListener {
