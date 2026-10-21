@@ -43,6 +43,38 @@ object AppIcons {
             ).build()
     }
 
+    val Home: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Home",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
+    val Search: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Search",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes(
+                    "M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5 5.91,16 9.5,16" +
+                        "c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5z" +
+                        "M9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z",
+                ),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val Settings: ImageVector by lazy {
         ImageVector
             .Builder(
