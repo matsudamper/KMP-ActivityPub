@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.Repositories
@@ -13,17 +14,20 @@ import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 
 internal class FakeRepositories : Repositories {
-    override val accountRepository: FakeAccountRepository = FakeAccountRepository()
+    override val accountRepository: FakeAccountRepository = FakeAccountRepository(hasPasskey = { passkeyRepository.passkeys(it).isNotEmpty() })
     override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository()
 
-    override val passkeyRepository: PasskeyRepository = FakePasskeyRepository()
+    override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })
 
     override fun close() = Unit
 }
 
-internal class FakeAccountRepository : AccountRepository {
+internal class FakeAccountRepository(
+    private val hasPasskey: (AccountId) -> Boolean,
+) : AccountRepository {
     private val rows = mutableListOf<AccountCredential>()
+    private val passwordDeletedIds = mutableSetOf<AccountId>()
     private val publicKeyPems = mutableMapOf<AccountId, String>()
 
     fun add(
@@ -47,7 +51,7 @@ internal class FakeAccountRepository : AccountRepository {
         rows.firstOrNull { it.id == id }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
 
     override fun findByUsername(username: String): Account? =
-        findCredential(username)?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
 
     override fun searchByUsername(
         keyword: String,
@@ -62,14 +66,25 @@ internal class FakeAccountRepository : AccountRepository {
             .map { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
 
     override fun findCredential(username: String): AccountCredential? =
-        rows.firstOrNull { it.username.lowercase() == username.lowercase() }
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.takeIf { it.id !in passwordDeletedIds }
 
-    override fun findPublicKeyPem(username: String): String? = findCredential(username)?.let { publicKeyPems[it.id] }
+    override fun findPublicKeyPem(username: String): String? =
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { publicKeyPems[it.id] }
 
     override fun findPrivateKeyPem(username: String): String? = null
+
+    override fun hasPassword(id: AccountId): Boolean = rows.any { it.id == id } && id !in passwordDeletedIds
+
+    override fun deletePasswordIfPasskeyExists(id: AccountId): Boolean {
+        if (hasPassword(id).not() || hasPasskey(id).not()) return false
+        passwordDeletedIds += id
+        return true
+    }
 }
 
-private class FakePasskeyRepository : PasskeyRepository {
+private class FakePasskeyRepository(
+    private val hasPassword: (AccountId) -> Boolean,
+) : PasskeyRepository {
     private val userHandles = mutableMapOf<AccountId, PasskeyUserHandle>()
     private val passkeys = mutableMapOf<PasskeyCredentialId, StoredPasskey>()
     private val names = mutableMapOf<PasskeyCredentialId, String>()
@@ -102,11 +117,12 @@ private class FakePasskeyRepository : PasskeyRepository {
     override fun delete(
         accountId: AccountId,
         credentialId: PasskeyCredentialId,
-    ): Boolean {
-        if (passkeys[credentialId]?.accountId != accountId) return false
+    ): PasskeyDeleteResult {
+        if (passkeys[credentialId]?.accountId != accountId) return PasskeyDeleteResult.NotFound
+        if (hasPassword(accountId).not() && passkeys(accountId).size <= 1) return PasskeyDeleteResult.LastLoginMethod
         passkeys.remove(credentialId)
         names.remove(credentialId)
-        return true
+        return PasskeyDeleteResult.Deleted
     }
 
     override fun findByCredentialId(credentialId: PasskeyCredentialId): StoredPasskey? = passkeys[credentialId]

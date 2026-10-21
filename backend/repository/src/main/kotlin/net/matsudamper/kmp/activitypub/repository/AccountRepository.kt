@@ -25,6 +25,15 @@ interface AccountRepository {
     fun findPublicKeyPem(username: String): String?
 
     fun findPrivateKeyPem(username: String): String?
+
+    fun hasPassword(id: AccountId): Boolean
+
+    /**
+     * パスキーが無いとログインできなくなるので、パスキーがあるときだけ消す
+     *
+     * @return パスキーかパスワードが無ければ消さずに false
+     */
+    fun deletePasswordIfPasskeyExists(id: AccountId): Boolean
 }
 
 data class Account(

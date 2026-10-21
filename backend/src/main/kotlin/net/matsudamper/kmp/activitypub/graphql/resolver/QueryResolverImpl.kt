@@ -38,6 +38,13 @@ class QueryResolverImpl : QueryResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<List<QlRegisteredPasskey>?>(passkeys).build())
     }
 
+    override fun hasPassword(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<Boolean?>> {
+        val accountService = GraphQlEngine.diContainer(env).accountService
+        val hasPassword = GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountService.hasPassword(it) }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<Boolean?>(hasPassword).build())
+    }
+
     override fun user(
         username: String,
         env: DataFetchingEnvironment,
