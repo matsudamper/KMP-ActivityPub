@@ -19,11 +19,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.FormSubmitHandler
@@ -40,6 +42,7 @@ internal fun LoginScreen(
     val viewModel = koinViewModel<LoginScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -47,13 +50,12 @@ internal fun LoginScreen(
                 override fun loggedIn() {
                     navigator.replaceAll(Screen.Home)
                 }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
-    }
-    // 送信のたびに null へ戻るので、同じ文言の失敗が続いても出し直される
-    LaunchedEffect(uiState.error, snackbarHostState) {
-        val error = uiState.error ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(error)
     }
 
     LoginContent(uiState = uiState, serverSettingUiState = serverSettingUiState, snackbarHostState = snackbarHostState)

@@ -113,9 +113,10 @@ internal class LoginScreenViewModel(
                 } finally {
                     viewModelStateFlow.update { it.copy(submitting = false) }
                 }
-            viewModelStateFlow.update { it.copy(error = error) }
             if (error == null) {
                 events.send { it.loggedIn() }
+            } else {
+                showError(error)
             }
         }
     }
@@ -139,9 +140,14 @@ internal class LoginScreenViewModel(
             when (result) {
                 PasskeyLoginOutcome.Success -> events.send { it.loggedIn() }
                 PasskeyLoginOutcome.Cancelled -> Unit
-                is PasskeyLoginOutcome.Error -> viewModelStateFlow.update { it.copy(error = result.message) }
+                is PasskeyLoginOutcome.Error -> showError(result.message)
             }
         }
+    }
+
+    private suspend fun showError(message: String) {
+        viewModelStateFlow.update { it.copy(error = message) }
+        events.send { it.showMessage(message) }
     }
 
     private suspend fun authenticateWithPasskey(): PasskeyLoginOutcome {
@@ -206,6 +212,8 @@ internal class LoginScreenViewModel(
 
     interface Event {
         fun loggedIn()
+
+        fun showMessage(message: String)
     }
 }
 
