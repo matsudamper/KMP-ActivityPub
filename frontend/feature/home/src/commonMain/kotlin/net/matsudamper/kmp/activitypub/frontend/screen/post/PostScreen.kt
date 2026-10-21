@@ -10,7 +10,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,11 +49,10 @@ internal fun PostScreen(
 internal fun PostContent(
     uiState: PostScreenUiState,
 ) {
-    Surface(
+    Scaffold(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Column {
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -73,34 +72,35 @@ internal fun PostContent(
                     fontWeight = FontWeight.Bold,
                 )
             }
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                MultilineTextField(
-                    value = uiState.body,
-                    onValueChange = uiState.listener::onBodyChanged,
-                    label = "今なにしてる？",
-                    inputId = POST_BODY_INPUT_ID,
-                    inputName = "body",
-                    enabled = uiState.inputEnabled,
-                    hasError = uiState.error != null,
-                    modifier = Modifier.fillMaxWidth(),
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(innerPadding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MultilineTextField(
+                value = uiState.body,
+                onValueChange = uiState.listener::onBodyChanged,
+                label = "今なにしてる？",
+                inputId = POST_BODY_INPUT_ID,
+                inputName = "body",
+                enabled = uiState.inputEnabled,
+                hasError = uiState.error != null,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val error = uiState.error
+            if (error != null) {
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
                 )
-                val error = uiState.error
-                if (error != null) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Button(
-                    onClick = uiState.listener::onClickPost,
-                    enabled = uiState.postButtonEnabled,
-                    modifier = Modifier.align(Alignment.End),
-                ) {
-                    Text("投稿")
-                }
+            }
+            Button(
+                onClick = uiState.listener::onClickPost,
+                enabled = uiState.postButtonEnabled,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text("投稿")
             }
         }
     }

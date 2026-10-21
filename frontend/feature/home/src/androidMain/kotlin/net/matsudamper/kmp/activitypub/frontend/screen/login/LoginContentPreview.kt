@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.login
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -21,6 +22,7 @@ private fun LoginContentPreview() {
                 listener = AndroidPreviewLoginListener,
             ),
             serverSettingUiState = null,
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -36,6 +38,7 @@ private fun LoginContentServerSettingPreview() {
                 dialog = null,
                 listener = AndroidPreviewServerSettingListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -51,6 +54,7 @@ private fun LoginContentServerSettingDialogPreview() {
                 dialog = previewServerSettingDialog,
                 listener = AndroidPreviewServerSettingListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -61,10 +65,11 @@ private fun LoginContentErrorPreview() {
     MaterialTheme {
         LoginContent(
             uiState = previewLoginUiState.copy(
-                error = "ユーザー名かパスワードが違う",
+                error = "ユーザー名かパスワードが違います",
                 inputHasError = true,
             ),
             serverSettingUiState = null,
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
