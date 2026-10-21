@@ -62,7 +62,11 @@ fun HomeNavigationHost(
                         LoginGateUiState.Content.Loading,
                         is LoginGateUiState.Content.Error,
                         -> {
-                            LoginGateStatusContent(uiState = loginGateUiState)
+                            // 接続先を直せるのはログイン画面だけなので、確認に失敗しても移れるようにする
+                            LoginGateStatusContent(
+                                uiState = loginGateUiState,
+                                onClickOpenLogin = { navigator.replaceAll(Screen.Login) },
+                            )
                         }
                     }
                 } else {
