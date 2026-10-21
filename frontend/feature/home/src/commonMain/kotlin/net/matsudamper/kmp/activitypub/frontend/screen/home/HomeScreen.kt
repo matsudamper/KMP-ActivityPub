@@ -27,6 +27,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -147,6 +148,8 @@ internal fun HomeContent(
             HomeScreenUiState.Tab.Home -> {
                 TimelineTabContent(
                     timelineItems = uiState.timelineItems,
+                    refreshing = uiState.timelineRefreshing,
+                    listener = uiState.listener,
                     modifier = contentModifier,
                 )
             }
@@ -165,12 +168,20 @@ internal fun HomeContent(
 @Composable
 private fun TimelineTabContent(
     timelineItems: List<HomeScreenUiState.TimelineItem>,
+    refreshing: Boolean,
+    listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(modifier = modifier) {
-        items(timelineItems) { item ->
-            TimelineItem(item = item)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = listener::onRefreshTimeline,
+        modifier = modifier,
+    ) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(timelineItems) { item ->
+                TimelineItem(item = item)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
         }
     }
 }

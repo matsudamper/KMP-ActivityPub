@@ -30,6 +30,7 @@ internal class HomeScreenViewModel(
             HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = createDummyTimelineItems(),
+                timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -49,6 +50,9 @@ internal class HomeScreenViewModel(
 
                     override fun onClickTab(tab: HomeScreenUiState.Tab) {
                         mutableUiStateFlow.update { it.copy(selectedTab = tab) }
+                    }
+
+                    override fun onRefreshTimeline() {
                     }
 
                     override fun onSearchQueryChanged(query: String) {

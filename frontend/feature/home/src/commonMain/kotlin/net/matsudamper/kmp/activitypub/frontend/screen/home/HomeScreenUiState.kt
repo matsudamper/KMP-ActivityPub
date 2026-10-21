@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 data class HomeScreenUiState(
     val selectedTab: Tab,
     val timelineItems: List<TimelineItem>,
+    val timelineRefreshing: Boolean,
     val search: Search,
     val listener: Listener,
 ) {
@@ -55,6 +56,8 @@ data class HomeScreenUiState(
         fun onClickSettings()
 
         fun onClickTab(tab: Tab)
+
+        fun onRefreshTimeline()
 
         fun onSearchQueryChanged(query: String)
 
