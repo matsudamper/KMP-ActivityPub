@@ -198,7 +198,8 @@ internal class SettingsScreenViewModel(
                 } finally {
                     viewModelStateFlow.update { it.copy(deleting = false, deleteTarget = null) }
                 }
-            if (outcome == Outcome.Deleted) loadPasskeys()
+            // 失敗でも、別の端末でパスワードやパスキーが変わっていれば表示が古いままになる
+            loadPasskeys()
             viewModelStateFlow.update { it.copy(outcome = outcome) }
         }
     }
