@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -18,6 +21,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,6 +55,10 @@ internal fun HomeScreen(
 
                 override fun navigateToSettings() {
                     navigator.navigate(Screen.Settings)
+                }
+
+                override fun navigateToUserProfile(username: String) {
+                    navigator.navigate(Screen.UserProfile(username = username))
                 }
             },
         )
@@ -173,18 +181,42 @@ private fun SearchTabContent(
             hasError = false,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        if (search.accounts.isEmpty()) {
-            Text(
-                text = "検索結果はありません",
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(search.accounts) { account ->
-                    SearchAccountItem(account = account)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        when (val result = search.result) {
+            HomeScreenUiState.SearchResult.NotSearched -> Unit
+
+            HomeScreenUiState.SearchResult.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            is HomeScreenUiState.SearchResult.Error -> {
+                SearchMessage(text = result.message)
+            }
+
+            is HomeScreenUiState.SearchResult.Loaded -> {
+                if (result.accounts.isEmpty()) {
+                    SearchMessage(text = "検索結果はありません")
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(result.accounts) { account ->
+                            SearchAccountItem(account = account)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        if (result.canLoadMore) {
+                            item {
+                                TextButton(
+                                    onClick = listener::onClickLoadMoreSearchResult,
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                ) {
+                                    Text("さらに読み込む")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -192,11 +224,26 @@ private fun SearchTabContent(
 }
 
 @Composable
+private fun SearchMessage(
+    text: String,
+) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
 private fun SearchAccountItem(
     account: HomeScreenUiState.SearchAccount,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = account.listener::onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(

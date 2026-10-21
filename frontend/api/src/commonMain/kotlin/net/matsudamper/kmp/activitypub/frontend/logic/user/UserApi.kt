@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
+import com.apollographql.apollo.api.Optional
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
@@ -75,6 +77,21 @@ class UserApi(
         val user = data.user ?: return UserProfileResult.NotFound
 
         return UserProfileResult.Found(username = user.username)
+    }
+
+    suspend fun searchUsers(
+        query: String,
+        after: String?,
+    ): UserSearchResult {
+        val client = clients.awaitLoadedClient() ?: return UserSearchResult.Failure("接続先が未設定")
+        val response = client.query(HomeScreenSearchUsersQuery(query = query, after = Optional.presentIfNotNull(after))).execute()
+        if (response.exception != null || response.hasErrors()) return UserSearchResult.Failure(response.failureMessage())
+        val searchUsers = response.data?.searchUsers ?: return UserSearchResult.Failure(response.failureMessage())
+
+        return UserSearchResult.Success(
+            usernames = searchUsers.users.map { it.username },
+            nextCursor = searchUsers.nextCursor,
+        )
     }
 
     private fun ApolloResponse<*>.failureMessage(): String {

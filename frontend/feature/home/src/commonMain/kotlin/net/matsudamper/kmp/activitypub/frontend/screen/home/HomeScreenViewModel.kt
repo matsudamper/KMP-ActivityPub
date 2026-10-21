@@ -2,21 +2,28 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import org.koin.core.annotation.KoinViewModel
 
 /**
- * サーバーとはまだ繋いでいない。タイムラインと検索結果は決まったダミーを出す
+ * タイムラインはサーバーとまだ繋いでいないので、決まったダミーを出す
  */
 @KoinViewModel
-internal class HomeScreenViewModel : ViewModel() {
+internal class HomeScreenViewModel(
+    private val userApi: UserApi,
+) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
+    private val searchStateFlow: MutableStateFlow<SearchState> = MutableStateFlow(SearchState.NotSearched)
+    private var searchJob: Job? = null
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
@@ -25,7 +32,7 @@ internal class HomeScreenViewModel : ViewModel() {
                 timelineItems = createDummyTimelineItems(),
                 search = HomeScreenUiState.Search(
                     query = "",
-                    accounts = listOf(),
+                    result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
@@ -49,18 +56,92 @@ internal class HomeScreenViewModel : ViewModel() {
                     }
 
                     override fun onSearch() {
-                        mutableUiStateFlow.update { uiState ->
-                            uiState.copy(
-                                search = uiState.search.copy(
-                                    accounts = searchDummyAccounts(uiState.search.query),
-                                ),
-                            )
-                        }
+                        search(query = mutableUiStateFlow.value.search.query)
+                    }
+
+                    override fun onClickLoadMoreSearchResult() {
+                        loadMoreSearchResult()
                     }
                 },
             ),
         )
     val uiStateFlow: StateFlow<HomeScreenUiState> = mutableUiStateFlow.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            searchStateFlow.collect { searchState ->
+                mutableUiStateFlow.update { uiState ->
+                    uiState.copy(search = uiState.search.copy(result = createSearchResult(searchState)))
+                }
+            }
+        }
+    }
+
+    private fun search(query: String) {
+        val trimmedQuery = query.trim()
+        searchJob?.cancel()
+        if (trimmedQuery.isEmpty()) {
+            searchStateFlow.value = SearchState.NotSearched
+            return
+        }
+        searchStateFlow.value = SearchState.Loading
+        searchJob = viewModelScope.launch {
+            searchStateFlow.value =
+                when (val result = userApi.searchUsers(query = trimmedQuery, after = null)) {
+                    is UserSearchResult.Success -> SearchState.Loaded(
+                        query = trimmedQuery,
+                        usernames = result.usernames,
+                        nextCursor = result.nextCursor,
+                    )
+
+                    is UserSearchResult.Failure -> SearchState.Failed(result.message)
+                }
+        }
+    }
+
+    private fun loadMoreSearchResult() {
+        if (searchJob?.isActive == true) return
+        val loaded = searchStateFlow.value as? SearchState.Loaded ?: return
+        val nextCursor = loaded.nextCursor ?: return
+        searchJob = viewModelScope.launch {
+            searchStateFlow.value =
+                when (val result = userApi.searchUsers(query = loaded.query, after = nextCursor)) {
+                    is UserSearchResult.Success -> loaded.copy(
+                        usernames = loaded.usernames + result.usernames,
+                        nextCursor = result.nextCursor,
+                    )
+
+                    is UserSearchResult.Failure -> SearchState.Failed(result.message)
+                }
+        }
+    }
+
+    private fun createSearchResult(searchState: SearchState): HomeScreenUiState.SearchResult {
+        return when (searchState) {
+            SearchState.NotSearched -> HomeScreenUiState.SearchResult.NotSearched
+
+            SearchState.Loading -> HomeScreenUiState.SearchResult.Loading
+
+            is SearchState.Loaded -> HomeScreenUiState.SearchResult.Loaded(
+                accounts = searchState.usernames.map { username ->
+                    HomeScreenUiState.SearchAccount(
+                        displayName = username,
+                        acct = "@$username",
+                        listener = object : HomeScreenUiState.SearchAccountListener {
+                            override fun onClick() {
+                                viewModelScope.launch {
+                                    events.send { it.navigateToUserProfile(username) }
+                                }
+                            }
+                        },
+                    )
+                },
+                canLoadMore = searchState.nextCursor != null,
+            )
+
+            is SearchState.Failed -> HomeScreenUiState.SearchResult.Error(searchState.message)
+        }
+    }
 
     private fun createDummyTimelineItems(): List<HomeScreenUiState.TimelineItem> {
         return (1..30).map { index ->
@@ -73,24 +154,27 @@ internal class HomeScreenViewModel : ViewModel() {
         }
     }
 
-    private fun searchDummyAccounts(query: String): List<HomeScreenUiState.SearchAccount> {
-        val trimmedQuery = query.trim()
-        if (trimmedQuery.isEmpty()) return listOf()
-        return (1..30)
-            .map { index ->
-                HomeScreenUiState.SearchAccount(
-                    displayName = "ユーザー$index",
-                    acct = "@user$index@example.com",
-                )
-            }.filter { account ->
-                account.displayName.contains(trimmedQuery, ignoreCase = true) ||
-                    account.acct.contains(trimmedQuery, ignoreCase = true)
-            }
-    }
-
     interface Event {
         fun navigateToPost()
 
         fun navigateToSettings()
+
+        fun navigateToUserProfile(username: String)
+    }
+
+    private sealed interface SearchState {
+        data object NotSearched : SearchState
+
+        data object Loading : SearchState
+
+        data class Loaded(
+            val query: String,
+            val usernames: List<String>,
+            val nextCursor: String?,
+        ) : SearchState
+
+        data class Failed(
+            val message: String,
+        ) : SearchState
     }
 }

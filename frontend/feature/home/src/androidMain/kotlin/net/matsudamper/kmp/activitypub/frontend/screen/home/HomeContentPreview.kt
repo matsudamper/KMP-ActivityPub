@@ -27,7 +27,7 @@ private fun HomeContentPreview() {
                 ),
                 search = HomeScreenUiState.Search(
                     query = "",
-                    accounts = listOf(),
+                    result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
@@ -45,15 +45,20 @@ private fun HomeSearchContentPreview() {
                 timelineItems = listOf(),
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
-                    accounts = listOf(
-                        HomeScreenUiState.SearchAccount(
-                            displayName = "Kotlin",
-                            acct = "@kotlin@example.com",
+                    result = HomeScreenUiState.SearchResult.Loaded(
+                        accounts = listOf(
+                            HomeScreenUiState.SearchAccount(
+                                displayName = "kotlin",
+                                acct = "@kotlin",
+                                listener = AndroidPreviewSearchAccountListener,
+                            ),
+                            HomeScreenUiState.SearchAccount(
+                                displayName = "kotlinweekly",
+                                acct = "@kotlinweekly",
+                                listener = AndroidPreviewSearchAccountListener,
+                            ),
                         ),
-                        HomeScreenUiState.SearchAccount(
-                            displayName = "Kotlin Weekly",
-                            acct = "@kotlinweekly@example.com",
-                        ),
+                        canLoadMore = true,
                     ),
                 ),
                 listener = AndroidPreviewHomeListener,
@@ -71,8 +76,11 @@ private fun HomeSearchEmptyContentPreview() {
                 selectedTab = HomeScreenUiState.Tab.Search,
                 timelineItems = listOf(),
                 search = HomeScreenUiState.Search(
-                    query = "",
-                    accounts = listOf(),
+                    query = "unknown",
+                    result = HomeScreenUiState.SearchResult.Loaded(
+                        accounts = listOf(),
+                        canLoadMore = false,
+                    ),
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
@@ -90,4 +98,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onSearchQueryChanged(query: String) = Unit
 
     override fun onSearch() = Unit
+
+    override fun onClickLoadMoreSearchResult() = Unit
+}
+
+private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
+    override fun onClick() = Unit
 }
