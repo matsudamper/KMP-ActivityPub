@@ -15,16 +15,17 @@ sqlite3def --file backend/repository/src/main/resources/db/schema.sql /path/to/k
 
 SQLite の CHECK はテーブル定義の一部で、`ALTER TABLE` では変えられない。sqlite3def もテーブルを作り直すところまではしないので、`schema.sql` の CHECK を書き換えても既存の DB には反映されず、新しい値の INSERT が失敗する。
 
-既存の DB に残った CHECK を外すには、テーブルを作り直す（サーバーを止めてバックアップしてから）。`delivery_queue` の例:
+既存の DB に残った CHECK を外すには、テーブルを作り直す（サーバーを止めてバックアップしてから）。インデックスは名前を変えた古いテーブルに同じ名前で付いたまま残るので、古いテーブルを消してから作る。`delivery_queue` の例:
 
 ```sql
 PRAGMA foreign_keys = OFF;
 BEGIN;
 ALTER TABLE delivery_queue RENAME TO delivery_queue_old;
--- ここに schema.sql の CREATE TABLE delivery_queue (...) と CREATE INDEX をそのまま貼る
+-- ここに schema.sql の CREATE TABLE delivery_queue (...) だけを貼る
 INSERT INTO delivery_queue (id, kind, account_id, remote_actor_id, note_id, inbox, body, state, attempts, next_attempt_at, enqueued_at, last_error)
   SELECT id, kind, account_id, remote_actor_id, note_id, inbox, body, state, attempts, next_attempt_at, enqueued_at, last_error FROM delivery_queue_old;
 DROP TABLE delivery_queue_old;
+-- ここに schema.sql の delivery_queue の CREATE INDEX を貼る
 COMMIT;
 PRAGMA foreign_key_check;
 PRAGMA foreign_keys = ON;
