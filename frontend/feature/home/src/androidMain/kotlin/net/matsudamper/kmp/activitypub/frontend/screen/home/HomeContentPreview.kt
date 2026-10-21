@@ -25,6 +25,7 @@ private fun HomeContentPreview() {
                         postedAt = "5分前",
                     ),
                 ),
+                timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     accounts = listOf(),
@@ -43,6 +44,7 @@ private fun HomeSearchContentPreview() {
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Search,
                 timelineItems = listOf(),
+                timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     accounts = listOf(
@@ -70,6 +72,7 @@ private fun HomeSearchEmptyContentPreview() {
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Search,
                 timelineItems = listOf(),
+                timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     accounts = listOf(),
@@ -86,6 +89,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickSettings() = Unit
 
     override fun onClickTab(tab: HomeScreenUiState.Tab) = Unit
+
+    override fun onRefreshTimeline() = Unit
 
     override fun onSearchQueryChanged(query: String) = Unit
 
