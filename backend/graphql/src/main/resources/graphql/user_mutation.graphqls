@@ -10,6 +10,8 @@ type UserMutation {
     deletePassword: DeletePasswordResult! @lazy
     "セッションが無くても成功する"
     logout: Boolean! @lazy
+    "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
+    postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
 }
 
 input UserLoginQuery {
@@ -70,4 +72,19 @@ enum DeletePasswordFailure {
     NOT_LOGGED_IN
     "パスキーが無いので消すとログインできなくなる"
     NO_PASSKEY
+}
+
+type UserPostNoteResult {
+    "投稿の URL。投稿できなければ null"
+    url: String
+    failure: UserPostNoteFailure
+}
+
+enum UserPostNoteFailure {
+    NOT_LOGGED_IN
+    EMPTY_BODY
+    "本文が長すぎる。上限は 500 文字"
+    TOO_LONG
+    "サーバーに DOMAIN が無く、投稿を配れない"
+    FEDERATION_DISABLED
 }
