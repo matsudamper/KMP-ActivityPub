@@ -7,7 +7,7 @@ data class PostScreenUiState(
     val inputHasError: Boolean,
     val inputEnabled: Boolean,
     /**
-     * 閉じるとこの画面ごと消えて送信も打ち切られるので、送信の途中は false になる
+     * 閉じると送信の結果を画面に出せないので、送信の途中は false になる
      */
     val backButtonEnabled: Boolean,
     val postButtonEnabled: Boolean,

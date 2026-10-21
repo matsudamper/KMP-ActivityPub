@@ -9,13 +9,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
 internal class PostScreenViewModel(
-    private val api: UserApi,
+    private val postNoteSubmitter: PostNoteSubmitter,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
@@ -44,7 +43,7 @@ internal class PostScreenViewModel(
                     }
 
                     override fun onClickBack() {
-                        // 送信中に画面を閉じると、投稿できたか分からないまま送信が取り消される
+                        // 送信中に閉じると、投稿できたかどうかを画面に出せない
                         if (viewModelStateFlow.value.submitting) return
                         viewModelScope.launch {
                             events.send { it.navigateBack() }
@@ -73,7 +72,7 @@ internal class PostScreenViewModel(
         viewModelScope.launch {
             val error =
                 try {
-                    when (val result = api.postNote(body = state.body)) {
+                    when (val result = postNoteSubmitter.submit(body = state.body)) {
                         UserPostNoteResult.Success -> null
                         UserPostNoteResult.NotLoggedIn -> "ログインしていません"
                         UserPostNoteResult.EmptyBody -> "本文が空です"
