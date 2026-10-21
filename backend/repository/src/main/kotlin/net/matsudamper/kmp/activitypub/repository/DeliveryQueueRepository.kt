@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
  * 相手の inbox に送る配信の待ち行列。1 件が 1 宛先への 1 回の配信
@@ -9,6 +10,16 @@ import java.time.Instant
  * 積むのは種別ごとの記録と同じトランザクションで書く側が行う（Accept なら [FollowerRepository.record]）
  */
 interface DeliveryQueueRepository {
+    /**
+     * 投稿を記録して、宛先ごとに Create を積む。
+     * 投稿の記録と投函を分けると、記録だけ残って誰にも届かない投稿ができる
+     *
+     * 宛先が無くても投稿は記録する。フォロワーがいない間の投稿も outbox には並ぶ
+     *
+     * 同じアカウントで同じ [NotePost.requestId] の投稿が既にあれば、何も書かずにその投稿を返す
+     */
+    fun enqueueNote(post: NotePost): EnqueueNoteResult
+
     /**
      * 送る時刻を過ぎた pending を古い順に delivering にして返す。attempts はここで増やす
      */
@@ -51,6 +62,35 @@ interface DeliveryQueueRepository {
      */
     fun recoverDelivering(now: Instant): Int
 }
+
+sealed interface EnqueueNoteResult {
+    /**
+     * @param deliveries 積んだ配信の数
+     */
+    data class Enqueued(
+        val deliveries: Int,
+    ) : EnqueueNoteResult
+
+    data class AlreadyPosted(
+        val publicId: PublicNoteId,
+    ) : EnqueueNoteResult
+
+    data object AccountNotFound : EnqueueNoteResult
+}
+
+/**
+ * @param requestId 画面が送信ごとに作る ID。応答を受け取れずに送り直されたときに同じ投稿だと分かる
+ * @param body 宛先すべてに同じものを送る Create のアクティビティ
+ */
+data class NotePost(
+    val username: String,
+    val requestId: String,
+    val publicId: PublicNoteId,
+    val contentHtml: String,
+    val publishedAt: Instant,
+    val body: String,
+    val inboxes: List<String>,
+)
 
 /**
  * @param username 署名するこちらのアカウント

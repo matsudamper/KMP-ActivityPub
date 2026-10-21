@@ -23,6 +23,7 @@ import io.ktor.utils.io.readRemaining
 import net.matsudamper.kotpub.activitypub.ActivityPubContentTypes
 import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.collection.COLLECTION_CURSOR_PARAM
 import net.matsudamper.kotpub.http.EndpointResponse
 import net.matsudamper.kotpub.http.RequestHeaders
 import net.matsudamper.kotpub.inbox.IncomingInboxRequest
@@ -51,6 +52,26 @@ internal fun Route.federationRoutes(federation: Federation) {
                     accept = call.request.header(HttpHeaders.Accept),
                     cursor = call.request.queryParameters["cursor"],
                 )
+            }
+        call.respondEndpoint(response)
+    }
+
+    get("/users/{username}/outbox") {
+        val response =
+            withContext(Dispatchers.IO) {
+                federation.outboxEndpoint.get(
+                    call.parameters["username"],
+                    call.request.header(HttpHeaders.Accept),
+                    call.request.queryParameters[COLLECTION_CURSOR_PARAM],
+                )
+            }
+        call.respondEndpoint(response)
+    }
+
+    get("/notes/{publicId}") {
+        val response =
+            withContext(Dispatchers.IO) {
+                federation.noteEndpoint.get(call.parameters["publicId"], call.request.header(HttpHeaders.Accept))
             }
         call.respondEndpoint(response)
     }

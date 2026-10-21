@@ -8,8 +8,10 @@ import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
@@ -29,6 +31,9 @@ import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.note.NoteEndpoint
+import net.matsudamper.kotpub.note.NotePublisher
+import net.matsudamper.kotpub.note.OutboxEndpoint
 import net.matsudamper.kotpub.webfinger.WebFingerEndpoint
 
 internal class Federation(
@@ -36,11 +41,13 @@ internal class Federation(
     accountService: AccountService,
     followerRepository: FollowerRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
+    noteRepository: NoteRepository,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
     private val httpClient = OkHttpActivityPubClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
+    private val notes = RepositoryNoteStore(noteRepository)
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -57,6 +64,15 @@ internal class Federation(
             onAcceptEnqueued = deliveryQueueWorker::wakeUp,
         )
 
+    val notePostService: NotePostService =
+        NotePostService(
+            directory = directory,
+            publisher = NotePublisher(notes, null),
+            followerRepository = followerRepository,
+            deliveryQueueRepository = deliveryQueueRepository,
+            onEnqueued = deliveryQueueWorker::wakeUp,
+        )
+
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
 
     val actorEndpoint: ActorEndpoint =
@@ -69,6 +85,10 @@ internal class Federation(
         )
 
     val followerEndpoint: FollowerEndpoint = FollowerEndpoint(directory = directory, followers = followers)
+
+    val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
+
+    val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, null)
 
     /**
      * kotpub の InboxService.default からお気に入りとスタンプの受け付けを抜いたもの

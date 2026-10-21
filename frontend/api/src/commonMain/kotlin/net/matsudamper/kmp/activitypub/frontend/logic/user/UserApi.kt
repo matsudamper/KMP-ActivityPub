@@ -9,9 +9,11 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQue
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 
 class UserApi(
@@ -92,6 +94,25 @@ class UserApi(
             usernames = searchUsers.users.map { it.username },
             nextCursor = searchUsers.nextCursor,
         )
+    }
+
+    suspend fun postNote(
+        body: String,
+        requestId: String,
+    ): UserPostNoteResult {
+        val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
+        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
+        val postNote = response.data?.user?.postNote ?: return UserPostNoteResult.Failure(response.failureMessage())
+
+        return when (postNote.failure) {
+            null -> UserPostNoteResult.Success
+            UserPostNoteFailure.NOT_LOGGED_IN -> UserPostNoteResult.NotLoggedIn
+            UserPostNoteFailure.EMPTY_BODY -> UserPostNoteResult.EmptyBody
+            UserPostNoteFailure.TOO_LONG -> UserPostNoteResult.TooLong
+            UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
+            UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
+        }
     }
 
     private fun ApolloResponse<*>.failureMessage(): String {
