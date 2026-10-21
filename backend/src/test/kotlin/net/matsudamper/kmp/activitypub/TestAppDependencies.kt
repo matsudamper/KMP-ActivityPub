@@ -9,6 +9,7 @@ internal fun TestDependencies(
     sessionStore = FakeUserSessionStore(),
     passkeyChallengeStore = FakePasskeyChallengeStore(),
     loginFailureStore = FakeLoginFailureStore(),
+    homeTimelineStore = FakeHomeTimelineStore(),
     env = env,
 )
 

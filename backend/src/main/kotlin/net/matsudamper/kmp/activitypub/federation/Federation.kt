@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
@@ -42,6 +43,7 @@ internal class Federation(
     followerRepository: FollowerRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
+    homeTimelineService: HomeTimelineService,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
     private val httpClient = OkHttpActivityPubClient()
@@ -70,6 +72,7 @@ internal class Federation(
             publisher = NotePublisher(notes, null),
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
+            homeTimelineService = homeTimelineService,
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
 

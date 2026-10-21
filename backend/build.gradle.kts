@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":backend:crypto"))
     implementation(project(":backend:delivery"))
     implementation(project(":backend:session"))
+    implementation(project(":backend:timeline"))
     implementation(project(":backend:passkey"))
     implementation(project(":backend:telemetry"))
     implementation(project(":shared"))

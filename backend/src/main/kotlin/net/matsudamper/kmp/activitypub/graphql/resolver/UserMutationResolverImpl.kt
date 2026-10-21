@@ -216,7 +216,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.notePostService
                 ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.FEDERATION_DISABLED)
 
-        return when (val result = notePostService.post(username = account.username, body = body, requestId = requestId)) {
+        return when (val result = notePostService.post(account = account, body = body, requestId = requestId)) {
             is PostNoteResult.Posted -> QlUserPostNoteResult(url = result.url, failure = null)
             PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
             PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)

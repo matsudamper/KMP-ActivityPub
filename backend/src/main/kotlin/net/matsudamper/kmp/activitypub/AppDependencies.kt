@@ -17,17 +17,28 @@ import net.matsudamper.kmp.activitypub.session.ValkeyPasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.session.ValkeyUserSessionStore
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
+import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.HomeTimelineStore
+import net.matsudamper.kmp.activitypub.timeline.ValkeyHomeTimelineStore
 
 class AppDependencies(
     val repositories: Repositories,
     private val sessionStore: UserSessionStore,
     private val passkeyChallengeStore: PasskeyChallengeStore,
     private val loginFailureStore: LoginFailureStore,
+    private val homeTimelineStore: HomeTimelineStore,
     val env: ServerEnv,
 ) : AutoCloseable {
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
+
+    val homeTimelineService: HomeTimelineService =
+        HomeTimelineService(
+            store = homeTimelineStore,
+            noteRepository = repositories.noteRepository,
+            maxSize = 800,
+        )
 
     /**
      * DOMAIN が無いと他のサーバーから見つけられないので作らない
@@ -40,6 +51,7 @@ class AppDependencies(
                 followerRepository = repositories.followerRepository,
                 deliveryQueueRepository = repositories.deliveryQueueRepository,
                 noteRepository = repositories.noteRepository,
+                homeTimelineService = homeTimelineService,
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
         }
@@ -68,6 +80,7 @@ class AppDependencies(
         federation?.close()
         sessionStore.close()
         loginFailureStore.close()
+        homeTimelineStore.close()
         repositories.close()
     }
 
@@ -78,6 +91,7 @@ class AppDependencies(
                 sessionStore = ValkeyUserSessionStore(uri = env.valkeyUri),
                 passkeyChallengeStore = ValkeyPasskeyChallengeStore(uri = env.valkeyUri),
                 loginFailureStore = ValkeyLoginFailureStore(uri = env.valkeyUri),
+                homeTimelineStore = ValkeyHomeTimelineStore(uri = env.valkeyUri),
                 env = env,
             )
     }
