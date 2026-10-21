@@ -1,0 +1,14 @@
+type HomeTimeline {
+    notes: [TimelineNote!]!
+    "続きを引くときに cursor に渡す。続きが無ければ null"
+    nextCursor: String
+}
+
+type TimelineNote {
+    id: String!
+    username: String!
+    "サニタイズ済みの HTML"
+    contentHtml: String!
+    "ISO 8601"
+    publishedAt: String!
+}

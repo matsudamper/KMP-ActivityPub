@@ -13,6 +13,8 @@ type Query {
     passkeys: [RegisteredPasskey!] @lazy
     "ログイン中のアカウントにパスワードがあるか。ログインしていなければ null"
     hasPassword: Boolean @lazy
+    "ログイン中のアカウントのホームタイムライン。新しい順。ログインしていなければ null"
+    homeTimeline(cursor: String, size: Int!): HomeTimeline @lazy
 }
 
 type RegisteredPasskey {
