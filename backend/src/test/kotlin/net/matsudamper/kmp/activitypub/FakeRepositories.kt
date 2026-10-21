@@ -49,6 +49,18 @@ internal class FakeAccountRepository : AccountRepository {
     override fun findByUsername(username: String): Account? =
         findCredential(username)?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
 
+    override fun searchByUsername(
+        keyword: String,
+        afterUsername: String?,
+        limit: Int,
+    ): List<Account> =
+        rows
+            .filter { it.username.contains(keyword, ignoreCase = true) }
+            .filter { afterUsername == null || it.username.lowercase() > afterUsername.lowercase() }
+            .sortedBy { it.username.lowercase() }
+            .take(limit)
+            .map { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
+
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }
 

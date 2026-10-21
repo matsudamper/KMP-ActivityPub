@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_KEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import org.jooq.impl.DSL
 
 internal class SqliteAccountRepository(
     private val jooq: SqliteJooq,
@@ -33,6 +34,34 @@ internal class SqliteAccountRepository(
             .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .fetchOne()
             ?.let { record ->
+                Account(
+                    id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
+                    username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
+                    createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
+                )
+            }
+    }
+
+    override fun searchByUsername(
+        keyword: String,
+        afterUsername: String?,
+        limit: Int,
+    ): List<Account> = jooq.withConnection { dsl ->
+        dsl
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT)
+            .from(ACCOUNTS)
+            .where(ACCOUNTS.USERNAME.containsIgnoreCase(keyword))
+            .and(
+                if (afterUsername == null) {
+                    DSL.noCondition()
+                } else {
+                    ACCOUNTS.USERNAME.gt(afterUsername)
+                },
+            )
+            .orderBy(ACCOUNTS.USERNAME)
+            .limit(limit)
+            .fetch()
+            .map { record ->
                 Account(
                     id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
                     username = checkNotNull(record.get(ACCOUNTS.USERNAME)),

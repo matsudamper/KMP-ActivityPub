@@ -58,6 +58,28 @@ class AccountServiceTest {
         assertNull(service.account(username = "user1"))
     }
 
+    @Test
+    fun `検索結果が 1 ページに収まらなければ続きのカーソルを返す`() {
+        (1..31).forEach { index ->
+            accountRepository.add(username = "user%02d".format(index), passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
+        }
+
+        val firstPage = service.searchAccounts(keyword = "user", cursor = null)
+        assertEquals(30, firstPage.accounts.size)
+        assertEquals(AccountSearchCursor(lastUsername = "user30"), firstPage.nextCursor)
+
+        val secondPage = service.searchAccounts(keyword = "user", cursor = firstPage.nextCursor)
+        assertEquals(listOf("user31"), secondPage.accounts.map { it.username })
+        assertNull(secondPage.nextCursor)
+    }
+
+    @Test
+    fun `空白だけの検索語では何も返さない`() {
+        accountRepository.add(username = "user1", passwordHash = PASSWORD_HASH, passwordHashType = PasswordHashType.Current.dbValue)
+
+        assertEquals(AccountSearchResult(accounts = listOf(), nextCursor = null), service.searchAccounts(keyword = " ", cursor = null))
+    }
+
     private companion object {
         const val PASSWORD = "user-password"
 

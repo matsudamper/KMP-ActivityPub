@@ -11,6 +11,15 @@ interface AccountRepository {
 
     fun findByUsername(username: String): Account?
 
+    /**
+     * 名前順に並べ、[afterUsername] より後ろを [limit] 件まで返す
+     */
+    fun searchByUsername(
+        keyword: String,
+        afterUsername: String?,
+        limit: Int,
+    ): List<Account>
+
     fun findCredential(username: String): AccountCredential?
 
     fun findPublicKeyPem(username: String): String?

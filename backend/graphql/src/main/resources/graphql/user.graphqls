@@ -2,3 +2,9 @@
 type User {
     username: String!
 }
+
+type UserSearchResult {
+    users: [User!]!
+    "続きが無ければ null"
+    nextCursor: String
+}

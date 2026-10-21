@@ -96,6 +96,69 @@ class AccountRepositoryTest {
         }
     }
 
+    @Test
+    fun `名前の一部で大文字小文字を区別せず名前順に探せる`() {
+        TestSchema.applyTo(dbPath)
+        listOf("bob", "alice", "malice", "carol").forEach { insertAccountRow(it) }
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(
+                listOf("alice", "malice"),
+                repositories.accountRepository
+                    .searchByUsername(keyword = "ALI", afterUsername = null, limit = 10)
+                    .map { it.username },
+            )
+        }
+    }
+
+    @Test
+    fun `指定した名前より後ろを件数まで探せる`() {
+        TestSchema.applyTo(dbPath)
+        listOf("user1", "user2", "user3", "user4").forEach { insertAccountRow(it) }
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(
+                listOf("user2", "user3"),
+                repositories.accountRepository
+                    .searchByUsername(keyword = "user", afterUsername = "user1", limit = 2)
+                    .map { it.username },
+            )
+        }
+    }
+
+    @Test
+    fun `検索語のワイルドカードは文字そのものとして扱う`() {
+        TestSchema.applyTo(dbPath)
+        listOf("user_1", "userx1").forEach { insertAccountRow(it) }
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(
+                listOf("user_1"),
+                repositories.accountRepository
+                    .searchByUsername(keyword = "_", afterUsername = null, limit = 10)
+                    .map { it.username },
+            )
+            assertEquals(
+                listOf(),
+                repositories.accountRepository
+                    .searchByUsername(keyword = "%", afterUsername = null, limit = 10)
+                    .map { it.username },
+            )
+        }
+    }
+
+    private fun insertAccountRow(username: String) {
+        Accounts.insert(
+            databasePath = dbPath,
+            username = username,
+            passwordHash = PASSWORD_HASH,
+            passwordHashType = PASSWORD_HASH_TYPE,
+            publicKeyPem = PUBLIC_KEY_PEM,
+            privateKeyPem = "private-key",
+            createdAt = CREATED_AT.toString(),
+        )
+    }
+
     private fun insertAccount() {
         TestSchema.applyTo(dbPath)
         Accounts.insert(
