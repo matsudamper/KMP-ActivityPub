@@ -15,6 +15,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -122,6 +123,8 @@ internal fun HomeContent(
             HomeScreenUiState.Tab.Home -> {
                 TimelineTabContent(
                     timelineItems = uiState.timelineItems,
+                    refreshing = uiState.timelineRefreshing,
+                    listener = uiState.listener,
                     modifier = contentModifier,
                 )
             }
@@ -140,12 +143,20 @@ internal fun HomeContent(
 @Composable
 private fun TimelineTabContent(
     timelineItems: List<HomeScreenUiState.TimelineItem>,
+    refreshing: Boolean,
+    listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(modifier = modifier) {
-        items(timelineItems) { item ->
-            TimelineItem(item = item)
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = listener::onRefreshTimeline,
+        modifier = modifier,
+    ) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(timelineItems) { item ->
+                TimelineItem(item = item)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
         }
     }
 }
