@@ -65,7 +65,7 @@ private fun LoginContentErrorPreview() {
     MaterialTheme {
         LoginContent(
             uiState = previewLoginUiState.copy(
-                error = "ユーザー名かパスワードが違う",
+                error = "ユーザー名かパスワードが違います",
                 inputHasError = true,
             ),
             serverSettingUiState = null,
