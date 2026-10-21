@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,82 +78,80 @@ internal fun SettingsContent(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = uiState.listener::onClickBack) {
+                    Icon(
+                        imageVector = AppIcons.ArrowBack,
+                        contentDescription = "戻る",
+                    )
+                }
+                Text(
+                    text = "設定",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "パスキー",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "パスワードの代わりに、この端末の生体認証や PIN でログインできるようにする",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            PasskeyList(uiState = uiState)
+            if (uiState.passkeyNameInputVisible) {
+                SingleLineTextField(
+                    value = uiState.passkeyName,
+                    onValueChange = uiState.listener::onPasskeyNameChanged,
+                    onImeAction = {},
+                    label = "キーの名前",
+                    kind = SingleLineTextFieldKind.Plain,
+                    autofill = null,
+                    formId = null,
+                    required = false,
+                    imeAction = ImeAction.Default,
+                    inputId = PASSKEY_NAME_INPUT_ID,
+                    inputName = "passkey-name",
+                    enabled = uiState.passkeyNameInputEnabled,
+                    hasError = false,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (uiState.addPasskeyButtonVisible) {
+                Button(
+                    onClick = uiState.listener::onClickAddPasskey,
+                    enabled = uiState.addPasskeyButtonEnabled,
                 ) {
-                    IconButton(onClick = uiState.listener::onClickBack) {
-                        Icon(
-                            imageVector = AppIcons.ArrowBack,
-                            contentDescription = "戻る",
-                        )
-                    }
-                    Text(
-                        text = "設定",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Text("パスキーを追加")
                 }
-                Column(
-                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = "パスキー",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = "パスワードの代わりに、この端末の生体認証や PIN でログインできるようにする",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    PasskeyList(uiState = uiState)
-                    if (uiState.passkeyNameInputVisible) {
-                        SingleLineTextField(
-                            value = uiState.passkeyName,
-                            onValueChange = uiState.listener::onPasskeyNameChanged,
-                            onImeAction = {},
-                            label = "キーの名前",
-                            kind = SingleLineTextFieldKind.Plain,
-                            autofill = null,
-                            formId = null,
-                            required = false,
-                            imeAction = ImeAction.Default,
-                            inputId = PASSKEY_NAME_INPUT_ID,
-                            inputName = "passkey-name",
-                            enabled = uiState.passkeyNameInputEnabled,
-                            hasError = false,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    if (uiState.addPasskeyButtonVisible) {
-                        Button(
-                            onClick = uiState.listener::onClickAddPasskey,
-                            enabled = uiState.addPasskeyButtonEnabled,
-                        ) {
-                            Text("パスキーを追加")
-                        }
-                    }
-                    if (uiState.passkeyUnavailableMessageVisible) {
-                        Text(
-                            text = "この端末ではパスキーを追加できない",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    HorizontalDivider()
-                    OutlinedButton(
-                        onClick = uiState.listener::onClickLogout,
-                        enabled = uiState.logoutButtonEnabled,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    ) {
-                        Text("ログアウト")
-                    }
-                }
+            }
+            if (uiState.passkeyUnavailableMessageVisible) {
+                Text(
+                    text = "この端末ではパスキーを追加できない",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider()
+            OutlinedButton(
+                onClick = uiState.listener::onClickLogout,
+                enabled = uiState.logoutButtonEnabled,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                Text("ログアウト")
             }
         }
         val deleteDialog = uiState.deleteDialog
