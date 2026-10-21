@@ -30,6 +30,20 @@ private fun LoginGateStatusContentErrorPreview() {
     }
 }
 
+@Preview
+@Composable
+private fun LoginGateStatusContentErrorLoginPreview() {
+    MaterialTheme {
+        LoginGateStatusContent(
+            uiState = LoginGateUiState(
+                content = LoginGateUiState.Content.Error(message = "ネットワークエラー"),
+                listener = AndroidPreviewLoginGateListener,
+            ),
+            onClickOpenLogin = {},
+        )
+    }
+}
+
 private object AndroidPreviewLoginGateListener : LoginGateUiState.Listener {
     override fun onLoggedIn() = Unit
 
