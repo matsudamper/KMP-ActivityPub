@@ -2,7 +2,9 @@ CREATE TABLE accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     -- 大文字小文字だけが違う名前を別々に持たせない
     username TEXT COLLATE NOCASE NOT NULL UNIQUE,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    -- 未設定なら NULL
+    display_name TEXT
 );
 
 -- 行が無ければパスワードは無い
@@ -87,7 +89,7 @@ CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- accept_follow: Follow への Accept / create_note: 投稿の Create。
+    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update。
     -- 行の形は種別に依らないので、種別を足しても作り直さずに済む。取りうる値は DeliveryQueueValues が持つ
     kind TEXT NOT NULL,
     -- 署名するこちらのアカウント

@@ -7,6 +7,7 @@ import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
@@ -48,6 +49,16 @@ class QueryResolverImpl : QueryResolver {
         val hasPassword = GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountService.hasPassword(it) }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<Boolean?>(hasPassword).build())
+    }
+
+    override fun profile(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfile?>> {
+        val accountService = GraphQlEngine.diContainer(env).accountService
+        val profile =
+            GraphQlEngine.graphQlContext(env).userAccountId()
+                ?.let { accountService.account(it) }
+                ?.let { QlProfile(username = it.username, displayName = it.displayName) }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlProfile?>(profile).build())
     }
 
     override fun user(

@@ -36,10 +36,14 @@ interface AccountRepository {
     fun deletePasswordIfPasskeyExists(id: AccountId): Boolean
 }
 
+/**
+ * @param displayName 未設定なら null
+ */
 data class Account(
     val id: AccountId,
     val username: String,
     val createdAt: Instant,
+    val displayName: String?,
 )
 
 /**

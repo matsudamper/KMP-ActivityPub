@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.NotePost
+import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
@@ -60,6 +61,41 @@ internal class SqliteDeliveryQueueRepository(
                 .execute()
         }
         EnqueueNoteResult.Enqueued(deliveries = inboxes.size)
+    }
+
+    override fun updateProfile(update: ProfileUpdate): Boolean = jooq.transaction { dsl ->
+        val accountId =
+            dsl.select(ACCOUNTS.ID)
+                .from(ACCOUNTS)
+                .where(ACCOUNTS.USERNAME.eq(update.username.lowercase()))
+                .fetchOne(ACCOUNTS.ID)
+                ?: return@transaction false
+        dsl.update(ACCOUNTS)
+            .set(ACCOUNTS.DISPLAY_NAME, update.displayName)
+            .where(ACCOUNTS.ID.eq(accountId))
+            .execute()
+
+        // 送っている途中の行は消しても送信が止まらないので、待っている行だけ消す
+        dsl.deleteFrom(DELIVERY_QUEUE)
+            .where(DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId))
+            .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_UPDATE_ACTOR))
+            .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+            .execute()
+
+        val updatedAt = StoredInstant.format(update.updatedAt)
+        update.inboxes.distinct().forEach { inbox ->
+            dsl.insertInto(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_UPDATE_ACTOR)
+                .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+                .set(DELIVERY_QUEUE.INBOX, inbox)
+                .set(DELIVERY_QUEUE.BODY, update.body)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+                .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+                .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, updatedAt)
+                .set(DELIVERY_QUEUE.ENQUEUED_AT, updatedAt)
+                .execute()
+        }
+        true
     }
 
     override fun claim(
