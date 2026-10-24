@@ -71,6 +71,18 @@ class RemoteActorRepositoryTest {
     }
 
     @Test
+    fun `ASCII以外の大文字を含む名前は入力したままの検索語で探せる`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/1", preferredUsername = "user1", displayName = "Élodie")
+
+            assertEquals(
+                listOf("https://a.example/users/1"),
+                repositories.remoteActorRepository.searchByName(keyword = "Élodie", after = null, limit = 10).map { it.actorUri },
+            )
+        }
+    }
+
+    @Test
     fun `ユーザー名の分からないアクターは返さない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/1", preferredUsername = null, displayName = "Alice")

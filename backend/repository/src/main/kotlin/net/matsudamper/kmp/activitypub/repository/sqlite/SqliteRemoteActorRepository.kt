@@ -14,16 +14,23 @@ internal class SqliteRemoteActorRepository(
         after: RemoteActorSearchCursor?,
         limit: Int,
     ): List<RemoteActorSearchRecord> = jooq.withConnection { dsl ->
-        // SQLite の lower() は ASCII しか変換しないので、検索語は Kotlin 側で小文字にしておく
-        val lowercaseKeyword = keyword.lowercase()
+        // SQLite の lower() は ASCII しか変換せず、他のサーバーの名前は受け取ったまま保存している。
+        // 入力したままの検索語でも Kotlin で小文字にした検索語でも探し、どちらかの書き方で入れれば見つかるようにする
+        val keywords = setOf(keyword, keyword.lowercase())
         val sortKey = DSL.lower(REMOTE_ACTORS.PREFERRED_USERNAME)
         dsl
             .select(REMOTE_ACTORS.ACTOR_URI, REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.DISPLAY_NAME)
             .from(REMOTE_ACTORS)
             .where(REMOTE_ACTORS.PREFERRED_USERNAME.isNotNull)
             .and(
-                REMOTE_ACTORS.PREFERRED_USERNAME.containsIgnoreCase(lowercaseKeyword)
-                    .or(REMOTE_ACTORS.DISPLAY_NAME.containsIgnoreCase(lowercaseKeyword)),
+                DSL.or(
+                    keywords.flatMap { candidate ->
+                        listOf(
+                            REMOTE_ACTORS.PREFERRED_USERNAME.containsIgnoreCase(candidate),
+                            REMOTE_ACTORS.DISPLAY_NAME.containsIgnoreCase(candidate),
+                        )
+                    },
+                ),
             )
             .and(
                 if (after == null) {
