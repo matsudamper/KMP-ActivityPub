@@ -27,7 +27,7 @@ class AccountRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
             assertEquals(
-                Account(id = id, username = "user1", createdAt = CREATED_AT),
+                Account(id = id, username = "user1", createdAt = CREATED_AT, displayName = null),
                 repositories.accountRepository.findById(id),
             )
         }
@@ -40,7 +40,7 @@ class AccountRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val id = checkNotNull(repositories.accountRepository.findCredential("user1")).id
             assertEquals(
-                Account(id = id, username = "user1", createdAt = CREATED_AT),
+                Account(id = id, username = "user1", createdAt = CREATED_AT, displayName = null),
                 repositories.accountRepository.findByUsername("USER1"),
             )
         }

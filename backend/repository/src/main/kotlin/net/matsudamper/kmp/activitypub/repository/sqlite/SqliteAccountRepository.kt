@@ -15,7 +15,7 @@ internal class SqliteAccountRepository(
 ) : AccountRepository {
     override fun findById(id: AccountId): Account? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT)
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME)
             .from(ACCOUNTS)
             .where(ACCOUNTS.ID.eq(id.value))
             .fetchOne()
@@ -24,13 +24,14 @@ internal class SqliteAccountRepository(
                     id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
                     username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
                     createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
+                    displayName = record.get(ACCOUNTS.DISPLAY_NAME),
                 )
             }
     }
 
     override fun findByUsername(username: String): Account? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT)
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME)
             .from(ACCOUNTS)
             .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .fetchOne()
@@ -39,6 +40,7 @@ internal class SqliteAccountRepository(
                     id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
                     username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
                     createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
+                    displayName = record.get(ACCOUNTS.DISPLAY_NAME),
                 )
             }
     }
@@ -49,7 +51,7 @@ internal class SqliteAccountRepository(
         limit: Int,
     ): List<Account> = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT)
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME)
             .from(ACCOUNTS)
             .where(ACCOUNTS.USERNAME.containsIgnoreCase(keyword.lowercase()))
             .and(
@@ -67,6 +69,7 @@ internal class SqliteAccountRepository(
                     id = AccountId(checkNotNull(record.get(ACCOUNTS.ID))),
                     username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
                     createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
+                    displayName = record.get(ACCOUNTS.DISPLAY_NAME),
                 )
             }
     }
