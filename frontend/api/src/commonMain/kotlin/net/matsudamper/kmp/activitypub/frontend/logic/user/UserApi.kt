@@ -8,10 +8,13 @@ import com.apollographql.apollo.api.Optional
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
@@ -125,6 +128,31 @@ class UserApi(
             UserPostNoteFailure.TOO_LONG -> UserPostNoteResult.TooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
+        }
+    }
+
+    suspend fun myProfile(): UserMyProfileResult {
+        val client = clients.awaitLoadedClient() ?: return UserMyProfileResult.Failure("接続先が未設定")
+        val response = client.query(MyProfileQuery()).execute()
+        if (response.exception != null || response.hasErrors()) return UserMyProfileResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserMyProfileResult.Failure(response.failureMessage())
+        val profile = data.profile ?: return UserMyProfileResult.NotLoggedIn
+
+        return UserMyProfileResult.Found(username = profile.username, displayName = profile.displayName)
+    }
+
+    suspend fun updateProfile(displayName: String): UserUpdateProfileResult {
+        val client = clients.client.value ?: return UserUpdateProfileResult.Failure("接続先が未設定")
+        val response = client.mutation(UpdateProfileMutation(displayName = displayName)).execute()
+        if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())
+        val updateProfile = response.data?.user?.updateProfile ?: return UserUpdateProfileResult.Failure(response.failureMessage())
+
+        return when (updateProfile.failure) {
+            null -> UserUpdateProfileResult.Success
+            UpdateProfileFailure.NOT_LOGGED_IN -> UserUpdateProfileResult.NotLoggedIn
+            UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.TooLong
+            UpdateProfileFailure.FEDERATION_DISABLED -> UserUpdateProfileResult.FederationDisabled
+            UpdateProfileFailure.UNKNOWN__ -> UserUpdateProfileResult.Failure("Unknown")
         }
     }
 

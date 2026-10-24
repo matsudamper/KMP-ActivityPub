@@ -1,0 +1,167 @@
+package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileResult
+import org.koin.core.annotation.KoinViewModel
+
+@KoinViewModel
+internal class ProfileEditScreenViewModel(
+    private val api: UserApi,
+) : ViewModel() {
+    private val events = EventSender<Event>()
+    internal val eventHandler = events.asHandler()
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Loading)
+    private var loadJob: Job? = null
+
+    val uiStateFlow: StateFlow<ProfileEditScreenUiState> =
+        MutableStateFlow(
+            createUiState(
+                viewModelState = viewModelStateFlow.value,
+                listener = object : ProfileEditScreenUiState.Listener {
+                    override fun onDisplayNameChanged(text: String) {
+                        viewModelStateFlow.update { state ->
+                            if (state is ViewModelState.Loaded && state.saving.not()) {
+                                state.copy(displayName = text, hasError = false)
+                            } else {
+                                state
+                            }
+                        }
+                    }
+
+                    override fun onClickSave() {
+                        save()
+                    }
+
+                    override fun onClickRetry() {
+                        load()
+                    }
+
+                    override fun onClickBack() {
+                        // 保存中に閉じると、保存できたかどうかを画面に出せない
+                        if (viewModelStateFlow.value.saving()) return
+                        viewModelScope.launch {
+                            events.send { it.navigateBack() }
+                        }
+                    }
+                },
+            ),
+        ).also { uiStateFlow ->
+            viewModelScope.launch {
+                viewModelStateFlow.collect { viewModelState ->
+                    uiStateFlow.update { uiState ->
+                        createUiState(
+                            viewModelState = viewModelState,
+                            listener = uiState.listener,
+                        )
+                    }
+                }
+            }
+        }.asStateFlow()
+
+    init {
+        load()
+    }
+
+    private fun load() {
+        loadJob?.cancel()
+        viewModelStateFlow.value = ViewModelState.Loading
+        loadJob = viewModelScope.launch {
+            viewModelStateFlow.value =
+                when (val result = api.myProfile()) {
+                    is UserMyProfileResult.Found -> ViewModelState.Loaded(
+                        displayName = result.displayName.orEmpty(),
+                        saving = false,
+                        hasError = false,
+                    )
+
+                    UserMyProfileResult.NotLoggedIn -> ViewModelState.Failed("ログインしていません")
+
+                    is UserMyProfileResult.Failure -> ViewModelState.Failed(result.message)
+                }
+        }
+    }
+
+    private fun save() {
+        val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+        if (state.saving) return
+
+        viewModelStateFlow.value = state.copy(saving = true, hasError = false)
+        viewModelScope.launch {
+            val error =
+                try {
+                    when (val result = api.updateProfile(displayName = state.displayName)) {
+                        UserUpdateProfileResult.Success -> null
+                        UserUpdateProfileResult.NotLoggedIn -> "ログインしていません"
+                        UserUpdateProfileResult.TooLong -> "表示名が長すぎます"
+                        UserUpdateProfileResult.FederationDisabled -> "サーバーがプロフィールの更新を配れる設定になっていません"
+                        is UserUpdateProfileResult.Failure -> result.message
+                    }
+                } finally {
+                    viewModelStateFlow.update { current ->
+                        if (current is ViewModelState.Loaded) current.copy(saving = false) else current
+                    }
+                }
+            if (error != null) {
+                viewModelStateFlow.update { current ->
+                    if (current is ViewModelState.Loaded) current.copy(hasError = true) else current
+                }
+                events.send { it.showMessage(error) }
+                return@launch
+            }
+            events.send { it.navigateBack() }
+        }
+    }
+
+    private fun createUiState(
+        viewModelState: ViewModelState,
+        listener: ProfileEditScreenUiState.Listener,
+    ): ProfileEditScreenUiState =
+        ProfileEditScreenUiState(
+            content = when (viewModelState) {
+                ViewModelState.Loading -> ProfileEditScreenUiState.Content.Loading
+
+                is ViewModelState.Failed -> ProfileEditScreenUiState.Content.Error(viewModelState.message)
+
+                is ViewModelState.Loaded -> ProfileEditScreenUiState.Content.Loaded(
+                    displayName = viewModelState.displayName,
+                    displayNameInputEnabled = viewModelState.saving.not(),
+                    displayNameHasError = viewModelState.hasError,
+                    saveButtonEnabled = viewModelState.saving.not(),
+                )
+            },
+            backButtonEnabled = viewModelState.saving().not(),
+            listener = listener,
+        )
+
+    private fun ViewModelState.saving(): Boolean = this is ViewModelState.Loaded && saving
+
+    sealed interface ViewModelState {
+        data object Loading : ViewModelState
+
+        data class Failed(
+            val message: String,
+        ) : ViewModelState
+
+        data class Loaded(
+            val displayName: String,
+            val saving: Boolean,
+            val hasError: Boolean,
+        ) : ViewModelState
+    }
+
+    interface Event {
+        fun navigateBack()
+
+        fun showMessage(message: String)
+    }
+}

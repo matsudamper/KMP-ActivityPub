@@ -31,6 +31,7 @@ private fun HomeContentPreview() {
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
+                profile = HomeScreenUiState.Profile.Loading,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -67,6 +68,7 @@ private fun HomeSearchContentPreview() {
                         loadMoreButtonVisible = true,
                     ),
                 ),
+                profile = HomeScreenUiState.Profile.Loading,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -90,6 +92,32 @@ private fun HomeSearchEmptyContentPreview() {
                         loadMoreButtonVisible = false,
                     ),
                 ),
+                profile = HomeScreenUiState.Profile.Loading,
+                listener = AndroidPreviewHomeListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun HomeUserContentPreview() {
+    MaterialTheme {
+        HomeContent(
+            uiState = HomeScreenUiState(
+                selectedTab = HomeScreenUiState.Tab.User,
+                timelineItems = listOf(),
+                timelineRefreshing = false,
+                search = HomeScreenUiState.Search(
+                    query = "",
+                    result = HomeScreenUiState.SearchResult.NotSearched,
+                ),
+                profile = HomeScreenUiState.Profile.Loaded(
+                    avatarInitial = "U",
+                    displayName = "ユーザー1",
+                    acct = "@user1",
+                ),
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -111,6 +139,12 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onSearch() = Unit
 
     override fun onClickLoadMoreSearchResult() = Unit
+
+    override fun onClickEditProfile() = Unit
+
+    override fun onClickRetryProfile() = Unit
+
+    override fun onScreenShown() = Unit
 }
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
