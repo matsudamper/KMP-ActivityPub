@@ -23,13 +23,34 @@ data class HomeScreenUiState(
 
     data class Search(
         val query: String,
-        val accounts: List<SearchAccount>,
+        val result: SearchResult,
     )
 
+    sealed interface SearchResult {
+        data object NotSearched : SearchResult
+
+        data object Loading : SearchResult
+
+        data class Loaded(
+            val accounts: List<SearchAccount>,
+            val loadMoreButtonVisible: Boolean,
+        ) : SearchResult
+    }
+
     data class SearchAccount(
+        val avatarInitial: String,
         val displayName: String,
         val acct: String,
+        /**
+         * 押しても何も起きないものは null
+         */
+        val listener: SearchAccountListener?,
     )
+
+    @Immutable
+    interface SearchAccountListener {
+        fun onClick()
+    }
 
     @Immutable
     interface Listener {
@@ -44,5 +65,7 @@ data class HomeScreenUiState(
         fun onSearchQueryChanged(query: String)
 
         fun onSearch()
+
+        fun onClickLoadMoreSearchResult()
     }
 }

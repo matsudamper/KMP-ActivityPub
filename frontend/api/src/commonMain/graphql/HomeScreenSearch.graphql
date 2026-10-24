@@ -1,0 +1,20 @@
+query HomeScreenSearchUsers($query: String!, $after: String) {
+    searchUsers(query: $query, after: $after) {
+        users {
+            username
+            host
+            isLocal
+            displayName
+        }
+        nextCursor
+    }
+}
+
+query HomeScreenResolveUser($query: String!) {
+    resolveUser(query: $query) {
+        username
+        host
+        isLocal
+        displayName
+    }
+}

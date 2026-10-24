@@ -2,13 +2,20 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
+import kotlinx.coroutines.runBlocking
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
+import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
+import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
+import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
+import net.matsudamper.kmp.activitypub.logic.SearchedUser
+import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 
 class QueryResolverImpl : QueryResolver {
     override fun unused(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<Boolean?>> {
@@ -56,4 +63,43 @@ class QueryResolverImpl : QueryResolver {
             }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlUser?>(user).build())
     }
+
+    override fun searchUsers(
+        query: String,
+        after: String?,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUserSearchResult>> {
+        val cursor = after?.let { UserSearchCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
+        val result =
+            GraphQlEngine.diContainer(env).userSearchService.searchUsers(
+                query = query,
+                cursor = cursor,
+            )
+        return CompletableFuture.completedFuture(
+            DataFetcherResult.Builder(
+                QlUserSearchResult(
+                    users = result.users.map { it.toQlSearchedUser() },
+                    nextCursor = result.nextCursor?.encode(),
+                ),
+            ).build(),
+        )
+    }
+
+    override fun resolveUser(
+        query: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlSearchedUser?>> {
+        val userSearchService = GraphQlEngine.diContainer(env).userSearchService
+        val remoteLookupAllowed = GraphQlEngine.graphQlContext(env).userAccountId() != null
+        return otelSupplyAsync {
+            val user =
+                runBlocking {
+                    userSearchService.resolveUser(query = query, remoteLookupAllowed = remoteLookupAllowed)
+                }
+            DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser()).build()
+        }
+    }
+
+    private fun SearchedUser.toQlSearchedUser(): QlSearchedUser =
+        QlSearchedUser(username = username, host = host, isLocal = isLocal, displayName = displayName)
 }

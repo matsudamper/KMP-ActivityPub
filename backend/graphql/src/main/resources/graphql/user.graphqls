@@ -2,3 +2,19 @@
 type User {
     username: String!
 }
+
+type UserSearchResult {
+    users: [SearchedUser!]!
+    "続きが無ければ null"
+    nextCursor: String
+}
+
+"検索で見つかったユーザー"
+type SearchedUser {
+    username: String!
+    host: String!
+    "このサーバーのユーザーか"
+    isLocal: Boolean!
+    "表示名が無ければユーザー名"
+    displayName: String!
+}

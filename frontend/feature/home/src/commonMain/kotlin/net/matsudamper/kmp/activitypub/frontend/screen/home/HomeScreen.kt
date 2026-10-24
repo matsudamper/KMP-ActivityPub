@@ -1,13 +1,19 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -16,19 +22,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
@@ -42,6 +55,8 @@ internal fun HomeScreen(
 ) {
     val viewModel = koinViewModel<HomeScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -53,16 +68,25 @@ internal fun HomeScreen(
                 override fun navigateToSettings() {
                     navigator.navigate(Screen.Settings)
                 }
+
+                override fun navigateToUserProfile(username: String) {
+                    navigator.navigate(Screen.UserProfile(username = username))
+                }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
     }
 
-    HomeContent(uiState = uiState)
+    HomeContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
 @Composable
 internal fun HomeContent(
     uiState: HomeScreenUiState,
+    snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
         topBar = {
@@ -103,6 +127,7 @@ internal fun HomeContent(
                 }
             }
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
                 ExtendedFloatingActionButton(
@@ -184,18 +209,38 @@ private fun SearchTabContent(
             hasError = false,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        if (search.accounts.isEmpty()) {
-            Text(
-                text = "検索結果はありません",
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(search.accounts) { account ->
-                    SearchAccountItem(account = account)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        when (val result = search.result) {
+            HomeScreenUiState.SearchResult.NotSearched -> Unit
+
+            HomeScreenUiState.SearchResult.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            is HomeScreenUiState.SearchResult.Loaded -> {
+                if (result.accounts.isEmpty()) {
+                    SearchMessage(text = "検索結果はありません")
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(result.accounts) { account ->
+                            SearchAccountItem(account = account)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        if (result.loadMoreButtonVisible) {
+                            item {
+                                TextButton(
+                                    onClick = listener::onClickLoadMoreSearchResult,
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                ) {
+                                    Text("さらに読み込む")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -203,24 +248,58 @@ private fun SearchTabContent(
 }
 
 @Composable
+private fun SearchMessage(
+    text: String,
+) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
 private fun SearchAccountItem(
     account: HomeScreenUiState.SearchAccount,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+    val listener = account.listener
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (listener == null) Modifier else Modifier.clickable(onClick = listener::onClick))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = account.displayName,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = account.acct,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = account.avatarInitial,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = account.displayName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = account.acct,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
     }
 }
 

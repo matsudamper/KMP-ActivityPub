@@ -7,6 +7,9 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
+import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
+import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
+import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -17,6 +20,7 @@ internal class FakeRepositories : Repositories {
     override val accountRepository: FakeAccountRepository = FakeAccountRepository(hasPasskey = { passkeyRepository.passkeys(it).isNotEmpty() })
     override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()
     override val noteRepository: FakeNoteRepository = FakeNoteRepository()
+    override val remoteActorRepository: FakeRemoteActorRepository = FakeRemoteActorRepository()
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })
@@ -53,6 +57,18 @@ internal class FakeAccountRepository(
 
     override fun findByUsername(username: String): Account? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
+
+    override fun searchByUsername(
+        keyword: String,
+        afterUsername: String?,
+        limit: Int,
+    ): List<Account> =
+        rows
+            .filter { it.username.contains(keyword, ignoreCase = true) }
+            .filter { afterUsername == null || it.username.lowercase() > afterUsername.lowercase() }
+            .sortedBy { it.username.lowercase() }
+            .take(limit)
+            .map { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH) }
 
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.takeIf { it.id !in passwordDeletedIds }
@@ -125,3 +141,34 @@ private class FakePasskeyRepository(
         passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.attestedCredentialData, maxOf(passkey.signCount, signCount))
     }
 }
+
+internal class FakeRemoteActorRepository : RemoteActorRepository {
+    private val rows = mutableListOf<RemoteActorSearchRecord>()
+
+    fun add(record: RemoteActorSearchRecord) {
+        rows += record
+    }
+
+    override fun searchByName(
+        keyword: String,
+        after: RemoteActorSearchCursor?,
+        limit: Int,
+    ): List<RemoteActorSearchRecord> =
+        rows
+            .filter { it.preferredUsername.contains(keyword, ignoreCase = true) || it.displayName?.contains(keyword, ignoreCase = true) == true }
+            .sortedWith(compareBy<RemoteActorSearchRecord> { it.preferredUsername.sqliteLower() }.thenBy { it.actorUri })
+            .filter { record ->
+                after == null ||
+                    compareValuesBy(
+                        record,
+                        RemoteActorSearchRecord(actorUri = after.actorUri, preferredUsername = after.preferredUsername, displayName = null),
+                        { it.preferredUsername.sqliteLower() },
+                        { it.actorUri },
+                    ) > 0
+            }.take(limit)
+}
+
+/**
+ * SQLite の lower() と同じく ASCII だけを小文字にする。並び順を本物の SQLite に揃える
+ */
+private fun String.sqliteLower(): String = map { if (it in 'A'..'Z') it.lowercaseChar() else it }.joinToString("")

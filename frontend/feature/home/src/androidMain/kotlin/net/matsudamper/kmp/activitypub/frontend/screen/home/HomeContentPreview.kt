@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -28,10 +29,11 @@ private fun HomeContentPreview() {
                 timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
                     query = "",
-                    accounts = listOf(),
+                    result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -47,19 +49,27 @@ private fun HomeSearchContentPreview() {
                 timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
-                    accounts = listOf(
-                        HomeScreenUiState.SearchAccount(
-                            displayName = "Kotlin",
-                            acct = "@kotlin@example.com",
+                    result = HomeScreenUiState.SearchResult.Loaded(
+                        accounts = listOf(
+                            HomeScreenUiState.SearchAccount(
+                                avatarInitial = "K",
+                                displayName = "kotlin",
+                                acct = "@kotlin",
+                                listener = AndroidPreviewSearchAccountListener,
+                            ),
+                            HomeScreenUiState.SearchAccount(
+                                avatarInitial = "K",
+                                displayName = "Kotlin Weekly",
+                                acct = "@kotlinweekly@remote.example",
+                                listener = null,
+                            ),
                         ),
-                        HomeScreenUiState.SearchAccount(
-                            displayName = "Kotlin Weekly",
-                            acct = "@kotlinweekly@example.com",
-                        ),
+                        loadMoreButtonVisible = true,
                     ),
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -74,11 +84,15 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
-                    query = "",
-                    accounts = listOf(),
+                    query = "unknown",
+                    result = HomeScreenUiState.SearchResult.Loaded(
+                        accounts = listOf(),
+                        loadMoreButtonVisible = false,
+                    ),
                 ),
                 listener = AndroidPreviewHomeListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -95,4 +109,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onSearchQueryChanged(query: String) = Unit
 
     override fun onSearch() = Unit
+
+    override fun onClickLoadMoreSearchResult() = Unit
+}
+
+private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
+    override fun onClick() = Unit
 }
