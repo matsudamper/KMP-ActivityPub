@@ -88,9 +88,6 @@ data class HomeScreenUiState(
 
         fun onClickRetryProfile()
 
-        /**
-         * 編集から戻ったときに出し直す
-         */
         fun onScreenShown()
     }
 }
