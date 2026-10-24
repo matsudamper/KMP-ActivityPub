@@ -10,7 +10,8 @@ type Query {
     userInfo: UserInfo
     user(username: String!): User
     """
-    名前の一部でこのサーバーのユーザーを探す。after には前回の nextCursor を渡す。
+    名前の一部で、このサーバーのユーザーとフォローなどで受け取った他のサーバーのユーザーをまとめて探す。
+    after には前回の nextCursor を渡す。
     `@user@host` の形なら、ログイン中に限りそのホストのユーザーを WebFinger で引く
     """
     searchUsers(query: String!, after: String): UserSearchResult!

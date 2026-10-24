@@ -47,7 +47,8 @@ class AppDependencies(
 
     val userSearchService: UserSearchService =
         UserSearchService(
-            accountService = accountService,
+            accountRepository = repositories.accountRepository,
+            remoteActorRepository = repositories.remoteActorRepository,
             remoteUserLookup = federation?.remoteUserLookup,
             localDomain = env.domain,
         )

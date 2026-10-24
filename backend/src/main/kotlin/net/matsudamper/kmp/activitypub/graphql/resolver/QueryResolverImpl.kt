@@ -5,6 +5,7 @@ import java.util.concurrent.CompletionStage
 import kotlinx.coroutines.runBlocking
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
+import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
@@ -13,7 +14,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
-import net.matsudamper.kmp.activitypub.logic.AccountSearchCursor
+import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 
 class QueryResolverImpl : QueryResolver {
     override fun unused(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<Boolean?>> {
@@ -68,20 +69,21 @@ class QueryResolverImpl : QueryResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserSearchResult>> {
         val userSearchService = GraphQlEngine.diContainer(env).userSearchService
-        val remoteSearchAllowed = GraphQlEngine.graphQlContext(env).userAccountId() != null
+        val remoteLookupAllowed = GraphQlEngine.graphQlContext(env).userAccountId() != null
+        val cursor = after?.let { UserSearchCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
         return otelSupplyAsync {
             val result =
                 runBlocking {
                     userSearchService.search(
                         query = query,
-                        cursor = after?.let { AccountSearchCursor(lastUsername = it) },
-                        remoteSearchAllowed = remoteSearchAllowed,
+                        cursor = cursor,
+                        remoteLookupAllowed = remoteLookupAllowed,
                     )
                 }
             DataFetcherResult.Builder(
                 QlUserSearchResult(
                     users = result.users.map { QlSearchedUser(username = it.username, host = it.host, displayName = it.displayName) },
-                    nextCursor = result.nextCursor?.lastUsername,
+                    nextCursor = result.nextCursor?.encode(),
                 ),
             ).build()
         }

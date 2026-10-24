@@ -18,32 +18,6 @@ class AccountService(
 
     fun account(username: String): Account? = accountRepository.findByUsername(username)
 
-    fun searchAccounts(
-        keyword: String,
-        cursor: AccountSearchCursor?,
-    ): AccountSearchResult {
-        val trimmedKeyword = keyword.trim()
-        if (trimmedKeyword.isEmpty()) return AccountSearchResult(accounts = listOf(), nextCursor = null)
-
-        // 1 件多く取り、続きの有無を判定する
-        val fetchedAccounts =
-            accountRepository.searchByUsername(
-                keyword = trimmedKeyword,
-                afterUsername = cursor?.lastUsername,
-                limit = SEARCH_PAGE_SIZE + 1,
-            )
-        val accounts = fetchedAccounts.take(SEARCH_PAGE_SIZE)
-        return AccountSearchResult(
-            accounts = accounts,
-            nextCursor =
-            if (fetchedAccounts.size > SEARCH_PAGE_SIZE) {
-                AccountSearchCursor(lastUsername = accounts.last().username)
-            } else {
-                null
-            },
-        )
-    }
-
     fun publicKeyPem(username: String): String? = accountRepository.findPublicKeyPem(username)
 
     fun privateKeyPem(username: String): String? = accountRepository.findPrivateKeyPem(username)
@@ -81,14 +55,3 @@ class AccountService(
         data object NoPasskey : DeletePasswordResult
     }
 }
-
-data class AccountSearchCursor(
-    val lastUsername: String,
-)
-
-data class AccountSearchResult(
-    val accounts: List<Account>,
-    val nextCursor: AccountSearchCursor?,
-)
-
-private const val SEARCH_PAGE_SIZE = 30
