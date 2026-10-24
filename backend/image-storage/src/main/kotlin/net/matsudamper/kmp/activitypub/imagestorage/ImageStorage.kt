@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.imagestorage
 
 import java.io.InputStream
-import java.time.Duration
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 interface ImageStorage {
@@ -10,7 +9,7 @@ interface ImageStorage {
     fun delete(request: DeleteRequest): DeleteResult
 
     /**
-     * 認証なしで画像を取れる期限付きの URL
+     * 認証なしで画像を取れる、1 時間で切れる URL
      */
     fun buildDisplayUrl(request: DisplayUrlRequest): String
 
@@ -50,7 +49,6 @@ interface ImageStorage {
     data class DisplayUrlRequest(
         val ownerAccountId: AccountId,
         val path: ImagePath,
-        val validFor: Duration,
     )
 }
 

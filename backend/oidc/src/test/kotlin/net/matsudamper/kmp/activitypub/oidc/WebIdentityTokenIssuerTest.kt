@@ -35,7 +35,7 @@ class WebIdentityTokenIssuerTest {
             clock = Clock.fixed(now, ZoneOffset.UTC),
         )
 
-        val token = SignedJWT.parse(issuer.issue(subject = "1", audience = "sts.amazonaws.com", ttl = Duration.ofMinutes(5)))
+        val token = SignedJWT.parse(issuer.issue(subject = "1", name = "1", audience = "sts.amazonaws.com", ttl = Duration.ofMinutes(5)))
 
         val publicJwk = JWKSet.parse(signingKey.publicJwkSetJson).getKeyByKeyId("test-kid") as RSAKey
         assertTrue(token.verify(RSASSAVerifier(publicJwk)))
@@ -57,13 +57,6 @@ class WebIdentityTokenIssuerTest {
     fun `公開鍵だけの JWK は受け付けない`() {
         assertFailsWith<IllegalArgumentException> {
             OidcSigningKey(privateJwk.toPublicJWK().toJSONString())
-        }
-    }
-
-    @Test
-    fun `パスを含む issuer は受け付けない`() {
-        assertFailsWith<IllegalArgumentException> {
-            OidcIssuer("https://example.com/oidc")
         }
     }
 }

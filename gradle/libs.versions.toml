@@ -112,7 +112,6 @@ opentelemetry-runtime-telemetry = { module = "io.opentelemetry.instrumentation:o
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbusJoseJwt" }
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awsSdk" }
 aws-sts = { module = "software.amazon.awssdk:sts", version.ref = "awsSdk" }
-aws-url-connection-client = { module = "software.amazon.awssdk:url-connection-client", version.ref = "awsSdk" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 

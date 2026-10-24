@@ -80,35 +80,33 @@ class ServerEnv(
         )
     }
 
-    /**
-     * このサーバーを OIDC の IdP にして、S3 などに渡す ID トークンを作るときに設定する。
-     * OIDC_JWK_PRIVATE は kid 付きの RSA の秘密鍵を JWK の JSON で書く。`./gradlew :backend:oidc:generateSigningJwk` で作れる
-     */
-    val oidc: OidcEnv? =
-        values["OIDC_JWK_PRIVATE"]?.let { privateJwkJson ->
-            OidcEnv(
-                issuer = OidcIssuer(requireNotNull(values["OIDC_ISSUER"]) { "OIDC_JWK_PRIVATE を設定するなら OIDC_ISSUER も設定すること" }),
-                privateJwkJson = privateJwkJson,
-            )
-        }
+    val enableS3: Boolean = booleanOf("ENABLE_S3") ?: false
 
     /**
-     * S3_BUCKET を設定すると画像を S3 に置く。認証情報は [oidc] のトークンを STS に渡して受け取るので、OIDC も設定すること
+     * 画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして発行したトークンを STS に渡して受け取る。
+     * OIDC_JWK_PRIVATE は RSA の秘密鍵を JWK の JSON で書く。`./gradlew :backend:oidc:generateSigningJwk` で作れる。
+     * S3_ENDPOINT と STS_ENDPOINT は未設定なら AWS のものを使う
      */
-    val s3ImageStorage: S3ImageStorageConfig? =
-        values["S3_BUCKET"]?.let { bucket ->
-            requireNotNull(oidc) { "S3_BUCKET を設定するなら OIDC_JWK_PRIVATE と OIDC_ISSUER も設定すること" }
-            S3ImageStorageConfig(
-                endpoint = values["S3_ENDPOINT"]?.let { URI(it) },
-                stsEndpoint = values["STS_ENDPOINT"]?.let { URI(it) },
-                region = requireNotNull(values["S3_REGION"]) { "S3_BUCKET を設定するなら S3_REGION も設定すること" },
-                bucket = bucket,
-                keyPrefix = values["S3_KEY_PREFIX"].orEmpty(),
-                roleArn = requireNotNull(values["S3_ROLE_ARN"]) { "S3_BUCKET を設定するなら S3_ROLE_ARN も設定すること" },
-                roleSessionName = values["S3_ROLE_SESSION_NAME"] ?: "kmp-activitypub-image-storage",
-                audience = requireNotNull(values["S3_AUDIENCE"]) { "S3_BUCKET を設定するなら S3_AUDIENCE も設定すること" },
-                pathStyleAccess = booleanOf("S3_PATH_STYLE_ACCESS") ?: false,
+    val s3: S3Env? =
+        if (enableS3) {
+            S3Env(
+                oidc = OidcEnv(
+                    issuer = OidcIssuer(requireNotNull(values["OIDC_ISSUER"]) { "OIDC_ISSUER が未設定です" }),
+                    privateJwkJson = requireNotNull(values["OIDC_JWK_PRIVATE"]) { "OIDC_JWK_PRIVATE が未設定です" },
+                ),
+                imageStorage = S3ImageStorageConfig(
+                    endpoint = values["S3_ENDPOINT"]?.let { URI(it) },
+                    stsEndpoint = values["STS_ENDPOINT"]?.let { URI(it) },
+                    region = requireNotNull(values["S3_REGION"]) { "S3_REGION が未設定です" },
+                    bucket = requireNotNull(values["S3_BUCKET"]) { "S3_BUCKET が未設定です" },
+                    roleArn = requireNotNull(values["S3_ROLE_ARN"]) { "S3_ROLE_ARN が未設定です" },
+                    roleSessionName = values["S3_ROLE_SESSION_NAME"] ?: "kmp-activitypub-image-upload",
+                    audience = requireNotNull(values["S3_AUDIENCE"]) { "S3_AUDIENCE が未設定です" },
+                    pathStyleAccess = booleanOf("S3_PATH_STYLE_ACCESS") ?: true,
+                ),
             )
+        } else {
+            null
         }
 
     private fun booleanOf(name: String): Boolean? =
@@ -117,6 +115,11 @@ class ServerEnv(
                 ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
         }
 }
+
+class S3Env(
+    val oidc: OidcEnv,
+    val imageStorage: S3ImageStorageConfig,
+)
 
 class OidcEnv(
     val issuer: OidcIssuer,

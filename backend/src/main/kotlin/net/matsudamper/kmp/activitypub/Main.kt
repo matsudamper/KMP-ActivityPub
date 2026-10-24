@@ -87,13 +87,12 @@ internal fun Application.module(deps: AppDependencies) {
         launch { federation.deliveryQueueWorker.run() }
     }
 
-    val oidc = deps.env.oidc
+    val s3 = deps.env.s3
     val oidcSigningKey = deps.oidcSigningKey
-    if (oidc != null) {
-        log.info("OIDC の issuer: ${oidc.issuer.value}")
-    }
-    if (deps.imageStorage == null) {
-        log.info("S3_BUCKET が未設定なので、画像を置けない")
+    if (s3 != null) {
+        log.info("OIDC の issuer: ${s3.oidc.issuer.value}")
+    } else {
+        log.info("ENABLE_S3 が false なので、画像を置けない")
     }
 
     val graphQl =
@@ -129,8 +128,8 @@ internal fun Application.module(deps: AppDependencies) {
         }
         graphQlRoutes(graphQl)
         wellKnownRoutes(deps.env.passkeyAndroidApp)
-        if (oidc != null && oidcSigningKey != null) {
-            oidcRoutes(oidc = oidc, signingKey = oidcSigningKey)
+        if (s3 != null && oidcSigningKey != null) {
+            oidcRoutes(oidc = s3.oidc, signingKey = oidcSigningKey)
         }
         if (federation != null) {
             federationRoutes(federation)

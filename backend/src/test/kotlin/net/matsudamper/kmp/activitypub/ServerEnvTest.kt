@@ -122,42 +122,36 @@ class ServerEnvTest {
     }
 
     @Test
-    fun `S3 と OIDC は未設定なら null`() {
-        val env = ServerEnv(emptyMap())
+    fun `ENABLE_S3 が未設定なら S3 を使わない`() {
+        val env = ServerEnv(S3_REQUIRED - "ENABLE_S3")
 
-        assertNull(env.oidc)
-        assertNull(env.s3ImageStorage)
+        assertFalse(env.enableS3)
+        assertNull(env.s3)
     }
 
     @Test
-    fun `S3_BUCKET を設定して OIDC が無ければ起動しない`() {
+    fun `ENABLE_S3 が true で OIDC が無ければ起動しない`() {
         assertFailsWith<IllegalArgumentException> {
-            ServerEnv(S3_REQUIRED)
+            ServerEnv(S3_REQUIRED - "OIDC_JWK_PRIVATE")
         }
     }
 
     @Test
-    fun `OIDC_JWK_PRIVATE を設定して OIDC_ISSUER が無ければ起動しない`() {
-        assertFailsWith<IllegalArgumentException> {
-            ServerEnv(mapOf("OIDC_JWK_PRIVATE" to "{}"))
-        }
-    }
-
-    @Test
-    fun `S3 を設定すると既定値で埋める`() {
-        val config = assertNotNull(ServerEnv(OIDC_REQUIRED + S3_REQUIRED).s3ImageStorage)
+    fun `S3 を有効にすると既定値で埋める`() {
+        val config = assertNotNull(ServerEnv(S3_REQUIRED).s3).imageStorage
 
         assertNull(config.endpoint)
         assertNull(config.stsEndpoint)
-        assertEquals("", config.keyPrefix)
-        assertEquals("kmp-activitypub-image-storage", config.roleSessionName)
-        assertFalse(config.pathStyleAccess)
+        assertEquals("kmp-activitypub-image-upload", config.roleSessionName)
+        assertTrue(config.pathStyleAccess)
     }
 
     private companion object {
-        val OIDC_REQUIRED: Map<String, String> = mapOf("OIDC_ISSUER" to "https://example.com", "OIDC_JWK_PRIVATE" to "{}")
         val S3_REQUIRED: Map<String, String> =
             mapOf(
+                "ENABLE_S3" to "true",
+                "OIDC_ISSUER" to "https://example.com",
+                "OIDC_JWK_PRIVATE" to "{}",
                 "S3_BUCKET" to "bucket",
                 "S3_REGION" to "ap-northeast-1",
                 "S3_ROLE_ARN" to "arn:aws:iam::123456789012:role/image",

@@ -1,11 +1,11 @@
 package net.matsudamper.kmp.activitypub.imagestorage.s3
 
+import java.time.Duration
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.sync.RequestBody
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.S3Configuration
@@ -78,9 +78,6 @@ class S3ImageStorage(
         )
 
     override fun buildDisplayUrl(request: ImageStorage.DisplayUrlRequest): String {
-        require(request.validFor <= StsCredentialProvider.SESSION_DURATION) {
-            "URL の期限は ${StsCredentialProvider.SESSION_DURATION} 以下にすること: ${request.validFor}"
-        }
         val credentials = stsCredentialProvider.assume(request.ownerAccountId)
         return S3Presigner.builder()
             .apply {
@@ -95,7 +92,7 @@ class S3ImageStorage(
             .use { presigner ->
                 presigner.presignGetObject(
                     GetObjectPresignRequest.builder()
-                        .signatureDuration(request.validFor)
+                        .signatureDuration(DISPLAY_URL_VALIDITY)
                         .getObjectRequest(
                             GetObjectRequest.builder()
                                 .bucket(config.bucket)
@@ -166,7 +163,6 @@ class S3ImageStorage(
             }
             .region(Region.of(config.region))
             .credentialsProvider(StaticCredentialsProvider.create(credentials))
-            .httpClient(UrlConnectionHttpClient.create())
             .serviceConfiguration(s3Configuration())
             .build()
     }
@@ -176,12 +172,14 @@ class S3ImageStorage(
             .pathStyleAccessEnabled(config.pathStyleAccess)
             .build()
 
-    private fun objectKey(path: ImagePath): String = config.keyPrefix + path.value
+    private fun objectKey(path: ImagePath): String = "img/${path.value}"
 
     private companion object {
         /**
          * S3 はマルチパートの最後以外のパートが 5MiB 未満だと完了を断る
          */
         const val MULTIPART_PART_SIZE = 5 * 1024 * 1024
+
+        val DISPLAY_URL_VALIDITY: Duration = Duration.ofHours(1)
     }
 }

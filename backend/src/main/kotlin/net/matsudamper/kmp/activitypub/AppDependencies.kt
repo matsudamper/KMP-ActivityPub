@@ -77,28 +77,28 @@ class AppDependencies(
         lockDuration = 30.days,
     )
 
-    val oidcSigningKey: OidcSigningKey? = env.oidc?.let { OidcSigningKey(it.privateJwkJson) }
+    val oidcSigningKey: OidcSigningKey? = env.s3?.let { OidcSigningKey(it.oidc.privateJwkJson) }
 
     private val webIdentityTokenIssuer: WebIdentityTokenIssuer? =
-        env.oidc?.let { oidc ->
+        env.s3?.let { s3 ->
             WebIdentityTokenIssuer(
                 signingKey = checkNotNull(oidcSigningKey),
-                issuer = oidc.issuer,
+                issuer = s3.oidc.issuer,
                 clock = Clock.systemUTC(),
             )
         }
 
     /**
-     * S3 を設定していなければ画像を置けない
+     * ENABLE_S3 が false なら画像を置けない
      */
     val imageStorage: ImageStorage? =
-        env.s3ImageStorage?.let { config ->
+        env.s3?.let { s3 ->
             S3ImageStorage(
                 stsCredentialProvider = StsCredentialProvider(
                     tokenIssuer = checkNotNull(webIdentityTokenIssuer),
-                    config = config,
+                    config = s3.imageStorage,
                 ),
-                config = config,
+                config = s3.imageStorage,
             )
         }
 

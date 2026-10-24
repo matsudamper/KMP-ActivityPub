@@ -5,7 +5,6 @@ import net.matsudamper.kmp.activitypub.oidc.WebIdentityTokenIssuer
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
-import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sts.StsClient
 import software.amazon.awssdk.services.sts.model.AssumeRoleWithWebIdentityRequest
@@ -21,6 +20,7 @@ class StsCredentialProvider(
     fun assume(accountId: AccountId): AwsSessionCredentials {
         val webIdentityToken = tokenIssuer.issue(
             subject = accountId.value.toString(),
+            name = accountId.value.toString(),
             audience = config.audience,
             ttl = WEB_IDENTITY_TOKEN_TTL,
         )
@@ -32,7 +32,6 @@ class StsCredentialProvider(
             }
             .region(Region.of(config.region))
             .credentialsProvider(AnonymousCredentialsProvider.create())
-            .httpClient(UrlConnectionHttpClient.create())
             .build()
             .use { stsClient ->
                 val credentials = stsClient.assumeRoleWithWebIdentity(
@@ -51,15 +50,15 @@ class StsCredentialProvider(
             }
     }
 
-    companion object {
+    private companion object {
         /**
          * STS に渡してすぐ使うので短くてよい
          */
-        private val WEB_IDENTITY_TOKEN_TTL: Duration = Duration.ofMinutes(5)
+        val WEB_IDENTITY_TOKEN_TTL: Duration = Duration.ofMinutes(5)
 
         /**
-         * STS は 900 秒未満を受け付けない。presigned URL はこの認証情報で署名するので、期限はこれより延ばせない
+         * STS は 900〜43200 秒の範囲外を受け付けない
          */
-        internal val SESSION_DURATION: Duration = Duration.ofHours(1)
+        val SESSION_DURATION: Duration = Duration.ofHours(1)
     }
 }

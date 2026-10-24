@@ -20,6 +20,7 @@ class WebIdentityTokenIssuer(
 ) {
     fun issue(
         subject: String,
+        name: String,
         audience: String,
         ttl: Duration,
     ): String {
@@ -34,6 +35,7 @@ class WebIdentityTokenIssuer(
             .issueTime(Date.from(now))
             .expirationTime(Date.from(now.plus(ttl)))
             .jwtID(UUID.randomUUID().toString())
+            .claim("name", name)
             .build()
         return SignedJWT(header, claims)
             .apply { sign(RSASSASigner(signingKey.privateKey)) }

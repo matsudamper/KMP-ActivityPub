@@ -12,7 +12,6 @@ class S3ImageStorageConfig(
     val stsEndpoint: URI?,
     val region: String,
     val bucket: String,
-    val keyPrefix: String,
     val roleArn: String,
     val roleSessionName: String,
     val audience: String,
