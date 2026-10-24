@@ -73,6 +73,15 @@ class UserSearchServiceTest {
     }
 
     @Test
+    fun `このサーバーのドメインのacctでは他のサーバーのユーザーを返さない`() {
+        remoteActorRepository.add(RemoteActorSearchRecord(actorUri = "https://remote.example/users/alice", preferredUsername = "alice", displayName = null))
+
+        val result = runBlocking { service.search(query = "@alice@local.example", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
+
+        assertEquals(UserSearchResult.EMPTY, result)
+    }
+
+    @Test
     fun `空白だけの検索語では何も返さない`() {
         addAccount("user1")
 

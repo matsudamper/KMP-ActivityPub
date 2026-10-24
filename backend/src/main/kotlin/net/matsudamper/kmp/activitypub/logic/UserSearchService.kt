@@ -40,8 +40,11 @@ class UserSearchService(
         val acct = query.trim().removePrefix("@")
         val username = acct.substringBefore('@')
         val host = acct.substringAfter('@', missingDelimiterValue = "")
-        if (host.isEmpty() || host.equals(localDomain, ignoreCase = true)) {
-            return searchByName(keyword = username, cursor = cursor, localHost = localDomain ?: requestHost)
+        if (host.isEmpty()) {
+            return searchByName(keyword = username, cursor = cursor, localHost = localDomain ?: requestHost, remoteIncluded = true)
+        }
+        if (host.equals(localDomain, ignoreCase = true)) {
+            return searchByName(keyword = username, cursor = cursor, localHost = host.lowercase(), remoteIncluded = false)
         }
         if (username.isEmpty() || !remoteLookupAllowed || remoteUserLookup == null) return UserSearchResult.EMPTY
 
@@ -62,11 +65,14 @@ class UserSearchService(
     /**
      * このサーバーのユーザーと他のサーバーのユーザーを、それぞれ 1 ページ分より 1 件多く取って名前順に混ぜる。
      * 次のページはそれぞれ最後に返したものの後ろから取るので、片方だけが多くても取りこぼさない
+     *
+     * @param remoteIncluded `@user@このドメイン` のようにこのサーバーを指定されたら false
      */
     private fun searchByName(
         keyword: String,
         cursor: UserSearchCursor?,
         localHost: String,
+        remoteIncluded: Boolean,
     ): UserSearchResult {
         if (keyword.isEmpty()) return UserSearchResult.EMPTY
 
@@ -77,7 +83,7 @@ class UserSearchService(
                 accountRepository.searchByUsername(keyword = keyword, afterUsername = cursor?.localLastUsername, limit = PAGE_SIZE + 1)
             }
         val remoteActors =
-            if (cursor?.remoteDone == true) {
+            if (!remoteIncluded || cursor?.remoteDone == true) {
                 listOf()
             } else {
                 remoteActorRepository.searchByName(keyword = keyword, after = cursor?.remoteLast(), limit = PAGE_SIZE + 1)
