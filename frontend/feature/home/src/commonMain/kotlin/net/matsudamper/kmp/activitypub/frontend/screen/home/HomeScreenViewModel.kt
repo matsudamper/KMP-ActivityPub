@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import org.koin.core.annotation.KoinViewModel
 
@@ -89,6 +90,10 @@ internal class HomeScreenViewModel(
             return
         }
         searchStateFlow.value = SearchState.Loading
+        if (isResolveQuery(trimmedQuery)) {
+            searchJob = viewModelScope.launch { resolveUser(trimmedQuery) }
+            return
+        }
         searchJob = viewModelScope.launch {
             when (val result = userApi.searchUsers(query = trimmedQuery, after = null)) {
                 is UserSearchResult.Success -> {
@@ -103,6 +108,29 @@ internal class HomeScreenViewModel(
                     searchStateFlow.value = SearchState.NotSearched
                     events.send { it.showMessage(result.message) }
                 }
+            }
+        }
+    }
+
+    /**
+     * `@user@host` と URL は名前の一部ではなく、1 人を指す書き方として引く
+     */
+    private fun isResolveQuery(query: String): Boolean =
+        query.startsWith("https://") || query.startsWith("http://") || query.removePrefix("@").contains('@')
+
+    private suspend fun resolveUser(query: String) {
+        when (val result = userApi.resolveUser(query)) {
+            is UserResolveResult.Found -> {
+                searchStateFlow.value = SearchState.Loaded(query = query, users = listOf(result.user), nextCursor = null)
+            }
+
+            UserResolveResult.NotFound -> {
+                searchStateFlow.value = SearchState.Loaded(query = query, users = listOf(), nextCursor = null)
+            }
+
+            is UserResolveResult.Failure -> {
+                searchStateFlow.value = SearchState.NotSearched
+                events.send { it.showMessage(result.message) }
             }
         }
     }

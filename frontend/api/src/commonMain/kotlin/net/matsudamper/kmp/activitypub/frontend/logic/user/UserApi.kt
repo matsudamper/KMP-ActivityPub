@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
@@ -93,6 +94,18 @@ class UserApi(
         return UserSearchResult.Success(
             users = searchUsers.users.map { UserSearchResult.User(username = it.username, host = it.host, isLocal = it.isLocal, displayName = it.displayName) },
             nextCursor = searchUsers.nextCursor,
+        )
+    }
+
+    suspend fun resolveUser(query: String): UserResolveResult {
+        val client = clients.awaitLoadedClient() ?: return UserResolveResult.Failure("接続先が未設定")
+        val response = client.query(HomeScreenResolveUserQuery(query = query)).execute()
+        if (response.exception != null || response.hasErrors()) return UserResolveResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserResolveResult.Failure(response.failureMessage())
+        val user = data.resolveUser ?: return UserResolveResult.NotFound
+
+        return UserResolveResult.Found(
+            UserSearchResult.User(username = user.username, host = user.host, isLocal = user.isLocal, displayName = user.displayName),
         )
     }
 

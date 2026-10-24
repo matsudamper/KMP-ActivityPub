@@ -9,3 +9,12 @@ query HomeScreenSearchUsers($query: String!, $after: String) {
         nextCursor
     }
 }
+
+query HomeScreenResolveUser($query: String!) {
+    resolveUser(query: $query) {
+        username
+        host
+        isLocal
+        displayName
+    }
+}
