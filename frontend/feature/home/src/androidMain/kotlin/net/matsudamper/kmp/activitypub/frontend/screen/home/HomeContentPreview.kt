@@ -59,9 +59,9 @@ private fun HomeSearchContentPreview() {
                             ),
                             HomeScreenUiState.SearchAccount(
                                 avatarInitial = "K",
-                                displayName = "kotlinweekly",
-                                acct = "@kotlinweekly",
-                                listener = AndroidPreviewSearchAccountListener,
+                                displayName = "Kotlin Weekly",
+                                acct = "@kotlinweekly@remote.example",
+                                listener = null,
                             ),
                         ),
                         loadMoreButtonVisible = true,

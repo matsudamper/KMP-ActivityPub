@@ -94,7 +94,7 @@ internal class HomeScreenViewModel(
                 is UserSearchResult.Success -> {
                     searchStateFlow.value = SearchState.Loaded(
                         query = trimmedQuery,
-                        usernames = result.usernames,
+                        users = result.users,
                         nextCursor = result.nextCursor,
                     )
                 }
@@ -115,7 +115,7 @@ internal class HomeScreenViewModel(
             when (val result = userApi.searchUsers(query = loaded.query, after = nextCursor)) {
                 is UserSearchResult.Success -> {
                     searchStateFlow.value = loaded.copy(
-                        usernames = loaded.usernames + result.usernames,
+                        users = loaded.users + result.users,
                         nextCursor = result.nextCursor,
                     )
                 }
@@ -134,20 +134,7 @@ internal class HomeScreenViewModel(
             SearchState.Loading -> HomeScreenUiState.SearchResult.Loading
 
             is SearchState.Loaded -> HomeScreenUiState.SearchResult.Loaded(
-                accounts = searchState.usernames.map { username ->
-                    HomeScreenUiState.SearchAccount(
-                        avatarInitial = username.take(1).uppercase(),
-                        displayName = username,
-                        acct = "@$username",
-                        listener = object : HomeScreenUiState.SearchAccountListener {
-                            override fun onClick() {
-                                viewModelScope.launch {
-                                    events.send { it.navigateToUserProfile(username) }
-                                }
-                            }
-                        },
-                    )
-                },
+                accounts = searchState.users.map { user -> createSearchAccount(user) },
                 loadMoreButtonVisible = searchState.nextCursor != null,
             )
         }
@@ -162,6 +149,26 @@ internal class HomeScreenViewModel(
                 postedAt = "${index}分前",
             )
         }
+    }
+
+    private fun createSearchAccount(user: UserSearchResult.User): HomeScreenUiState.SearchAccount {
+        return HomeScreenUiState.SearchAccount(
+            avatarInitial = user.username.take(1).uppercase(),
+            displayName = user.displayName ?: user.username,
+            acct = if (user.host == null) "@${user.username}" else "@${user.username}@${user.host}",
+            // 他のサーバーのユーザーのプロフィール画面はまだ無い
+            listener = if (user.host == null) {
+                object : HomeScreenUiState.SearchAccountListener {
+                    override fun onClick() {
+                        viewModelScope.launch {
+                            events.send { it.navigateToUserProfile(user.username) }
+                        }
+                    }
+                }
+            } else {
+                null
+            },
+        )
     }
 
     interface Event {
@@ -181,7 +188,7 @@ internal class HomeScreenViewModel(
 
         data class Loaded(
             val query: String,
-            val usernames: List<String>,
+            val users: List<UserSearchResult.User>,
             val nextCursor: String?,
         ) : SearchState
     }

@@ -263,10 +263,11 @@ private fun SearchMessage(
 private fun SearchAccountItem(
     account: HomeScreenUiState.SearchAccount,
 ) {
+    val listener = account.listener
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = account.listener::onClick)
+            .then(if (listener == null) Modifier else Modifier.clickable(onClick = listener::onClick))
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,

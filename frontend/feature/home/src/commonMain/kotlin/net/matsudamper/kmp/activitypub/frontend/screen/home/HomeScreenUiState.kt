@@ -41,7 +41,10 @@ data class HomeScreenUiState(
         val avatarInitial: String,
         val displayName: String,
         val acct: String,
-        val listener: SearchAccountListener,
+        /**
+         * 押しても何も起きないものは null
+         */
+        val listener: SearchAccountListener?,
     )
 
     @Immutable

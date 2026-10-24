@@ -2,6 +2,8 @@ query HomeScreenSearchUsers($query: String!, $after: String) {
     searchUsers(query: $query, after: $after) {
         users {
             username
+            host
+            displayName
         }
         nextCursor
     }
