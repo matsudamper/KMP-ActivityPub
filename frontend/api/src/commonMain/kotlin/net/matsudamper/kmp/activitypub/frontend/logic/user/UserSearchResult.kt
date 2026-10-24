@@ -16,6 +16,6 @@ sealed interface UserSearchResult {
     data class User(
         val username: String,
         val host: String?,
-        val displayName: String?,
+        val displayName: String,
     )
 }

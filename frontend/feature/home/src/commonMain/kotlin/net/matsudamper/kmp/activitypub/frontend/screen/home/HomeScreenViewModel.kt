@@ -154,7 +154,7 @@ internal class HomeScreenViewModel(
     private fun createSearchAccount(user: UserSearchResult.User): HomeScreenUiState.SearchAccount {
         return HomeScreenUiState.SearchAccount(
             avatarInitial = user.username.take(1).uppercase(),
-            displayName = user.displayName ?: user.username,
+            displayName = user.displayName,
             acct = if (user.host == null) "@${user.username}" else "@${user.username}@${user.host}",
             // 他のサーバーのユーザーのプロフィール画面はまだ無い
             listener = if (user.host == null) {

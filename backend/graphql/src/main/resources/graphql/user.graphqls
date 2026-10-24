@@ -14,6 +14,6 @@ type SearchedUser {
     username: String!
     "このサーバーのユーザーなら null"
     host: String
-    "このサーバーのユーザーはまだ表示名を持たないので null"
-    displayName: String
+    "表示名が無ければユーザー名"
+    displayName: String!
 }
