@@ -3,9 +3,14 @@ package net.matsudamper.kmp.activitypub
 import java.time.Clock
 import kotlin.time.Duration.Companion.days
 import net.matsudamper.kmp.activitypub.federation.Federation
+import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
+import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorage
+import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
+import net.matsudamper.kmp.activitypub.oidc.OidcSigningKey
+import net.matsudamper.kmp.activitypub.oidc.WebIdentityTokenIssuer
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.session.LoginFailureStore
@@ -71,6 +76,31 @@ class AppDependencies(
         maxFailures = 5,
         lockDuration = 30.days,
     )
+
+    val oidcSigningKey: OidcSigningKey? = env.oidc?.let { OidcSigningKey(it.privateJwkJson) }
+
+    private val webIdentityTokenIssuer: WebIdentityTokenIssuer? =
+        env.oidc?.let { oidc ->
+            WebIdentityTokenIssuer(
+                signingKey = checkNotNull(oidcSigningKey),
+                issuer = oidc.issuer,
+                clock = Clock.systemUTC(),
+            )
+        }
+
+    /**
+     * S3 を設定していなければ画像を置けない
+     */
+    val imageStorage: ImageStorage? =
+        env.s3ImageStorage?.let { config ->
+            S3ImageStorage(
+                stsCredentialProvider = StsCredentialProvider(
+                    tokenIssuer = checkNotNull(webIdentityTokenIssuer),
+                    config = config,
+                ),
+                config = config,
+            )
+        }
 
     override fun close() {
         passkeyChallengeStore.close()

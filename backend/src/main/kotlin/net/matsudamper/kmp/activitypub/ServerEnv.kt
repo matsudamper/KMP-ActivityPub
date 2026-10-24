@@ -1,8 +1,11 @@
 package net.matsudamper.kmp.activitypub
 
+import java.net.URI
 import java.nio.file.Path
 import java.util.Base64
 import kotlin.io.path.Path
+import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorageConfig
+import net.matsudamper.kmp.activitypub.oidc.OidcIssuer
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 
 /**
@@ -77,12 +80,48 @@ class ServerEnv(
         )
     }
 
+    /**
+     * このサーバーを OIDC の IdP にして、S3 などに渡す ID トークンを作るときに設定する。
+     * OIDC_JWK_PRIVATE は kid 付きの RSA の秘密鍵を JWK の JSON で書く。`./gradlew :backend:oidc:generateSigningJwk` で作れる
+     */
+    val oidc: OidcEnv? =
+        values["OIDC_JWK_PRIVATE"]?.let { privateJwkJson ->
+            OidcEnv(
+                issuer = OidcIssuer(requireNotNull(values["OIDC_ISSUER"]) { "OIDC_JWK_PRIVATE を設定するなら OIDC_ISSUER も設定すること" }),
+                privateJwkJson = privateJwkJson,
+            )
+        }
+
+    /**
+     * S3_BUCKET を設定すると画像を S3 に置く。認証情報は [oidc] のトークンを STS に渡して受け取るので、OIDC も設定すること
+     */
+    val s3ImageStorage: S3ImageStorageConfig? =
+        values["S3_BUCKET"]?.let { bucket ->
+            requireNotNull(oidc) { "S3_BUCKET を設定するなら OIDC_JWK_PRIVATE と OIDC_ISSUER も設定すること" }
+            S3ImageStorageConfig(
+                endpoint = values["S3_ENDPOINT"]?.let { URI(it) },
+                stsEndpoint = values["STS_ENDPOINT"]?.let { URI(it) },
+                region = requireNotNull(values["S3_REGION"]) { "S3_BUCKET を設定するなら S3_REGION も設定すること" },
+                bucket = bucket,
+                keyPrefix = values["S3_KEY_PREFIX"].orEmpty(),
+                roleArn = requireNotNull(values["S3_ROLE_ARN"]) { "S3_BUCKET を設定するなら S3_ROLE_ARN も設定すること" },
+                roleSessionName = values["S3_ROLE_SESSION_NAME"] ?: "kmp-activitypub-image-storage",
+                audience = requireNotNull(values["S3_AUDIENCE"]) { "S3_BUCKET を設定するなら S3_AUDIENCE も設定すること" },
+                pathStyleAccess = booleanOf("S3_PATH_STYLE_ACCESS") ?: false,
+            )
+        }
+
     private fun booleanOf(name: String): Boolean? =
         values[name]?.let { raw ->
             raw.lowercase().toBooleanStrictOrNull()
                 ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
         }
 }
+
+class OidcEnv(
+    val issuer: OidcIssuer,
+    val privateJwkJson: String,
+)
 
 /**
  * @param certSha256Fingerprints `AA:BB:...` の形

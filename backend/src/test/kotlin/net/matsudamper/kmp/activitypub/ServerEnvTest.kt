@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -118,5 +119,49 @@ class ServerEnvTest {
         assertFailsWith<IllegalArgumentException> {
             ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app"))
         }
+    }
+
+    @Test
+    fun `S3 と OIDC は未設定なら null`() {
+        val env = ServerEnv(emptyMap())
+
+        assertNull(env.oidc)
+        assertNull(env.s3ImageStorage)
+    }
+
+    @Test
+    fun `S3_BUCKET を設定して OIDC が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(S3_REQUIRED)
+        }
+    }
+
+    @Test
+    fun `OIDC_JWK_PRIVATE を設定して OIDC_ISSUER が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(mapOf("OIDC_JWK_PRIVATE" to "{}"))
+        }
+    }
+
+    @Test
+    fun `S3 を設定すると既定値で埋める`() {
+        val config = assertNotNull(ServerEnv(OIDC_REQUIRED + S3_REQUIRED).s3ImageStorage)
+
+        assertNull(config.endpoint)
+        assertNull(config.stsEndpoint)
+        assertEquals("", config.keyPrefix)
+        assertEquals("kmp-activitypub-image-storage", config.roleSessionName)
+        assertFalse(config.pathStyleAccess)
+    }
+
+    private companion object {
+        val OIDC_REQUIRED: Map<String, String> = mapOf("OIDC_ISSUER" to "https://example.com", "OIDC_JWK_PRIVATE" to "{}")
+        val S3_REQUIRED: Map<String, String> =
+            mapOf(
+                "S3_BUCKET" to "bucket",
+                "S3_REGION" to "ap-northeast-1",
+                "S3_ROLE_ARN" to "arn:aws:iam::123456789012:role/image",
+                "S3_AUDIENCE" to "sts.amazonaws.com",
+            )
     }
 }

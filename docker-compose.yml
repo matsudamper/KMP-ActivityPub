@@ -28,6 +28,24 @@ services:
       DOMAIN: example.com
       # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
 #      TRUST_CF_CONNECTING_IP: "true"
+      # このサーバーを OIDC の IdP にする。/.well-known/openid-configuration と /.well-known/jwks.json を返す
+      # パスを含めない。STS からこの URL に届くこと
+#      OIDC_ISSUER: https://example.com
+      # kid 付きの RSA 秘密鍵の JWK。./gradlew :backend:oidc:generateSigningJwk で作る
+#      OIDC_JWK_PRIVATE: '{"kty":"RSA",...}'
+      # 画像を S3 に置くとき。OIDC の設定も要る。認証情報は STS の AssumeRoleWithWebIdentity で受け取る
+#      S3_BUCKET: kmp-activitypub-images
+#      S3_REGION: ap-northeast-1
+      # IAM の OIDC プロバイダを信頼するロール
+#      S3_ROLE_ARN: arn:aws:iam::123456789012:role/kmp-activitypub-image
+      # IAM の OIDC プロバイダに登録した Audience
+#      S3_AUDIENCE: kmp-activitypub
+      # 以下は任意。AWS 以外の S3 互換ストレージに向けるときに設定する
+#      S3_ENDPOINT: https://s3.example.com
+#      STS_ENDPOINT: https://sts.example.com
+#      S3_PATH_STYLE_ACCESS: "true"
+#      S3_KEY_PREFIX: images/
+#      S3_ROLE_SESSION_NAME: kmp-activitypub-image-storage
       # OpenTelemetry の送り先。未設定だと localhost:4318 に送ろうとして失敗し続ける
 #      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 #      OTEL_RESOURCE_ATTRIBUTES: service.name=kmp-activitypub,deployment.environment.name=production

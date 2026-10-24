@@ -5,6 +5,8 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import com.nimbusds.jose.jwk.JWKSet
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
@@ -111,6 +113,42 @@ class MainTest {
             }
 
             assertEquals(HttpStatusCode.NotFound, client.get("/.well-known/assetlinks.json").status)
+        }
+
+    @Test
+    fun `OIDC を設定すると Discovery と公開鍵を返す`() =
+        testApplication {
+            val privateJwk = RSAKeyGenerator(2048).keyID("test-kid").generate()
+            application {
+                module(
+                    TestDependencies(
+                        env = ServerEnv(TestEnv.REQUIRED + mapOf("OIDC_ISSUER" to "https://example.com/", "OIDC_JWK_PRIVATE" to privateJwk.toJSONString())),
+                    ),
+                )
+            }
+
+            val discovery = client.get("/.well-known/openid-configuration")
+            assertEquals(HttpStatusCode.OK, discovery.status)
+            assertEquals(
+                """{"issuer":"https://example.com","jwks_uri":"https://example.com/.well-known/jwks.json",""" +
+                    """"response_types_supported":["id_token"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["RS256"]}""",
+                discovery.bodyAsText(),
+            )
+
+            val jwks = client.get("/.well-known/jwks.json")
+            assertEquals(HttpStatusCode.OK, jwks.status)
+            assertEquals(JWKSet(privateJwk.toPublicJWK()), JWKSet.parse(jwks.bodyAsText()))
+        }
+
+    @Test
+    fun `OIDC が未設定なら Discovery は 404`() =
+        testApplication {
+            application {
+                module(TestDependencies())
+            }
+
+            assertEquals(HttpStatusCode.NotFound, client.get("/.well-known/openid-configuration").status)
+            assertEquals(HttpStatusCode.NotFound, client.get("/.well-known/jwks.json").status)
         }
 
     private companion object {
