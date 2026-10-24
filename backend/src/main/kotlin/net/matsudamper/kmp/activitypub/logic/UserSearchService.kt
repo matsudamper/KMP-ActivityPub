@@ -73,8 +73,8 @@ class UserSearchService(
     ): SearchedUser? {
         val uri = runCatching { URI(url) }.getOrNull() ?: return null
         val host = uri.host ?: return null
-        val authority = if (uri.port == -1) host else "$host:${uri.port}"
-        if (authority.equals(localHost, ignoreCase = true)) {
+        // DOMAIN が無いときのリクエストのホストにはポートが付かないので、ポートを除いて比べる
+        if (host.equals(localHost.substringBefore(':'), ignoreCase = true)) {
             val username = localUsernamePattern.matchEntire(uri.path.orEmpty())?.groupValues?.get(1) ?: return null
             return findLocalUser(username = username, localHost = localHost)
         }

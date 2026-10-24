@@ -121,6 +121,22 @@ class UserSearchServiceTest {
     }
 
     @Test
+    fun `DOMAINが無いときはポート付きのURLでもリクエストのホストならこのサーバーのユーザーを引く`() {
+        addAccount("alice")
+        val serviceWithoutDomain =
+            UserSearchService(
+                accountRepository = accountRepository,
+                remoteActorRepository = remoteActorRepository,
+                remoteUserLookup = null,
+                localDomain = null,
+            )
+
+        val user = runBlocking { serviceWithoutDomain.resolveUser(query = "http://localhost:8080/@alice", remoteLookupAllowed = true, requestHost = "localhost") }
+
+        assertEquals(SearchedUser(username = "alice", host = "localhost", isLocal = true, displayName = "alice"), user)
+    }
+
+    @Test
     fun `他のホストのacctはそのホストのユーザーを引く`() {
         remoteUserLookup.users["bob@Remote.example"] = RemoteUser(username = "bob", displayName = null)
 
