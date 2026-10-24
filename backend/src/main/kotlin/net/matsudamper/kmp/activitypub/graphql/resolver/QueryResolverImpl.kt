@@ -69,7 +69,9 @@ class QueryResolverImpl : QueryResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserSearchResult>> {
         val userSearchService = GraphQlEngine.diContainer(env).userSearchService
-        val remoteLookupAllowed = GraphQlEngine.graphQlContext(env).userAccountId() != null
+        val graphQlContext = GraphQlEngine.graphQlContext(env)
+        val remoteLookupAllowed = graphQlContext.userAccountId() != null
+        val requestHost = graphQlContext.requestHost
         val cursor = after?.let { UserSearchCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
         return otelSupplyAsync {
             val result =
@@ -78,11 +80,12 @@ class QueryResolverImpl : QueryResolver {
                         query = query,
                         cursor = cursor,
                         remoteLookupAllowed = remoteLookupAllowed,
+                        requestHost = requestHost,
                     )
                 }
             DataFetcherResult.Builder(
                 QlUserSearchResult(
-                    users = result.users.map { QlSearchedUser(username = it.username, host = it.host, displayName = it.displayName) },
+                    users = result.users.map { QlSearchedUser(username = it.username, host = it.host, isLocal = it.isLocal, displayName = it.displayName) },
                     nextCursor = result.nextCursor?.encode(),
                 ),
             ).build()

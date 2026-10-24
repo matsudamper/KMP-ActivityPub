@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.graphql
 import java.util.concurrent.atomic.AtomicBoolean
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.plugins.origin
+import io.ktor.server.request.host
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
 import net.matsudamper.kmp.activitypub.session.UserSessionService
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -25,6 +26,11 @@ class GraphQlContext(
     val clientIp: String =
         call.request.headers["CF-Connecting-IP"]?.takeIf { trustCfConnectingIp }
             ?: call.request.origin.remoteAddress
+
+    /**
+     * DOMAIN が無いときに、このサーバーのユーザーのホストとして見せる
+     */
+    val requestHost: String = call.request.host()
 
     private val loginAttempted = AtomicBoolean(false)
     private val passkeyChallengeIssued = AtomicBoolean(false)

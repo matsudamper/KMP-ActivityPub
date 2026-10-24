@@ -3,6 +3,7 @@ query HomeScreenSearchUsers($query: String!, $after: String) {
         users {
             username
             host
+            isLocal
             displayName
         }
         nextCursor

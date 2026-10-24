@@ -155,9 +155,9 @@ internal class HomeScreenViewModel(
         return HomeScreenUiState.SearchAccount(
             avatarInitial = user.username.take(1).uppercase(),
             displayName = user.displayName,
-            acct = if (user.host == null) "@${user.username}" else "@${user.username}@${user.host}",
+            acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
             // 他のサーバーのユーザーのプロフィール画面はまだ無い
-            listener = if (user.host == null) {
+            listener = if (user.isLocal) {
                 object : HomeScreenUiState.SearchAccountListener {
                     override fun onClick() {
                         viewModelScope.launch {

@@ -11,11 +11,12 @@ sealed interface UserSearchResult {
     ) : UserSearchResult
 
     /**
-     * @param host このサーバーのユーザーなら null
+     * @param isLocal このサーバーのユーザーか
      */
     data class User(
         val username: String,
-        val host: String?,
+        val host: String,
+        val isLocal: Boolean,
         val displayName: String,
     )
 }

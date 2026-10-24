@@ -29,17 +29,19 @@ class UserSearchService(
     /**
      * @param remoteLookupAllowed 相手のサーバーへ問い合わせてよいか。入力したホストへこちらから GET するので、
      *   誰でも使えるとこのサーバーを踏み台にした大量のリクエストに使われる
+     * @param requestHost DOMAIN が無いときに、このサーバーのユーザーのホストとして使う
      */
     suspend fun search(
         query: String,
         cursor: UserSearchCursor?,
         remoteLookupAllowed: Boolean,
+        requestHost: String,
     ): UserSearchResult {
         val acct = query.trim().removePrefix("@")
         val username = acct.substringBefore('@')
         val host = acct.substringAfter('@', missingDelimiterValue = "")
         if (host.isEmpty() || host.equals(localDomain, ignoreCase = true)) {
-            return searchByName(keyword = username, cursor = cursor)
+            return searchByName(keyword = username, cursor = cursor, localHost = localDomain ?: requestHost)
         }
         if (username.isEmpty() || !remoteLookupAllowed || remoteUserLookup == null) return UserSearchResult.EMPTY
 
@@ -49,6 +51,7 @@ class UserSearchService(
                 SearchedUser(
                     username = remoteUser.username,
                     host = host.lowercase(),
+                    isLocal = false,
                     displayName = remoteUser.displayName ?: remoteUser.username,
                 ),
             ),
@@ -63,6 +66,7 @@ class UserSearchService(
     private fun searchByName(
         keyword: String,
         cursor: UserSearchCursor?,
+        localHost: String,
     ): UserSearchResult {
         if (keyword.isEmpty()) return UserSearchResult.EMPTY
 
@@ -98,7 +102,7 @@ class UserSearchService(
             )
 
         return UserSearchResult(
-            users = page.mapNotNull { it.toSearchedUser() },
+            users = page.mapNotNull { it.toSearchedUser(localHost) },
             nextCursor = nextCursor.takeUnless { it.localDone && it.remoteDone },
         )
     }
@@ -112,7 +116,7 @@ class UserSearchService(
          */
         val sortTieBreaker: String
 
-        fun toSearchedUser(): SearchedUser?
+        fun toSearchedUser(localHost: String): SearchedUser?
 
         class Local(
             val account: Account,
@@ -120,8 +124,8 @@ class UserSearchService(
             override val sortName: String = account.username.lowercase()
             override val sortTieBreaker: String = ""
 
-            override fun toSearchedUser(): SearchedUser =
-                SearchedUser(username = account.username, host = null, displayName = account.username)
+            override fun toSearchedUser(localHost: String): SearchedUser =
+                SearchedUser(username = account.username, host = localHost, isLocal = true, displayName = account.username)
         }
 
         class Remote(
@@ -133,11 +137,12 @@ class UserSearchService(
             /**
              * ホストが読めないアクターは acct を作れないので出さない
              */
-            override fun toSearchedUser(): SearchedUser? {
+            override fun toSearchedUser(localHost: String): SearchedUser? {
                 val host = runCatching { URI(record.actorUri).host }.getOrNull() ?: return null
                 return SearchedUser(
                     username = record.preferredUsername,
                     host = host.lowercase(),
+                    isLocal = false,
                     displayName = record.displayName?.takeIf { it.isNotBlank() } ?: record.preferredUsername,
                 )
             }
@@ -159,12 +164,13 @@ data class UserSearchResult(
 }
 
 /**
- * @param host このサーバーのユーザーなら null
+ * @param isLocal このサーバーのユーザーか
  * @param displayName 表示名が無ければユーザー名
  */
 data class SearchedUser(
     val username: String,
-    val host: String?,
+    val host: String,
+    val isLocal: Boolean,
     val displayName: String,
 )
 

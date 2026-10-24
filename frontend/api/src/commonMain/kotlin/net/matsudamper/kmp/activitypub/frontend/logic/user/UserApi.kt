@@ -91,7 +91,7 @@ class UserApi(
         val searchUsers = response.data?.searchUsers ?: return UserSearchResult.Failure(response.failureMessage())
 
         return UserSearchResult.Success(
-            users = searchUsers.users.map { UserSearchResult.User(username = it.username, host = it.host, displayName = it.displayName) },
+            users = searchUsers.users.map { UserSearchResult.User(username = it.username, host = it.host, isLocal = it.isLocal, displayName = it.displayName) },
             nextCursor = searchUsers.nextCursor,
         )
     }
