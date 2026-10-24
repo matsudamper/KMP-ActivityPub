@@ -161,6 +161,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlDeletePasswordResult>> {
+        if (GraphQlEngine.diContainer(env).passkeyService == null) throw GraphQlClientException("パスキーが無効なのでパスワードを消せない")
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         val failure =
             if (accountId == null) {
