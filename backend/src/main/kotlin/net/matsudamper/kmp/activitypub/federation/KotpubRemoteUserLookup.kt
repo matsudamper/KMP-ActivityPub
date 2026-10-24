@@ -9,15 +9,20 @@ internal class KotpubRemoteUserLookup(
     private val webFinger: WebFingerLookup,
     private val remoteActors: RemoteActors,
 ) : RemoteUserLookup {
-    override suspend fun find(
+    override suspend fun findByAcct(
         username: String,
         host: String,
     ): RemoteUser? {
         val actorId = webFinger.findActorId("$username@$host") ?: return null
-        val actor = remoteActors.findActor(actorId) ?: return null
-        return RemoteUser(
-            username = actor.profile.preferredUsername ?: username,
-            displayName = actor.profile.displayName,
-        )
+        return findByUrl(actorId)
+    }
+
+    /**
+     * acct のユーザー名は preferredUsername から決まるので、無いアクターは返さない
+     */
+    override suspend fun findByUrl(url: String): RemoteUser? {
+        val actor = remoteActors.findActor(url) ?: return null
+        val username = actor.profile.preferredUsername ?: return null
+        return RemoteUser(username = username, displayName = actor.profile.displayName)
     }
 }

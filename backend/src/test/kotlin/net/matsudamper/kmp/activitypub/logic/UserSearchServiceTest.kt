@@ -30,7 +30,7 @@ class UserSearchServiceTest {
         remoteActorRepository.add(RemoteActorSearchRecord(actorUri = "https://remote.example/users/bob", preferredUsername = "bob", displayName = "Bob"))
         remoteActorRepository.add(RemoteActorSearchRecord(actorUri = "https://remote.example/users/dave", preferredUsername = "dave", displayName = null))
 
-        val result = runBlocking { service.search(query = "a", cursor = null, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }
+        val result = service.searchUsers(query = "a", cursor = null, requestHost = REQUEST_HOST)
 
         assertEquals(
             listOf(
@@ -48,7 +48,7 @@ class UserSearchServiceTest {
     fun `他のサーバーのユーザーは表示名でも探せる`() {
         remoteActorRepository.add(RemoteActorSearchRecord(actorUri = "https://remote.example/users/1", preferredUsername = "user1", displayName = "Alice"))
 
-        val result = runBlocking { service.search(query = "ali", cursor = null, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }
+        val result = service.searchUsers(query = "ali", cursor = null, requestHost = REQUEST_HOST)
 
         assertEquals(listOf(SearchedUser(username = "user1", host = "remote.example", isLocal = false, displayName = "Alice")), result.users)
     }
@@ -62,10 +62,10 @@ class UserSearchServiceTest {
             )
         }
 
-        val firstPage = runBlocking { service.search(query = "user", cursor = null, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }
+        val firstPage = service.searchUsers(query = "user", cursor = null, requestHost = REQUEST_HOST)
         val firstCursor = assertNotNull(firstPage.nextCursor)
         val secondPage =
-            runBlocking { service.search(query = "user", cursor = UserSearchCursor.decode(firstCursor.encode()), remoteLookupAllowed = false, requestHost = REQUEST_HOST) }
+            service.searchUsers(query = "user", cursor = UserSearchCursor.decode(firstCursor.encode()), requestHost = REQUEST_HOST)
 
         assertEquals((1..30).map { "user%02d".format(it) }, firstPage.users.map { it.username })
         assertEquals((31..40).map { "user%02d".format(it) }, secondPage.users.map { it.username })
@@ -83,9 +83,9 @@ class UserSearchServiceTest {
             }
         }
 
-        val names = generateSequence(runBlocking { service.search(query = "common", cursor = null, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }) { page ->
+        val names = generateSequence(service.searchUsers(query = "common", cursor = null, requestHost = REQUEST_HOST)) { page ->
             page.nextCursor?.let { cursor ->
-                runBlocking { service.search(query = "common", cursor = cursor, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }
+                service.searchUsers(query = "common", cursor = cursor, requestHost = REQUEST_HOST)
             }
         }.flatMap { it.users }.map { it.username }.toList()
 
@@ -94,61 +94,68 @@ class UserSearchServiceTest {
     }
 
     @Test
-    fun `このサーバーのドメインのacctでは他のサーバーのユーザーを返さない`() {
-        remoteActorRepository.add(RemoteActorSearchRecord(actorUri = "https://remote.example/users/alice", preferredUsername = "alice", displayName = null))
-
-        val result = runBlocking { service.search(query = "@alice@local.example", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
-
-        assertEquals(UserSearchResult.EMPTY, result)
-    }
-
-    @Test
     fun `空白だけの検索語では何も返さない`() {
         addAccount("user1")
 
-        assertEquals(UserSearchResult.EMPTY, runBlocking { service.search(query = " ", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) })
+        assertEquals(UserSearchResult.EMPTY, service.searchUsers(query = " ", cursor = null, requestHost = REQUEST_HOST))
     }
 
     @Test
-    fun `このサーバーのドメインのacctはこのサーバーのユーザーを探す`() {
+    fun `このサーバーのドメインのacctはこのサーバーのユーザーを引き他のサーバーには問い合わせない`() {
         addAccount("alice")
 
-        val result = runBlocking { service.search(query = "@alice@LOCAL.example", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
+        val user = runBlocking { service.resolveUser(query = "@alice@LOCAL.example", remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
 
-        assertEquals(listOf(SearchedUser(username = "alice", host = "local.example", isLocal = true, displayName = "alice")), result.users)
+        assertEquals(SearchedUser(username = "alice", host = "local.example", isLocal = true, displayName = "alice"), user)
         assertEquals(listOf(), remoteUserLookup.requests)
+    }
+
+    @Test
+    fun `このサーバーのアクターとプロフィールのURLでこのサーバーのユーザーを引く`() {
+        addAccount("alice")
+        val expected = SearchedUser(username = "alice", host = "local.example", isLocal = true, displayName = "alice")
+
+        assertEquals(expected, runBlocking { service.resolveUser(query = "https://local.example/users/alice", remoteLookupAllowed = false, requestHost = REQUEST_HOST) })
+        assertEquals(expected, runBlocking { service.resolveUser(query = "https://local.example/@alice", remoteLookupAllowed = false, requestHost = REQUEST_HOST) })
+        assertNull(runBlocking { service.resolveUser(query = "https://local.example/notes/1", remoteLookupAllowed = false, requestHost = REQUEST_HOST) })
     }
 
     @Test
     fun `他のホストのacctはそのホストのユーザーを引く`() {
         remoteUserLookup.users["bob@Remote.example"] = RemoteUser(username = "bob", displayName = null)
 
-        val result = runBlocking { service.search(query = " @bob@Remote.example ", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
+        val user = runBlocking { service.resolveUser(query = " @bob@Remote.example ", remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
 
-        assertEquals(
-            UserSearchResult(users = listOf(SearchedUser(username = "bob", host = "remote.example", isLocal = false, displayName = "bob")), nextCursor = null),
-            result,
-        )
+        assertEquals(SearchedUser(username = "bob", host = "remote.example", isLocal = false, displayName = "bob"), user)
     }
 
     @Test
-    fun `他のホストで見つからなければ空の結果を返す`() {
-        assertEquals(UserSearchResult.EMPTY, runBlocking { service.search(query = "@bob@remote.example", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) })
+    fun `他のホストのURLはそのURLのユーザーを引く`() {
+        remoteUserLookup.users["https://remote.example/@bob"] = RemoteUser(username = "bob", displayName = "Bob")
+
+        val user = runBlocking { service.resolveUser(query = "https://remote.example/@bob", remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
+
+        assertEquals(SearchedUser(username = "bob", host = "remote.example", isLocal = false, displayName = "Bob"), user)
+    }
+
+    @Test
+    fun `他のホストで見つからなければnullを返す`() {
+        assertNull(runBlocking { service.resolveUser(query = "@bob@remote.example", remoteLookupAllowed = true, requestHost = REQUEST_HOST) })
     }
 
     @Test
     fun `他のホストへの問い合わせが許されていなければ問い合わせない`() {
         remoteUserLookup.users["bob@remote.example"] = RemoteUser(username = "bob", displayName = "Bob")
+        remoteUserLookup.users["https://remote.example/@bob"] = RemoteUser(username = "bob", displayName = "Bob")
 
-        val result = runBlocking { service.search(query = "@bob@remote.example", cursor = null, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }
-
-        assertEquals(UserSearchResult.EMPTY, result)
+        assertNull(runBlocking { service.resolveUser(query = "@bob@remote.example", remoteLookupAllowed = false, requestHost = REQUEST_HOST) })
+        assertNull(runBlocking { service.resolveUser(query = "https://remote.example/@bob", remoteLookupAllowed = false, requestHost = REQUEST_HOST) })
         assertEquals(listOf(), remoteUserLookup.requests)
     }
 
     @Test
     fun `ユーザー名の無いacctでは問い合わせない`() {
-        assertEquals(UserSearchResult.EMPTY, runBlocking { service.search(query = "@@remote.example", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) })
+        assertNull(runBlocking { service.resolveUser(query = "@@remote.example", remoteLookupAllowed = true, requestHost = REQUEST_HOST) })
         assertEquals(listOf(), remoteUserLookup.requests)
     }
 
@@ -163,7 +170,7 @@ class UserSearchServiceTest {
                 localDomain = null,
             )
 
-        val result = runBlocking { serviceWithoutDomain.search(query = "alice", cursor = null, remoteLookupAllowed = true, requestHost = REQUEST_HOST) }
+        val result = serviceWithoutDomain.searchUsers(query = "alice", cursor = null, requestHost = REQUEST_HOST)
 
         assertEquals(listOf(SearchedUser(username = "alice", host = REQUEST_HOST, isLocal = true, displayName = "alice")), result.users)
     }
@@ -181,12 +188,17 @@ class UserSearchServiceTest {
         val users: MutableMap<String, RemoteUser> = mutableMapOf()
         val requests: MutableList<String> = mutableListOf()
 
-        override suspend fun find(
+        override suspend fun findByAcct(
             username: String,
             host: String,
         ): RemoteUser? {
             requests += "$username@$host"
             return users["$username@$host"]
+        }
+
+        override suspend fun findByUrl(url: String): RemoteUser? {
+            requests += url
+            return users[url]
         }
     }
 

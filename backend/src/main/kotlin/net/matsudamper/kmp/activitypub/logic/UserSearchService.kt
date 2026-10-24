@@ -12,13 +12,10 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 
 /**
- * ユーザー検索の入り口。
- *
- * 名前の一部で、このサーバーのユーザーと、フォローなどで受け取った他のサーバーのユーザーをまとめて名前順に探す。
- * `@user@host` の形なら、そのホストへ WebFinger で問い合わせる
+ * ユーザーを探す入り口
  *
  * @param remoteUserLookup DOMAIN が無いと相手のサーバーに問い合わせられないので null
- * @param localDomain このサーバーのドメイン。`@user@このドメイン` はこのサーバーのユーザーとして探す
+ * @param localDomain このサーバーのドメイン。null ならリクエストのホストをこのサーバーのホストとして扱う
  */
 class UserSearchService(
     private val accountRepository: AccountRepository,
@@ -27,52 +24,85 @@ class UserSearchService(
     private val localDomain: String?,
 ) {
     /**
-     * @param remoteLookupAllowed 相手のサーバーへ問い合わせてよいか。入力したホストへこちらから GET するので、
-     *   誰でも使えるとこのサーバーを踏み台にした大量のリクエストに使われる
+     * 名前の一部で、このサーバーのユーザーと、フォローなどで受け取った他のサーバーのユーザーをまとめて名前順に探す
+     *
      * @param requestHost DOMAIN が無いときに、このサーバーのユーザーのホストとして使う
      */
-    suspend fun search(
+    fun searchUsers(
         query: String,
         cursor: UserSearchCursor?,
+        requestHost: String,
+    ): UserSearchResult = searchByName(keyword = query.trim().removePrefix("@"), cursor = cursor, localHost = localDomain ?: requestHost)
+
+    /**
+     * `@user@host` か URL から 1 人を引く。このサーバーのユーザーも同じ書き方で引ける
+     *
+     * @param remoteLookupAllowed 相手のサーバーへ問い合わせてよいか。入力したホストへこちらから GET するので、
+     *   誰でも使えるとこのサーバーを踏み台にした大量のリクエストに使われる
+     * @param requestHost DOMAIN が無いときに、このサーバーのホストとして使う
+     */
+    suspend fun resolveUser(
+        query: String,
         remoteLookupAllowed: Boolean,
         requestHost: String,
-    ): UserSearchResult {
-        val acct = query.trim().removePrefix("@")
+    ): SearchedUser? {
+        val localHost = localDomain ?: requestHost
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.startsWith("https://") || trimmedQuery.startsWith("http://")) {
+            return resolveUrl(url = trimmedQuery, remoteLookupAllowed = remoteLookupAllowed, localHost = localHost)
+        }
+
+        val acct = trimmedQuery.removePrefix("acct:").removePrefix("@")
         val username = acct.substringBefore('@')
         val host = acct.substringAfter('@', missingDelimiterValue = "")
-        if (host.isEmpty()) {
-            return searchByName(keyword = username, cursor = cursor, localHost = localDomain ?: requestHost, remoteIncluded = true)
-        }
-        if (host.equals(localDomain, ignoreCase = true)) {
-            return searchByName(keyword = username, cursor = cursor, localHost = host.lowercase(), remoteIncluded = false)
-        }
-        if (username.isEmpty() || !remoteLookupAllowed || remoteUserLookup == null) return UserSearchResult.EMPTY
+        if (username.isEmpty()) return null
+        if (host.isEmpty() || host.equals(localHost, ignoreCase = true)) return findLocalUser(username = username, localHost = localHost)
+        if (!remoteLookupAllowed || remoteUserLookup == null) return null
 
-        val remoteUser = remoteUserLookup.find(username = username, host = host) ?: return UserSearchResult.EMPTY
-        return UserSearchResult(
-            users = listOf(
-                SearchedUser(
-                    username = remoteUser.username,
-                    host = host.lowercase(),
-                    isLocal = false,
-                    displayName = remoteUser.displayName ?: remoteUser.username,
-                ),
-            ),
-            nextCursor = null,
-        )
+        val remoteUser = remoteUserLookup.findByAcct(username = username, host = host) ?: return null
+        return remoteUser.toSearchedUser(host = host)
     }
+
+    /**
+     * このサーバーの URL はアクターの `/users/{name}` と、画面のプロフィールの `/@{name}` を読む
+     */
+    private suspend fun resolveUrl(
+        url: String,
+        remoteLookupAllowed: Boolean,
+        localHost: String,
+    ): SearchedUser? {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return null
+        val host = uri.host ?: return null
+        val authority = if (uri.port == -1) host else "$host:${uri.port}"
+        if (authority.equals(localHost, ignoreCase = true)) {
+            val username = localUsernamePattern.matchEntire(uri.path.orEmpty())?.groupValues?.get(1) ?: return null
+            return findLocalUser(username = username, localHost = localHost)
+        }
+        if (!remoteLookupAllowed || remoteUserLookup == null) return null
+
+        val remoteUser = remoteUserLookup.findByUrl(url) ?: return null
+        return remoteUser.toSearchedUser(host = host)
+    }
+
+    private fun findLocalUser(
+        username: String,
+        localHost: String,
+    ): SearchedUser? {
+        val account = accountRepository.findByUsername(username) ?: return null
+        return SearchedUser(username = account.username, host = localHost.lowercase(), isLocal = true, displayName = account.username)
+    }
+
+    private fun RemoteUser.toSearchedUser(host: String): SearchedUser =
+        SearchedUser(username = username, host = host.lowercase(), isLocal = false, displayName = displayName ?: username)
 
     /**
      * このサーバーのユーザーと他のサーバーのユーザーを、それぞれ 1 ページ分より 1 件多く取って名前順に混ぜる。
      * 次のページはそれぞれ最後に返したものの後ろから取るので、片方だけが多くても取りこぼさない
-     *
-     * @param remoteIncluded `@user@このドメイン` のようにこのサーバーを指定されたら false
      */
     private fun searchByName(
         keyword: String,
         cursor: UserSearchCursor?,
         localHost: String,
-        remoteIncluded: Boolean,
     ): UserSearchResult {
         if (keyword.isEmpty()) return UserSearchResult.EMPTY
 
@@ -83,7 +113,7 @@ class UserSearchService(
                 accountRepository.searchByUsername(keyword = keyword, afterUsername = cursor?.localLastUsername, limit = PAGE_SIZE + 1)
             }
         val remoteActors =
-            if (!remoteIncluded || cursor?.remoteDone == true) {
+            if (cursor?.remoteDone == true) {
                 listOf()
             } else {
                 remoteActorRepository.searchByName(keyword = keyword, after = cursor?.remoteLast(), limit = PAGE_SIZE + 1)
@@ -176,6 +206,8 @@ class UserSearchService(
 
     private companion object {
         const val PAGE_SIZE = 30
+
+        val localUsernamePattern = Regex("^/(?:users/|@)([^/]+)$")
     }
 }
 
