@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
+import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
@@ -34,6 +35,7 @@ import net.matsudamper.kotpub.inbox.UpdateActorHandler
 import net.matsudamper.kotpub.note.NoteEndpoint
 import net.matsudamper.kotpub.note.NotePublisher
 import net.matsudamper.kotpub.note.OutboxEndpoint
+import net.matsudamper.kotpub.webfinger.HttpWebFingerLookup
 import net.matsudamper.kotpub.webfinger.WebFingerEndpoint
 
 internal class Federation(
@@ -74,6 +76,9 @@ internal class Federation(
         )
 
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
+
+    val remoteUserLookup: RemoteUserLookup =
+        KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors)
 
     val actorEndpoint: ActorEndpoint =
         ActorEndpoint(

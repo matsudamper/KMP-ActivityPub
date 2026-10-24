@@ -5,6 +5,7 @@ import kotlin.time.Duration.Companion.days
 import net.matsudamper.kmp.activitypub.federation.Federation
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.session.LoginFailureStore
@@ -43,6 +44,13 @@ class AppDependencies(
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
         }
+
+    val userSearchService: UserSearchService =
+        UserSearchService(
+            accountService = accountService,
+            remoteUserLookup = federation?.remoteUserLookup,
+            localDomain = env.domain,
+        )
 
     val sessionService: UserSessionService = UserSessionService(
         sessionStore = sessionStore,

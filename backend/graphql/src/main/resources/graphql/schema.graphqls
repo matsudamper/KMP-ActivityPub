@@ -9,7 +9,10 @@ type Query {
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
     user(username: String!): User
-    "名前の一部でローカルのユーザーを探す。after には前回の nextCursor を渡す"
+    """
+    名前の一部でこのサーバーのユーザーを探す。after には前回の nextCursor を渡す。
+    `@user@host` の形なら、ログイン中に限りそのホストのユーザーを WebFinger で引く
+    """
     searchUsers(query: String!, after: String): UserSearchResult!
     "ログイン中のアカウントのパスキー。ログインしていなければ null"
     passkeys: [RegisteredPasskey!] @lazy
