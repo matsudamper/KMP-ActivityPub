@@ -34,7 +34,7 @@ class QueryResolverImpl : QueryResolver {
     }
 
     override fun passkeys(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlRegisteredPasskey>?>> {
-        val passkeyService = GraphQlEngine.diContainer(env).passkeyService
+        val passkeyService = GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
         val passkeys =
             GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountId ->
                 passkeyService.passkeys(accountId).map { QlRegisteredPasskey(id = it.credentialId, name = it.name) }

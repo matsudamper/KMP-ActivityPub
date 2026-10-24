@@ -16,7 +16,9 @@ services:
       VALKEY_URI: redis://valkey:6379
       # http では false にする
       COOKIE_SECURE: "true"
-      # 必須。後から変えると登録済みのパスキーが使えなくなる
+      # 必須。true か false
+      ENABLE_PASSKEY: "true"
+      # ENABLE_PASSKEY が true なら必須。後から変えると登録済みのパスキーが使えなくなる
       PASSKEY_RP_ID: example.com
       # カンマ区切り。書かなければ https://<PASSKEY_RP_ID>
 #      PASSKEY_ORIGINS: https://example.com

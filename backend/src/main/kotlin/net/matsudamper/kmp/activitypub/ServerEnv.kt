@@ -42,6 +42,11 @@ class ServerEnv(
     val trustCfConnectingIp: Boolean = booleanOf("TRUST_CF_CONNECTING_IP") ?: false
 
     /**
+     * 書き忘れでパスキーが黙って無効にならないよう、true か false を必ず書かせる
+     */
+    val enablePasskey: Boolean = requireNotNull(booleanOf("ENABLE_PASSKEY")) { "ENABLE_PASSKEY を true か false で設定すること" }
+
+    /**
      * Android アプリのパスキーを受け付けるときに設定する。
      * PASSKEY_ANDROID_CERT_SHA256 は署名証明書の SHA-256 を `AA:BB:...` の形で、カンマ区切りで複数書ける
      */
@@ -60,11 +65,14 @@ class ServerEnv(
         }
 
     /**
-     * PASSKEY_RP_ID は必須。読むのはパスキーの処理を組み立てるときなので、未設定ならそこで起動が止まる。
+     * ENABLE_PASSKEY が true なら PASSKEY_RP_ID は必須。
      * PASSKEY_ORIGINS はカンマ区切りで、無ければ https://<PASSKEY_RP_ID> だけを受け付ける。
      * Android アプリの origin は [passkeyAndroidApp] から足す
      */
-    val passkeyRelyingParty: PasskeyRelyingParty by lazy {
+    val passkeyRelyingParty: PasskeyRelyingParty? =
+        if (enablePasskey) createPasskeyRelyingParty() else null
+
+    private fun createPasskeyRelyingParty(): PasskeyRelyingParty {
         val rpId = requireNotNull(env["PASSKEY_RP_ID"]?.ifEmpty { null }) { "PASSKEY_RP_ID を設定すること" }
         val webOrigins =
             env["PASSKEY_ORIGINS"]
@@ -74,7 +82,7 @@ class ServerEnv(
                 ?.filter { it.isNotEmpty() }
                 ?.toSet()
                 ?: setOf("https://$rpId")
-        PasskeyRelyingParty(
+        return PasskeyRelyingParty(
             id = rpId,
             origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
         )

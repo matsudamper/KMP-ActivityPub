@@ -73,7 +73,11 @@ internal fun Application.module(deps: AppDependencies) {
     }
 
     val passkeyRelyingParty = deps.env.passkeyRelyingParty
-    log.info("パスキーの RP ID: ${passkeyRelyingParty.id} origin: ${passkeyRelyingParty.origins.joinToString()}")
+    if (passkeyRelyingParty != null) {
+        log.info("パスキーの RP ID: ${passkeyRelyingParty.id} origin: ${passkeyRelyingParty.origins.joinToString()}")
+    } else {
+        log.info("ENABLE_PASSKEY=false なので、パスキーを使えない")
+    }
 
     if (!deps.env.cookieSecure) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")

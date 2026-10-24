@@ -59,13 +59,18 @@ class AppDependencies(
         clock = Clock.systemUTC(),
     )
 
-    val passkeyService: PasskeyService =
-        PasskeyService(
-            relyingParty = env.passkeyRelyingParty,
-            passkeyRepository = repositories.passkeyRepository,
-            challengeStore = passkeyChallengeStore,
-            clock = Clock.systemUTC(),
-        )
+    /**
+     * ENABLE_PASSKEY が false なら作らない
+     */
+    val passkeyService: PasskeyService? =
+        env.passkeyRelyingParty?.let { relyingParty ->
+            PasskeyService(
+                relyingParty = relyingParty,
+                passkeyRepository = repositories.passkeyRepository,
+                challengeStore = passkeyChallengeStore,
+                clock = Clock.systemUTC(),
+            )
+        }
     val loginThrottle: LoginThrottle = LoginThrottle(
         failureStore = loginFailureStore,
         maxFailures = 5,
