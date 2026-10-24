@@ -15,48 +15,41 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
  * ユーザーを探す入り口
  *
  * @param remoteUserLookup DOMAIN が無いと相手のサーバーに問い合わせられないので null
- * @param localDomain このサーバーのドメイン。null ならリクエストのホストをこのサーバーのホストとして扱う
  */
 class UserSearchService(
     private val accountRepository: AccountRepository,
     private val remoteActorRepository: RemoteActorRepository,
     private val remoteUserLookup: RemoteUserLookup?,
-    private val localDomain: String?,
+    private val localDomain: String,
 ) {
     /**
      * 名前の一部で、このサーバーのユーザーと、フォローなどで受け取った他のサーバーのユーザーをまとめて名前順に探す
-     *
-     * @param requestHost DOMAIN が無いときに、このサーバーのユーザーのホストとして使う
      */
     fun searchUsers(
         query: String,
         cursor: UserSearchCursor?,
-        requestHost: String,
-    ): UserSearchResult = searchByName(keyword = query.trim().removePrefix("@"), cursor = cursor, localHost = localDomain ?: requestHost)
+    ): UserSearchResult = searchByName(keyword = query.trim().removePrefix("@"), cursor = cursor)
 
     /**
      * `@user@host` か URL から 1 人を引く。このサーバーのユーザーも同じ書き方で引ける
      *
      * @param remoteLookupAllowed 相手のサーバーへ問い合わせてよいか。入力したホストへこちらから GET するので、
      *   誰でも使えるとこのサーバーを踏み台にした大量のリクエストに使われる
-     * @param requestHost DOMAIN が無いときに、このサーバーのホストとして使う
      */
     suspend fun resolveUser(
         query: String,
         remoteLookupAllowed: Boolean,
-        requestHost: String,
     ): SearchedUser? {
-        val localHost = localDomain ?: requestHost
         val trimmedQuery = query.trim()
         if (trimmedQuery.startsWith("https://") || trimmedQuery.startsWith("http://")) {
-            return resolveUrl(url = trimmedQuery, remoteLookupAllowed = remoteLookupAllowed, localHost = localHost)
+            return resolveUrl(url = trimmedQuery, remoteLookupAllowed = remoteLookupAllowed)
         }
 
         val acct = trimmedQuery.removePrefix("acct:").removePrefix("@")
         val username = acct.substringBefore('@')
         val host = acct.substringAfter('@', missingDelimiterValue = "")
         if (username.isEmpty()) return null
-        if (host.isEmpty() || host.equals(localHost, ignoreCase = true)) return findLocalUser(username = username, localHost = localHost)
+        if (host.isEmpty() || host.equals(localDomain, ignoreCase = true)) return findLocalUser(username)
         if (!remoteLookupAllowed || remoteUserLookup == null) return null
 
         val remoteUser = remoteUserLookup.findByAcct(username = username, host = host) ?: return null
@@ -69,14 +62,12 @@ class UserSearchService(
     private suspend fun resolveUrl(
         url: String,
         remoteLookupAllowed: Boolean,
-        localHost: String,
     ): SearchedUser? {
         val uri = runCatching { URI(url) }.getOrNull() ?: return null
         val host = uri.host ?: return null
-        // DOMAIN が無いときのリクエストのホストにはポートが付かないので、ポートを除いて比べる
-        if (host.equals(localHost.substringBefore(':'), ignoreCase = true)) {
+        if (host.equals(localDomain, ignoreCase = true)) {
             val username = localUsernamePattern.matchEntire(uri.path.orEmpty())?.groupValues?.get(1) ?: return null
-            return findLocalUser(username = username, localHost = localHost)
+            return findLocalUser(username)
         }
         if (!remoteLookupAllowed || remoteUserLookup == null) return null
 
@@ -84,12 +75,9 @@ class UserSearchService(
         return remoteUser.toSearchedUser(host = host)
     }
 
-    private fun findLocalUser(
-        username: String,
-        localHost: String,
-    ): SearchedUser? {
+    private fun findLocalUser(username: String): SearchedUser? {
         val account = accountRepository.findByUsername(username) ?: return null
-        return SearchedUser(username = account.username, host = localHost.lowercase(), isLocal = true, displayName = account.username)
+        return SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.username)
     }
 
     private fun RemoteUser.toSearchedUser(host: String): SearchedUser =
@@ -102,7 +90,6 @@ class UserSearchService(
     private fun searchByName(
         keyword: String,
         cursor: UserSearchCursor?,
-        localHost: String,
     ): UserSearchResult {
         if (keyword.isEmpty()) return UserSearchResult.EMPTY
 
@@ -140,7 +127,7 @@ class UserSearchService(
             )
 
         return UserSearchResult(
-            users = page.mapNotNull { it.toSearchedUser(localHost) },
+            users = page.mapNotNull { it.toSearchedUser(localDomain) },
             nextCursor = nextCursor.takeUnless { it.localDone && it.remoteDone },
         )
     }
@@ -173,15 +160,15 @@ class UserSearchService(
          */
         val sortName: String
 
-        fun toSearchedUser(localHost: String): SearchedUser?
+        fun toSearchedUser(localDomain: String): SearchedUser?
 
         class Local(
             val account: Account,
         ) : Candidate {
             override val sortName: String = account.username.asciiLowercase()
 
-            override fun toSearchedUser(localHost: String): SearchedUser =
-                SearchedUser(username = account.username, host = localHost, isLocal = true, displayName = account.username)
+            override fun toSearchedUser(localDomain: String): SearchedUser =
+                SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.username)
         }
 
         class Remote(
@@ -192,7 +179,7 @@ class UserSearchService(
             /**
              * ホストが読めないアクターは acct を作れないので出さない
              */
-            override fun toSearchedUser(localHost: String): SearchedUser? {
+            override fun toSearchedUser(localDomain: String): SearchedUser? {
                 val host = runCatching { URI(record.actorUri).host }.getOrNull() ?: return null
                 return SearchedUser(
                     username = record.preferredUsername,

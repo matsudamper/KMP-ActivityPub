@@ -74,7 +74,6 @@ class QueryResolverImpl : QueryResolver {
             GraphQlEngine.diContainer(env).userSearchService.searchUsers(
                 query = query,
                 cursor = cursor,
-                requestHost = GraphQlEngine.graphQlContext(env).requestHost,
             )
         return CompletableFuture.completedFuture(
             DataFetcherResult.Builder(
@@ -91,13 +90,11 @@ class QueryResolverImpl : QueryResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSearchedUser?>> {
         val userSearchService = GraphQlEngine.diContainer(env).userSearchService
-        val graphQlContext = GraphQlEngine.graphQlContext(env)
-        val remoteLookupAllowed = graphQlContext.userAccountId() != null
-        val requestHost = graphQlContext.requestHost
+        val remoteLookupAllowed = GraphQlEngine.graphQlContext(env).userAccountId() != null
         return otelSupplyAsync {
             val user =
                 runBlocking {
-                    userSearchService.resolveUser(query = query, remoteLookupAllowed = remoteLookupAllowed, requestHost = requestHost)
+                    userSearchService.resolveUser(query = query, remoteLookupAllowed = remoteLookupAllowed)
                 }
             DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser()).build()
         }

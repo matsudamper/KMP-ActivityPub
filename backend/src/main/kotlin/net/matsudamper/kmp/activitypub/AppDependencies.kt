@@ -50,7 +50,7 @@ class AppDependencies(
             accountRepository = repositories.accountRepository,
             remoteActorRepository = repositories.remoteActorRepository,
             remoteUserLookup = federation?.remoteUserLookup,
-            localDomain = env.domain,
+            localDomain = checkNotNull(env.domain) { "DOMAIN を指定すること" },
         )
 
     val sessionService: UserSessionService = UserSessionService(
