@@ -1,0 +1,14 @@
+query MyProfile {
+    profile {
+        username
+        displayName
+    }
+}
+
+mutation UpdateProfile($displayName: String!) {
+    user {
+        updateProfile(displayName: $displayName) {
+            failure
+        }
+    }
+}

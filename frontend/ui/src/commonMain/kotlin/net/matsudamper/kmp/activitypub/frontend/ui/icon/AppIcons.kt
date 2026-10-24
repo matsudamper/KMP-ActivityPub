@@ -57,6 +57,23 @@ object AppIcons {
             ).build()
     }
 
+    val Person: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Person",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes(
+                    "M12,12c2.21,0 4,-1.79 4,-4s-1.79,-4 -4,-4 -4,1.79 -4,4 1.79,4 4,4z" +
+                        "m0,2c-2.67,0 -8,1.34 -8,4v2h16v-2c0,-2.66 -5.33,-4 -8,-4z",
+                ),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val Search: ImageVector by lazy {
         ImageVector
             .Builder(

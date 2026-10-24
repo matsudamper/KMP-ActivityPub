@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -21,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -73,11 +75,19 @@ internal fun HomeScreen(
                     navigator.navigate(Screen.UserProfile(username = username))
                 }
 
+                override fun navigateToProfileEdit() {
+                    navigator.navigate(Screen.ProfileEdit)
+                }
+
                 override fun showMessage(message: String) {
                     coroutineScope.launch { snackbarHostState.showSnackbar(message) }
                 }
             },
         )
+    }
+
+    LaunchedEffect(uiState.listener) {
+        uiState.listener.onScreenShown()
     }
 
     HomeContent(uiState = uiState, snackbarHostState = snackbarHostState)
@@ -161,6 +171,14 @@ internal fun HomeContent(
                     modifier = contentModifier,
                 )
             }
+
+            HomeScreenUiState.Tab.User -> {
+                UserTabContent(
+                    profile = uiState.profile,
+                    listener = uiState.listener,
+                    modifier = contentModifier,
+                )
+            }
         }
     }
 }
@@ -240,6 +258,83 @@ private fun SearchTabContent(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserTabContent(
+    profile: HomeScreenUiState.Profile,
+    listener: HomeScreenUiState.Listener,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        when (profile) {
+            HomeScreenUiState.Profile.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+
+            is HomeScreenUiState.Profile.Error -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = profile.message,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Button(onClick = listener::onClickRetryProfile) {
+                        Text("再読み込み")
+                    }
+                }
+            }
+
+            is HomeScreenUiState.Profile.Loaded -> {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = profile.avatarInitial,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = profile.displayName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = profile.acct,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = listener::onClickEditProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("プロフィールを編集")
                     }
                 }
             }
@@ -344,12 +439,14 @@ private val HomeScreenUiState.Tab.label: String
     get() = when (this) {
         HomeScreenUiState.Tab.Home -> "ホーム"
         HomeScreenUiState.Tab.Search -> "検索"
+        HomeScreenUiState.Tab.User -> "ユーザー"
     }
 
 private val HomeScreenUiState.Tab.icon: ImageVector
     get() = when (this) {
         HomeScreenUiState.Tab.Home -> AppIcons.Home
         HomeScreenUiState.Tab.Search -> AppIcons.Search
+        HomeScreenUiState.Tab.User -> AppIcons.Person
     }
 
 private const val SEARCH_QUERY_INPUT_ID = "home-search-query"

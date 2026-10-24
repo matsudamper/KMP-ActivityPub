@@ -12,6 +12,8 @@ type UserMutation {
     logout: Boolean! @lazy
     "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
     postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
+    "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。displayName が空なら未設定に戻す"
+    updateProfile(displayName: String!): UpdateProfileResult! @lazy
 }
 
 input UserLoginQuery {
@@ -86,5 +88,17 @@ enum UserPostNoteFailure {
     "本文が長すぎる。上限は 500 文字"
     TOO_LONG
     "サーバーに DOMAIN が無く、投稿を配れない"
+    FEDERATION_DISABLED
+}
+
+type UpdateProfileResult {
+    failure: UpdateProfileFailure
+}
+
+enum UpdateProfileFailure {
+    NOT_LOGGED_IN
+    "表示名が長すぎる。上限は 30 文字"
+    TOO_LONG
+    "サーバーに DOMAIN が無く、更新を配れない"
     FEDERATION_DISABLED
 }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import org.koin.core.annotation.KoinViewModel
@@ -25,6 +26,7 @@ internal class HomeScreenViewModel(
     internal val eventHandler = events.asHandler()
     private val searchStateFlow: MutableStateFlow<SearchState> = MutableStateFlow(SearchState.NotSearched)
     private var searchJob: Job? = null
+    private var profileJob: Job? = null
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
@@ -36,6 +38,7 @@ internal class HomeScreenViewModel(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
+                profile = HomeScreenUiState.Profile.Loading,
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
                         viewModelScope.launch {
@@ -67,6 +70,20 @@ internal class HomeScreenViewModel(
                     override fun onClickLoadMoreSearchResult() {
                         loadMoreSearchResult()
                     }
+
+                    override fun onClickEditProfile() {
+                        viewModelScope.launch {
+                            events.send { it.navigateToProfileEdit() }
+                        }
+                    }
+
+                    override fun onClickRetryProfile() {
+                        loadProfile()
+                    }
+
+                    override fun onScreenShown() {
+                        loadProfile()
+                    }
                 },
             ),
         )
@@ -79,6 +96,29 @@ internal class HomeScreenViewModel(
                     uiState.copy(search = uiState.search.copy(result = createSearchResult(searchState)))
                 }
             }
+        }
+    }
+
+    private fun loadProfile() {
+        profileJob?.cancel()
+        // 出している内容は読み直しの間も残す。戻るたびに読み込み中へ切り替わると画面がちらつく
+        if (mutableUiStateFlow.value.profile !is HomeScreenUiState.Profile.Loaded) {
+            mutableUiStateFlow.update { it.copy(profile = HomeScreenUiState.Profile.Loading) }
+        }
+        profileJob = viewModelScope.launch {
+            val profile =
+                when (val result = userApi.myProfile()) {
+                    is UserMyProfileResult.Found -> HomeScreenUiState.Profile.Loaded(
+                        avatarInitial = result.username.take(1).uppercase(),
+                        displayName = result.displayName ?: result.username,
+                        acct = "@${result.username}",
+                    )
+
+                    UserMyProfileResult.NotLoggedIn -> HomeScreenUiState.Profile.Error("ログインしていません")
+
+                    is UserMyProfileResult.Failure -> HomeScreenUiState.Profile.Error(result.message)
+                }
+            mutableUiStateFlow.update { it.copy(profile = profile) }
         }
     }
 
@@ -205,6 +245,8 @@ internal class HomeScreenViewModel(
         fun navigateToSettings()
 
         fun navigateToUserProfile(username: String)
+
+        fun navigateToProfileEdit()
 
         fun showMessage(message: String)
     }

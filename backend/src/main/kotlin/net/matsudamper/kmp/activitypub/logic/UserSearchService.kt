@@ -77,7 +77,7 @@ class UserSearchService(
 
     private fun findLocalUser(username: String): SearchedUser? {
         val account = accountRepository.findByUsername(username) ?: return null
-        return SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.username)
+        return SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username)
     }
 
     private fun RemoteUser.toSearchedUser(host: String): SearchedUser =
@@ -168,7 +168,7 @@ class UserSearchService(
             override val sortName: String = account.username.asciiLowercase()
 
             override fun toSearchedUser(localDomain: String): SearchedUser =
-                SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.username)
+                SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username)
         }
 
         class Remote(

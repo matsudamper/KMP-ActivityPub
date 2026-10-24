@@ -23,6 +23,14 @@ type Query {
     passkeys: [RegisteredPasskey!] @lazy
     "ログイン中のアカウントにパスワードがあるか。ログインしていなければ null"
     hasPassword: Boolean @lazy
+    "ログイン中のアカウントのプロフィール。ログインしていなければ null"
+    profile: Profile @lazy
+}
+
+type Profile {
+    username: String!
+    "未設定なら null"
+    displayName: String
 }
 
 type RegisteredPasskey {
