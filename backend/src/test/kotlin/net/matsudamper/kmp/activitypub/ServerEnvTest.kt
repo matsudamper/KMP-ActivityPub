@@ -34,6 +34,13 @@ class ServerEnvTest {
     }
 
     @Test
+    fun `PASSKEY_ORIGINS が空文字なら https の RP ID を受け付ける`() {
+        val env = ServerEnv(mapOf("PASSKEY_RP_ID" to "example.com", "PASSKEY_ORIGINS" to ""))
+
+        assertEquals(setOf("https://example.com"), env.passkeyRelyingParty.origins)
+    }
+
+    @Test
     fun `前後の空白は削らずにそのまま使う`() {
         val env = ServerEnv(mapOf("STATIC_SRC_DIR" to " /srv/static ", "DOMAIN" to " example.com"))
 

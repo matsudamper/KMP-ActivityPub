@@ -68,6 +68,7 @@ class ServerEnv(
         val rpId = requireNotNull(env["PASSKEY_RP_ID"]?.ifEmpty { null }) { "PASSKEY_RP_ID を設定すること" }
         val webOrigins =
             env["PASSKEY_ORIGINS"]
+                ?.ifEmpty { null }
                 ?.split(',')
                 ?.map { it.trim() }
                 ?.filter { it.isNotEmpty() }
