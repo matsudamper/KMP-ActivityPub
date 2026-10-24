@@ -1,10 +1,12 @@
 package net.matsudamper.kmp.activitypub
 
+import java.net.URI
 import kotlin.io.path.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -118,5 +120,63 @@ class ServerEnvTest {
         assertFailsWith<IllegalArgumentException> {
             ServerEnv(mapOf("PASSKEY_ANDROID_PACKAGE_NAME" to "com.example.app"))
         }
+    }
+
+    @Test
+    fun `ENABLE_S3 が未設定なら S3 を使わない`() {
+        val env = ServerEnv(S3_REQUIRED - "ENABLE_S3")
+
+        assertFalse(env.enableS3)
+        assertNull(env.s3)
+    }
+
+    @Test
+    fun `ENABLE_S3 が true で OIDC が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(S3_REQUIRED - "OIDC_JWK_PRIVATE")
+        }
+    }
+
+    @Test
+    fun `ENABLE_S3 が true で S3_ENDPOINT が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(S3_REQUIRED - "S3_ENDPOINT")
+        }
+    }
+
+    @Test
+    fun `S3_ENDPOINT と STS_ENDPOINT を指定するとその URL を使う`() {
+        val config =
+            assertNotNull(
+                ServerEnv(S3_REQUIRED + mapOf("S3_ENDPOINT" to "https://s3.example.com", "STS_ENDPOINT" to "https://sts.example.com")).s3,
+            ).imageStorage
+
+        assertEquals(URI("https://s3.example.com"), config.endpoint)
+        assertEquals(URI("https://sts.example.com"), config.stsEndpoint)
+    }
+
+    @Test
+    fun `S3 を有効にすると既定値で埋める`() {
+        val config = assertNotNull(ServerEnv(S3_REQUIRED).s3).imageStorage
+
+        assertNull(config.endpoint)
+        assertNull(config.stsEndpoint)
+        assertEquals("kmp-activitypub-image-upload", config.roleSessionName)
+        assertTrue(config.pathStyleAccess)
+    }
+
+    private companion object {
+        val S3_REQUIRED: Map<String, String> =
+            mapOf(
+                "ENABLE_S3" to "true",
+                "OIDC_ISSUER" to "https://example.com",
+                "OIDC_JWK_PRIVATE" to "{}",
+                "S3_BUCKET" to "bucket",
+                "S3_REGION" to "ap-northeast-1",
+                "S3_ROLE_ARN" to "arn:aws:iam::123456789012:role/image",
+                "S3_AUDIENCE" to "sts.amazonaws.com",
+                "S3_ENDPOINT" to "",
+                "STS_ENDPOINT" to "",
+            )
     }
 }
