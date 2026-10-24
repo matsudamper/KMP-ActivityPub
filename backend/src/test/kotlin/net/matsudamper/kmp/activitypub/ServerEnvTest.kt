@@ -24,13 +24,21 @@ class ServerEnvTest {
     }
 
     @Test
-    fun `空文字と空白だけの指定は未設定として扱う`() {
-        val env = ServerEnv(mapOf("HOST" to "", "PORT" to " ", "STATIC_SRC_DIR" to "  ", "DB_PATH" to " "))
+    fun `空文字の指定は未設定として扱う`() {
+        val env = ServerEnv(mapOf("HOST" to "", "PORT" to "", "STATIC_SRC_DIR" to "", "DB_PATH" to ""))
 
         assertEquals("0.0.0.0", env.host)
         assertEquals(8080, env.port)
         assertNull(env.staticSrcDir)
         assertEquals(Path("./data/kmp-activitypub.db"), env.dbPath)
+    }
+
+    @Test
+    fun `前後の空白は削らずにそのまま使う`() {
+        val env = ServerEnv(mapOf("STATIC_SRC_DIR" to " /srv/static ", "DOMAIN" to " example.com"))
+
+        assertEquals(Path(" /srv/static "), env.staticSrcDir)
+        assertEquals(" example.com", env.domain)
     }
 
     @Test
