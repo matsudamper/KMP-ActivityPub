@@ -90,9 +90,11 @@ class UserSearchService(
             }
 
         val page =
-            (accounts.map { Candidate.Local(it) } + remoteActors.map { Candidate.Remote(it) })
-                .sortedWith(compareBy<Candidate> { it.sortName }.thenBy { it.sortTieBreaker })
-                .take(PAGE_SIZE)
+            mergeKeepingSourceOrder(
+                locals = accounts.map { Candidate.Local(it) },
+                remotes = remoteActors.map { Candidate.Remote(it) },
+                merged = listOf(),
+            )
         val pageAccounts = page.filterIsInstance<Candidate.Local>().map { it.account }
         val pageRemoteActors = page.filterIsInstance<Candidate.Remote>().map { it.record }
 
@@ -113,22 +115,40 @@ class UserSearchService(
         )
     }
 
-    private sealed interface Candidate {
-        val sortName: String
+    /**
+     * 先頭どうしを比べて小さい方から取る。並べ直さないのは、それぞれの取得順の先頭からしか取らないようにするため。
+     * 次のページの位置は最後に返したものの後ろなので、途中を飛ばして返すとその間が二度と返らない
+     */
+    private tailrec fun mergeKeepingSourceOrder(
+        locals: List<Candidate.Local>,
+        remotes: List<Candidate.Remote>,
+        merged: List<Candidate>,
+    ): List<Candidate> {
+        if (merged.size >= PAGE_SIZE) return merged
+        val local = locals.firstOrNull()
+        val remote = remotes.firstOrNull()
+        return when {
+            local == null && remote == null -> merged
 
+            remote == null || (local != null && local.sortName <= remote.sortName) ->
+                mergeKeepingSourceOrder(locals = locals.drop(1), remotes = remotes, merged = merged + checkNotNull(local))
+
+            else -> mergeKeepingSourceOrder(locals = locals, remotes = remotes.drop(1), merged = merged + remote)
+        }
+    }
+
+    private sealed interface Candidate {
         /**
-         * 名前が同じなら、このサーバーのユーザーを先に、他のサーバーのユーザーはアクター URL 順にする。
-         * それぞれの取得順と揃えておかないと、次のページの位置とずれる
+         * 2 つの取得結果を混ぜる順。SQLite の lower() と同じく ASCII だけを小文字にして比べる
          */
-        val sortTieBreaker: String
+        val sortName: String
 
         fun toSearchedUser(localHost: String): SearchedUser?
 
         class Local(
             val account: Account,
         ) : Candidate {
-            override val sortName: String = account.username.lowercase()
-            override val sortTieBreaker: String = ""
+            override val sortName: String = account.username.asciiLowercase()
 
             override fun toSearchedUser(localHost: String): SearchedUser =
                 SearchedUser(username = account.username, host = localHost, isLocal = true, displayName = account.username)
@@ -137,8 +157,7 @@ class UserSearchService(
         class Remote(
             val record: RemoteActorSearchRecord,
         ) : Candidate {
-            override val sortName: String = record.preferredUsername.lowercase()
-            override val sortTieBreaker: String = record.actorUri
+            override val sortName: String = record.preferredUsername.asciiLowercase()
 
             /**
              * ホストが読めないアクターは acct を作れないので出さない
@@ -215,3 +234,5 @@ data class UserSearchCursor(
             }.getOrNull()
     }
 }
+
+private fun String.asciiLowercase(): String = map { if (it in 'A'..'Z') it.lowercaseChar() else it }.joinToString("")

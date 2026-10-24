@@ -73,6 +73,27 @@ class UserSearchServiceTest {
     }
 
     @Test
+    fun `ASCII以外の大文字を含む名前でもページをまたいで取りこぼさない`() {
+        (0..30).forEach { index ->
+            listOf("Ä", "ä").forEach { prefix ->
+                val name = "$prefix%02d".format(index)
+                remoteActorRepository.add(
+                    RemoteActorSearchRecord(actorUri = "https://remote.example/users/$name", preferredUsername = name, displayName = "common"),
+                )
+            }
+        }
+
+        val names = generateSequence(runBlocking { service.search(query = "common", cursor = null, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }) { page ->
+            page.nextCursor?.let { cursor ->
+                runBlocking { service.search(query = "common", cursor = cursor, remoteLookupAllowed = false, requestHost = REQUEST_HOST) }
+            }
+        }.flatMap { it.users }.map { it.username }.toList()
+
+        assertEquals(62, names.size)
+        assertEquals(62, names.toSet().size)
+    }
+
+    @Test
     fun `このサーバーのドメインのacctでは他のサーバーのユーザーを返さない`() {
         remoteActorRepository.add(RemoteActorSearchRecord(actorUri = "https://remote.example/users/alice", preferredUsername = "alice", displayName = null))
 

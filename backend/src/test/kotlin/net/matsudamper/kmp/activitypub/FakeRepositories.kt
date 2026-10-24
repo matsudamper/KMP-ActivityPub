@@ -156,14 +156,19 @@ internal class FakeRemoteActorRepository : RemoteActorRepository {
     ): List<RemoteActorSearchRecord> =
         rows
             .filter { it.preferredUsername.contains(keyword, ignoreCase = true) || it.displayName?.contains(keyword, ignoreCase = true) == true }
-            .sortedWith(compareBy<RemoteActorSearchRecord> { it.preferredUsername.lowercase() }.thenBy { it.actorUri })
+            .sortedWith(compareBy<RemoteActorSearchRecord> { it.preferredUsername.sqliteLower() }.thenBy { it.actorUri })
             .filter { record ->
                 after == null ||
                     compareValuesBy(
                         record,
                         RemoteActorSearchRecord(actorUri = after.actorUri, preferredUsername = after.preferredUsername, displayName = null),
-                        { it.preferredUsername.lowercase() },
+                        { it.preferredUsername.sqliteLower() },
                         { it.actorUri },
                     ) > 0
             }.take(limit)
 }
+
+/**
+ * SQLite の lower() と同じく ASCII だけを小文字にする。並び順を本物の SQLite に揃える
+ */
+private fun String.sqliteLower(): String = map { if (it in 'A'..'Z') it.lowercaseChar() else it }.joinToString("")
