@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub
 
+import java.net.URI
 import kotlin.io.path.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -137,6 +138,24 @@ class ServerEnvTest {
     }
 
     @Test
+    fun `ENABLE_S3 が true で S3_ENDPOINT が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(S3_REQUIRED - "S3_ENDPOINT")
+        }
+    }
+
+    @Test
+    fun `S3_ENDPOINT と STS_ENDPOINT を指定するとその URL を使う`() {
+        val config =
+            assertNotNull(
+                ServerEnv(S3_REQUIRED + mapOf("S3_ENDPOINT" to "https://s3.example.com", "STS_ENDPOINT" to "https://sts.example.com")).s3,
+            ).imageStorage
+
+        assertEquals(URI("https://s3.example.com"), config.endpoint)
+        assertEquals(URI("https://sts.example.com"), config.stsEndpoint)
+    }
+
+    @Test
     fun `S3 を有効にすると既定値で埋める`() {
         val config = assertNotNull(ServerEnv(S3_REQUIRED).s3).imageStorage
 
@@ -156,6 +175,8 @@ class ServerEnvTest {
                 "S3_REGION" to "ap-northeast-1",
                 "S3_ROLE_ARN" to "arn:aws:iam::123456789012:role/image",
                 "S3_AUDIENCE" to "sts.amazonaws.com",
+                "S3_ENDPOINT" to "",
+                "STS_ENDPOINT" to "",
             )
     }
 }

@@ -40,9 +40,9 @@ services:
 #      S3_ROLE_ARN: arn:aws:iam::123456789012:role/kmp-activitypub-image
       # IAM の OIDC プロバイダに登録した Audience
 #      S3_AUDIENCE: kmp-activitypub
-      # 未設定なら AWS のものを使う
-#      S3_ENDPOINT: https://s3.example.com
-#      STS_ENDPOINT: https://sts.example.com
+      # 必須。空なら AWS のものを使う
+#      S3_ENDPOINT: ""
+#      STS_ENDPOINT: ""
       # 既定は true
 #      S3_PATH_STYLE_ACCESS: "true"
 #      S3_ROLE_SESSION_NAME: kmp-activitypub-image-upload

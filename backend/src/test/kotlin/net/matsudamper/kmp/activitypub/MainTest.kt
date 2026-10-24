@@ -131,6 +131,8 @@ class MainTest {
                                 "S3_REGION" to "ap-northeast-1",
                                 "S3_ROLE_ARN" to "arn:aws:iam::123456789012:role/image",
                                 "S3_AUDIENCE" to "sts.amazonaws.com",
+                                "S3_ENDPOINT" to "",
+                                "STS_ENDPOINT" to "",
                             ),
                         ),
                     ),
