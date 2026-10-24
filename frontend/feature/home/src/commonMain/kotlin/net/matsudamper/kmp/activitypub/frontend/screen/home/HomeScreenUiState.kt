@@ -7,11 +7,13 @@ data class HomeScreenUiState(
     val timelineItems: List<TimelineItem>,
     val timelineRefreshing: Boolean,
     val search: Search,
+    val profile: Profile,
     val listener: Listener,
 ) {
     enum class Tab {
         Home,
         Search,
+        User,
     }
 
     data class TimelineItem(
@@ -47,6 +49,20 @@ data class HomeScreenUiState(
         val listener: SearchAccountListener?,
     )
 
+    sealed interface Profile {
+        data object Loading : Profile
+
+        data class Error(
+            val message: String,
+        ) : Profile
+
+        data class Loaded(
+            val avatarInitial: String,
+            val displayName: String,
+            val acct: String,
+        ) : Profile
+    }
+
     @Immutable
     interface SearchAccountListener {
         fun onClick()
@@ -67,5 +83,11 @@ data class HomeScreenUiState(
         fun onSearch()
 
         fun onClickLoadMoreSearchResult()
+
+        fun onClickEditProfile()
+
+        fun onClickRetryProfile()
+
+        fun onScreenShown()
     }
 }

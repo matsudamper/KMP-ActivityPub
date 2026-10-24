@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
+import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
@@ -16,10 +17,8 @@ import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
-import net.matsudamper.kotpub.actor.ActorProfile
 import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.actor.StoredActorAppearances
-import net.matsudamper.kotpub.actor.StoredActorProfiles
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
@@ -50,11 +49,13 @@ internal class Federation(
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     private val notes = RepositoryNoteStore(noteRepository)
+    private val localActors = LocalActors(directory = directory, accountService = accountService)
+    private val actorProfiles = AccountActorProfiles(accountService)
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
             queue = deliveryQueueRepository,
-            senders = LocalActors(directory = directory, accountService = accountService),
+            senders = localActors,
             delivery = HttpActivityDelivery(client = httpClient),
             retryPolicy = DeliveryRetryPolicy(initialDelay = 30.seconds, maxDelay = 24.hours, giveUpAfter = 7.days),
             clock = Clock.systemUTC(),
@@ -75,6 +76,17 @@ internal class Federation(
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
 
+    val profileUpdateService: ProfileUpdateService =
+        ProfileUpdateService(
+            senders = localActors,
+            appearances = EmptyActorAppearances,
+            profiles = actorProfiles,
+            followerRepository = followerRepository,
+            deliveryQueueRepository = deliveryQueueRepository,
+            clock = Clock.systemUTC(),
+            onEnqueued = deliveryQueueWorker::wakeUp,
+        )
+
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
 
     val remoteUserLookup: RemoteUserLookup =
@@ -85,7 +97,7 @@ internal class Federation(
             directory = directory,
             publicKeys = AccountActorPublicKeys(accountService),
             appearances = EmptyActorAppearances,
-            profiles = EmptyActorProfiles,
+            profiles = actorProfiles,
             webPages = null,
         )
 
@@ -135,8 +147,4 @@ internal class Federation(
 
 private object EmptyActorAppearances : StoredActorAppearances {
     override fun find(username: String): ActorAppearance = ActorAppearance.EMPTY
-}
-
-private object EmptyActorProfiles : StoredActorProfiles {
-    override fun find(username: String): ActorProfile = ActorProfile.EMPTY
 }

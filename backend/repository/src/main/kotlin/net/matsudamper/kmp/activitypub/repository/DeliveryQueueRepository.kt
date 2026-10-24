@@ -21,6 +21,17 @@ interface DeliveryQueueRepository {
     fun enqueueNote(post: NotePost): EnqueueNoteResult
 
     /**
+     * プロフィールを書き換えて、宛先ごとに Update を積む。
+     * 書き換えと投函を分けると、こちらでは変わったのに相手には古いまま残る
+     *
+     * Update は前の分を丸ごと置き換えるので、まだ送っていない前の Update は消す。
+     * 残すと、送り直しの順で古いプロフィールが後から届く
+     *
+     * @return アカウントが無ければ false
+     */
+    fun updateProfile(update: ProfileUpdate): Boolean
+
+    /**
      * 送る時刻を過ぎた pending を古い順に delivering にして返す。attempts はここで増やす
      */
     fun claim(
@@ -88,6 +99,18 @@ data class NotePost(
     val publicId: PublicNoteId,
     val contentHtml: String,
     val publishedAt: Instant,
+    val body: String,
+    val inboxes: List<String>,
+)
+
+/**
+ * @param displayName 未設定に戻すなら null
+ * @param body 宛先すべてに同じものを送る Update のアクティビティ。プロフィールの全体を載せる
+ */
+data class ProfileUpdate(
+    val username: String,
+    val displayName: String?,
+    val updatedAt: Instant,
     val body: String,
     val inboxes: List<String>,
 )

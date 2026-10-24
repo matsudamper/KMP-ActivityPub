@@ -14,6 +14,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
@@ -26,6 +28,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
+import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
@@ -194,6 +197,15 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun updateProfile(
+        userMutation: QlUserMutation,
+        displayName: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUpdateProfileResult>> {
+        val result = QlUpdateProfileResult(failure = updateProfile(displayName = displayName, env = env))
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
         GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
 
@@ -223,6 +235,23 @@ class UserMutationResolverImpl : UserMutationResolver {
             PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
             PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)
             PostNoteResult.AccountNotFound -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
+        }
+    }
+
+    private fun updateProfile(
+        displayName: String,
+        env: DataFetchingEnvironment,
+    ): QlUpdateProfileFailure? {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId() ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
+        // セッションが残っていてもアカウントが消えていることがある
+        val account = diContainer.accountService.account(accountId) ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
+        val profileUpdateService = diContainer.profileUpdateService ?: return QlUpdateProfileFailure.FEDERATION_DISABLED
+
+        return when (profileUpdateService.update(username = account.username, displayName = displayName)) {
+            UpdateProfileResult.Updated -> null
+            UpdateProfileResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
+            UpdateProfileResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
         }
     }
 }
