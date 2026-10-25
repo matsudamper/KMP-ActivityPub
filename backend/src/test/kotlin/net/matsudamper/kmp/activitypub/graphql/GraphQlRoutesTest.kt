@@ -12,7 +12,6 @@ import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.writeFully
 import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.module
-import net.matsudamper.kmp.activitypub.shared.GRAPHQL_PATH
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlRoutesTest {
@@ -38,7 +37,6 @@ class GraphQlRoutesTest {
             val response =
                 client.post(GRAPHQL_PATH) {
                     contentType(ContentType.Application.Json)
-                    // 長さを申告しない chunked で送る
                     setBody(
                         ChannelWriterContent(
                             body = { writeFully(ByteArray(1024 * 1024 + 1) { 'x'.code.toByte() }) },
@@ -51,21 +49,6 @@ class GraphQlRoutesTest {
         }
 
     @Test
-    fun `上限に収まっていれば読む`() =
-        testApplication {
-            application { module(TestDependencies()) }
-
-            val response =
-                client.post(GRAPHQL_PATH) {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"query":"query { admin { session { loggedIn } } }"}""")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-        }
-
-    // text/plain はプリフライト無しで別オリジンから Cookie 付きで送れる
-    @Test
     fun `JSON 以外の Content-Type は 415 で実行しない`() =
         testApplication {
             application { module(TestDependencies()) }
@@ -73,7 +56,7 @@ class GraphQlRoutesTest {
             val response =
                 client.post(GRAPHQL_PATH) {
                     contentType(ContentType.Text.Plain)
-                    setBody("""{"query":"query { admin { session { loggedIn } } }"}""")
+                    setBody("""{"query":"query { user { session { account { username } } } }"}""")
                 }
 
             assertEquals(HttpStatusCode.UnsupportedMediaType, response.status)

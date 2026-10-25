@@ -1,9 +1,20 @@
--- スキーマの唯一の定義。jOOQ の生成コードはビルド時にこのファイルから作られる。
---
--- 手で編集しない。開発用 DB を直接いじって形を決めたら
---   ./gradlew :backend:repository:dumpSchema -PdevDb=/絶対パス/dev.db
--- で書き出して commit する。実 DB への適用は sqlite3def で手動。
--- 詳細は同じディレクトリの README.md を参照。
+CREATE TABLE accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- 大文字小文字だけが違う名前を別々に持たせない
+    username TEXT COLLATE NOCASE NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    -- 未設定なら NULL
+    display_name TEXT
+);
+
+-- 行が無ければパスワードは無い
+CREATE TABLE account_passwords (
+    account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
+    password_hash TEXT NOT NULL,
+    -- :backend:crypto の PasswordHashType.dbValue
+    password_hash_type TEXT NOT NULL
+);
+
 -- ActivityPub の HTTP Signatures に使う
 CREATE TABLE account_keys (
     account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
@@ -11,199 +22,104 @@ CREATE TABLE account_keys (
     private_key_pem TEXT NOT NULL
 );
 
-CREATE TABLE account_passwords (
-    -- 行が無ければパスワードは無い
+-- WebAuthn の user.id。アカウントの id を認証器に渡さないよう、乱数を別に持つ
+CREATE TABLE passkey_user_handles (
     account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
-    password_hash TEXT NOT NULL,
-    -- :backend:crypto の PasswordHashType.dbValue
-    password_hash_type TEXT NOT NULL
+    -- base64url
+    user_handle TEXT NOT NULL UNIQUE
 );
 
-CREATE TABLE accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- acct とパスに入る名前。大文字小文字だけが違う名前を別々に持てると、
-    -- 相手からはどちらを指しているか決まらないので NOCASE で一意にする
-    username TEXT COLLATE NOCASE NOT NULL UNIQUE,
+CREATE TABLE passkeys (
+    -- base64url
+    credential_id TEXT NOT NULL PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    -- webauthn4j の AttestedCredentialDataConverter の形
+    attested_credential_data BLOB NOT NULL,
+    sign_count INTEGER NOT NULL,
+    -- ユーザー入力値
+    name TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    -- Actor の name。未設定なら username を出す
-    display_name TEXT,
-    -- Actor の summary。未設定なら空
-    summary TEXT,
-    -- 消した時刻。NULL なら生きている。行を残すのは、消えたアカウントとして署名する
-    -- Delete{Actor} を送り切るため。名前も押さえたままにして、送り残した行が
-    -- 同じ名前で作り直したアカウントのものとして配られないようにする
-    deleted_at TEXT
+    last_used_at TEXT
 );
 
-CREATE TABLE delivery_queue (
-    -- こちらから相手の inbox に送る配信の待ち行列。1 行 = 1 宛先への 1 件。
-    -- 成功した行は消し、諦めた行だけを failed で残す
+CREATE INDEX passkeys_account_id ON passkeys (account_id);
+
+-- 他のサーバーのアクター。フォロワーが消えた後の Delete を検証できるよう、フォローが外れても鍵は残す
+CREATE TABLE remote_actors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- 何を送るか。投稿の Create（create_note）と、Follow への応答（accept_follow）。
-    -- 行の形は種別に依らないので、種別を足しても作り直さずに済む
-    kind TEXT NOT NULL,
-    -- 署名するこちらのアカウントの名前。followers と同じ理由で外部キーにしない
-    username TEXT COLLATE NOCASE NOT NULL,
-    -- 宛先。sharedInbox があればそちら
+    actor_uri TEXT NOT NULL UNIQUE,
     inbox TEXT NOT NULL,
-    -- inbox のホスト。大文字小文字を揃え、読めない URL は inbox 全体を入れる。
-    -- 投函時に入れているだけで、読んでいるところは無い
-    inbox_host TEXT NOT NULL,
-    -- 署名対象になる JSON。諦めた行は二度と送らないので NULL にして残さない
-    body TEXT,
-    -- pending: 送る時刻を待っている / delivering: ワーカーが送っている / failed: 諦めた。
-    -- 送り直しを待つ行は pending に戻るので、待っているものと終わったものが状態で分かれる
-    state TEXT NOT NULL CHECK (state IN ('pending', 'delivering', 'failed')),
-    -- claim された回数。送信中に落ちた分も数えたいので、完了ではなく claim で増やす
-    attempts INTEGER NOT NULL DEFAULT 0,
-    -- 次に送る時刻。failed では NULL
-    next_attempt_at TEXT,
-    -- 投函した時刻。諦める判定に使う
-    enqueued_at TEXT NOT NULL,
-    -- 最後に失敗した理由
-    last_error TEXT,
-    -- この行が配る投稿。投稿を消したら未配信の Create も一緒に消えるように外部キーで繋ぐ。
-    -- 残すと、消したはずの投稿が復旧した相手に後から届く。投稿を伴わない種別では NULL
-    note_public_id TEXT REFERENCES notes (public_id) ON DELETE CASCADE,
-    -- この行が相手にする向こうのアクター。accept_follow で、送れたときに
-    -- どのフォローを成立させるかを決めるのに使う。関係しない種別では NULL
-    target_actor_uri TEXT
+    shared_inbox TEXT,
+    public_key_pem TEXT NOT NULL,
+    preferred_username TEXT,
+    display_name TEXT,
+    profile_url TEXT,
+    icon_url TEXT,
+    updated_at TEXT NOT NULL
 );
 
-CREATE TABLE domain_blocks (
-    -- 配信・受信を止める相手のドメイン。1 ドメイン 1 行
-    --
-    -- 相手の inbox の URL やアクターの URI のホスト名。小文字に揃えて入れる
-    domain TEXT NOT NULL PRIMARY KEY,
-    -- unavailable: 配信を諦めたので自動で止めた / manual: 管理画面から止めた。
-    -- 自動で解除するのは unavailable だけ。manual を解除できるのは管理画面だけ
-    reason TEXT NOT NULL CHECK (reason IN ('unavailable', 'manual')),
-    -- 止めた理由の説明。自動なら諦めたときの失敗の理由、手動なら管理画面で書いたもの
-    reason_description TEXT,
-    -- こちらから送らない
-    block_delivery INTEGER NOT NULL CHECK (block_delivery IN (0, 1)),
-    -- 相手から受け取らない
-    block_inbox INTEGER NOT NULL CHECK (block_inbox IN (0, 1)),
-    created_at TEXT NOT NULL
-);
-
-CREATE TABLE early_undone_likes (
-    -- Like より先に届いた Undo が object で指していた Like アクティビティの id。
-    -- 後から届いた Like を記録しないために、期限まで覚えておく。
-    -- 押した相手は記録に無いこともあるので remote_actors は指さない
-    actor_uri TEXT NOT NULL,
-    activity_uri TEXT NOT NULL,
-    expires_at TEXT NOT NULL,
-    PRIMARY KEY (actor_uri, activity_uri)
-);
-
-CREATE TABLE followers (
-    -- 1 行が「username のアカウントを remote_actor_id がフォローしている」ことを表す
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- フォローされたこちらのアカウントの名前。引き当ての正は ActorDirectory で、
-    -- こちらはその結果を名前で受ける。アクター ID は名前から決まる。
-    username TEXT COLLATE NOCASE NOT NULL,
+CREATE TABLE account_followers (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
-    -- 受け取った Follow の id。Accept を返し損ねると相手は同じ id で送り直してくるので、
-    -- 一意にして二重に受けても行が増えないようにする
-    follow_activity_uri TEXT NOT NULL UNIQUE,
-    -- pending: Follow を受けたが Accept をまだ返せていない。accepted: 返せた
-    state TEXT NOT NULL CHECK (state IN ('pending', 'accepted')),
-    created_at TEXT NOT NULL,
+    follow_activity_uri TEXT NOT NULL,
+    received_at TEXT NOT NULL,
+    -- Accept を送れるまでは NULL。NULL の間はフォローが成立していない
     accepted_at TEXT,
-    -- 同じ相手が二重にフォローしている状態を作らない。解除は行を消すので、
-    -- 解除したあとの再フォローは別の Follow の id で新しい行になる
-    UNIQUE (username, remote_actor_id)
+    PRIMARY KEY (account_id, remote_actor_id)
 );
+
+-- 相手がパーマリンクや outbox を引きに来るので、配った投稿は残す
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    public_id TEXT NOT NULL UNIQUE,
+    -- サニタイズ済みの HTML
+    content_html TEXT NOT NULL,
+    published_at TEXT NOT NULL,
+    -- 画面が送信ごとに作る ID。応答だけ失われて送り直されても 2 つ目を作らない
+    request_id TEXT
+);
+
+CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, public_id);
+
+CREATE INDEX notes_published_at ON notes (published_at, public_id);
+
+CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id);
+
+-- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
+CREATE TABLE delivery_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update。
+    -- 行の形は種別に依らないので、種別を足しても作り直さずに済む。取りうる値は DeliveryQueueValues が持つ
+    kind TEXT NOT NULL,
+    -- 署名するこちらのアカウント
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    -- accept_follow で、送れたときに成立させるフォローの相手。関係しない種別と、諦めた行では NULL
+    remote_actor_id INTEGER,
+    -- create_note で配る投稿。投稿を消したら、まだ送っていない Create も消す。
+    -- 残すと消したはずの投稿が後から届く。関係しない種別では NULL
+    note_id INTEGER REFERENCES notes (id) ON DELETE CASCADE,
+    inbox TEXT NOT NULL,
+    -- 諦めた行は二度と送らないので NULL にする
+    body TEXT,
+    -- delivering のまま残った行は、送っている途中で落ちた分
+    state TEXT NOT NULL,
+    -- 送っている途中で落ちた分も数えるため、送り終えたときではなく取り出したときに増やす
+    attempts INTEGER NOT NULL,
+    -- failed では NULL
+    next_attempt_at TEXT,
+    enqueued_at TEXT NOT NULL,
+    last_error TEXT,
+    -- フォローが外れたら、その Accept はもう送らない
+    FOREIGN KEY (account_id, remote_actor_id) REFERENCES account_followers (account_id, remote_actor_id) ON DELETE CASCADE
+);
+
+CREATE INDEX delivery_queue_state_next_attempt_at ON delivery_queue (state, next_attempt_at);
+
+-- 投稿を消したときに、外部キーで消す行をこれで引く
+CREATE INDEX delivery_queue_note_id ON delivery_queue (note_id);
 
 CREATE TABLE health_check (
-    -- 起動時の書き込み確認に使うテーブル。
-    -- 行は常に 1 件だけなので、CHECK で id を固定して UPSERT の対象を一意にする
     id INTEGER PRIMARY KEY CHECK (id = 1),
     checked_at TEXT NOT NULL
 );
-
-CREATE TABLE notes (
-    -- こちらから配信した投稿。相手がパーマリンクを引きに来るので、送ったものは残す
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- 投稿したこちらのアカウントの名前。followers と同じ理由で外部キーにしない
-    username TEXT COLLATE NOCASE NOT NULL,
-    -- URL のパスに入る識別子。AUTOINCREMENT の id をそのまま出すと
-    -- 投稿の総数が外から分かってしまう。UUID v7 は先頭 48 bit に生成時刻を
-    -- 埋める。published_at も ActivityPub で公開するので順序の新規露出はない。
-    -- INSERT 時の INDEX 局所性のため v7 を使う
-    public_id TEXT NOT NULL UNIQUE,
-    -- 配信した本文の HTML。サニタイズ済みのものを入れる
-    content_html TEXT NOT NULL,
-    -- 相手に見せる公開日時。並び順もこれで決まる
-    published_at TEXT NOT NULL
-);
-
-CREATE TABLE note_favourites (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    note_public_id TEXT NOT NULL REFERENCES notes (public_id) ON DELETE CASCADE,
-    -- 押した相手。フォロワーとは限らない。公開鍵は remote_actors の行に 1 つだけ持ち、
-    -- 相手が消えた後に届く Delete の検証に使う
-    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
-    created_at TEXT NOT NULL,
-    -- 同じ相手が同じ投稿に重ねない。送り直しや、取り消しが届かないままの押し直しでも増えない
-    UNIQUE (note_public_id, remote_actor_id)
-);
-
-CREATE TABLE note_stamps (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    note_public_id TEXT NOT NULL REFERENCES notes (public_id) ON DELETE CASCADE,
-    -- 押した相手。公開鍵は note_favourites と同じく remote_actors の行が持つ
-    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
-    -- 絵文字そのもの、またはカスタム絵文字の :name:
-    emoji TEXT NOT NULL,
-    -- カスタム絵文字の画像 URL。Unicode の絵文字では NULL
-    emoji_image_url TEXT,
-    created_at TEXT NOT NULL,
-    UNIQUE (note_public_id, remote_actor_id)
-);
-
-CREATE TABLE remote_actors (
-    -- 相手のサーバーのアクター。フォロワーの inbox と公開鍵の置き場
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- 相手のアクター文書の URL。相手を指す唯一の識別子で、
-    -- 署名の keyId からフラグメントを落とした形と一致する
-    actor_uri TEXT NOT NULL UNIQUE,
-    inbox TEXT NOT NULL,
-    -- 同じインスタンス宛の配信をまとめる先。持たない実装があるので NULL を許す
-    shared_inbox TEXT,
-    public_key_pem TEXT NOT NULL,
-    -- 最後にアクター文書を取り直した時刻。相手が鍵を替えると古い鍵では
-    -- 検証が通らなくなるので、取り直す判断に使う
-    fetched_at TEXT NOT NULL,
-    -- ここから下はフォロワーの一覧を出すためだけに持つ。配信にも署名の検証にも要らない。
-    -- 相手が名乗っていないことがあるので、どれも NULL を許す
-    --
-    -- 相手の acct のうちドメインより前。acct 全体を持たないのは、ドメインが
-    -- actor_uri から決まるため。2 つ持つと片方だけ古い状態を作れてしまう
-    preferred_username TEXT,
-    display_name TEXT,
-    -- 人が開くプロフィールの URL。actor_uri と別なのは、Mastodon が
-    -- アクター文書の URL とプロフィールの URL を分けているため
-    profile_url TEXT,
-    -- アイコンの取得元。中身はここには置かず、見に来たときに取りに行って中継する
-    icon_url TEXT
-);
-
-CREATE INDEX delivery_queue_note_public_id ON delivery_queue (note_public_id);
-
-CREATE INDEX delivery_queue_target_actor_uri ON delivery_queue (target_actor_uri);
-
-CREATE INDEX delivery_queue_state_next_attempt_at_id ON delivery_queue (state, next_attempt_at, id);
-
-CREATE INDEX delivery_queue_username_state_next_attempt_at_id ON delivery_queue (username, state, next_attempt_at, id);
-
-CREATE INDEX notes_published_at_public_id ON notes (published_at, public_id);
-
-CREATE INDEX notes_username_published_at ON notes (username, published_at);
-
-CREATE INDEX note_favourites_remote_actor_id ON note_favourites (remote_actor_id);
-
-CREATE INDEX note_stamps_remote_actor_id ON note_stamps (remote_actor_id);
-
-CREATE INDEX early_undone_likes_expires_at ON early_undone_likes (expires_at);

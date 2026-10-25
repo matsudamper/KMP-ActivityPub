@@ -5,20 +5,29 @@ import java.time.Instant
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
 import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class NoteRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-note-test")
-
     private val dbPath: Path = tempDir.resolve("test.db")
 
-    private val now: Instant = Instant.parse("2026-08-10T00:00:00Z")
-
-    init {
+    @BeforeTest
+    fun setUp() {
         TestSchema.applyTo(dbPath)
+        Accounts.insert(
+            databasePath = dbPath,
+            username = "user1",
+            passwordHash = "hash",
+            passwordHashType = "hash-type",
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
+            createdAt = NOW.toString(),
+        )
     }
 
     @OptIn(kotlin.io.path.ExperimentalPathApi::class)
@@ -27,138 +36,150 @@ class NoteRepositoryTest {
         tempDir.deleteRecursively()
     }
 
-    private fun <T> withRepository(block: (NoteRepository) -> T): T =
-        Repositories.create(DatabaseConfig(path = dbPath)).use { block(it.notes) }
+    @Test
+    fun `投稿を記録して宛先ごとに積む`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            assertEquals(EnqueueNoteResult.Enqueued(deliveries = 2), queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A, INBOX_B, INBOX_A))))
 
-    private fun newNote(
+            val note = repositories.noteRepository.find(PublicNoteId("note-1"))
+            assertEquals("user1", note?.username)
+            assertEquals(1, repositories.noteRepository.count("user1"))
+
+            val claimed = queue.claim(now = NOW, limit = 10)
+            assertEquals(setOf(INBOX_A, INBOX_B), claimed.map { it.inbox }.toSet())
+            assertEquals(listOf(1, 1), claimed.map { it.attempts })
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+        }
+    }
+
+    @Test
+    fun `宛先が無くても投稿は記録する`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(EnqueueNoteResult.Enqueued(deliveries = 0), repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf())))
+
+            assertEquals(1, repositories.noteRepository.count("user1"))
+        }
+    }
+
+    @Test
+    fun `いないアカウントの投稿は記録しない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(
+                EnqueueNoteResult.AccountNotFound,
+                repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)).copy(username = "missing")),
+            )
+
+            assertNull(repositories.noteRepository.find(PublicNoteId("note-1")))
+        }
+    }
+
+    @Test
+    fun `送り直しは時刻が来るまで取り出さない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
+            val claimed = queue.claim(now = NOW, limit = 10).single()
+
+            val retryAt = NOW.plusSeconds(60)
+            queue.scheduleRetry(claimed.id, nextAttemptAt = retryAt, error = "503")
+
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(2, queue.claim(now = retryAt, limit = 10).single().attempts)
+        }
+    }
+
+    @Test
+    fun `送れた行と諦めた行は取り出さない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A, INBOX_B)))
+            val claimed = queue.claim(now = NOW, limit = 10)
+            queue.markDelivered(claimed[0].id, deliveredAt = NOW)
+            queue.giveUp(claimed[1].id, error = "410")
+
+            assertEquals(0, queue.recoverDelivering(now = NOW))
+            assertEquals(listOf(), queue.claim(now = NOW.plusSeconds(3600), limit = 10))
+        }
+    }
+
+    @Test
+    fun `送っている途中で止まった行は起動時に戻す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
+            queue.claim(now = NOW, limit = 10)
+
+            assertEquals(1, queue.recoverDelivering(now = NOW))
+            assertEquals(INBOX_A, queue.claim(now = NOW, limit = 10).single().inbox)
+        }
+    }
+
+    @Test
+    fun `投稿を消すとまだ送っていない配信も消える`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
+
+            repositories.noteRepository.delete(PublicNoteId("note-1"))
+
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+        }
+    }
+
+    @Test
+    fun `投稿は新しい順に並び、位置の続きから返す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()))
+            queue.enqueueNote(notePost(publicId = "note-2", inboxes = listOf()))
+            queue.enqueueNote(notePost(publicId = "note-3", inboxes = listOf()).copy(publishedAt = NOW.plusSeconds(1)))
+            val notes = repositories.noteRepository
+
+            val firstPage = notes.list(username = "user1", after = null, limit = 2)
+            assertEquals(listOf("note-3", "note-2"), firstPage.map { it.publicId.value })
+
+            val secondPage = notes.listPositions(
+                username = "user1",
+                after = NotePosition(publishedAt = firstPage.last().publishedAt, publicId = firstPage.last().publicId),
+                limit = 2,
+            )
+            assertEquals(listOf("note-1"), secondPage.map { it.publicId.value })
+            assertEquals(mapOf("USER1" to 3L, "other" to 0L), notes.counts(setOf("USER1", "other")))
+        }
+    }
+
+    @Test
+    fun `同じ requestId で送り直されたら 2 つ目の投稿も配信も作らない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
+
+            val resent = queue.enqueueNote(notePost(publicId = "note-2", inboxes = listOf(INBOX_A)).copy(requestId = "request-note-1"))
+
+            assertEquals(EnqueueNoteResult.AlreadyPosted(PublicNoteId("note-1")), resent)
+            assertNull(repositories.noteRepository.find(PublicNoteId("note-2")))
+            assertEquals(1, queue.claim(now = NOW, limit = 10).size)
+        }
+    }
+
+    private fun notePost(
         publicId: String,
-        username: String = "admin",
-        publishedAt: Instant = now,
-    ): NewNote = NewNote(
-        username = username,
-        publicId = PublicNoteId(publicId),
-        contentHtml = "<p>$publicId</p>",
-        publishedAt = publishedAt,
-    )
+        inboxes: List<String>,
+    ): NotePost =
+        NotePost(
+            username = "user1",
+            requestId = "request-$publicId",
+            publicId = PublicNoteId(publicId),
+            contentHtml = "<p>hello</p>",
+            publishedAt = NOW,
+            body = "create-$publicId",
+            inboxes = inboxes,
+        )
 
-    @Test
-    fun `記録した投稿を公開 id で引ける`() {
-        withRepository { notes ->
-            notes.add(newNote("abc"))
-
-            val found = notes.find(PublicNoteId("abc"))
-            assertEquals("abc", found?.publicId?.value)
-            assertEquals("admin", found?.username)
-            assertEquals("<p>abc</p>", found?.contentHtml)
-            assertEquals(now, found?.publishedAt)
-
-            assertNull(notes.find(PublicNoteId("none")))
-        }
-    }
-
-    @Test
-    fun `新しい順に返り、cursor で続きから取れる`() {
-        withRepository { notes ->
-            repeat(5) { index ->
-                notes.add(newNote("note-$index", publishedAt = now.plusSeconds(index.toLong())))
-            }
-
-            val first = notes.list("admin", after = null, limit = 2)
-            assertEquals(listOf("note-4", "note-3"), first.map { it.publicId.value })
-
-            val second = notes.list("admin", after = first.last().cursor(), limit = 2)
-            assertEquals(listOf("note-2", "note-1"), second.map { it.publicId.value })
-
-            val third = notes.list("admin", after = second.last().cursor(), limit = 2)
-            assertEquals(listOf("note-0"), third.map { it.publicId.value })
-            assertEquals(emptyList(), notes.list("admin", after = third.last().cursor(), limit = 2))
-        }
-    }
-
-    @Test
-    fun `途中に投稿が増えても cursor なら取りこぼさない`() {
-        withRepository { notes ->
-            repeat(4) { index ->
-                notes.add(newNote("note-$index", publishedAt = now.plusSeconds(index.toLong())))
-            }
-
-            val first = notes.list("admin", after = null, limit = 2)
-            assertEquals(listOf("note-3", "note-2"), first.map { it.publicId.value })
-
-            // 読んでいる間に新しい投稿が入る。件数で数えていたらここで 1 件ずれる
-            notes.add(newNote("note-9", publishedAt = now.plusSeconds(99)))
-
-            assertEquals(
-                listOf("note-1", "note-0"),
-                notes.list("admin", after = first.last().cursor(), limit = 2).map { it.publicId.value },
-            )
-        }
-    }
-
-    private fun Note.cursor(): NotePosition = NotePosition(publishedAt = publishedAt, publicId = publicId)
-
-    @Test
-    fun `同じ時刻でも並びが決まる`() {
-        withRepository { notes ->
-            repeat(3) { index -> notes.add(newNote("same-$index")) }
-
-            // 公開日時が同じなら公開 id の降順。決めておかないと
-            // ページをまたいで同じ投稿が 2 回出ることがある
-            assertEquals(
-                listOf("same-2", "same-1", "same-0"),
-                notes.list("admin", after = null, limit = 10).map { it.publicId.value },
-            )
-        }
-    }
-
-    @Test
-    fun `アカウントごとに分かれ、名前の大文字小文字は区別しない`() {
-        withRepository { notes ->
-            notes.add(newNote("a", username = "admin"))
-            notes.add(newNote("b", username = "Feed1"))
-
-            assertEquals(1, notes.count("admin"))
-            assertEquals(listOf("b"), notes.list("feed1", after = null, limit = 10).map { it.publicId.value })
-        }
-    }
-
-    @Test
-    fun `アカウントを問わない一覧は新しい順で cursor から続きが取れる`() {
-        withRepository { notes ->
-            notes.add(newNote("a-0", username = "admin", publishedAt = now))
-            notes.add(newNote("b-1", username = "feed1", publishedAt = now.plusSeconds(1)))
-            notes.add(newNote("a-2", username = "admin", publishedAt = now.plusSeconds(2)))
-
-            val first = notes.listAllPositions(after = null, limit = 2)
-            assertEquals(listOf("a-2", "b-1"), first.map { it.publicId.value })
-
-            val second = notes.listAllPositions(after = first.last(), limit = 2)
-            assertEquals(listOf("a-0"), second.map { it.publicId.value })
-        }
-    }
-
-    @Test
-    fun `アカウントの投稿をまとめて消せる`() {
-        withRepository { notes ->
-            notes.add(newNote("a", username = "Feed1"))
-            notes.add(newNote("b", username = "feed1"))
-            notes.add(newNote("c", username = "admin"))
-
-            // 消した名前でアカウントを作り直したときに前の投稿が残らないよう、
-            // 大文字小文字の違いは同じ名前として消す
-            assertEquals(2, notes.deleteByUsername("FEED1"))
-            assertEquals(0, notes.count("feed1"))
-            assertEquals(1, notes.count("admin"))
-        }
-    }
-
-    @Test
-    fun `開き直しても投稿が残っている`() {
-        withRepository { notes -> notes.add(newNote("abc")) }
-
-        withRepository { notes ->
-            assertEquals("<p>abc</p>", notes.find(PublicNoteId("abc"))?.contentHtml)
-            assertEquals(1, notes.count("admin"))
-        }
+    private companion object {
+        val NOW: Instant = Instant.parse("2026-10-01T00:00:00Z")
+        const val INBOX_A = "https://a.example/inbox"
+        const val INBOX_B = "https://b.example/inbox"
     }
 }

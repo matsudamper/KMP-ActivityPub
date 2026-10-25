@@ -4,20 +4,33 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
-import net.matsudamper.kmp.activitypub.GraphqlExceptions
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
+import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
+import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserMutation
-import net.matsudamper.kmp.activitypub.graphql.model.QlUserNote
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
-import net.matsudamper.kmp.activitypub.graphql.model.QlUserSession
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
-import net.matsudamper.kmp.activitypub.logic.NoteComposer
-import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.logic.PostNoteResult
+import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
+import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
+import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
 class UserMutationResolverImpl : UserMutationResolver {
@@ -57,57 +70,188 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun passkeyLoginOptions(
+        userMutation: QlUserMutation,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<String>> {
+        val context = GraphQlEngine.graphQlContext(env)
+        claimPasskeyChallenge(context)
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(passkeyService(env).loginOptions()).build())
+    }
+
+    override fun passkeyLogin(
+        userMutation: QlUserMutation,
+        credential: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUserPasskeyLoginResult>> {
+        val context = GraphQlEngine.graphQlContext(env)
+        if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
+
+        val accountId = passkeyService(env).login(credentialJson = credential)
+        val result =
+            if (accountId == null) {
+                QlUserPasskeyLoginResult(failure = QlUserPasskeyLoginFailure.NOT_ACCEPTED)
+            } else {
+                context.issueUserSession(accountId)
+                QlUserPasskeyLoginResult(failure = null)
+            }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    override fun passkeyRegistrationOptions(
+        userMutation: QlUserMutation,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<String?>> {
+        val context = GraphQlEngine.graphQlContext(env)
+        val account =
+            context.userAccountId()?.let { GraphQlEngine.diContainer(env).accountService.account(it) }
+                ?: return CompletableFuture.completedFuture(DataFetcherResult.Builder<String?>(null).build())
+        claimPasskeyChallenge(context)
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<String?>(passkeyService(env).registrationOptions(account)).build())
+    }
+
+    override fun registerPasskey(
+        userMutation: QlUserMutation,
+        query: QlRegisterPasskeyQuery,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlRegisterPasskeyResult>> {
+        val context = GraphQlEngine.graphQlContext(env)
+        val passkeyService = passkeyService(env)
+
+        val accountId = context.userAccountId()
+        val failure =
+            if (accountId == null) {
+                QlRegisterPasskeyFailure.NOT_LOGGED_IN
+            } else {
+                when (passkeyService.register(accountId = accountId, name = query.name, credentialJson = query.credential)) {
+                    PasskeyService.RegistrationResult.Success -> null
+                    PasskeyService.RegistrationResult.NotAccepted -> QlRegisterPasskeyFailure.NOT_ACCEPTED
+                    PasskeyService.RegistrationResult.AlreadyRegistered -> QlRegisterPasskeyFailure.ALREADY_REGISTERED
+                    PasskeyService.RegistrationResult.InvalidName -> QlRegisterPasskeyFailure.INVALID_NAME
+                }
+            }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlRegisterPasskeyResult(failure = failure)).build())
+    }
+
+    override fun deletePasskey(
+        userMutation: QlUserMutation,
+        id: PasskeyCredentialId,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeletePasskeyResult>> {
+        val context = GraphQlEngine.graphQlContext(env)
+        val passkeyService = passkeyService(env)
+
+        val accountId = context.userAccountId()
+        val failure =
+            if (accountId == null) {
+                QlDeletePasskeyFailure.NOT_LOGGED_IN
+            } else {
+                when (passkeyService.delete(accountId = accountId, credentialId = id)) {
+                    PasskeyDeleteResult.Deleted -> null
+                    PasskeyDeleteResult.NotFound -> QlDeletePasskeyFailure.NOT_FOUND
+                    PasskeyDeleteResult.LastLoginMethod -> QlDeletePasskeyFailure.LAST_LOGIN_METHOD
+                }
+            }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlDeletePasskeyResult(failure = failure)).build())
+    }
+
+    override fun deletePassword(
+        userMutation: QlUserMutation,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeletePasswordResult>> {
+        if (GraphQlEngine.diContainer(env).passkeyService == null) throw GraphQlClientException("パスキーが無効なのでパスワードを消せない")
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val failure =
+            if (accountId == null) {
+                QlDeletePasswordFailure.NOT_LOGGED_IN
+            } else {
+                when (GraphQlEngine.diContainer(env).accountService.deletePassword(accountId)) {
+                    AccountService.DeletePasswordResult.Success -> null
+                    AccountService.DeletePasswordResult.NoPasskey -> QlDeletePasswordFailure.NO_PASSKEY
+                }
+            }
+
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlDeletePasswordResult(failure = failure)).build())
+    }
+
     override fun logout(
         userMutation: QlUserMutation,
         env: DataFetchingEnvironment,
-    ): CompletionStage<DataFetcherResult<QlUserSession>> {
-        GraphQlEngine.graphQlContext(env).clearUserSession()
-
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlUserSession(account = null)).build())
+    ): CompletionStage<DataFetcherResult<Boolean>> {
+        GraphQlEngine.graphQlContext(env).revokeUserSession()
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(true).build())
     }
 
     override fun postNote(
         userMutation: QlUserMutation,
         body: String,
+        requestId: String,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val diContainer = GraphQlEngine.diContainer(env)
-        val accountId = GraphQlEngine.graphQlContext(env).userAccountId() ?: throw GraphqlExceptions.User()
-        val account = diContainer.accountService.account(accountId) ?: throw GraphqlExceptions.User()
-        val federation = diContainer.federation ?: throw GraphQlClientException("DOMAIN が未設定なので投稿を配れない")
-        // 鍵の無いアカウントはアクターとして引けない。署名できないので投稿も受け付けない
-        val sender = federation.directory.resolve(account.username)
-            ?: throw GraphQlClientException("このアカウントには配信に使う鍵が無い")
-
-        val result = when (val composed = NoteComposer.compose(body)) {
-            is NoteComposer.ComposeResult.Composed -> {
-                val queued = federation.noteEnqueuer.enqueue(
-                    sender = sender,
-                    contentHtml = composed.contentHtml,
-                )
-
-                QlUserPostNoteResult(
-                    note = QlUserNote(
-                        id = PublicNoteId(queued.publicId.value),
-                        url = queued.url,
-                        contentHtml = queued.contentHtml,
-                        publishedAt = queued.publishedAt.epochSecond,
-                    ),
-                    failure = null,
-                )
-            }
-
-            NoteComposer.ComposeResult.Empty -> QlUserPostNoteResult(
-                note = null,
-                failure = QlUserPostNoteFailure(isEmpty = true, maxLength = null),
-            )
-
-            NoteComposer.ComposeResult.TooLong -> QlUserPostNoteResult(
-                note = null,
-                failure = QlUserPostNoteFailure(isEmpty = false, maxLength = NoteComposer.MAX_LENGTH),
-            )
-        }
-
+        val result = postNote(body = body, requestId = requestId, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    override fun updateProfile(
+        userMutation: QlUserMutation,
+        displayName: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUpdateProfileResult>> {
+        val result = QlUpdateProfileResult(failure = updateProfile(displayName = displayName, env = env))
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
+        GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
+
+    private fun claimPasskeyChallenge(context: GraphQlContext) {
+        if (!context.claimPasskeyChallenge()) throw GraphQlClientException("パスキーの challenge は 1 リクエストにつき 1 回まで")
+    }
+
+    private fun postNote(
+        body: String,
+        requestId: String,
+        env: DataFetchingEnvironment,
+    ): QlUserPostNoteResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId =
+            GraphQlEngine.graphQlContext(env).userAccountId()
+                ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
+        // セッションが残っていてもアカウントが消えていることがある
+        val account =
+            diContainer.accountService.account(accountId)
+                ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
+        val notePostService =
+            diContainer.notePostService
+                ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.FEDERATION_DISABLED)
+
+        return when (val result = notePostService.post(username = account.username, body = body, requestId = requestId)) {
+            is PostNoteResult.Posted -> QlUserPostNoteResult(url = result.url, failure = null)
+            PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
+            PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)
+            PostNoteResult.AccountNotFound -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
+        }
+    }
+
+    private fun updateProfile(
+        displayName: String,
+        env: DataFetchingEnvironment,
+    ): QlUpdateProfileFailure? {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId() ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
+        // セッションが残っていてもアカウントが消えていることがある
+        val account = diContainer.accountService.account(accountId) ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
+        val profileUpdateService = diContainer.profileUpdateService ?: return QlUpdateProfileFailure.FEDERATION_DISABLED
+
+        return when (profileUpdateService.update(username = account.username, displayName = displayName)) {
+            UpdateProfileResult.Updated -> null
+            UpdateProfileResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
+            UpdateProfileResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
+        }
     }
 }

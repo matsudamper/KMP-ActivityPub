@@ -15,7 +15,6 @@ import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.metrics.DoubleHistogram
 import io.opentelemetry.instrumentation.graphql.v20_0.GraphQLTelemetry
-import net.matsudamper.kmp.activitypub.GraphqlExceptions
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
@@ -52,10 +51,7 @@ class GraphQlEngine private constructor(
         val executionResult = graphQl.execute(input)
         executionResult.errors.forEach { error ->
             val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
-            if (dataFetchingException == null ||
-                dataFetchingException is GraphQlClientException ||
-                dataFetchingException is GraphqlExceptions
-            ) {
+            if (dataFetchingException == null || dataFetchingException is GraphQlClientException) {
                 logger.debug("GraphQL の実行に失敗した: {}", error.message)
             } else {
                 TraceLogger.impl().noticeThrowable(dataFetchingException, isError = true)
@@ -102,12 +98,7 @@ class GraphQlEngine private constructor(
                     .newParser()
                     .schemaString(readSchema())
                     .resolvers(resolvers)
-                    .scalars(
-                        GraphQlScalars.userId,
-                        UnixTimeScalar.value,
-                        PublicNoteIdScalar.value,
-                        AccountIdScalar.value,
-                    )
+                    .scalars(GraphQlScalars.userId, GraphQlScalars.passkeyCredentialId)
                     .build()
                     .makeExecutableSchema()
 

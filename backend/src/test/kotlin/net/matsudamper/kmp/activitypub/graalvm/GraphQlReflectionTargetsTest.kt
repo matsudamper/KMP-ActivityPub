@@ -4,15 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import org.junit.jupiter.api.condition.DisabledInNativeImage
 
-/**
- * [GraphQlReflectionFeature] 自体はイメージのビルド中しか動かないので、走査だけを見る。
- * 登録が足りているかは native バイナリを動かして確かめる。
- *
- * 走査するのはイメージをビルドする JVM のクラスパスで、native バイナリの中には無いので JVM でだけ動かす
- */
-@DisabledInNativeImage
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class GraphQlReflectionTargetsTest {
     @Test
@@ -26,23 +18,11 @@ class GraphQlReflectionTargetsTest {
     }
 
     @Test
-    fun `依存の jar に入っている生成物も拾う`() {
+    fun `依存の生成物も拾う`() {
         val classNames = GraphQlReflectionTargets.classNamesIn(GraphQlReflectionTargets.MODEL_PACKAGE)
 
-        assertContains(classNames, "${GraphQlReflectionTargets.MODEL_PACKAGE}.QlAdminSession")
-        assertContains(classNames, "${GraphQlReflectionTargets.MODEL_PACKAGE}.AdminMutationResolver")
-    }
-
-    @Test
-    fun `生成モデルが参照する shared の型も拾う`() {
-        val classNames = GraphQlReflectionTargets.sharedTypeNamesReferencedByGraphqlModels()
-
-        assertContains(classNames, "${GraphQlReflectionTargets.SHARED_PACKAGE}.AccountId")
-        assertContains(classNames, "${GraphQlReflectionTargets.SHARED_PACKAGE}.PublicNoteId")
-        assertTrue(
-            classNames.none { it == "${GraphQlReflectionTargets.SHARED_PACKAGE}.GraphQlPath" },
-            "GraphQL のモデルから参照していない型まで拾っている",
-        )
+        assertContains(classNames, "${GraphQlReflectionTargets.MODEL_PACKAGE}.QlUserLoginResult")
+        assertContains(classNames, "${GraphQlReflectionTargets.MODEL_PACKAGE}.UserMutationResolver")
     }
 
     @Test
@@ -54,7 +34,6 @@ class GraphQlReflectionTargetsTest {
                 .classNamesIn(ROOT_PACKAGE)
                 .filter { it.substringAfterLast('.').endsWith(RESOLVER_IMPL_SUFFIX) }
 
-        // 空振りしていると下の確認が意味を持たない
         assertTrue(implementations.isNotEmpty(), "リゾルバの実装が 1 つも見つからない")
 
         assertEquals(

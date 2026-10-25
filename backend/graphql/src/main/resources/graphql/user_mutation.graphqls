@@ -1,11 +1,19 @@
 type UserMutation {
     login(query: UserLoginQuery!): UserLoginResult! @lazy
-
-    "サーバー側のセッションも消える"
-    logout: UserSession! @lazy
-
-    "ログイン中のユーザーとして投稿し、フォロワーへの配信をキューに入れる。相手に届くのはこの後"
-    postNote(body: String!): UserPostNoteResult! @lazy
+    passkeyLoginOptions: String! @lazy
+    passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
+    "ログインしていなければ null"
+    passkeyRegistrationOptions: String @lazy
+    registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
+    deletePasskey(id: PasskeyCredentialId!): DeletePasskeyResult! @lazy
+    "パスワードが既に無くても成功する"
+    deletePassword: DeletePasswordResult! @lazy
+    "セッションが無くても成功する"
+    logout: Boolean! @lazy
+    "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
+    postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
+    "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。displayName が空なら未設定に戻す"
+    updateProfile(displayName: String!): UpdateProfileResult! @lazy
 }
 
 input UserLoginQuery {
@@ -22,31 +30,75 @@ enum UserLoginFailure {
     WRONG_USERNAME_OR_PASSWORD
 }
 
-type UserPostNoteResult {
-    "記録できていれば入る。配信はこの後キューから行う"
-    note: UserNote
+type UserPasskeyLoginResult {
+    failure: UserPasskeyLoginFailure
+}
 
-    "投稿できなかった場合だけ入る"
+enum UserPasskeyLoginFailure {
+    NOT_ACCEPTED
+}
+
+input RegisterPasskeyQuery {
+    name: String!
+    credential: String!
+}
+
+type RegisterPasskeyResult {
+    failure: RegisterPasskeyFailure
+}
+
+enum RegisterPasskeyFailure {
+    NOT_LOGGED_IN
+    NOT_ACCEPTED
+    ALREADY_REGISTERED
+    INVALID_NAME
+}
+
+type DeletePasskeyResult {
+    failure: DeletePasskeyFailure
+}
+
+enum DeletePasskeyFailure {
+    NOT_LOGGED_IN
+    "ログイン中のアカウントのパスキーではない"
+    NOT_FOUND
+    "パスワードが無く、最後のパスキーなので消すとログインできなくなる"
+    LAST_LOGIN_METHOD
+}
+
+type DeletePasswordResult {
+    failure: DeletePasswordFailure
+}
+
+enum DeletePasswordFailure {
+    NOT_LOGGED_IN
+    "パスキーが無いので消すとログインできなくなる"
+    NO_PASSKEY
+}
+
+type UserPostNoteResult {
+    "投稿の URL。投稿できなければ null"
+    url: String
     failure: UserPostNoteFailure
 }
 
-"配信した投稿 1 件"
-type UserNote {
-    id: PublicNoteId!
-
-    "投稿の URL。相手はここをパーマリンクとして開く"
-    url: String!
-
-    "配信した本文の HTML"
-    contentHtml: String!
-
-    publishedAt: UnixTime!
+enum UserPostNoteFailure {
+    NOT_LOGGED_IN
+    EMPTY_BODY
+    "本文が長すぎる。上限は 500 文字"
+    TOO_LONG
+    "サーバーに DOMAIN が無く、投稿を配れない"
+    FEDERATION_DISABLED
 }
 
-type UserPostNoteFailure {
-    "本文が空"
-    isEmpty: Boolean!
+type UpdateProfileResult {
+    failure: UpdateProfileFailure
+}
 
-    "文字数の上限を超えている場合の上限"
-    maxLength: Int
+enum UpdateProfileFailure {
+    NOT_LOGGED_IN
+    "表示名が長すぎる。上限は 30 文字"
+    TOO_LONG
+    "サーバーに DOMAIN が無く、更新を配れない"
+    FEDERATION_DISABLED
 }

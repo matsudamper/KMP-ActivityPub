@@ -26,14 +26,6 @@ tasks.register<JavaExec>("passwordHash") {
     standardInput = System.`in`
 }
 
-tasks.register<JavaExec>("adminPasswordHash") {
-    group = "application"
-    description = "標準入力のパスワードから ADMIN_PASSWORD_HASH に入れる値を作る"
-    mainClass.set("net.matsudamper.kmp.activitypub.crypto.AdminPasswordHashCli")
-    classpath = sourceSets["main"].runtimeClasspath
-    standardInput = System.`in`
-}
-
 graalvmNative {
     binaries {
         // Argon2 が native-image で動くかは JVM のテストでは分からない

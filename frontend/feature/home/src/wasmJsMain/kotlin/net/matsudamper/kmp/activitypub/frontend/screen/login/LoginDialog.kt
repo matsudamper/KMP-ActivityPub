@@ -31,6 +31,9 @@ internal fun LoginDialog(onLoggedIn: () -> Unit) {
                 override fun loggedIn() {
                     currentOnLoggedIn()
                 }
+
+                // ダイアログでは LoginForm の固定表示で出す
+                override fun showMessage(message: String) = Unit
             },
         )
     }
@@ -48,6 +51,7 @@ internal fun LoginDialog(onLoggedIn: () -> Unit) {
         ) {
             LoginForm(
                 uiState = uiState,
+                error = uiState.error,
                 modifier = Modifier.padding(24.dp),
             )
         }

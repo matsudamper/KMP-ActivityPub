@@ -16,11 +16,13 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginCheckFailedContent
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateStatusContent
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewModel
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.user.UserProfileScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -30,7 +32,6 @@ fun HomeNavigationHost(
     backStack: NavBackStack<NavKey>,
     serverSettingUiState: @Composable () -> ServerSettingUiState?,
     modifier: Modifier = Modifier,
-    otherScreenContent: @Composable (screen: Screen, navigator: Navigator) -> Unit = { _, _ -> },
 ) {
     val navigator = remember(backStack) { Navigator(backStack) }
     NavDisplay(
@@ -53,7 +54,6 @@ fun HomeNavigationHost(
                                 screen = screen,
                                 navigator = navigator,
                                 serverSettingUiState = serverSettingUiState,
-                                otherScreenContent = otherScreenContent,
                             )
                         }
 
@@ -61,10 +61,12 @@ fun HomeNavigationHost(
                             LoginRequestContent(uiState = loginGateUiState, navigator = navigator)
                         }
 
-                        LoginGateUiState.Content.Loading,
-                        is LoginGateUiState.Content.Error,
-                        -> {
+                        LoginGateUiState.Content.Loading -> {
                             LoginGateStatusContent(uiState = loginGateUiState)
+                        }
+
+                        is LoginGateUiState.Content.Error -> {
+                            LoginCheckFailedContent(uiState = loginGateUiState, navigator = navigator)
                         }
                     }
                 } else {
@@ -72,7 +74,6 @@ fun HomeNavigationHost(
                         screen = screen,
                         navigator = navigator,
                         serverSettingUiState = serverSettingUiState,
-                        otherScreenContent = otherScreenContent,
                     )
                 }
             }
@@ -85,7 +86,6 @@ private fun ScreenContent(
     screen: Screen,
     navigator: Navigator,
     serverSettingUiState: @Composable () -> ServerSettingUiState?,
-    otherScreenContent: @Composable (screen: Screen, navigator: Navigator) -> Unit,
 ) {
     when (screen) {
         Screen.Login -> {
@@ -107,15 +107,12 @@ private fun ScreenContent(
             SettingsScreen(navigator = navigator)
         }
 
-        is Screen.UserProfile -> {
-            UserProfileScreen(username = screen.username)
+        Screen.ProfileEdit -> {
+            ProfileEditScreen(navigator = navigator)
         }
 
-        Screen.Admin,
-        Screen.AdminAccounts,
-        Screen.AdminAccountNew,
-        -> {
-            otherScreenContent(screen, navigator)
+        is Screen.UserProfile -> {
+            UserProfileScreen(username = screen.username)
         }
     }
 }

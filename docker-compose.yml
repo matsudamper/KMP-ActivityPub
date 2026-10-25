@@ -16,6 +16,16 @@ services:
       VALKEY_URI: redis://valkey:6379
       # http では false にする
       COOKIE_SECURE: "true"
+      # 必須。true か false
+      ENABLE_PASSKEY: "true"
+      # ENABLE_PASSKEY が true なら必須。後から変えると登録済みのパスキーが使えなくなる
+      PASSKEY_RP_ID: example.com
+      # カンマ区切り。書かなければ https://<PASSKEY_RP_ID>
+#      PASSKEY_ORIGINS: https://example.com
+      # Android アプリでパスキーを使うとき。/.well-known/assetlinks.json を返し、アプリの origin を受け付ける
+#      PASSKEY_ANDROID_PACKAGE_NAME: net.matsudamper.kmp.activitypub
+      # アプリの署名証明書の SHA-256。カンマ区切り
+#      PASSKEY_ANDROID_CERT_SHA256: "AA:BB:..."
       # 他のサーバーから @user@example.com で見つけてもらうためのドメイン
       DOMAIN: example.com
       # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない

@@ -1,72 +1,24 @@
 # KMP-ActivityPub
 
-ActivityPub のバックエンドと、Web と Android のフロントのアプリケーション。
-管理画面で登録したユーザーがログインして投稿すると、Mastodon などのフォロワーに配信される。
+ActivityPubのバックエンドとWebとAndroidフロントのアプリケーション
 
-横断的な設計は [docs/architecture.md](docs/architecture.md)、Mastodon から見える仕様
-（エンドポイント・鍵の扱いなど）は [docs/mastodon-spec.md](docs/mastodon-spec.md) を参照。
-これからやることは [GitHub の Issue](https://github.com/matsudamper/KMP-ActivityPub/issues) に置く。
+## ローカルで動かす
 
-ActivityPub の実装は [matsudamper/kotpub](https://github.com/matsudamper/kotpub) を使う。
-いまできるのは配信まで（フォローを受けて、投稿をフォロワーに届ける）。
+### DB を作る
 
-## 技術スタック
-
-- backend: Ktor・GraalVM native-image・SQLite（jOOQ）・GraphQL（graphql-java-tools）
-- GraphQL のコード生成: [matsudamper/graphql-java-codegen](https://github.com/matsudamper/graphql-java-codegen)（サーバー）、Apollo Kotlin（画面）
-- frontend: Compose Multiplatform（Web は Kotlin/Wasm）と Jetpack Compose（Android）
-
-## 必要なもの
-
-JDK が 1 つあれば足りる。バージョンは問わない（Gradle を起動できればよい）。
-
-ビルドに使う JDK 25 と、native-image に使う GraalVM 25 は Gradle が必要に応じて
-取ってくる（`settings.gradle.kts` の foojay-resolver）。
-
-Android アプリをビルドするときは Android SDK が要る（`local.properties` の `sdk.dir` か `ANDROID_HOME`）。
-
-## ビルド
-
-```sh
-# 全モジュールのコンパイル
-./gradlew :compileAll
-
-# テスト
-./gradlew test
-```
-
-### backend
-
-```sh
-# JVM で起動する（http://localhost:8080）
-# DOMAIN が無いと他のサーバーから見つけられない。Mastodon から実際に引かせるときは公開しているホスト名にすること
-DOMAIN=example.com VALKEY_URI=redis://localhost:6379 ./gradlew :backend:run
-
-# ネイティブバイナリを生成して起動する
-./gradlew :backend:nativeCompile
-DOMAIN=example.com VALKEY_URI=redis://localhost:6379 ./backend/build/native/nativeCompile/kmp-activitypub
-```
-
-起動できたかは `GET /healthz` で見る。`{"status":"ok"}` が返れば動いている。
-
-DB のスキーマは起動時に適用しない。先に [sqlite3def](https://github.com/sqldef/sqldef) で適用しておく
-（[backend/repository/src/main/resources/db/README.md](backend/repository/src/main/resources/db/README.md)）。
+スキーマは [sqlite3def](https://github.com/sqldef/sqldef) で適用する。
 
 ```sh
 mkdir -p data
 sqlite3def --file backend/repository/src/main/resources/db/schema.sql data/kmp-activitypub.db
 ```
 
-環境変数は `docker-compose.yml` も参照。
+### ユーザーを登録する
 
-### Web
+`data/kmp-activitypub.db` に登録する。ユーザー名とパスワードは、聞かれたときに入力する。
 
 ```sh
-# 開発サーバー（http://localhost:8081、ホットリロードあり）
-./gradlew :frontend:app-web:wasmJsBrowserDevelopmentRun
-
-# production 用の配布物（frontend/app-web/build/dist/wasmJs/productionExecutable/）
-./gradlew :frontend:app-web:wasmJsBrowserDistribution
+./gradlew --quiet :cli:addAccount
 ```
 
 ユーザー名は大文字小文字を区別せず一意になる。区別しないのは ASCII の英字だけなので、使う文字は英数字と `_` `.` `-` に限る。ログインでは前後の空白を落として照合するので、前後に空白を入れない。
@@ -81,91 +33,8 @@ docker run -d --name kmp-activitypub-valkey -p 6379:6379 valkey/valkey:8
 
 ### 起動する
 
-backend から画面を出すときは、配布物のディレクトリを `STATIC_SRC_DIR` に渡す。
+環境変数は `docker-compose.yml` を参照。
 
-```sh
-DOMAIN=example.com \
-STATIC_SRC_DIR=frontend/app-web/build/dist/wasmJs/productionExecutable \
-ADMIN_PASSWORD_HASH='pbkdf2-sha256:...' \
-COOKIE_SECURE=false \
-VALKEY_URI=redis://localhost:6379 \
-  ./gradlew :backend:run
-```
-
-### Android
-
-```sh
-./gradlew :frontend:app-android:assembleDebug
-```
-
-接続先のサーバーの URL はログイン画面の「変更」から入れる。Android アプリに管理画面は無い。
-
-## 使い方
-
-1. 管理画面のパスワードハッシュを作る。標準入力にパスワードを渡す（引数にするとシェルの履歴に残る）
-
-   ```sh
-   # 表示された 1 行がそのまま ADMIN_PASSWORD_HASH の値
-   ./gradlew --quiet :backend:crypto:adminPasswordHash
-   ```
-
-2. `/admin` で管理画面にログインし、「ユーザーの登録」でユーザー名とパスワードを決める。
-   管理画面を使わずに `./gradlew --quiet :cli:addAccount` で `data/kmp-activitypub.db` に直接登録してもよい
-3. `/`（Android ならアプリ）でそのユーザーとしてログインし、ホームの「投稿」から投稿する
-4. Mastodon の検索窓に `@<ユーザー名>@<DOMAIN>` を入れるとフォローできる。フォロー後の投稿が届く
-
-ユーザー名は後から変えられない。Mastodon はリモートのアカウントを永続キャッシュするので、
-アクターの ID が変わると相手には別のアカウントとして見える。
-使える文字は英数字と `_` `.` `-` で、先頭と末尾は英数字か `_`、長さは 30 文字まで。
-大文字小文字は区別せず、小文字にして保存する。ログインでは前後の空白を落として照合する。
-パスワードは 8 文字以上。
-
-### 画面のパス
-
-| パス | 画面 |
-| --- | --- |
-| `/` | ログイン |
-| `/home` | ホーム。タイムラインはまだダミー |
-| `/post` | 投稿 |
-| `/settings` | 設定 |
-| `/@{ユーザー名}` | ユーザーの画面 |
-| `/admin` | 管理画面のトップ。ログインと、下の各画面への入口 |
-| `/admin/accounts` | ユーザーの一覧 |
-| `/admin/accounts/new` | ユーザーの登録 |
-| それ以外 | ログイン |
-
-## 環境変数
-
-| 変数 | 既定値 | 内容 |
-| --- | --- | --- |
-| `HOST` | `0.0.0.0` | バインドするアドレス |
-| `PORT` | `8080` | 待ち受けポート |
-| `DB_PATH` | `./data/kmp-activitypub.db` | SQLite の DB ファイル |
-| `DOMAIN` | なし | 外部に公開するドメイン。WebFinger の `acct:` とアクターの `id` に使う。未設定なら他のサーバーとやり取りせず、投稿もできない |
-| `STATIC_SRC_DIR` | なし | 配信する静的ファイルのディレクトリ。未設定なら画面を出さない |
-| `ADMIN_PASSWORD_HASH` | なし | 管理画面のパスワードハッシュ。未設定でも起動するが、その間は管理画面にログインできない |
-| `COOKIE_SECURE` | `true` | 管理画面とユーザーのセッション Cookie に `Secure` を付けるか。手元で http で試すときだけ `false` にする |
-
-`DOMAIN` はアクターの ID に焼き込まれ、変えると相手からは別人のアカウントに見える。
-
-## モジュール
-
-| モジュール | 内容 |
-| --- | --- |
-| `:backend` | サーバーの組み立て。ルーティング・GraphQL のリゾルバ・配信ワーカー |
-| `:backend:crypto` | パスワードのハッシュ |
-| `:backend:session` | ユーザーのセッション |
-| `:backend:graphql` | GraphQL のスキーマと、そこから生成したモデル・リゾルバのインタフェース |
-| `:backend:repository` | SQLite への保存 |
-| `:cli` | DB に直接ユーザーを登録するコマンド |
-| `:shared` | backend と画面の両方から見る値 |
-| `:frontend:app-web` | Web アプリの入口 |
-| `:frontend:feature:home` | ログイン・ホーム・投稿の画面（Web と Android） |
-| `:frontend:feature:admin` | 管理画面（Web のみ） |
-| `:frontend:navigation` | Web の画面のパスと遷移の口 |
-| `:frontend:api` | GraphQL クライアント |
-| `:frontend:ui` | 画面部品 |
-| `:frontend:common-component` | HTML の input を載せる部品 |
-| `:frontend:app-android` | Android アプリ |
-
-分け方の理由は [docs/architecture.md](docs/architecture.md) の「モジュールの分け方」を参照。
+画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
+`frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
+同じサーバーから出る。

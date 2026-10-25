@@ -1,31 +1,53 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -35,6 +57,8 @@ internal fun HomeScreen(
 ) {
     val viewModel = koinViewModel<HomeScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -46,16 +70,33 @@ internal fun HomeScreen(
                 override fun navigateToSettings() {
                     navigator.navigate(Screen.Settings)
                 }
+
+                override fun navigateToUserProfile(username: String) {
+                    navigator.navigate(Screen.UserProfile(username = username))
+                }
+
+                override fun navigateToProfileEdit() {
+                    navigator.navigate(Screen.ProfileEdit)
+                }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
     }
 
-    HomeContent(uiState = uiState)
+    LaunchedEffect(uiState.listener) {
+        uiState.listener.onScreenShown()
+    }
+
+    HomeContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
 @Composable
 internal fun HomeContent(
     uiState: HomeScreenUiState,
+    snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
         topBar = {
@@ -65,7 +106,7 @@ internal fun HomeContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "ホーム",
+                        text = uiState.selectedTab.label,
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
@@ -79,26 +120,280 @@ internal fun HomeContent(
                 }
             }
         },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = uiState.listener::onClickPost,
-                icon = {
-                    Icon(
-                        imageVector = AppIcons.Edit,
-                        contentDescription = null,
+        bottomBar = {
+            NavigationBar {
+                HomeScreenUiState.Tab.entries.forEach { tab ->
+                    NavigationBarItem(
+                        selected = uiState.selectedTab == tab,
+                        onClick = { uiState.listener.onClickTab(tab) },
+                        icon = {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = null,
+                            )
+                        },
+                        label = { Text(tab.label) },
                     )
-                },
-                text = { Text("投稿") },
-            )
+                }
+            }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        floatingActionButton = {
+            if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
+                ExtendedFloatingActionButton(
+                    onClick = uiState.listener::onClickPost,
+                    icon = {
+                        Icon(
+                            imageVector = AppIcons.Edit,
+                            contentDescription = null,
+                        )
+                    },
+                    text = { Text("投稿") },
+                )
+            }
         },
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
-        ) {
-            items(uiState.timelineItems) { item ->
+        val contentModifier = Modifier.fillMaxSize().padding(paddingValues)
+        when (uiState.selectedTab) {
+            HomeScreenUiState.Tab.Home -> {
+                TimelineTabContent(
+                    timelineItems = uiState.timelineItems,
+                    refreshing = uiState.timelineRefreshing,
+                    listener = uiState.listener,
+                    modifier = contentModifier,
+                )
+            }
+
+            HomeScreenUiState.Tab.Search -> {
+                SearchTabContent(
+                    search = uiState.search,
+                    listener = uiState.listener,
+                    modifier = contentModifier,
+                )
+            }
+
+            HomeScreenUiState.Tab.User -> {
+                UserTabContent(
+                    profile = uiState.profile,
+                    listener = uiState.listener,
+                    modifier = contentModifier,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineTabContent(
+    timelineItems: List<HomeScreenUiState.TimelineItem>,
+    refreshing: Boolean,
+    listener: HomeScreenUiState.Listener,
+    modifier: Modifier = Modifier,
+) {
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = listener::onRefreshTimeline,
+        modifier = modifier,
+    ) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(timelineItems) { item ->
                 TimelineItem(item = item)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchTabContent(
+    search: HomeScreenUiState.Search,
+    listener: HomeScreenUiState.Listener,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        SingleLineTextField(
+            value = search.query,
+            onValueChange = listener::onSearchQueryChanged,
+            onImeAction = listener::onSearch,
+            label = "ユーザーを検索",
+            kind = SingleLineTextFieldKind.Plain,
+            autofill = null,
+            formId = null,
+            required = false,
+            imeAction = ImeAction.Search,
+            inputId = SEARCH_QUERY_INPUT_ID,
+            inputName = "query",
+            enabled = true,
+            hasError = false,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        when (val result = search.result) {
+            HomeScreenUiState.SearchResult.NotSearched -> Unit
+
+            HomeScreenUiState.SearchResult.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            is HomeScreenUiState.SearchResult.Loaded -> {
+                if (result.accounts.isEmpty()) {
+                    SearchMessage(text = "検索結果はありません")
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(result.accounts) { account ->
+                            SearchAccountItem(account = account)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        if (result.loadMoreButtonVisible) {
+                            item {
+                                TextButton(
+                                    onClick = listener::onClickLoadMoreSearchResult,
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                ) {
+                                    Text("さらに読み込む")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserTabContent(
+    profile: HomeScreenUiState.Profile,
+    listener: HomeScreenUiState.Listener,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        when (profile) {
+            HomeScreenUiState.Profile.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+
+            is HomeScreenUiState.Profile.Error -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = profile.message,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Button(onClick = listener::onClickRetryProfile) {
+                        Text("再読み込み")
+                    }
+                }
+            }
+
+            is HomeScreenUiState.Profile.Loaded -> {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = profile.avatarInitial,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        }
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = profile.displayName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = profile.acct,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = listener::onClickEditProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("プロフィールを編集")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchMessage(
+    text: String,
+) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun SearchAccountItem(
+    account: HomeScreenUiState.SearchAccount,
+) {
+    val listener = account.listener
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (listener == null) Modifier else Modifier.clickable(onClick = listener::onClick))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = account.avatarInitial,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = account.displayName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = account.acct,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
         }
     }
 }
@@ -139,3 +434,19 @@ private fun TimelineItem(
         )
     }
 }
+
+private val HomeScreenUiState.Tab.label: String
+    get() = when (this) {
+        HomeScreenUiState.Tab.Home -> "ホーム"
+        HomeScreenUiState.Tab.Search -> "検索"
+        HomeScreenUiState.Tab.User -> "ユーザー"
+    }
+
+private val HomeScreenUiState.Tab.icon: ImageVector
+    get() = when (this) {
+        HomeScreenUiState.Tab.Home -> AppIcons.Home
+        HomeScreenUiState.Tab.Search -> AppIcons.Search
+        HomeScreenUiState.Tab.User -> AppIcons.Person
+    }
+
+private const val SEARCH_QUERY_INPUT_ID = "home-search-query"

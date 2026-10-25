@@ -9,15 +9,35 @@ type Query {
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
     user(username: String!): User
-    admin: AdminQuery!
+    """
+    名前の一部で、このサーバーのユーザーとフォローなどで受け取った他のサーバーのユーザーをまとめて探す。
+    after には前回の nextCursor を渡す
+    """
+    searchUsers(query: String!, after: String): UserSearchResult!
+    """
+    `@user@host` か URL から 1 人を引く。このサーバーのユーザーも同じ書き方で引ける。
+    他のサーバーへの問い合わせはログイン中に限る。見つからなければ null
+    """
+    resolveUser(query: String!): SearchedUser
+    "ログイン中のアカウントのパスキー。ログインしていなければ null"
+    passkeys: [RegisteredPasskey!] @lazy
+    "ログイン中のアカウントにパスワードがあるか。ログインしていなければ null"
+    hasPassword: Boolean @lazy
+    "ログイン中のアカウントのプロフィール。ログインしていなければ null"
+    profile: Profile @lazy
+}
+
+type Profile {
+    username: String!
+    "未設定なら null"
+    displayName: String
+}
+
+type RegisteredPasskey {
+    id: PasskeyCredentialId!
+    name: String!
 }
 
 type Mutation {
-    admin: AdminMutation!
     user: UserMutation!
-}
-
-type PageInfo {
-    hasMore: Boolean!
-    nextCursor: String
 }

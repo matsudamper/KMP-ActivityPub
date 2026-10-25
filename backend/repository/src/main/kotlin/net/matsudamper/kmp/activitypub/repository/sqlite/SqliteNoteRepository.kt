@@ -1,10 +1,9 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
-import java.util.TreeMap
-import net.matsudamper.kmp.activitypub.repository.NewNote
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
@@ -14,54 +13,39 @@ import org.jooq.impl.DSL
 internal class SqliteNoteRepository(
     private val jooq: SqliteJooq,
 ) : NoteRepository {
-    override fun add(note: NewNote) {
-        jooq.transaction { dsl ->
-            dsl
-                .insertInto(NOTES)
-                .set(NOTES.USERNAME, note.username)
-                .set(NOTES.PUBLIC_ID, note.publicId.value)
-                .set(NOTES.CONTENT_HTML, note.contentHtml)
-                .set(NOTES.PUBLISHED_AT, StoredInstant.format(note.publishedAt))
-                .execute()
-        }
-    }
-
     override fun find(publicId: PublicNoteId): Note? = jooq.withConnection { dsl ->
-        dsl
-            .select(NOTES.PUBLIC_ID, NOTES.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
+        dsl.select(NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
             .from(NOTES)
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.PUBLIC_ID.eq(publicId.value))
             .fetchOne()
             ?.toNote()
     }
 
     override fun findByPublicIds(publicIds: Set<PublicNoteId>): Map<PublicNoteId, Note> {
-        if (publicIds.isEmpty()) return emptyMap()
+        if (publicIds.isEmpty()) return mapOf()
 
         return jooq.withConnection { dsl ->
-            dsl
-                .select(NOTES.PUBLIC_ID, NOTES.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
+            dsl.select(NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
                 .from(NOTES)
+                .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.PUBLIC_ID.`in`(publicIds.map { it.value }))
-                .fetch()
-                .map { it.toNote() }
+                .fetch { it.toNote() }
                 .associateBy { it.publicId }
         }
     }
 
     override fun delete(publicId: PublicNoteId) {
-        jooq.transaction { dsl ->
-            dsl
-                .deleteFrom(NOTES)
+        jooq.withConnection { dsl ->
+            dsl.deleteFrom(NOTES)
                 .where(NOTES.PUBLIC_ID.eq(publicId.value))
                 .execute()
         }
     }
 
-    override fun deleteByUsername(username: String): Int = jooq.transaction { dsl ->
-        dsl
-            .deleteFrom(NOTES)
-            .where(NOTES.USERNAME.eq(username))
+    override fun deleteByUsername(username: String): Int = jooq.withConnection { dsl ->
+        dsl.deleteFrom(NOTES)
+            .where(NOTES.ACCOUNT_ID.`in`(dsl.select(ACCOUNTS.ID).from(ACCOUNTS).where(ACCOUNTS.USERNAME.eq(username.lowercase()))))
             .execute()
     }
 
@@ -70,17 +54,14 @@ internal class SqliteNoteRepository(
         after: NotePosition?,
         limit: Int,
     ): List<Note> = jooq.withConnection { dsl ->
-        dsl
-            .select(NOTES.PUBLIC_ID, NOTES.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
+        dsl.select(NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
             .from(NOTES)
-            .where(NOTES.USERNAME.eq(username))
-            .and(after?.let { olderThan(it) } ?: DSL.noCondition())
-            // 公開 id まで見て並びを一意にする。決めておかないと、ページをまたいで
-            // 同じ投稿が 2 回出ることがある
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .and(olderThan(after))
             .orderBy(NOTES.PUBLISHED_AT.desc(), NOTES.PUBLIC_ID.desc())
             .limit(limit)
-            .fetch()
-            .map { it.toNote() }
+            .fetch { it.toNote() }
     }
 
     override fun listPositions(
@@ -88,77 +69,70 @@ internal class SqliteNoteRepository(
         after: NotePosition?,
         limit: Int,
     ): List<NotePosition> = jooq.withConnection { dsl ->
-        dsl
-            .select(NOTES.PUBLIC_ID, NOTES.PUBLISHED_AT)
+        dsl.select(NOTES.PUBLIC_ID, NOTES.PUBLISHED_AT)
             .from(NOTES)
-            .where(NOTES.USERNAME.eq(username))
-            .and(after?.let { olderThan(it) } ?: DSL.noCondition())
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .and(olderThan(after))
             .orderBy(NOTES.PUBLISHED_AT.desc(), NOTES.PUBLIC_ID.desc())
             .limit(limit)
-            .fetch()
-            .map { it.toPosition() }
+            .fetch { it.toPosition() }
     }
 
     override fun listAllPositions(
         after: NotePosition?,
         limit: Int,
     ): List<NotePosition> = jooq.withConnection { dsl ->
-        dsl
-            .select(NOTES.PUBLIC_ID, NOTES.PUBLISHED_AT)
+        dsl.select(NOTES.PUBLIC_ID, NOTES.PUBLISHED_AT)
             .from(NOTES)
-            .where(after?.let { olderThan(it) } ?: DSL.noCondition())
+            .where(olderThan(after))
             .orderBy(NOTES.PUBLISHED_AT.desc(), NOTES.PUBLIC_ID.desc())
             .limit(limit)
-            .fetch()
-            .map { it.toPosition() }
-    }
-
-    /**
-     * 時刻だけで比べると、同じ時刻の投稿がページの境目に来たときに落ちるか重複する
-     */
-    private fun olderThan(cursor: NotePosition): Condition {
-        val publishedAt = StoredInstant.format(cursor.publishedAt)
-
-        return NOTES.PUBLISHED_AT.lt(publishedAt)
-            .or(NOTES.PUBLISHED_AT.eq(publishedAt).and(NOTES.PUBLIC_ID.lt(cursor.publicId.value)))
+            .fetch { it.toPosition() }
     }
 
     override fun count(username: String): Long = jooq.withConnection { dsl ->
-        dsl
-            .selectCount()
+        dsl.selectCount()
             .from(NOTES)
-            .where(NOTES.USERNAME.eq(username))
-            .fetchOne(0, Int::class.java)
-            ?.toLong() ?: 0L
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .fetchOne(0, Long::class.java) ?: 0L
     }
 
     override fun counts(usernames: Set<String>): Map<String, Long> {
-        if (usernames.isEmpty()) return emptyMap()
+        if (usernames.isEmpty()) return mapOf()
 
-        return jooq.withConnection { dsl ->
-            val counted = TreeMap<String, Long>(String.CASE_INSENSITIVE_ORDER)
-
-            dsl
-                .select(NOTES.USERNAME, DSL.count())
+        val countedByLowercase = jooq.withConnection { dsl ->
+            dsl.select(ACCOUNTS.USERNAME, DSL.count())
                 .from(NOTES)
-                .where(NOTES.USERNAME.`in`(usernames))
-                .groupBy(NOTES.USERNAME)
-                .fetch()
-                .forEach { counted[checkNotNull(it.value1())] = it.value2().toLong() }
-
-            usernames.associateWith { counted[it] ?: 0L }
+                .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
+                .where(ACCOUNTS.USERNAME.`in`(usernames.map { it.lowercase() }))
+                .groupBy(ACCOUNTS.USERNAME)
+                .fetch { checkNotNull(it.value1()).lowercase() to it.value2().toLong() }
+                .toMap()
         }
+        return usernames.associateWith { countedByLowercase[it.lowercase()] ?: 0L }
     }
 
-    private fun Record.toPosition(): NotePosition = NotePosition(
-        publishedAt = StoredInstant.parse(checkNotNull(get(NOTES.PUBLISHED_AT))),
-        publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
-    )
+    private fun olderThan(position: NotePosition?): Condition {
+        if (position == null) return DSL.noCondition()
+        val publishedAt = StoredInstant.format(position.publishedAt)
+        // 時刻だけで比べると、同じ時刻の投稿がページの境目に来たときに落ちるか重なる
+        return NOTES.PUBLISHED_AT.lt(publishedAt)
+            .or(NOTES.PUBLISHED_AT.eq(publishedAt).and(NOTES.PUBLIC_ID.lt(position.publicId.value)))
+    }
 
-    private fun Record.toNote(): Note = Note(
-        publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
-        username = checkNotNull(get(NOTES.USERNAME)),
-        contentHtml = checkNotNull(get(NOTES.CONTENT_HTML)),
-        publishedAt = StoredInstant.parse(checkNotNull(get(NOTES.PUBLISHED_AT))),
-    )
+    private fun Record.toPosition(): NotePosition =
+        NotePosition(
+            publishedAt = StoredInstant.parse(checkNotNull(get(NOTES.PUBLISHED_AT))),
+            publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
+        )
+
+    private fun Record.toNote(): Note =
+        Note(
+            publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
+            username = checkNotNull(get(ACCOUNTS.USERNAME)),
+            contentHtml = checkNotNull(get(NOTES.CONTENT_HTML)),
+            publishedAt = StoredInstant.parse(checkNotNull(get(NOTES.PUBLISHED_AT))),
+        )
 }

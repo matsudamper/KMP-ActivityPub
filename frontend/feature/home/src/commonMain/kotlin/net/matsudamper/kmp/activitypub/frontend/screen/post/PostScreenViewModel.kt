@@ -3,25 +3,31 @@ package net.matsudamper.kmp.activitypub.frontend.screen.post
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
 internal class PostScreenViewModel(
-    private val api: UserApi,
+    private val postNoteSubmitter: PostNoteSubmitter,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
-        MutableStateFlow(ViewModelState(body = savedStateHandle.get<String>(BODY_KEY).orEmpty()))
+        MutableStateFlow(
+            ViewModelState(
+                body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                submitting = false,
+                error = null,
+            ),
+        )
 
     val uiStateFlow: StateFlow<PostScreenUiState> =
         MutableStateFlow(
@@ -30,6 +36,8 @@ internal class PostScreenViewModel(
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
                         savedStateHandle[BODY_KEY] = text
+                        // 応答が失われて送り直すときだけ同じ ID にし、書き直した本文は別の投稿として扱う
+                        savedStateHandle[REQUEST_ID_KEY] = newRequestId()
                         viewModelStateFlow.update { it.copy(body = text, error = null) }
                     }
 
@@ -38,6 +46,8 @@ internal class PostScreenViewModel(
                     }
 
                     override fun onClickBack() {
+                        // 送信中に閉じると、投稿できたかどうかを画面に出せない
+                        if (viewModelStateFlow.value.submitting) return
                         viewModelScope.launch {
                             events.send { it.navigateBack() }
                         }
@@ -48,7 +58,10 @@ internal class PostScreenViewModel(
             viewModelScope.launch {
                 viewModelStateFlow.collect { viewModelState ->
                     uiStateFlow.update { uiState ->
-                        createUiState(viewModelState = viewModelState, listener = uiState.listener)
+                        createUiState(
+                            viewModelState = viewModelState,
+                            listener = uiState.listener,
+                        )
                     }
                 }
             }
@@ -60,66 +73,64 @@ internal class PostScreenViewModel(
 
         viewModelStateFlow.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
-            val error = when (val result = api.postNote(state.body)) {
-                UserPostNoteResult.Success -> null
-
-                is UserPostNoteResult.Rejected -> when {
-                    result.isEmpty -> "本文が空"
-                    result.maxLength != null -> "${result.maxLength} 文字までにする"
-                    else -> "投稿できなかった"
+            val error =
+                try {
+                    when (val result = postNoteSubmitter.submit(body = state.body, requestId = requestId())) {
+                        UserPostNoteResult.Success -> null
+                        UserPostNoteResult.NotLoggedIn -> "ログインしていません"
+                        UserPostNoteResult.EmptyBody -> "本文が空です"
+                        UserPostNoteResult.TooLong -> "本文が長すぎます"
+                        UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
+                        is UserPostNoteResult.Failure -> result.message
+                    }
+                } finally {
+                    viewModelStateFlow.update { it.copy(submitting = false) }
                 }
-
-                is UserPostNoteResult.Failure -> result.message
+            if (error != null) {
+                viewModelStateFlow.update { it.copy(error = error) }
+                events.send { it.showMessage(error) }
+                return@launch
             }
-            if (error == null) {
-                savedStateHandle[BODY_KEY] = ""
-                viewModelStateFlow.update { it.copy(body = "", submitting = false, error = null) }
-                events.send { it.navigateBack() }
-            } else {
-                viewModelStateFlow.update { it.copy(submitting = false, error = error) }
-            }
+            savedStateHandle[BODY_KEY] = ""
+            savedStateHandle[REQUEST_ID_KEY] = newRequestId()
+            viewModelStateFlow.update { it.copy(body = "") }
+            events.send { it.navigateBack() }
         }
     }
+
+    private fun requestId(): String =
+        savedStateHandle.get<String>(REQUEST_ID_KEY)
+            ?: newRequestId().also { savedStateHandle[REQUEST_ID_KEY] = it }
+
+    private fun newRequestId(): String = Uuid.random().toString()
 
     private fun createUiState(
         viewModelState: ViewModelState,
         listener: PostScreenUiState.Listener,
-    ): PostScreenUiState {
-        val remainingLength = viewModelState.remainingLength()
-        return PostScreenUiState(
+    ): PostScreenUiState =
+        PostScreenUiState(
             body = viewModelState.body,
-            remainingLength = remainingLength,
-            remainingLengthOver = remainingLength < 0,
-            error = viewModelState.error,
+            inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
+            backButtonEnabled = viewModelState.submitting.not(),
             postButtonEnabled = viewModelState.postable(),
             listener = listener,
         )
-    }
 
-    private fun ViewModelState.postable(): Boolean = submitting.not() && body.isNotBlank() && remainingLength() >= 0
-
-    /**
-     * サーバーと同じく、書いた人にとっての文字数に合わせてコードポイントで数える
-     */
-    private fun ViewModelState.remainingLength(): Int = NOTE_MAX_LENGTH - body.trim().count { it.isLowSurrogate().not() }
+    private fun ViewModelState.postable(): Boolean = submitting.not() && body.isNotBlank()
 
     data class ViewModelState(
         val body: String,
-        val submitting: Boolean = false,
-        val error: String? = null,
+        val submitting: Boolean,
+        val error: String?,
     )
 
     interface Event {
         fun navigateBack()
-    }
 
-    private companion object {
-        /**
-         * Mastodon の既定の投稿長。超えるとサーバーが弾く
-         */
-        const val NOTE_MAX_LENGTH = 500
+        fun showMessage(message: String)
     }
 }
 
 private const val BODY_KEY = "body"
+private const val REQUEST_ID_KEY = "requestId"

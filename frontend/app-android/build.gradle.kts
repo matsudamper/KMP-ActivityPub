@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.serialization)
@@ -8,8 +10,13 @@ plugins {
     alias(libs.plugins.koin.compiler)
 }
 
-// Android アプリ。画面は :frontend:feature:home を使い、ここには Android にしか無いもの
-// （接続先のサーバーの入力、セッションの保存）だけを置く。管理画面は入れない
+val localProperties = Properties().also { properties ->
+    val propertiesFile = rootDir.resolve("local.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use(properties::load)
+    }
+}
+
 android {
     namespace = "net.matsudamper.kmp.activitypub.android"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
@@ -20,6 +27,24 @@ android {
         targetSdk = libs.versions.androidCompileSdk.get().toInt()
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        val debugKeystorePath = System.getenv("DEBUG_KEYSTORE_PATH") ?: localProperties["DEBUG_KEYSTORE_PATH"] as? String
+        if (debugKeystorePath != null) {
+            create("sharedDebug") {
+                storeFile = file(debugKeystorePath)
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
+    buildTypes {
+        named("debug") {
+            signingConfig = signingConfigs.findByName("sharedDebug") ?: signingConfigs.getByName("debug")
+        }
     }
 
     buildFeatures {
@@ -59,18 +84,15 @@ protobuf {
 }
 
 dependencies {
-    implementation(project(":shared"))
-    implementation(project(":frontend:ui"))
     implementation(project(":frontend:api"))
     implementation(project(":frontend:navigation"))
     implementation(project(":frontend:feature:home"))
 
     implementation(compose.runtime)
     implementation(compose.foundation)
+    implementation(compose.ui)
     implementation(compose.material3)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.core.ktx)
-
     implementation(libs.navigation3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.compose.ui.tooling.preview)
@@ -81,12 +103,13 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation(libs.play.services.auth.blockstore)
+    implementation(libs.androidx.credentials)
+    // Android 13 以前は Google Play 開発者サービス経由でパスキーを扱う
+    implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.koin.android)
     implementation(libs.koin.annotations)
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
-
-    debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.paparazzi)
     testImplementation(libs.kotlin.test.junit)

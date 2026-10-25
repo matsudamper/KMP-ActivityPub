@@ -3,12 +3,10 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
-import net.matsudamper.kmp.activitypub.repository.DomainBlockRepository
-import net.matsudamper.kmp.activitypub.repository.EarlyUndoneLikeRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
-import net.matsudamper.kmp.activitypub.repository.NoteFavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
-import net.matsudamper.kmp.activitypub.repository.NoteStampRepository
+import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
+import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
 
 internal class SqliteRepositories(
@@ -18,20 +16,12 @@ internal class SqliteRepositories(
     private val jooq = SqliteJooq(connectionManager)
 
     override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
+    override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)
+    override val deliveryQueueRepository: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
+    override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
+    override val remoteActorRepository: RemoteActorRepository = SqliteRemoteActorRepository(jooq)
 
-    override val followers: FollowerRepository = SqliteFollowerRepository(jooq)
-
-    override val notes: NoteRepository = SqliteNoteRepository(jooq)
-
-    override val noteFavourites: NoteFavouriteRepository = SqliteNoteFavouriteRepository(jooq)
-
-    override val noteStamps: NoteStampRepository = SqliteNoteStampRepository(jooq)
-
-    override val earlyUndoneLikes: EarlyUndoneLikeRepository = SqliteEarlyUndoneLikeRepository(jooq)
-
-    override val deliveryQueue: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
-
-    override val domainBlocks: DomainBlockRepository = SqliteDomainBlockRepository(jooq)
+    override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 
     override fun close() {
         connectionManager.close()

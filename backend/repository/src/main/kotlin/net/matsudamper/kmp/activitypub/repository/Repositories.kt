@@ -7,20 +7,12 @@ import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
  */
 interface Repositories : AutoCloseable {
     val accountRepository: AccountRepository
+    val followerRepository: FollowerRepository
+    val deliveryQueueRepository: DeliveryQueueRepository
+    val noteRepository: NoteRepository
+    val remoteActorRepository: RemoteActorRepository
 
-    val followers: FollowerRepository
-
-    val notes: NoteRepository
-
-    val noteFavourites: NoteFavouriteRepository
-
-    val noteStamps: NoteStampRepository
-
-    val earlyUndoneLikes: EarlyUndoneLikeRepository
-
-    val deliveryQueue: DeliveryQueueRepository
-
-    val domainBlocks: DomainBlockRepository
+    val passkeyRepository: PasskeyRepository
 
     /**
      * 閉じた後は DB のファイルをコピーしたり別のツールで編集したりしてよい

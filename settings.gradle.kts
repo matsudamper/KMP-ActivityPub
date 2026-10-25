@@ -23,6 +23,15 @@ plugins {
 
 dependencyResolutionManagement {
     repositories {
+        // kotpub の正式版は Maven Central に出ないことがあるので、ここからだけ取得する
+        exclusiveContent {
+            forRepository {
+                maven { url = uri("https://maven.matsudamper.net/releases") }
+            }
+            filter {
+                includeGroup("net.matsudamper.kotpub")
+            }
+        }
         mavenCentral()
         google()
     }
@@ -31,8 +40,10 @@ dependencyResolutionManagement {
 include(":backend")
 include(":backend:graphql")
 include(":backend:crypto")
+include(":backend:delivery")
 include(":backend:repository")
 include(":backend:session")
+include(":backend:passkey")
 include(":backend:telemetry")
 include(":cli")
 include(":frontend:app-web")
@@ -42,6 +53,5 @@ include(":frontend:api")
 include(":frontend:navigation")
 include(":frontend:core")
 include(":frontend:feature:home")
-include(":frontend:feature:admin")
 include(":frontend:app-android")
 include(":shared")

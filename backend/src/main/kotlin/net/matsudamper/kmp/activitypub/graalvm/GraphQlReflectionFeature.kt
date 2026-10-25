@@ -4,10 +4,7 @@ import org.graalvm.nativeimage.hosted.Feature
 import org.graalvm.nativeimage.hosted.RuntimeReflection
 
 /**
- * 手で `reflect-config.json` に並べるとスキーマを触るたびに更新が要るので、
- * イメージのビルド時にクラスパスを走査する。生成モデルが参照する `:shared` の型も
- * 同じタイミングで登録する。何が要るのかと、それぞれ何で落ちたかは
- * `META-INF/native-image/` の README にある。
+ * スキーマを触るたびに reflect-config.json を直さずに済むよう、ビルド時にクラスパスを走査する
  */
 class GraphQlReflectionFeature : Feature {
     override fun beforeAnalysis(access: Feature.BeforeAnalysisAccess) {
@@ -19,24 +16,17 @@ class GraphQlReflectionFeature : Feature {
         GraphQlReflectionTargets.PACKAGES.forEach { packageName ->
             val classNames = GraphQlReflectionTargets.classNamesIn(packageName)
 
-            // パッケージごとに確かめる。まとめて数えると、片方が空でも
-            // もう片方の分で通ってしまい、登録漏れに気付けない
+            // まとめて数えると片方の登録漏れに気付けない
             check(classNames.isNotEmpty()) {
                 "$packageName にクラスが 1 つも無い。パッケージを移したか、走査に失敗している"
             }
 
             classNames.forEach { register(it) }
         }
-
-        val sharedTypeNames = GraphQlReflectionTargets.sharedTypeNamesReferencedByGraphqlModels()
-        check(sharedTypeNames.isNotEmpty()) {
-            "生成モデルが ${GraphQlReflectionTargets.SHARED_PACKAGE} の型を参照していない。走査に失敗している"
-        }
-        sharedTypeNames.forEach { register(it) }
     }
 
     /**
-     * kickstart がリゾルバの引数を数えるのに kotlin-reflect を使う。実装は名前で引かれる
+     * kickstart が kotlin-reflect を使い、実装を名前で引く
      */
     private fun registerKotlinReflection() {
         val factory = Class.forName(KOTLIN_REFLECTION_FACTORY, false, javaClass.classLoader)
@@ -46,7 +36,6 @@ class GraphQlReflectionFeature : Feature {
     }
 
     private fun register(className: String) {
-        // initialize = false。登録のためにイメージのビルド中に static の初期化子を走らせない
         val clazz = Class.forName(className, false, GraphQlReflectionFeature::class.java.classLoader)
 
         RuntimeReflection.register(clazz)

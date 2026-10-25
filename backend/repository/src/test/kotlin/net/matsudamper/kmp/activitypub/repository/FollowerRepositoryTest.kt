@@ -5,23 +5,30 @@ import java.time.Instant
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
 import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// 一意制約や外部キーの効き方はスキーマ側に書いてあるので、
-// SQL を通さないと確かめたことにならない。
+@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class FollowerRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-follower-test")
-
     private val dbPath: Path = tempDir.resolve("test.db")
 
-    private val now: Instant = Instant.parse("2026-08-10T00:00:00Z")
-
-    init {
+    @BeforeTest
+    fun setUp() {
         TestSchema.applyTo(dbPath)
+        Accounts.insert(
+            databasePath = dbPath,
+            username = "user1",
+            passwordHash = "hash",
+            passwordHashType = "hash-type",
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
+            createdAt = NOW.toString(),
+        )
     }
 
     @OptIn(kotlin.io.path.ExperimentalPathApi::class)
@@ -30,477 +37,191 @@ class FollowerRepositoryTest {
         tempDir.deleteRecursively()
     }
 
-    private fun <T> withRepository(block: (FollowerRepository) -> T): T =
-        withRepositories { block(it.followers) }
+    @Test
+    fun `Accept を送れるまではフォロワーに数えない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
+            assertTrue(followers.recordFollow(FOLLOWER))
 
-    private fun <T> withRepositories(block: (Repositories) -> T): T =
-        Repositories.create(DatabaseConfig(path = dbPath)).use { block(it) }
+            assertEquals(0, followers.countAcceptedFollowers("user1"))
+            assertEquals(listOf(), followers.listAcceptedFollowerActorUris(username = "user1", after = null, limit = 10))
 
-    /**
-     * フォローが成立するのは `Accept` を送れたときなので、記録しただけでは数えられない
-     */
-    private fun Repositories.acceptDelivered() {
-        while (true) {
-            val claimed = deliveryQueue.claim(now = now, limit = 50)
-            if (claimed.isEmpty()) break
-            claimed.forEach { deliveryQueue.markDelivered(id = it.id, deliveredAt = now) }
+            val claimed = queue.claim(now = NOW, limit = 10).single()
+            assertEquals("user1", claimed.username)
+            assertEquals(FOLLOWER.inbox, claimed.inbox)
+            assertEquals(ACCEPT_BODY, claimed.body)
+
+            queue.markDelivered(claimed.id, deliveredAt = NOW)
+
+            assertEquals(1, followers.countAcceptedFollowers("user1"))
+            assertEquals(
+                listOf(FOLLOWER.actorUri),
+                followers.listAcceptedFollowerActorUris(username = "user1", after = null, limit = 10),
+            )
+            assertEquals(listOf(FOLLOWER.sharedInbox), followers.findDeliveryInboxes("user1"))
+            assertEquals(0, queue.recoverDelivering(now = NOW))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
         }
     }
 
-    private fun incomingFollow(
-        username: String = "admin",
-        actorUri: String = "https://remote.example/users/alice",
-        followActivityUri: String = "https://remote.example/activities/1",
-        sharedInbox: String? = null,
-        profile: RemoteActorProfile = NO_PROFILE,
-    ): IncomingFollow = IncomingFollow(
+    @Test
+    fun `いないアカウントへのフォローは記録しない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertFalse(repositories.followerRepository.recordFollow(FOLLOWER, username = "nobody"))
+            assertNull(repositories.followerRepository.findPublicKeyPem(FOLLOWER.actorUri))
+        }
+    }
+
+    @Test
+    fun `同じ相手から Follow を受け直すと Accept を置き換える`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            followers.recordFollow(FOLLOWER)
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
+
+            val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single()
+            assertEquals("accept-2", claimed.body)
+            assertEquals("user1", followers.findFolloweeUsername(FOLLOWER.actorUri, "https://remote.example/follows/2"))
+            assertNull(followers.findFolloweeUsername(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI))
+        }
+    }
+
+    @Test
+    fun `置き換えられた古い Accept を送れてもフォローは成立させない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
+            followers.recordFollow(FOLLOWER)
+            val oldClaimed = queue.claim(now = NOW, limit = 10).single()
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
+
+            queue.markDelivered(oldClaimed.id, deliveredAt = NOW)
+
+            assertEquals(0, followers.countAcceptedFollowers("user1"))
+            assertEquals("accept-2", queue.claim(now = NOW, limit = 10).single().body)
+        }
+    }
+
+    @Test
+    fun `置き換えられた古い Accept を諦めても新しいフォローは消さない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
+            followers.recordFollow(FOLLOWER)
+            val oldClaimed = queue.claim(now = NOW, limit = 10).single()
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
+
+            queue.giveUp(oldClaimed.id, error = "410")
+
+            assertEquals("user1", followers.findFolloweeUsername(FOLLOWER.actorUri, "https://remote.example/follows/2"))
+            assertEquals("accept-2", queue.claim(now = NOW, limit = 10).single().body)
+        }
+    }
+
+    @Test
+    fun `送り直しの時刻が来るまでは配信対象に出さない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            repositories.followerRepository.recordFollow(FOLLOWER)
+            val claimed = queue.claim(now = NOW, limit = 10).single()
+
+            queue.scheduleRetry(claimed.id, nextAttemptAt = NOW.plusSeconds(60), error = "503")
+
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(2, queue.claim(now = NOW.plusSeconds(60), limit = 10).single().attempts)
+        }
+    }
+
+    @Test
+    fun `送っている途中で止まった Accept は起動時に戻す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            repositories.followerRepository.recordFollow(FOLLOWER)
+            queue.claim(now = NOW, limit = 10)
+
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+            assertEquals(1, queue.recoverDelivering(now = NOW))
+            assertEquals(ACCEPT_BODY, queue.claim(now = NOW, limit = 10).single().body)
+        }
+    }
+
+    @Test
+    fun `Accept を諦めたらフォローも消す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
+            followers.recordFollow(FOLLOWER)
+            val claimed = queue.claim(now = NOW, limit = 10).single()
+
+            queue.giveUp(claimed.id, error = "410")
+
+            assertNull(followers.findFolloweeUsername(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI))
+            assertEquals(0, queue.recoverDelivering(now = NOW))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+        }
+    }
+
+    @Test
+    fun `フォローを解除しても公開鍵は残す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            followers.recordFollow(FOLLOWER)
+            val queue = repositories.deliveryQueueRepository
+            queue.markDelivered(queue.claim(now = NOW, limit = 10).single().id, deliveredAt = NOW)
+
+            assertFalse(followers.remove(username = "user1", followerActorUri = FOLLOWER.actorUri, followActivityUri = "https://remote.example/other"))
+            assertTrue(followers.remove(username = "user1", followerActorUri = FOLLOWER.actorUri, followActivityUri = FOLLOW_ACTIVITY_URI))
+
+            assertEquals(0, followers.countAcceptedFollowers("user1"))
+            assertEquals(FOLLOWER.publicKeyPem, followers.findPublicKeyPem(FOLLOWER.actorUri))
+        }
+    }
+
+    @Test
+    fun `アクターごと消すとフォローも鍵も消える`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            followers.recordFollow(FOLLOWER)
+
+            assertEquals(1, followers.removeRemoteActor(FOLLOWER.actorUri))
+
+            assertNull(followers.findPublicKeyPem(FOLLOWER.actorUri))
+            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10))
+        }
+    }
+
+    private fun FollowerRepository.recordFollow(
+        follower: RemoteActorRecord,
+        username: String = "user1",
+        followActivityUri: String = FOLLOW_ACTIVITY_URI,
+        acceptBody: String = ACCEPT_BODY,
+    ): Boolean = record(
         username = username,
-        follower = NewRemoteActor(
-            actorUri = actorUri,
-            inbox = "$actorUri/inbox",
-            sharedInbox = sharedInbox,
-            publicKeyPem = "pem",
-            profile = profile,
-        ),
+        follower = follower,
         followActivityUri = followActivityUri,
-        receivedAt = now,
-        acceptBody = """{"type":"Accept"}""",
+        receivedAt = NOW,
+        acceptBody = acceptBody,
     )
 
-    @Test
-    fun `Accept を返すまではフォロワーに数えない`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-
-            assertEquals(0, followers.count("admin"), "Accept 前なのに数えている")
-            assertEquals(emptyList(), followers.actorUris("admin", after = null, limit = 10))
-            assertEquals(emptyList(), followers.deliveryTargets("admin"))
-
-            repositories.acceptDelivered()
-
-            assertEquals(1, followers.count("admin"))
-            assertEquals(
-                listOf("https://remote.example/users/alice"),
-                followers.actorUris("admin", after = null, limit = 10),
-            )
-        }
-    }
-
-    @Test
-    fun `Accept を返す前でも公開鍵の PEM を引ける`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-
-            // 相手が消えると文書を引けなくなるので、Delete の検証はこの記録が頼りになる
-            assertEquals("pem", followers.findPublicKeyPem("https://remote.example/users/alice"))
-            assertNull(followers.findPublicKeyPem("https://remote.example/users/bob"))
-        }
-    }
-
-    @Test
-    fun `記録済みの相手だけ公開鍵を読み直せる`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-
-            followers.rememberPublicKeyPem(
-                actorUri = "https://remote.example/users/alice",
-                publicKeyPem = "読み直した pem",
-                readAt = now,
-            )
-            assertEquals("読み直した pem", followers.findPublicKeyPem("https://remote.example/users/alice"))
-
-            // フォローしていない相手の鍵は溜めない
-            followers.rememberPublicKeyPem(
-                actorUri = "https://remote.example/users/bob",
-                publicKeyPem = "pem",
-                readAt = now,
-            )
-            assertNull(followers.findPublicKeyPem("https://remote.example/users/bob"))
-        }
-    }
-
-    @Test
-    fun `フォローを解除した相手の公開鍵は返さない`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-            assertTrue(followers.remove("admin", "https://remote.example/users/alice", followActivityUri = null))
-
-            // 消えたアクターの Delete を通す鍵なので、解除した相手の分を残すと署名を通せる
-            assertNull(followers.findPublicKeyPem("https://remote.example/users/alice"))
-        }
-    }
-
-    @Test
-    fun `同じ相手からの Follow を二重に受けても行が増えない`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-            repositories.acceptDelivered()
-
-            // Accept を返し損ねたと思って送り直してくる形。id は同じ
-            followers.record(incomingFollow())
-            // フォロー済みの相手が別の Follow を作って送ってくる形
-            followers.record(incomingFollow(followActivityUri = "https://remote.example/activities/2"))
-
-            assertEquals(1, followers.count("admin"))
-        }
-    }
-
-    @Test
-    fun `アカウント名の大文字小文字は区別しない`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow(username = "Feed1"))
-            repositories.acceptDelivered()
-
-            // ActorDirectory は保存されている綴りを返すが、揺れても同じものを指す
-            assertEquals(1, followers.count("FEED1"))
-        }
-    }
-
-    @Test
-    fun `別の Follow が後から届いていても Accept を返せた分は数える`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            // 同じ相手からの 2 通目が先に記録され、1 通目の Accept が後から届く形。
-            // どちらか 1 つに Accept が返れば、相手から見て関係は成立している
-            followers.record(incomingFollow())
-            followers.record(incomingFollow(followActivityUri = "https://remote.example/activities/2"))
-
-            repositories.acceptDelivered()
-
-            assertEquals(1, followers.count("admin"))
-        }
-    }
-
-    @Test
-    fun `Follow の id からフォローされたアカウントを引ける`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow(username = "feed1"))
-
-            assertEquals(
-                "feed1",
-                followers.findFolloweeUsername(
-                    followerActorUri = "https://remote.example/users/alice",
-                    followActivityUri = "https://remote.example/activities/1",
-                ),
-            )
-            // 他人の Follow の id を名乗っても引けない
-            assertNull(
-                followers.findFolloweeUsername(
-                    followerActorUri = "https://remote.example/users/mallory",
-                    followActivityUri = "https://remote.example/activities/1",
-                ),
-            )
-        }
-    }
-
-    @Test
-    fun `Follow の id を指定して解除できる`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-            repositories.acceptDelivered()
-
-            // 別のアクティビティの id では消えない。Undo の object が id だけで
-            // 来たとき、それが本当に Follow の id だったのかはここで判断する
-            assertFalse(
-                followers.remove(
-                    username = "admin",
-                    followerActorUri = "https://remote.example/users/alice",
-                    followActivityUri = "https://remote.example/activities/999",
-                ),
-            )
-            assertEquals(1, followers.count("admin"))
-
-            assertTrue(
-                followers.remove(
-                    username = "admin",
-                    followerActorUri = "https://remote.example/users/alice",
-                    followActivityUri = "https://remote.example/activities/1",
-                ),
-            )
-            assertEquals(0, followers.count("admin"))
-        }
-    }
-
-    @Test
-    fun `アクターごと消すと全てのフォローが消える`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow(username = "admin"))
-            followers.record(
-                incomingFollow(username = "feed1", followActivityUri = "https://remote.example/activities/2"),
-            )
-            followers.record(
-                incomingFollow(
-                    actorUri = "https://remote.example/users/bob",
-                    followActivityUri = "https://remote.example/activities/3",
-                ),
-            )
-            repositories.acceptDelivered()
-
-            assertEquals(2, followers.removeRemoteActor("https://remote.example/users/alice"))
-
-            assertEquals(1, followers.count("admin"), "別の相手のフォローまで消えている")
-            assertEquals(0, followers.count("feed1"))
-
-            // 同じ相手をもう一度記録できる。remote_actors の行ごと消えているので、
-            // 一意制約に引っかかって入らない、という形にならないこと
-            followers.record(incomingFollow(followActivityUri = "https://remote.example/activities/4"))
-            repositories.acceptDelivered()
-            assertEquals(2, followers.count("admin"))
-        }
-    }
-
-    @Test
-    fun `配信先は sharedInbox にまとまる`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(
-                incomingFollow(
-                    actorUri = "https://a.example/users/alice",
-                    sharedInbox = "https://a.example/inbox",
-                ),
-            )
-            followers.record(
-                incomingFollow(
-                    actorUri = "https://a.example/users/bob",
-                    followActivityUri = "https://remote.example/activities/2",
-                    sharedInbox = "https://a.example/inbox",
-                ),
-            )
-            followers.record(
-                incomingFollow(
-                    actorUri = "https://b.example/users/carol",
-                    followActivityUri = "https://remote.example/activities/3",
-                ),
-            )
-            repositories.acceptDelivered()
-
-            assertEquals(
-                listOf("https://a.example/inbox", "https://b.example/users/carol/inbox"),
-                followers.deliveryTargets("admin").sorted(),
-            )
-        }
-    }
-
-    @Test
-    fun `URL 順に返り、cursor で続きから取れる`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            repeat(5) { index ->
-                followers.record(
-                    incomingFollow(
-                        actorUri = "https://remote.example/users/u$index",
-                        followActivityUri = "https://remote.example/activities/$index",
-                    ),
-                )
-                repositories.acceptDelivered()
-            }
-
-            val first = followers.actorUris("admin", after = null, limit = 2)
-            assertEquals(
-                listOf("https://remote.example/users/u0", "https://remote.example/users/u1"),
-                first,
-            )
-
-            val second = followers.actorUris("admin", after = first.last(), limit = 2)
-            assertEquals(
-                listOf("https://remote.example/users/u2", "https://remote.example/users/u3"),
-                second,
-            )
-
-            assertEquals(
-                listOf("https://remote.example/users/u4"),
-                followers.actorUris("admin", after = second.last(), limit = 2),
-            )
-            assertEquals(
-                emptyList(),
-                followers.actorUris("admin", after = "https://remote.example/users/u4", limit = 2),
-            )
-        }
-    }
-
-    @Test
-    fun `まとめて数えると渡した綴りで返る`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow(username = "Feed1"))
-            repositories.acceptDelivered()
-            followers.record(
-                incomingFollow(
-                    username = "admin",
-                    actorUri = "https://remote.example/users/bob",
-                    followActivityUri = "https://remote.example/activities/2",
-                ),
-            )
-
-            assertEquals(
-                mapOf("FEED1" to 1L, "admin" to 0L, "other" to 0L),
-                // admin は Accept を返せていないので 0。数えない相手も鍵は返す
-                followers.counts(setOf("FEED1", "admin", "other")),
-            )
-            assertEquals(emptyMap(), followers.counts(emptySet()))
-        }
-    }
-
-    @Test
-    fun `Accept を返せていないフォローも hasAny では数える`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            assertFalse(followers.hasAny())
-
-            followers.record(incomingFollow())
-
-            // 鍵の生成を止める判断に使うので、こちらは Accept 前でも数える
-            assertTrue(followers.hasAny())
-            assertEquals(0, followers.count("admin"))
-        }
-    }
-
-    @Test
-    fun `開き直してもフォロワーが残っている`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-            repositories.acceptDelivered()
-        }
-
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            assertEquals(1, followers.count("admin"))
-        }
-    }
-
-    @Test
-    fun `アカウントのフォローをまとめて消せる`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow())
-            repositories.acceptDelivered()
-            followers.record(
-                incomingFollow(
-                    actorUri = "https://remote.example/users/bob",
-                    followActivityUri = "https://remote.example/activities/2",
-                ),
-            )
-            followers.record(
-                incomingFollow(
-                    username = "feed1",
-                    followActivityUri = "https://remote.example/activities/3",
-                ),
-            )
-            repositories.acceptDelivered()
-
-            // Accept を返せていないものも消える
-            assertEquals(2, followers.removeAccount("admin"))
-            assertEquals(0, followers.count("admin"))
-            // 同じ相手が他のアカウントをフォローしている分は残る
-            assertEquals(1, followers.count("feed1"))
-        }
-    }
-
-    @Test
-    fun `記録が無い相手の操作は false`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            assertFalse(followers.remove("admin", "https://remote.example/users/nobody", null))
-            assertEquals(0, followers.removeRemoteActor("https://remote.example/users/nobody"))
-        }
-    }
-
-    @Test
-    fun `相手が名乗ったプロフィールは一覧に出る`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow(profile = ALICE_PROFILE))
-            repositories.acceptDelivered()
-
-            assertEquals(
-                listOf(
-                    StoredFollower(
-                        actorUri = "https://remote.example/users/alice",
-                        preferredUsername = "alice",
-                        displayName = "アリス",
-                        profileUrl = "https://remote.example/@alice",
-                        iconUrl = "https://files.remote.example/alice.png",
-                    ),
-                ),
-                followers.list("admin", after = null, limit = 10),
-            )
-        }
-    }
-
-    @Test
-    fun `プロフィールを受け取り直すと入れ替わる`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow(profile = ALICE_PROFILE))
-            repositories.acceptDelivered()
-
-            followers.rememberProfile(
-                actorUri = "https://remote.example/users/alice",
-                profile = ALICE_PROFILE.copy(displayName = "アリス（改名）", iconUrl = null),
-            )
-
-            // 渡したプロフィールで丸ごと置き換わる。部分更新ではない
-            val stored = followers.list("admin", after = null, limit = 10).single()
-            assertEquals("アリス（改名）", stored.displayName)
-            assertNull(stored.iconUrl)
-            assertEquals("alice", stored.preferredUsername)
-        }
-    }
-
-    @Test
-    fun `フォローが残っていない相手のアイコンは引けない`() {
-        withRepositories { repositories ->
-            val followers = repositories.followers
-            followers.record(incomingFollow(profile = ALICE_PROFILE))
-            repositories.acceptDelivered()
-
-            assertEquals(
-                "https://files.remote.example/alice.png",
-                followers.findIconUrl("https://remote.example/users/alice"),
-            )
-
-            followers.remove("admin", "https://remote.example/users/alice", null)
-
-            // remote_actors の行は残るが、フォローしていない相手のアイコンを
-            // こちらのドメインから配り続けることはしない
-            assertNull(followers.findIconUrl("https://remote.example/users/alice"))
-        }
-    }
-
     private companion object {
-        val NO_PROFILE: RemoteActorProfile =
-            RemoteActorProfile(
-                preferredUsername = null,
-                displayName = null,
-                profileUrl = null,
-                iconUrl = null,
-            )
+        val NOW: Instant = Instant.parse("2026-10-01T00:00:00Z")
 
-        val ALICE_PROFILE: RemoteActorProfile =
-            RemoteActorProfile(
+        const val FOLLOW_ACTIVITY_URI = "https://remote.example/follows/1"
+
+        const val ACCEPT_BODY = "accept-1"
+
+        val FOLLOWER = RemoteActorRecord(
+            actorUri = "https://remote.example/users/alice",
+            inbox = "https://remote.example/users/alice/inbox",
+            sharedInbox = "https://remote.example/inbox",
+            publicKeyPem = "remote-public-key",
+            profile = RemoteActorProfileRecord(
                 preferredUsername = "alice",
-                displayName = "アリス",
+                displayName = "Alice",
                 profileUrl = "https://remote.example/@alice",
-                iconUrl = "https://files.remote.example/alice.png",
-            )
-
-        /**
-         * URL だけを見るテスト向け。プロフィールまで書くと、確かめたい並び順が埋もれる
-         */
-        fun FollowerRepository.actorUris(
-            username: String,
-            after: String?,
-            limit: Int,
-        ): List<String> = list(username = username, after = after, limit = limit).map { it.actorUri }
+                iconUrl = null,
+            ),
+        )
     }
 }

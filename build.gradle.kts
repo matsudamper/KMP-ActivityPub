@@ -12,7 +12,6 @@ plugins {
     alias(libs.plugins.kotlin.compose.compiler) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.compose) apply false
-    alias(libs.plugins.graalvm.native) apply false
     alias(libs.plugins.apollo) apply false
     alias(libs.plugins.graphql.codegen) apply false
     alias(libs.plugins.ktlint) apply false
@@ -46,7 +45,6 @@ val detektTargetProjects =
         ":frontend:ui",
         ":frontend:navigation",
         ":frontend:feature:home",
-        ":frontend:feature:admin",
         ":frontend:app-android",
     )
 

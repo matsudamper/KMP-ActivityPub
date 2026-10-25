@@ -1,49 +1,34 @@
 package net.matsudamper.kmp.activitypub
 
 import java.nio.file.Path
+import java.util.Base64
 import kotlin.io.path.Path
-import net.matsudamper.kmp.activitypub.crypto.PasswordHash
+import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 
 /**
- * 空白だけの値は未設定として扱う。STATIC_SRC_DIR が空だとカレントディレクトリを配信してしまう
+ * 値は書かれたまま使い、前後の空白も削らない。空のときの扱いは変数ごとに決める
  */
 class ServerEnv(
-    env: Map<String, String> = System.getenv(),
+    private val env: Map<String, String> = System.getenv(),
 ) {
-    private val values = env.mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
-
-    val host: String = values["HOST"] ?: "0.0.0.0"
-    val port: Int = values["PORT"]?.toInt() ?: 8080
-    val staticSrcDir: Path? = values["STATIC_SRC_DIR"]?.let { Path(it) }
-    val dbPath: Path = Path(values["DB_PATH"] ?: "./data/kmp-activitypub.db")
+    val host: String = env["HOST"]?.ifEmpty { null } ?: "0.0.0.0"
+    val port: Int = env["PORT"]?.ifEmpty { null }?.toInt() ?: 8080
 
     /**
-     * `@user@example.com` の example.com。未設定なら他のサーバーから見つけられない。
-     * Mastodon はリモートアクターを永続キャッシュするので、間違えると相手側からは直せない。
+     * 空を未設定として扱わないと、カレントディレクトリを配信してしまう
      */
-    val domain: String? =
-        values["DOMAIN"]
-            // https://example.com/ のような URL ごと渡されることも考えて scheme と末尾の / を落とす
-            ?.removePrefix("https://")
-            ?.removePrefix("http://")
-            ?.trimEnd('/')
-            ?.lowercase()
-            ?.also { normalized ->
-                // パスやクエリが残るとアクター ID や WebFinger の acct が壊れたまま配られる
-                val hostName = normalized.substringBefore(':')
-                val port = normalized.substringAfter(':', missingDelimiterValue = "").takeIf { it.isNotEmpty() }
-                val isValidHostName = hostName.length <= 253 && hostName.split('.').all { it.length <= 63 }
-                require(DOMAIN_PATTERN.matches(normalized) && isValidHostName && (port == null || port.toInt() in 1..65535)) {
-                    "DOMAIN はホスト名（ポートは付けてよい）だけにすること: $normalized"
-                }
-            }
+    val staticSrcDir: Path? = env["STATIC_SRC_DIR"]?.ifEmpty { null }?.let { Path(it) }
+    val dbPath: Path = Path(env["DB_PATH"]?.ifEmpty { null } ?: "./data/kmp-activitypub.db")
 
-    val adminPasswordHash: PasswordHash? = values["ADMIN_PASSWORD_HASH"]?.let { PasswordHash.parse(it) }
+    /**
+     * `@user@example.com` の example.com。未設定なら他のサーバーから見つけられない
+     */
+    val domain: String? = env["DOMAIN"]?.ifEmpty { null }?.lowercase()
 
     /**
      * Valkey を使わないテストでも ServerEnv を作れるよう、読んだときに検査する
      */
-    val valkeyUri: String by lazy { checkNotNull(values["VALKEY_URI"]) { "VALKEY_URI を指定すること" } }
+    val valkeyUri: String by lazy { checkNotNull(env["VALKEY_URI"]?.ifEmpty { null }) { "VALKEY_URI を指定すること" } }
 
     /**
      * true のまま http で開くとログインできない
@@ -56,15 +41,81 @@ class ServerEnv(
      */
     val trustCfConnectingIp: Boolean = booleanOf("TRUST_CF_CONNECTING_IP") ?: false
 
+    /**
+     * 書き忘れでパスキーが黙って無効にならないよう、true か false を必ず書かせる
+     */
+    val enablePasskey: Boolean = requireNotNull(booleanOf("ENABLE_PASSKEY")) { "ENABLE_PASSKEY を true か false で設定すること" }
+
+    /**
+     * Android アプリのパスキーを受け付けるときに設定する。
+     * PASSKEY_ANDROID_CERT_SHA256 は署名証明書の SHA-256 を `AA:BB:...` の形で、カンマ区切りで複数書ける
+     */
+    val passkeyAndroidApp: PasskeyAndroidApp? =
+        env["PASSKEY_ANDROID_PACKAGE_NAME"]?.ifEmpty { null }?.let { packageName ->
+            PasskeyAndroidApp(
+                packageName = packageName,
+                certSha256Fingerprints =
+                env["PASSKEY_ANDROID_CERT_SHA256"]
+                    ?.split(',')
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    .orEmpty()
+                    .ifEmpty { throw IllegalArgumentException("PASSKEY_ANDROID_PACKAGE_NAME を設定するなら PASSKEY_ANDROID_CERT_SHA256 も設定すること") },
+            )
+        }
+
+    /**
+     * ENABLE_PASSKEY が true なら PASSKEY_RP_ID は必須。
+     * PASSKEY_ORIGINS はカンマ区切りで、無ければ https://<PASSKEY_RP_ID> だけを受け付ける。
+     * Android アプリの origin は [passkeyAndroidApp] から足す
+     */
+    val passkeyRelyingParty: PasskeyRelyingParty? =
+        if (enablePasskey) createPasskeyRelyingParty() else null
+
+    private fun createPasskeyRelyingParty(): PasskeyRelyingParty {
+        val rpId = requireNotNull(env["PASSKEY_RP_ID"]?.ifEmpty { null }) { "PASSKEY_RP_ID を設定すること" }
+        val webOrigins =
+            env["PASSKEY_ORIGINS"]
+                ?.ifEmpty { null }
+                ?.split(',')
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                ?.toSet()
+                ?: setOf("https://$rpId")
+        return PasskeyRelyingParty(
+            id = rpId,
+            origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
+        )
+    }
+
     private fun booleanOf(name: String): Boolean? =
-        values[name]?.let { raw ->
+        env[name]?.ifEmpty { null }?.let { raw ->
             raw.lowercase().toBooleanStrictOrNull()
                 ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
         }
+}
+
+/**
+ * @param certSha256Fingerprints `AA:BB:...` の形
+ */
+class PasskeyAndroidApp(
+    val packageName: String,
+    val certSha256Fingerprints: List<String>,
+) {
+    /**
+     * Android の Credential Manager は clientDataJSON の origin に
+     * `android:apk-key-hash:<署名証明書の SHA-256 の base64url>` を入れる。
+     * 書き間違えると assetlinks.json と origin が実際の証明書と食い違うので、作るときに形を確かめる
+     */
+    val origins: Set<String> =
+        certSha256Fingerprints
+            .map { fingerprint ->
+                require(SHA256_FINGERPRINT.matches(fingerprint)) { "PASSKEY_ANDROID_CERT_SHA256 は AA:BB:... の形の SHA-256 にすること: $fingerprint" }
+                val bytes = fingerprint.split(':').map { it.toInt(16).toByte() }.toByteArray()
+                "android:apk-key-hash:" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+            }.toSet()
 
     private companion object {
-        val DOMAIN_PATTERN = Regex(
-            """^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*(?::[1-9][0-9]{0,4})?$""",
-        )
+        val SHA256_FINGERPRINT = Regex("^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){31}$")
     }
 }

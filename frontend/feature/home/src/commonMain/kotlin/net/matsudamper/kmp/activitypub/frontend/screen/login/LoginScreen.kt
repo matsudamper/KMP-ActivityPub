@@ -9,17 +9,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.FormSubmitHandler
@@ -35,6 +41,8 @@ internal fun LoginScreen(
 ) {
     val viewModel = koinViewModel<LoginScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -42,24 +50,30 @@ internal fun LoginScreen(
                 override fun loggedIn() {
                     navigator.replaceAll(Screen.Home)
                 }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
     }
 
-    LoginContent(uiState = uiState, serverSettingUiState = serverSettingUiState)
+    LoginContent(uiState = uiState, serverSettingUiState = serverSettingUiState, snackbarHostState = snackbarHostState)
 }
 
 @Composable
 internal fun LoginContent(
     uiState: LoginScreenUiState,
     serverSettingUiState: ServerSettingUiState?,
+    snackbarHostState: SnackbarHostState,
 ) {
-    Surface(
+    Scaffold(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+    ) { innerPadding ->
         Box(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
             contentAlignment = Alignment.Center,
         ) {
             Column(
@@ -68,6 +82,7 @@ internal fun LoginContent(
             ) {
                 LoginForm(
                     uiState = uiState,
+                    error = null,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (serverSettingUiState != null) {
@@ -81,6 +96,7 @@ internal fun LoginContent(
 @Composable
 internal fun LoginForm(
     uiState: LoginScreenUiState,
+    error: String?,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -129,7 +145,6 @@ internal fun LoginForm(
             hasError = uiState.inputHasError,
             modifier = Modifier.fillMaxWidth(),
         )
-        val error = uiState.error
         if (error != null) {
             Text(
                 text = error,
@@ -142,6 +157,15 @@ internal fun LoginForm(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("ログイン")
+        }
+        if (uiState.passkeyLoginButtonVisible) {
+            OutlinedButton(
+                onClick = uiState.listener::onClickPasskeyLogin,
+                enabled = uiState.passkeyLoginButtonEnabled,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("パスキーでログイン")
+            }
         }
     }
 }

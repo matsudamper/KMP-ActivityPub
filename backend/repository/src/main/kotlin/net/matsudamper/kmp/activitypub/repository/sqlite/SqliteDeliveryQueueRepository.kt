@@ -1,395 +1,229 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.AccountRetryingDelivery
-import net.matsudamper.kmp.activitypub.repository.ActorUpdatePost
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
-import net.matsudamper.kmp.activitypub.repository.DeliveredOutcome
-import net.matsudamper.kmp.activitypub.repository.DeliveryQueueCounts
-import net.matsudamper.kmp.activitypub.repository.DeliveryQueuePosition
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
-import net.matsudamper.kmp.activitypub.repository.FailedDelivery
-import net.matsudamper.kmp.activitypub.repository.NoteDeletionPost
 import net.matsudamper.kmp.activitypub.repository.NotePost
-import net.matsudamper.kmp.activitypub.repository.RetryingDelivery
-import net.matsudamper.kmp.activitypub.repository.entity.DeliveryId
+import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
-import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryKindDbValue
-import net.matsudamper.kmp.activitypub.repository.sqlite.db.DeliveryStateDbValue
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
-import org.jooq.Condition
 import org.jooq.DSLContext
-import org.jooq.Record
-import org.jooq.impl.DSL
 
 internal class SqliteDeliveryQueueRepository(
     private val jooq: SqliteJooq,
 ) : DeliveryQueueRepository {
     override fun enqueueNote(post: NotePost): EnqueueNoteResult = jooq.transaction { dsl ->
-        dsl
-            .insertInto(NOTES)
-            .set(NOTES.USERNAME, post.note.username)
-            .set(NOTES.PUBLIC_ID, post.note.publicId.value)
-            .set(NOTES.CONTENT_HTML, post.note.contentHtml)
-            .set(NOTES.PUBLISHED_AT, StoredInstant.format(post.note.publishedAt))
-            .execute()
-
-        val queued = insertDeliveries(
-            dsl = dsl,
-            username = post.note.username,
-            notePublicId = post.note.publicId,
-            body = post.body,
-            inboxes = post.inboxes,
-            enqueuedAt = post.enqueuedAt,
-        )
-
-        EnqueueNoteResult.Queued(deliveries = queued)
-    }
-
-    override fun enqueueNoteDeletion(post: NoteDeletionPost): Int = jooq.transaction { dsl ->
-        // 未配信の Create は外部キーで一緒に消える。残すと、消した投稿が後から届く
-        dsl
-            .deleteFrom(NOTES)
-            .where(NOTES.PUBLIC_ID.eq(post.publicId.value))
-            .execute()
-
-        post.inboxes.count { inbox ->
-            DeliveryQueueRows.insertPending(
-                dsl = dsl,
-                kind = DeliveryKindDbValue.DELETE_NOTE,
-                username = post.username,
-                inbox = inbox,
-                body = post.body,
-                enqueuedAt = post.enqueuedAt,
-                // いま消した投稿に紐付けると、この行も一緒に消える
-                notePublicId = null,
-                targetActorUri = null,
-            )
+        val accountId =
+            dsl.select(ACCOUNTS.ID)
+                .from(ACCOUNTS)
+                .where(ACCOUNTS.USERNAME.eq(post.username.lowercase()))
+                .fetchOne(ACCOUNTS.ID)
+                ?: return@transaction EnqueueNoteResult.AccountNotFound
+        val alreadyPostedPublicId =
+            dsl.select(NOTES.PUBLIC_ID)
+                .from(NOTES)
+                .where(NOTES.ACCOUNT_ID.eq(accountId))
+                .and(NOTES.REQUEST_ID.eq(post.requestId))
+                .fetchOne(NOTES.PUBLIC_ID)
+        if (alreadyPostedPublicId != null) {
+            return@transaction EnqueueNoteResult.AlreadyPosted(PublicNoteId(alreadyPostedPublicId))
         }
+        val publishedAt = StoredInstant.format(post.publishedAt)
+
+        val noteId =
+            checkNotNull(
+                dsl.insertInto(NOTES)
+                    .set(NOTES.ACCOUNT_ID, accountId)
+                    .set(NOTES.PUBLIC_ID, post.publicId.value)
+                    .set(NOTES.CONTENT_HTML, post.contentHtml)
+                    .set(NOTES.PUBLISHED_AT, publishedAt)
+                    .set(NOTES.REQUEST_ID, post.requestId)
+                    .returning(NOTES.ID)
+                    .fetchOne(NOTES.ID),
+            ) { "記録した投稿の id を引けない: ${post.publicId}" }
+
+        val inboxes = post.inboxes.distinct()
+        inboxes.forEach { inbox ->
+            dsl.insertInto(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_CREATE_NOTE)
+                .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+                .set(DELIVERY_QUEUE.NOTE_ID, noteId)
+                .set(DELIVERY_QUEUE.INBOX, inbox)
+                .set(DELIVERY_QUEUE.BODY, post.body)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+                .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+                .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, publishedAt)
+                .set(DELIVERY_QUEUE.ENQUEUED_AT, publishedAt)
+                .execute()
+        }
+        EnqueueNoteResult.Enqueued(deliveries = inboxes.size)
     }
 
-    override fun enqueueActorUpdate(post: ActorUpdatePost): Int = jooq.transaction { dsl ->
-        // 送り残した古い更新を残すと、それが後から届いて相手の表示が 1 つ前に戻る。
-        // 送っている最中の行も消す。残すと、送れなかったときに送り直し待ちに戻って、
-        // 新しい更新が届いた後から古い内容が届く
-        dsl
-            .deleteFrom(DELIVERY_QUEUE)
-            .where(DELIVERY_QUEUE.KIND.eq(DeliveryKindDbValue.UPDATE_ACTOR.dbValue))
-            .and(
-                DELIVERY_QUEUE.STATE.`in`(
-                    DeliveryStateDbValue.PENDING.dbValue,
-                    DeliveryStateDbValue.DELIVERING.dbValue,
-                ),
-            )
-            .and(DELIVERY_QUEUE.USERNAME.eq(post.username))
+    override fun updateProfile(update: ProfileUpdate): Boolean = jooq.transaction { dsl ->
+        val accountId =
+            dsl.select(ACCOUNTS.ID)
+                .from(ACCOUNTS)
+                .where(ACCOUNTS.USERNAME.eq(update.username.lowercase()))
+                .fetchOne(ACCOUNTS.ID)
+                ?: return@transaction false
+        dsl.update(ACCOUNTS)
+            .set(ACCOUNTS.DISPLAY_NAME, update.displayName)
+            .where(ACCOUNTS.ID.eq(accountId))
             .execute()
 
-        post.inboxes.count { inbox ->
-            DeliveryQueueRows.insertPending(
-                dsl = dsl,
-                kind = DeliveryKindDbValue.UPDATE_ACTOR,
-                username = post.username,
-                inbox = inbox,
-                body = post.body,
-                enqueuedAt = post.enqueuedAt,
-                notePublicId = null,
-                targetActorUri = null,
-            )
-        }
-    }
+        // 送っている途中の行は消しても送信が止まらないので、待っている行だけ消す
+        dsl.deleteFrom(DELIVERY_QUEUE)
+            .where(DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId))
+            .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_UPDATE_ACTOR))
+            .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+            .execute()
 
-    private fun insertDeliveries(
-        dsl: DSLContext,
-        username: String,
-        notePublicId: PublicNoteId,
-        body: String,
-        inboxes: List<String>,
-        enqueuedAt: Instant,
-    ): Int = inboxes.count { inbox ->
-        DeliveryQueueRows.insertPending(
-            dsl = dsl,
-            kind = DeliveryKindDbValue.CREATE_NOTE,
-            username = username,
-            inbox = inbox,
-            body = body,
-            enqueuedAt = enqueuedAt,
-            notePublicId = notePublicId.value,
-            targetActorUri = null,
-        )
+        val updatedAt = StoredInstant.format(update.updatedAt)
+        update.inboxes.distinct().forEach { inbox ->
+            dsl.insertInto(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_UPDATE_ACTOR)
+                .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+                .set(DELIVERY_QUEUE.INBOX, inbox)
+                .set(DELIVERY_QUEUE.BODY, update.body)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+                .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+                .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, updatedAt)
+                .set(DELIVERY_QUEUE.ENQUEUED_AT, updatedAt)
+                .execute()
+        }
+        true
     }
 
     override fun claim(
         now: Instant,
         limit: Int,
-    ): List<ClaimedDelivery> {
-        if (limit <= 0) return emptyList()
-
-        val dueBy = StoredInstant.format(now)
-
-        return jooq.withConnection { dsl ->
-            dsl
-                .update(DELIVERY_QUEUE)
-                .set(DELIVERY_QUEUE.STATE, DeliveryStateDbValue.DELIVERING.dbValue)
-                .set(DELIVERY_QUEUE.ATTEMPTS, DELIVERY_QUEUE.ATTEMPTS.plus(1))
-                .where(
-                    DELIVERY_QUEUE.ID.`in`(
-                        DSL
-                            .select(DELIVERY_QUEUE.ID)
-                            .from(DELIVERY_QUEUE)
-                            .where(DELIVERY_QUEUE.STATE.eq(DeliveryStateDbValue.PENDING.dbValue))
-                            .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(dueBy))
-                            .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.asc(), DELIVERY_QUEUE.ID.asc())
-                            .limit(limit),
-                    ),
-                )
-                .returning()
-                .fetch()
-                // RETURNING の並びは決まっていないので、取り出した順に並べ直す
-                .sortedWith(
-                    compareBy<Record>({ it.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT) }, { it.get(DELIVERY_QUEUE.ID) }),
-                )
-                .map { it.toClaimed() }
-        }
-    }
-
-    override fun exists(id: DeliveryId): Boolean = jooq.withConnection { dsl ->
-        dsl.fetchExists(DSL.selectOne().from(DELIVERY_QUEUE).where(DELIVERY_QUEUE.ID.eq(id.value)))
-    }
-
-    /**
-     * 行を消すのと、送れたことで確定する記録を 1 トランザクションで書く
-     */
-    override fun markDelivered(
-        id: DeliveryId,
-        deliveredAt: Instant,
-    ): DeliveredOutcome = jooq.transaction { dsl ->
-        // 送っている間に投稿やアカウントが消されると、行ごと消える
-        val row = dsl
-            .selectFrom(DELIVERY_QUEUE)
-            .where(DELIVERY_QUEUE.ID.eq(id.value))
-            .fetchOne()
-            ?: return@transaction DeliveredOutcome.None
-
-        dsl
-            .deleteFrom(DELIVERY_QUEUE)
-            .where(DELIVERY_QUEUE.ID.eq(id.value))
-            .execute()
-
-        when (DeliveryKindDbValue.parse(checkNotNull(row.get(DELIVERY_QUEUE.KIND)))) {
-            DeliveryKindDbValue.CREATE_NOTE,
-            DeliveryKindDbValue.DELETE_NOTE,
-            DeliveryKindDbValue.UPDATE_ACTOR,
-            DeliveryKindDbValue.DELETE_ACTOR,
-            -> DeliveredOutcome.None
-
-            DeliveryKindDbValue.ACCEPT_FOLLOW -> {
-                val username = checkNotNull(row.get(DELIVERY_QUEUE.USERNAME))
-                val followerActorUri = checkNotNull(row.get(DELIVERY_QUEUE.TARGET_ACTOR_URI)) {
-                    "accept_follow の行に相手のアクターが無い"
-                }
-
-                val firstAccept = FollowerRows.markAccepted(
-                    dsl = dsl,
-                    username = username,
-                    followerActorUri = followerActorUri,
-                    acceptedAt = deliveredAt,
-                )
-
-                if (firstAccept) {
-                    DeliveredOutcome.FollowAccepted(
-                        username = username,
-                        followerActorUri = followerActorUri,
-                        inbox = checkNotNull(row.get(DELIVERY_QUEUE.INBOX)),
+    ): List<ClaimedDelivery> = jooq.transaction { dsl ->
+        val due =
+            dsl.select(
+                DELIVERY_QUEUE.ID,
+                ACCOUNTS.USERNAME,
+                DELIVERY_QUEUE.INBOX,
+                DELIVERY_QUEUE.BODY,
+                DELIVERY_QUEUE.ATTEMPTS,
+                DELIVERY_QUEUE.ENQUEUED_AT,
+            )
+                .from(DELIVERY_QUEUE)
+                .join(ACCOUNTS).on(ACCOUNTS.ID.eq(DELIVERY_QUEUE.ACCOUNT_ID))
+                .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+                .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
+                .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
+                .limit(limit)
+                .fetch { record ->
+                    ClaimedDelivery(
+                        id = checkNotNull(record.get(DELIVERY_QUEUE.ID)),
+                        username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
+                        inbox = checkNotNull(record.get(DELIVERY_QUEUE.INBOX)),
+                        body = checkNotNull(record.get(DELIVERY_QUEUE.BODY)),
+                        attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt() + 1,
+                        enqueuedAt = StoredInstant.parse(checkNotNull(record.get(DELIVERY_QUEUE.ENQUEUED_AT))),
                     )
-                } else {
-                    DeliveredOutcome.None
                 }
+        if (due.isEmpty()) return@transaction listOf()
+
+        dsl.update(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_DELIVERING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, DELIVERY_QUEUE.ATTEMPTS.plus(1L))
+            .where(DELIVERY_QUEUE.ID.`in`(due.map { it.id }))
+            .execute()
+        due
+    }
+
+    override fun markDelivered(
+        id: Long,
+        deliveredAt: Instant,
+    ) {
+        jooq.transaction { dsl ->
+            val row = dsl.findRow(id) ?: return@transaction
+            dsl.deleteFrom(DELIVERY_QUEUE)
+                .where(DELIVERY_QUEUE.ID.eq(id))
+                .execute()
+            if (row.kind == DeliveryQueueValues.KIND_ACCEPT_FOLLOW) {
+                dsl.update(ACCOUNT_FOLLOWERS)
+                    .set(ACCOUNT_FOLLOWERS.ACCEPTED_AT, StoredInstant.format(deliveredAt))
+                    .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(row.accountId))
+                    .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(row.remoteActorId))
+                    .and(ACCOUNT_FOLLOWERS.ACCEPTED_AT.isNull)
+                    .execute()
             }
         }
     }
 
     override fun scheduleRetry(
-        id: DeliveryId,
+        id: Long,
         nextAttemptAt: Instant,
         error: String,
     ) {
-        jooq.transaction { dsl ->
-            dsl
-                .update(DELIVERY_QUEUE)
-                .set(DELIVERY_QUEUE.STATE, DeliveryStateDbValue.PENDING.dbValue)
+        jooq.withConnection { dsl ->
+            dsl.update(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
                 .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(nextAttemptAt))
                 .set(DELIVERY_QUEUE.LAST_ERROR, error)
-                .where(DELIVERY_QUEUE.ID.eq(id.value))
+                .where(DELIVERY_QUEUE.ID.eq(id))
                 .execute()
         }
     }
 
     override fun giveUp(
-        id: DeliveryId,
+        id: Long,
         error: String,
     ) {
         jooq.transaction { dsl ->
-            dsl
-                .update(DELIVERY_QUEUE)
-                .set(DELIVERY_QUEUE.STATE, DeliveryStateDbValue.FAILED.dbValue)
-                .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, null as String?)
-                .set(DELIVERY_QUEUE.BODY, null as String?)
+            val row = dsl.findRow(id) ?: return@transaction
+            dsl.update(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_FAILED)
+                .setNull(DELIVERY_QUEUE.NEXT_ATTEMPT_AT)
+                .setNull(DELIVERY_QUEUE.BODY)
                 .set(DELIVERY_QUEUE.LAST_ERROR, error)
-                .where(DELIVERY_QUEUE.ID.eq(id.value))
+                .where(DELIVERY_QUEUE.ID.eq(id))
                 .execute()
+            if (row.kind == DeliveryQueueValues.KIND_ACCEPT_FOLLOW) {
+                // 参照したままフォローを消すと、外部キーで failed の行まで消える
+                dsl.update(DELIVERY_QUEUE)
+                    .setNull(DELIVERY_QUEUE.REMOTE_ACTOR_ID)
+                    .where(DELIVERY_QUEUE.ID.eq(id))
+                    .execute()
+                dsl.deleteFrom(ACCOUNT_FOLLOWERS)
+                    .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(row.accountId))
+                    .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(row.remoteActorId))
+                    .and(ACCOUNT_FOLLOWERS.ACCEPTED_AT.isNull)
+                    .execute()
+            }
         }
     }
 
-    override fun recoverDelivering(): Int = jooq.transaction { dsl ->
-        dsl
-            .update(DELIVERY_QUEUE)
-            .set(DELIVERY_QUEUE.STATE, DeliveryStateDbValue.PENDING.dbValue)
-            .where(DELIVERY_QUEUE.STATE.eq(DeliveryStateDbValue.DELIVERING.dbValue))
+    override fun recoverDelivering(now: Instant): Int = jooq.withConnection { dsl ->
+        dsl.update(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
+            .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
             .execute()
     }
 
-    override fun hasUnsent(): Boolean = jooq.withConnection { dsl ->
-        dsl.fetchExists(
-            DSL
-                .selectOne()
-                .from(DELIVERY_QUEUE)
-                .where(DELIVERY_QUEUE.STATE.ne(DeliveryStateDbValue.FAILED.dbValue)),
-        )
-    }
-
-    override fun counts(username: String): DeliveryQueueCounts = jooq.withConnection { dsl ->
-        val byState = dsl
-            .select(DELIVERY_QUEUE.STATE, DSL.count())
+    private fun DSLContext.findRow(id: Long): QueueRow? =
+        select(DELIVERY_QUEUE.KIND, DELIVERY_QUEUE.ACCOUNT_ID, DELIVERY_QUEUE.REMOTE_ACTOR_ID)
             .from(DELIVERY_QUEUE)
-            .where(DELIVERY_QUEUE.USERNAME.eq(username))
-            .groupBy(DELIVERY_QUEUE.STATE)
-            .fetch()
-            .associate { it.value1() to it.value2().toLong() }
+            .where(DELIVERY_QUEUE.ID.eq(id))
+            .and(DELIVERY_QUEUE.STATE.ne(DeliveryQueueValues.STATE_FAILED))
+            .fetchOne { record ->
+                QueueRow(
+                    kind = checkNotNull(record.get(DELIVERY_QUEUE.KIND)),
+                    accountId = checkNotNull(record.get(DELIVERY_QUEUE.ACCOUNT_ID)),
+                    remoteActorId = record.get(DELIVERY_QUEUE.REMOTE_ACTOR_ID),
+                )
+            }
 
-        DeliveryQueueCounts(
-            waiting = (byState[DeliveryStateDbValue.PENDING.dbValue] ?: 0L) +
-                (byState[DeliveryStateDbValue.DELIVERING.dbValue] ?: 0L),
-            failed = byState[DeliveryStateDbValue.FAILED.dbValue] ?: 0L,
-        )
-    }
-
-    override fun listRetrying(
-        after: DeliveryQueuePosition?,
-        limit: Int,
-    ): List<AccountRetryingDelivery> {
-        if (limit <= 0) return emptyList()
-
-        return jooq.withConnection { dsl ->
-            dsl
-                .selectFrom(DELIVERY_QUEUE)
-                .where(DELIVERY_QUEUE.STATE.ne(DeliveryStateDbValue.FAILED.dbValue))
-                // 初回の送信中は attempts が 1 でも失敗していない
-                .and(DELIVERY_QUEUE.LAST_ERROR.isNotNull)
-                .and(after?.let { laterThan(it) } ?: DSL.noCondition())
-                .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.asc(), DELIVERY_QUEUE.ID.asc())
-                .limit(limit)
-                .fetch()
-                .map { record ->
-                    AccountRetryingDelivery(
-                        id = DeliveryId(checkNotNull(record.get(DELIVERY_QUEUE.ID))),
-                        kind = DeliveryKindDbValue.parse(checkNotNull(record.get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
-                        username = checkNotNull(record.get(DELIVERY_QUEUE.USERNAME)),
-                        inbox = checkNotNull(record.get(DELIVERY_QUEUE.INBOX)),
-                        attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
-                        // 諦めた行を除いてあるので、次に送る時刻は必ずある
-                        nextAttemptAt = StoredInstant.parse(checkNotNull(record.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT))),
-                        sending = record.get(DELIVERY_QUEUE.STATE) == DeliveryStateDbValue.DELIVERING.dbValue,
-                        lastError = record.get(DELIVERY_QUEUE.LAST_ERROR),
-                    )
-                }
-        }
-    }
-
-    override fun listRetrying(
-        username: String,
-        after: DeliveryQueuePosition?,
-        limit: Int,
-    ): List<RetryingDelivery> {
-        if (limit <= 0) return emptyList()
-
-        return jooq.withConnection { dsl ->
-            dsl
-                .selectFrom(DELIVERY_QUEUE)
-                .where(DELIVERY_QUEUE.USERNAME.eq(username))
-                .and(DELIVERY_QUEUE.STATE.eq(DeliveryStateDbValue.PENDING.dbValue))
-                .and(DELIVERY_QUEUE.ATTEMPTS.gt(0L))
-                .and(after?.let { laterThan(it) } ?: DSL.noCondition())
-                .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.asc(), DELIVERY_QUEUE.ID.asc())
-                .limit(limit)
-                .fetch()
-                .map { record ->
-                    RetryingDelivery(
-                        id = DeliveryId(checkNotNull(record.get(DELIVERY_QUEUE.ID))),
-                        kind = DeliveryKindDbValue.parse(checkNotNull(record.get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
-                        inbox = checkNotNull(record.get(DELIVERY_QUEUE.INBOX)),
-                        attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
-                        nextAttemptAt = StoredInstant.parse(checkNotNull(record.get(DELIVERY_QUEUE.NEXT_ATTEMPT_AT))),
-                        lastError = record.get(DELIVERY_QUEUE.LAST_ERROR),
-                    )
-                }
-        }
-    }
-
-    /**
-     * 時刻だけで比べると、同じ時刻の行がページの境目に来たときに落ちるか重複する
-     */
-    private fun laterThan(cursor: DeliveryQueuePosition): Condition {
-        val nextAttemptAt = StoredInstant.format(cursor.nextAttemptAt)
-
-        return DELIVERY_QUEUE.NEXT_ATTEMPT_AT.gt(nextAttemptAt)
-            .or(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.eq(nextAttemptAt).and(DELIVERY_QUEUE.ID.gt(cursor.id.value)))
-    }
-
-    override fun listFailed(
-        username: String,
-        afterId: DeliveryId?,
-        limit: Int,
-    ): List<FailedDelivery> {
-        if (limit <= 0) return emptyList()
-
-        return jooq.withConnection { dsl ->
-            dsl
-                .selectFrom(DELIVERY_QUEUE)
-                .where(DELIVERY_QUEUE.USERNAME.eq(username))
-                .and(DELIVERY_QUEUE.STATE.eq(DeliveryStateDbValue.FAILED.dbValue))
-                .and(afterId?.let { DELIVERY_QUEUE.ID.lt(it.value) } ?: DSL.noCondition())
-                .orderBy(DELIVERY_QUEUE.ID.desc())
-                .limit(limit)
-                .fetch()
-                .map { record ->
-                    FailedDelivery(
-                        id = DeliveryId(checkNotNull(record.get(DELIVERY_QUEUE.ID))),
-                        kind = DeliveryKindDbValue.parse(checkNotNull(record.get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
-                        inbox = checkNotNull(record.get(DELIVERY_QUEUE.INBOX)),
-                        attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
-                        lastError = record.get(DELIVERY_QUEUE.LAST_ERROR),
-                    )
-                }
-        }
-    }
-
-    override fun deleteByUsername(username: String): Int = jooq.transaction { dsl ->
-        dsl
-            .deleteFrom(DELIVERY_QUEUE)
-            .where(DELIVERY_QUEUE.USERNAME.eq(username))
-            .execute()
-    }
-
-    private fun Record.toClaimed(): ClaimedDelivery = ClaimedDelivery(
-        id = DeliveryId(checkNotNull(get(DELIVERY_QUEUE.ID))),
-        kind = DeliveryKindDbValue.parse(checkNotNull(get(DELIVERY_QUEUE.KIND))).toDeliveryKind(),
-        username = checkNotNull(get(DELIVERY_QUEUE.USERNAME)),
-        inbox = checkNotNull(get(DELIVERY_QUEUE.INBOX)),
-        // delivering にした行は body を消していないので必ずある
-        body = checkNotNull(get(DELIVERY_QUEUE.BODY)) { "delivering の行に body が無い" },
-        attempts = checkNotNull(get(DELIVERY_QUEUE.ATTEMPTS)).toInt(),
-        enqueuedAt = StoredInstant.parse(checkNotNull(get(DELIVERY_QUEUE.ENQUEUED_AT))),
+    private data class QueueRow(
+        val kind: String,
+        val accountId: Long,
+        val remoteActorId: Long?,
     )
 }

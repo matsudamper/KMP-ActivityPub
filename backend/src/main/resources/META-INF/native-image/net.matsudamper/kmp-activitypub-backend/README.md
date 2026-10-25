@@ -4,15 +4,13 @@
 
 ## `resource-config.json`
 
-- `graphql/*.graphqls` と、読むファイルの一覧 `graphql/schema-list.txt`。native バイナリではディレクトリを列挙できないので、一覧は `:backend:graphql` がビルド時に作る
+- `graphql/*.graphqls`。native バイナリではディレクトリを列挙できないので、読むファイルは `GraphQlEngine` に並べる
 - graphql-java の `i18n.*`。`SchemaParser` が起動時に引く
 
 ## GraphQL の結線
 
 kickstart がリフレクションで結線するので、`GraphQlReflectionFeature` がビルド時に
 `graphql.model` と `graphql.resolver` を走査して登録する。あわせて次も要る。
-
-- 生成モデルが持つ `:shared` の型（`AccountId` など）の登録。kickstart が input を Jackson で組み立てるときにコンストラクタを呼ぶ
 
 - `kotlin.reflect.jvm.internal.ReflectionFactoryImpl` の登録（kickstart が kotlin-reflect を使う）
 - `*.kotlin_builtins` と `*.kotlin_module` の同梱（kotlin-reflect が読む）

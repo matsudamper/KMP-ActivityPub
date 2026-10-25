@@ -9,18 +9,19 @@ dependencies {
     implementation(project(":backend:graphql"))
     implementation(project(":backend:repository"))
     implementation(project(":backend:crypto"))
+    implementation(project(":backend:delivery"))
     implementation(project(":backend:session"))
+    implementation(project(":backend:passkey"))
     implementation(project(":backend:telemetry"))
     implementation(project(":shared"))
-
-    implementation(libs.kotpub.core)
-    implementation(libs.kotpub.client.ktor)
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.status.pages)
     implementation(kotlin("reflect"))
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotpub.core)
+    implementation(libs.okhttp)
     implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.extension.kotlin)
     implementation(libs.opentelemetry.graphql.java)
@@ -30,11 +31,8 @@ dependencies {
     runtimeOnly(libs.slf4j.simple)
 
     testImplementation(libs.ktor.server.test.host)
-    testImplementation(libs.ktor.client.mock)
-    testImplementation(libs.opentelemetry.sdk)
     testImplementation(libs.kotlin.test)
-
-    testImplementation(testFixtures(libs.kotpub.core))
+    testImplementation(testFixtures(project(":backend:passkey")))
 }
 
 application {
@@ -56,10 +54,12 @@ graalvmNative {
     }
 
     binaries {
-        // テストも同じ設定のイメージで動かす。揃えないと、本番では動くリフレクションがテストだけ落ちる
-        all {
+        named("main") {
+            imageName.set("kmp-activitypub")
+            mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
             buildArgs.add("--no-fallback")
             buildArgs.add("--features=net.matsudamper.kmp.activitypub.graalvm.GraphQlReflectionFeature")
+            buildArgs.add("--features=net.matsudamper.kmp.activitypub.passkey.graalvm.WebAuthn4jReflectionFeature")
             // native-image が解析中に @Deprecated の既定値を読み、ビルド時初期化で落ちる
             buildArgs.add("--initialize-at-build-time=kotlin.DeprecationLevel")
             // jOOQ の組み込み型登録が Class.arrayType() を使い、native-image では欠けた配列型で NPE になる
@@ -74,10 +74,6 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.sdk")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.exporter")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.instrumentation")
-        }
-        named("main") {
-            imageName.set("kmp-activitypub")
-            mainClass.set("net.matsudamper.kmp.activitypub.MainKt")
         }
     }
 }

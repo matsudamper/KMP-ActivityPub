@@ -51,35 +51,12 @@ sealed interface Screen : NavKey {
         override val loginRequired: Boolean get() = true
     }
 
-    /**
-     * ログインと、管理画面の中の各画面への入口だけを置く。操作そのものは
-     * 下の階層に分ける。1 つの画面に並べると、開いた時点で必要のない
-     * 問い合わせまで走り、URL でその操作を指せなくなる。
-     *
-     * 管理画面のログインはユーザーのログインと別なので、画面の中で行う
-     */
     @Serializable
-    data object Admin : Screen {
-        override val pathPattern: PathPattern get() = PathPattern("/admin")
+    data object ProfileEdit : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/settings/profile")
         override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen? get() = null
-        override val loginRequired: Boolean get() = false
-    }
-
-    @Serializable
-    data object AdminAccounts : Screen {
-        override val pathPattern: PathPattern get() = PathPattern("/admin/accounts")
-        override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen get() = Admin
-        override val loginRequired: Boolean get() = false
-    }
-
-    @Serializable
-    data object AdminAccountNew : Screen {
-        override val pathPattern: PathPattern get() = PathPattern("/admin/accounts/new")
-        override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen get() = AdminAccounts
-        override val loginRequired: Boolean get() = false
+        override val parentScreen: Screen get() = Home
+        override val loginRequired: Boolean get() = true
     }
 
     /**
@@ -101,19 +78,18 @@ sealed interface Screen : NavKey {
     }
 
     companion object {
-        private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> =
+        private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> by lazy {
             listOf(
                 Login.pathPattern to { _ -> Login },
                 Home.pathPattern to { _ -> Home },
                 Post.pathPattern to { _ -> Post },
                 Settings.pathPattern to { _ -> Settings },
-                Admin.pathPattern to { _ -> Admin },
-                AdminAccounts.pathPattern to { _ -> AdminAccounts },
-                AdminAccountNew.pathPattern to { _ -> AdminAccountNew },
+                ProfileEdit.pathPattern to { _ -> ProfileEdit },
                 UserProfile.PATH_PATTERN to { parameters ->
                     UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
                 },
             )
+        }
 
         fun fromPath(path: String): Screen? {
             return routes.firstNotNullOfOrNull { (pattern, screenOf) ->

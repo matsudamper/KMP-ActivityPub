@@ -1,0 +1,37 @@
+query SettingsScreenPasskeys {
+    passkeys {
+        id
+        name
+    }
+    hasPassword
+}
+
+mutation PasskeyRegistrationOptions {
+    user {
+        passkeyRegistrationOptions
+    }
+}
+
+mutation RegisterPasskey($query: RegisterPasskeyQuery!) {
+    user {
+        registerPasskey(query: $query) {
+            failure
+        }
+    }
+}
+
+mutation DeletePasskey($id: PasskeyCredentialId!) {
+    user {
+        deletePasskey(id: $id) {
+            failure
+        }
+    }
+}
+
+mutation DeletePassword {
+    user {
+        deletePassword {
+            failure
+        }
+    }
+}

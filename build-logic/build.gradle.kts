@@ -24,11 +24,6 @@ gradlePlugin {
             implementationClass = "net.matsudamper.kmp.activitypub.gradle.DatabaseCodegenPlugin"
         }
 
-        create("graphQlSchemaList") {
-            id = "kmp-activitypub.graphql-schema-list"
-            implementationClass = "net.matsudamper.kmp.activitypub.gradle.GraphQlSchemaListPlugin"
-        }
-
         create("webpackBundleHash") {
             id = "kmp-activitypub.webpack-bundle-hash"
             implementationClass = "net.matsudamper.kmp.activitypub.gradle.WebpackBundleHashPlugin"
