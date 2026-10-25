@@ -61,10 +61,10 @@ internal class FakeAccountRepository(
     }
 
     override fun findById(id: AccountId): Account? =
-        rows.firstOrNull { it.id == id }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[it.id]) }
+        rows.firstOrNull { it.id == id }?.toAccount()
 
     override fun findByUsername(username: String): Account? =
-        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[it.id]) }
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.toAccount()
 
     override fun searchByUsername(
         keyword: String,
@@ -76,7 +76,7 @@ internal class FakeAccountRepository(
             .filter { afterUsername == null || it.username.lowercase() > afterUsername.lowercase() }
             .sortedBy { it.username.lowercase() }
             .take(limit)
-            .map { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[it.id]) }
+            .map { it.toAccount() }
 
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.takeIf { it.id !in passwordDeletedIds }
@@ -93,6 +93,9 @@ internal class FakeAccountRepository(
         passwordDeletedIds += id
         return true
     }
+
+    private fun AccountCredential.toAccount(): Account =
+        Account(id = id, username = username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[id])
 }
 
 private class FakePasskeyRepository(

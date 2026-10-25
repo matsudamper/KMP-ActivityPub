@@ -133,8 +133,11 @@ class ProfileUpdateService(
             )
         return when (result) {
             is ImageStorage.PutResult.Success -> PutIconResult.Success(result.path)
+
             ImageStorage.PutResult.PayloadTooLarge -> PutIconResult.Failure(UpdateProfileResult.IconTooLarge)
+
             ImageStorage.PutResult.Empty -> PutIconResult.Failure(UpdateProfileResult.IconUnsupported)
+
             is ImageStorage.PutResult.Failure -> {
                 logger.error("プロフィール画像を置けなかった: $accountId", result.cause)
                 PutIconResult.Failure(UpdateProfileResult.IconUploadFailed)
