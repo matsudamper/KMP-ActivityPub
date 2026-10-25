@@ -74,6 +74,9 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.sdk")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.exporter")
             buildArgs.add("--initialize-at-run-time=io.opentelemetry.instrumentation")
+            // native-image は既定で Arena.ofShared を使えない。Lettuce が使う Netty は Java 25 で直接バッファの解放にこれを使うため、
+            // 無効のままだと終了時にイベントループのスレッドが UnsupportedFeatureError で落ち、Lettuce の shutdown が返らずプロセスが終わらない
+            buildArgs.add("-H:+SharedArenaSupport")
         }
     }
 }
