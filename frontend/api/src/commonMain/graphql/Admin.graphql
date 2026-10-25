@@ -1,0 +1,64 @@
+query AdminSession {
+    admin {
+        session {
+            ...AdminSessionFields
+        }
+    }
+}
+
+query AdminAccountsScreen($after: String, $limit: Int) {
+    admin {
+        adminAccounts(after: $after, limit: $limit) {
+            nodes {
+                ...AdminAccountListFields
+            }
+            nextCursor
+        }
+    }
+}
+
+fragment AdminAccountListFields on AdminAccount {
+    username
+    acct
+}
+
+fragment AdminSessionFields on AdminSession {
+    loggedIn
+    passwordConfigured
+}
+
+mutation AdminLogin($password: String!) {
+    admin {
+        login(password: $password) {
+            session {
+                ...AdminSessionFields
+            }
+            failure
+        }
+    }
+}
+
+mutation AdminLogout {
+    admin {
+        logout {
+            ...AdminSessionFields
+        }
+    }
+}
+
+mutation AdminAddUser($query: AddUserQuery!) {
+    admin {
+        addUser(query: $query) {
+            adminAccount {
+                ...AdminAccountListFields
+            }
+            failure {
+                unusableCharacters
+                maxLength
+                minLength
+                isDuplicated
+                passwordMinLength
+            }
+        }
+    }
+}

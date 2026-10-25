@@ -60,6 +60,33 @@ sealed interface Screen : NavKey {
     }
 
     /**
+     * 管理画面のログインはユーザーのログインと別なので、画面の中で行う
+     */
+    @Serializable
+    data object Admin : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/admin")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = false
+    }
+
+    @Serializable
+    data object AdminAccounts : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/admin/accounts")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Admin
+        override val loginRequired: Boolean get() = false
+    }
+
+    @Serializable
+    data object AdminAccountNew : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/admin/accounts/new")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = AdminAccounts
+        override val loginRequired: Boolean get() = false
+    }
+
+    /**
      * Mastodon に合わせたパス。
      */
     @Serializable
@@ -85,6 +112,9 @@ sealed interface Screen : NavKey {
                 Post.pathPattern to { _ -> Post },
                 Settings.pathPattern to { _ -> Settings },
                 ProfileEdit.pathPattern to { _ -> ProfileEdit },
+                Admin.pathPattern to { _ -> Admin },
+                AdminAccounts.pathPattern to { _ -> AdminAccounts },
+                AdminAccountNew.pathPattern to { _ -> AdminAccountNew },
                 UserProfile.PATH_PATTERN to { parameters ->
                     UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
                 },

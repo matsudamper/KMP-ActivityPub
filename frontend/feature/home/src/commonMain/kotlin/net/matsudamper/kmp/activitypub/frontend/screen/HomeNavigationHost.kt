@@ -32,6 +32,7 @@ fun HomeNavigationHost(
     backStack: NavBackStack<NavKey>,
     serverSettingUiState: @Composable () -> ServerSettingUiState?,
     modifier: Modifier = Modifier,
+    otherScreenContent: @Composable (screen: Screen, navigator: Navigator) -> Unit = { _, _ -> },
 ) {
     val navigator = remember(backStack) { Navigator(backStack) }
     NavDisplay(
@@ -54,6 +55,7 @@ fun HomeNavigationHost(
                                 screen = screen,
                                 navigator = navigator,
                                 serverSettingUiState = serverSettingUiState,
+                                otherScreenContent = otherScreenContent,
                             )
                         }
 
@@ -74,6 +76,7 @@ fun HomeNavigationHost(
                         screen = screen,
                         navigator = navigator,
                         serverSettingUiState = serverSettingUiState,
+                        otherScreenContent = otherScreenContent,
                     )
                 }
             }
@@ -86,6 +89,7 @@ private fun ScreenContent(
     screen: Screen,
     navigator: Navigator,
     serverSettingUiState: @Composable () -> ServerSettingUiState?,
+    otherScreenContent: @Composable (screen: Screen, navigator: Navigator) -> Unit,
 ) {
     when (screen) {
         Screen.Login -> {
@@ -113,6 +117,13 @@ private fun ScreenContent(
 
         is Screen.UserProfile -> {
             UserProfileScreen(username = screen.username)
+        }
+
+        Screen.Admin,
+        Screen.AdminAccounts,
+        Screen.AdminAccountNew,
+        -> {
+            otherScreenContent(screen, navigator)
         }
     }
 }

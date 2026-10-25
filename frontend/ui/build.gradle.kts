@@ -31,5 +31,18 @@ kotlin {
                 api(libs.kotlinx.coroutines.core)
             }
         }
+
+        androidMain {
+            dependencies {
+                // 他のモジュールのプレビューが PreviewsMultiSize を付けるので api にする
+                api(libs.androidx.compose.ui.tooling.preview)
+            }
+        }
+
+        wasmJsMain {
+            dependencies {
+                implementation(project(":frontend:common-component"))
+            }
+        }
     }
 }

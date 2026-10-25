@@ -26,6 +26,8 @@ kotlin {
                 implementation(project(":frontend:api"))
                 implementation(project(":frontend:navigation"))
                 implementation(project(":frontend:feature:home"))
+                implementation(project(":frontend:feature:admin"))
+                implementation(project(":frontend:ui"))
                 // material3 の直接座標はまだ alpha
                 implementation(compose.runtime)
                 implementation(compose.foundation)
@@ -33,6 +35,7 @@ kotlin {
                 implementation(compose.material3)
                 implementation(libs.navigation3.ui)
                 implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+                implementation(libs.androidx.lifecycle.viewmodel.compose)
                 implementation(libs.kotlinx.browser)
                 implementation(libs.koin.core)
                 implementation(libs.koin.annotations)
