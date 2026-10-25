@@ -13,5 +13,5 @@ internal fun TestDependencies(
 )
 
 internal object TestEnv {
-    val REQUIRED: Map<String, String> = mapOf("ENABLE_PASSKEY" to "true", "PASSKEY_RP_ID" to "localhost", "DOMAIN" to "localhost")
+    val REQUIRED: Map<String, String> = mapOf("ENABLE_PASSKEY" to "true", "PASSKEY_RP_ID" to "localhost", "DOMAIN" to "localhost", "ENABLE_S3" to "false")
 }

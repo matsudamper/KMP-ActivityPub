@@ -21,27 +21,44 @@ services:
       # ENABLE_PASSKEY が true なら必須。後から変えると登録済みのパスキーが使えなくなる
       PASSKEY_RP_ID: example.com
       # カンマ区切り。書かなければ https://<PASSKEY_RP_ID>
-#      PASSKEY_ORIGINS: https://example.com
+      # PASSKEY_ORIGINS: https://example.com
       # Android アプリでパスキーを使うとき。/.well-known/assetlinks.json を返し、アプリの origin を受け付ける
-#      PASSKEY_ANDROID_PACKAGE_NAME: net.matsudamper.kmp.activitypub
+      # PASSKEY_ANDROID_PACKAGE_NAME: net.matsudamper.kmp.activitypub
       # アプリの署名証明書の SHA-256。カンマ区切り
-#      PASSKEY_ANDROID_CERT_SHA256: "AA:BB:..."
+      # PASSKEY_ANDROID_CERT_SHA256: "AA:BB:..."
       # 他のサーバーから @user@example.com で見つけてもらうためのドメイン
       DOMAIN: example.com
       # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
-#      TRUST_CF_CONNECTING_IP: "true"
+      # TRUST_CF_CONNECTING_IP: "true"
+      # 必須。true か false。true なら画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして STS の AssumeRoleWithWebIdentity で受け取る
+      ENABLE_S3: "false"
+      # /.well-known/openid-configuration と /jwks を返す。パスを含めない。STS からこの URL に届くこと
+      # OIDC_ISSUER: https://example.com
+      # RSA 秘密鍵の JWK。./gradlew :backend:oidc:generateSigningJwk で作る
+      # OIDC_JWK_PRIVATE: '{"kty":"RSA",...}'
+      # S3_BUCKET: kmp-activitypub-images
+      # S3_REGION: ap-northeast-1
+      # IAM の OIDC プロバイダを信頼するロール
+      # S3_ROLE_ARN: arn:aws:iam::123456789012:role/kmp-activitypub-image
+      # IAM の OIDC プロバイダに登録した Audience
+      # S3_AUDIENCE: kmp-activitypub
+      # S3_ENDPOINT: https://s3.example.com
+      # STS_ENDPOINT: https://sts.example.com
+      # 既定は true
+      # S3_PATH_STYLE_ACCESS: "true"
+      # S3_ROLE_SESSION_NAME: kmp-activitypub-image-upload
       # OpenTelemetry の送り先。未設定だと localhost:4318 に送ろうとして失敗し続ける
-#      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-#      OTEL_RESOURCE_ATTRIBUTES: service.name=kmp-activitypub,deployment.environment.name=production
+      # OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      # OTEL_RESOURCE_ATTRIBUTES: service.name=kmp-activitypub,deployment.environment.name=production
       # 送らないとき
-#      OTEL_SDK_DISABLED: "true"
+      # OTEL_SDK_DISABLED: "true"
     depends_on:
       valkey:
         condition: service_healthy
     volumes:
       # 起動前に作っておく。Docker に作らせると root の持ち物になる
       - ./data:/app/data
-#      - ./public:/public:ro
+      # - ./public:/public:ro
 
   valkey:
     image: valkey/valkey:8

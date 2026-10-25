@@ -4,9 +4,14 @@ import java.time.Clock
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.days
 import net.matsudamper.kmp.activitypub.federation.Federation
+import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
+import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorage
+import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
+import net.matsudamper.kmp.activitypub.oidc.OidcSigningKey
+import net.matsudamper.kmp.activitypub.oidc.WebIdentityTokenIssuer
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.session.LoginFailureStore
@@ -77,6 +82,31 @@ class AppDependencies(
         maxFailures = 5,
         lockDuration = 30.days,
     )
+
+    val oidcSigningKey: OidcSigningKey? = env.s3?.let { OidcSigningKey(it.oidc.privateJwkJson) }
+
+    private val webIdentityTokenIssuer: WebIdentityTokenIssuer? =
+        env.s3?.let { s3 ->
+            WebIdentityTokenIssuer(
+                signingKey = checkNotNull(oidcSigningKey),
+                issuer = s3.oidc.issuer,
+                clock = Clock.systemUTC(),
+            )
+        }
+
+    /**
+     * ENABLE_S3 が false なら画像を置けない
+     */
+    val imageStorage: ImageStorage? =
+        env.s3?.let { s3 ->
+            S3ImageStorage(
+                stsCredentialProvider = StsCredentialProvider(
+                    tokenIssuer = checkNotNull(webIdentityTokenIssuer),
+                    config = s3.imageStorage,
+                ),
+                config = s3.imageStorage,
+            )
+        }
 
     /**
      * 順に閉じると、どれかの close が返らないときに後ろが閉じられない。
