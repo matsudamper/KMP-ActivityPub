@@ -95,7 +95,7 @@ class ProfileUpdateService(
                 ProfileUpdate(
                     username = sender.urls.username,
                     displayName = newDisplayName,
-                    iconPath = newIconPath?.value ?: account.iconPath,
+                    newIconPath = newIconPath?.value,
                     updatedAt = clock.instant(),
                     body = body,
                     inboxes = followerRepository.findDeliveryInboxes(sender.urls.username),

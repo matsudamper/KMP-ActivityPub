@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVER
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
 
 internal class SqliteDeliveryQueueRepository(
     private val jooq: SqliteJooq,
@@ -72,7 +73,7 @@ internal class SqliteDeliveryQueueRepository(
                 ?: return@transaction false
         dsl.update(ACCOUNTS)
             .set(ACCOUNTS.DISPLAY_NAME, update.displayName)
-            .set(ACCOUNTS.ICON_PATH, update.iconPath)
+            .set(ACCOUNTS.ICON_PATH, update.newIconPath?.let { DSL.value(it) } ?: ACCOUNTS.ICON_PATH)
             .where(ACCOUNTS.ID.eq(accountId))
             .execute()
 

@@ -94,7 +94,7 @@ class ProfileUpdateServiceTest {
         assertEquals(UpdateProfileResult.Updated, service.update(username = "user1", displayName = "名前", icon = PNG))
 
         val update = deliveryQueueRepository.profileUpdates.single()
-        val newPath = ImagePath(assertNotNull(update.iconPath))
+        val newPath = ImagePath(assertNotNull(update.newIconPath))
         assertTrue(newPath.value.startsWith("${user1Id.value}/"))
         assertEquals("image/png", imageStorage.images.getValue(newPath).contentType)
         assertFalse(oldPath in imageStorage.images)
@@ -109,7 +109,7 @@ class ProfileUpdateServiceTest {
 
         assertEquals(UpdateProfileResult.Updated, service.update(username = "user1", displayName = "名前", icon = null))
 
-        assertEquals("${user1Id.value}/profile-icon/current", deliveryQueueRepository.profileUpdates.single().iconPath)
+        assertNull(deliveryQueueRepository.profileUpdates.single().newIconPath)
     }
 
     @Test

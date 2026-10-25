@@ -105,13 +105,14 @@ data class NotePost(
 
 /**
  * @param displayName 未設定に戻すなら null
- * @param iconPath 画像の置き場の中でのプロフィール画像の場所。未設定なら null
+ * @param newIconPath 新しく置いたプロフィール画像の場所。null なら今の場所のまま。
+ *   読んだ値を書き戻すと、間に別の更新が差し替えて消した画像を指してしまう
  * @param body 宛先すべてに同じものを送る Update のアクティビティ。プロフィールの全体を載せる
  */
 data class ProfileUpdate(
     val username: String,
     val displayName: String?,
-    val iconPath: String?,
+    val newIconPath: String?,
     val updatedAt: Instant,
     val body: String,
     val inboxes: List<String>,
