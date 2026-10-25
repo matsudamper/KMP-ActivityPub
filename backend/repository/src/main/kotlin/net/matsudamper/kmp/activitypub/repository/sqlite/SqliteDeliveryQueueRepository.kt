@@ -72,6 +72,7 @@ internal class SqliteDeliveryQueueRepository(
                 ?: return@transaction false
         dsl.update(ACCOUNTS)
             .set(ACCOUNTS.DISPLAY_NAME, update.displayName)
+            .set(ACCOUNTS.ICON_PATH, update.iconPath)
             .where(ACCOUNTS.ID.eq(accountId))
             .execute()
 

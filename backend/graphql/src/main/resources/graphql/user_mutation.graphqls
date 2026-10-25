@@ -12,8 +12,11 @@ type UserMutation {
     logout: Boolean! @lazy
     "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
     postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
-    "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。displayName が空なら未設定に戻す"
-    updateProfile(displayName: String!): UpdateProfileResult! @lazy
+    """
+    ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。displayName が空なら未設定に戻す。
+    icon は新しいプロフィール画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで。null なら今の画像のまま
+    """
+    updateProfile(displayName: String!, icon: String): UpdateProfileResult! @lazy
 }
 
 input UserLoginQuery {
@@ -99,6 +102,14 @@ enum UpdateProfileFailure {
     NOT_LOGGED_IN
     "表示名が長すぎる。上限は 30 文字"
     TOO_LONG
+    "プロフィール画像が大きすぎる。上限は 2MiB"
+    ICON_TOO_LARGE
+    "プロフィール画像が base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
+    ICON_UNSUPPORTED
+    "サーバーに画像の置き場が無く、プロフィール画像を変えられない"
+    IMAGE_STORAGE_DISABLED
+    "プロフィール画像を置けなかった"
+    ICON_UPLOAD_FAILED
     "サーバーに DOMAIN が無く、更新を配れない"
     FEDERATION_DISABLED
 }

@@ -34,6 +34,7 @@ internal class FakeAccountRepository(
     private val rows = mutableListOf<AccountCredential>()
     private val passwordDeletedIds = mutableSetOf<AccountId>()
     private val publicKeyPems = mutableMapOf<AccountId, String>()
+    private val iconPaths = mutableMapOf<AccountId, String>()
 
     fun add(
         username: String,
@@ -52,11 +53,18 @@ internal class FakeAccountRepository(
         publicKeyPems[id] = publicKeyPem
     }
 
+    fun setIconPath(
+        id: AccountId,
+        iconPath: String,
+    ) {
+        iconPaths[id] = iconPath
+    }
+
     override fun findById(id: AccountId): Account? =
-        rows.firstOrNull { it.id == id }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null) }
+        rows.firstOrNull { it.id == id }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[it.id]) }
 
     override fun findByUsername(username: String): Account? =
-        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null) }
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[it.id]) }
 
     override fun searchByUsername(
         keyword: String,
@@ -68,7 +76,7 @@ internal class FakeAccountRepository(
             .filter { afterUsername == null || it.username.lowercase() > afterUsername.lowercase() }
             .sortedBy { it.username.lowercase() }
             .take(limit)
-            .map { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null) }
+            .map { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[it.id]) }
 
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.takeIf { it.id !in passwordDeletedIds }

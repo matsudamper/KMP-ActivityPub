@@ -16,6 +16,7 @@ import software.amazon.awssdk.services.s3.model.CompletedPart
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 import software.amazon.awssdk.services.s3.model.UploadPartRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
@@ -61,6 +62,29 @@ class S3ImageStorage(
             result
         }
     }
+
+    override fun get(request: ImageStorage.GetRequest): ImageStorage.GetResult =
+        runCatching {
+            createS3Client(request.ownerAccountId).use { s3Client ->
+                val response =
+                    s3Client.getObjectAsBytes(
+                        GetObjectRequest.builder()
+                            .bucket(config.bucket)
+                            .key(objectKey(request.path))
+                            .build(),
+                    )
+                ImageStorage.GetResult.Success(
+                    bytes = response.asByteArray(),
+                    contentType = response.response().contentType(),
+                )
+            }
+        }.getOrElse { cause ->
+            if (cause is NoSuchKeyException) {
+                ImageStorage.GetResult.NotFound
+            } else {
+                ImageStorage.GetResult.Failure(cause)
+            }
+        }
 
     override fun delete(request: ImageStorage.DeleteRequest): ImageStorage.DeleteResult =
         runCatching {

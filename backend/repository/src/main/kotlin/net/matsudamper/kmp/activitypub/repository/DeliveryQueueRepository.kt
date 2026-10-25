@@ -105,11 +105,13 @@ data class NotePost(
 
 /**
  * @param displayName 未設定に戻すなら null
+ * @param iconPath 画像の置き場の中でのプロフィール画像の場所。未設定なら null
  * @param body 宛先すべてに同じものを送る Update のアクティビティ。プロフィールの全体を載せる
  */
 data class ProfileUpdate(
     val username: String,
     val displayName: String?,
+    val iconPath: String?,
     val updatedAt: Instant,
     val body: String,
     val inboxes: List<String>,

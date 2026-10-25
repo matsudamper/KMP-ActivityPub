@@ -7,6 +7,7 @@ import kotlin.time.Duration.Companion.seconds
 import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
+import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
@@ -14,11 +15,10 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
-import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
+import net.matsudamper.kotpub.actor.ActorIconEndpoint
 import net.matsudamper.kotpub.actor.HttpRemoteActors
-import net.matsudamper.kotpub.actor.StoredActorAppearances
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
@@ -43,6 +43,7 @@ internal class Federation(
     followerRepository: FollowerRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
+    imageStorage: ImageStorage?,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
     private val httpClient = OkHttpActivityPubClient()
@@ -51,6 +52,7 @@ internal class Federation(
     private val notes = RepositoryNoteStore(noteRepository)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
+    private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -79,8 +81,10 @@ internal class Federation(
     val profileUpdateService: ProfileUpdateService =
         ProfileUpdateService(
             senders = localActors,
-            appearances = EmptyActorAppearances,
+            accountService = accountService,
+            appearances = actorAppearances,
             profiles = actorProfiles,
+            imageStorage = imageStorage,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
             clock = Clock.systemUTC(),
@@ -96,10 +100,18 @@ internal class Federation(
         ActorEndpoint(
             directory = directory,
             publicKeys = AccountActorPublicKeys(accountService),
-            appearances = EmptyActorAppearances,
+            appearances = actorAppearances,
             profiles = actorProfiles,
             webPages = null,
         )
+
+    /**
+     * 画像の置き場が無ければ作らない。Actor にも `icon` を出さない
+     */
+    val actorIconEndpoint: ActorIconEndpoint? =
+        imageStorage?.let { storage ->
+            ActorIconEndpoint(directory = directory, icons = AccountActorIcons(accountService = accountService, imageStorage = storage))
+        }
 
     val followerEndpoint: FollowerEndpoint = FollowerEndpoint(directory = directory, followers = followers)
 
@@ -143,8 +155,4 @@ internal class Federation(
     override fun close() {
         httpClient.close()
     }
-}
-
-private object EmptyActorAppearances : StoredActorAppearances {
-    override fun find(username: String): ActorAppearance = ActorAppearance.EMPTY
 }

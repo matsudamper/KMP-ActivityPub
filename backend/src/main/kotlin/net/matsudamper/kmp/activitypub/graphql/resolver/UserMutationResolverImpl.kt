@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
+import kotlin.io.encoding.Base64
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
@@ -200,9 +201,10 @@ class UserMutationResolverImpl : UserMutationResolver {
     override fun updateProfile(
         userMutation: QlUserMutation,
         displayName: String,
+        icon: String?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUpdateProfileResult>> {
-        val result = QlUpdateProfileResult(failure = updateProfile(displayName = displayName, env = env))
+        val result = QlUpdateProfileResult(failure = updateProfile(displayName = displayName, icon = icon, env = env))
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -240,6 +242,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     private fun updateProfile(
         displayName: String,
+        icon: String?,
         env: DataFetchingEnvironment,
     ): QlUpdateProfileFailure? {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -247,10 +250,20 @@ class UserMutationResolverImpl : UserMutationResolver {
         // セッションが残っていてもアカウントが消えていることがある
         val account = diContainer.accountService.account(accountId) ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
         val profileUpdateService = diContainer.profileUpdateService ?: return QlUpdateProfileFailure.FEDERATION_DISABLED
+        val iconBytes =
+            if (icon == null) {
+                null
+            } else {
+                runCatching { Base64.Default.decode(icon) }.getOrNull() ?: return QlUpdateProfileFailure.ICON_UNSUPPORTED
+            }
 
-        return when (profileUpdateService.update(username = account.username, displayName = displayName)) {
+        return when (profileUpdateService.update(username = account.username, displayName = displayName, icon = iconBytes)) {
             UpdateProfileResult.Updated -> null
             UpdateProfileResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
+            UpdateProfileResult.IconTooLarge -> QlUpdateProfileFailure.ICON_TOO_LARGE
+            UpdateProfileResult.IconUnsupported -> QlUpdateProfileFailure.ICON_UNSUPPORTED
+            UpdateProfileResult.ImageStorageDisabled -> QlUpdateProfileFailure.IMAGE_STORAGE_DISABLED
+            UpdateProfileResult.IconUploadFailed -> QlUpdateProfileFailure.ICON_UPLOAD_FAILED
             UpdateProfileResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
         }
     }

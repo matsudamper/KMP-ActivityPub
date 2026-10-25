@@ -23,7 +23,7 @@ class GraphQlRoutesTest {
             val response =
                 client.post(GRAPHQL_PATH) {
                     contentType(ContentType.Application.Json)
-                    setBody("x".repeat(1024 * 1024 + 1))
+                    setBody("x".repeat(3 * 1024 * 1024 + 1))
                 }
 
             assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
@@ -39,7 +39,7 @@ class GraphQlRoutesTest {
                     contentType(ContentType.Application.Json)
                     setBody(
                         ChannelWriterContent(
-                            body = { writeFully(ByteArray(1024 * 1024 + 1) { 'x'.code.toByte() }) },
+                            body = { writeFully(ByteArray(3 * 1024 * 1024 + 1) { 'x'.code.toByte() }) },
                             contentType = ContentType.Application.Json,
                         ),
                     )

@@ -21,7 +21,10 @@ import net.matsudamper.kmp.activitypub.json.respondJson
 
 internal const val GRAPHQL_PATH = "/graphql"
 
-private const val MAX_BODY_BYTES = 1024 * 1024
+/**
+ * プロフィール画像の上限 2MiB を base64 にした分が入る大きさ
+ */
+private const val MAX_BODY_BYTES = 3 * 1024 * 1024
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
