@@ -13,6 +13,8 @@ dependencies {
     implementation(project(":backend:session"))
     implementation(project(":backend:passkey"))
     implementation(project(":backend:telemetry"))
+    implementation(project(":backend:oidc"))
+    implementation(project(":backend:image-storage"))
     implementation(project(":shared"))
 
     implementation(libs.ktor.server.core)
@@ -32,6 +34,7 @@ dependencies {
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.nimbus.jose.jwt)
     testImplementation(testFixtures(project(":backend:passkey")))
 }
 
