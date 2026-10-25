@@ -176,22 +176,18 @@ class ServerEnvTest {
     }
 
     @Test
-    fun `S3_ENDPOINT と STS_ENDPOINT を指定するとその URL を使う`() {
-        val config =
-            assertNotNull(
-                ServerEnv(S3_REQUIRED + mapOf("S3_ENDPOINT" to "https://s3.example.com", "STS_ENDPOINT" to "https://sts.example.com")).s3,
-            ).imageStorage
-
-        assertEquals(URI("https://s3.example.com"), config.endpoint)
-        assertEquals(URI("https://sts.example.com"), config.stsEndpoint)
+    fun `ENABLE_S3 が true で S3_ENDPOINT が空なら起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(S3_REQUIRED + mapOf("S3_ENDPOINT" to ""))
+        }
     }
 
     @Test
     fun `S3 を有効にすると既定値で埋める`() {
         val config = assertNotNull(ServerEnv(S3_REQUIRED).s3).imageStorage
 
-        assertNull(config.endpoint)
-        assertNull(config.stsEndpoint)
+        assertEquals(URI("https://s3.example.com"), config.endpoint)
+        assertEquals(URI("https://sts.example.com"), config.stsEndpoint)
         assertEquals("kmp-activitypub-image-upload", config.roleSessionName)
         assertTrue(config.pathStyleAccess)
     }
@@ -209,8 +205,8 @@ class ServerEnvTest {
                     "S3_REGION" to "ap-northeast-1",
                     "S3_ROLE_ARN" to "arn:aws:iam::123456789012:role/image",
                     "S3_AUDIENCE" to "sts.amazonaws.com",
-                    "S3_ENDPOINT" to "",
-                    "STS_ENDPOINT" to "",
+                    "S3_ENDPOINT" to "https://s3.example.com",
+                    "STS_ENDPOINT" to "https://sts.example.com",
                 )
     }
 }

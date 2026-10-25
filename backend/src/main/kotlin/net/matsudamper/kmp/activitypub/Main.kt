@@ -42,7 +42,7 @@ fun main() {
     Runtime.getRuntime().addShutdownHook(
         Thread {
             server.stop(gracePeriodMillis = 1_000, timeoutMillis = 5_000)
-            deps.close()
+            deps.closeIndependently()
         },
     )
 

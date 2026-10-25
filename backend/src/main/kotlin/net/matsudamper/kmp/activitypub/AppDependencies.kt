@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub
 
 import java.time.Clock
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.days
 import net.matsudamper.kmp.activitypub.federation.Federation
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
@@ -30,7 +31,7 @@ class AppDependencies(
     private val passkeyChallengeStore: PasskeyChallengeStore,
     private val loginFailureStore: LoginFailureStore,
     val env: ServerEnv,
-) : AutoCloseable {
+) {
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
@@ -108,12 +109,14 @@ class AppDependencies(
         lockDuration = 30.days,
     )
 
-    override fun close() {
-        passkeyChallengeStore.close()
-        federation?.close()
-        sessionStore.close()
-        loginFailureStore.close()
-        repositories.close()
+    /**
+     * 順に閉じると、どれかの close が返らないときに後ろが閉じられない。
+     * SQLite の close が走らないと -wal が畳まれずに残る
+     */
+    fun closeIndependently() {
+        listOfNotNull(passkeyChallengeStore, federation, sessionStore, loginFailureStore, repositories)
+            .map { closeable -> thread { closeable.close() } }
+            .forEach { it.join() }
     }
 
     companion object {

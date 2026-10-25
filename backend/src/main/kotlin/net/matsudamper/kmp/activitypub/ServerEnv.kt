@@ -96,7 +96,6 @@ class ServerEnv(
     /**
      * 画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして発行したトークンを STS に渡して受け取る。
      * OIDC_JWK_PRIVATE は RSA の秘密鍵を JWK の JSON で書く。`./gradlew :backend:oidc:generateSigningJwk` で作れる。
-     * S3_ENDPOINT と STS_ENDPOINT は必須で、空なら AWS のものを使う
      */
     val s3: S3Env? =
         if (enableS3) {
@@ -106,8 +105,8 @@ class ServerEnv(
                     privateJwkJson = requireNotNull(env["OIDC_JWK_PRIVATE"]?.ifEmpty { null }) { "OIDC_JWK_PRIVATE が未設定です" },
                 ),
                 imageStorage = S3ImageStorageConfig(
-                    endpoint = requireNotNull(env["S3_ENDPOINT"]) { "S3_ENDPOINT が未設定です" }.ifEmpty { null }?.let { URI(it) },
-                    stsEndpoint = requireNotNull(env["STS_ENDPOINT"]) { "STS_ENDPOINT が未設定です" }.ifEmpty { null }?.let { URI(it) },
+                    endpoint = URI(requireNotNull(env["S3_ENDPOINT"]?.ifEmpty { null }) { "S3_ENDPOINT が未設定です" }),
+                    stsEndpoint = URI(requireNotNull(env["STS_ENDPOINT"]?.ifEmpty { null }) { "STS_ENDPOINT が未設定です" }),
                     region = requireNotNull(env["S3_REGION"]?.ifEmpty { null }) { "S3_REGION が未設定です" },
                     bucket = requireNotNull(env["S3_BUCKET"]?.ifEmpty { null }) { "S3_BUCKET が未設定です" },
                     roleArn = requireNotNull(env["S3_ROLE_ARN"]?.ifEmpty { null }) { "S3_ROLE_ARN が未設定です" },
