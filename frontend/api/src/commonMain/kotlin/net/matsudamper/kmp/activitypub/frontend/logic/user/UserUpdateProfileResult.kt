@@ -7,6 +7,14 @@ sealed interface UserUpdateProfileResult {
 
     data object TooLong : UserUpdateProfileResult
 
+    data object IconTooLarge : UserUpdateProfileResult
+
+    data object IconUnsupported : UserUpdateProfileResult
+
+    data object ImageStorageDisabled : UserUpdateProfileResult
+
+    data object IconUploadFailed : UserUpdateProfileResult
+
     data object FederationDisabled : UserUpdateProfileResult
 
     data class Failure(

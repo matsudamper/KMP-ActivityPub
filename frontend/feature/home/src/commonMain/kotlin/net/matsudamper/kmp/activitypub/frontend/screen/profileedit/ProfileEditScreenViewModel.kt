@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -12,6 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileResult
+import net.matsudamper.kmp.activitypub.frontend.ui.decodeToImageBitmapOrNull
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -28,6 +30,17 @@ internal class ProfileEditScreenViewModel(
             createUiState(
                 viewModelState = viewModelStateFlow.value,
                 listener = object : ProfileEditScreenUiState.Listener {
+                    override fun onClickSelectIcon() {
+                        if (viewModelStateFlow.value.saving()) return
+                        viewModelScope.launch {
+                            events.send { it.openImagePicker() }
+                        }
+                    }
+
+                    override fun onIconPicked(bytes: ByteArray) {
+                        pickIcon(bytes)
+                    }
+
                     override fun onDisplayNameChanged(text: String) {
                         viewModelStateFlow.update { state ->
                             if (state is ViewModelState.Loaded && state.saving.not()) {
@@ -79,6 +92,7 @@ internal class ProfileEditScreenViewModel(
             viewModelStateFlow.value =
                 when (val result = api.myProfile()) {
                     is UserMyProfileResult.Found -> ViewModelState.Loaded(
+                        newIcon = null,
                         displayName = result.displayName.orEmpty(),
                         saving = false,
                         hasError = false,
@@ -91,6 +105,28 @@ internal class ProfileEditScreenViewModel(
         }
     }
 
+    private fun pickIcon(bytes: ByteArray) {
+        val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+        if (state.saving) return
+        if (bytes.size > MAX_ICON_BYTES) {
+            viewModelScope.launch { events.send { it.showMessage("画像が大きすぎます。2MB までにしてください") } }
+            return
+        }
+        val bitmap = bytes.decodeToImageBitmapOrNull()
+        if (bitmap == null) {
+            viewModelScope.launch { events.send { it.showMessage("画像として読み込めませんでした") } }
+            return
+        }
+
+        viewModelStateFlow.update { current ->
+            if (current is ViewModelState.Loaded && current.saving.not()) {
+                current.copy(newIcon = ViewModelState.NewIcon(bytes = bytes, bitmap = bitmap))
+            } else {
+                current
+            }
+        }
+    }
+
     private fun save() {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
         if (state.saving) return
@@ -99,10 +135,14 @@ internal class ProfileEditScreenViewModel(
         viewModelScope.launch {
             val error =
                 try {
-                    when (val result = api.updateProfile(displayName = state.displayName)) {
+                    when (val result = api.updateProfile(displayName = state.displayName, icon = state.newIcon?.bytes)) {
                         UserUpdateProfileResult.Success -> null
                         UserUpdateProfileResult.NotLoggedIn -> "ログインしていません"
                         UserUpdateProfileResult.TooLong -> "表示名が長すぎます"
+                        UserUpdateProfileResult.IconTooLarge -> "画像が大きすぎます。2MB までにしてください"
+                        UserUpdateProfileResult.IconUnsupported -> "PNG / JPEG / GIF / WebP の画像にしてください"
+                        UserUpdateProfileResult.ImageStorageDisabled -> "サーバーが画像を保存できる設定になっていません"
+                        UserUpdateProfileResult.IconUploadFailed -> "画像を保存できませんでした"
                         UserUpdateProfileResult.FederationDisabled -> "サーバーがプロフィールの更新を配れる設定になっていません"
                         is UserUpdateProfileResult.Failure -> result.message
                     }
@@ -133,6 +173,8 @@ internal class ProfileEditScreenViewModel(
                 is ViewModelState.Failed -> ProfileEditScreenUiState.Content.Error(viewModelState.message)
 
                 is ViewModelState.Loaded -> ProfileEditScreenUiState.Content.Loaded(
+                    newIcon = viewModelState.newIcon?.bitmap,
+                    iconSelectButtonEnabled = viewModelState.saving.not(),
                     displayName = viewModelState.displayName,
                     displayNameInputEnabled = viewModelState.saving.not(),
                     displayNameHasError = viewModelState.hasError,
@@ -153,15 +195,33 @@ internal class ProfileEditScreenViewModel(
         ) : ViewModelState
 
         data class Loaded(
+            val newIcon: NewIcon?,
             val displayName: String,
             val saving: Boolean,
             val hasError: Boolean,
         ) : ViewModelState
+
+        /**
+         * @param bytes 選んだファイルの中身。そのまま送る
+         */
+        class NewIcon(
+            val bytes: ByteArray,
+            val bitmap: ImageBitmap,
+        )
     }
 
     interface Event {
+        fun openImagePicker()
+
         fun navigateBack()
 
         fun showMessage(message: String)
+    }
+
+    private companion object {
+        /**
+         * サーバーが受け付ける大きさ。送る前に断り、大きなファイルを送り切るまで待たせない
+         */
+        const val MAX_ICON_BYTES = 2 * 1024 * 1024
     }
 }

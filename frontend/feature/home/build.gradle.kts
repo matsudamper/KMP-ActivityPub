@@ -38,12 +38,14 @@ kotlin {
         wasmJsMain {
             dependencies {
                 implementation(project(":frontend:common-component"))
+                implementation(libs.kotlinx.browser)
             }
         }
 
         androidMain {
             dependencies {
                 implementation(libs.androidx.compose.ui.tooling.preview)
+                implementation(libs.androidx.activity.compose)
             }
         }
     }

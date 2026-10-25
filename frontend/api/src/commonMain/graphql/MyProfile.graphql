@@ -5,9 +5,9 @@ query MyProfile {
     }
 }
 
-mutation UpdateProfile($displayName: String!) {
+mutation UpdateProfile($displayName: String!, $icon: String) {
     user {
-        updateProfile(displayName: $displayName) {
+        updateProfile(displayName: $displayName, icon: $icon) {
             failure
         }
     }

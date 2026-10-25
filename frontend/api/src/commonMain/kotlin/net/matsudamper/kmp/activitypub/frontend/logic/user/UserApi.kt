@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
+import kotlin.io.encoding.Base64
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -141,9 +142,22 @@ class UserApi(
         return UserMyProfileResult.Found(username = profile.username, displayName = profile.displayName)
     }
 
-    suspend fun updateProfile(displayName: String): UserUpdateProfileResult {
+    /**
+     * @param icon 新しいプロフィール画像のファイルの中身。null なら今の画像のまま
+     */
+    suspend fun updateProfile(
+        displayName: String,
+        icon: ByteArray?,
+    ): UserUpdateProfileResult {
         val client = clients.client.value ?: return UserUpdateProfileResult.Failure("接続先が未設定")
-        val response = client.mutation(UpdateProfileMutation(displayName = displayName)).execute()
+        val response =
+            client
+                .mutation(
+                    UpdateProfileMutation(
+                        displayName = displayName,
+                        icon = Optional.presentIfNotNull(icon?.let { Base64.Default.encode(it) }),
+                    ),
+                ).execute()
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())
         val updateProfile = response.data?.user?.updateProfile ?: return UserUpdateProfileResult.Failure(response.failureMessage())
 
@@ -151,6 +165,10 @@ class UserApi(
             null -> UserUpdateProfileResult.Success
             UpdateProfileFailure.NOT_LOGGED_IN -> UserUpdateProfileResult.NotLoggedIn
             UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.TooLong
+            UpdateProfileFailure.ICON_TOO_LARGE -> UserUpdateProfileResult.IconTooLarge
+            UpdateProfileFailure.ICON_UNSUPPORTED -> UserUpdateProfileResult.IconUnsupported
+            UpdateProfileFailure.IMAGE_STORAGE_DISABLED -> UserUpdateProfileResult.ImageStorageDisabled
+            UpdateProfileFailure.ICON_UPLOAD_FAILED -> UserUpdateProfileResult.IconUploadFailed
             UpdateProfileFailure.FEDERATION_DISABLED -> UserUpdateProfileResult.FederationDisabled
             UpdateProfileFailure.UNKNOWN__ -> UserUpdateProfileResult.Failure("Unknown")
         }
