@@ -19,8 +19,13 @@ import org.w3c.files.FileReader
 import org.w3c.files.get
 
 @Composable
-internal actual fun rememberImagePicker(onPick: (ByteArray) -> Unit): () -> Unit {
+internal actual fun rememberImagePicker(
+    maxBytes: Int,
+    onPick: (ByteArray) -> Unit,
+    onTooLarge: () -> Unit,
+): () -> Unit {
     val currentOnPick by rememberUpdatedState(onPick)
+    val currentOnTooLarge by rememberUpdatedState(onTooLarge)
     return remember {
         {
             val input = document.createElement("input") as HTMLInputElement
@@ -28,7 +33,9 @@ internal actual fun rememberImagePicker(onPick: (ByteArray) -> Unit): () -> Unit
             input.accept = "image/png,image/jpeg,image/gif,image/webp"
             input.addEventListener("change", {
                 val file = input.files?.get(0)
-                if (file != null) {
+                if (file != null && file.size.toDouble() > maxBytes) {
+                    currentOnTooLarge()
+                } else if (file != null) {
                     val reader = FileReader()
                     reader.onload = {
                         val buffer = reader.result?.unsafeCast<ArrayBuffer>()

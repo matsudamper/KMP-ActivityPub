@@ -75,6 +75,8 @@ private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.List
 
     override fun onIconPicked(bytes: ByteArray) = Unit
 
+    override fun onIconTooLarge() = Unit
+
     override fun onDisplayNameChanged(text: String) = Unit
 
     override fun onClickSave() = Unit

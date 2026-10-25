@@ -41,6 +41,10 @@ internal class ProfileEditScreenViewModel(
                         pickIcon(bytes)
                     }
 
+                    override fun onIconTooLarge() {
+                        showIconTooLarge()
+                    }
+
                     override fun onDisplayNameChanged(text: String) {
                         viewModelStateFlow.update { state ->
                             if (state is ViewModelState.Loaded && state.saving.not()) {
@@ -108,10 +112,6 @@ internal class ProfileEditScreenViewModel(
     private fun pickIcon(bytes: ByteArray) {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
         if (state.saving) return
-        if (bytes.size > MAX_ICON_BYTES) {
-            viewModelScope.launch { events.send { it.showMessage("画像が大きすぎます。2MB までにしてください") } }
-            return
-        }
         val bitmap = bytes.decodeToImageBitmapOrNull()
         if (bitmap == null) {
             viewModelScope.launch { events.send { it.showMessage("画像として読み込めませんでした") } }
@@ -125,6 +125,10 @@ internal class ProfileEditScreenViewModel(
                 current
             }
         }
+    }
+
+    private fun showIconTooLarge() {
+        viewModelScope.launch { events.send { it.showMessage("画像が大きすぎます。2MB までにしてください") } }
     }
 
     private fun save() {
@@ -218,7 +222,7 @@ internal class ProfileEditScreenViewModel(
         fun showMessage(message: String)
     }
 
-    private companion object {
+    companion object {
         /**
          * サーバーが受け付ける大きさ。送る前に断り、大きなファイルを送り切るまで待たせない
          */

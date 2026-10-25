@@ -34,6 +34,8 @@ data class ProfileEditScreenUiState(
 
         fun onIconPicked(bytes: ByteArray)
 
+        fun onIconTooLarge()
+
         fun onDisplayNameChanged(text: String)
 
         fun onClickSave()
