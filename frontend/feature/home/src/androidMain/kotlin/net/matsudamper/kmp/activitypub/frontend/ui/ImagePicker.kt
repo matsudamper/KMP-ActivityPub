@@ -57,4 +57,18 @@ private fun InputStream.readAtMost(limit: Int): ByteArray {
     return output.toByteArray()
 }
 
-internal actual fun ByteArray.decodeToImageBitmapOrNull(): ImageBitmap? = BitmapFactory.decodeByteArray(this, 0, size)?.asImageBitmap()
+/**
+ * 圧縮後は小さくても画素数の大きい画像があり、原寸で展開するとメモリが足りなくなる。表示に要る大きさまで間引いて読む
+ */
+internal actual fun ByteArray.decodeToImageBitmapOrNull(): ImageBitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(this, 0, size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    val longestSide = maxOf(bounds.outWidth, bounds.outHeight)
+    val sampleSize = generateSequence(1) { it * 2 }.first { longestSide / it <= MAX_DECODED_SIDE }
+    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+    return BitmapFactory.decodeByteArray(this, 0, size, options)?.asImageBitmap()
+}
+
+private const val MAX_DECODED_SIDE = 512
