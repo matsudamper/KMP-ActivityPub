@@ -80,11 +80,7 @@ class S3ImageStorage(
     override fun buildDisplayUrl(request: ImageStorage.DisplayUrlRequest): String {
         val credentials = stsCredentialProvider.assume(request.ownerAccountId)
         return S3Presigner.builder()
-            .apply {
-                if (config.endpoint != null) {
-                    endpointOverride(config.endpoint)
-                }
-            }
+            .endpointOverride(config.endpoint)
             .region(Region.of(config.region))
             .credentialsProvider(StaticCredentialsProvider.create(credentials))
             .serviceConfiguration(s3Configuration())
@@ -156,11 +152,7 @@ class S3ImageStorage(
     private fun createS3Client(accountId: AccountId): S3Client {
         val credentials = stsCredentialProvider.assume(accountId)
         return S3Client.builder()
-            .apply {
-                if (config.endpoint != null) {
-                    endpointOverride(config.endpoint)
-                }
-            }
+            .endpointOverride(config.endpoint)
             .region(Region.of(config.region))
             .credentialsProvider(StaticCredentialsProvider.create(credentials))
             .serviceConfiguration(s3Configuration())

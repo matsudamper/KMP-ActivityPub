@@ -25,11 +25,7 @@ class StsCredentialProvider(
             ttl = WEB_IDENTITY_TOKEN_TTL,
         )
         return StsClient.builder()
-            .apply {
-                if (config.stsEndpoint != null) {
-                    endpointOverride(config.stsEndpoint)
-                }
-            }
+            .endpointOverride(config.stsEndpoint)
             .region(Region.of(config.region))
             .credentialsProvider(AnonymousCredentialsProvider.create())
             .build()
