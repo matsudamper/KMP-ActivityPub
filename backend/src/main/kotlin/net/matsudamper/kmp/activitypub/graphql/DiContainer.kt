@@ -10,7 +10,10 @@ import net.matsudamper.kmp.activitypub.session.LoginThrottle
 class DiContainer(
     val accountService: AccountService,
     val userSearchService: UserSearchService,
-    val passkeyService: PasskeyService,
+    /**
+     * ENABLE_PASSKEY が false なら null
+     */
+    val passkeyService: PasskeyService?,
     val loginThrottle: LoginThrottle,
     /**
      * DOMAIN が無いと配れないので null

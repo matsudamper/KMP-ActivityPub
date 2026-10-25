@@ -6,27 +6,29 @@ import kotlin.io.path.Path
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 
 /**
- * 空白だけの値は未設定として扱う。STATIC_SRC_DIR が空だとカレントディレクトリを配信してしまう
+ * 値は書かれたまま使い、前後の空白も削らない。空のときの扱いは変数ごとに決める
  */
 class ServerEnv(
-    env: Map<String, String> = System.getenv(),
+    private val env: Map<String, String> = System.getenv(),
 ) {
-    private val values = env.mapValues { it.value.trim() }.filterValues { it.isNotEmpty() }
+    val host: String = env["HOST"]?.ifEmpty { null } ?: "0.0.0.0"
+    val port: Int = env["PORT"]?.ifEmpty { null }?.toInt() ?: 8080
 
-    val host: String = values["HOST"] ?: "0.0.0.0"
-    val port: Int = values["PORT"]?.toInt() ?: 8080
-    val staticSrcDir: Path? = values["STATIC_SRC_DIR"]?.let { Path(it) }
-    val dbPath: Path = Path(values["DB_PATH"] ?: "./data/kmp-activitypub.db")
+    /**
+     * 空を未設定として扱わないと、カレントディレクトリを配信してしまう
+     */
+    val staticSrcDir: Path? = env["STATIC_SRC_DIR"]?.ifEmpty { null }?.let { Path(it) }
+    val dbPath: Path = Path(env["DB_PATH"]?.ifEmpty { null } ?: "./data/kmp-activitypub.db")
 
     /**
      * `@user@example.com` の example.com。未設定なら他のサーバーから見つけられない
      */
-    val domain: String? = values["DOMAIN"]?.lowercase()
+    val domain: String? = env["DOMAIN"]?.ifEmpty { null }?.lowercase()
 
     /**
      * Valkey を使わないテストでも ServerEnv を作れるよう、読んだときに検査する
      */
-    val valkeyUri: String by lazy { checkNotNull(values["VALKEY_URI"]) { "VALKEY_URI を指定すること" } }
+    val valkeyUri: String by lazy { checkNotNull(env["VALKEY_URI"]?.ifEmpty { null }) { "VALKEY_URI を指定すること" } }
 
     /**
      * true のまま http で開くとログインできない
@@ -40,15 +42,20 @@ class ServerEnv(
     val trustCfConnectingIp: Boolean = booleanOf("TRUST_CF_CONNECTING_IP") ?: false
 
     /**
+     * 書き忘れでパスキーが黙って無効にならないよう、true か false を必ず書かせる
+     */
+    val enablePasskey: Boolean = requireNotNull(booleanOf("ENABLE_PASSKEY")) { "ENABLE_PASSKEY を true か false で設定すること" }
+
+    /**
      * Android アプリのパスキーを受け付けるときに設定する。
      * PASSKEY_ANDROID_CERT_SHA256 は署名証明書の SHA-256 を `AA:BB:...` の形で、カンマ区切りで複数書ける
      */
     val passkeyAndroidApp: PasskeyAndroidApp? =
-        values["PASSKEY_ANDROID_PACKAGE_NAME"]?.let { packageName ->
+        env["PASSKEY_ANDROID_PACKAGE_NAME"]?.ifEmpty { null }?.let { packageName ->
             PasskeyAndroidApp(
                 packageName = packageName,
                 certSha256Fingerprints =
-                values["PASSKEY_ANDROID_CERT_SHA256"]
+                env["PASSKEY_ANDROID_CERT_SHA256"]
                     ?.split(',')
                     ?.map { it.trim() }
                     ?.filter { it.isNotEmpty() }
@@ -58,27 +65,31 @@ class ServerEnv(
         }
 
     /**
-     * PASSKEY_RP_ID は必須。読むのはパスキーの処理を組み立てるときなので、未設定ならそこで起動が止まる。
+     * ENABLE_PASSKEY が true なら PASSKEY_RP_ID は必須。
      * PASSKEY_ORIGINS はカンマ区切りで、無ければ https://<PASSKEY_RP_ID> だけを受け付ける。
      * Android アプリの origin は [passkeyAndroidApp] から足す
      */
-    val passkeyRelyingParty: PasskeyRelyingParty by lazy {
-        val rpId = requireNotNull(values["PASSKEY_RP_ID"]) { "PASSKEY_RP_ID を設定すること" }
+    val passkeyRelyingParty: PasskeyRelyingParty? =
+        if (enablePasskey) createPasskeyRelyingParty() else null
+
+    private fun createPasskeyRelyingParty(): PasskeyRelyingParty {
+        val rpId = requireNotNull(env["PASSKEY_RP_ID"]?.ifEmpty { null }) { "PASSKEY_RP_ID を設定すること" }
         val webOrigins =
-            values["PASSKEY_ORIGINS"]
+            env["PASSKEY_ORIGINS"]
+                ?.ifEmpty { null }
                 ?.split(',')
                 ?.map { it.trim() }
                 ?.filter { it.isNotEmpty() }
                 ?.toSet()
                 ?: setOf("https://$rpId")
-        PasskeyRelyingParty(
+        return PasskeyRelyingParty(
             id = rpId,
             origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
         )
     }
 
     private fun booleanOf(name: String): Boolean? =
-        values[name]?.let { raw ->
+        env[name]?.ifEmpty { null }?.let { raw ->
             raw.lowercase().toBooleanStrictOrNull()
                 ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
         }

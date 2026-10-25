@@ -164,6 +164,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlDeletePasswordResult>> {
+        if (GraphQlEngine.diContainer(env).passkeyService == null) throw GraphQlClientException("パスキーが無効なのでパスワードを消せない")
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         val failure =
             if (accountId == null) {
@@ -205,7 +206,8 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
-    private fun passkeyService(env: DataFetchingEnvironment): PasskeyService = GraphQlEngine.diContainer(env).passkeyService
+    private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
+        GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
 
     private fun claimPasskeyChallenge(context: GraphQlContext) {
         if (!context.claimPasskeyChallenge()) throw GraphQlClientException("パスキーの challenge は 1 リクエストにつき 1 回まで")
