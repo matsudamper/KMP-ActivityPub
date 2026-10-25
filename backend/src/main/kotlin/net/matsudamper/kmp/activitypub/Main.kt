@@ -18,6 +18,8 @@ import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
+import net.matsudamper.kmp.activitypub.graphql.resolver.AdminMutationResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.AdminQueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
@@ -96,16 +98,21 @@ internal fun Application.module(deps: AppDependencies) {
                 QueryResolverImpl(),
                 MutationResolverImpl(),
                 UserMutationResolverImpl(),
+                AdminQueryResolverImpl(),
+                AdminMutationResolverImpl(),
             ),
             createContext = { call ->
                 GraphQlContext(
                     call = call,
                     sessionService = deps.sessionService,
+                    adminSessionStore = deps.adminSessionStore,
                     cookieSecure = deps.env.cookieSecure,
                     trustCfConnectingIp = deps.env.trustCfConnectingIp,
                 )
             },
             diContainer = DiContainer(
+                adminPasswordHash = deps.env.adminPasswordHash,
+                localDomain = deps.env.domain,
                 accountService = deps.accountService,
                 userSearchService = deps.userSearchService,
                 passkeyService = deps.passkeyService,

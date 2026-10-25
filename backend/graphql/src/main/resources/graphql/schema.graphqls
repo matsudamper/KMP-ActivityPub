@@ -25,6 +25,7 @@ type Query {
     hasPassword: Boolean @lazy
     "ログイン中のアカウントのプロフィール。ログインしていなければ null"
     profile: Profile @lazy
+    admin: AdminQuery!
 }
 
 type Profile {
@@ -40,4 +41,5 @@ type RegisteredPasskey {
 
 type Mutation {
     user: UserMutation!
+    admin: AdminMutation!
 }

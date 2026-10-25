@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub
 import java.nio.file.Path
 import java.util.Base64
 import kotlin.io.path.Path
+import net.matsudamper.kmp.activitypub.crypto.PasswordHash
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 
 /**
@@ -24,6 +25,11 @@ class ServerEnv(
      * `@user@example.com` の example.com。未設定なら他のサーバーから見つけられない
      */
     val domain: String? = env["DOMAIN"]?.ifEmpty { null }?.lowercase()
+
+    /**
+     * 未設定なら管理画面にログインできない
+     */
+    val adminPasswordHash: PasswordHash? = env["ADMIN_PASSWORD_HASH"]?.ifEmpty { null }?.let { PasswordHash.parse(it) }
 
     /**
      * Valkey を使わないテストでも ServerEnv を作れるよう、読んだときに検査する

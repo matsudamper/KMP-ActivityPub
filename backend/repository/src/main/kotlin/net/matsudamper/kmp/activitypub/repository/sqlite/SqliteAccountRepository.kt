@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
+import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
@@ -27,6 +28,40 @@ internal class SqliteAccountRepository(
                     displayName = record.get(ACCOUNTS.DISPLAY_NAME),
                 )
             }
+    }
+
+    override fun add(
+        username: String,
+        passwordHash: String,
+        passwordHashType: String,
+        publicKeyPem: String,
+        privateKeyPem: String,
+        createdAt: Instant,
+    ): Account? = jooq.transaction { dsl ->
+        val storedUsername = username.lowercase()
+        // 書き込みは接続 1 本に直列化されているので、同じトランザクションで見てから入れれば取りこぼさない
+        if (dsl.fetchExists(DSL.selectOne().from(ACCOUNTS).where(ACCOUNTS.USERNAME.eq(storedUsername)))) return@transaction null
+
+        val id = checkNotNull(
+            dsl.insertInto(ACCOUNTS)
+                .set(ACCOUNTS.USERNAME, storedUsername)
+                .set(ACCOUNTS.CREATED_AT, StoredInstant.format(createdAt))
+                .returning(ACCOUNTS.ID)
+                .fetchOne()
+                ?.get(ACCOUNTS.ID),
+        )
+        dsl.insertInto(ACCOUNT_PASSWORDS)
+            .set(ACCOUNT_PASSWORDS.ACCOUNT_ID, id)
+            .set(ACCOUNT_PASSWORDS.PASSWORD_HASH, passwordHash)
+            .set(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE, passwordHashType)
+            .execute()
+        dsl.insertInto(ACCOUNT_KEYS)
+            .set(ACCOUNT_KEYS.ACCOUNT_ID, id)
+            .set(ACCOUNT_KEYS.PUBLIC_KEY_PEM, publicKeyPem)
+            .set(ACCOUNT_KEYS.PRIVATE_KEY_PEM, privateKeyPem)
+            .execute()
+
+        Account(id = AccountId(id), username = storedUsername, createdAt = createdAt, displayName = null)
     }
 
     override fun findByUsername(username: String): Account? = jooq.withConnection { dsl ->

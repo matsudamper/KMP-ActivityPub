@@ -162,6 +162,47 @@ class AccountRepositoryTest {
         }
     }
 
+    @Test
+    fun `追加したアカウントを名前で引けて鍵とパスワードも持つ`() {
+        TestSchema.applyTo(dbPath)
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val added = checkNotNull(
+                repositories.accountRepository.add(
+                    username = "User1",
+                    passwordHash = PASSWORD_HASH,
+                    passwordHashType = PASSWORD_HASH_TYPE,
+                    publicKeyPem = PUBLIC_KEY_PEM,
+                    privateKeyPem = "private-key",
+                    createdAt = CREATED_AT,
+                ),
+            )
+
+            assertEquals(added, repositories.accountRepository.findByUsername("user1"))
+            assertEquals(PUBLIC_KEY_PEM, repositories.accountRepository.findPublicKeyPem("user1"))
+            assertEquals(PASSWORD_HASH, repositories.accountRepository.findCredential("user1")?.passwordHash)
+        }
+    }
+
+    @Test
+    fun `大文字小文字だけが違う名前は追加しない`() {
+        TestSchema.applyTo(dbPath)
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            fun add(username: String): Account? = repositories.accountRepository.add(
+                username = username,
+                passwordHash = PASSWORD_HASH,
+                passwordHashType = PASSWORD_HASH_TYPE,
+                publicKeyPem = PUBLIC_KEY_PEM,
+                privateKeyPem = "private-key",
+                createdAt = CREATED_AT,
+            )
+            add("user1")
+
+            assertNull(add("USER1"))
+        }
+    }
+
     private fun insertAccountRow(username: String) {
         Accounts.insert(
             databasePath = dbPath,

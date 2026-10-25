@@ -52,6 +52,20 @@ internal class FakeAccountRepository(
         publicKeyPems[id] = publicKeyPem
     }
 
+    override fun add(
+        username: String,
+        passwordHash: String,
+        passwordHashType: String,
+        publicKeyPem: String,
+        privateKeyPem: String,
+        createdAt: Instant,
+    ): Account? {
+        if (rows.any { it.username.equals(username, ignoreCase = true) }) return null
+        val id = add(username = username.lowercase(), passwordHash = passwordHash, passwordHashType = passwordHashType)
+        publicKeyPems[id] = publicKeyPem
+        return findById(id)
+    }
+
     override fun findById(id: AccountId): Account? =
         rows.firstOrNull { it.id == id }?.let { Account(id = it.id, username = it.username, createdAt = Instant.EPOCH, displayName = null) }
 

@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub
 
 import java.time.Clock
 import kotlin.time.Duration.Companion.days
+import net.matsudamper.kmp.activitypub.admin.AdminSessionInMemoryStore
 import net.matsudamper.kmp.activitypub.federation.Federation
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
@@ -29,6 +30,8 @@ class AppDependencies(
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
+
+    val adminSessionStore: AdminSessionInMemoryStore = AdminSessionInMemoryStore()
 
     /**
      * DOMAIN が無いと他のサーバーから見つけられないので作らない

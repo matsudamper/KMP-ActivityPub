@@ -1,0 +1,26 @@
+type AdminQuery {
+    session: AdminSession! @lazy
+
+    "登録したユーザーの一覧。名前順。after には前回の nextCursor を渡す。limit を渡さないと 10 件、上限は 50 件"
+    adminAccounts(after: String, limit: Int): AdminAccountsConnection! @lazy
+}
+
+type AdminAccountsConnection {
+    nodes: [AdminAccount!]!
+    "続きが無ければ null"
+    nextCursor: String
+}
+
+type AdminSession {
+    loggedIn: Boolean!
+
+    "サーバーに ADMIN_PASSWORD_HASH が設定されているか"
+    passwordConfigured: Boolean!
+}
+
+type AdminAccount {
+    username: String!
+
+    "Mastodon の検索窓に貼る形。@name@domain。サーバーのドメインが未設定なら null"
+    acct: String
+}
