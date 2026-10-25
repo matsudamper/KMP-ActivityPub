@@ -1,8 +1,11 @@
 package net.matsudamper.kmp.activitypub
 
+import java.net.URI
 import java.nio.file.Path
 import java.util.Base64
 import kotlin.io.path.Path
+import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorageConfig
+import net.matsudamper.kmp.activitypub.oidc.OidcIssuer
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
 
 /**
@@ -88,12 +91,51 @@ class ServerEnv(
         )
     }
 
+    val enableS3: Boolean = booleanOf("ENABLE_S3") ?: false
+
+    /**
+     * 画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして発行したトークンを STS に渡して受け取る。
+     * OIDC_JWK_PRIVATE は RSA の秘密鍵を JWK の JSON で書く。`./gradlew :backend:oidc:generateSigningJwk` で作れる。
+     * S3_ENDPOINT と STS_ENDPOINT は必須で、空なら AWS のものを使う
+     */
+    val s3: S3Env? =
+        if (enableS3) {
+            S3Env(
+                oidc = OidcEnv(
+                    issuer = OidcIssuer(requireNotNull(env["OIDC_ISSUER"]?.ifEmpty { null }) { "OIDC_ISSUER が未設定です" }),
+                    privateJwkJson = requireNotNull(env["OIDC_JWK_PRIVATE"]?.ifEmpty { null }) { "OIDC_JWK_PRIVATE が未設定です" },
+                ),
+                imageStorage = S3ImageStorageConfig(
+                    endpoint = requireNotNull(env["S3_ENDPOINT"]) { "S3_ENDPOINT が未設定です" }.ifEmpty { null }?.let { URI(it) },
+                    stsEndpoint = requireNotNull(env["STS_ENDPOINT"]) { "STS_ENDPOINT が未設定です" }.ifEmpty { null }?.let { URI(it) },
+                    region = requireNotNull(env["S3_REGION"]?.ifEmpty { null }) { "S3_REGION が未設定です" },
+                    bucket = requireNotNull(env["S3_BUCKET"]?.ifEmpty { null }) { "S3_BUCKET が未設定です" },
+                    roleArn = requireNotNull(env["S3_ROLE_ARN"]?.ifEmpty { null }) { "S3_ROLE_ARN が未設定です" },
+                    roleSessionName = env["S3_ROLE_SESSION_NAME"]?.ifEmpty { null } ?: "kmp-activitypub-image-upload",
+                    audience = requireNotNull(env["S3_AUDIENCE"]?.ifEmpty { null }) { "S3_AUDIENCE が未設定です" },
+                    pathStyleAccess = booleanOf("S3_PATH_STYLE_ACCESS") ?: true,
+                ),
+            )
+        } else {
+            null
+        }
+
     private fun booleanOf(name: String): Boolean? =
         env[name]?.ifEmpty { null }?.let { raw ->
             raw.lowercase().toBooleanStrictOrNull()
                 ?: throw IllegalArgumentException("$name は true か false にすること: $raw")
         }
 }
+
+class S3Env(
+    val oidc: OidcEnv,
+    val imageStorage: S3ImageStorageConfig,
+)
+
+class OidcEnv(
+    val issuer: OidcIssuer,
+    val privateJwkJson: String,
+)
 
 /**
  * @param certSha256Fingerprints `AA:BB:...` の形

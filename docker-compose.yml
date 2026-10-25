@@ -30,6 +30,24 @@ services:
       DOMAIN: example.com
       # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
 #      TRUST_CF_CONNECTING_IP: "true"
+      # 画像を S3 に置くとき。認証情報は、このサーバーを OIDC の IdP にして STS の AssumeRoleWithWebIdentity で受け取る
+      # ENABLE_S3: "true"
+      # /.well-known/openid-configuration と /jwks を返す。パスを含めない。STS からこの URL に届くこと
+      # OIDC_ISSUER: https://example.com
+      # RSA 秘密鍵の JWK。./gradlew :backend:oidc:generateSigningJwk で作る
+      # OIDC_JWK_PRIVATE: '{"kty":"RSA",...}'
+      # S3_BUCKET: kmp-activitypub-images
+      # S3_REGION: ap-northeast-1
+      # IAM の OIDC プロバイダを信頼するロール
+      # S3_ROLE_ARN: arn:aws:iam::123456789012:role/kmp-activitypub-image
+      # IAM の OIDC プロバイダに登録した Audience
+      # S3_AUDIENCE: kmp-activitypub
+      # 必須。空なら AWS のものを使う
+      # S3_ENDPOINT: ""
+      # STS_ENDPOINT: ""
+      # 既定は true
+      # S3_PATH_STYLE_ACCESS: "true"
+      # S3_ROLE_SESSION_NAME: kmp-activitypub-image-upload
       # OpenTelemetry の送り先。未設定だと localhost:4318 に送ろうとして失敗し続ける
 #      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
 #      OTEL_RESOURCE_ATTRIBUTES: service.name=kmp-activitypub,deployment.environment.name=production

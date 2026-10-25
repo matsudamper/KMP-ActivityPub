@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
+import net.matsudamper.kmp.activitypub.oidc.oidcRoutes
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
@@ -90,6 +91,14 @@ internal fun Application.module(deps: AppDependencies) {
         launch { federation.deliveryQueueWorker.run() }
     }
 
+    val s3 = deps.env.s3
+    val oidcSigningKey = deps.oidcSigningKey
+    if (s3 != null) {
+        log.info("OIDC の issuer: ${s3.oidc.issuer.value}")
+    } else {
+        log.info("ENABLE_S3 が false なので、画像を置けない")
+    }
+
     val graphQl =
         GraphQlEngine.create(
             resolvers = listOf(
@@ -124,6 +133,9 @@ internal fun Application.module(deps: AppDependencies) {
         }
         graphQlRoutes(graphQl)
         wellKnownRoutes(deps.env.passkeyAndroidApp)
+        if (s3 != null && oidcSigningKey != null) {
+            oidcRoutes(oidc = s3.oidc, signingKey = oidcSigningKey)
+        }
         if (federation != null) {
             federationRoutes(federation)
         }

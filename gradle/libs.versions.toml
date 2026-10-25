@@ -44,6 +44,8 @@ androidxCredentials = "1.6.0"
 opentelemetry = "1.67.0"
 opentelemetryApiIncubator = "1.67.0-alpha"
 opentelemetryInstrumentation = "2.29.0-alpha"
+nimbusJoseJwt = "10.9.1"
+awsSdk = "2.57.3"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
@@ -107,6 +109,9 @@ opentelemetry-jdbc = { module = "io.opentelemetry.instrumentation:opentelemetry-
 opentelemetry-graphql-java = { module = "io.opentelemetry.instrumentation:opentelemetry-graphql-java-20.0", version.ref = "opentelemetryInstrumentation" }
 opentelemetry-lettuce = { module = "io.opentelemetry.instrumentation:opentelemetry-lettuce-5.1", version.ref = "opentelemetryInstrumentation" }
 opentelemetry-runtime-telemetry = { module = "io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry", version.ref = "opentelemetryInstrumentation" }
+nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbusJoseJwt" }
+aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awsSdk" }
+aws-sts = { module = "software.amazon.awssdk:sts", version.ref = "awsSdk" }
 
 compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 
