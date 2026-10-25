@@ -30,8 +30,8 @@ services:
       DOMAIN: example.com
       # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
       # TRUST_CF_CONNECTING_IP: "true"
-      # 画像を S3 に置くとき。認証情報は、このサーバーを OIDC の IdP にして STS の AssumeRoleWithWebIdentity で受け取る
-      # ENABLE_S3: "true"
+      # 必須。true か false。true なら画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして STS の AssumeRoleWithWebIdentity で受け取る
+      ENABLE_S3: "false"
       # /.well-known/openid-configuration と /jwks を返す。パスを含めない。STS からこの URL に届くこと
       # OIDC_ISSUER: https://example.com
       # RSA 秘密鍵の JWK。./gradlew :backend:oidc:generateSigningJwk で作る

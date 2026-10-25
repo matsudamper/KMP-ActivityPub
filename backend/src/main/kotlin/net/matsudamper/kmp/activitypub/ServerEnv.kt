@@ -91,7 +91,7 @@ class ServerEnv(
         )
     }
 
-    val enableS3: Boolean = booleanOf("ENABLE_S3") ?: false
+    val enableS3: Boolean = requireNotNull(booleanOf("ENABLE_S3")) { "ENABLE_S3 を true か false で設定すること" }
 
     /**
      * 画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして発行したトークンを STS に渡して受け取る。
