@@ -95,8 +95,8 @@ private fun ScreenContent(
             )
         }
 
-        Screen.Home -> {
-            HomeScreen(navigator = navigator)
+        is Screen.Home -> {
+            HomeScreen(navigator = navigator, tab = screen.tab)
         }
 
         Screen.Post -> {

@@ -48,7 +48,7 @@ internal fun LoginScreen(
         viewModel.eventHandler.collect(
             object : LoginScreenViewModel.Event {
                 override fun loggedIn() {
-                    navigator.replaceAll(Screen.Home)
+                    navigator.replaceAll(Screen.Home.Timeline)
                 }
 
                 override fun showMessage(message: String) {
