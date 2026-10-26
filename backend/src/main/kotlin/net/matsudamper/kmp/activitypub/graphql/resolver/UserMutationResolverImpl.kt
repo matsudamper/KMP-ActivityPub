@@ -261,6 +261,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             UpdateProfileResult.Updated -> null
             UpdateProfileResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
             UpdateProfileResult.IconTooLarge -> QlUpdateProfileFailure.ICON_TOO_LARGE
+            UpdateProfileResult.IconDimensionsTooLarge -> QlUpdateProfileFailure.ICON_DIMENSIONS_TOO_LARGE
             UpdateProfileResult.IconUnsupported -> QlUpdateProfileFailure.ICON_UNSUPPORTED
             UpdateProfileResult.ImageStorageDisabled -> QlUpdateProfileFailure.IMAGE_STORAGE_DISABLED
             UpdateProfileResult.IconUploadFailed -> QlUpdateProfileFailure.ICON_UPLOAD_FAILED

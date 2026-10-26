@@ -56,7 +56,12 @@ class ProfileUpdateService(
                 null
             } else {
                 if (icon.size > MAX_ICON_BYTES) return UpdateProfileResult.IconTooLarge
-                ProfileIconFormat.detect(icon) ?: return UpdateProfileResult.IconUnsupported
+                val format = ProfileIconFormat.detect(icon) ?: return UpdateProfileResult.IconUnsupported
+                val dimensions = ProfileIconDimensions.read(icon, format) ?: return UpdateProfileResult.IconUnsupported
+                if (dimensions.width > MAX_ICON_SIDE_PX || dimensions.height > MAX_ICON_SIDE_PX) {
+                    return UpdateProfileResult.IconDimensionsTooLarge
+                }
+                format
             }
         val sender = senders.find(username) ?: return UpdateProfileResult.AccountNotFound
         val account = accountService.account(sender.urls.username) ?: return UpdateProfileResult.AccountNotFound
@@ -175,6 +180,11 @@ class ProfileUpdateService(
          * Mastodon のプロフィール画像の上限
          */
         const val MAX_ICON_BYTES: Int = 2 * 1024 * 1024
+
+        /**
+         * 縦横それぞれの上限。画面は送る前にこの大きさに縮める。Mastodon のプロフィール画像と同じ
+         */
+        const val MAX_ICON_SIDE_PX: Int = 400
     }
 }
 
@@ -200,6 +210,11 @@ sealed interface UpdateProfileResult {
     data object TooLong : UpdateProfileResult
 
     data object IconTooLarge : UpdateProfileResult
+
+    /**
+     * 縦か横が [ProfileUpdateService.MAX_ICON_SIDE_PX] を超えている
+     */
+    data object IconDimensionsTooLarge : UpdateProfileResult
 
     /**
      * PNG / JPEG / GIF / WebP ではない

@@ -133,6 +133,30 @@ class ProfileUpdateServiceTest {
     }
 
     @Test
+    fun `縦か横が上限を超えるプロフィール画像は置かない`() {
+        assertEquals(
+            UpdateProfileResult.IconDimensionsTooLarge,
+            service.update(username = "user1", displayName = "名前", icon = TestProfileIcons.read("401x3.png")),
+        )
+        assertEquals(
+            UpdateProfileResult.IconDimensionsTooLarge,
+            service.update(username = "user1", displayName = "名前", icon = TestProfileIcons.read("5x402.gif")),
+        )
+
+        assertEquals(mapOf(), imageStorage.images)
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `寸法を読めない画像は置かない`() {
+        val headerOnly = TestProfileIcons.read("400x400.png").copyOf(16)
+
+        assertEquals(UpdateProfileResult.IconUnsupported, service.update(username = "user1", displayName = "名前", icon = headerOnly))
+
+        assertEquals(mapOf(), imageStorage.images)
+    }
+
+    @Test
     fun `画像の置き場が無ければプロフィール画像を変えられない`() {
         val service = createService(imageStorage = null)
 
@@ -185,6 +209,6 @@ class ProfileUpdateServiceTest {
         const val INBOX_B = "https://b.example/inbox"
         const val STORED_SUMMARY = "自己紹介"
         val NOW: Instant = Instant.parse("2026-10-01T00:00:00Z")
-        val PNG: ByteArray = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00)
+        val PNG: ByteArray = TestProfileIcons.read("400x400.png")
     }
 }

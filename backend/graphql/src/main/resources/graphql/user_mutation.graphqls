@@ -14,7 +14,7 @@ type UserMutation {
     postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
     """
     ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。displayName が空なら未設定に戻す。
-    icon は新しいプロフィール画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで。null なら今の画像のまま
+    icon は新しいプロフィール画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで。null なら今の画像のまま
     """
     updateProfile(displayName: String!, icon: String): UpdateProfileResult! @lazy
 }
@@ -104,6 +104,8 @@ enum UpdateProfileFailure {
     TOO_LONG
     "プロフィール画像が大きすぎる。上限は 2MiB"
     ICON_TOO_LARGE
+    "プロフィール画像の縦か横が 400px を超えている"
+    ICON_DIMENSIONS_TOO_LARGE
     "プロフィール画像が base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
     ICON_UNSUPPORTED
     "サーバーに画像の置き場が無く、プロフィール画像を変えられない"
