@@ -158,7 +158,7 @@ internal class ProfileEditScreenViewModel(
                         UserUpdateProfileResult.IconTooLarge -> "画像が大きすぎます。2MB までにしてください"
                         UserUpdateProfileResult.IconDimensionsTooLarge -> "画像が大きすぎます。縦横 ${ICON_SIDE_PX}px までにしてください"
                         UserUpdateProfileResult.IconUnsupported -> "PNG / JPEG / GIF / WebP の画像にしてください"
-                        UserUpdateProfileResult.ImageStorageDisabled -> "サーバーが画像を保存できる設定になっていません"
+                        UserUpdateProfileResult.UnsupportedOperation -> "このサーバーでは受け付けていない操作です"
                         UserUpdateProfileResult.IconUploadFailed -> "画像を保存できませんでした"
                         UserUpdateProfileResult.FederationDisabled -> "サーバーがプロフィールの更新を配れる設定になっていません"
                         is UserUpdateProfileResult.Failure -> result.message

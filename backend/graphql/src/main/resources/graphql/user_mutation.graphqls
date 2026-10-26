@@ -108,8 +108,8 @@ enum UpdateProfileFailure {
     ICON_DIMENSIONS_TOO_LARGE
     "プロフィール画像が base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
     ICON_UNSUPPORTED
-    "サーバーに画像の置き場が無く、プロフィール画像を変えられない"
-    IMAGE_STORAGE_DISABLED
+    "このサーバーでは受け付けない操作"
+    UNSUPPORTED_OPERATION
     "プロフィール画像を置けなかった"
     ICON_UPLOAD_FAILED
     "サーバーに DOMAIN が無く、更新を配れない"

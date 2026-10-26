@@ -13,7 +13,7 @@ sealed interface UserUpdateProfileResult {
 
     data object IconUnsupported : UserUpdateProfileResult
 
-    data object ImageStorageDisabled : UserUpdateProfileResult
+    data object UnsupportedOperation : UserUpdateProfileResult
 
     data object IconUploadFailed : UserUpdateProfileResult
 
