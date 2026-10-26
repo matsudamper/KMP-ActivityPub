@@ -80,6 +80,10 @@ graalvmNative {
             // native-image は既定で Arena.ofShared を使えない。Lettuce が使う Netty は Java 25 で直接バッファの解放にこれを使うため、
             // 無効のままだと終了時にイベントループのスレッドが UnsupportedFeatureError で落ち、Lettuce の shutdown が返らずプロセスが終わらない
             buildArgs.add("-H:+SharedArenaSupport")
+            // AWS SDK 経由の netty-codec-http(2) 4.1 が io.netty 全体をビルド時初期化にする。Netty 4.2 で基準時刻が SystemTicker に移ったが
+            // netty-common の設定は旧来の ScheduledFutureTask しか実行時初期化にしておらず、ビルドしたマシンの nanoTime が焼き込まれる。
+            // 実行するホストの稼働時間がそれより短いと、Valkey への接続に使う Lettuce の DNS 問い合わせなどのタイムアウトが即座に発火する
+            buildArgs.add("--initialize-at-run-time=io.netty.util.concurrent.SystemTicker")
         }
     }
 }
