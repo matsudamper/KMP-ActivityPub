@@ -28,18 +28,32 @@ sealed interface Screen : NavKey {
     }
 
     @Serializable
-    data object Home : Screen {
-        override val pathPattern: PathPattern get() = PathPattern("/home")
+    data class Home(
+        val tab: Tab,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = tab.pathPattern
         override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen? get() = null
+        override val parentScreen: Screen? get() = if (tab == Tab.Timeline) null else Timeline
         override val loginRequired: Boolean get() = true
+
+        enum class Tab(
+            val pathPattern: PathPattern,
+        ) {
+            Timeline(PathPattern("/home")),
+            Search(PathPattern("/search")),
+            User(PathPattern("/profile")),
+        }
+
+        companion object {
+            val Timeline: Home = Home(tab = Tab.Timeline)
+        }
     }
 
     @Serializable
     data object Post : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/post")
         override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen get() = Home
+        override val parentScreen: Screen get() = Home.Timeline
         override val loginRequired: Boolean get() = true
     }
 
@@ -47,7 +61,7 @@ sealed interface Screen : NavKey {
     data object Settings : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/settings")
         override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen get() = Home
+        override val parentScreen: Screen get() = Home.Timeline
         override val loginRequired: Boolean get() = true
     }
 
@@ -55,7 +69,7 @@ sealed interface Screen : NavKey {
     data object ProfileEdit : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/settings/profile")
         override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen get() = Home
+        override val parentScreen: Screen get() = Home.Timeline
         override val loginRequired: Boolean get() = true
     }
 
@@ -79,16 +93,15 @@ sealed interface Screen : NavKey {
 
     companion object {
         private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> by lazy {
-            listOf(
+            listOf<Pair<PathPattern, (Map<String, String>) -> Screen>>(
                 Login.pathPattern to { _ -> Login },
-                Home.pathPattern to { _ -> Home },
                 Post.pathPattern to { _ -> Post },
                 Settings.pathPattern to { _ -> Settings },
                 ProfileEdit.pathPattern to { _ -> ProfileEdit },
                 UserProfile.PATH_PATTERN to { parameters ->
                     UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
                 },
-            )
+            ) + Home.Tab.entries.map { tab -> tab.pathPattern to { _ -> Home(tab = tab) } }
         }
 
         fun fromPath(path: String): Screen? {
