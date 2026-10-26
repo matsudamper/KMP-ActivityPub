@@ -14,6 +14,11 @@ type UserMutation {
     postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
+    """
+    ログインしているアカウントのプロフィール画像を差し替え、フォロワーへの Update を積む。
+    icon は画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで
+    """
+    updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
 }
 
 input UserLoginQuery {
@@ -94,8 +99,6 @@ enum UserPostNoteFailure {
 input UpdateProfileQuery {
     "空なら未設定に戻す"
     displayName: String
-    "新しいプロフィール画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで"
-    icon: String
 }
 
 type UpdateProfileResult {
@@ -106,12 +109,24 @@ enum UpdateProfileFailure {
     NOT_LOGGED_IN
     "表示名が長すぎる。上限は 30 文字"
     TOO_LONG
-    "プロフィール画像が大きすぎる。上限は 2MiB"
-    ICON_TOO_LARGE
-    "プロフィール画像の縦か横が 400px を超えている"
-    ICON_DIMENSIONS_TOO_LARGE
-    "プロフィール画像が base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
-    ICON_UNSUPPORTED
+    "サーバーに DOMAIN が無く、更新を配れない"
+    FEDERATION_DISABLED
+}
+
+type UpdateProfileIconResult {
+    "差し替えた画像の URL。失敗したら null"
+    iconUrl: String
+    failure: UpdateProfileIconFailure
+}
+
+enum UpdateProfileIconFailure {
+    NOT_LOGGED_IN
+    "大きすぎる。上限は 2MiB"
+    TOO_LARGE
+    "縦か横が 400px を超えている"
+    DIMENSIONS_TOO_LARGE
+    "base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
+    UNSUPPORTED_IMAGE
     "このサーバーでは受け付けない操作"
     UNSUPPORTED_OPERATION
     "サーバー内部の失敗。時間をおいて送り直せば通ることがある"

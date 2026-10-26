@@ -5,6 +5,7 @@ import java.util.UUID
 import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
+import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
@@ -13,6 +14,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorProfile
 import net.matsudamper.kotpub.actor.ActorPublisher
+import net.matsudamper.kotpub.actor.LocalActor
 import net.matsudamper.kotpub.actor.StoredActorAppearances
 import net.matsudamper.kotpub.actor.StoredActorProfiles
 import org.slf4j.LoggerFactory
@@ -39,58 +41,80 @@ class ProfileUpdateService(
     private val logger = LoggerFactory.getLogger(ProfileUpdateService::class.java)
 
     /**
-     * @param displayName null なら今の表示名のまま。空なら未設定に戻す
-     * @param icon 新しいプロフィール画像。null なら今の画像のまま
+     * @param displayName 空なら未設定に戻す
      */
-    fun update(
+    fun updateDisplayName(
         username: String,
-        displayName: String?,
-        icon: ByteArray?,
-    ): UpdateProfileResult {
-        val displayNameChange =
-            if (displayName == null) {
-                DisplayNameChange.Keep
-            } else {
-                val newDisplayName = displayName.trim().ifEmpty { null }
-                // 書いた人の数え方と合わせるため、コードポイントで数える
-                if (newDisplayName != null && newDisplayName.codePointCount(0, newDisplayName.length) > MAX_DISPLAY_NAME_LENGTH) {
-                    return UpdateProfileResult.TooLong
-                }
-                DisplayNameChange.Set(newDisplayName)
-            }
-        val iconFormat =
-            if (icon == null) {
-                null
-            } else {
-                if (icon.size > MAX_ICON_BYTES) return UpdateProfileResult.IconTooLarge
-                val format = ProfileIconFormat.detect(icon) ?: return UpdateProfileResult.IconUnsupported
-                val dimensions = ProfileIconDimensions.read(icon, format) ?: return UpdateProfileResult.IconUnsupported
-                if (dimensions.width > MAX_ICON_SIDE_PX || dimensions.height > MAX_ICON_SIDE_PX) {
-                    return UpdateProfileResult.IconDimensionsTooLarge
-                }
-                format
-            }
-        val sender = senders.find(username) ?: return UpdateProfileResult.AccountNotFound
-        val account = accountService.account(sender.urls.username) ?: return UpdateProfileResult.AccountNotFound
+        displayName: String,
+    ): UpdateDisplayNameResult {
+        val newDisplayName = displayName.trim().ifEmpty { null }
+        // 書いた人の数え方と合わせるため、コードポイントで数える
+        if (newDisplayName != null && newDisplayName.codePointCount(0, newDisplayName.length) > MAX_DISPLAY_NAME_LENGTH) {
+            return UpdateDisplayNameResult.TooLong
+        }
+        val target = findTarget(username) ?: return UpdateDisplayNameResult.AccountNotFound
+
+        val enqueued = enqueueUpdate(target = target, displayName = DisplayNameChange.Set(newDisplayName), newIconPath = null)
+        return if (enqueued) UpdateDisplayNameResult.Updated else UpdateDisplayNameResult.AccountNotFound
+    }
+
+    /**
+     * 差し替えたら前の画像を消す
+     */
+    fun updateIcon(
+        username: String,
+        icon: ByteArray,
+    ): UpdateIconResult {
+        if (icon.size > MAX_ICON_BYTES) return UpdateIconResult.TooLarge
+        val format = ProfileIconFormat.detect(icon) ?: return UpdateIconResult.Unsupported
+        val dimensions = ProfileIconDimensions.read(icon, format) ?: return UpdateIconResult.Unsupported
+        if (dimensions.width > MAX_ICON_SIDE_PX || dimensions.height > MAX_ICON_SIDE_PX) {
+            return UpdateIconResult.DimensionsTooLarge
+        }
+        val target = findTarget(username) ?: return UpdateIconResult.AccountNotFound
+        val accountId = target.account.id
 
         val newIconPath =
-            if (icon == null || iconFormat == null) {
-                null
-            } else {
-                when (val result = putIcon(accountId = account.id, icon = icon, format = iconFormat)) {
-                    is PutIconResult.Success -> result.path
-                    is PutIconResult.Failure -> return result.result
-                }
+            when (val result = putIcon(accountId = accountId, icon = icon, format = format)) {
+                is PutIconResult.Success -> result.path
+                is PutIconResult.Failure -> return result.result
             }
+        val enqueued = enqueueUpdate(target = target, displayName = DisplayNameChange.Keep, newIconPath = newIconPath)
+        if (!enqueued) {
+            deleteIcon(accountId = accountId, path = newIconPath)
+            return UpdateIconResult.AccountNotFound
+        }
+        val replacedIconPath = target.account.iconPath
+        if (replacedIconPath != null) {
+            deleteIcon(accountId = accountId, path = ImagePath(replacedIconPath))
+        }
+        return UpdateIconResult.Updated
+    }
 
+    private fun findTarget(username: String): UpdateTarget? {
+        val sender = senders.find(username) ?: return null
+        val account = accountService.account(sender.urls.username) ?: return null
+        return UpdateTarget(sender = sender, account = account)
+    }
+
+    /**
+     * @param newIconPath 新しく置いたプロフィール画像。null なら今の画像のまま
+     * @return アカウントが無くて積めなければ false
+     */
+    private fun enqueueUpdate(
+        target: UpdateTarget,
+        displayName: DisplayNameChange,
+        newIconPath: ImagePath?,
+    ): Boolean {
+        val username = target.sender.urls.username
         // 保存より前に組み立てるので、変えない項目は保存済みの値を、変える項目はこれから書く値を載せる
-        val storedProfile = profiles.find(sender.urls.username)
+        val storedProfile = profiles.find(username)
         val updatedProfile =
-            when (displayNameChange) {
+            when (displayName) {
                 DisplayNameChange.Keep -> storedProfile
-                is DisplayNameChange.Set -> storedProfile.copy(displayName = displayNameChange.value)
+                is DisplayNameChange.Set -> storedProfile.copy(displayName = displayName.value)
             }
-        val storedAppearance = appearances.find(sender.urls.username)
+        val storedAppearance = appearances.find(username)
         val updatedAppearance =
             if (newIconPath == null) {
                 storedAppearance
@@ -106,30 +130,23 @@ class ProfileUpdateService(
                     override fun find(username: String): ActorProfile = updatedProfile
                 },
                 webPages = null,
-            ).prepareUpdate(sender)
+            ).prepareUpdate(target.sender)
         val updated =
             deliveryQueueRepository.updateProfile(
                 ProfileUpdate(
-                    username = sender.urls.username,
-                    displayName = displayNameChange,
+                    username = username,
+                    displayName = displayName,
                     newIconPath = newIconPath?.value,
                     updatedAt = clock.instant(),
                     body = body,
-                    inboxes = followerRepository.findDeliveryInboxes(sender.urls.username),
+                    inboxes = followerRepository.findDeliveryInboxes(username),
                 ),
             )
-        if (!updated) {
-            if (newIconPath != null) deleteIcon(accountId = account.id, path = newIconPath)
-            return UpdateProfileResult.AccountNotFound
-        }
-        val replacedIconPath = account.iconPath
-        if (newIconPath != null && replacedIconPath != null) {
-            deleteIcon(accountId = account.id, path = ImagePath(replacedIconPath))
-        }
+        if (!updated) return false
 
-        logger.info("プロフィールの更新を積んだ: ${sender.urls.username}")
+        logger.info("プロフィールの更新を積んだ: $username")
         onEnqueued()
-        return UpdateProfileResult.Updated
+        return true
     }
 
     private fun putIcon(
@@ -137,7 +154,7 @@ class ProfileUpdateService(
         icon: ByteArray,
         format: ProfileIconFormat,
     ): PutIconResult {
-        val storage = imageStorage ?: return PutIconResult.Failure(UpdateProfileResult.ImageStorageDisabled)
+        val storage = imageStorage ?: return PutIconResult.Failure(UpdateIconResult.ImageStorageDisabled)
         val result =
             storage.put(
                 ImageStorage.PutRequest(
@@ -151,13 +168,13 @@ class ProfileUpdateService(
         return when (result) {
             is ImageStorage.PutResult.Success -> PutIconResult.Success(result.path)
 
-            ImageStorage.PutResult.PayloadTooLarge -> PutIconResult.Failure(UpdateProfileResult.IconTooLarge)
+            ImageStorage.PutResult.PayloadTooLarge -> PutIconResult.Failure(UpdateIconResult.TooLarge)
 
-            ImageStorage.PutResult.Empty -> PutIconResult.Failure(UpdateProfileResult.IconUnsupported)
+            ImageStorage.PutResult.Empty -> PutIconResult.Failure(UpdateIconResult.Unsupported)
 
             is ImageStorage.PutResult.Failure -> {
                 logger.error("プロフィール画像を置けなかった: $accountId", result.cause)
-                PutIconResult.Failure(UpdateProfileResult.IconUploadFailed)
+                PutIconResult.Failure(UpdateIconResult.UploadFailed)
             }
         }
     }
@@ -176,10 +193,15 @@ class ProfileUpdateService(
         }
     }
 
+    private class UpdateTarget(
+        val sender: LocalActor,
+        val account: Account,
+    )
+
     private sealed interface PutIconResult {
         data class Success(val path: ImagePath) : PutIconResult
 
-        data class Failure(val result: UpdateProfileResult) : PutIconResult
+        data class Failure(val result: UpdateIconResult) : PutIconResult
     }
 
     companion object {
@@ -216,29 +238,38 @@ internal object ProfileIconPaths {
     fun version(path: ImagePath): String = path.value.substringAfterLast('/')
 }
 
-sealed interface UpdateProfileResult {
-    data object Updated : UpdateProfileResult
+sealed interface UpdateDisplayNameResult {
+    data object Updated : UpdateDisplayNameResult
 
-    data object TooLong : UpdateProfileResult
-
-    data object IconTooLarge : UpdateProfileResult
-
-    /**
-     * 縦か横が [ProfileUpdateService.MAX_ICON_SIDE_PX] を超えている
-     */
-    data object IconDimensionsTooLarge : UpdateProfileResult
-
-    /**
-     * PNG / JPEG / GIF / WebP ではない
-     */
-    data object IconUnsupported : UpdateProfileResult
-
-    data object ImageStorageDisabled : UpdateProfileResult
-
-    data object IconUploadFailed : UpdateProfileResult
+    data object TooLong : UpdateDisplayNameResult
 
     /**
      * アカウントが無いか、鍵が無くてアクターとして扱えない
      */
-    data object AccountNotFound : UpdateProfileResult
+    data object AccountNotFound : UpdateDisplayNameResult
+}
+
+sealed interface UpdateIconResult {
+    data object Updated : UpdateIconResult
+
+    data object TooLarge : UpdateIconResult
+
+    /**
+     * 縦か横が [ProfileUpdateService.MAX_ICON_SIDE_PX] を超えている
+     */
+    data object DimensionsTooLarge : UpdateIconResult
+
+    /**
+     * PNG / JPEG / GIF / WebP ではないか、寸法を読めない
+     */
+    data object Unsupported : UpdateIconResult
+
+    data object ImageStorageDisabled : UpdateIconResult
+
+    data object UploadFailed : UpdateIconResult
+
+    /**
+     * アカウントが無いか、鍵が無くてアクターとして扱えない
+     */
+    data object AccountNotFound : UpdateIconResult
 }

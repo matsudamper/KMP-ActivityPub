@@ -16,6 +16,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
@@ -30,7 +32,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
-import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
+import net.matsudamper.kmp.activitypub.logic.UpdateDisplayNameResult
+import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
@@ -208,6 +211,15 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun updateProfileIcon(
+        userMutation: QlUserMutation,
+        icon: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUpdateProfileIconResult>> {
+        val result = updateProfileIcon(icon = icon, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
         GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
 
@@ -249,23 +261,45 @@ class UserMutationResolverImpl : UserMutationResolver {
         // セッションが残っていてもアカウントが消えていることがある
         val account = diContainer.accountService.account(accountId) ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
         val profileUpdateService = diContainer.profileUpdateService ?: return QlUpdateProfileFailure.FEDERATION_DISABLED
-        val icon = query.icon
-        val iconBytes =
-            if (icon == null) {
-                null
-            } else {
-                runCatching { Base64.Default.decode(icon) }.getOrNull() ?: return QlUpdateProfileFailure.ICON_UNSUPPORTED
-            }
+        val displayName = query.displayName ?: return null
 
-        return when (profileUpdateService.update(username = account.username, displayName = query.displayName, icon = iconBytes)) {
-            UpdateProfileResult.Updated -> null
-            UpdateProfileResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
-            UpdateProfileResult.IconTooLarge -> QlUpdateProfileFailure.ICON_TOO_LARGE
-            UpdateProfileResult.IconDimensionsTooLarge -> QlUpdateProfileFailure.ICON_DIMENSIONS_TOO_LARGE
-            UpdateProfileResult.IconUnsupported -> QlUpdateProfileFailure.ICON_UNSUPPORTED
-            UpdateProfileResult.ImageStorageDisabled -> QlUpdateProfileFailure.UNSUPPORTED_OPERATION
-            UpdateProfileResult.IconUploadFailed -> QlUpdateProfileFailure.INTERNAL_SERVER_ERROR
-            UpdateProfileResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
+        return when (profileUpdateService.updateDisplayName(username = account.username, displayName = displayName)) {
+            UpdateDisplayNameResult.Updated -> null
+            UpdateDisplayNameResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
+            UpdateDisplayNameResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
         }
+    }
+
+    private fun updateProfileIcon(
+        icon: String,
+        env: DataFetchingEnvironment,
+    ): QlUpdateProfileIconResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId =
+            GraphQlEngine.graphQlContext(env).userAccountId()
+                ?: return QlUpdateProfileIconResult(iconUrl = null, failure = QlUpdateProfileIconFailure.NOT_LOGGED_IN)
+        // セッションが残っていてもアカウントが消えていることがある
+        val account =
+            diContainer.accountService.account(accountId)
+                ?: return QlUpdateProfileIconResult(iconUrl = null, failure = QlUpdateProfileIconFailure.NOT_LOGGED_IN)
+        val profileUpdateService =
+            diContainer.profileUpdateService
+                ?: return QlUpdateProfileIconResult(iconUrl = null, failure = QlUpdateProfileIconFailure.FEDERATION_DISABLED)
+        val iconBytes =
+            runCatching { Base64.Default.decode(icon) }.getOrNull()
+                ?: return QlUpdateProfileIconResult(iconUrl = null, failure = QlUpdateProfileIconFailure.UNSUPPORTED_IMAGE)
+
+        val failure =
+            when (profileUpdateService.updateIcon(username = account.username, icon = iconBytes)) {
+                UpdateIconResult.Updated -> null
+                UpdateIconResult.TooLarge -> QlUpdateProfileIconFailure.TOO_LARGE
+                UpdateIconResult.DimensionsTooLarge -> QlUpdateProfileIconFailure.DIMENSIONS_TOO_LARGE
+                UpdateIconResult.Unsupported -> QlUpdateProfileIconFailure.UNSUPPORTED_IMAGE
+                UpdateIconResult.ImageStorageDisabled -> QlUpdateProfileIconFailure.UNSUPPORTED_OPERATION
+                UpdateIconResult.UploadFailed -> QlUpdateProfileIconFailure.INTERNAL_SERVER_ERROR
+                UpdateIconResult.AccountNotFound -> QlUpdateProfileIconFailure.NOT_LOGGED_IN
+            }
+        val iconUrl = if (failure == null) diContainer.profileIconUrls?.find(account.username) else null
+        return QlUpdateProfileIconResult(iconUrl = iconUrl, failure = failure)
     }
 }
