@@ -31,6 +31,8 @@ type Profile {
     username: String!
     "未設定なら null"
     displayName: String
+    "プロフィール画像の URL。未設定なら null"
+    iconUrl: String
 }
 
 type RegisteredPasskey {

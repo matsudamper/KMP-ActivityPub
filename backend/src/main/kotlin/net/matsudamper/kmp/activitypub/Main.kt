@@ -121,6 +121,7 @@ internal fun Application.module(deps: AppDependencies) {
                 loginThrottle = deps.loginThrottle,
                 notePostService = federation?.notePostService,
                 profileUpdateService = federation?.profileUpdateService,
+                profileIconUrls = federation?.profileIconUrls,
             ),
         )
 

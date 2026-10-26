@@ -1,6 +1,8 @@
 "外から見えるユーザーの情報"
 type User {
     username: String!
+    "プロフィール画像の URL。未設定なら null"
+    iconUrl: String
 }
 
 type UserSearchResult {

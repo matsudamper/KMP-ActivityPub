@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
+import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
@@ -111,6 +112,12 @@ internal class Federation(
     val actorIconEndpoint: ActorIconEndpoint? =
         imageStorage?.let { storage ->
             ActorIconEndpoint(directory = directory, icons = AccountActorIcons(accountService = accountService, imageStorage = storage))
+        }
+
+    val profileIconUrls: ProfileIconUrls =
+        ProfileIconUrls { username ->
+            val iconVersion = actorAppearances.find(username).iconVersion
+            if (iconVersion == null) null else directory.resolve(username)?.icon(iconVersion)
         }
 
     val followerEndpoint: FollowerEndpoint = FollowerEndpoint(directory = directory, followers = followers)
