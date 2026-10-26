@@ -5,6 +5,7 @@ query HomeScreenSearchUsers($query: String!, $after: String) {
             host
             isLocal
             displayName
+            iconUrl
         }
         nextCursor
     }
@@ -16,5 +17,6 @@ query HomeScreenResolveUser($query: String!) {
         host
         isLocal
         displayName
+        iconUrl
     }
 }

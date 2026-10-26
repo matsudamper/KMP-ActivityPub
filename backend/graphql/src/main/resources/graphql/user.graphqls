@@ -19,4 +19,5 @@ type SearchedUser {
     isLocal: Boolean!
     "表示名が無ければユーザー名"
     displayName: String!
+    iconUrl: String
 }

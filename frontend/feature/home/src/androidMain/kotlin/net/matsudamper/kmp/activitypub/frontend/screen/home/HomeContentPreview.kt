@@ -3,12 +3,18 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.ColorImage
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImagePreviewHandler
+import coil3.compose.LocalAsyncImagePreviewHandler
 
 @Preview
 @Composable
 private fun HomeContentPreview() {
-    MaterialTheme {
+    HomePreviewTheme {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
@@ -42,7 +48,7 @@ private fun HomeContentPreview() {
 @Preview
 @Composable
 private fun HomeSearchContentPreview() {
-    MaterialTheme {
+    HomePreviewTheme {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Search,
@@ -53,13 +59,13 @@ private fun HomeSearchContentPreview() {
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(
                             HomeScreenUiState.SearchAccount(
-                                avatarInitial = "K",
+                                iconUrl = "https://example.com/icon.png",
                                 displayName = "kotlin",
                                 acct = "@kotlin",
                                 listener = AndroidPreviewSearchAccountListener,
                             ),
                             HomeScreenUiState.SearchAccount(
-                                avatarInitial = "K",
+                                iconUrl = null,
                                 displayName = "Kotlin Weekly",
                                 acct = "@kotlinweekly@remote.example",
                                 listener = null,
@@ -79,7 +85,7 @@ private fun HomeSearchContentPreview() {
 @Preview
 @Composable
 private fun HomeSearchEmptyContentPreview() {
-    MaterialTheme {
+    HomePreviewTheme {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Search,
@@ -103,7 +109,7 @@ private fun HomeSearchEmptyContentPreview() {
 @Preview
 @Composable
 private fun HomeUserContentPreview() {
-    MaterialTheme {
+    HomePreviewTheme {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.User,
@@ -114,7 +120,7 @@ private fun HomeUserContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
-                    avatarInitial = "U",
+                    iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
                 ),
@@ -122,6 +128,17 @@ private fun HomeUserContentPreview() {
             ),
             snackbarHostState = SnackbarHostState(),
         )
+    }
+}
+
+@OptIn(ExperimentalCoilApi::class)
+@Composable
+private fun HomePreviewTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalInspectionMode provides true,
+        LocalAsyncImagePreviewHandler provides AsyncImagePreviewHandler { ColorImage(0xFF26A69A.toInt()) },
+    ) {
+        MaterialTheme(content = content)
     }
 }
 

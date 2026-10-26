@@ -113,7 +113,7 @@ internal class HomeScreenViewModel(
             val profile =
                 when (val result = userApi.myProfile()) {
                     is UserMyProfileResult.Found -> HomeScreenUiState.Profile.Loaded(
-                        avatarInitial = result.username.take(1).uppercase(),
+                        iconUrl = result.iconUrl,
                         displayName = result.displayName ?: result.username,
                         acct = "@${result.username}",
                     )
@@ -225,7 +225,7 @@ internal class HomeScreenViewModel(
 
     private fun createSearchAccount(user: UserSearchResult.User): HomeScreenUiState.SearchAccount {
         return HomeScreenUiState.SearchAccount(
-            avatarInitial = user.username.take(1).uppercase(),
+            iconUrl = user.iconUrl,
             displayName = user.displayName,
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
             // 他のサーバーのユーザーのプロフィール画面はまだ無い

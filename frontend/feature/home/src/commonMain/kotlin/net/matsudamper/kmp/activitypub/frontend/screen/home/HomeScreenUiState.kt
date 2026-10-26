@@ -40,7 +40,7 @@ data class HomeScreenUiState(
     }
 
     data class SearchAccount(
-        val avatarInitial: String,
+        val iconUrl: String?,
         val displayName: String,
         val acct: String,
         /**
@@ -57,7 +57,7 @@ data class HomeScreenUiState(
         ) : Profile
 
         data class Loaded(
-            val avatarInitial: String,
+            val iconUrl: String?,
             val displayName: String,
             val acct: String,
         ) : Profile

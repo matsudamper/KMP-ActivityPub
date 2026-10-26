@@ -96,7 +96,7 @@ class QueryResolverImpl : QueryResolver {
         return CompletableFuture.completedFuture(
             DataFetcherResult.Builder(
                 QlUserSearchResult(
-                    users = result.users.map { it.toQlSearchedUser() },
+                    users = result.users.map { it.toQlSearchedUser(env) },
                     nextCursor = result.nextCursor?.encode(),
                 ),
             ).build(),
@@ -114,10 +114,16 @@ class QueryResolverImpl : QueryResolver {
                 runBlocking {
                     userSearchService.resolveUser(query = query, remoteLookupAllowed = remoteLookupAllowed)
                 }
-            DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser()).build()
+            DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser(env)).build()
         }
     }
 
-    private fun SearchedUser.toQlSearchedUser(): QlSearchedUser =
-        QlSearchedUser(username = username, host = host, isLocal = isLocal, displayName = displayName)
+    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser =
+        QlSearchedUser(
+            username = username,
+            host = host,
+            isLocal = isLocal,
+            displayName = displayName,
+            iconUrl = if (isLocal) GraphQlEngine.diContainer(env).profileIconUrls?.find(username) else iconUrl,
+        )
 }

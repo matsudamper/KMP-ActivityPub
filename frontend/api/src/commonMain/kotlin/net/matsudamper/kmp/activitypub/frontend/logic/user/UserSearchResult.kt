@@ -18,5 +18,6 @@ sealed interface UserSearchResult {
         val host: String,
         val isLocal: Boolean,
         val displayName: String,
+        val iconUrl: String?,
     )
 }

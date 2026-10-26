@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -38,14 +36,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -132,10 +129,18 @@ internal fun HomeContent(
                         selected = uiState.selectedTab == tab,
                         onClick = { uiState.listener.onClickTab(tab) },
                         icon = {
-                            Icon(
-                                imageVector = tab.icon,
-                                contentDescription = null,
-                            )
+                            when (tab) {
+                                HomeScreenUiState.Tab.User -> ProfileIcon(
+                                    iconUrl = (uiState.profile as? HomeScreenUiState.Profile.Loaded)?.iconUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                )
+
+                                HomeScreenUiState.Tab.Home, HomeScreenUiState.Tab.Search -> Icon(
+                                    imageVector = if (tab == HomeScreenUiState.Tab.Home) AppIcons.Home else AppIcons.Search,
+                                    contentDescription = null,
+                                )
+                            }
                         },
                         label = { Text(tab.label) },
                     )
@@ -307,19 +312,11 @@ private fun UserTabContent(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = profile.avatarInitial,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
+                        ProfileIcon(
+                            iconUrl = profile.iconUrl,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                        )
                         Column(
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
@@ -372,19 +369,11 @@ private fun SearchAccountItem(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = account.avatarInitial,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
+        ProfileIcon(
+            iconUrl = account.iconUrl,
+            contentDescription = null,
+            modifier = Modifier.size(40.dp),
+        )
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -461,13 +450,6 @@ private val HomeScreenUiState.Tab.label: String
         HomeScreenUiState.Tab.Home -> "ホーム"
         HomeScreenUiState.Tab.Search -> "検索"
         HomeScreenUiState.Tab.User -> "ユーザー"
-    }
-
-private val HomeScreenUiState.Tab.icon: ImageVector
-    get() = when (this) {
-        HomeScreenUiState.Tab.Home -> AppIcons.Home
-        HomeScreenUiState.Tab.Search -> AppIcons.Search
-        HomeScreenUiState.Tab.User -> AppIcons.Person
     }
 
 private const val SEARCH_QUERY_INPUT_ID = "home-search-query"
