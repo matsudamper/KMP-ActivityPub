@@ -1,5 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -11,7 +15,10 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
+import androidx.navigation3.ui.defaultPopTransitionSpec
+import androidx.navigation3.ui.defaultTransitionSpec
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
@@ -48,12 +55,29 @@ fun HomeNavigationHost(
         backStack = backStack,
         modifier = modifier,
         onBack = { backStack.removeLastOrNull() },
+        transitionSpec = {
+            if (isHomeTabSwitch()) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else {
+                defaultTransitionSpec<NavKey>()(this)
+            }
+        },
+        popTransitionSpec = {
+            if (isHomeTabSwitch()) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else {
+                defaultPopTransitionSpec<NavKey>()(this)
+            }
+        },
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
         ),
         entryProvider = { key ->
-            NavEntry(key) {
+            NavEntry(
+                key = key,
+                metadata = if (key is Screen.Home) HOME_TAB_METADATA else mapOf(),
+            ) {
                 val screen = key as Screen
                 if (screen.loginRequired) {
                     when (loginGateUiState.content) {
@@ -87,6 +111,21 @@ fun HomeNavigationHost(
             }
         },
     )
+}
+
+private const val HOME_TAB_METADATA_KEY = "homeTab"
+private val HOME_TAB_METADATA: Map<String, Any> = mapOf(HOME_TAB_METADATA_KEY to true)
+
+/**
+ * 下タブの切り替えは画面を積み替えているが、見た目は中身だけが変わる。
+ * 画面遷移のアニメーションを付けると下タブまでフェードしてちらつく
+ */
+private fun AnimatedContentTransitionScope<Scene<NavKey>>.isHomeTabSwitch(): Boolean {
+    return initialState.isHomeTab() && targetState.isHomeTab()
+}
+
+private fun Scene<NavKey>.isHomeTab(): Boolean {
+    return entries.lastOrNull()?.metadata?.containsKey(HOME_TAB_METADATA_KEY) == true
 }
 
 @Composable
