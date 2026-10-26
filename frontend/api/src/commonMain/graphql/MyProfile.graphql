@@ -2,6 +2,7 @@ query MyProfile {
     profile {
         username
         displayName
+        iconUrl
     }
 }
 

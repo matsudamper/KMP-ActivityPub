@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +35,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -155,28 +155,20 @@ private fun LoadedContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                val newIcon = content.newIcon
-                if (newIcon != null) {
-                    Image(
-                        bitmap = newIcon,
-                        contentDescription = "新しいプロフィール画像",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = AppIcons.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            val newIcon = content.newIcon
+            if (newIcon != null) {
+                Image(
+                    bitmap = newIcon,
+                    contentDescription = "新しいプロフィール画像",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(72.dp).clip(CircleShape),
+                )
+            } else {
+                ProfileIcon(
+                    iconUrl = content.currentIconUrl,
+                    contentDescription = "プロフィール画像",
+                    modifier = Modifier.size(72.dp),
+                )
             }
             OutlinedButton(
                 onClick = listener::onClickSelectIcon,

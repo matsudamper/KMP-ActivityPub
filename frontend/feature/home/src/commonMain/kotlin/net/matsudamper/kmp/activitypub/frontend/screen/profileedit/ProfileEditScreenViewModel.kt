@@ -97,6 +97,7 @@ internal class ProfileEditScreenViewModel(
                 when (val result = api.myProfile()) {
                     is UserMyProfileResult.Found -> ViewModelState.Loaded(
                         newIcon = null,
+                        currentIconUrl = result.iconUrl,
                         displayName = result.displayName.orEmpty(),
                         saving = false,
                         hasError = false,
@@ -178,6 +179,7 @@ internal class ProfileEditScreenViewModel(
 
                 is ViewModelState.Loaded -> ProfileEditScreenUiState.Content.Loaded(
                     newIcon = viewModelState.newIcon?.bitmap,
+                    currentIconUrl = viewModelState.currentIconUrl,
                     iconSelectButtonEnabled = viewModelState.saving.not(),
                     displayName = viewModelState.displayName,
                     displayNameInputEnabled = viewModelState.saving.not(),
@@ -200,6 +202,7 @@ internal class ProfileEditScreenViewModel(
 
         data class Loaded(
             val newIcon: NewIcon?,
+            val currentIconUrl: String?,
             val displayName: String,
             val saving: Boolean,
             val hasError: Boolean,

@@ -17,9 +17,11 @@ data class ProfileEditScreenUiState(
 
         /**
          * @param newIcon 選んだがまだ保存していないプロフィール画像。選んでいなければ null
+         * @param currentIconUrl 保存済みのプロフィール画像。未設定なら null
          */
         data class Loaded(
             val newIcon: ImageBitmap?,
+            val currentIconUrl: String?,
             val iconSelectButtonEnabled: Boolean,
             val displayName: String,
             val displayNameInputEnabled: Boolean,

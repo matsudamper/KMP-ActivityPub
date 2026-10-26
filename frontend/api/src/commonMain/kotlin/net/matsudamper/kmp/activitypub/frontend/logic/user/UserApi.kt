@@ -83,7 +83,7 @@ class UserApi(
         val data = response.data ?: return UserProfileResult.Failure(response.failureMessage())
         val user = data.user ?: return UserProfileResult.NotFound
 
-        return UserProfileResult.Found(username = user.username)
+        return UserProfileResult.Found(username = user.username, iconUrl = user.iconUrl)
     }
 
     suspend fun searchUsers(
@@ -139,7 +139,7 @@ class UserApi(
         val data = response.data ?: return UserMyProfileResult.Failure(response.failureMessage())
         val profile = data.profile ?: return UserMyProfileResult.NotLoggedIn
 
-        return UserMyProfileResult.Found(username = profile.username, displayName = profile.displayName)
+        return UserMyProfileResult.Found(username = profile.username, displayName = profile.displayName, iconUrl = profile.iconUrl)
     }
 
     /**

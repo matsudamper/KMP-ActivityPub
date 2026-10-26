@@ -17,6 +17,7 @@ private fun ProfileEditContentPreview() {
             uiState = ProfileEditScreenUiState(
                 content = ProfileEditScreenUiState.Content.Loaded(
                     newIcon = null,
+                    currentIconUrl = null,
                     iconSelectButtonEnabled = true,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
@@ -56,6 +57,7 @@ private fun ProfileEditContentNewIconPreview() {
                     newIcon = ImageBitmap(width = 72, height = 72).apply {
                         Canvas(this).drawRect(0f, 0f, 72f, 72f, Paint().apply { color = Color(0xFF4A90D9) })
                     },
+                    currentIconUrl = null,
                     iconSelectButtonEnabled = true,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,

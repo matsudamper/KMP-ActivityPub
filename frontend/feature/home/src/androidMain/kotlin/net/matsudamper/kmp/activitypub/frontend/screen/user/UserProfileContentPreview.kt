@@ -10,7 +10,7 @@ private fun UserProfileContentPreview() {
     MaterialTheme {
         UserProfileContent(
             uiState = UserProfileScreenUiState(
-                content = UserProfileScreenUiState.Content.Loaded(acct = "@alice"),
+                content = UserProfileScreenUiState.Content.Loaded(acct = "@alice", iconUrl = null),
                 listener = AndroidPreviewUserProfileListener,
             ),
         )
