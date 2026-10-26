@@ -103,6 +103,7 @@ internal class ProfileEditScreenViewModel(
                 when (val result = api.myProfile()) {
                     is UserMyProfileResult.Found -> ViewModelState.Loaded(
                         newIcon = null,
+                        processingIcon = false,
                         currentIconUrl = result.iconUrl,
                         displayName = result.displayName.orEmpty(),
                         saving = false,
@@ -118,21 +119,21 @@ internal class ProfileEditScreenViewModel(
 
     private fun pickIcon(bytes: ByteArray) {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
-        if (state.saving) return
+        if (state.saving || state.processingIcon) return
+        viewModelStateFlow.value = state.copy(processingIcon = true)
 
         viewModelScope.launch {
             // 展開と PNG への書き出しは画面を止めるほど重い
             val icon = withContext(Dispatchers.Default) { bytes.toProfileIconOrNull(sidePx = ICON_SIDE_PX) }
+            viewModelStateFlow.update { current ->
+                when {
+                    current !is ViewModelState.Loaded -> current
+                    icon == null -> current.copy(processingIcon = false)
+                    else -> current.copy(newIcon = ViewModelState.NewIcon(bytes = icon.png, bitmap = icon.bitmap), processingIcon = false)
+                }
+            }
             if (icon == null) {
                 events.send { it.showMessage("画像として読み込めませんでした") }
-                return@launch
-            }
-            viewModelStateFlow.update { current ->
-                if (current is ViewModelState.Loaded && current.saving.not()) {
-                    current.copy(newIcon = ViewModelState.NewIcon(bytes = icon.png, bitmap = icon.bitmap))
-                } else {
-                    current
-                }
             }
         }
     }
@@ -143,7 +144,8 @@ internal class ProfileEditScreenViewModel(
 
     private fun save() {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
-        if (state.saving) return
+        // 縮めている途中の画像は newIcon にまだ入っていないので、送ると選んだ画像が抜ける
+        if (state.saving || state.processingIcon) return
 
         viewModelStateFlow.value = state.copy(saving = true, hasError = false)
         viewModelScope.launch {
@@ -190,11 +192,11 @@ internal class ProfileEditScreenViewModel(
                 is ViewModelState.Loaded -> ProfileEditScreenUiState.Content.Loaded(
                     newIcon = viewModelState.newIcon?.bitmap,
                     currentIconUrl = viewModelState.currentIconUrl,
-                    iconSelectButtonEnabled = viewModelState.saving.not(),
+                    iconSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                     displayName = viewModelState.displayName,
                     displayNameInputEnabled = viewModelState.saving.not(),
                     displayNameHasError = viewModelState.hasError,
-                    saveButtonEnabled = viewModelState.saving.not(),
+                    saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                 )
             },
             backButtonEnabled = viewModelState.saving().not(),
@@ -210,8 +212,12 @@ internal class ProfileEditScreenViewModel(
             val message: String,
         ) : ViewModelState
 
+        /**
+         * @param processingIcon 選んだ画像を縮めている途中
+         */
         data class Loaded(
             val newIcon: NewIcon?,
+            val processingIcon: Boolean,
             val currentIconUrl: String?,
             val displayName: String,
             val saving: Boolean,
