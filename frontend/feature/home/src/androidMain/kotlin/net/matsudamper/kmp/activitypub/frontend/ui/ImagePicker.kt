@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +14,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.exifinterface.media.ExifInterface
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
@@ -64,17 +68,68 @@ private fun InputStream.readAtMost(limit: Int): ByteArray {
 }
 
 /**
- * 圧縮後は小さくても画素数の大きい画像があり、原寸で展開するとメモリが足りなくなる。表示に要る大きさまで間引いて読む
+ * 圧縮後は小さくても画素数の大きい画像があるので、目標の大きさを下回らない範囲で間引いて読む。
+ * 写真は撮った向きを EXIF に持つことが多く、BitmapFactory はそれを見ないので、描き直すときに回す
  */
-internal actual fun ByteArray.decodeToImageBitmapOrNull(): ImageBitmap? {
+internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(this, 0, size, bounds)
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
-    val longestSide = maxOf(bounds.outWidth, bounds.outHeight)
-    val sampleSize = generateSequence(1) { it * 2 }.first { longestSide / it <= MAX_DECODED_SIDE }
-    val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-    return BitmapFactory.decodeByteArray(this, 0, size, options)?.asImageBitmap()
+    val shortestSide = minOf(bounds.outWidth, bounds.outHeight)
+    val sampleSize = generateSequence(1) { it * 2 }.takeWhile { shortestSide / it >= sidePx }.lastOrNull() ?: 1
+    val decoded = BitmapFactory.decodeByteArray(this, 0, size, BitmapFactory.Options().apply { inSampleSize = sampleSize }) ?: return null
+
+    val cropSide = minOf(decoded.width, decoded.height)
+    val targetSide = minOf(cropSide, sidePx)
+    val matrix = orientationMatrix(readExifOrientation()).apply {
+        val scale = targetSide.toFloat() / cropSide
+        postScale(scale, scale)
+    }
+    val icon =
+        Bitmap.createBitmap(
+            decoded,
+            (decoded.width - cropSide) / 2,
+            (decoded.height - cropSide) / 2,
+            cropSide,
+            cropSide,
+            matrix,
+            true,
+        )
+    val png = ByteArrayOutputStream().also { icon.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+    return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
 
-private const val MAX_DECODED_SIDE = 512
+private fun ByteArray.readExifOrientation(): Int =
+    runCatching { ExifInterface(ByteArrayInputStream(this)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
+        .getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+private fun orientationMatrix(orientation: Int): Matrix =
+    Matrix().apply {
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> setScale(-1f, 1f)
+
+            ExifInterface.ORIENTATION_ROTATE_180 -> setRotate(180f)
+
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> {
+                setRotate(180f)
+                postScale(-1f, 1f)
+            }
+
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                setRotate(90f)
+                postScale(-1f, 1f)
+            }
+
+            ExifInterface.ORIENTATION_ROTATE_90 -> setRotate(90f)
+
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                setRotate(-90f)
+                postScale(-1f, 1f)
+            }
+
+            ExifInterface.ORIENTATION_ROTATE_270 -> setRotate(-90f)
+
+            else -> Unit
+        }
+    }

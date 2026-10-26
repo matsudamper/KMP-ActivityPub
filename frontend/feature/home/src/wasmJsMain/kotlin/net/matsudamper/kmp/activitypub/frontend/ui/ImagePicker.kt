@@ -12,7 +12,11 @@ import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
 import org.jetbrains.skia.Codec
 import org.jetbrains.skia.Data
+import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.FilterMipmap
+import org.jetbrains.skia.FilterMode
 import org.jetbrains.skia.Image
+import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Surface
 import org.khronos.webgl.ArrayBuffer
@@ -61,32 +65,43 @@ internal actual fun rememberImagePicker(
 }
 
 /**
- * 圧縮後は小さくても画素数の大きい画像があり、原寸のまま持つとメモリが足りなくなる。
- * 寸法をヘッダーだけで確かめ、展開できる大きさなら長辺 [MAX_DECODED_SIDE] まで縮めた画像に描き直す
+ * 圧縮後は小さくても画素数の大きい画像があり、展開するとメモリが足りなくなる。
+ * 寸法をヘッダーだけで確かめ、展開できる大きさのものだけを描き直す
  */
-internal actual fun ByteArray.decodeToImageBitmapOrNull(): ImageBitmap? =
+internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage? =
     runCatching {
         val codec = Codec.makeFromData(Data.makeFromBytes(this))
-        val width = codec.width
-        val height = codec.height
+        val pixelCount = codec.width.toLong() * codec.height
         codec.close()
-        if (width.toLong() * height > MAX_DECODED_PIXELS) return@runCatching null
+        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching null
 
-        val scale = minOf(1f, MAX_DECODED_SIDE.toFloat() / maxOf(width, height))
-        val scaledWidth = maxOf(1, (width * scale).toInt())
-        val scaledHeight = maxOf(1, (height * scale).toInt())
         val image = Image.makeFromEncoded(this)
-        val surface = Surface.makeRasterN32Premul(scaledWidth, scaledHeight)
+        val cropSide = minOf(image.width, image.height)
+        val targetSide = minOf(cropSide, sidePx)
+        val surface = Surface.makeRasterN32Premul(targetSide, targetSide)
         try {
-            surface.canvas.drawImageRect(image, Rect.makeWH(scaledWidth.toFloat(), scaledHeight.toFloat()))
-            surface.makeImageSnapshot().toComposeImageBitmap()
+            surface.canvas.drawImageRect(
+                image,
+                Rect.makeXYWH(
+                    ((image.width - cropSide) / 2).toFloat(),
+                    ((image.height - cropSide) / 2).toFloat(),
+                    cropSide.toFloat(),
+                    cropSide.toFloat(),
+                ),
+                Rect.makeWH(targetSide.toFloat(), targetSide.toFloat()),
+                // 既定の最近傍で大きく縮めるとギザギザになる
+                FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+                null,
+                true,
+            )
+            val icon = surface.makeImageSnapshot()
+            val png = icon.encodeToData(EncodedImageFormat.PNG)?.bytes ?: return@runCatching null
+            ProfileIconImage(png = png, bitmap = icon.toComposeImageBitmap())
         } finally {
             surface.close()
             image.close()
         }
     }.getOrNull()
-
-private const val MAX_DECODED_SIDE = 512
 
 /**
  * 縮める前に一度は原寸で展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度

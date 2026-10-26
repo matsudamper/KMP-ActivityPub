@@ -9,6 +9,8 @@ sealed interface UserUpdateProfileResult {
 
     data object IconTooLarge : UserUpdateProfileResult
 
+    data object IconDimensionsTooLarge : UserUpdateProfileResult
+
     data object IconUnsupported : UserUpdateProfileResult
 
     data object ImageStorageDisabled : UserUpdateProfileResult

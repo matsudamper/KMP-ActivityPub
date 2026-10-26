@@ -166,6 +166,7 @@ class UserApi(
             UpdateProfileFailure.NOT_LOGGED_IN -> UserUpdateProfileResult.NotLoggedIn
             UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.TooLong
             UpdateProfileFailure.ICON_TOO_LARGE -> UserUpdateProfileResult.IconTooLarge
+            UpdateProfileFailure.ICON_DIMENSIONS_TOO_LARGE -> UserUpdateProfileResult.IconDimensionsTooLarge
             UpdateProfileFailure.ICON_UNSUPPORTED -> UserUpdateProfileResult.IconUnsupported
             UpdateProfileFailure.IMAGE_STORAGE_DISABLED -> UserUpdateProfileResult.ImageStorageDisabled
             UpdateProfileFailure.ICON_UPLOAD_FAILED -> UserUpdateProfileResult.IconUploadFailed

@@ -3,17 +3,19 @@ package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileResult
-import net.matsudamper.kmp.activitypub.frontend.ui.decodeToImageBitmapOrNull
+import net.matsudamper.kmp.activitypub.frontend.ui.toProfileIconOrNull
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -117,23 +119,26 @@ internal class ProfileEditScreenViewModel(
     private fun pickIcon(bytes: ByteArray) {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
         if (state.saving) return
-        val bitmap = bytes.decodeToImageBitmapOrNull()
-        if (bitmap == null) {
-            viewModelScope.launch { events.send { it.showMessage("画像として読み込めませんでした") } }
-            return
-        }
 
-        viewModelStateFlow.update { current ->
-            if (current is ViewModelState.Loaded && current.saving.not()) {
-                current.copy(newIcon = ViewModelState.NewIcon(bytes = bytes, bitmap = bitmap))
-            } else {
-                current
+        viewModelScope.launch {
+            // 展開と PNG への書き出しは画面を止めるほど重い
+            val icon = withContext(Dispatchers.Default) { bytes.toProfileIconOrNull(sidePx = ICON_SIDE_PX) }
+            if (icon == null) {
+                events.send { it.showMessage("画像として読み込めませんでした") }
+                return@launch
+            }
+            viewModelStateFlow.update { current ->
+                if (current is ViewModelState.Loaded && current.saving.not()) {
+                    current.copy(newIcon = ViewModelState.NewIcon(bytes = icon.png, bitmap = icon.bitmap))
+                } else {
+                    current
+                }
             }
         }
     }
 
     private fun showIconTooLarge() {
-        viewModelScope.launch { events.send { it.showMessage("画像が大きすぎます。2MB までにしてください") } }
+        viewModelScope.launch { events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") } }
     }
 
     private fun save() {
@@ -149,6 +154,7 @@ internal class ProfileEditScreenViewModel(
                         UserUpdateProfileResult.NotLoggedIn -> "ログインしていません"
                         UserUpdateProfileResult.TooLong -> "表示名が長すぎます"
                         UserUpdateProfileResult.IconTooLarge -> "画像が大きすぎます。2MB までにしてください"
+                        UserUpdateProfileResult.IconDimensionsTooLarge -> "画像が大きすぎます。縦横 ${ICON_SIDE_PX}px までにしてください"
                         UserUpdateProfileResult.IconUnsupported -> "PNG / JPEG / GIF / WebP の画像にしてください"
                         UserUpdateProfileResult.ImageStorageDisabled -> "サーバーが画像を保存できる設定になっていません"
                         UserUpdateProfileResult.IconUploadFailed -> "画像を保存できませんでした"
@@ -231,8 +237,13 @@ internal class ProfileEditScreenViewModel(
 
     companion object {
         /**
-         * サーバーが受け付ける大きさ。送る前に断り、大きなファイルを送り切るまで待たせない
+         * 選んだファイルを読む上限。縮めて送るので、スマートフォンの写真がそのまま収まる大きさにする
          */
-        const val MAX_ICON_BYTES = 2 * 1024 * 1024
+        const val MAX_SOURCE_ICON_BYTES = 20 * 1024 * 1024
+
+        /**
+         * 送る前に縮める大きさ。サーバーはこれを超える縦横を受け付けない
+         */
+        private const val ICON_SIDE_PX = 400
     }
 }

@@ -17,6 +17,16 @@ internal expect fun rememberImagePicker(
 ): () -> Unit
 
 /**
- * 表示用に長辺を縮めて読む。画像として読めないか、画素数が大きすぎて展開できなければ null
+ * 中央を正方形に切り抜き、一辺 [sidePx] の PNG に描き直す。元が小さければ拡大しない。
+ * 画像として読めないか、画素数が大きすぎて展開できなければ null
  */
-internal expect fun ByteArray.decodeToImageBitmapOrNull(): ImageBitmap?
+internal expect fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage?
+
+/**
+ * @param png 送る画像。写真の位置情報などのメタデータは描き直したときに落ちる
+ * @param bitmap [png] と同じ絵。プレビューに出す
+ */
+internal class ProfileIconImage(
+    val png: ByteArray,
+    val bitmap: ImageBitmap,
+)

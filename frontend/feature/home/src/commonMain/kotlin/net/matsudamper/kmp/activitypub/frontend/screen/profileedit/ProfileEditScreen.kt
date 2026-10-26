@@ -52,7 +52,7 @@ internal fun ProfileEditScreen(
     val coroutineScope = rememberCoroutineScope()
     val pickIcon =
         rememberImagePicker(
-            maxBytes = ProfileEditScreenViewModel.MAX_ICON_BYTES,
+            maxBytes = ProfileEditScreenViewModel.MAX_SOURCE_ICON_BYTES,
             onPick = uiState.listener::onIconPicked,
             onTooLarge = uiState.listener::onIconTooLarge,
             onReadError = uiState.listener::onIconReadError,

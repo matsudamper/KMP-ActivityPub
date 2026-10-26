@@ -4,6 +4,7 @@ androidGradlePlugin = "9.2.1"
 androidCompileSdk = "37"
 compose = "1.12.1"
 androidxActivity = "1.13.0"
+androidxExifinterface = "1.4.2"
 kotlinxCoroutines = "1.11.0"
 kotlinxSerialization = "1.11.0"
 navigation3 = "1.1.2"
@@ -49,6 +50,7 @@ nimbusJoseJwt = "10.9.1"
 awsSdk = "2.57.3"
 
 [libraries]
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "androidxExifinterface" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutines" }
