@@ -38,6 +38,8 @@ data class ProfileEditScreenUiState(
 
         fun onIconTooLarge()
 
+        fun onIconReadError()
+
         fun onDisplayNameChanged(text: String)
 
         fun onClickSave()

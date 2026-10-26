@@ -6,16 +6,17 @@ import androidx.compose.ui.graphics.ImageBitmap
 /**
  * 画像ファイルを選ばせる。返した関数を呼ぶと選ぶ画面を開き、選ばれたファイルの中身を [onPick] に渡す。
  * [maxBytes] を超えるファイルは最後まで読まずに [onTooLarge] を呼ぶ。大きな写真を丸ごと読むとメモリが足りなくなる。
- * 選ばずに閉じたら何も呼ばない
+ * ファイルを読めなければ [onReadError] を呼ぶ。選ばずに閉じたら何も呼ばない
  */
 @Composable
 internal expect fun rememberImagePicker(
     maxBytes: Int,
     onPick: (ByteArray) -> Unit,
     onTooLarge: () -> Unit,
+    onReadError: () -> Unit,
 ): () -> Unit
 
 /**
- * 画像として読めなければ null
+ * 表示用に長辺を縮めて読む。画像として読めないか、画素数が大きすぎて展開できなければ null
  */
 internal expect fun ByteArray.decodeToImageBitmapOrNull(): ImageBitmap?

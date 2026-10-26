@@ -55,6 +55,7 @@ internal fun ProfileEditScreen(
             maxBytes = ProfileEditScreenViewModel.MAX_ICON_BYTES,
             onPick = uiState.listener::onIconPicked,
             onTooLarge = uiState.listener::onIconTooLarge,
+            onReadError = uiState.listener::onIconReadError,
         )
 
     LaunchedEffect(viewModel.eventHandler, navigator, pickIcon) {

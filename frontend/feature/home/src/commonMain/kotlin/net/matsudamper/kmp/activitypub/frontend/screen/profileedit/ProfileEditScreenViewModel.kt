@@ -45,6 +45,10 @@ internal class ProfileEditScreenViewModel(
                         showIconTooLarge()
                     }
 
+                    override fun onIconReadError() {
+                        viewModelScope.launch { events.send { it.showMessage("画像ファイルを読み込めませんでした") } }
+                    }
+
                     override fun onDisplayNameChanged(text: String) {
                         viewModelStateFlow.update { state ->
                             if (state is ViewModelState.Loaded && state.saving.not()) {

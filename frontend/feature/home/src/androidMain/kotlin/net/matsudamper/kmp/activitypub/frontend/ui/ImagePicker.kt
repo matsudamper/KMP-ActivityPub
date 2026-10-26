@@ -23,18 +23,24 @@ internal actual fun rememberImagePicker(
     maxBytes: Int,
     onPick: (ByteArray) -> Unit,
     onTooLarge: () -> Unit,
+    onReadError: () -> Unit,
 ): () -> Unit {
     val context = LocalContext.current
     val currentOnPick by rememberUpdatedState(onPick)
     val currentOnTooLarge by rememberUpdatedState(onTooLarge)
+    val currentOnReadError by rememberUpdatedState(onReadError)
     val coroutineScope = rememberCoroutineScope()
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) {
                 coroutineScope.launch {
-                    val bytes = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { it.readAtMost(maxBytes + 1) } }
+                    // 選んだ後に消されたファイルや権限の無いファイルは openInputStream が null を返すか投げる
+                    val bytes =
+                        withContext(Dispatchers.IO) {
+                            runCatching { context.contentResolver.openInputStream(uri)?.use { it.readAtMost(maxBytes + 1) } }.getOrNull()
+                        }
                     when {
-                        bytes == null -> Unit
+                        bytes == null -> currentOnReadError()
                         bytes.size > maxBytes -> currentOnTooLarge()
                         else -> currentOnPick(bytes)
                     }
