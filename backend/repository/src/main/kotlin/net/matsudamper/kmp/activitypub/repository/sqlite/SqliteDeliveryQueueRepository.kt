@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
@@ -72,7 +73,13 @@ internal class SqliteDeliveryQueueRepository(
                 .fetchOne(ACCOUNTS.ID)
                 ?: return@transaction false
         dsl.update(ACCOUNTS)
-            .set(ACCOUNTS.DISPLAY_NAME, update.displayName)
+            .set(
+                ACCOUNTS.DISPLAY_NAME,
+                when (val displayName = update.displayName) {
+                    DisplayNameChange.Keep -> ACCOUNTS.DISPLAY_NAME
+                    is DisplayNameChange.Set -> DSL.value(displayName.value)
+                },
+            )
             .set(ACCOUNTS.ICON_PATH, update.newIconPath?.let { DSL.value(it) } ?: ACCOUNTS.ICON_PATH)
             .where(ACCOUNTS.ID.eq(accountId))
             .execute()

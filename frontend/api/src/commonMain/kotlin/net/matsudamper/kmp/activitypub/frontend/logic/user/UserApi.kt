@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
@@ -154,8 +155,10 @@ class UserApi(
             client
                 .mutation(
                     UpdateProfileMutation(
-                        displayName = displayName,
-                        icon = Optional.presentIfNotNull(icon?.let { Base64.Default.encode(it) }),
+                        UpdateProfileQuery(
+                            displayName = Optional.present(displayName),
+                            icon = Optional.presentIfNotNull(icon?.let { Base64.Default.encode(it) }),
+                        ),
                     ),
                 ).execute()
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())

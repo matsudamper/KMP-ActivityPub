@@ -12,11 +12,8 @@ type UserMutation {
     logout: Boolean! @lazy
     "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
     postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
-    """
-    ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。displayName が空なら未設定に戻す。
-    icon は新しいプロフィール画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで。null なら今の画像のまま
-    """
-    updateProfile(displayName: String!, icon: String): UpdateProfileResult! @lazy
+    "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
+    updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
 }
 
 input UserLoginQuery {
@@ -92,6 +89,13 @@ enum UserPostNoteFailure {
     TOO_LONG
     "サーバーに DOMAIN が無く、投稿を配れない"
     FEDERATION_DISABLED
+}
+
+input UpdateProfileQuery {
+    "空なら未設定に戻す"
+    displayName: String
+    "新しいプロフィール画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで"
+    icon: String
 }
 
 type UpdateProfileResult {

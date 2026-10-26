@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
@@ -200,11 +201,10 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     override fun updateProfile(
         userMutation: QlUserMutation,
-        displayName: String,
-        icon: String?,
+        query: QlUpdateProfileQuery,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUpdateProfileResult>> {
-        val result = QlUpdateProfileResult(failure = updateProfile(displayName = displayName, icon = icon, env = env))
+        val result = QlUpdateProfileResult(failure = updateProfile(query = query, env = env))
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -241,8 +241,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     }
 
     private fun updateProfile(
-        displayName: String,
-        icon: String?,
+        query: QlUpdateProfileQuery,
         env: DataFetchingEnvironment,
     ): QlUpdateProfileFailure? {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -250,6 +249,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         // セッションが残っていてもアカウントが消えていることがある
         val account = diContainer.accountService.account(accountId) ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
         val profileUpdateService = diContainer.profileUpdateService ?: return QlUpdateProfileFailure.FEDERATION_DISABLED
+        val icon = query.icon
         val iconBytes =
             if (icon == null) {
                 null
@@ -257,7 +257,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 runCatching { Base64.Default.decode(icon) }.getOrNull() ?: return QlUpdateProfileFailure.ICON_UNSUPPORTED
             }
 
-        return when (profileUpdateService.update(username = account.username, displayName = displayName, icon = iconBytes)) {
+        return when (profileUpdateService.update(username = account.username, displayName = query.displayName, icon = iconBytes)) {
             UpdateProfileResult.Updated -> null
             UpdateProfileResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
             UpdateProfileResult.IconTooLarge -> QlUpdateProfileFailure.ICON_TOO_LARGE

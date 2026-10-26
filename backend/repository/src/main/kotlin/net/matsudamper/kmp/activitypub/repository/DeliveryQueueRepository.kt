@@ -104,19 +104,33 @@ data class NotePost(
 )
 
 /**
- * @param displayName 未設定に戻すなら null
+ * @param displayName 書き換えないなら [DisplayNameChange.Keep]
  * @param newIconPath 新しく置いたプロフィール画像の場所。null なら今の場所のまま。
  *   読んだ値を書き戻すと、間に別の更新が差し替えて消した画像を指してしまう
  * @param body 宛先すべてに同じものを送る Update のアクティビティ。プロフィールの全体を載せる
  */
 data class ProfileUpdate(
     val username: String,
-    val displayName: String?,
+    val displayName: DisplayNameChange,
     val newIconPath: String?,
     val updatedAt: Instant,
     val body: String,
     val inboxes: List<String>,
 )
+
+/**
+ * 読んだ値を書き戻さずに済むよう、書き換えないことを値で表す。書き戻すと間に入った別の更新を消す
+ */
+sealed interface DisplayNameChange {
+    data object Keep : DisplayNameChange
+
+    /**
+     * @param value 未設定に戻すなら null
+     */
+    data class Set(
+        val value: String?,
+    ) : DisplayNameChange
+}
 
 /**
  * @param username 署名するこちらのアカウント

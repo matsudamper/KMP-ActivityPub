@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
+import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorPrivateKey
@@ -49,7 +50,7 @@ class ProfileUpdateServiceTest {
 
         val update = deliveryQueueRepository.profileUpdates.single()
         assertEquals("user1", update.username)
-        assertEquals("新しい名前", update.displayName)
+        assertEquals(DisplayNameChange.Set("新しい名前"), update.displayName)
         assertEquals(listOf(INBOX_A, INBOX_B), update.inboxes)
         val activity = Json.parseToJsonElement(update.body).jsonObject
         assertEquals("Update", activity.getValue("type").jsonPrimitive.content)
@@ -64,7 +65,17 @@ class ProfileUpdateServiceTest {
     fun `空の表示名は未設定に戻す`() {
         assertEquals(UpdateProfileResult.Updated, service.update(username = "user1", displayName = "  ", icon = null))
 
-        assertNull(deliveryQueueRepository.profileUpdates.single().displayName)
+        assertEquals(DisplayNameChange.Set(null), deliveryQueueRepository.profileUpdates.single().displayName)
+    }
+
+    @Test
+    fun `表示名に null を渡せば今の表示名のまま Update に載せる`() {
+        assertEquals(UpdateProfileResult.Updated, service.update(username = "user1", displayName = null, icon = null))
+
+        val update = deliveryQueueRepository.profileUpdates.single()
+        assertEquals(DisplayNameChange.Keep, update.displayName)
+        val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
+        assertEquals("古い名前", actor.getValue("name").jsonPrimitive.content)
     }
 
     @Test

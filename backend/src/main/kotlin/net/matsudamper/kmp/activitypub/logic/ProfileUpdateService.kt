@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -38,19 +39,25 @@ class ProfileUpdateService(
     private val logger = LoggerFactory.getLogger(ProfileUpdateService::class.java)
 
     /**
-     * @param displayName 空なら未設定に戻す
+     * @param displayName null なら今の表示名のまま。空なら未設定に戻す
      * @param icon 新しいプロフィール画像。null なら今の画像のまま
      */
     fun update(
         username: String,
-        displayName: String,
+        displayName: String?,
         icon: ByteArray?,
     ): UpdateProfileResult {
-        val newDisplayName = displayName.trim().ifEmpty { null }
-        // 書いた人の数え方と合わせるため、コードポイントで数える
-        if (newDisplayName != null && newDisplayName.codePointCount(0, newDisplayName.length) > MAX_DISPLAY_NAME_LENGTH) {
-            return UpdateProfileResult.TooLong
-        }
+        val displayNameChange =
+            if (displayName == null) {
+                DisplayNameChange.Keep
+            } else {
+                val newDisplayName = displayName.trim().ifEmpty { null }
+                // 書いた人の数え方と合わせるため、コードポイントで数える
+                if (newDisplayName != null && newDisplayName.codePointCount(0, newDisplayName.length) > MAX_DISPLAY_NAME_LENGTH) {
+                    return UpdateProfileResult.TooLong
+                }
+                DisplayNameChange.Set(newDisplayName)
+            }
         val iconFormat =
             if (icon == null) {
                 null
@@ -77,7 +84,12 @@ class ProfileUpdateService(
             }
 
         // 保存より前に組み立てるので、変えない項目は保存済みの値を、変える項目はこれから書く値を載せる
-        val updatedProfile = profiles.find(sender.urls.username).copy(displayName = newDisplayName)
+        val storedProfile = profiles.find(sender.urls.username)
+        val updatedProfile =
+            when (displayNameChange) {
+                DisplayNameChange.Keep -> storedProfile
+                is DisplayNameChange.Set -> storedProfile.copy(displayName = displayNameChange.value)
+            }
         val storedAppearance = appearances.find(sender.urls.username)
         val updatedAppearance =
             if (newIconPath == null) {
@@ -99,7 +111,7 @@ class ProfileUpdateService(
             deliveryQueueRepository.updateProfile(
                 ProfileUpdate(
                     username = sender.urls.username,
-                    displayName = newDisplayName,
+                    displayName = displayNameChange,
                     newIconPath = newIconPath?.value,
                     updatedAt = clock.instant(),
                     body = body,
