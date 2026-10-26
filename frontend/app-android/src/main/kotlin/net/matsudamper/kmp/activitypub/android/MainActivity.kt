@@ -48,7 +48,7 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
             if (activity != null) activityHolder.detach(activity)
         }
     }
-    val backStack = rememberScreenBackStack(startScreens = listOf(Screen.Home))
+    val backStack = rememberScreenBackStack(startScreens = listOf(Screen.Home.Timeline))
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
             HomeNavigationHost(

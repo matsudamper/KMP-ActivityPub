@@ -13,6 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
+import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
 /**
@@ -20,6 +21,7 @@ import org.koin.core.annotation.KoinViewModel
  */
 @KoinViewModel
 internal class HomeScreenViewModel(
+    @InjectedParam private val initialTab: HomeScreenUiState.Tab,
     private val userApi: UserApi,
 ) : ViewModel() {
     private val events = EventSender<Event>()
@@ -31,7 +33,7 @@ internal class HomeScreenViewModel(
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
             HomeScreenUiState(
-                selectedTab = HomeScreenUiState.Tab.Home,
+                selectedTab = initialTab,
                 timelineItems = createDummyTimelineItems(),
                 timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
@@ -53,6 +55,12 @@ internal class HomeScreenViewModel(
                     }
 
                     override fun onClickTab(tab: HomeScreenUiState.Tab) {
+                        viewModelScope.launch {
+                            events.send { it.navigateToTab(tab) }
+                        }
+                    }
+
+                    override fun onTabShown(tab: HomeScreenUiState.Tab) {
                         mutableUiStateFlow.update { it.copy(selectedTab = tab) }
                     }
 
@@ -240,6 +248,8 @@ internal class HomeScreenViewModel(
     }
 
     interface Event {
+        fun navigateToTab(tab: HomeScreenUiState.Tab)
+
         fun navigateToPost()
 
         fun navigateToSettings()

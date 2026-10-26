@@ -50,12 +50,15 @@ import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 internal fun HomeScreen(
     navigator: Navigator,
+    tab: Screen.Home.Tab,
 ) {
-    val viewModel = koinViewModel<HomeScreenViewModel>()
+    val selectedTab = tab.toUiStateTab()
+    val viewModel = koinViewModel<HomeScreenViewModel> { parametersOf(selectedTab) }
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -63,6 +66,10 @@ internal fun HomeScreen(
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
             object : HomeScreenViewModel.Event {
+                override fun navigateToTab(tab: HomeScreenUiState.Tab) {
+                    navigator.replaceCurrent(Screen.Home(tab = tab.toScreenTab()))
+                }
+
                 override fun navigateToPost() {
                     navigator.navigate(Screen.Post)
                 }
@@ -88,6 +95,10 @@ internal fun HomeScreen(
 
     LaunchedEffect(uiState.listener) {
         uiState.listener.onScreenShown()
+    }
+
+    LaunchedEffect(uiState.listener, selectedTab) {
+        uiState.listener.onTabShown(selectedTab)
     }
 
     HomeContent(uiState = uiState, snackbarHostState = snackbarHostState)
@@ -432,6 +443,22 @@ private fun TimelineItem(
             text = item.body,
             style = MaterialTheme.typography.bodyMedium,
         )
+    }
+}
+
+private fun Screen.Home.Tab.toUiStateTab(): HomeScreenUiState.Tab {
+    return when (this) {
+        Screen.Home.Tab.Timeline -> HomeScreenUiState.Tab.Home
+        Screen.Home.Tab.Search -> HomeScreenUiState.Tab.Search
+        Screen.Home.Tab.User -> HomeScreenUiState.Tab.User
+    }
+}
+
+private fun HomeScreenUiState.Tab.toScreenTab(): Screen.Home.Tab {
+    return when (this) {
+        HomeScreenUiState.Tab.Home -> Screen.Home.Tab.Timeline
+        HomeScreenUiState.Tab.Search -> Screen.Home.Tab.Search
+        HomeScreenUiState.Tab.User -> Screen.Home.Tab.User
     }
 }
 

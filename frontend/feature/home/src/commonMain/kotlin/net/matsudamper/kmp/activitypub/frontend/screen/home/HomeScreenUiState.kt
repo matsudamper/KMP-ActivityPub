@@ -76,6 +76,11 @@ data class HomeScreenUiState(
 
         fun onClickTab(tab: Tab)
 
+        /**
+         * URL から開いたときやブラウザの戻る/進むでも、表示中のタブを URL に合わせる
+         */
+        fun onTabShown(tab: Tab)
+
         fun onRefreshTimeline()
 
         fun onSearchQueryChanged(query: String)

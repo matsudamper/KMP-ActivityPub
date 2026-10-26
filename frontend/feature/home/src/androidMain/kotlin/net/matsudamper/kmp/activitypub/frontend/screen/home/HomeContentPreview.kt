@@ -132,6 +132,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onClickTab(tab: HomeScreenUiState.Tab) = Unit
 
+    override fun onTabShown(tab: HomeScreenUiState.Tab) = Unit
+
     override fun onRefreshTimeline() = Unit
 
     override fun onSearchQueryChanged(query: String) = Unit
