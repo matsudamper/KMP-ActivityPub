@@ -13,3 +13,12 @@ mutation UpdateProfile($query: UpdateProfileQuery!) {
         }
     }
 }
+
+mutation UpdateProfileIcon($icon: String!) {
+    user {
+        updateProfileIcon(icon: $icon) {
+            iconUrl
+            failure
+        }
+    }
+}

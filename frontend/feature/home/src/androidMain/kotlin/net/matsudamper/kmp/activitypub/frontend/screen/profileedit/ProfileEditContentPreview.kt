@@ -17,7 +17,8 @@ private fun ProfileEditContentPreview() {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
                 content = ProfileEditScreenUiState.Content.Loaded(
-                    newIcon = null,
+                    iconPreview = null,
+                    iconUploading = false,
                     currentIconUrl = null,
                     iconSelectButtonEnabled = true,
                     displayName = "ユーザー1",
@@ -50,22 +51,23 @@ private fun ProfileEditContentErrorPreview() {
 
 @Preview
 @Composable
-private fun ProfileEditContentNewIconPreview() {
+private fun ProfileEditContentIconUploadingPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
                 content = ProfileEditScreenUiState.Content.Loaded(
-                    newIcon = ImageBitmap(width = 72, height = 72).apply {
+                    iconUploading = true,
+                    iconPreview = ImageBitmap(width = 72, height = 72).apply {
                         Canvas(this).drawRect(0f, 0f, 72f, 72f, Paint().apply { color = Color(0xFF4A90D9) })
                     },
                     currentIconUrl = null,
-                    iconSelectButtonEnabled = true,
+                    iconSelectButtonEnabled = false,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
-                    saveButtonEnabled = true,
+                    saveButtonEnabled = false,
                 ),
-                backButtonEnabled = true,
+                backButtonEnabled = false,
                 listener = AndroidPreviewProfileEditListener,
             ),
             snackbarHostState = SnackbarHostState(),

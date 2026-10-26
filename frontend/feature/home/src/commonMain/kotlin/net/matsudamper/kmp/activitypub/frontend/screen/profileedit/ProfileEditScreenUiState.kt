@@ -17,11 +17,12 @@ data class ProfileEditScreenUiState(
         ) : Content
 
         /**
-         * @param newIcon 選んだがまだ保存していないプロフィール画像。選んでいなければ null
+         * @param iconPreview 選んで送った（送っている）画像。あれば [currentIconUrl] より優先して出す
          * @param currentIconUrl 保存済みのプロフィール画像。未設定なら null
          */
         data class Loaded(
-            val newIcon: ImageBitmap?,
+            val iconPreview: ImageBitmap?,
+            val iconUploading: Boolean,
             val currentIconUrl: String?,
             val iconSelectButtonEnabled: Boolean,
             val displayName: String,

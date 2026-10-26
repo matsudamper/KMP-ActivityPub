@@ -150,20 +150,28 @@ private fun LoadedContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            val newIcon = content.newIcon
-            if (newIcon != null) {
-                Image(
-                    bitmap = newIcon,
-                    contentDescription = "新しいプロフィール画像",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(72.dp).clip(CircleShape),
-                )
-            } else {
-                ProfileIcon(
-                    iconUrl = content.currentIconUrl,
-                    contentDescription = "プロフィール画像",
-                    modifier = Modifier.size(72.dp),
-                )
+            Box(
+                modifier = Modifier.size(72.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                val iconPreview = content.iconPreview
+                if (iconPreview != null) {
+                    Image(
+                        bitmap = iconPreview,
+                        contentDescription = "プロフィール画像",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    )
+                } else {
+                    ProfileIcon(
+                        iconUrl = content.currentIconUrl,
+                        contentDescription = "プロフィール画像",
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                if (content.iconUploading) {
+                    CircularProgressIndicator(modifier = Modifier.fillMaxSize())
+                }
             }
             OutlinedButton(
                 onClick = listener::onClickSelectIcon,
