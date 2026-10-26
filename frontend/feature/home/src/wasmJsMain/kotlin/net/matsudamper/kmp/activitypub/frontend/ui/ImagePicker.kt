@@ -8,8 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import kotlin.coroutines.resume
 import kotlin.js.ExperimentalWasmJsInterop
 import kotlinx.browser.document
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.jetbrains.skia.Codec
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.EncodedImageFormat
@@ -23,21 +25,13 @@ import org.khronos.webgl.ArrayBuffer
 import org.khronos.webgl.Int8Array
 import org.khronos.webgl.toByteArray
 import org.w3c.dom.HTMLInputElement
+import org.w3c.files.File
 import org.w3c.files.FileReader
 import org.w3c.files.get
 
 @Composable
-internal actual fun rememberImagePicker(
-    maxBytes: Int,
-    onReadStart: () -> Unit,
-    onPick: (ByteArray) -> Unit,
-    onTooLarge: () -> Unit,
-    onReadError: () -> Unit,
-): () -> Unit {
-    val currentOnReadStart by rememberUpdatedState(onReadStart)
+internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -> Unit {
     val currentOnPick by rememberUpdatedState(onPick)
-    val currentOnTooLarge by rememberUpdatedState(onTooLarge)
-    val currentOnReadError by rememberUpdatedState(onReadError)
     return remember {
         {
             val input = document.createElement("input") as HTMLInputElement
@@ -45,24 +39,34 @@ internal actual fun rememberImagePicker(
             input.accept = "image/png,image/jpeg,image/gif,image/webp"
             input.addEventListener("change", {
                 val file = input.files?.get(0)
-                if (file != null && file.size.toDouble() > maxBytes) {
-                    currentOnTooLarge()
-                } else if (file != null) {
-                    currentOnReadStart()
-                    val reader = FileReader()
-                    reader.onload = {
-                        val buffer = reader.result?.unsafeCast<ArrayBuffer>()
-                        if (buffer != null) currentOnPick(Int8Array(buffer).toByteArray()) else currentOnReadError()
-                        null
-                    }
-                    reader.onerror = {
-                        currentOnReadError()
-                        null
-                    }
-                    reader.readAsArrayBuffer(file)
-                }
+                if (file != null) currentOnPick(BrowserImageFile(file))
             })
             input.click()
+        }
+    }
+}
+
+private class BrowserImageFile(
+    private val file: File,
+) : PickedImageFile {
+    override suspend fun read(maxBytes: Int): PickedImageFile.ReadResult {
+        if (file.size.toDouble() > maxBytes) return PickedImageFile.ReadResult.TooLarge
+
+        return suspendCancellableCoroutine { continuation ->
+            val reader = FileReader()
+            reader.onload = {
+                val buffer = reader.result?.unsafeCast<ArrayBuffer>()
+                continuation.resume(
+                    if (buffer != null) PickedImageFile.ReadResult.Success(Int8Array(buffer).toByteArray()) else PickedImageFile.ReadResult.Error,
+                )
+                null
+            }
+            reader.onerror = {
+                continuation.resume(PickedImageFile.ReadResult.Error)
+                null
+            }
+            continuation.invokeOnCancellation { reader.abort() }
+            reader.readAsArrayBuffer(file)
         }
     }
 }

@@ -1,15 +1,16 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -19,43 +20,37 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-internal actual fun rememberImagePicker(
-    maxBytes: Int,
-    onReadStart: () -> Unit,
-    onPick: (ByteArray) -> Unit,
-    onTooLarge: () -> Unit,
-    onReadError: () -> Unit,
-): () -> Unit {
-    val context = LocalContext.current
-    val currentOnReadStart by rememberUpdatedState(onReadStart)
+internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -> Unit {
+    // 読み込みは画面より長く生きるので Activity を持たせない
+    val contentResolver = LocalContext.current.applicationContext.contentResolver
     val currentOnPick by rememberUpdatedState(onPick)
-    val currentOnTooLarge by rememberUpdatedState(onTooLarge)
-    val currentOnReadError by rememberUpdatedState(onReadError)
-    val coroutineScope = rememberCoroutineScope()
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) {
-                currentOnReadStart()
-                coroutineScope.launch {
-                    // 選んだ後に消されたファイルや権限の無いファイルは openInputStream が null を返すか投げる
-                    val bytes =
-                        withContext(Dispatchers.IO) {
-                            runCatching { context.contentResolver.openInputStream(uri)?.use { it.readAtMost(maxBytes + 1) } }.getOrNull()
-                        }
-                    when {
-                        bytes == null -> currentOnReadError()
-                        bytes.size > maxBytes -> currentOnTooLarge()
-                        else -> currentOnPick(bytes)
-                    }
-                }
-            }
+            if (uri != null) currentOnPick(ContentUriImageFile(contentResolver = contentResolver, uri = uri))
         }
     return remember(launcher) {
         { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+    }
+}
+
+private class ContentUriImageFile(
+    private val contentResolver: ContentResolver,
+    private val uri: Uri,
+) : PickedImageFile {
+    override suspend fun read(maxBytes: Int): PickedImageFile.ReadResult {
+        // 選んだ後に消されたファイルや権限の無いファイルは openInputStream が null を返すか投げる
+        val bytes =
+            withContext(Dispatchers.IO) {
+                runCatching { contentResolver.openInputStream(uri)?.use { it.readAtMost(maxBytes + 1) } }.getOrNull()
+            }
+        return when {
+            bytes == null -> PickedImageFile.ReadResult.Error
+            bytes.size > maxBytes -> PickedImageFile.ReadResult.TooLarge
+            else -> PickedImageFile.ReadResult.Success(bytes)
+        }
     }
 }
 

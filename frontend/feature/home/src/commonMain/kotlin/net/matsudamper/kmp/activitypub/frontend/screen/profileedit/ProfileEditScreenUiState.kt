@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
+import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 data class ProfileEditScreenUiState(
     val content: Content,
@@ -34,13 +35,7 @@ data class ProfileEditScreenUiState(
     interface Listener {
         fun onClickSelectIcon()
 
-        fun onIconReadStart()
-
-        fun onIconPicked(bytes: ByteArray)
-
-        fun onIconTooLarge()
-
-        fun onIconReadError()
+        fun onIconPicked(file: PickedImageFile)
 
         fun onDisplayNameChanged(text: String)
 

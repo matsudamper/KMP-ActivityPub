@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.tooling.preview.Preview
+import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 @Preview
 @Composable
@@ -75,13 +76,7 @@ private fun ProfileEditContentNewIconPreview() {
 private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.Listener {
     override fun onClickSelectIcon() = Unit
 
-    override fun onIconReadStart() = Unit
-
-    override fun onIconPicked(bytes: ByteArray) = Unit
-
-    override fun onIconTooLarge() = Unit
-
-    override fun onIconReadError() = Unit
+    override fun onIconPicked(file: PickedImageFile) = Unit
 
     override fun onDisplayNameChanged(text: String) = Unit
 

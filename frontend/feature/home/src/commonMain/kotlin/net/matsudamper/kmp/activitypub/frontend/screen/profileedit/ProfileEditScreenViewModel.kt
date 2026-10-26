@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileResult
+import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.toProfileIconOrNull
 import org.koin.core.annotation.KoinViewModel
 
@@ -39,24 +40,8 @@ internal class ProfileEditScreenViewModel(
                         }
                     }
 
-                    override fun onIconReadStart() {
-                        viewModelStateFlow.update { state ->
-                            if (state is ViewModelState.Loaded && state.saving.not()) state.copy(processingIcon = true) else state
-                        }
-                    }
-
-                    override fun onIconPicked(bytes: ByteArray) {
-                        pickIcon(bytes)
-                    }
-
-                    override fun onIconTooLarge() {
-                        finishProcessingIcon()
-                        viewModelScope.launch { events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") } }
-                    }
-
-                    override fun onIconReadError() {
-                        finishProcessingIcon()
-                        viewModelScope.launch { events.send { it.showMessage("画像ファイルを読み込めませんでした") } }
+                    override fun onIconPicked(file: PickedImageFile) {
+                        pickIcon(file)
                     }
 
                     override fun onDisplayNameChanged(text: String) {
@@ -126,16 +111,33 @@ internal class ProfileEditScreenViewModel(
     }
 
     /**
-     * ファイルを読み始めたときに processingIcon を立てているので、ここでは立っていても進める
+     * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、processingIcon が下りなくなる
      */
-    private fun pickIcon(bytes: ByteArray) {
+    private fun pickIcon(file: PickedImageFile) {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
-        if (state.saving) return
+        if (state.saving || state.processingIcon) return
         viewModelStateFlow.value = state.copy(processingIcon = true)
 
         viewModelScope.launch {
-            // 展開と PNG への書き出しは画面を止めるほど重い
-            val icon = withContext(Dispatchers.Default) { bytes.toProfileIconOrNull(sidePx = ICON_SIDE_PX) }
+            val icon =
+                when (val result = file.read(maxBytes = MAX_SOURCE_ICON_BYTES)) {
+                    is PickedImageFile.ReadResult.Success -> {
+                        // 展開と PNG への書き出しは画面を止めるほど重い
+                        val icon = withContext(Dispatchers.Default) { result.bytes.toProfileIconOrNull(sidePx = ICON_SIDE_PX) }
+                        if (icon == null) events.send { it.showMessage("画像として読み込めませんでした") }
+                        icon
+                    }
+
+                    PickedImageFile.ReadResult.TooLarge -> {
+                        events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") }
+                        null
+                    }
+
+                    PickedImageFile.ReadResult.Error -> {
+                        events.send { it.showMessage("画像ファイルを読み込めませんでした") }
+                        null
+                    }
+                }
             viewModelStateFlow.update { current ->
                 when {
                     current !is ViewModelState.Loaded -> current
@@ -143,15 +145,6 @@ internal class ProfileEditScreenViewModel(
                     else -> current.copy(newIcon = ViewModelState.NewIcon(bytes = icon.png, bitmap = icon.bitmap), processingIcon = false)
                 }
             }
-            if (icon == null) {
-                events.send { it.showMessage("画像として読み込めませんでした") }
-            }
-        }
-    }
-
-    private fun finishProcessingIcon() {
-        viewModelStateFlow.update { state ->
-            if (state is ViewModelState.Loaded) state.copy(processingIcon = false) else state
         }
     }
 
@@ -258,7 +251,7 @@ internal class ProfileEditScreenViewModel(
         /**
          * 選んだファイルを読む上限。縮めて送るので、スマートフォンの写真がそのまま収まる大きさにする
          */
-        const val MAX_SOURCE_ICON_BYTES = 20 * 1024 * 1024
+        private const val MAX_SOURCE_ICON_BYTES = 20 * 1024 * 1024
 
         /**
          * 送る前に縮める大きさ。サーバーはこれを超える縦横を受け付けない
