@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,11 +8,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -24,14 +28,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -42,10 +50,15 @@ internal fun ProfileEditScreen(
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val pickIcon = rememberImagePicker(onPick = uiState.listener::onIconPicked)
 
-    LaunchedEffect(viewModel.eventHandler, navigator) {
+    LaunchedEffect(viewModel.eventHandler, navigator, pickIcon) {
         viewModel.eventHandler.collect(
             object : ProfileEditScreenViewModel.Event {
+                override fun openImagePicker() {
+                    pickIcon()
+                }
+
                 override fun navigateBack() {
                     navigator.back()
                 }
@@ -133,6 +146,40 @@ private fun LoadedContent(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Box(
+                modifier = Modifier.size(72.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                val iconPreview = content.iconPreview
+                if (iconPreview != null) {
+                    Image(
+                        bitmap = iconPreview,
+                        contentDescription = "プロフィール画像",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    )
+                } else {
+                    ProfileIcon(
+                        iconUrl = content.currentIconUrl,
+                        contentDescription = "プロフィール画像",
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                if (content.iconUploading) {
+                    CircularProgressIndicator(modifier = Modifier.fillMaxSize())
+                }
+            }
+            OutlinedButton(
+                onClick = listener::onClickSelectIcon,
+                enabled = content.iconSelectButtonEnabled,
+            ) {
+                Text("プロフィール画像を選ぶ")
+            }
+        }
         SingleLineTextField(
             value = content.displayName,
             onValueChange = listener::onDisplayNameChanged,

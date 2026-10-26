@@ -12,8 +12,13 @@ type UserMutation {
     logout: Boolean! @lazy
     "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
     postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
-    "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。displayName が空なら未設定に戻す"
-    updateProfile(displayName: String!): UpdateProfileResult! @lazy
+    "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
+    updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
+    """
+    ログインしているアカウントのプロフィール画像を差し替え、フォロワーへの Update を積む。
+    icon は画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで
+    """
+    updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
 }
 
 input UserLoginQuery {
@@ -91,6 +96,11 @@ enum UserPostNoteFailure {
     FEDERATION_DISABLED
 }
 
+input UpdateProfileQuery {
+    "空なら未設定に戻す"
+    displayName: String
+}
+
 type UpdateProfileResult {
     failure: UpdateProfileFailure
 }
@@ -99,6 +109,28 @@ enum UpdateProfileFailure {
     NOT_LOGGED_IN
     "表示名が長すぎる。上限は 30 文字"
     TOO_LONG
+    "サーバーに DOMAIN が無く、更新を配れない"
+    FEDERATION_DISABLED
+}
+
+type UpdateProfileIconResult {
+    "差し替えた画像の URL。失敗したら null"
+    iconUrl: String
+    failure: UpdateProfileIconFailure
+}
+
+enum UpdateProfileIconFailure {
+    NOT_LOGGED_IN
+    "大きすぎる。上限は 2MiB"
+    TOO_LARGE
+    "縦か横が 400px を超えている"
+    DIMENSIONS_TOO_LARGE
+    "base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
+    UNSUPPORTED_IMAGE
+    "このサーバーでは受け付けない操作"
+    UNSUPPORTED_OPERATION
+    "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
+    INTERNAL_SERVER_ERROR
     "サーバーに DOMAIN が無く、更新を配れない"
     FEDERATION_DISABLED
 }

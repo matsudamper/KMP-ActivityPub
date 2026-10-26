@@ -5,15 +5,22 @@ import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import net.matsudamper.kmp.activitypub.FakeAccountRepository
 import net.matsudamper.kmp.activitypub.FakeDeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.FakeFollowerRepository
+import net.matsudamper.kmp.activitypub.FakeImageStorage
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
+import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
+import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
+import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorPrivateKey
@@ -26,30 +33,24 @@ import net.matsudamper.kotpub.crypto.RsaKeys
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class ProfileUpdateServiceTest {
+    private val accountRepository = FakeAccountRepository(hasPasskey = { false })
+    private val user1Id = accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "type")
     private val followerRepository = FakeFollowerRepository()
     private val deliveryQueueRepository = FakeDeliveryQueueRepository(FakeNoteRepository())
+    private val imageStorage = FakeImageStorage()
     private var enqueuedCount = 0
 
-    private val service =
-        ProfileUpdateService(
-            senders = OnlyUser1Senders,
-            appearances = EmptyAppearances,
-            profiles = StoredProfiles,
-            followerRepository = followerRepository,
-            deliveryQueueRepository = deliveryQueueRepository,
-            clock = Clock.fixed(NOW, ZoneOffset.UTC),
-            onEnqueued = { enqueuedCount++ },
-        )
+    private val service = createService(imageStorage = imageStorage)
 
     @Test
     fun `表示名を書き換えてフォロワーの inbox ごとにプロフィール全体の Update を積む`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
 
-        assertEquals(UpdateProfileResult.Updated, service.update(username = "user1", displayName = " 新しい名前 "))
+        assertEquals(UpdateDisplayNameResult.Updated, service.updateDisplayName(username = "user1", displayName = " 新しい名前 "))
 
         val update = deliveryQueueRepository.profileUpdates.single()
         assertEquals("user1", update.username)
-        assertEquals("新しい名前", update.displayName)
+        assertEquals(DisplayNameChange.Set("新しい名前"), update.displayName)
         assertEquals(listOf(INBOX_A, INBOX_B), update.inboxes)
         val activity = Json.parseToJsonElement(update.body).jsonObject
         assertEquals("Update", activity.getValue("type").jsonPrimitive.content)
@@ -62,16 +63,26 @@ class ProfileUpdateServiceTest {
 
     @Test
     fun `空の表示名は未設定に戻す`() {
-        assertEquals(UpdateProfileResult.Updated, service.update(username = "user1", displayName = "  "))
+        assertEquals(UpdateDisplayNameResult.Updated, service.updateDisplayName(username = "user1", displayName = "  "))
 
-        assertNull(deliveryQueueRepository.profileUpdates.single().displayName)
+        assertEquals(DisplayNameChange.Set(null), deliveryQueueRepository.profileUpdates.single().displayName)
+    }
+
+    @Test
+    fun `プロフィール画像だけを変えるときは今の表示名のまま Update に載せる`() {
+        assertEquals(UpdateIconResult.Updated, service.updateIcon(username = "user1", icon = PNG))
+
+        val update = deliveryQueueRepository.profileUpdates.single()
+        assertEquals(DisplayNameChange.Keep, update.displayName)
+        val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
+        assertEquals("古い名前", actor.getValue("name").jsonPrimitive.content)
     }
 
     @Test
     fun `長すぎる表示名は積まない`() {
         assertEquals(
-            UpdateProfileResult.TooLong,
-            service.update(username = "user1", displayName = "あ".repeat(ProfileUpdateService.MAX_DISPLAY_NAME_LENGTH + 1)),
+            UpdateDisplayNameResult.TooLong,
+            service.updateDisplayName(username = "user1", displayName = "あ".repeat(ProfileUpdateService.MAX_DISPLAY_NAME_LENGTH + 1)),
         )
 
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
@@ -80,10 +91,105 @@ class ProfileUpdateServiceTest {
 
     @Test
     fun `アクターとして扱えないアカウントでは積まない`() {
-        assertEquals(UpdateProfileResult.AccountNotFound, service.update(username = "other", displayName = "名前"))
+        assertEquals(UpdateDisplayNameResult.AccountNotFound, service.updateDisplayName(username = "other", displayName = "名前"))
+        assertEquals(UpdateIconResult.AccountNotFound, service.updateIcon(username = "other", icon = PNG))
+
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+        assertEquals(mapOf(), imageStorage.images)
+    }
+
+    @Test
+    fun `プロフィール画像を置いて Update の icon に新しい画像の URL を載せ、前の画像を消す`() {
+        val oldPath = ImagePath("users/${user1Id.value}/profile-icon/old")
+        imageStorage.images[oldPath] = ImageStorage.GetResult.Success(bytes = PNG, contentType = "image/png")
+        accountRepository.setIconPath(user1Id, oldPath.value)
+
+        assertEquals(UpdateIconResult.Updated, service.updateIcon(username = "user1", icon = PNG))
+
+        val update = deliveryQueueRepository.profileUpdates.single()
+        val newPath = ImagePath(assertNotNull(update.newIconPath))
+        assertTrue(newPath.value.startsWith("users/${user1Id.value}/"))
+        assertEquals("image/png", imageStorage.images.getValue(newPath).contentType)
+        assertFalse(oldPath in imageStorage.images)
+        val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
+        val iconUrl = actor.getValue("icon").jsonObject.getValue("url").jsonPrimitive.content
+        assertEquals("https://$DOMAIN/users/user1/icon?v=${ProfileIconPaths.version(newPath)}", iconUrl)
+    }
+
+    @Test
+    fun `表示名だけを変えるときは今の画像のまま`() {
+        accountRepository.setIconPath(user1Id, "users/${user1Id.value}/profile-icon/current")
+
+        assertEquals(UpdateDisplayNameResult.Updated, service.updateDisplayName(username = "user1", displayName = "名前"))
+
+        assertNull(deliveryQueueRepository.profileUpdates.single().newIconPath)
+    }
+
+    @Test
+    fun `画像として読めないものは置かない`() {
+        assertEquals(
+            UpdateIconResult.Unsupported,
+            service.updateIcon(username = "user1", icon = "<svg></svg>".encodeToByteArray()),
+        )
+
+        assertEquals(mapOf(), imageStorage.images)
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `大きすぎるプロフィール画像は置かない`() {
+        val icon = PNG + ByteArray(ProfileUpdateService.MAX_ICON_BYTES)
+
+        assertEquals(UpdateIconResult.TooLarge, service.updateIcon(username = "user1", icon = icon))
+
+        assertEquals(mapOf(), imageStorage.images)
+    }
+
+    @Test
+    fun `縦か横が上限を超えるプロフィール画像は置かない`() {
+        assertEquals(
+            UpdateIconResult.DimensionsTooLarge,
+            service.updateIcon(username = "user1", icon = TestProfileIcons.read("401x3.png")),
+        )
+        assertEquals(
+            UpdateIconResult.DimensionsTooLarge,
+            service.updateIcon(username = "user1", icon = TestProfileIcons.read("5x402.gif")),
+        )
+
+        assertEquals(mapOf(), imageStorage.images)
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `寸法を読めない画像は置かない`() {
+        val headerOnly = TestProfileIcons.read("400x400.png").copyOf(16)
+
+        assertEquals(UpdateIconResult.Unsupported, service.updateIcon(username = "user1", icon = headerOnly))
+
+        assertEquals(mapOf(), imageStorage.images)
+    }
+
+    @Test
+    fun `画像の置き場が無ければプロフィール画像を変えられない`() {
+        val service = createService(imageStorage = null)
+
+        assertEquals(UpdateIconResult.ImageStorageDisabled, service.updateIcon(username = "user1", icon = PNG))
 
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
     }
+
+    private fun createService(imageStorage: ImageStorage?): ProfileUpdateService =
+        ProfileUpdateService(
+            senders = OnlyUser1Senders,
+            accountService = AccountService(accountRepository),
+            appearances = EmptyAppearances,
+            profiles = StoredProfiles,
+            imageStorage = imageStorage,
+            followerRepository = followerRepository,
+            deliveryQueueRepository = deliveryQueueRepository,
+            clock = Clock.fixed(NOW, ZoneOffset.UTC),
+            onEnqueued = { enqueuedCount++ },
+        )
 
     private object OnlyUser1Senders : DeliverySenders {
         private val directory = ActorDirectory(domain = DOMAIN, stored = OnlyUser1)
@@ -116,5 +222,6 @@ class ProfileUpdateServiceTest {
         const val INBOX_B = "https://b.example/inbox"
         const val STORED_SUMMARY = "自己紹介"
         val NOW: Instant = Instant.parse("2026-10-01T00:00:00Z")
+        val PNG: ByteArray = TestProfileIcons.read("400x400.png")
     }
 }

@@ -74,6 +74,29 @@ class ProfileUpdateRepositoryTest {
     }
 
     @Test
+    fun `新しいプロフィール画像の場所を書き、渡さなければ今の場所のまま`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.updateProfile(profileUpdate(displayName = null, body = "update-1").copy(newIconPath = "users/1/profile-icon/a"))
+            assertEquals("users/1/profile-icon/a", repositories.accountRepository.findByUsername("user1")?.iconPath)
+
+            queue.updateProfile(profileUpdate(displayName = "名前", body = "update-2"))
+            assertEquals("users/1/profile-icon/a", repositories.accountRepository.findByUsername("user1")?.iconPath)
+        }
+    }
+
+    @Test
+    fun `表示名を Keep にすると今の表示名のまま`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.updateProfile(profileUpdate(displayName = "ユーザー1", body = "update-1"))
+            queue.updateProfile(profileUpdate(displayName = null, body = "update-2").copy(displayName = DisplayNameChange.Keep))
+
+            assertEquals("ユーザー1", repositories.accountRepository.findByUsername("user1")?.displayName)
+        }
+    }
+
+    @Test
     fun `いないアカウントは何も書かない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
@@ -89,7 +112,8 @@ class ProfileUpdateRepositoryTest {
     ): ProfileUpdate =
         ProfileUpdate(
             username = "user1",
-            displayName = displayName,
+            displayName = DisplayNameChange.Set(displayName),
+            newIconPath = null,
             updatedAt = NOW,
             body = body,
             inboxes = INBOXES + INBOXES.first(),

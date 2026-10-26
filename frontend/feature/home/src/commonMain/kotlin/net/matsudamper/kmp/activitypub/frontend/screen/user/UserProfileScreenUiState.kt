@@ -9,8 +9,12 @@ data class UserProfileScreenUiState(
     sealed interface Content {
         data object Loading : Content
 
+        /**
+         * @param iconUrl プロフィール画像が無ければ null
+         */
         data class Loaded(
             val acct: String,
+            val iconUrl: String?,
         ) : Content
 
         data object NotFound : Content

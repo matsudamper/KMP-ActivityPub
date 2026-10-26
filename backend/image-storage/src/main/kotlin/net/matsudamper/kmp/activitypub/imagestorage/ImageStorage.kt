@@ -6,6 +6,8 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 interface ImageStorage {
     fun put(request: PutRequest): PutResult
 
+    fun get(request: GetRequest): GetResult
+
     fun delete(request: DeleteRequest): DeleteResult
 
     /**
@@ -33,6 +35,25 @@ interface ImageStorage {
         data object Empty : PutResult
 
         data class Failure(val cause: Throwable) : PutResult
+    }
+
+    data class GetRequest(
+        val ownerAccountId: AccountId,
+        val path: ImagePath,
+    )
+
+    sealed interface GetResult {
+        /**
+         * @param contentType 置いたときに渡した種類
+         */
+        class Success(
+            val bytes: ByteArray,
+            val contentType: String,
+        ) : GetResult
+
+        data object NotFound : GetResult
+
+        data class Failure(val cause: Throwable) : GetResult
     }
 
     data class DeleteRequest(

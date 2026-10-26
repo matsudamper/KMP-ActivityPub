@@ -32,18 +32,25 @@ kotlin {
                 implementation(libs.koin.core)
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose.viewmodel)
+                implementation(libs.coil.compose)
             }
         }
 
         wasmJsMain {
             dependencies {
                 implementation(project(":frontend:common-component"))
+                implementation(libs.kotlinx.browser)
+                implementation(libs.coil.network.ktor3)
+                implementation(libs.ktor.client.js)
             }
         }
 
         androidMain {
             dependencies {
                 implementation(libs.androidx.compose.ui.tooling.preview)
+                implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.exifinterface)
+                implementation(libs.coil.network.okhttp)
             }
         }
     }

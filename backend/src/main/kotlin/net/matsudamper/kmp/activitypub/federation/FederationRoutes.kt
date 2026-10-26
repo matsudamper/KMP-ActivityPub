@@ -44,6 +44,14 @@ internal fun Route.federationRoutes(federation: Federation) {
         call.respondActor(federation.actorEndpoint)
     }
 
+    val actorIconEndpoint = federation.actorIconEndpoint
+    if (actorIconEndpoint != null) {
+        get("/users/{username}${ActorUrls.ICON_PATH}") {
+            val response = actorIconEndpoint.get(username = call.parameters["username"], version = call.request.queryParameters["v"])
+            call.respondEndpoint(response)
+        }
+    }
+
     get("/users/{username}/followers") {
         val response =
             withContext(Dispatchers.IO) {

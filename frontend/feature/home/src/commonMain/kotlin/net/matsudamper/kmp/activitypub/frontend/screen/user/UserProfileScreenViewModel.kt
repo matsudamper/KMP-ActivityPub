@@ -55,7 +55,7 @@ internal class UserProfileScreenViewModel(
         loadJob = viewModelScope.launch {
             viewModelStateFlow.value =
                 when (val result = api.userProfile(username = username)) {
-                    is UserProfileResult.Found -> ViewModelState.Loaded(username = result.username)
+                    is UserProfileResult.Found -> ViewModelState.Loaded(username = result.username, iconUrl = result.iconUrl)
                     UserProfileResult.NotFound -> ViewModelState.NotFound
                     is UserProfileResult.Failure -> ViewModelState.Failed(result.message)
                 }
@@ -69,8 +69,14 @@ internal class UserProfileScreenViewModel(
         return UserProfileScreenUiState(
             content = when (viewModelState) {
                 ViewModelState.Loading -> UserProfileScreenUiState.Content.Loading
-                is ViewModelState.Loaded -> UserProfileScreenUiState.Content.Loaded(acct = "@${viewModelState.username}")
+
+                is ViewModelState.Loaded -> UserProfileScreenUiState.Content.Loaded(
+                    acct = "@${viewModelState.username}",
+                    iconUrl = viewModelState.iconUrl,
+                )
+
                 ViewModelState.NotFound -> UserProfileScreenUiState.Content.NotFound
+
                 is ViewModelState.Failed -> UserProfileScreenUiState.Content.Error(viewModelState.message)
             },
             listener = listener,
@@ -82,6 +88,7 @@ internal class UserProfileScreenViewModel(
 
         data class Loaded(
             val username: String,
+            val iconUrl: String?,
         ) : ViewModelState
 
         data object NotFound : ViewModelState

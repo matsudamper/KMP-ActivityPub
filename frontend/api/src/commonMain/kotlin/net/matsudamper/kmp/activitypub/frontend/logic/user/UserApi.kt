@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
+import kotlin.io.encoding.Base64
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -9,12 +10,15 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQue
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
@@ -82,7 +86,7 @@ class UserApi(
         val data = response.data ?: return UserProfileResult.Failure(response.failureMessage())
         val user = data.user ?: return UserProfileResult.NotFound
 
-        return UserProfileResult.Found(username = user.username)
+        return UserProfileResult.Found(username = user.username, iconUrl = user.iconUrl)
     }
 
     suspend fun searchUsers(
@@ -138,12 +142,15 @@ class UserApi(
         val data = response.data ?: return UserMyProfileResult.Failure(response.failureMessage())
         val profile = data.profile ?: return UserMyProfileResult.NotLoggedIn
 
-        return UserMyProfileResult.Found(username = profile.username, displayName = profile.displayName)
+        return UserMyProfileResult.Found(username = profile.username, displayName = profile.displayName, iconUrl = profile.iconUrl)
     }
 
+    /**
+     * @param displayName 空なら未設定に戻す
+     */
     suspend fun updateProfile(displayName: String): UserUpdateProfileResult {
         val client = clients.client.value ?: return UserUpdateProfileResult.Failure("接続先が未設定")
-        val response = client.mutation(UpdateProfileMutation(displayName = displayName)).execute()
+        val response = client.mutation(UpdateProfileMutation(UpdateProfileQuery(displayName = Optional.present(displayName)))).execute()
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())
         val updateProfile = response.data?.user?.updateProfile ?: return UserUpdateProfileResult.Failure(response.failureMessage())
 
@@ -153,6 +160,28 @@ class UserApi(
             UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.TooLong
             UpdateProfileFailure.FEDERATION_DISABLED -> UserUpdateProfileResult.FederationDisabled
             UpdateProfileFailure.UNKNOWN__ -> UserUpdateProfileResult.Failure("Unknown")
+        }
+    }
+
+    /**
+     * @param icon 画像ファイルの中身
+     */
+    suspend fun updateProfileIcon(icon: ByteArray): UserUpdateProfileIconResult {
+        val client = clients.client.value ?: return UserUpdateProfileIconResult.Failure("接続先が未設定")
+        val response = client.mutation(UpdateProfileIconMutation(icon = Base64.Default.encode(icon))).execute()
+        if (response.exception != null || response.hasErrors()) return UserUpdateProfileIconResult.Failure(response.failureMessage())
+        val updateProfileIcon = response.data?.user?.updateProfileIcon ?: return UserUpdateProfileIconResult.Failure(response.failureMessage())
+
+        return when (updateProfileIcon.failure) {
+            null -> UserUpdateProfileIconResult.Success(iconUrl = updateProfileIcon.iconUrl)
+            UpdateProfileIconFailure.NOT_LOGGED_IN -> UserUpdateProfileIconResult.NotLoggedIn
+            UpdateProfileIconFailure.TOO_LARGE -> UserUpdateProfileIconResult.TooLarge
+            UpdateProfileIconFailure.DIMENSIONS_TOO_LARGE -> UserUpdateProfileIconResult.DimensionsTooLarge
+            UpdateProfileIconFailure.UNSUPPORTED_IMAGE -> UserUpdateProfileIconResult.UnsupportedImage
+            UpdateProfileIconFailure.UNSUPPORTED_OPERATION -> UserUpdateProfileIconResult.UnsupportedOperation
+            UpdateProfileIconFailure.INTERNAL_SERVER_ERROR -> UserUpdateProfileIconResult.InternalServerError
+            UpdateProfileIconFailure.FEDERATION_DISABLED -> UserUpdateProfileIconResult.FederationDisabled
+            UpdateProfileIconFailure.UNKNOWN__ -> UserUpdateProfileIconResult.Failure("Unknown")
         }
     }
 

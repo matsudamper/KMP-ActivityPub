@@ -36,6 +36,31 @@ class AppDependencies(
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
 
+    val oidcSigningKey: OidcSigningKey? = env.s3?.let { OidcSigningKey(it.oidc.privateJwkJson) }
+
+    private val webIdentityTokenIssuer: WebIdentityTokenIssuer? =
+        env.s3?.let { s3 ->
+            WebIdentityTokenIssuer(
+                signingKey = checkNotNull(oidcSigningKey),
+                issuer = s3.oidc.issuer,
+                clock = Clock.systemUTC(),
+            )
+        }
+
+    /**
+     * ENABLE_S3 が false なら画像を置けない
+     */
+    val imageStorage: ImageStorage? =
+        env.s3?.let { s3 ->
+            S3ImageStorage(
+                stsCredentialProvider = StsCredentialProvider(
+                    tokenIssuer = checkNotNull(webIdentityTokenIssuer),
+                    config = s3.imageStorage,
+                ),
+                config = s3.imageStorage,
+            )
+        }
+
     /**
      * DOMAIN が無いと他のサーバーから見つけられないので作らない
      */
@@ -47,6 +72,7 @@ class AppDependencies(
                 followerRepository = repositories.followerRepository,
                 deliveryQueueRepository = repositories.deliveryQueueRepository,
                 noteRepository = repositories.noteRepository,
+                imageStorage = imageStorage,
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
         }
@@ -82,31 +108,6 @@ class AppDependencies(
         maxFailures = 5,
         lockDuration = 30.days,
     )
-
-    val oidcSigningKey: OidcSigningKey? = env.s3?.let { OidcSigningKey(it.oidc.privateJwkJson) }
-
-    private val webIdentityTokenIssuer: WebIdentityTokenIssuer? =
-        env.s3?.let { s3 ->
-            WebIdentityTokenIssuer(
-                signingKey = checkNotNull(oidcSigningKey),
-                issuer = s3.oidc.issuer,
-                clock = Clock.systemUTC(),
-            )
-        }
-
-    /**
-     * ENABLE_S3 が false なら画像を置けない
-     */
-    val imageStorage: ImageStorage? =
-        env.s3?.let { s3 ->
-            S3ImageStorage(
-                stsCredentialProvider = StsCredentialProvider(
-                    tokenIssuer = checkNotNull(webIdentityTokenIssuer),
-                    config = s3.imageStorage,
-                ),
-                config = s3.imageStorage,
-            )
-        }
 
     /**
      * 順に閉じると、どれかの close が返らないときに後ろが閉じられない。

@@ -2,12 +2,22 @@ query MyProfile {
     profile {
         username
         displayName
+        iconUrl
     }
 }
 
-mutation UpdateProfile($displayName: String!) {
+mutation UpdateProfile($query: UpdateProfileQuery!) {
     user {
-        updateProfile(displayName: $displayName) {
+        updateProfile(query: $query) {
+            failure
+        }
+    }
+}
+
+mutation UpdateProfileIcon($icon: String!) {
+    user {
+        updateProfileIcon(icon: $icon) {
+            iconUrl
             failure
         }
     }

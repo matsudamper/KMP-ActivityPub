@@ -52,11 +52,17 @@ class QueryResolverImpl : QueryResolver {
     }
 
     override fun profile(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfile?>> {
-        val accountService = GraphQlEngine.diContainer(env).accountService
+        val diContainer = GraphQlEngine.diContainer(env)
         val profile =
             GraphQlEngine.graphQlContext(env).userAccountId()
-                ?.let { accountService.account(it) }
-                ?.let { QlProfile(username = it.username, displayName = it.displayName) }
+                ?.let { diContainer.accountService.account(it) }
+                ?.let { account ->
+                    QlProfile(
+                        username = account.username,
+                        displayName = account.displayName,
+                        iconUrl = diContainer.profileIconUrls?.find(account.username),
+                    )
+                }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlProfile?>(profile).build())
     }
@@ -65,12 +71,13 @@ class QueryResolverImpl : QueryResolver {
         username: String,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUser?>> {
-        val account = GraphQlEngine.diContainer(env).accountService.account(username = username)
+        val diContainer = GraphQlEngine.diContainer(env)
+        val account = diContainer.accountService.account(username = username)
         val user =
             if (account == null) {
                 null
             } else {
-                QlUser(username = account.username)
+                QlUser(username = account.username, iconUrl = diContainer.profileIconUrls?.find(account.username))
             }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlUser?>(user).build())
     }

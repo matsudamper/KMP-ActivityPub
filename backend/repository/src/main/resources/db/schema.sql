@@ -4,7 +4,9 @@ CREATE TABLE accounts (
     username TEXT COLLATE NOCASE NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     -- 未設定なら NULL
-    display_name TEXT
+    display_name TEXT,
+    -- 画像の置き場の中でのプロフィール画像の場所。未設定なら NULL
+    icon_path TEXT
 );
 
 -- 行が無ければパスワードは無い
