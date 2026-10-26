@@ -75,6 +75,8 @@ private fun ProfileEditContentNewIconPreview() {
 private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.Listener {
     override fun onClickSelectIcon() = Unit
 
+    override fun onIconReadStart() = Unit
+
     override fun onIconPicked(bytes: ByteArray) = Unit
 
     override fun onIconTooLarge() = Unit

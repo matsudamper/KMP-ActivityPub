@@ -34,6 +34,8 @@ data class ProfileEditScreenUiState(
     interface Listener {
         fun onClickSelectIcon()
 
+        fun onIconReadStart()
+
         fun onIconPicked(bytes: ByteArray)
 
         fun onIconTooLarge()

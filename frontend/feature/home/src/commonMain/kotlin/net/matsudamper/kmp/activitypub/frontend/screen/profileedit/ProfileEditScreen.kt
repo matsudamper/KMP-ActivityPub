@@ -53,6 +53,7 @@ internal fun ProfileEditScreen(
     val pickIcon =
         rememberImagePicker(
             maxBytes = ProfileEditScreenViewModel.MAX_SOURCE_ICON_BYTES,
+            onReadStart = uiState.listener::onIconReadStart,
             onPick = uiState.listener::onIconPicked,
             onTooLarge = uiState.listener::onIconTooLarge,
             onReadError = uiState.listener::onIconReadError,

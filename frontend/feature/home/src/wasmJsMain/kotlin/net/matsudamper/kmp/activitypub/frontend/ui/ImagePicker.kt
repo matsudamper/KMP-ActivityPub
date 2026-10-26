@@ -29,10 +29,12 @@ import org.w3c.files.get
 @Composable
 internal actual fun rememberImagePicker(
     maxBytes: Int,
+    onReadStart: () -> Unit,
     onPick: (ByteArray) -> Unit,
     onTooLarge: () -> Unit,
     onReadError: () -> Unit,
 ): () -> Unit {
+    val currentOnReadStart by rememberUpdatedState(onReadStart)
     val currentOnPick by rememberUpdatedState(onPick)
     val currentOnTooLarge by rememberUpdatedState(onTooLarge)
     val currentOnReadError by rememberUpdatedState(onReadError)
@@ -46,6 +48,7 @@ internal actual fun rememberImagePicker(
                 if (file != null && file.size.toDouble() > maxBytes) {
                     currentOnTooLarge()
                 } else if (file != null) {
+                    currentOnReadStart()
                     val reader = FileReader()
                     reader.onload = {
                         val buffer = reader.result?.unsafeCast<ArrayBuffer>()

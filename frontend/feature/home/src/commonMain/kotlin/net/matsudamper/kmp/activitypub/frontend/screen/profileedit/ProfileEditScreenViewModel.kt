@@ -39,15 +39,23 @@ internal class ProfileEditScreenViewModel(
                         }
                     }
 
+                    override fun onIconReadStart() {
+                        viewModelStateFlow.update { state ->
+                            if (state is ViewModelState.Loaded && state.saving.not()) state.copy(processingIcon = true) else state
+                        }
+                    }
+
                     override fun onIconPicked(bytes: ByteArray) {
                         pickIcon(bytes)
                     }
 
                     override fun onIconTooLarge() {
-                        showIconTooLarge()
+                        finishProcessingIcon()
+                        viewModelScope.launch { events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") } }
                     }
 
                     override fun onIconReadError() {
+                        finishProcessingIcon()
                         viewModelScope.launch { events.send { it.showMessage("画像ファイルを読み込めませんでした") } }
                     }
 
@@ -117,9 +125,12 @@ internal class ProfileEditScreenViewModel(
         }
     }
 
+    /**
+     * ファイルを読み始めたときに processingIcon を立てているので、ここでは立っていても進める
+     */
     private fun pickIcon(bytes: ByteArray) {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
-        if (state.saving || state.processingIcon) return
+        if (state.saving) return
         viewModelStateFlow.value = state.copy(processingIcon = true)
 
         viewModelScope.launch {
@@ -138,8 +149,10 @@ internal class ProfileEditScreenViewModel(
         }
     }
 
-    private fun showIconTooLarge() {
-        viewModelScope.launch { events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") } }
+    private fun finishProcessingIcon() {
+        viewModelStateFlow.update { state ->
+            if (state is ViewModelState.Loaded) state.copy(processingIcon = false) else state
+        }
     }
 
     private fun save() {

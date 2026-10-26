@@ -25,11 +25,13 @@ import kotlinx.coroutines.withContext
 @Composable
 internal actual fun rememberImagePicker(
     maxBytes: Int,
+    onReadStart: () -> Unit,
     onPick: (ByteArray) -> Unit,
     onTooLarge: () -> Unit,
     onReadError: () -> Unit,
 ): () -> Unit {
     val context = LocalContext.current
+    val currentOnReadStart by rememberUpdatedState(onReadStart)
     val currentOnPick by rememberUpdatedState(onPick)
     val currentOnTooLarge by rememberUpdatedState(onTooLarge)
     val currentOnReadError by rememberUpdatedState(onReadError)
@@ -37,6 +39,7 @@ internal actual fun rememberImagePicker(
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) {
+                currentOnReadStart()
                 coroutineScope.launch {
                     // 選んだ後に消されたファイルや権限の無いファイルは openInputStream が null を返すか投げる
                     val bytes =
