@@ -23,5 +23,7 @@ data class LoginGateUiState(
         fun onLoggedIn()
 
         fun onClickRetry()
+
+        fun onLoginRequiredScreenShown()
     }
 }

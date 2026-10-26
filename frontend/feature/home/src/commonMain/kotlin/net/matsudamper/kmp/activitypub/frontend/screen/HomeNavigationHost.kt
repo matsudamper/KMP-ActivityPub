@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -34,6 +35,15 @@ fun HomeNavigationHost(
     modifier: Modifier = Modifier,
 ) {
     val navigator = remember(backStack) { Navigator(backStack) }
+    // 画面ごとに持つと、下タブを切り替えるたびにログインの確認からやり直しになり、確認の間は下タブごと消える
+    val loginGateViewModel = koinViewModel<LoginGateViewModel>()
+    val loginGateUiState by loginGateViewModel.uiStateFlow.collectAsState()
+    val currentScreen = backStack.lastOrNull() as? Screen
+    LaunchedEffect(currentScreen, loginGateUiState.listener) {
+        if (currentScreen?.loginRequired == true) {
+            loginGateUiState.listener.onLoginRequiredScreenShown()
+        }
+    }
     NavDisplay(
         backStack = backStack,
         modifier = modifier,
@@ -46,8 +56,6 @@ fun HomeNavigationHost(
             NavEntry(key) {
                 val screen = key as Screen
                 if (screen.loginRequired) {
-                    val loginGateViewModel = koinViewModel<LoginGateViewModel>()
-                    val loginGateUiState by loginGateViewModel.uiStateFlow.collectAsState()
                     when (loginGateUiState.content) {
                         LoginGateUiState.Content.Screen -> {
                             ScreenContent(

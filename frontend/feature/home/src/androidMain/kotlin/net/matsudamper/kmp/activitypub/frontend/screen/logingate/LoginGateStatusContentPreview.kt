@@ -48,4 +48,6 @@ private object AndroidPreviewLoginGateListener : LoginGateUiState.Listener {
     override fun onLoggedIn() = Unit
 
     override fun onClickRetry() = Unit
+
+    override fun onLoginRequiredScreenShown() = Unit
 }

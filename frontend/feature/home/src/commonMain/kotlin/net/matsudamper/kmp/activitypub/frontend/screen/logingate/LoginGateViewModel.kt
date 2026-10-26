@@ -32,6 +32,10 @@ internal class LoginGateViewModel(
                     override fun onClickRetry() {
                         checkLoginState()
                     }
+
+                    override fun onLoginRequiredScreenShown() {
+                        checkLoginState()
+                    }
                 },
             ),
         ).also { uiStateFlow ->
@@ -47,13 +51,12 @@ internal class LoginGateViewModel(
             }
         }.asStateFlow()
 
-    init {
-        checkLoginState()
-    }
-
     private fun checkLoginState() {
         checkLoginStateJob?.cancel()
-        viewModelStateFlow.value = ViewModelState.Checking
+        // 確かめ直しの間もログイン済みの画面は出したままにする。画面を移るたびに読み込み中へ切り替わると下タブごと消えてちらつく
+        if (viewModelStateFlow.value != ViewModelState.LoggedIn) {
+            viewModelStateFlow.value = ViewModelState.Checking
+        }
         checkLoginStateJob = viewModelScope.launch {
             viewModelStateFlow.value =
                 when (val result = api.loginState()) {
