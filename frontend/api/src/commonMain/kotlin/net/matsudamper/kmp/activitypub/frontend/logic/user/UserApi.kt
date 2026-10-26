@@ -169,7 +169,7 @@ class UserApi(
             UpdateProfileFailure.ICON_DIMENSIONS_TOO_LARGE -> UserUpdateProfileResult.IconDimensionsTooLarge
             UpdateProfileFailure.ICON_UNSUPPORTED -> UserUpdateProfileResult.IconUnsupported
             UpdateProfileFailure.UNSUPPORTED_OPERATION -> UserUpdateProfileResult.UnsupportedOperation
-            UpdateProfileFailure.ICON_UPLOAD_FAILED -> UserUpdateProfileResult.IconUploadFailed
+            UpdateProfileFailure.INTERNAL_SERVER_ERROR -> UserUpdateProfileResult.InternalServerError
             UpdateProfileFailure.FEDERATION_DISABLED -> UserUpdateProfileResult.FederationDisabled
             UpdateProfileFailure.UNKNOWN__ -> UserUpdateProfileResult.Failure("Unknown")
         }

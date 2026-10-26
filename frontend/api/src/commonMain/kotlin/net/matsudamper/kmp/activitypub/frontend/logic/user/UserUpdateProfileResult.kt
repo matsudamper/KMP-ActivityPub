@@ -15,7 +15,7 @@ sealed interface UserUpdateProfileResult {
 
     data object UnsupportedOperation : UserUpdateProfileResult
 
-    data object IconUploadFailed : UserUpdateProfileResult
+    data object InternalServerError : UserUpdateProfileResult
 
     data object FederationDisabled : UserUpdateProfileResult
 

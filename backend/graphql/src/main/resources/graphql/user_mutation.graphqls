@@ -110,8 +110,8 @@ enum UpdateProfileFailure {
     ICON_UNSUPPORTED
     "このサーバーでは受け付けない操作"
     UNSUPPORTED_OPERATION
-    "プロフィール画像を置けなかった"
-    ICON_UPLOAD_FAILED
+    "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
+    INTERNAL_SERVER_ERROR
     "サーバーに DOMAIN が無く、更新を配れない"
     FEDERATION_DISABLED
 }

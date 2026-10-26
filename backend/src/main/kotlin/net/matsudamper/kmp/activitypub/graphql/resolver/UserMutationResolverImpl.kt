@@ -264,7 +264,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             UpdateProfileResult.IconDimensionsTooLarge -> QlUpdateProfileFailure.ICON_DIMENSIONS_TOO_LARGE
             UpdateProfileResult.IconUnsupported -> QlUpdateProfileFailure.ICON_UNSUPPORTED
             UpdateProfileResult.ImageStorageDisabled -> QlUpdateProfileFailure.UNSUPPORTED_OPERATION
-            UpdateProfileResult.IconUploadFailed -> QlUpdateProfileFailure.ICON_UPLOAD_FAILED
+            UpdateProfileResult.IconUploadFailed -> QlUpdateProfileFailure.INTERNAL_SERVER_ERROR
             UpdateProfileResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
         }
     }
