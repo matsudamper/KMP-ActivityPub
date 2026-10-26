@@ -21,7 +21,7 @@ import org.koin.core.annotation.KoinViewModel
  */
 @KoinViewModel
 internal class HomeScreenViewModel(
-    @InjectedParam private val initialTab: HomeScreenUiState.Tab,
+    @InjectedParam private val selectedTab: HomeScreenUiState.Tab,
     private val userApi: UserApi,
 ) : ViewModel() {
     private val events = EventSender<Event>()
@@ -33,7 +33,7 @@ internal class HomeScreenViewModel(
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
             HomeScreenUiState(
-                selectedTab = initialTab,
+                selectedTab = selectedTab,
                 timelineItems = createDummyTimelineItems(),
                 timelineRefreshing = false,
                 search = HomeScreenUiState.Search(
@@ -58,10 +58,6 @@ internal class HomeScreenViewModel(
                         viewModelScope.launch {
                             events.send { it.navigateToTab(tab) }
                         }
-                    }
-
-                    override fun onTabShown(tab: HomeScreenUiState.Tab) {
-                        mutableUiStateFlow.update { it.copy(selectedTab = tab) }
                     }
 
                     override fun onRefreshTimeline() {

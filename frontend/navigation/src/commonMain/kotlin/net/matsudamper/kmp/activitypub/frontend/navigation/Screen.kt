@@ -27,16 +27,13 @@ sealed interface Screen : NavKey {
         override val loginRequired: Boolean get() = false
     }
 
-    /**
-     * 下タブを切り替えても同じ画面のまま、URL だけ変える
-     */
     @Serializable
     data class Home(
         val tab: Tab,
     ) : Screen {
         override val pathPattern: PathPattern get() = tab.pathPattern
         override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen? get() = null
+        override val parentScreen: Screen? get() = if (tab == Tab.Timeline) null else Timeline
         override val loginRequired: Boolean get() = true
 
         enum class Tab(

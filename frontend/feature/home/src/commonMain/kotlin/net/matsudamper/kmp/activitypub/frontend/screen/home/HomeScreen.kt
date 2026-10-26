@@ -57,8 +57,7 @@ internal fun HomeScreen(
     navigator: Navigator,
     tab: Screen.Home.Tab,
 ) {
-    val selectedTab = tab.toUiStateTab()
-    val viewModel = koinViewModel<HomeScreenViewModel> { parametersOf(selectedTab) }
+    val viewModel = koinViewModel<HomeScreenViewModel> { parametersOf(tab.toUiStateTab()) }
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -67,7 +66,7 @@ internal fun HomeScreen(
         viewModel.eventHandler.collect(
             object : HomeScreenViewModel.Event {
                 override fun navigateToTab(tab: HomeScreenUiState.Tab) {
-                    navigator.replaceCurrent(Screen.Home(tab = tab.toScreenTab()))
+                    navigator.navigateOrBackTo(Screen.Home(tab = tab.toScreenTab()))
                 }
 
                 override fun navigateToPost() {
@@ -96,11 +95,6 @@ internal fun HomeScreen(
     LaunchedEffect(uiState.listener) {
         uiState.listener.onScreenShown()
     }
-
-    LaunchedEffect(uiState.listener, selectedTab) {
-        uiState.listener.onTabShown(selectedTab)
-    }
-
     HomeContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 

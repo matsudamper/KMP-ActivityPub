@@ -19,10 +19,18 @@ class Navigator(
     }
 
     /**
-     * 戻るで今の画面へ戻れないように、一番上の画面を [screen] に置き換える
+     * [screen] が積んであればそこまで戻り、無ければ積む。
+     * 同じ画面を 2 つ積むと、画面ごとの状態の保存先がぶつかる
      */
-    fun replaceCurrent(screen: Screen) {
-        backStack[backStack.lastIndex] = screen
+    fun navigateOrBackTo(screen: Screen) {
+        val index = backStack.indexOf(screen).takeIf { it >= 0 }
+        if (index == null) {
+            backStack.add(screen)
+        } else {
+            while (backStack.lastIndex > index) {
+                backStack.removeAt(backStack.lastIndex)
+            }
+        }
     }
 
     /**

@@ -43,7 +43,7 @@ fun HomeNavigationHost(
             rememberViewModelStoreNavEntryDecorator(),
         ),
         entryProvider = { key ->
-            NavEntry(key = key, contentKey = contentKeyOf(key)) {
+            NavEntry(key) {
                 val screen = key as Screen
                 if (screen.loginRequired) {
                     val loginGateViewModel = koinViewModel<LoginGateViewModel>()
@@ -116,12 +116,3 @@ private fun ScreenContent(
         }
     }
 }
-
-/**
- * 下タブはどれも同じ contentKey にして、切り替えても ViewModel と入力中の内容を作り直さない
- */
-private fun contentKeyOf(key: NavKey): Any {
-    return if (key is Screen.Home) HOME_CONTENT_KEY else key.toString()
-}
-
-private const val HOME_CONTENT_KEY: String = "Home"
