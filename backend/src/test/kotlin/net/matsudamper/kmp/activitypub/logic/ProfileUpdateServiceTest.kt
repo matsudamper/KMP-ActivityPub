@@ -87,7 +87,7 @@ class ProfileUpdateServiceTest {
 
     @Test
     fun `プロフィール画像を置いて Update の icon に新しい画像の URL を載せ、前の画像を消す`() {
-        val oldPath = ImagePath("${user1Id.value}/profile-icon/old")
+        val oldPath = ImagePath("users/${user1Id.value}/profile-icon/old")
         imageStorage.images[oldPath] = ImageStorage.GetResult.Success(bytes = PNG, contentType = "image/png")
         accountRepository.setIconPath(user1Id, oldPath.value)
 
@@ -95,7 +95,7 @@ class ProfileUpdateServiceTest {
 
         val update = deliveryQueueRepository.profileUpdates.single()
         val newPath = ImagePath(assertNotNull(update.newIconPath))
-        assertTrue(newPath.value.startsWith("${user1Id.value}/"))
+        assertTrue(newPath.value.startsWith("users/${user1Id.value}/"))
         assertEquals("image/png", imageStorage.images.getValue(newPath).contentType)
         assertFalse(oldPath in imageStorage.images)
         val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
@@ -105,7 +105,7 @@ class ProfileUpdateServiceTest {
 
     @Test
     fun `プロフィール画像を渡さなければ今の画像のまま`() {
-        accountRepository.setIconPath(user1Id, "${user1Id.value}/profile-icon/current")
+        accountRepository.setIconPath(user1Id, "users/${user1Id.value}/profile-icon/current")
 
         assertEquals(UpdateProfileResult.Updated, service.update(username = "user1", displayName = "名前", icon = null))
 

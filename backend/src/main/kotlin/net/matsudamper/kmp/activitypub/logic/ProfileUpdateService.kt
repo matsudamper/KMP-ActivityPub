@@ -184,9 +184,9 @@ class ProfileUpdateService(
 internal object ProfileIconPaths {
     /**
      * 差し替えるたびに別の場所に置く。相手は画像を URL で覚えるので、同じ場所に上書きすると前の画像が出続ける。
-     * 置き場の権限をアカウント単位に絞れるよう、先頭をアカウントの id にする
+     * 置き場の権限をアカウント単位に絞れるよう、`users/{アカウントの id}/` の下に置く
      */
-    fun create(accountId: AccountId): ImagePath = ImagePath("${accountId.value}/profile-icon/${UUID.randomUUID()}")
+    fun create(accountId: AccountId): ImagePath = ImagePath("users/${accountId.value}/profile-icon/${UUID.randomUUID()}")
 
     /**
      * [ActorAppearance.iconVersion] に使う値。場所ごとに違う

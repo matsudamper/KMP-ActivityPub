@@ -77,11 +77,11 @@ class ProfileUpdateRepositoryTest {
     fun `新しいプロフィール画像の場所を書き、渡さなければ今の場所のまま`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
-            queue.updateProfile(profileUpdate(displayName = null, body = "update-1").copy(newIconPath = "1/profile-icon/a"))
-            assertEquals("1/profile-icon/a", repositories.accountRepository.findByUsername("user1")?.iconPath)
+            queue.updateProfile(profileUpdate(displayName = null, body = "update-1").copy(newIconPath = "users/1/profile-icon/a"))
+            assertEquals("users/1/profile-icon/a", repositories.accountRepository.findByUsername("user1")?.iconPath)
 
             queue.updateProfile(profileUpdate(displayName = "名前", body = "update-2"))
-            assertEquals("1/profile-icon/a", repositories.accountRepository.findByUsername("user1")?.iconPath)
+            assertEquals("users/1/profile-icon/a", repositories.accountRepository.findByUsername("user1")?.iconPath)
         }
     }
 
