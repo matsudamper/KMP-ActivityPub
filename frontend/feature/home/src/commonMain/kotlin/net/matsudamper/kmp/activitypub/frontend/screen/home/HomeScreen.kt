@@ -130,15 +130,20 @@ internal fun HomeContent(
                         onClick = { uiState.listener.onClickTab(tab) },
                         icon = {
                             when (tab) {
-                                HomeScreenUiState.Tab.User -> ProfileIcon(
-                                    iconUrl = (uiState.profile as? HomeScreenUiState.Profile.Loaded)?.iconUrl,
+                                HomeScreenUiState.Tab.Home -> Icon(
+                                    imageVector = AppIcons.Home,
                                     contentDescription = null,
-                                    modifier = Modifier.size(24.dp),
                                 )
 
-                                HomeScreenUiState.Tab.Home, HomeScreenUiState.Tab.Search -> Icon(
-                                    imageVector = if (tab == HomeScreenUiState.Tab.Home) AppIcons.Home else AppIcons.Search,
+                                HomeScreenUiState.Tab.Search -> Icon(
+                                    imageVector = AppIcons.Search,
                                     contentDescription = null,
+                                )
+
+                                HomeScreenUiState.Tab.User -> ProfileIcon(
+                                    iconUrl = uiState.userTabIconUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
                         },

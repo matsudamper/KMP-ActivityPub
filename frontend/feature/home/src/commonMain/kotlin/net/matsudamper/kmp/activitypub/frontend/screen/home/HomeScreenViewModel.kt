@@ -41,6 +41,7 @@ internal class HomeScreenViewModel(
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userTabIconUrl = null,
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
                         viewModelScope.launch {
@@ -122,7 +123,12 @@ internal class HomeScreenViewModel(
 
                     is UserMyProfileResult.Failure -> HomeScreenUiState.Profile.Error(result.message)
                 }
-            mutableUiStateFlow.update { it.copy(profile = profile) }
+            mutableUiStateFlow.update {
+                it.copy(
+                    profile = profile,
+                    userTabIconUrl = (profile as? HomeScreenUiState.Profile.Loaded)?.iconUrl,
+                )
+            }
         }
     }
 

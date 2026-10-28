@@ -8,6 +8,7 @@ data class HomeScreenUiState(
     val timelineRefreshing: Boolean,
     val search: Search,
     val profile: Profile,
+    val userTabIconUrl: String?,
     val listener: Listener,
 ) {
     enum class Tab {
