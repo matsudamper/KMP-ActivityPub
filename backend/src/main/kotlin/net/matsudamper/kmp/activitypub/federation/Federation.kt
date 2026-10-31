@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
+import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
@@ -45,6 +46,7 @@ internal class Federation(
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
     imageStorage: ImageStorage?,
+    remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
     private val httpClient = OkHttpActivityPubClient()
@@ -54,6 +56,7 @@ internal class Federation(
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
+    private val webPages = FrontendWebPageUrls(domain)
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -85,6 +88,7 @@ internal class Federation(
             accountService = accountService,
             appearances = actorAppearances,
             profiles = actorProfiles,
+            webPages = webPages,
             imageStorage = imageStorage,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
@@ -103,7 +107,7 @@ internal class Federation(
             publicKeys = AccountActorPublicKeys(accountService),
             appearances = actorAppearances,
             profiles = actorProfiles,
-            webPages = null,
+            webPages = webPages,
         )
 
     /**
@@ -119,6 +123,13 @@ internal class Federation(
             val iconVersion = actorAppearances.find(username).iconVersion
             if (iconVersion == null) null else directory.resolve(username)?.icon(iconVersion)
         }
+
+    val remoteIconProxy: RemoteIconProxy =
+        RemoteIconProxy(
+            origin = "https://$domain",
+            signingKey = remoteIconProxySigningKey,
+            fetcher = HttpRemoteIconFetcher(httpClient),
+        )
 
     val followerEndpoint: FollowerEndpoint = FollowerEndpoint(directory = directory, followers = followers)
 

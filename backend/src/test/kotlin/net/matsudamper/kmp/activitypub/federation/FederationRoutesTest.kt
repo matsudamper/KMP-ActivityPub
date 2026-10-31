@@ -71,6 +71,7 @@ class FederationRoutesTest {
             assertEquals("Service", body.getValue("type").jsonPrimitive.content)
             assertEquals("user1", body.getValue("preferredUsername").jsonPrimitive.content)
             assertEquals("https://example.com/users/user1/inbox", body.getValue("inbox").jsonPrimitive.content)
+            assertEquals("https://example.com/@user1", body.getValue("url").jsonPrimitive.content)
             val publicKey = body.getValue("publicKey").jsonObject
             assertEquals("https://example.com/users/user1#main-key", publicKey.getValue("id").jsonPrimitive.content)
             assertEquals("https://example.com/users/user1", publicKey.getValue("owner").jsonPrimitive.content)
@@ -142,6 +143,18 @@ class FederationRoutesTest {
             setUp()
 
             assertEquals(HttpStatusCode.NotFound, client.post("/users/nobody/inbox") { setBody(FOLLOW_BODY) }.status)
+        }
+
+    @Test
+    fun `発行していない画像の中継 URL は edge に残さず 404 を返す`() =
+        testApplication {
+            setUp()
+
+            val response = client.get("/proxy/icon/aHR0cHM6Ly9yZW1vdGUuZXhhbXBsZS9pY29uLnBuZw/invalid.bin")
+
+            assertEquals(HttpStatusCode.NotFound, response.status)
+            assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+            assertEquals("nosniff", response.headers["X-Content-Type-Options"])
         }
 
     @Test

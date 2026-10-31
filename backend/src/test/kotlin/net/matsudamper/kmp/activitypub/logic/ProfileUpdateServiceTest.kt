@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.FakeFollowerRepository
 import net.matsudamper.kmp.activitypub.FakeImageStorage
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
+import net.matsudamper.kmp.activitypub.federation.FrontendWebPageUrls
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
@@ -184,6 +185,7 @@ class ProfileUpdateServiceTest {
             accountService = AccountService(accountRepository),
             appearances = EmptyAppearances,
             profiles = StoredProfiles,
+            webPages = FrontendWebPageUrls(DOMAIN),
             imageStorage = imageStorage,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
