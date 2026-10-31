@@ -41,6 +41,9 @@ data class HomeScreenUiState(
     }
 
     data class SearchAccount(
+        val followButtonText: String?,
+        val followButtonEnabled: Boolean,
+        val onClickFollow: () -> Unit,
         val iconUrl: String?,
         val displayName: String,
         val acct: String,

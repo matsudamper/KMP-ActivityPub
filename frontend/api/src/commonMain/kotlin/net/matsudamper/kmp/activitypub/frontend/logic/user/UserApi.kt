@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQue
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
@@ -30,6 +31,13 @@ class UserApi(
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
+
+    suspend fun setFollowing(actorUri: String, followed: Boolean): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        return if (response.data?.user?.setFollowing == true) null else "フォロー状態を変更できませんでした"
+    }
 
     suspend fun login(
         username: String,
@@ -99,7 +107,17 @@ class UserApi(
         val searchUsers = response.data?.searchUsers ?: return UserSearchResult.Failure(response.failureMessage())
 
         return UserSearchResult.Success(
-            users = searchUsers.users.map { UserSearchResult.User(username = it.username, host = it.host, isLocal = it.isLocal, displayName = it.displayName, iconUrl = it.iconUrl) },
+            users = searchUsers.users.map {
+                UserSearchResult.User(
+                    actorUri = it.actorUri,
+                    following = it.following,
+                    username = it.username,
+                    host = it.host,
+                    isLocal = it.isLocal,
+                    displayName = it.displayName,
+                    iconUrl = it.iconUrl,
+                )
+            },
             nextCursor = searchUsers.nextCursor,
         )
     }
@@ -112,7 +130,15 @@ class UserApi(
         val user = data.resolveUser ?: return UserResolveResult.NotFound
 
         return UserResolveResult.Found(
-            UserSearchResult.User(username = user.username, host = user.host, isLocal = user.isLocal, displayName = user.displayName, iconUrl = user.iconUrl),
+            UserSearchResult.User(
+                actorUri = user.actorUri,
+                following = user.following,
+                username = user.username,
+                host = user.host,
+                isLocal = user.isLocal,
+                displayName = user.displayName,
+                iconUrl = user.iconUrl,
+            ),
         )
     }
 

@@ -1,0 +1,5 @@
+mutation SetFollowing($actorUri: String!, $followed: Boolean!) {
+    user {
+        setFollowing(actorUri: $actorUri, followed: $followed)
+    }
+}

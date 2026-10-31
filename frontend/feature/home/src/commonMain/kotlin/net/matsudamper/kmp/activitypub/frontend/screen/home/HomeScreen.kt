@@ -401,6 +401,12 @@ private fun SearchAccountItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
+            val followButtonText = account.followButtonText
+            if (followButtonText != null) {
+                Button(onClick = account.onClickFollow, enabled = account.followButtonEnabled) {
+                    Text(followButtonText)
+                }
+            }
         }
     }
 }

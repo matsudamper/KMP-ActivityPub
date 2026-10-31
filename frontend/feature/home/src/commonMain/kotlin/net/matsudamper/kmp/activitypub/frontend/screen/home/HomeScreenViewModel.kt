@@ -29,6 +29,7 @@ internal class HomeScreenViewModel(
     private val searchStateFlow: MutableStateFlow<SearchState> = MutableStateFlow(SearchState.NotSearched)
     private var searchJob: Job? = null
     private var profileJob: Job? = null
+    private var followingChangeInProgress = false
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
@@ -196,10 +197,16 @@ internal class HomeScreenViewModel(
         searchJob = viewModelScope.launch {
             when (val result = userApi.searchUsers(query = loaded.query, after = nextCursor)) {
                 is UserSearchResult.Success -> {
-                    searchStateFlow.value = loaded.copy(
-                        users = loaded.users + result.users,
-                        nextCursor = result.nextCursor,
-                    )
+                    searchStateFlow.update { current ->
+                        if (current is SearchState.Loaded && current.query == loaded.query) {
+                            current.copy(
+                                users = current.users + result.users,
+                                nextCursor = result.nextCursor,
+                            )
+                        } else {
+                            current
+                        }
+                    }
                 }
 
                 is UserSearchResult.Failure -> {
@@ -235,6 +242,15 @@ internal class HomeScreenViewModel(
 
     private fun createSearchAccount(user: UserSearchResult.User): HomeScreenUiState.SearchAccount {
         return HomeScreenUiState.SearchAccount(
+            followButtonText = if (user.actorUri == null) {
+                null
+            } else if (user.following) {
+                "フォロー中・解除"
+            } else {
+                "フォロー"
+            },
+            followButtonEnabled = !followingChangeInProgress,
+            onClickFollow = { changeFollowing(user) },
             iconUrl = user.iconUrl,
             displayName = user.displayName,
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
@@ -251,6 +267,38 @@ internal class HomeScreenViewModel(
                 null
             },
         )
+    }
+
+    private fun changeFollowing(user: UserSearchResult.User) {
+        val actorUri = user.actorUri ?: return
+        if (followingChangeInProgress) return
+        followingChangeInProgress = true
+        refreshSearchButtons()
+        viewModelScope.launch {
+            try {
+                val error = userApi.setFollowing(actorUri, followed = !user.following)
+                if (error == null) {
+                    searchStateFlow.update { state ->
+                        if (state is SearchState.Loaded) {
+                            state.copy(users = state.users.map { if (it.actorUri == actorUri) it.copy(following = !user.following) else it })
+                        } else {
+                            state
+                        }
+                    }
+                } else {
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                followingChangeInProgress = false
+                refreshSearchButtons()
+            }
+        }
+    }
+
+    private fun refreshSearchButtons() {
+        mutableUiStateFlow.update { state ->
+            state.copy(search = state.search.copy(result = createSearchResult(searchStateFlow.value)))
+        }
     }
 
     interface Event {
