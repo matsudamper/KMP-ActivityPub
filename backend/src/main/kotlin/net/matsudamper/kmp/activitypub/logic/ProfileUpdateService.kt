@@ -17,6 +17,7 @@ import net.matsudamper.kotpub.actor.ActorPublisher
 import net.matsudamper.kotpub.actor.LocalActor
 import net.matsudamper.kotpub.actor.StoredActorAppearances
 import net.matsudamper.kotpub.actor.StoredActorProfiles
+import net.matsudamper.kotpub.url.WebPageUrls
 import org.slf4j.LoggerFactory
 
 /**
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory
  *
  * @param appearances Actor エンドポイントと同じもの。Update には Actor の文書を丸ごと載せる
  * @param profiles Actor エンドポイントと同じもの
+ * @param webPages Actor エンドポイントと同じもの
  * @param imageStorage null なら画像を置けないので、プロフィール画像は変えられない
  * @param onEnqueued 積んだ後に呼ぶ。次の巡回を待たずに送らせる
  */
@@ -32,6 +34,7 @@ class ProfileUpdateService(
     private val accountService: AccountService,
     private val appearances: StoredActorAppearances,
     private val profiles: StoredActorProfiles,
+    private val webPages: WebPageUrls,
     private val imageStorage: ImageStorage?,
     private val followerRepository: FollowerRepository,
     private val deliveryQueueRepository: DeliveryQueueRepository,
@@ -129,7 +132,7 @@ class ProfileUpdateService(
                 profiles = object : StoredActorProfiles {
                     override fun find(username: String): ActorProfile = updatedProfile
                 },
-                webPages = null,
+                webPages = webPages,
             ).prepareUpdate(target.sender)
         val updated =
             deliveryQueueRepository.updateProfile(

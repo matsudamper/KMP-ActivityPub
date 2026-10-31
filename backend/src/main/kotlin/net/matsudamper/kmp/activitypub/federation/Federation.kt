@@ -54,6 +54,7 @@ internal class Federation(
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
+    private val webPages = FrontendWebPageUrls(domain)
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -85,6 +86,7 @@ internal class Federation(
             accountService = accountService,
             appearances = actorAppearances,
             profiles = actorProfiles,
+            webPages = webPages,
             imageStorage = imageStorage,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
@@ -103,7 +105,7 @@ internal class Federation(
             publicKeys = AccountActorPublicKeys(accountService),
             appearances = actorAppearances,
             profiles = actorProfiles,
-            webPages = null,
+            webPages = webPages,
         )
 
     /**
