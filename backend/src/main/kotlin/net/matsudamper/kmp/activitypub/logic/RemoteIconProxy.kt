@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import java.security.MessageDigest
+import java.time.Instant
 import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -22,11 +23,14 @@ class RemoteIconProxy(
     /**
      * http と https 以外は取りに行けないので null
      */
-    fun proxyUrlOf(remoteUrl: String): String? {
+    fun proxyUrlOf(remoteUrl: String): String? = proxyUrlOf(remoteUrl = remoteUrl, updatedAt = null)
+
+    fun proxyUrlOf(remoteUrl: String, updatedAt: Instant?): String? {
         val scheme = runCatching { URI(remoteUrl).scheme }.getOrNull()?.lowercase()
         if (scheme != "http" && scheme != "https") return null
         val encodedUrl = base64Url.encodeToString(remoteUrl.encodeToByteArray())
-        return "$origin$PATH_PREFIX/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX"
+        val version = if (updatedAt == null) "" else "?v=${base64Url.encodeToString(updatedAt.toString().encodeToByteArray())}"
+        return "$origin$PATH_PREFIX/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
     }
 
     suspend fun fetch(

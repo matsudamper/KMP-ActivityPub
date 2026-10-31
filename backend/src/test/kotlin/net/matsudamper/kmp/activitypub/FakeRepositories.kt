@@ -179,7 +179,13 @@ internal class FakeRemoteActorRepository : RemoteActorRepository {
                 after == null ||
                     compareValuesBy(
                         record,
-                        RemoteActorSearchRecord(actorUri = after.actorUri, preferredUsername = after.preferredUsername, displayName = null, iconUrl = null),
+                        RemoteActorSearchRecord(
+                            actorUri = after.actorUri,
+                            preferredUsername = after.preferredUsername,
+                            displayName = null,
+                            iconUrl = null,
+                            updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                        ),
                         { it.preferredUsername.sqliteLower() },
                         { it.actorUri },
                     ) > 0

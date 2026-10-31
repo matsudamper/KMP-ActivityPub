@@ -8,6 +8,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class RemoteActorRepositoryTest {
@@ -40,6 +41,7 @@ class RemoteActorRepositoryTest {
             repositories.followerRepository.recordFollower(actorUri = "https://b.example/users/carol", preferredUsername = "carol", displayName = "Ali Carol")
             repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/alice", preferredUsername = "Alice", displayName = null)
             repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/bob", preferredUsername = "bob", displayName = "Bob")
+            val beforeUpdate = Instant.now()
             repositories.followerRepository.updateProfile(
                 actorUri = "https://b.example/users/carol",
                 profile = RemoteActorProfileRecord(
@@ -50,12 +52,28 @@ class RemoteActorRepositoryTest {
                 ),
             )
 
+            val results = repositories.remoteActorRepository.searchByName(keyword = "ALI", after = null, limit = 10)
+            assertEquals(NOW, results.first().updatedAt)
+            assertTrue(results.last().updatedAt >= beforeUpdate)
+            assertTrue(results.last().updatedAt <= Instant.now())
             assertEquals(
                 listOf(
-                    RemoteActorSearchRecord(actorUri = "https://a.example/users/alice", preferredUsername = "Alice", displayName = null, iconUrl = null),
-                    RemoteActorSearchRecord(actorUri = "https://b.example/users/carol", preferredUsername = "carol", displayName = "Ali Carol", iconUrl = "https://b.example/carol.png"),
+                    RemoteActorSearchRecord(
+                        actorUri = "https://a.example/users/alice",
+                        preferredUsername = "Alice",
+                        displayName = null,
+                        iconUrl = null,
+                        updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                    ),
+                    RemoteActorSearchRecord(
+                        actorUri = "https://b.example/users/carol",
+                        preferredUsername = "carol",
+                        displayName = "Ali Carol",
+                        iconUrl = "https://b.example/carol.png",
+                        updatedAt = results.last().updatedAt,
+                    ),
                 ),
-                repositories.remoteActorRepository.searchByName(keyword = "ALI", after = null, limit = 10),
+                results,
             )
         }
     }

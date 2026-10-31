@@ -134,7 +134,7 @@ class QueryResolverImpl : QueryResolver {
             if (isLocal) {
                 diContainer.profileIconUrls?.find(username)
             } else {
-                iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(it) }
+                iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(remoteUrl = it, updatedAt = updatedAt) }
             },
         )
     }
