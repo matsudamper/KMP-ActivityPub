@@ -118,12 +118,19 @@ class QueryResolverImpl : QueryResolver {
         }
     }
 
-    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser =
-        QlSearchedUser(
+    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser {
+        val diContainer = GraphQlEngine.diContainer(env)
+        return QlSearchedUser(
             username = username,
             host = host,
             isLocal = isLocal,
             displayName = displayName,
-            iconUrl = if (isLocal) GraphQlEngine.diContainer(env).profileIconUrls?.find(username) else iconUrl,
+            iconUrl =
+            if (isLocal) {
+                diContainer.profileIconUrls?.find(username)
+            } else {
+                iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(it) }
+            },
         )
+    }
 }

@@ -73,6 +73,7 @@ class AppDependencies(
                 deliveryQueueRepository = repositories.deliveryQueueRepository,
                 noteRepository = repositories.noteRepository,
                 imageStorage = imageStorage,
+                remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
         }

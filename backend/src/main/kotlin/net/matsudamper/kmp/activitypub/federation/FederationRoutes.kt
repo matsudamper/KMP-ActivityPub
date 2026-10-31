@@ -52,6 +52,8 @@ internal fun Route.federationRoutes(federation: Federation) {
         }
     }
 
+    remoteIconProxyRoutes(federation.remoteIconProxy)
+
     get("/users/{username}/followers") {
         val response =
             withContext(Dispatchers.IO) {
