@@ -125,3 +125,11 @@ CREATE TABLE health_check (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     checked_at TEXT NOT NULL
 );
+
+-- 第一段階では内部のフォローだけを保存し、連合先の承認状態は扱わない
+CREATE TABLE account_following (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    actor_uri TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, actor_uri)
+);

@@ -1,4 +1,6 @@
 type UserMutation {
+    "内部のフォロー状態を設定する。未ログインや不正な相手なら false"
+    setFollowing(actorUri: String!, followed: Boolean!): Boolean! @lazy
     login(query: UserLoginQuery!): UserLoginResult! @lazy
     passkeyLoginOptions: String! @lazy
     passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy

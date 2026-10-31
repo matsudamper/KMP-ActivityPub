@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.graphql
 
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
@@ -10,6 +11,7 @@ import net.matsudamper.kmp.activitypub.session.LoginThrottle
 
 class DiContainer(
     val accountService: AccountService,
+    val followingService: FollowingService,
     val userSearchService: UserSearchService,
     /**
      * ENABLE_PASSKEY が false なら null

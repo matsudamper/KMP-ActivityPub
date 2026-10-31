@@ -39,6 +39,20 @@ import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
 class UserMutationResolverImpl : UserMutationResolver {
+    override fun setFollowing(
+        userMutation: QlUserMutation,
+        actorUri: String,
+        followed: Boolean,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<Boolean>> {
+        val result = GraphQlEngine.diContainer(env).followingService.setFollowing(
+            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
+            actorUri = actorUri,
+            followed = followed,
+        )
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     /**
      * 通るとセッションの Cookie を返す
      */

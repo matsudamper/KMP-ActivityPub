@@ -19,6 +19,7 @@ interface RemoteUserLookup {
  * @param username 相手のサーバーでのユーザー名。acct のうちホストより前
  */
 data class RemoteUser(
+    val actorUri: String,
     val username: String,
     val displayName: String?,
     val iconUrl: String?,

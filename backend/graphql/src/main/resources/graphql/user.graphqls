@@ -13,6 +13,9 @@ type UserSearchResult {
 
 "検索で見つかったユーザー"
 type SearchedUser {
+    actorUri: String
+    "このサーバー内部でのフォロー状態"
+    following: Boolean!
     username: String!
     host: String!
     "このサーバーのユーザーか"

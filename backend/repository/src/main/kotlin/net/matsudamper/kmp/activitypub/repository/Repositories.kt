@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.repository.sqlite.SqliteRepositories
  * JDBC と jOOQ をモジュールの外に出さないための入口
  */
 interface Repositories : AutoCloseable {
+    val followingRepository: FollowingRepository
     val accountRepository: AccountRepository
     val followerRepository: FollowerRepository
     val deliveryQueueRepository: DeliveryQueueRepository

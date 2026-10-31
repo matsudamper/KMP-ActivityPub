@@ -120,6 +120,11 @@ class QueryResolverImpl : QueryResolver {
 
     private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser =
         QlSearchedUser(
+            actorUri = actorUri,
+            following = GraphQlEngine.diContainer(env).followingService.isFollowing(
+                GraphQlEngine.graphQlContext(env).userAccountId(),
+                actorUri,
+            ),
             username = username,
             host = host,
             isLocal = isLocal,
