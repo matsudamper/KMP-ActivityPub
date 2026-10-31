@@ -13,6 +13,7 @@ import org.koin.plugin.module.dsl.koinConfiguration
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
+    normalizeNavigatorLanguageForCjkFontFallback()
     ComposeViewport {
         App()
     }
