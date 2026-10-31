@@ -71,6 +71,7 @@ class FederationRoutesTest {
             assertEquals("Service", body.getValue("type").jsonPrimitive.content)
             assertEquals("user1", body.getValue("preferredUsername").jsonPrimitive.content)
             assertEquals("https://example.com/users/user1/inbox", body.getValue("inbox").jsonPrimitive.content)
+            assertEquals("https://example.com/@user1", body.getValue("url").jsonPrimitive.content)
             val publicKey = body.getValue("publicKey").jsonObject
             assertEquals("https://example.com/users/user1#main-key", publicKey.getValue("id").jsonPrimitive.content)
             assertEquals("https://example.com/users/user1", publicKey.getValue("owner").jsonPrimitive.content)
