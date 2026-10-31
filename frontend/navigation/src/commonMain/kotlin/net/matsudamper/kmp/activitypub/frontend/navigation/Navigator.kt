@@ -8,12 +8,26 @@ import androidx.navigation3.runtime.NavKey
 class Navigator(
     private val backStack: NavBackStack<NavKey>,
 ) {
+    val homeTabBackEnabled: Boolean
+        get() {
+            val home = backStack.lastOrNull() as? Screen.Home
+            return home != null && home.tab != Screen.Home.Tab.Timeline
+        }
+
     fun navigate(screen: Screen) {
         backStack.add(screen)
     }
 
+    fun selectHomeTab(tab: Screen.Home.Tab) {
+        if (backStack.lastOrNull() is Screen.Home) {
+            backStack[backStack.lastIndex] = Screen.Home(tab = tab)
+        }
+    }
+
     fun back() {
-        if (backStack.size > 1) {
+        if (homeTabBackEnabled) {
+            selectHomeTab(Screen.Home.Tab.Timeline)
+        } else if (backStack.size > 1) {
             backStack.removeAt(backStack.lastIndex)
         }
     }

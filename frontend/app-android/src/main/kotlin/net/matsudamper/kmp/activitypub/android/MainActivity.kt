@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.android
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,9 +12,11 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import net.matsudamper.kmp.activitypub.android.passkey.ForegroundActivityHolder
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
+import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.navigation.rememberScreenBackStack
 import net.matsudamper.kmp.activitypub.frontend.screen.HomeNavigationHost
@@ -49,6 +52,8 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
         }
     }
     val backStack = rememberScreenBackStack(startScreens = listOf(Screen.Home.Timeline))
+    val navigator = remember(backStack) { Navigator(backStack) }
+    BackHandler(enabled = navigator.homeTabBackEnabled, onBack = navigator::back)
     MaterialTheme {
         Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
             HomeNavigationHost(

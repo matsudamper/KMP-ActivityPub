@@ -41,18 +41,14 @@ internal object BrowserHistory {
         }
     }
 
-    private fun screenOf(
-        path: String,
-        unknownPathScreen: Screen,
-    ): Screen = Screen.fromPath(path) ?: unknownPathScreen
-
     /**
      * 履歴の各エントリの state に、履歴上の位置を持たせて積み上げとの対応を取る
      */
-    private class BackStackHistorySync(
+    internal class BackStackHistorySync(
         private val backStack: NavBackStack<NavKey>,
         private val unknownPathScreen: Screen,
     ) {
+        private var syncedStack: List<NavKey> = listOf()
         private var stackBottomHistoryIndex = 0
         private var currentHistoryIndex = 0
         private val popStateListener: (Event) -> Unit = { event ->
@@ -77,6 +73,7 @@ internal object BrowserHistory {
                 }
             }
             currentHistoryIndex = stackBottomHistoryIndex + backStack.lastIndex
+            syncedStack = backStack.toList()
             window.addEventListener("popstate", popStateListener)
         }
 
@@ -86,6 +83,11 @@ internal object BrowserHistory {
 
         fun onBackStackChanged(stack: List<NavKey>) {
             if (stack.isEmpty()) return
+            val home = stack.last() as? Screen.Home
+            val previousHome = syncedStack.lastOrNull() as? Screen.Home
+            if (stack.size == syncedStack.size && home != null && previousHome != null && home != previousHome) {
+                stackBottomHistoryIndex += 1
+            }
             val targetHistoryIndex = stackBottomHistoryIndex + stack.lastIndex
             when {
                 targetHistoryIndex > currentHistoryIndex -> {
@@ -109,6 +111,7 @@ internal object BrowserHistory {
                     }
                 }
             }
+            syncedStack = stack
         }
 
         private fun onPopState(historyIndex: Int?) {
@@ -123,6 +126,11 @@ internal object BrowserHistory {
             }
             val stackIndex = historyIndex - stackBottomHistoryIndex
             when {
+                screen is Screen.Home -> {
+                    stackBottomHistoryIndex = historyIndex
+                    resetBackStack(screen)
+                }
+
                 // 再読み込みより前の履歴に戻った
                 stackIndex < 0 -> {
                     stackBottomHistoryIndex = historyIndex
@@ -145,6 +153,7 @@ internal object BrowserHistory {
                 }
             }
             currentHistoryIndex = historyIndex
+            syncedStack = backStack.toList()
         }
 
         private fun pathOf(key: NavKey): String = ((key as? Screen) ?: unknownPathScreen).path
@@ -152,10 +161,16 @@ internal object BrowserHistory {
         private fun resetBackStack(screen: Screen) {
             backStack.clear()
             backStack.add(screen)
+            syncedStack = backStack.toList()
         }
 
         private fun historyIndexOf(state: JsAny?): Int? {
             return (state as? JsNumber)?.toInt()
         }
     }
+
+    private fun screenOf(
+        path: String,
+        unknownPathScreen: Screen,
+    ): Screen = Screen.fromPath(path) ?: unknownPathScreen
 }

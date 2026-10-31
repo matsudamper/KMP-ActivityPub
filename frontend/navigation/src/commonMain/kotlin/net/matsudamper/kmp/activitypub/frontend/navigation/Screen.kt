@@ -33,7 +33,7 @@ sealed interface Screen : NavKey {
     ) : Screen {
         override val pathPattern: PathPattern get() = tab.pathPattern
         override val pathParameters: Map<String, String> get() = mapOf()
-        override val parentScreen: Screen? get() = if (tab == Tab.Timeline) null else Timeline
+        override val parentScreen: Screen? get() = null
         override val loginRequired: Boolean get() = true
 
         enum class Tab(
