@@ -146,6 +146,18 @@ class FederationRoutesTest {
         }
 
     @Test
+    fun `発行していない画像の中継 URL は edge に残さず 404 を返す`() =
+        testApplication {
+            setUp()
+
+            val response = client.get("/proxy/icon/aHR0cHM6Ly9yZW1vdGUuZXhhbXBsZS9pY29uLnBuZw/invalid.bin")
+
+            assertEquals(HttpStatusCode.NotFound, response.status)
+            assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
+            assertEquals("nosniff", response.headers["X-Content-Type-Options"])
+        }
+
+    @Test
     fun `DOMAIN が無いときは WebFinger を返さない`() =
         testApplication {
             application {

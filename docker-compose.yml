@@ -30,6 +30,10 @@ services:
       DOMAIN: example.com
       # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
       # TRUST_CF_CONNECTING_IP: "true"
+      # 必須。他のサーバーのプロフィール画像を中継する URL の署名鍵。署名の無い URL は中継しない。
+      # 変えると中継 URL が全部変わり、Cloudflare のキャッシュに当たらなくなる
+      #   openssl rand -base64 32
+      REMOTE_ICON_PROXY_SECRET: ${REMOTE_ICON_PROXY_SECRET:?REMOTE_ICON_PROXY_SECRET を設定すること}
       # 必須。true か false。true なら画像を S3 に置く。認証情報は、このサーバーを OIDC の IdP にして STS の AssumeRoleWithWebIdentity で受け取る
       ENABLE_S3: "false"
       # /.well-known/openid-configuration と /jwks を返す。パスを含めない。STS からこの URL に届くこと
