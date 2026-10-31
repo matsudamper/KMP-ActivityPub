@@ -8,6 +8,7 @@ data class HomeScreenUiState(
     val timelineRefreshing: Boolean,
     val search: Search,
     val profile: Profile,
+    val userTabIconUrl: String?,
     val listener: Listener,
 ) {
     enum class Tab {
@@ -40,7 +41,7 @@ data class HomeScreenUiState(
     }
 
     data class SearchAccount(
-        val avatarInitial: String,
+        val iconUrl: String?,
         val displayName: String,
         val acct: String,
         /**
@@ -57,7 +58,7 @@ data class HomeScreenUiState(
         ) : Profile
 
         data class Loaded(
-            val avatarInitial: String,
+            val iconUrl: String?,
             val displayName: String,
             val acct: String,
         ) : Profile

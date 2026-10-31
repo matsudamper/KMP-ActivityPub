@@ -41,6 +41,7 @@ internal class HomeScreenViewModel(
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userTabIconUrl = null,
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
                         viewModelScope.launch {
@@ -113,7 +114,7 @@ internal class HomeScreenViewModel(
             val profile =
                 when (val result = userApi.myProfile()) {
                     is UserMyProfileResult.Found -> HomeScreenUiState.Profile.Loaded(
-                        avatarInitial = result.username.take(1).uppercase(),
+                        iconUrl = result.iconUrl,
                         displayName = result.displayName ?: result.username,
                         acct = "@${result.username}",
                     )
@@ -122,7 +123,12 @@ internal class HomeScreenViewModel(
 
                     is UserMyProfileResult.Failure -> HomeScreenUiState.Profile.Error(result.message)
                 }
-            mutableUiStateFlow.update { it.copy(profile = profile) }
+            mutableUiStateFlow.update {
+                it.copy(
+                    profile = profile,
+                    userTabIconUrl = (profile as? HomeScreenUiState.Profile.Loaded)?.iconUrl,
+                )
+            }
         }
     }
 
@@ -225,7 +231,7 @@ internal class HomeScreenViewModel(
 
     private fun createSearchAccount(user: UserSearchResult.User): HomeScreenUiState.SearchAccount {
         return HomeScreenUiState.SearchAccount(
-            avatarInitial = user.username.take(1).uppercase(),
+            iconUrl = user.iconUrl,
             displayName = user.displayName,
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
             // 他のサーバーのユーザーのプロフィール画面はまだ無い

@@ -27,4 +27,5 @@ data class RemoteActorSearchRecord(
     val actorUri: String,
     val preferredUsername: String,
     val displayName: String?,
+    val iconUrl: String?,
 )

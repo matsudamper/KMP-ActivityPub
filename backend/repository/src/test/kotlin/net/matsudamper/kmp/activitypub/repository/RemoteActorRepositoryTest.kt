@@ -40,11 +40,20 @@ class RemoteActorRepositoryTest {
             repositories.followerRepository.recordFollower(actorUri = "https://b.example/users/carol", preferredUsername = "carol", displayName = "Ali Carol")
             repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/alice", preferredUsername = "Alice", displayName = null)
             repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/bob", preferredUsername = "bob", displayName = "Bob")
+            repositories.followerRepository.updateProfile(
+                actorUri = "https://b.example/users/carol",
+                profile = RemoteActorProfileRecord(
+                    preferredUsername = "carol",
+                    displayName = "Ali Carol",
+                    profileUrl = null,
+                    iconUrl = "https://b.example/carol.png",
+                ),
+            )
 
             assertEquals(
                 listOf(
-                    RemoteActorSearchRecord(actorUri = "https://a.example/users/alice", preferredUsername = "Alice", displayName = null),
-                    RemoteActorSearchRecord(actorUri = "https://b.example/users/carol", preferredUsername = "carol", displayName = "Ali Carol"),
+                    RemoteActorSearchRecord(actorUri = "https://a.example/users/alice", preferredUsername = "Alice", displayName = null, iconUrl = null),
+                    RemoteActorSearchRecord(actorUri = "https://b.example/users/carol", preferredUsername = "carol", displayName = "Ali Carol", iconUrl = "https://b.example/carol.png"),
                 ),
                 repositories.remoteActorRepository.searchByName(keyword = "ALI", after = null, limit = 10),
             )

@@ -23,6 +23,6 @@ internal class KotpubRemoteUserLookup(
     override suspend fun findByUrl(url: String): RemoteUser? {
         val actor = remoteActors.findActor(url) ?: return null
         val username = actor.profile.preferredUsername ?: return null
-        return RemoteUser(username = username, displayName = actor.profile.displayName)
+        return RemoteUser(username = username, displayName = actor.profile.displayName, iconUrl = actor.profile.iconUrl)
     }
 }

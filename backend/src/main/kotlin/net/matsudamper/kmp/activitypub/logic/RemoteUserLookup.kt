@@ -21,4 +21,5 @@ interface RemoteUserLookup {
 data class RemoteUser(
     val username: String,
     val displayName: String?,
+    val iconUrl: String?,
 )

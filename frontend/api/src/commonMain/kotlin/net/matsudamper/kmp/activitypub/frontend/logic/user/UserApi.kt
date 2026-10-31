@@ -99,7 +99,7 @@ class UserApi(
         val searchUsers = response.data?.searchUsers ?: return UserSearchResult.Failure(response.failureMessage())
 
         return UserSearchResult.Success(
-            users = searchUsers.users.map { UserSearchResult.User(username = it.username, host = it.host, isLocal = it.isLocal, displayName = it.displayName) },
+            users = searchUsers.users.map { UserSearchResult.User(username = it.username, host = it.host, isLocal = it.isLocal, displayName = it.displayName, iconUrl = it.iconUrl) },
             nextCursor = searchUsers.nextCursor,
         )
     }
@@ -112,7 +112,7 @@ class UserApi(
         val user = data.resolveUser ?: return UserResolveResult.NotFound
 
         return UserResolveResult.Found(
-            UserSearchResult.User(username = user.username, host = user.host, isLocal = user.isLocal, displayName = user.displayName),
+            UserSearchResult.User(username = user.username, host = user.host, isLocal = user.isLocal, displayName = user.displayName, iconUrl = user.iconUrl),
         )
     }
 
