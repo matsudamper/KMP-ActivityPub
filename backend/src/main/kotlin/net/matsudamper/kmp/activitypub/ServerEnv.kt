@@ -45,6 +45,13 @@ class ServerEnv(
     val trustCfConnectingIp: Boolean = booleanOf("TRUST_CF_CONNECTING_IP") ?: false
 
     /**
+     * 他のサーバーのプロフィール画像を中継する URL の署名に使う。署名が無いと、誰でも任意の URL をこのサーバーに取りに行かせられる。
+     * 変えると中継 URL が全部変わり、Cloudflare のキャッシュに当たらなくなる
+     */
+    val remoteIconProxySecret: String =
+        requireNotNull(env["REMOTE_ICON_PROXY_SECRET"]?.ifEmpty { null }) { "REMOTE_ICON_PROXY_SECRET を設定すること" }
+
+    /**
      * 書き忘れでパスキーが黙って無効にならないよう、true か false を必ず書かせる
      */
     val enablePasskey: Boolean = requireNotNull(booleanOf("ENABLE_PASSKEY")) { "ENABLE_PASSKEY を true か false で設定すること" }

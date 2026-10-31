@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
+import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
 
@@ -28,4 +29,8 @@ class DiContainer(
      * DOMAIN が無いと Actor の URL を作れないので null
      */
     val profileIconUrls: ProfileIconUrls?,
+    /**
+     * DOMAIN が無いと中継 URL を作れないので null
+     */
+    val remoteIconProxy: RemoteIconProxy?,
 )

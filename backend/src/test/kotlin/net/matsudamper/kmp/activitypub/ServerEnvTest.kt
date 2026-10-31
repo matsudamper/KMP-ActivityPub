@@ -118,6 +118,12 @@ class ServerEnvTest {
     }
 
     @Test
+    fun `REMOTE_ICON_PROXY_SECRET が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> { ServerEnv(FEATURES_DISABLED - "REMOTE_ICON_PROXY_SECRET") }
+        assertFailsWith<IllegalArgumentException> { ServerEnv(FEATURES_DISABLED + mapOf("REMOTE_ICON_PROXY_SECRET" to "")) }
+    }
+
+    @Test
     fun `ENABLE_PASSKEY が無ければ起動しない`() {
         assertFailsWith<IllegalArgumentException> { ServerEnv(FEATURES_DISABLED - "ENABLE_PASSKEY") }
     }
@@ -193,7 +199,7 @@ class ServerEnvTest {
     }
 
     private companion object {
-        val FEATURES_DISABLED: Map<String, String> = mapOf("ENABLE_PASSKEY" to "false", "ENABLE_S3" to "false")
+        val FEATURES_DISABLED: Map<String, String> = mapOf("ENABLE_PASSKEY" to "false", "ENABLE_S3" to "false", "REMOTE_ICON_PROXY_SECRET" to "test-secret")
         val PASSKEY_ENABLED: Map<String, String> = FEATURES_DISABLED + mapOf("ENABLE_PASSKEY" to "true", "PASSKEY_RP_ID" to "example.com")
         val S3_REQUIRED: Map<String, String> =
             FEATURES_DISABLED +
