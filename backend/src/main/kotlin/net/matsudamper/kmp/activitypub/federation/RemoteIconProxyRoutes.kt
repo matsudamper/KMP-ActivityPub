@@ -23,8 +23,9 @@ internal fun Route.remoteIconProxyRoutes(proxy: RemoteIconProxy) {
         call.response.header(CONTENT_TYPE_OPTIONS_HEADER, "nosniff")
         when (result) {
             is RemoteIconProxyResult.Found -> {
-                // 相手がアイコンを変えると URL も変わり、中継 URL も別になる
-                call.response.header(HttpHeaders.CacheControl, "public, max-age=31536000, immutable")
+                // 相手が同じ URL のまま画像を差し替えることもあるので、1 日で取り直す
+                // TODO: サーバー内で保持しているユーザーはそちらを返す
+                call.response.header(HttpHeaders.CacheControl, "public, max-age=86400")
                 call.respondBytes(bytes = result.bytes, contentType = ContentType.parse(result.contentType), status = HttpStatusCode.OK)
             }
 
