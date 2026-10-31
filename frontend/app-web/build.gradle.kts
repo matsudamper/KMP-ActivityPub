@@ -13,6 +13,11 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                }
+            }
             commonWebpackConfig {
                 outputFileName = WebpackBundleHashPlugin.BUNDLE_FILE_NAME
             }
@@ -21,6 +26,13 @@ kotlin {
     }
 
     sourceSets {
+        wasmJsTest {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
+
         wasmJsMain {
             dependencies {
                 implementation(project(":frontend:api"))
