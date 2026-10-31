@@ -43,8 +43,8 @@ fun HomeNavigationHost(
             rememberViewModelStoreNavEntryDecorator(),
         ),
         entryProvider = { key ->
-            NavEntry(key) {
-                val screen = key as Screen
+            NavEntry(key, contentKey = if (key is Screen.Home) Screen.Home.Timeline.path else (key as Screen).path) { screenKey ->
+                val screen = screenKey as Screen
                 if (screen.loginRequired) {
                     val loginGateViewModel = koinViewModel<LoginGateViewModel>()
                     val loginGateUiState by loginGateViewModel.uiStateFlow.collectAsState()

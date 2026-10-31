@@ -77,6 +77,8 @@ data class HomeScreenUiState(
 
         fun onClickTab(tab: Tab)
 
+        fun onTabChanged(tab: Tab)
+
         fun onRefreshTimeline()
 
         fun onSearchQueryChanged(query: String)

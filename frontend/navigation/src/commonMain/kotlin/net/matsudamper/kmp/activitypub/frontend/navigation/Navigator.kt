@@ -12,6 +12,12 @@ class Navigator(
         backStack.add(screen)
     }
 
+    fun selectHomeTab(tab: Screen.Home.Tab) {
+        if (backStack.lastOrNull() is Screen.Home) {
+            backStack[backStack.lastIndex] = Screen.Home(tab = tab)
+        }
+    }
+
     fun back() {
         if (backStack.size > 1) {
             backStack.removeAt(backStack.lastIndex)

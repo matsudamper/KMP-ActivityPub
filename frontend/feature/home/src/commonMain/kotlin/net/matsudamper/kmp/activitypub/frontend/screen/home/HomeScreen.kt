@@ -34,6 +34,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +64,7 @@ internal fun HomeScreen(
         viewModel.eventHandler.collect(
             object : HomeScreenViewModel.Event {
                 override fun navigateToTab(tab: HomeScreenUiState.Tab) {
-                    navigator.navigateOrBackTo(Screen.Home(tab = tab.toScreenTab()))
+                    navigator.selectHomeTab(tab.toScreenTab())
                 }
 
                 override fun navigateToPost() {
@@ -89,6 +90,10 @@ internal fun HomeScreen(
         )
     }
 
+    LaunchedEffect(tab, uiState.listener) {
+        uiState.listener.onTabChanged(tab.toUiStateTab())
+    }
+
     LaunchedEffect(uiState.listener) {
         uiState.listener.onScreenShown()
     }
@@ -100,6 +105,7 @@ internal fun HomeContent(
     uiState: HomeScreenUiState,
     snackbarHostState: SnackbarHostState,
 ) {
+    val tabStateHolder = rememberSaveableStateHolder()
     Scaffold(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface) {
@@ -169,30 +175,32 @@ internal fun HomeContent(
         },
     ) { paddingValues ->
         val contentModifier = Modifier.fillMaxSize().padding(paddingValues)
-        when (uiState.selectedTab) {
-            HomeScreenUiState.Tab.Home -> {
-                TimelineTabContent(
-                    timelineItems = uiState.timelineItems,
-                    refreshing = uiState.timelineRefreshing,
-                    listener = uiState.listener,
-                    modifier = contentModifier,
-                )
-            }
+        tabStateHolder.SaveableStateProvider(uiState.selectedTab.name) {
+            when (uiState.selectedTab) {
+                HomeScreenUiState.Tab.Home -> {
+                    TimelineTabContent(
+                        timelineItems = uiState.timelineItems,
+                        refreshing = uiState.timelineRefreshing,
+                        listener = uiState.listener,
+                        modifier = contentModifier,
+                    )
+                }
 
-            HomeScreenUiState.Tab.Search -> {
-                SearchTabContent(
-                    search = uiState.search,
-                    listener = uiState.listener,
-                    modifier = contentModifier,
-                )
-            }
+                HomeScreenUiState.Tab.Search -> {
+                    SearchTabContent(
+                        search = uiState.search,
+                        listener = uiState.listener,
+                        modifier = contentModifier,
+                    )
+                }
 
-            HomeScreenUiState.Tab.User -> {
-                UserTabContent(
-                    profile = uiState.profile,
-                    listener = uiState.listener,
-                    modifier = contentModifier,
-                )
+                HomeScreenUiState.Tab.User -> {
+                    UserTabContent(
+                        profile = uiState.profile,
+                        listener = uiState.listener,
+                        modifier = contentModifier,
+                    )
+                }
             }
         }
     }

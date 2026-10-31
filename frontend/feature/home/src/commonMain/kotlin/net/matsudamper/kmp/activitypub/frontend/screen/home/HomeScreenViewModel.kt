@@ -61,6 +61,10 @@ internal class HomeScreenViewModel(
                         }
                     }
 
+                    override fun onTabChanged(tab: HomeScreenUiState.Tab) {
+                        mutableUiStateFlow.update { it.copy(selectedTab = tab) }
+                    }
+
                     override fun onRefreshTimeline() {
                     }
 
