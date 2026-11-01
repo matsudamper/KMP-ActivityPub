@@ -36,7 +36,14 @@ internal class FollowListScreenViewModel(
             load()
         }
 
-        override fun onClickLoadMore() {
+        override fun onScrolledToEnd() {
+            // 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押したときだけ読み直す
+            val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+            if (loaded.loadMoreErrorMessage != null) return
+            loadMore()
+        }
+
+        override fun onClickRetryLoadMore() {
             loadMore()
         }
     }
@@ -60,17 +67,19 @@ internal class FollowListScreenViewModel(
         loadJob = viewModelScope.launch {
             when (val result = fetch(after = null)) {
                 is UserFollowListResult.Success -> {
-                    viewModelStateFlow.value = ViewModelState.Loaded(users = result.users, nextCursor = result.nextCursor)
+                    viewModelStateFlow.value = ViewModelState.Loaded(
+                        users = result.users,
+                        nextCursor = result.nextCursor,
+                        loadMoreErrorMessage = null,
+                    )
                 }
 
                 UserFollowListResult.NotLoggedIn -> {
-                    viewModelStateFlow.value = ViewModelState.NotLoaded
-                    events.send { it.showMessage("ログインしていません") }
+                    viewModelStateFlow.value = ViewModelState.Failed(NOT_LOGGED_IN_MESSAGE)
                 }
 
                 is UserFollowListResult.Failure -> {
-                    viewModelStateFlow.value = ViewModelState.NotLoaded
-                    events.send { it.showMessage(result.message) }
+                    viewModelStateFlow.value = ViewModelState.Failed(result.message)
                 }
             }
         }
@@ -80,24 +89,15 @@ internal class FollowListScreenViewModel(
         if (loadJob?.isActive == true) return
         val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
         val nextCursor = loaded.nextCursor ?: return
+        viewModelStateFlow.value = loaded.copy(loadMoreErrorMessage = null)
         loadJob = viewModelScope.launch {
-            when (val result = fetch(after = nextCursor)) {
-                is UserFollowListResult.Success -> {
-                    viewModelStateFlow.update { current ->
-                        if (current is ViewModelState.Loaded) {
-                            current.copy(users = current.users + result.users, nextCursor = result.nextCursor)
-                        } else {
-                            current
-                        }
-                    }
-                }
-
-                UserFollowListResult.NotLoggedIn -> {
-                    events.send { it.showMessage("ログインしていません") }
-                }
-
-                is UserFollowListResult.Failure -> {
-                    events.send { it.showMessage(result.message) }
+            val result = fetch(after = nextCursor)
+            viewModelStateFlow.update { current ->
+                if (current !is ViewModelState.Loaded) return@update current
+                when (result) {
+                    is UserFollowListResult.Success -> current.copy(users = current.users + result.users, nextCursor = result.nextCursor)
+                    UserFollowListResult.NotLoggedIn -> current.copy(loadMoreErrorMessage = NOT_LOGGED_IN_MESSAGE)
+                    is UserFollowListResult.Failure -> current.copy(loadMoreErrorMessage = result.message)
                 }
             }
         }
@@ -152,7 +152,7 @@ internal class FollowListScreenViewModel(
             content = when (viewModelState) {
                 ViewModelState.Loading -> FollowListScreenUiState.Content.Loading
 
-                ViewModelState.NotLoaded -> FollowListScreenUiState.Content.NotLoaded
+                is ViewModelState.Failed -> FollowListScreenUiState.Content.Error(viewModelState.message)
 
                 is ViewModelState.Loaded -> FollowListScreenUiState.Content.Loaded(
                     accounts = viewModelState.users.map { createAccount(it) },
@@ -164,11 +164,20 @@ internal class FollowListScreenViewModel(
                     } else {
                         null
                     },
-                    loadMoreButtonVisible = viewModelState.nextCursor != null,
+                    footer = createFooter(viewModelState),
                 )
             },
             listener = listener,
         )
+    }
+
+    private fun createFooter(loaded: ViewModelState.Loaded): FollowListScreenUiState.Footer {
+        val loadMoreErrorMessage = loaded.loadMoreErrorMessage
+        return when {
+            loadMoreErrorMessage != null -> FollowListScreenUiState.Footer.Error(loadMoreErrorMessage)
+            loaded.nextCursor != null -> FollowListScreenUiState.Footer.Loading
+            else -> FollowListScreenUiState.Footer.None
+        }
     }
 
     private fun createAccount(user: UserFollowListResult.User): FollowListScreenUiState.Account {
@@ -193,14 +202,24 @@ internal class FollowListScreenViewModel(
         fun showMessage(message: String)
     }
 
+    private companion object {
+        const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
+    }
+
     private sealed interface ViewModelState {
         data object Loading : ViewModelState
 
-        data object NotLoaded : ViewModelState
+        data class Failed(
+            val message: String,
+        ) : ViewModelState
 
+        /**
+         * @param loadMoreErrorMessage 続きを読めなかったときの理由。読めていれば null
+         */
         data class Loaded(
             val users: List<UserFollowListResult.User>,
             val nextCursor: String?,
+            val loadMoreErrorMessage: String?,
         ) : ViewModelState
     }
 }

@@ -38,7 +38,7 @@ private fun FollowListContentPreview() {
                         ),
                     ),
                     emptyMessage = null,
-                    loadMoreButtonVisible = true,
+                    footer = FollowListScreenUiState.Footer.Error("ネットワークエラー"),
                 ),
                 listener = AndroidPreviewFollowListListener,
             ),
@@ -57,8 +57,23 @@ private fun FollowListEmptyContentPreview() {
                 content = FollowListScreenUiState.Content.Loaded(
                     accounts = listOf(),
                     emptyMessage = "フォロワーはいません",
-                    loadMoreButtonVisible = false,
+                    footer = FollowListScreenUiState.Footer.None,
                 ),
+                listener = AndroidPreviewFollowListListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun FollowListErrorContentPreview() {
+    FollowListPreviewTheme {
+        FollowListContent(
+            uiState = FollowListScreenUiState(
+                title = "フォロー",
+                content = FollowListScreenUiState.Content.Error("ネットワークエラー"),
                 listener = AndroidPreviewFollowListListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -82,7 +97,9 @@ private object AndroidPreviewFollowListListener : FollowListScreenUiState.Listen
 
     override fun onClickRetry() = Unit
 
-    override fun onClickLoadMore() = Unit
+    override fun onScrolledToEnd() = Unit
+
+    override fun onClickRetryLoadMore() = Unit
 }
 
 private object AndroidPreviewAccountListener : FollowListScreenUiState.AccountListener {

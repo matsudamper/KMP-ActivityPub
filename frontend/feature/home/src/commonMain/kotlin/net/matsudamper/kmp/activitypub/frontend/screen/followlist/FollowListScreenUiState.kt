@@ -10,10 +10,9 @@ data class FollowListScreenUiState(
     sealed interface Content {
         data object Loading : Content
 
-        /**
-         * 読めなかった理由はメッセージで出す
-         */
-        data object NotLoaded : Content
+        data class Error(
+            val message: String,
+        ) : Content
 
         /**
          * @param emptyMessage 1 人もいないときに出す文。いれば null
@@ -21,8 +20,21 @@ data class FollowListScreenUiState(
         data class Loaded(
             val accounts: List<Account>,
             val emptyMessage: String?,
-            val loadMoreButtonVisible: Boolean,
+            val footer: Footer,
         ) : Content
+    }
+
+    /**
+     * 一覧の末尾。続きの読み込みの状態を出す
+     */
+    sealed interface Footer {
+        data object None : Footer
+
+        data object Loading : Footer
+
+        data class Error(
+            val message: String,
+        ) : Footer
     }
 
     data class Account(
@@ -45,6 +57,8 @@ data class FollowListScreenUiState(
 
         fun onClickRetry()
 
-        fun onClickLoadMore()
+        fun onScrolledToEnd()
+
+        fun onClickRetryLoadMore()
     }
 }

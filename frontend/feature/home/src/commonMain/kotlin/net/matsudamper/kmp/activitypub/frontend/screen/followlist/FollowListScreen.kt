@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -20,17 +21,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
@@ -99,17 +102,29 @@ internal fun FollowListContent(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                FollowListScreenUiState.Content.NotLoaded -> {
-                    Button(
-                        onClick = uiState.listener::onClickRetry,
+                is FollowListScreenUiState.Content.Error -> {
+                    LoadError(
+                        message = content.message,
+                        onClickRetry = uiState.listener::onClickRetry,
                         modifier = Modifier.align(Alignment.Center),
-                    ) {
-                        Text("再読み込み")
-                    }
+                    )
                 }
 
                 is FollowListScreenUiState.Content.Loaded -> {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    val listState = rememberLazyListState()
+                    LaunchedEffect(listState, uiState.listener) {
+                        // 件数も比べ、続きを読んでもまだ末尾が見えているときにもう一度知らせる
+                        snapshotFlow {
+                            val layoutInfo = listState.layoutInfo
+                            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                            val nearEnd = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - LOAD_MORE_THRESHOLD
+                            nearEnd to layoutInfo.totalItemsCount
+                        }
+                            .distinctUntilChanged()
+                            .filter { (nearEnd, _) -> nearEnd }
+                            .collect { uiState.listener.onScrolledToEnd() }
+                    }
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         val emptyMessage = content.emptyMessage
                         if (emptyMessage != null) {
                             item {
@@ -125,19 +140,54 @@ internal fun FollowListContent(
                             AccountItem(account = account)
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
-                        if (content.loadMoreButtonVisible) {
-                            item {
-                                TextButton(
-                                    onClick = uiState.listener::onClickLoadMore,
-                                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                ) {
-                                    Text("さらに読み込む")
+                        when (val footer = content.footer) {
+                            FollowListScreenUiState.Footer.None -> Unit
+
+                            FollowListScreenUiState.Footer.Loading -> {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+                            }
+
+                            is FollowListScreenUiState.Footer.Error -> {
+                                item {
+                                    LoadError(
+                                        message = footer.message,
+                                        onClickRetry = uiState.listener::onClickRetryLoadMore,
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LoadError(
+    message: String,
+    onClickRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.error,
+        )
+        Button(onClick = onClickRetry) {
+            Text("再読み込み")
         }
     }
 }
@@ -176,3 +226,8 @@ private fun AccountItem(
         }
     }
 }
+
+/**
+ * 末尾からこの数の行が見えたら続きを読む
+ */
+private const val LOAD_MORE_THRESHOLD = 5
