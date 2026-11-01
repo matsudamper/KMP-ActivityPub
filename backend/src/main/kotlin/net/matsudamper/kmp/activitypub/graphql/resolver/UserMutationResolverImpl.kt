@@ -29,6 +29,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPasskeyLoginResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
+import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
@@ -45,12 +46,14 @@ class UserMutationResolverImpl : UserMutationResolver {
         followed: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<Boolean>> {
-        val result = GraphQlEngine.diContainer(env).followingService.setFollowing(
-            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
-            actorUri = actorUri,
-            followed = followed,
-        )
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+        return otelFuture {
+            val result = GraphQlEngine.diContainer(env).followingService.setFollowing(
+                accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
+                actorUri = actorUri,
+                followed = followed,
+            )
+            DataFetcherResult.Builder(result).build()
+        }
     }
 
     /**

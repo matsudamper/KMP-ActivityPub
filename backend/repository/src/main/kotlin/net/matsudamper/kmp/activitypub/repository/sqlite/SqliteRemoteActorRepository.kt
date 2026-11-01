@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.net.URI
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
@@ -12,6 +13,18 @@ import org.jooq.impl.DSL
 internal class SqliteRemoteActorRepository(
     private val jooq: SqliteJooq,
 ) : RemoteActorRepository {
+    override fun findByUri(actorUri: String): RemoteActorRecord? = jooq.withConnection { dsl ->
+        dsl.selectFrom(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).fetchOne()?.let {
+            RemoteActorRecord(
+                checkNotNull(it.actorUri),
+                checkNotNull(it.inbox),
+                it.sharedInbox,
+                checkNotNull(it.publicKeyPem),
+                RemoteActorProfileRecord(it.preferredUsername, it.displayName, it.profileUrl, it.iconUrl),
+            )
+        }
+    }
+
     override fun save(actor: RemoteActorRecord, updatedAt: Instant) {
         jooq.withConnection { dsl ->
             dsl.insertInto(REMOTE_ACTORS)

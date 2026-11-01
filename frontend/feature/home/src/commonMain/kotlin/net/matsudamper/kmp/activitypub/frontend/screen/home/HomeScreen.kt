@@ -190,6 +190,7 @@ internal fun HomeContent(
                     TimelineTabContent(
                         timelineItems = uiState.timelineItems,
                         refreshing = uiState.timelineRefreshing,
+                        loadMoreVisible = uiState.timelineLoadMoreVisible,
                         listener = uiState.listener,
                         modifier = contentModifier,
                     )
@@ -219,6 +220,7 @@ internal fun HomeContent(
 private fun TimelineTabContent(
     timelineItems: List<HomeScreenUiState.TimelineItem>,
     refreshing: Boolean,
+    loadMoreVisible: Boolean,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
@@ -231,6 +233,11 @@ private fun TimelineTabContent(
             items(timelineItems) { item ->
                 TimelineItem(item = item)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+            if (loadMoreVisible) {
+                item {
+                    TextButton(onClick = listener::onLoadMoreTimeline, modifier = Modifier.fillMaxWidth()) { Text("さらに読み込む") }
+                }
             }
         }
     }

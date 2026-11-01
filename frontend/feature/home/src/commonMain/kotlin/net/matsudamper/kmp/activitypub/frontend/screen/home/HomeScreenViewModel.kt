@@ -3,22 +3,23 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
-/**
- * タイムラインはサーバーとまだ繋いでいないので、決まったダミーを出す
- */
 @KoinViewModel
 internal class HomeScreenViewModel(
     @InjectedParam private val selectedTab: HomeScreenUiState.Tab,
@@ -29,14 +30,17 @@ internal class HomeScreenViewModel(
     private val searchStateFlow: MutableStateFlow<SearchState> = MutableStateFlow(SearchState.NotSearched)
     private var searchJob: Job? = null
     private var profileJob: Job? = null
+    private var timelineJob: Job? = null
+    private var timelineCursor: String? = null
     private var followingChangeInProgress = false
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
             HomeScreenUiState(
                 selectedTab = selectedTab,
-                timelineItems = createDummyTimelineItems(),
+                timelineItems = listOf(),
                 timelineRefreshing = false,
+                timelineLoadMoreVisible = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -67,6 +71,11 @@ internal class HomeScreenViewModel(
                     }
 
                     override fun onRefreshTimeline() {
+                        loadTimeline(false)
+                    }
+
+                    override fun onLoadMoreTimeline() {
+                        loadTimeline(true)
                     }
 
                     override fun onSearchQueryChanged(query: String) {
@@ -105,6 +114,7 @@ internal class HomeScreenViewModel(
 
                     override fun onScreenShown() {
                         loadProfile()
+                        loadTimeline(false)
                     }
                 },
             ),
@@ -258,14 +268,40 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun createDummyTimelineItems(): List<HomeScreenUiState.TimelineItem> {
-        return (1..30).map { index ->
-            HomeScreenUiState.TimelineItem(
-                displayName = "ユーザー$index",
-                acct = "@user$index@example.com",
-                body = "ダミーの投稿 $index",
-                postedAt = "${index}分前",
-            )
+    private fun loadTimeline(append: Boolean) {
+        if (append && timelineJob?.isActive == true) return
+        val cursor = if (append) timelineCursor ?: return else null
+        timelineJob?.cancel()
+        mutableUiStateFlow.update { it.copy(timelineRefreshing = true) }
+        timelineJob = viewModelScope.launch {
+            try {
+                val result = userApi.homeTimeline(cursor)
+                currentCoroutineContext().ensureActive()
+                when (result) {
+                    is UserHomeTimelineResult.Success -> {
+                        timelineCursor = result.nextCursor
+                        val items = result.posts.map { post ->
+                            HomeScreenUiState.TimelineItem(
+                                displayName = post.displayName,
+                                acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
+                                body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
+                                postedAt = post.publishedAt,
+                            )
+                        }
+                        mutableUiStateFlow.update {
+                            it.copy(timelineItems = if (append) it.timelineItems + items else items, timelineLoadMoreVisible = result.nextCursor != null)
+                        }
+                    }
+
+                    is UserHomeTimelineResult.Failure -> events.send { it.showMessage(result.message) }
+
+                    UserHomeTimelineResult.NotLoggedIn -> events.send { it.showMessage("ログインしていません") }
+                }
+            } finally {
+                if (currentCoroutineContext().isActive) {
+                    mutableUiStateFlow.update { it.copy(timelineRefreshing = false) }
+                }
+            }
         }
     }
 

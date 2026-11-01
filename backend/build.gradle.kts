@@ -24,6 +24,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotpub.core)
     implementation(libs.jsoup)
+    implementation(libs.lettuce.core)
+    implementation(libs.opentelemetry.lettuce)
     implementation(libs.okhttp)
     implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.extension.kotlin)
