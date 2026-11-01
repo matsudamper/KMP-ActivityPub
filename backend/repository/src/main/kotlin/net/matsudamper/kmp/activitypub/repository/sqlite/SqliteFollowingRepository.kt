@@ -13,6 +13,31 @@ import org.jooq.impl.DSL
 internal class SqliteFollowingRepository(
     private val jooq: SqliteJooq,
 ) : FollowingRepository {
+    override fun followId(accountId: AccountId, actorUri: String): String? = jooq.withConnection { dsl ->
+        dsl.select(ACCOUNT_FOLLOWING.FOLLOW_ACTIVITY_URI).from(ACCOUNT_FOLLOWING)
+            .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))
+            .fetchOne(ACCOUNT_FOLLOWING.FOLLOW_ACTIVITY_URI)
+    }
+
+    override fun recordActivity(accountId: AccountId, actorUri: String, followId: String) {
+        jooq.withConnection { dsl ->
+            dsl.update(ACCOUNT_FOLLOWING).set(ACCOUNT_FOLLOWING.FOLLOW_ACTIVITY_URI, followId).setNull(ACCOUNT_FOLLOWING.ACCEPTED_AT)
+                .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)).execute()
+        }
+    }
+
+    override fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?) {
+        jooq.withConnection { dsl ->
+            val matches = ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri).and(ACCOUNT_FOLLOWING.FOLLOW_ACTIVITY_URI.eq(followId))
+            if (acceptedAt == null) {
+                dsl.deleteFrom(ACCOUNT_FOLLOWING).where(matches).execute()
+            } else {
+                dsl.update(ACCOUNT_FOLLOWING).set(ACCOUNT_FOLLOWING.ACCEPTED_AT, StoredInstant.format(acceptedAt))
+                    .where(matches).and(ACCOUNT_FOLLOWING.ACCEPTED_AT.isNull).execute()
+            }
+        }
+    }
+
     override fun contains(accountId: AccountId, actorUri: String): Boolean = jooq.withConnection { dsl ->
         dsl.fetchExists(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)))
     }

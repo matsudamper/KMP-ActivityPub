@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
@@ -10,6 +11,9 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
  * 積むのは種別ごとの記録と同じトランザクションで書く側が行う（Accept なら [FollowerRepository.record]）
  */
 interface DeliveryQueueRepository {
+    fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant)
+    fun enqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant)
+
     /**
      * 投稿を記録して、宛先ごとに Create を積む。
      * 投稿の記録と投函を分けると、記録だけ残って誰にも届かない投稿ができる

@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
@@ -18,6 +19,14 @@ import org.jooq.impl.DSL
 internal class SqliteDeliveryQueueRepository(
     private val jooq: SqliteJooq,
 ) : DeliveryQueueRepository {
+    override fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant) {
+        enqueueFollowing(accountId, inbox, body, now, DeliveryQueueValues.KIND_FOLLOW)
+    }
+
+    override fun enqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant) {
+        enqueueFollowing(accountId, inbox, body, now, DeliveryQueueValues.KIND_UNDO_FOLLOW)
+    }
+
     override fun enqueueNote(post: NotePost): EnqueueNoteResult = jooq.transaction { dsl ->
         val accountId =
             dsl.select(ACCOUNTS.ID)
@@ -215,6 +224,15 @@ internal class SqliteDeliveryQueueRepository(
             .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
             .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
             .execute()
+    }
+
+    private fun enqueueFollowing(accountId: AccountId, inbox: String, body: String, now: Instant, kind: String) {
+        jooq.withConnection { dsl ->
+            dsl.insertInto(DELIVERY_QUEUE).set(DELIVERY_QUEUE.KIND, kind).set(DELIVERY_QUEUE.ACCOUNT_ID, accountId.value)
+                .set(DELIVERY_QUEUE.INBOX, inbox).set(DELIVERY_QUEUE.BODY, body).set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+                .set(DELIVERY_QUEUE.ATTEMPTS, 0L).set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
+                .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now)).execute()
+        }
     }
 
     private fun DSLContext.findRow(id: Long): QueueRow? =
