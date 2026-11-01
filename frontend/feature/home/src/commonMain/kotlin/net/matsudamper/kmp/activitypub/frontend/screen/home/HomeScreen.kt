@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -198,7 +197,6 @@ internal fun HomeContent(
                 HomeScreenUiState.Tab.User -> {
                     UserTabContent(
                         profile = uiState.profile,
-                        following = uiState.following,
                         listener = uiState.listener,
                         modifier = contentModifier,
                     )
@@ -293,7 +291,6 @@ private fun SearchTabContent(
 @Composable
 private fun UserTabContent(
     profile: HomeScreenUiState.Profile,
-    following: HomeScreenUiState.Following,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
@@ -320,102 +317,39 @@ private fun UserTabContent(
             }
 
             is HomeScreenUiState.Profile.Loaded -> {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    item {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                ProfileIcon(
-                                    iconUrl = profile.iconUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                )
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    Text(
-                                        text = profile.displayName,
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                    Text(
-                                        text = profile.acct,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            OutlinedButton(
-                                onClick = listener::onClickEditProfile,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("プロフィールを編集")
-                            }
-                        }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Text(
-                            text = "フォロー中",
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    followingItems(following = following, listener = listener)
-                }
-            }
-        }
-    }
-}
-
-private fun LazyListScope.followingItems(
-    following: HomeScreenUiState.Following,
-    listener: HomeScreenUiState.Listener,
-) {
-    when (following) {
-        HomeScreenUiState.Following.Loading -> {
-            item {
-                Box(
+                Column(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    contentAlignment = Alignment.Center,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    CircularProgressIndicator()
-                }
-            }
-        }
-
-        HomeScreenUiState.Following.NotLoaded -> {
-            item {
-                TextButton(
-                    onClick = listener::onClickRetryFollowing,
-                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                ) {
-                    Text("再読み込み")
-                }
-            }
-        }
-
-        is HomeScreenUiState.Following.Loaded -> {
-            if (following.accounts.isEmpty()) {
-                item {
-                    SearchMessage(text = "フォローしているユーザーはいません")
-                }
-            }
-            items(following.accounts) { account ->
-                SearchAccountItem(account = account)
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-            if (following.loadMoreButtonVisible) {
-                item {
-                    TextButton(
-                        onClick = listener::onClickLoadMoreFollowing,
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("さらに読み込む")
+                        ProfileIcon(
+                            iconUrl = profile.iconUrl,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                        )
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = profile.displayName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = profile.acct,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = listener::onClickEditProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("プロフィールを編集")
                     }
                 }
             }

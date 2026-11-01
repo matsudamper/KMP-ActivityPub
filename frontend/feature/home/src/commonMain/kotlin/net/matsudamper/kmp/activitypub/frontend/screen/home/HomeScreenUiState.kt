@@ -8,7 +8,6 @@ data class HomeScreenUiState(
     val timelineRefreshing: Boolean,
     val search: Search,
     val profile: Profile,
-    val following: Following,
     val userTabIconUrl: String?,
     val listener: Listener,
 ) {
@@ -54,20 +53,6 @@ data class HomeScreenUiState(
         val listener: SearchAccountListener?,
     )
 
-    sealed interface Following {
-        data object Loading : Following
-
-        /**
-         * 読めなかった理由はメッセージで出す
-         */
-        data object NotLoaded : Following
-
-        data class Loaded(
-            val accounts: List<SearchAccount>,
-            val loadMoreButtonVisible: Boolean,
-        ) : Following
-    }
-
     sealed interface Profile {
         data object Loading : Profile
 
@@ -108,10 +93,6 @@ data class HomeScreenUiState(
         fun onClickEditProfile()
 
         fun onClickRetryProfile()
-
-        fun onClickLoadMoreFollowing()
-
-        fun onClickRetryFollowing()
 
         fun onScreenShown()
     }

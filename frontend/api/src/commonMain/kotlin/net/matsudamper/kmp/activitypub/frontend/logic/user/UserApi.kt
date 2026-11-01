@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
-import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
@@ -38,27 +37,6 @@ class UserApi(
         val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
         return if (response.data?.user?.setFollowing == true) null else "フォロー状態を変更できませんでした"
-    }
-
-    suspend fun followingUsers(after: String?): UserFollowingResult {
-        val client = clients.awaitLoadedClient() ?: return UserFollowingResult.Failure("接続先が未設定")
-        val response = client.query(FollowingUsersQuery(after = Optional.presentIfNotNull(after))).execute()
-        if (response.exception != null || response.hasErrors()) return UserFollowingResult.Failure(response.failureMessage())
-        val data = response.data ?: return UserFollowingResult.Failure(response.failureMessage())
-        val followingUsers = data.followingUsers ?: return UserFollowingResult.NotLoggedIn
-
-        return UserFollowingResult.Success(
-            users = followingUsers.users.map {
-                UserFollowingResult.User(
-                    actorUri = it.actorUri,
-                    username = it.username,
-                    host = it.host,
-                    displayName = it.displayName,
-                    iconUrl = it.iconUrl,
-                )
-            },
-            nextCursor = followingUsers.nextCursor,
-        )
     }
 
     suspend fun login(
