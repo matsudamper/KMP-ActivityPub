@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
+import java.time.Instant
 import java.util.Base64
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -77,11 +78,11 @@ class UserSearchService(
 
     private fun findLocalUser(username: String): SearchedUser? {
         val account = accountRepository.findByUsername(username) ?: return null
-        return SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username, iconUrl = null)
+        return SearchedUser(actorUri = null, username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username, iconUrl = null, updatedAt = null)
     }
 
     private fun RemoteUser.toSearchedUser(host: String): SearchedUser =
-        SearchedUser(username = username, host = host.lowercase(), isLocal = false, displayName = displayName ?: username, iconUrl = iconUrl)
+        SearchedUser(actorUri = actorUri, username = username, host = host.lowercase(), isLocal = false, displayName = displayName ?: username, iconUrl = iconUrl, updatedAt = null)
 
     /**
      * このサーバーのユーザーと他のサーバーのユーザーを、それぞれ 1 ページ分より 1 件多く取って名前順に混ぜる。
@@ -168,7 +169,7 @@ class UserSearchService(
             override val sortName: String = account.username.asciiLowercase()
 
             override fun toSearchedUser(localDomain: String): SearchedUser =
-                SearchedUser(username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username, iconUrl = null)
+                SearchedUser(actorUri = null, username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username, iconUrl = null, updatedAt = null)
         }
 
         class Remote(
@@ -182,11 +183,13 @@ class UserSearchService(
             override fun toSearchedUser(localDomain: String): SearchedUser? {
                 val host = runCatching { URI(record.actorUri).host }.getOrNull() ?: return null
                 return SearchedUser(
+                    actorUri = record.actorUri,
                     username = record.preferredUsername,
                     host = host.lowercase(),
                     isLocal = false,
                     displayName = record.displayName?.takeIf { it.isNotBlank() } ?: record.preferredUsername,
                     iconUrl = record.iconUrl,
+                    updatedAt = record.updatedAt,
                 )
             }
         }
@@ -213,11 +216,13 @@ data class UserSearchResult(
  * @param displayName 表示名が無ければユーザー名
  */
 data class SearchedUser(
+    val actorUri: String?,
     val username: String,
     val host: String,
     val isLocal: Boolean,
     val displayName: String,
     val iconUrl: String?,
+    val updatedAt: Instant?,
 )
 
 /**

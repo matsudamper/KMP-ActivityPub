@@ -117,6 +117,7 @@ internal fun Application.module(deps: AppDependencies) {
             diContainer = DiContainer(
                 accountService = deps.accountService,
                 userSearchService = deps.userSearchService,
+                followingService = deps.followingService,
                 passkeyService = deps.passkeyService,
                 loginThrottle = deps.loginThrottle,
                 notePostService = federation?.notePostService,

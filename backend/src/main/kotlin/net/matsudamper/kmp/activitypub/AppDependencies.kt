@@ -8,6 +8,8 @@ import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorage
 import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.FollowingService
+import net.matsudamper.kmp.activitypub.logic.NoOpFollowDelivery
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.oidc.OidcSigningKey
@@ -35,6 +37,13 @@ class AppDependencies(
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
+    val followingService: FollowingService = FollowingService(
+        accounts = repositories.accountRepository,
+        following = repositories.followingRepository,
+        delivery = NoOpFollowDelivery,
+        localDomain = checkNotNull(env.domain),
+        clock = Clock.systemUTC(),
+    )
 
     val oidcSigningKey: OidcSigningKey? = env.s3?.let { OidcSigningKey(it.oidc.privateJwkJson) }
 

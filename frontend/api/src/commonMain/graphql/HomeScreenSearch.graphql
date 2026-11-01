@@ -6,6 +6,8 @@ query HomeScreenSearchUsers($query: String!, $after: String) {
             isLocal
             displayName
             iconUrl
+            actorUri
+            following
         }
         nextCursor
     }
@@ -18,5 +20,7 @@ query HomeScreenResolveUser($query: String!) {
         isLocal
         displayName
         iconUrl
+        actorUri
+        following
     }
 }

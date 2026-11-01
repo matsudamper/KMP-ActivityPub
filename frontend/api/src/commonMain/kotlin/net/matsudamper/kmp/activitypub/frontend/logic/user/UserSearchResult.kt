@@ -14,6 +14,8 @@ sealed interface UserSearchResult {
      * @param isLocal このサーバーのユーザーか
      */
     data class User(
+        val actorUri: String?,
+        val following: Boolean,
         val username: String,
         val host: String,
         val isLocal: Boolean,

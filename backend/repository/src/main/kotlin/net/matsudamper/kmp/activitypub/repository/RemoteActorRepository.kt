@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository
 
+import java.time.Instant
+
 /**
  * フォローなどで受け取った他のサーバーのアクター
  */
@@ -28,4 +30,5 @@ data class RemoteActorSearchRecord(
     val preferredUsername: String,
     val displayName: String?,
     val iconUrl: String?,
+    val updatedAt: Instant,
 )

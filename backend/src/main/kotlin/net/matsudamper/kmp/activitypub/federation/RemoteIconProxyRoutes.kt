@@ -23,9 +23,13 @@ internal fun Route.remoteIconProxyRoutes(proxy: RemoteIconProxy) {
         call.response.header(CONTENT_TYPE_OPTIONS_HEADER, "nosniff")
         when (result) {
             is RemoteIconProxyResult.Found -> {
-                // 相手が同じ URL のまま画像を差し替えることもあるので、1 日で取り直す
-                // TODO: サーバー内で保持しているユーザーはそちらを返す
-                call.response.header(HttpHeaders.CacheControl, "public, max-age=86400")
+                val cacheControl =
+                    if (call.request.queryParameters.contains("v")) {
+                        "public, max-age=31536000, immutable"
+                    } else {
+                        "public, max-age=86400"
+                    }
+                call.response.header(HttpHeaders.CacheControl, cacheControl)
                 call.respondBytes(bytes = result.bytes, contentType = ContentType.parse(result.contentType), status = HttpStatusCode.OK)
             }
 

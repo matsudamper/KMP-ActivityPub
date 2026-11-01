@@ -121,6 +121,11 @@ class QueryResolverImpl : QueryResolver {
     private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser {
         val diContainer = GraphQlEngine.diContainer(env)
         return QlSearchedUser(
+            actorUri = actorUri,
+            following = diContainer.followingService.isFollowing(
+                GraphQlEngine.graphQlContext(env).userAccountId(),
+                actorUri,
+            ),
             username = username,
             host = host,
             isLocal = isLocal,
@@ -129,7 +134,7 @@ class QueryResolverImpl : QueryResolver {
             if (isLocal) {
                 diContainer.profileIconUrls?.find(username)
             } else {
-                iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(it) }
+                iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(remoteUrl = it, updatedAt = updatedAt) }
             },
         )
     }

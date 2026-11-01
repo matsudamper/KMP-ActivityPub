@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -35,6 +36,23 @@ class RemoteIconProxyTest {
         assertEquals(true, proxyUrl.startsWith("https://example.com/proxy/icon/"))
         assertEquals(true, proxyUrl.endsWith(".bin"))
         assertEquals(proxyUrl, proxy.proxyUrlOf(REMOTE_URL))
+    }
+
+    @Test
+    fun `更新時刻だけが違う中継 URL は版だけが変わり同じ署名で元 URL を取得する`() {
+        remoteIcons[REMOTE_URL] = TestProfileIcons.read("400x400.png")
+        val updatedAt = Instant.parse("2026-09-01T00:00:00.123456789Z")
+        val unversioned = checkNotNull(proxy.proxyUrlOf(REMOTE_URL))
+        val versioned = checkNotNull(proxy.proxyUrlOf(REMOTE_URL, updatedAt))
+        val nextVersion = checkNotNull(proxy.proxyUrlOf(REMOTE_URL, updatedAt.plusNanos(1)))
+
+        assertEquals(unversioned, versioned.substringBefore('?'))
+        assertEquals(versioned, proxy.proxyUrlOf(REMOTE_URL, updatedAt))
+        assertNotEquals(versioned, nextVersion)
+        assertEquals(true, versioned.substringAfter("?v=").matches(Regex("[A-Za-z0-9_-]+")))
+        assertIs<RemoteIconProxyResult.Found>(fetch(versioned))
+        assertIs<RemoteIconProxyResult.Found>(fetch(nextVersion))
+        assertEquals(listOf(REMOTE_URL, REMOTE_URL), fetchedUrls)
     }
 
     @Test
@@ -95,7 +113,7 @@ class RemoteIconProxyTest {
     }
 
     private fun split(proxyUrl: String): Pair<String, String> {
-        val segments = proxyUrl.removeSuffix(".bin").split('/')
+        val segments = proxyUrl.substringBefore("?").removeSuffix(".bin").split('/')
         return segments[segments.size - 2] to segments.last()
     }
 

@@ -19,7 +19,7 @@ internal class SqliteRemoteActorRepository(
         val keywords = setOf(keyword, keyword.lowercase())
         val sortKey = DSL.lower(REMOTE_ACTORS.PREFERRED_USERNAME)
         dsl
-            .select(REMOTE_ACTORS.ACTOR_URI, REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.DISPLAY_NAME, REMOTE_ACTORS.ICON_URL)
+            .select(REMOTE_ACTORS.ACTOR_URI, REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.DISPLAY_NAME, REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT)
             .from(REMOTE_ACTORS)
             .where(REMOTE_ACTORS.PREFERRED_USERNAME.isNotNull)
             .and(
@@ -49,6 +49,7 @@ internal class SqliteRemoteActorRepository(
                     preferredUsername = checkNotNull(record.get(REMOTE_ACTORS.PREFERRED_USERNAME)),
                     displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
                     iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
+                    updatedAt = StoredInstant.parse(checkNotNull(record.get(REMOTE_ACTORS.UPDATED_AT))),
                 )
             }
     }
