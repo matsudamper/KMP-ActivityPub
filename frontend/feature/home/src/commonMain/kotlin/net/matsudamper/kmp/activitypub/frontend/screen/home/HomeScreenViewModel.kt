@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowingResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
@@ -27,8 +28,10 @@ internal class HomeScreenViewModel(
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val searchStateFlow: MutableStateFlow<SearchState> = MutableStateFlow(SearchState.NotSearched)
+    private val followingStateFlow: MutableStateFlow<FollowingState> = MutableStateFlow(FollowingState.Loading)
     private var searchJob: Job? = null
     private var profileJob: Job? = null
+    private var followingJob: Job? = null
     private var followingChangeInProgress = false
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
@@ -42,6 +45,7 @@ internal class HomeScreenViewModel(
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                following = HomeScreenUiState.Following.Loading,
                 userTabIconUrl = null,
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
@@ -64,6 +68,10 @@ internal class HomeScreenViewModel(
 
                     override fun onTabChanged(tab: HomeScreenUiState.Tab) {
                         mutableUiStateFlow.update { it.copy(selectedTab = tab) }
+                        // 検索タブでフォローを変えてから戻ってきたときも、一覧に反映する
+                        if (tab == HomeScreenUiState.Tab.User) {
+                            loadFollowing()
+                        }
                     }
 
                     override fun onRefreshTimeline() {
@@ -91,6 +99,14 @@ internal class HomeScreenViewModel(
                         loadProfile()
                     }
 
+                    override fun onClickLoadMoreFollowing() {
+                        loadMoreFollowing()
+                    }
+
+                    override fun onClickRetryFollowing() {
+                        loadFollowing()
+                    }
+
                     override fun onScreenShown() {
                         loadProfile()
                     }
@@ -107,6 +123,104 @@ internal class HomeScreenViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            followingStateFlow.collect { followingState ->
+                mutableUiStateFlow.update { uiState ->
+                    uiState.copy(following = createFollowing(followingState))
+                }
+            }
+        }
+    }
+
+    private fun loadFollowing() {
+        followingJob?.cancel()
+        // 出している内容は読み直しの間も残す。タブを切り替えるたびに読み込み中へ切り替わると画面がちらつく
+        if (followingStateFlow.value !is FollowingState.Loaded) {
+            followingStateFlow.value = FollowingState.Loading
+        }
+        followingJob = viewModelScope.launch {
+            when (val result = userApi.followingUsers(after = null)) {
+                is UserFollowingResult.Success -> {
+                    followingStateFlow.value = FollowingState.Loaded(
+                        users = result.users,
+                        unfollowedActorUris = setOf(),
+                        nextCursor = result.nextCursor,
+                    )
+                }
+
+                // ログインしていないことはプロフィールの側で出している
+                UserFollowingResult.NotLoggedIn -> {
+                    followingStateFlow.value = FollowingState.NotLoaded
+                }
+
+                is UserFollowingResult.Failure -> {
+                    if (followingStateFlow.value !is FollowingState.Loaded) {
+                        followingStateFlow.value = FollowingState.NotLoaded
+                    }
+                    events.send { it.showMessage(result.message) }
+                }
+            }
+        }
+    }
+
+    private fun loadMoreFollowing() {
+        if (followingJob?.isActive == true) return
+        val loaded = followingStateFlow.value as? FollowingState.Loaded ?: return
+        val nextCursor = loaded.nextCursor ?: return
+        followingJob = viewModelScope.launch {
+            when (val result = userApi.followingUsers(after = nextCursor)) {
+                is UserFollowingResult.Success -> {
+                    followingStateFlow.update { current ->
+                        if (current is FollowingState.Loaded) {
+                            current.copy(users = current.users + result.users, nextCursor = result.nextCursor)
+                        } else {
+                            current
+                        }
+                    }
+                }
+
+                UserFollowingResult.NotLoggedIn -> Unit
+
+                is UserFollowingResult.Failure -> {
+                    events.send { it.showMessage(result.message) }
+                }
+            }
+        }
+    }
+
+    private fun createFollowing(followingState: FollowingState): HomeScreenUiState.Following {
+        return when (followingState) {
+            FollowingState.Loading -> HomeScreenUiState.Following.Loading
+
+            FollowingState.NotLoaded -> HomeScreenUiState.Following.NotLoaded
+
+            is FollowingState.Loaded -> HomeScreenUiState.Following.Loaded(
+                accounts = followingState.users.map { user ->
+                    createFollowingAccount(user = user, following = user.actorUri !in followingState.unfollowedActorUris)
+                },
+                loadMoreButtonVisible = followingState.nextCursor != null,
+            )
+        }
+    }
+
+    /**
+     * 解除しても行は残し、押し間違えたときにその場でフォローし直せるようにする
+     */
+    private fun createFollowingAccount(
+        user: UserFollowingResult.User,
+        following: Boolean,
+    ): HomeScreenUiState.SearchAccount {
+        val username = user.username
+        return HomeScreenUiState.SearchAccount(
+            followButtonText = if (following) "フォロー中・解除" else "フォロー",
+            followButtonEnabled = !followingChangeInProgress,
+            onClickFollow = { changeFollowing(actorUri = user.actorUri, followed = !following) },
+            iconUrl = user.iconUrl,
+            displayName = user.displayName ?: username ?: user.actorUri,
+            acct = if (username == null) user.host else "@$username@${user.host}",
+            // 他のサーバーのユーザーのプロフィール画面はまだ無い
+            listener = null,
+        )
     }
 
     private fun loadProfile() {
@@ -250,7 +364,12 @@ internal class HomeScreenViewModel(
                 "フォロー"
             },
             followButtonEnabled = !followingChangeInProgress,
-            onClickFollow = { changeFollowing(user) },
+            onClickFollow = {
+                val actorUri = user.actorUri
+                if (actorUri != null) {
+                    changeFollowing(actorUri = actorUri, followed = !user.following)
+                }
+            },
             iconUrl = user.iconUrl,
             displayName = user.displayName,
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
@@ -269,18 +388,33 @@ internal class HomeScreenViewModel(
         )
     }
 
-    private fun changeFollowing(user: UserSearchResult.User) {
-        val actorUri = user.actorUri ?: return
+    private fun changeFollowing(
+        actorUri: String,
+        followed: Boolean,
+    ) {
         if (followingChangeInProgress) return
         followingChangeInProgress = true
-        refreshSearchButtons()
+        refreshFollowButtons()
         viewModelScope.launch {
             try {
-                val error = userApi.setFollowing(actorUri, followed = !user.following)
+                val error = userApi.setFollowing(actorUri, followed = followed)
                 if (error == null) {
                     searchStateFlow.update { state ->
                         if (state is SearchState.Loaded) {
-                            state.copy(users = state.users.map { if (it.actorUri == actorUri) it.copy(following = !user.following) else it })
+                            state.copy(users = state.users.map { if (it.actorUri == actorUri) it.copy(following = followed) else it })
+                        } else {
+                            state
+                        }
+                    }
+                    followingStateFlow.update { state ->
+                        if (state is FollowingState.Loaded) {
+                            state.copy(
+                                unfollowedActorUris = if (followed) {
+                                    state.unfollowedActorUris - actorUri
+                                } else {
+                                    state.unfollowedActorUris + actorUri
+                                },
+                            )
                         } else {
                             state
                         }
@@ -290,14 +424,17 @@ internal class HomeScreenViewModel(
                 }
             } finally {
                 followingChangeInProgress = false
-                refreshSearchButtons()
+                refreshFollowButtons()
             }
         }
     }
 
-    private fun refreshSearchButtons() {
+    private fun refreshFollowButtons() {
         mutableUiStateFlow.update { state ->
-            state.copy(search = state.search.copy(result = createSearchResult(searchStateFlow.value)))
+            state.copy(
+                search = state.search.copy(result = createSearchResult(searchStateFlow.value)),
+                following = createFollowing(followingStateFlow.value),
+            )
         }
     }
 
@@ -325,5 +462,20 @@ internal class HomeScreenViewModel(
             val users: List<UserSearchResult.User>,
             val nextCursor: String?,
         ) : SearchState
+    }
+
+    private sealed interface FollowingState {
+        data object Loading : FollowingState
+
+        data object NotLoaded : FollowingState
+
+        /**
+         * @param unfollowedActorUris この画面で解除した相手。読み直すまで一覧には残す
+         */
+        data class Loaded(
+            val users: List<UserFollowingResult.User>,
+            val unfollowedActorUris: Set<String>,
+            val nextCursor: String?,
+        ) : FollowingState
     }
 }

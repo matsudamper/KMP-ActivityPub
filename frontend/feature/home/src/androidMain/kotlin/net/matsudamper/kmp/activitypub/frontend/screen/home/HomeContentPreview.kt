@@ -38,6 +38,7 @@ private fun HomeContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                following = HomeScreenUiState.Following.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -91,6 +92,7 @@ private fun HomeSearchContentPreview() {
                     ),
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                following = HomeScreenUiState.Following.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -116,6 +118,7 @@ private fun HomeSearchEmptyContentPreview() {
                     ),
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                following = HomeScreenUiState.Following.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -141,6 +144,29 @@ private fun HomeUserContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
+                ),
+                following = HomeScreenUiState.Following.Loaded(
+                    accounts = listOf(
+                        HomeScreenUiState.SearchAccount(
+                            iconUrl = "https://example.com/icon.png",
+                            displayName = "Kotlin Weekly",
+                            acct = "@kotlinweekly@remote.example",
+                            followButtonText = "フォロー中・解除",
+                            followButtonEnabled = true,
+                            onClickFollow = {},
+                            listener = null,
+                        ),
+                        HomeScreenUiState.SearchAccount(
+                            iconUrl = null,
+                            displayName = "https://other.example/users/compose",
+                            acct = "other.example",
+                            followButtonText = "フォロー",
+                            followButtonEnabled = true,
+                            onClickFollow = {},
+                            listener = null,
+                        ),
+                    ),
+                    loadMoreButtonVisible = true,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 listener = AndroidPreviewHomeListener,
@@ -181,6 +207,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickEditProfile() = Unit
 
     override fun onClickRetryProfile() = Unit
+
+    override fun onClickLoadMoreFollowing() = Unit
+
+    override fun onClickRetryFollowing() = Unit
 
     override fun onScreenShown() = Unit
 }
