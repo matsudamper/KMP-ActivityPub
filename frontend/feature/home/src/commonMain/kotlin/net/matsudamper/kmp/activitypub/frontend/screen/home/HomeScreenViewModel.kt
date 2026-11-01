@@ -3,10 +3,13 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
@@ -266,12 +269,15 @@ internal class HomeScreenViewModel(
     }
 
     private fun loadTimeline(append: Boolean) {
-        if (timelineJob?.isActive == true) return
+        if (append && timelineJob?.isActive == true) return
         val cursor = if (append) timelineCursor ?: return else null
+        timelineJob?.cancel()
         mutableUiStateFlow.update { it.copy(timelineRefreshing = true) }
         timelineJob = viewModelScope.launch {
             try {
-                when (val result = userApi.homeTimeline(cursor)) {
+                val result = userApi.homeTimeline(cursor)
+                currentCoroutineContext().ensureActive()
+                when (result) {
                     is UserHomeTimelineResult.Success -> {
                         timelineCursor = result.nextCursor
                         val items = result.posts.map { post ->
@@ -292,7 +298,9 @@ internal class HomeScreenViewModel(
                     UserHomeTimelineResult.NotLoggedIn -> events.send { it.showMessage("ログインしていません") }
                 }
             } finally {
-                mutableUiStateFlow.update { it.copy(timelineRefreshing = false) }
+                if (currentCoroutineContext().isActive) {
+                    mutableUiStateFlow.update { it.copy(timelineRefreshing = false) }
+                }
             }
         }
     }
