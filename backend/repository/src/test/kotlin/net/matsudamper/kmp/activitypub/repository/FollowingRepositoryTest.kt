@@ -97,13 +97,14 @@ class FollowingRepositoryTest {
                 following.add(alice, knownActorUri, Instant.EPOCH)
                 following.add(alice, unknownActorUri, Instant.EPOCH.plusSeconds(1))
                 following.add(alice, sameTimeActorUri, Instant.EPOCH.plusSeconds(1))
+                assertEquals(3, following.count(alice))
 
                 val firstPage = following.list(alice, after = null, limit = 2)
                 assertEquals(listOf(sameTimeActorUri, unknownActorUri), firstPage.map { it.actorUri })
                 assertNull(firstPage.last().preferredUsername)
 
                 val last = firstPage.last()
-                val secondPage = following.list(alice, after = FollowingPosition(createdAt = last.createdAt, actorUri = last.actorUri), limit = 2)
+                val secondPage = following.list(alice, after = ActorListPosition(listedAt = last.listedAt, actorUri = last.actorUri), limit = 2)
                 assertEquals(listOf(knownActorUri), secondPage.map { it.actorUri })
                 assertEquals("carol", secondPage.single().preferredUsername)
                 assertEquals("Carol", secondPage.single().displayName)

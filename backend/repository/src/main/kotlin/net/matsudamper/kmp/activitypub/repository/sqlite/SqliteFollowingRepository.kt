@@ -1,9 +1,9 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.FollowedActor
-import net.matsudamper.kmp.activitypub.repository.FollowingPosition
+import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -33,7 +33,7 @@ internal class SqliteFollowingRepository(
             .execute() > 0
     }
 
-    override fun list(accountId: AccountId, after: FollowingPosition?, limit: Int): List<FollowedActor> = jooq.withConnection { dsl ->
+    override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = jooq.withConnection { dsl ->
         dsl
             .select(
                 ACCOUNT_FOLLOWING.ACTOR_URI,
@@ -50,9 +50,9 @@ internal class SqliteFollowingRepository(
             .orderBy(ACCOUNT_FOLLOWING.CREATED_AT.desc(), ACCOUNT_FOLLOWING.ACTOR_URI.desc())
             .limit(limit)
             .fetch { record ->
-                FollowedActor(
+                ListedActor(
                     actorUri = checkNotNull(record.get(ACCOUNT_FOLLOWING.ACTOR_URI)),
-                    createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWING.CREATED_AT))),
+                    listedAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWING.CREATED_AT))),
                     preferredUsername = record.get(REMOTE_ACTORS.PREFERRED_USERNAME),
                     displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
                     iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
@@ -61,9 +61,13 @@ internal class SqliteFollowingRepository(
             }
     }
 
-    private fun olderThan(position: FollowingPosition?): Condition {
+    override fun count(accountId: AccountId): Long = jooq.withConnection { dsl ->
+        dsl.fetchCount(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).toLong()
+    }
+
+    private fun olderThan(position: ActorListPosition?): Condition {
         if (position == null) return DSL.noCondition()
-        val createdAt = StoredInstant.format(position.createdAt)
+        val createdAt = StoredInstant.format(position.listedAt)
         return ACCOUNT_FOLLOWING.CREATED_AT.lt(createdAt)
             .or(ACCOUNT_FOLLOWING.CREATED_AT.eq(createdAt).and(ACCOUNT_FOLLOWING.ACTOR_URI.lt(position.actorUri)))
     }
