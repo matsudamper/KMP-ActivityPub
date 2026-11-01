@@ -4,7 +4,9 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
@@ -23,6 +25,8 @@ internal class FakeRepositories : Repositories {
         override fun contains(accountId: AccountId, actorUri: String): Boolean = (accountId to actorUri) in entries
         override fun add(accountId: AccountId, actorUri: String, createdAt: Instant): Boolean = entries.add(accountId to actorUri)
         override fun remove(accountId: AccountId, actorUri: String): Boolean = entries.remove(accountId to actorUri)
+        override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = throw NotImplementedError()
+        override fun count(accountId: AccountId): Long = entries.count { it.first == accountId }.toLong()
     }
     override val accountRepository: FakeAccountRepository = FakeAccountRepository(hasPasskey = { passkeyRepository.passkeys(it).isNotEmpty() })
     override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()

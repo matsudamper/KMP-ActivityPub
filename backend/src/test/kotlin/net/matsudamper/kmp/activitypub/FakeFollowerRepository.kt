@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 
@@ -51,6 +53,12 @@ internal class FakeFollowerRepository : FollowerRepository {
         after: String?,
         limit: Int,
     ): List<String> = listOf()
+
+    override fun listAcceptedFollowers(
+        username: String,
+        after: ActorListPosition?,
+        limit: Int,
+    ): List<ListedActor> = listOf()
 
     override fun countAcceptedFollowers(username: String): Long = 0
 

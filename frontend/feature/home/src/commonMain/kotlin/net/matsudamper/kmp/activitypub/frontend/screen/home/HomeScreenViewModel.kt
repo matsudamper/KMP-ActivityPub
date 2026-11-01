@@ -91,6 +91,18 @@ internal class HomeScreenViewModel(
                         loadProfile()
                     }
 
+                    override fun onClickFollowing() {
+                        viewModelScope.launch {
+                            events.send { it.navigateToFollowing() }
+                        }
+                    }
+
+                    override fun onClickFollowers() {
+                        viewModelScope.launch {
+                            events.send { it.navigateToFollowers() }
+                        }
+                    }
+
                     override fun onScreenShown() {
                         loadProfile()
                     }
@@ -100,6 +112,21 @@ internal class HomeScreenViewModel(
     val uiStateFlow: StateFlow<HomeScreenUiState> = mutableUiStateFlow.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            userApi.followingChanges.collect { change ->
+                searchStateFlow.update { state ->
+                    if (state is SearchState.Loaded) {
+                        state.copy(
+                            users = state.users.map { user ->
+                                if (user.actorUri == change.actorUri) user.copy(following = change.following) else user
+                            },
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
         viewModelScope.launch {
             searchStateFlow.collect { searchState ->
                 mutableUiStateFlow.update { uiState ->
@@ -122,6 +149,8 @@ internal class HomeScreenViewModel(
                         iconUrl = result.iconUrl,
                         displayName = result.displayName ?: result.username,
                         acct = "@${result.username}",
+                        followingCount = result.followingCount.toString(),
+                        followersCount = result.followersCount.toString(),
                     )
 
                     UserMyProfileResult.NotLoggedIn -> HomeScreenUiState.Profile.Error("ログインしていません")
@@ -278,13 +307,7 @@ internal class HomeScreenViewModel(
             try {
                 val error = userApi.setFollowing(actorUri, followed = !user.following)
                 if (error == null) {
-                    searchStateFlow.update { state ->
-                        if (state is SearchState.Loaded) {
-                            state.copy(users = state.users.map { if (it.actorUri == actorUri) it.copy(following = !user.following) else it })
-                        } else {
-                            state
-                        }
-                    }
+                    loadProfile()
                 } else {
                     events.send { it.showMessage(error) }
                 }
@@ -311,6 +334,10 @@ internal class HomeScreenViewModel(
         fun navigateToUserProfile(username: String)
 
         fun navigateToProfileEdit()
+
+        fun navigateToFollowing()
+
+        fun navigateToFollowers()
 
         fun showMessage(message: String)
     }

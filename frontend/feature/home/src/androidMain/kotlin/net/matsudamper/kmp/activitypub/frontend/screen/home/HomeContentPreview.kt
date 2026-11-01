@@ -141,6 +141,8 @@ private fun HomeUserContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
+                    followingCount = "12",
+                    followersCount = "3",
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 listener = AndroidPreviewHomeListener,
@@ -181,6 +183,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickEditProfile() = Unit
 
     override fun onClickRetryProfile() = Unit
+
+    override fun onClickFollowing() = Unit
+
+    override fun onClickFollowers() = Unit
 
     override fun onScreenShown() = Unit
 }

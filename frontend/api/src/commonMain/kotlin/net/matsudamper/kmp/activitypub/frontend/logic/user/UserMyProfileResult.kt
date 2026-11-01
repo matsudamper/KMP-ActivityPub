@@ -9,6 +9,8 @@ sealed interface UserMyProfileResult {
         val username: String,
         val displayName: String?,
         val iconUrl: String?,
+        val followingCount: Int,
+        val followersCount: Int,
     ) : UserMyProfileResult
 
     data object NotLoggedIn : UserMyProfileResult

@@ -64,6 +64,8 @@ data class HomeScreenUiState(
             val iconUrl: String?,
             val displayName: String,
             val acct: String,
+            val followingCount: String,
+            val followersCount: String,
         ) : Profile
     }
 
@@ -93,6 +95,10 @@ data class HomeScreenUiState(
         fun onClickEditProfile()
 
         fun onClickRetryProfile()
+
+        fun onClickFollowing()
+
+        fun onClickFollowers()
 
         fun onScreenShown()
     }

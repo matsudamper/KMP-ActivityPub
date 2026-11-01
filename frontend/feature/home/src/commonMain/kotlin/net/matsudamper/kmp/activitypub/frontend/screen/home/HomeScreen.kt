@@ -37,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -77,6 +78,14 @@ internal fun HomeScreen(
 
                 override fun navigateToUserProfile(username: String) {
                     navigator.navigate(Screen.UserProfile(username = username))
+                }
+
+                override fun navigateToFollowing() {
+                    navigator.navigate(Screen.Following)
+                }
+
+                override fun navigateToFollowers() {
+                    navigator.navigate(Screen.Followers)
                 }
 
                 override fun navigateToProfileEdit() {
@@ -345,6 +354,20 @@ private fun UserTabContent(
                             )
                         }
                     }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FollowCount(
+                            count = profile.followingCount,
+                            label = "フォロー",
+                            onClick = listener::onClickFollowing,
+                        )
+                        FollowCount(
+                            count = profile.followersCount,
+                            label = "フォロワー",
+                            onClick = listener::onClickFollowers,
+                        )
+                    }
                     OutlinedButton(
                         onClick = listener::onClickEditProfile,
                         modifier = Modifier.fillMaxWidth(),
@@ -354,6 +377,33 @@ private fun UserTabContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FollowCount(
+    count: String,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = count,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -7,6 +7,8 @@ import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
+import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
@@ -15,6 +17,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
+import net.matsudamper.kmp.activitypub.logic.ActorListCursor
+import net.matsudamper.kmp.activitypub.logic.ActorListPage
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -54,16 +58,21 @@ class QueryResolverImpl : QueryResolver {
 
     override fun profile(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfile?>> {
         val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val account = accountId?.let { diContainer.accountService.account(it) }
+        val followCounts = accountId?.let { diContainer.followListService.counts(it) }
         val profile =
-            GraphQlEngine.graphQlContext(env).userAccountId()
-                ?.let { diContainer.accountService.account(it) }
-                ?.let { account ->
-                    QlProfile(
-                        username = account.username,
-                        displayName = account.displayName,
-                        iconUrl = diContainer.profileIconUrls?.find(account.username),
-                    )
-                }
+            if (account == null || followCounts == null) {
+                null
+            } else {
+                QlProfile(
+                    username = account.username,
+                    displayName = account.displayName,
+                    iconUrl = diContainer.profileIconUrls?.find(account.username),
+                    followingCount = followCounts.following.toInt(),
+                    followersCount = followCounts.followers.toInt(),
+                )
+            }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlProfile?>(profile).build())
     }
@@ -118,6 +127,50 @@ class QueryResolverImpl : QueryResolver {
                 }
             DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser(env, accountId)).build()
         }
+    }
+
+    override fun followingUsers(
+        after: String?,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlActorList?>> {
+        val cursor = after?.let { ActorListCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
+        val followListService = GraphQlEngine.diContainer(env).followListService
+        val actorList =
+            GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountId ->
+                followListService.followingUsers(accountId = accountId, cursor = cursor).toQlActorList(env)
+            }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlActorList?>(actorList).build())
+    }
+
+    override fun followerUsers(
+        after: String?,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlActorList?>> {
+        val cursor = after?.let { ActorListCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
+        val followListService = GraphQlEngine.diContainer(env).followListService
+        val actorList =
+            GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountId ->
+                followListService.followerUsers(accountId = accountId, cursor = cursor)?.toQlActorList(env)
+            }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlActorList?>(actorList).build())
+    }
+
+    private fun ActorListPage.toQlActorList(env: DataFetchingEnvironment): QlActorList {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        return QlActorList(
+            users = users.map { user ->
+                QlListedActor(
+                    actorUri = user.actorUri,
+                    following = diContainer.followingService.isFollowing(accountId, user.actorUri),
+                    username = user.username,
+                    host = user.host,
+                    displayName = user.displayName,
+                    iconUrl = user.iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(remoteUrl = it, updatedAt = user.updatedAt) },
+                )
+            },
+            nextCursor = nextCursor?.encode(),
+        )
     }
 
     private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment, accountId: AccountId?): QlSearchedUser {
