@@ -7,6 +7,8 @@ import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingUser
+import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingUserList
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
@@ -15,6 +17,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
+import net.matsudamper.kmp.activitypub.logic.FollowingCursor
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 
@@ -116,6 +119,31 @@ class QueryResolverImpl : QueryResolver {
                 }
             DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser(env)).build()
         }
+    }
+
+    override fun followingUsers(
+        after: String?,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlFollowingUserList?>> {
+        val cursor = after?.let { FollowingCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
+        val diContainer = GraphQlEngine.diContainer(env)
+        val result =
+            GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountId ->
+                val page = diContainer.followingService.followingUsers(accountId = accountId, cursor = cursor)
+                QlFollowingUserList(
+                    users = page.users.map { user ->
+                        QlFollowingUser(
+                            actorUri = user.actorUri,
+                            username = user.username,
+                            host = user.host,
+                            displayName = user.displayName,
+                            iconUrl = user.iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(remoteUrl = it, updatedAt = user.updatedAt) },
+                        )
+                    },
+                    nextCursor = page.nextCursor?.encode(),
+                )
+            }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlFollowingUserList?>(result).build())
     }
 
     private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser {

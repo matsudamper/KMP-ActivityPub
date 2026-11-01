@@ -24,3 +24,21 @@ type SearchedUser {
     displayName: String!
     iconUrl: String
 }
+
+type FollowingUserList {
+    users: [FollowingUser!]!
+    "続きが無ければ null"
+    nextCursor: String
+}
+
+"""
+フォローしている相手。相手のプロフィールはこちらをフォローしてきたときに受け取ったものしか無いので、
+受け取っていなければ username や displayName が null になる
+"""
+type FollowingUser {
+    actorUri: String!
+    username: String
+    host: String!
+    displayName: String
+    iconUrl: String
+}

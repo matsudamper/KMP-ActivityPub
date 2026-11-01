@@ -19,6 +19,11 @@ type Query {
     他のサーバーへの問い合わせはログイン中に限る。見つからなければ null
     """
     resolveUser(query: String!): SearchedUser
+    """
+    ログイン中のアカウントがフォローしている相手を、フォローした新しい順に返す。ログインしていなければ null。
+    after には前回の nextCursor を渡す
+    """
+    followingUsers(after: String): FollowingUserList
     "ログイン中のアカウントのパスキー。ログインしていなければ null"
     passkeys: [RegisteredPasskey!] @lazy
     "ログイン中のアカウントにパスワードがあるか。ログインしていなければ null"
