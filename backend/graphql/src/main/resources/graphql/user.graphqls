@@ -5,6 +5,17 @@ type User {
     iconUrl: String
 }
 
+type UserProfile {
+    user: SearchedUser!
+    biography: String
+    posts: [ProfilePost!]!
+}
+
+type ProfilePost {
+    content: String!
+    publishedAt: String!
+}
+
 type UserSearchResult {
     users: [SearchedUser!]!
     "続きが無ければ null"

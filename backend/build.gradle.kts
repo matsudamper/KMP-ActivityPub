@@ -23,6 +23,7 @@ dependencies {
     implementation(kotlin("reflect"))
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotpub.core)
+    implementation(libs.jsoup)
     implementation(libs.okhttp)
     implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.extension.kotlin)

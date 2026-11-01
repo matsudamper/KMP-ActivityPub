@@ -10,10 +10,12 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
 import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
+import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
+import net.matsudamper.kmp.activitypub.graphql.model.QlUserProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
@@ -21,9 +23,27 @@ import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
+import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class QueryResolverImpl : QueryResolver {
+    override fun userProfile(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserProfile?>> {
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        return otelSupplyAsync {
+            val profile = runBlocking {
+                GraphQlEngine.diContainer(env).userProfileService.profile(acct, accountId)
+            }
+            val result = profile?.let {
+                QlUserProfile(
+                    user = it.user.toQlSearchedUser(env, accountId).copy(following = it.following),
+                    biography = it.biography?.let { html -> htmlToPlainText(html) },
+                    posts = it.posts.map { post -> QlProfilePost(content = htmlToPlainText(post.contentHtml), publishedAt = post.publishedAt) },
+                )
+            }
+            DataFetcherResult.Builder<QlUserProfile?>(result).build()
+        }
+    }
+
     override fun unused(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<Boolean?>> {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<Boolean?>(null).build())
     }

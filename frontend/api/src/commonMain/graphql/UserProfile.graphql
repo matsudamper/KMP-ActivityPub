@@ -1,6 +1,16 @@
 query UserProfile($username: String!) {
-    user(username: $username) {
-        username
-        iconUrl
+    userProfile(acct: $username) {
+        user {
+            username
+            host
+            displayName
+            iconUrl
+            following
+        }
+        biography
+        posts {
+            content
+            publishedAt
+        }
     }
 }

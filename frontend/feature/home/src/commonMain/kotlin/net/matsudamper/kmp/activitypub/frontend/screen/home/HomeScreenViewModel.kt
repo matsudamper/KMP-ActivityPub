@@ -283,17 +283,13 @@ internal class HomeScreenViewModel(
             iconUrl = user.iconUrl,
             displayName = user.displayName,
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
-            // 他のサーバーのユーザーのプロフィール画面はまだ無い
-            listener = if (user.isLocal) {
-                object : HomeScreenUiState.SearchAccountListener {
-                    override fun onClick() {
-                        viewModelScope.launch {
-                            events.send { it.navigateToUserProfile(user.username) }
-                        }
+            listener =
+            object : HomeScreenUiState.SearchAccountListener {
+                override fun onClick() {
+                    viewModelScope.launch {
+                        events.send { it.navigateToUserProfile(if (user.isLocal) user.username else "${user.username}@${user.host}") }
                     }
                 }
-            } else {
-                null
             },
         )
     }

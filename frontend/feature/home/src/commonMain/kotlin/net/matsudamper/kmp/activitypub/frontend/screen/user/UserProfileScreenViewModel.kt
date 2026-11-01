@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import org.koin.core.annotation.InjectedParam
@@ -18,6 +19,8 @@ internal class UserProfileScreenViewModel(
     @InjectedParam private val username: String,
     private val api: UserApi,
 ) : ViewModel() {
+    private val events = EventSender<Event>()
+    internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Loading)
     private var loadJob: Job? = null
 
@@ -29,6 +32,10 @@ internal class UserProfileScreenViewModel(
                 object : UserProfileScreenUiState.Listener {
                     override fun onClickRetry() {
                         load()
+                    }
+
+                    override fun onClickBack() {
+                        viewModelScope.launch { events.send { it.navigateBack() } }
                     }
                 },
             ),
@@ -55,7 +62,7 @@ internal class UserProfileScreenViewModel(
         loadJob = viewModelScope.launch {
             viewModelStateFlow.value =
                 when (val result = api.userProfile(username = username)) {
-                    is UserProfileResult.Found -> ViewModelState.Loaded(username = result.username, iconUrl = result.iconUrl)
+                    is UserProfileResult.Found -> ViewModelState.Loaded(result)
                     UserProfileResult.NotFound -> ViewModelState.NotFound
                     is UserProfileResult.Failure -> ViewModelState.Failed(result.message)
                 }
@@ -71,8 +78,12 @@ internal class UserProfileScreenViewModel(
                 ViewModelState.Loading -> UserProfileScreenUiState.Content.Loading
 
                 is ViewModelState.Loaded -> UserProfileScreenUiState.Content.Loaded(
-                    acct = "@${viewModelState.username}",
-                    iconUrl = viewModelState.iconUrl,
+                    acct = "@${viewModelState.profile.username}@${viewModelState.profile.host}",
+                    iconUrl = viewModelState.profile.iconUrl,
+                    displayName = viewModelState.profile.displayName,
+                    biography = viewModelState.profile.biography,
+                    followingText = if (viewModelState.profile.following) "フォロー中" else "フォローしていません",
+                    posts = viewModelState.profile.posts.map { UserProfileScreenUiState.Post(it.content, it.publishedAt) },
                 )
 
                 ViewModelState.NotFound -> UserProfileScreenUiState.Content.NotFound
@@ -83,12 +94,15 @@ internal class UserProfileScreenViewModel(
         )
     }
 
-    sealed interface ViewModelState {
+    internal interface Event {
+        fun navigateBack()
+    }
+
+    private sealed interface ViewModelState {
         data object Loading : ViewModelState
 
         data class Loaded(
-            val username: String,
-            val iconUrl: String?,
+            val profile: UserProfileResult.Found,
         ) : ViewModelState
 
         data object NotFound : ViewModelState

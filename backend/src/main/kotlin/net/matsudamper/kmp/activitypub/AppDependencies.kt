@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.NoOpFollowDelivery
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.oidc.OidcSigningKey
 import net.matsudamper.kmp.activitypub.oidc.WebIdentityTokenIssuer
@@ -87,6 +88,7 @@ class AppDependencies(
                 followerRepository = repositories.followerRepository,
                 deliveryQueueRepository = repositories.deliveryQueueRepository,
                 noteRepository = repositories.noteRepository,
+                remoteActorRepository = repositories.remoteActorRepository,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
@@ -100,6 +102,15 @@ class AppDependencies(
             remoteUserLookup = federation?.remoteUserLookup,
             localDomain = checkNotNull(env.domain) { "DOMAIN を指定すること" },
         )
+
+    val userProfileService: UserProfileService = UserProfileService(
+        accounts = repositories.accountRepository,
+        remoteActors = repositories.remoteActorRepository,
+        notes = repositories.noteRepository,
+        following = followingService,
+        remoteProfiles = federation?.remoteUserProfiles,
+        localDomain = checkNotNull(env.domain),
+    )
 
     val sessionService: UserSessionService = UserSessionService(
         sessionStore = sessionStore,

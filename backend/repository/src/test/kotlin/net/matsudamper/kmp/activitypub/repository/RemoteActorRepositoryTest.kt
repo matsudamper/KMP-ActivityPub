@@ -15,6 +15,17 @@ class RemoteActorRepositoryTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-remote-actor-test")
     private val dbPath: Path = tempDir.resolve("test.db")
 
+    @Test
+    fun findsExactUsernameOnSpecifiedHost() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/alice", preferredUsername = "alice", displayName = "Alice A")
+            repositories.followerRepository.recordFollower(actorUri = "https://b.example/users/alice", preferredUsername = "alice", displayName = "Alice B")
+            assertEquals("Alice B", repositories.remoteActorRepository.findByAcct("alice", "B.EXAMPLE")?.displayName)
+            assertEquals(null, repositories.remoteActorRepository.findByAcct("ali", "b.example"))
+            assertEquals(null, repositories.remoteActorRepository.findByAcct("alice", "c.example"))
+        }
+    }
+
     @BeforeTest
     fun setUp() {
         TestSchema.applyTo(dbPath)

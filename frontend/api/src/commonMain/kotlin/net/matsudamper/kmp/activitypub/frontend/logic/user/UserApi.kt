@@ -121,9 +121,18 @@ class UserApi(
         val response = client.query(UserProfileQuery(username = username)).execute()
         if (response.exception != null || response.hasErrors()) return UserProfileResult.Failure(response.failureMessage())
         val data = response.data ?: return UserProfileResult.Failure(response.failureMessage())
-        val user = data.user ?: return UserProfileResult.NotFound
+        val profile = data.userProfile ?: return UserProfileResult.NotFound
+        val user = profile.user
 
-        return UserProfileResult.Found(username = user.username, iconUrl = user.iconUrl)
+        return UserProfileResult.Found(
+            username = user.username,
+            host = user.host,
+            displayName = user.displayName,
+            iconUrl = user.iconUrl,
+            following = user.following,
+            biography = profile.biography,
+            posts = profile.posts.map { UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt) },
+        )
     }
 
     suspend fun searchUsers(
