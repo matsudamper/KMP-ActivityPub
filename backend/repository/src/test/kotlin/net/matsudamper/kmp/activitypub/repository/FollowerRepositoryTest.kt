@@ -191,6 +191,36 @@ class FollowerRepositoryTest {
         }
     }
 
+    @Test
+    fun `成立したフォロワーだけを成立した新しい順にプロフィール付きでページごとに返す`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val followers = repositories.followerRepository
+            val queue = repositories.deliveryQueueRepository
+            val older = FOLLOWER.copy(actorUri = "https://remote.example/users/bob", inbox = "https://remote.example/users/bob/inbox")
+            val pending = FOLLOWER.copy(actorUri = "https://remote.example/users/carol", inbox = "https://remote.example/users/carol/inbox")
+            followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/alice")
+            followers.recordFollow(older, followActivityUri = "https://remote.example/follows/bob")
+            queue.claim(now = NOW, limit = 10).forEach { claimed ->
+                val deliveredAt = if (claimed.inbox == older.inbox) NOW else NOW.plusSeconds(1)
+                queue.markDelivered(claimed.id, deliveredAt = deliveredAt)
+            }
+            followers.recordFollow(pending, followActivityUri = "https://remote.example/follows/carol")
+
+            val firstPage = followers.listAcceptedFollowers(username = "user1", after = null, limit = 1)
+            assertEquals(listOf(FOLLOWER.actorUri), firstPage.map { it.actorUri })
+            assertEquals("alice", firstPage.single().preferredUsername)
+            assertEquals("Alice", firstPage.single().displayName)
+
+            val last = firstPage.single()
+            val secondPage = followers.listAcceptedFollowers(
+                username = "user1",
+                after = ActorListPosition(listedAt = last.listedAt, actorUri = last.actorUri),
+                limit = 10,
+            )
+            assertEquals(listOf(older.actorUri), secondPage.map { it.actorUri })
+        }
+    }
+
     private fun FollowerRepository.recordFollow(
         follower: RemoteActorRecord,
         username: String = "user1",

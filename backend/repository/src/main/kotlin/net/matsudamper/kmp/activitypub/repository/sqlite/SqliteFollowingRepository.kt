@@ -1,9 +1,14 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import org.jooq.Condition
+import org.jooq.impl.DSL
 
 internal class SqliteFollowingRepository(
     private val jooq: SqliteJooq,
@@ -26,5 +31,44 @@ internal class SqliteFollowingRepository(
             .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value))
             .and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))
             .execute() > 0
+    }
+
+    override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = jooq.withConnection { dsl ->
+        dsl
+            .select(
+                ACCOUNT_FOLLOWING.ACTOR_URI,
+                ACCOUNT_FOLLOWING.CREATED_AT,
+                REMOTE_ACTORS.PREFERRED_USERNAME,
+                REMOTE_ACTORS.DISPLAY_NAME,
+                REMOTE_ACTORS.ICON_URL,
+                REMOTE_ACTORS.UPDATED_AT,
+            )
+            .from(ACCOUNT_FOLLOWING)
+            .leftJoin(REMOTE_ACTORS).on(REMOTE_ACTORS.ACTOR_URI.eq(ACCOUNT_FOLLOWING.ACTOR_URI))
+            .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value))
+            .and(olderThan(after))
+            .orderBy(ACCOUNT_FOLLOWING.CREATED_AT.desc(), ACCOUNT_FOLLOWING.ACTOR_URI.desc())
+            .limit(limit)
+            .fetch { record ->
+                ListedActor(
+                    actorUri = checkNotNull(record.get(ACCOUNT_FOLLOWING.ACTOR_URI)),
+                    listedAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWING.CREATED_AT))),
+                    preferredUsername = record.get(REMOTE_ACTORS.PREFERRED_USERNAME),
+                    displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
+                    iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
+                    actorUpdatedAt = record.get(REMOTE_ACTORS.UPDATED_AT)?.let { StoredInstant.parse(it) },
+                )
+            }
+    }
+
+    override fun count(accountId: AccountId): Long = jooq.withConnection { dsl ->
+        dsl.fetchCount(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).toLong()
+    }
+
+    private fun olderThan(position: ActorListPosition?): Condition {
+        if (position == null) return DSL.noCondition()
+        val createdAt = StoredInstant.format(position.listedAt)
+        return ACCOUNT_FOLLOWING.CREATED_AT.lt(createdAt)
+            .or(ACCOUNT_FOLLOWING.CREATED_AT.eq(createdAt).and(ACCOUNT_FOLLOWING.ACTOR_URI.lt(position.actorUri)))
     }
 }

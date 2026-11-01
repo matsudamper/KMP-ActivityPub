@@ -13,6 +13,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListKind
+import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
@@ -105,6 +107,14 @@ private fun ScreenContent(
 
         Screen.Settings -> {
             SettingsScreen(navigator = navigator)
+        }
+
+        Screen.Following -> {
+            FollowListScreen(navigator = navigator, kind = FollowListKind.Following)
+        }
+
+        Screen.Followers -> {
+            FollowListScreen(navigator = navigator, kind = FollowListKind.Followers)
         }
 
         Screen.ProfileEdit -> {

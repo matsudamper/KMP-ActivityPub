@@ -35,3 +35,23 @@ type SearchedUser {
     displayName: String!
     iconUrl: String
 }
+
+type ActorList {
+    users: [ListedActor!]!
+    "続きが無ければ null"
+    nextCursor: String
+}
+
+"""
+フォロー・フォロワーの一覧の 1 人。フォローした相手のプロフィールは、こちらをフォローしてきたときにしか受け取らないので、
+受け取っていなければ username や displayName が null になる
+"""
+type ListedActor {
+    actorUri: String!
+    "ログイン中のアカウントがフォローしているか"
+    following: Boolean!
+    username: String
+    host: String!
+    displayName: String
+    iconUrl: String
+}

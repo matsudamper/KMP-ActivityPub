@@ -67,6 +67,15 @@ interface FollowerRepository {
         limit: Int,
     ): List<String>
 
+    /**
+     * 成立したフォローの相手を、成立した新しい順に [after] より後ろから [limit] 件まで返す
+     */
+    fun listAcceptedFollowers(
+        username: String,
+        after: ActorListPosition?,
+        limit: Int,
+    ): List<ListedActor>
+
     fun countAcceptedFollowers(username: String): Long
 
     /**

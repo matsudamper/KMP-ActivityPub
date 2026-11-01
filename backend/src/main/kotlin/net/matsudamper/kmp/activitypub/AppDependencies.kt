@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorage
 import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.NoOpFollowDelivery
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
@@ -44,6 +45,11 @@ class AppDependencies(
         delivery = NoOpFollowDelivery,
         localDomain = checkNotNull(env.domain),
         clock = Clock.systemUTC(),
+    )
+    val followListService: FollowListService = FollowListService(
+        accounts = repositories.accountRepository,
+        following = repositories.followingRepository,
+        followers = repositories.followerRepository,
     )
 
     val oidcSigningKey: OidcSigningKey? = env.s3?.let { OidcSigningKey(it.oidc.privateJwkJson) }

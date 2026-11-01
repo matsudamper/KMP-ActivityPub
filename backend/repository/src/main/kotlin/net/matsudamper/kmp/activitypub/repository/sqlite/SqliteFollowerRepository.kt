@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
@@ -186,6 +188,48 @@ internal class SqliteFollowerRepository(
             .limit(limit)
             .fetch(REMOTE_ACTORS.ACTOR_URI)
             .filterNotNull()
+    }
+
+    override fun listAcceptedFollowers(
+        username: String,
+        after: ActorListPosition?,
+        limit: Int,
+    ): List<ListedActor> = jooq.withConnection { dsl ->
+        val afterCondition =
+            if (after == null) {
+                DSL.noCondition()
+            } else {
+                val acceptedAt = StoredInstant.format(after.listedAt)
+                ACCOUNT_FOLLOWERS.ACCEPTED_AT.lt(acceptedAt)
+                    .or(ACCOUNT_FOLLOWERS.ACCEPTED_AT.eq(acceptedAt).and(REMOTE_ACTORS.ACTOR_URI.lt(after.actorUri)))
+            }
+        dsl
+            .select(
+                REMOTE_ACTORS.ACTOR_URI,
+                ACCOUNT_FOLLOWERS.ACCEPTED_AT,
+                REMOTE_ACTORS.PREFERRED_USERNAME,
+                REMOTE_ACTORS.DISPLAY_NAME,
+                REMOTE_ACTORS.ICON_URL,
+                REMOTE_ACTORS.UPDATED_AT,
+            )
+            .from(ACCOUNT_FOLLOWERS)
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(ACCOUNT_FOLLOWERS.ACCOUNT_ID))
+            .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .and(ACCOUNT_FOLLOWERS.ACCEPTED_AT.isNotNull)
+            .and(afterCondition)
+            .orderBy(ACCOUNT_FOLLOWERS.ACCEPTED_AT.desc(), REMOTE_ACTORS.ACTOR_URI.desc())
+            .limit(limit)
+            .fetch { record ->
+                ListedActor(
+                    actorUri = checkNotNull(record.get(REMOTE_ACTORS.ACTOR_URI)),
+                    listedAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWERS.ACCEPTED_AT))),
+                    preferredUsername = record.get(REMOTE_ACTORS.PREFERRED_USERNAME),
+                    displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
+                    iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
+                    actorUpdatedAt = record.get(REMOTE_ACTORS.UPDATED_AT)?.let { StoredInstant.parse(it) },
+                )
+            }
     }
 
     override fun countAcceptedFollowers(username: String): Long = jooq.withConnection { dsl ->
