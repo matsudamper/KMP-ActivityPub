@@ -10,7 +10,8 @@ interface TimelineStore : AutoCloseable {
     fun unlock(accountId: AccountId)
     fun invalidate(accountId: AccountId)
     fun expire(accountId: AccountId)
-    fun append(accountIds: List<AccountId>, positions: List<TimelinePosition>)
+    fun distribute(accountIds: List<AccountId>, position: TimelinePosition)
+    fun appendRebuilt(accountId: AccountId, positions: List<TimelinePosition>)
     fun read(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun enqueue(position: TimelinePosition)
     fun initializeGroup()

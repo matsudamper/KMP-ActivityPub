@@ -57,7 +57,7 @@ class TimelineFanoutWorker(
         var after: AccountId? = null
         do {
             val recipients = repository.recipients(job.position.member, clock.instant().minusSeconds(604800), after, 1000)
-            store.append(recipients, listOf(job.position))
+            store.distribute(recipients, job.position)
             after = recipients.lastOrNull()
         } while (recipients.size == 1000)
     }

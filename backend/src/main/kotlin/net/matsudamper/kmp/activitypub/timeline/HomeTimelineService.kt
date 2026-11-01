@@ -45,7 +45,7 @@ class HomeTimelineService(
             if (!store.lock(accountId)) return null
             try {
                 store.markBuilt(accountId)
-                store.append(listOf(accountId), repository.rebuild(accountId, 400))
+                store.appendRebuilt(accountId, repository.rebuild(accountId, 400))
             } catch (failure: Exception) {
                 runCatching { store.invalidate(accountId) }
                 throw failure

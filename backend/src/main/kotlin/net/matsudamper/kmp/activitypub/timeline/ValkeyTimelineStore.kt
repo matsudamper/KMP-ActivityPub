@@ -49,18 +49,26 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         connection.sync().expire("${key(accountId)}:built", TTL)
     }
 
-    override fun append(accountIds: List<AccountId>, positions: List<TimelinePosition>) {
+    override fun distribute(accountIds: List<AccountId>, position: TimelinePosition) {
         val commands = connection.async()
-        val writes = accountIds.associateWith { account ->
-            buildList {
-                positions.forEach { position -> add(commands.zadd(key(account), position.score.toDouble(), position.member)) }
-                add(commands.zremrangebyrank(key(account), 0, -401))
-                add(commands.expire(key(account), TTL))
+        val oldestReads = accountIds.associateWith { commands.zrangeWithScores(key(it), 0, 0) }
+        val oldestByAccount = oldestReads.mapValues { (_, future) ->
+            runCatching {
+                future.get().firstOrNull()?.let { TimelinePosition(it.score.toLong(), it.value) }
             }
         }
-        val failures = writes.filterValues { futures -> futures.any { runCatching { it.get() }.isFailure } }.keys
+        val failures = oldestByAccount.filterValues { it.isFailure }.keys
         failures.forEach { runCatching { invalidate(it) } }
-        check(failures.isEmpty()) { "タイムラインへの配布に失敗した" }
+        check(failures.isEmpty()) { "タイムラインの末尾を取得できなかった" }
+        val recipients = accountIds.filter { accountId ->
+            val oldest = oldestByAccount.getValue(accountId).getOrThrow()
+            oldest == null || position.score > oldest.score || (position.score == oldest.score && position.member >= oldest.member)
+        }
+        append(recipients, listOf(position))
+    }
+
+    override fun appendRebuilt(accountId: AccountId, positions: List<TimelinePosition>) {
+        append(listOf(accountId), positions)
     }
 
     override fun read(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition> {
@@ -116,6 +124,20 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         if (streamConnectionDelegate.isInitialized()) streamConnection.close()
         client.shutdown()
         resources.shutdown()
+    }
+
+    private fun append(accountIds: List<AccountId>, positions: List<TimelinePosition>) {
+        val commands = connection.async()
+        val writes = accountIds.associateWith { account ->
+            buildList {
+                positions.forEach { position -> add(commands.zadd(key(account), position.score.toDouble(), position.member)) }
+                add(commands.zremrangebyrank(key(account), 0, -401))
+                add(commands.expire(key(account), TTL))
+            }
+        }
+        val failures = writes.filterValues { futures -> futures.any { runCatching { it.get() }.isFailure } }.keys
+        failures.forEach { runCatching { invalidate(it) } }
+        check(failures.isEmpty()) { "タイムラインへの配布に失敗した" }
     }
 
     private fun key(accountId: AccountId): String = "home:{${accountId.value}}"
