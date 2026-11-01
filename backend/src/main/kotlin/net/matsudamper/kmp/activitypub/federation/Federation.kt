@@ -14,9 +14,11 @@ import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
+import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorIconEndpoint
@@ -33,6 +35,7 @@ import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
 import net.matsudamper.kotpub.note.NotePublisher
 import net.matsudamper.kotpub.note.OutboxEndpoint
@@ -45,6 +48,7 @@ internal class Federation(
     followerRepository: FollowerRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
+    remoteActorRepository: RemoteActorRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
@@ -99,7 +103,13 @@ internal class Federation(
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
 
     val remoteUserLookup: RemoteUserLookup =
-        KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors)
+        KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors, storedActors = remoteActorRepository)
+
+    val remoteUserProfiles: RemoteUserProfiles = KotpubRemoteUserProfiles(
+        users = remoteUserLookup,
+        actors = remoteActors,
+        outbox = HttpRemoteOutbox(httpClient),
+    )
 
     val actorEndpoint: ActorEndpoint =
         ActorEndpoint(

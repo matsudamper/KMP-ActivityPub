@@ -15,6 +15,10 @@ data class UserProfileScreenUiState(
         data class Loaded(
             val acct: String,
             val iconUrl: String?,
+            val displayName: String,
+            val biography: String?,
+            val followingText: String,
+            val posts: List<Post>,
         ) : Content
 
         data object NotFound : Content
@@ -24,8 +28,15 @@ data class UserProfileScreenUiState(
         ) : Content
     }
 
+    data class Post(
+        val content: String,
+        val publishedAt: String,
+    )
+
     @Immutable
     interface Listener {
         fun onClickRetry()
+
+        fun onClickBack()
     }
 }

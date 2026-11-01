@@ -12,6 +12,20 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 
 class HomeNavigationTest {
     @Test
+    fun backFromRemoteProfileReturnsToSearch() {
+        val search = Screen.Home(Screen.Home.Tab.Search)
+        val backStack = NavBackStack<NavKey>(search)
+        val navigator = Navigator(backStack)
+        val profile = Screen.UserProfile("bob@remote.example")
+
+        navigator.navigate(profile)
+        assertEquals(profile, Screen.fromPath(profile.path))
+        assertEquals(profile, backStack.last())
+        navigator.back()
+        assertEquals(listOf(search), backStack.toList())
+    }
+
+    @Test
     fun backFromOtherHomeTabsReturnsToTimeline() {
         listOf(Screen.Home.Tab.Search, Screen.Home.Tab.User).forEach { tab ->
             val backStack = NavBackStack<NavKey>(Screen.Home(tab))

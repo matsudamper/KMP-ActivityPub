@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
+import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
 
@@ -14,6 +15,7 @@ class DiContainer(
     val accountService: AccountService,
     val followingService: FollowingService,
     val userSearchService: UserSearchService,
+    val userProfileService: UserProfileService,
     /**
      * ENABLE_PASSKEY が false なら null
      */

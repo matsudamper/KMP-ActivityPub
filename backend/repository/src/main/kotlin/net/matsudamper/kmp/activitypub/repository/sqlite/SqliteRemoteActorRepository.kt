@@ -1,5 +1,8 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
+import java.net.URI
+import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
@@ -9,6 +12,45 @@ import org.jooq.impl.DSL
 internal class SqliteRemoteActorRepository(
     private val jooq: SqliteJooq,
 ) : RemoteActorRepository {
+    override fun save(actor: RemoteActorRecord, updatedAt: Instant) {
+        jooq.withConnection { dsl ->
+            dsl.insertInto(REMOTE_ACTORS)
+                .set(REMOTE_ACTORS.ACTOR_URI, actor.actorUri)
+                .set(REMOTE_ACTORS.INBOX, actor.inbox)
+                .set(REMOTE_ACTORS.SHARED_INBOX, actor.sharedInbox)
+                .set(REMOTE_ACTORS.PUBLIC_KEY_PEM, actor.publicKeyPem)
+                .set(REMOTE_ACTORS.PREFERRED_USERNAME, actor.profile.preferredUsername)
+                .set(REMOTE_ACTORS.DISPLAY_NAME, actor.profile.displayName)
+                .set(REMOTE_ACTORS.PROFILE_URL, actor.profile.profileUrl)
+                .set(REMOTE_ACTORS.ICON_URL, actor.profile.iconUrl)
+                .set(REMOTE_ACTORS.UPDATED_AT, StoredInstant.format(updatedAt))
+                .onConflict(REMOTE_ACTORS.ACTOR_URI)
+                .doUpdate()
+                .set(REMOTE_ACTORS.PREFERRED_USERNAME, actor.profile.preferredUsername)
+                .set(REMOTE_ACTORS.DISPLAY_NAME, actor.profile.displayName)
+                .set(REMOTE_ACTORS.PROFILE_URL, actor.profile.profileUrl)
+                .set(REMOTE_ACTORS.ICON_URL, actor.profile.iconUrl)
+                .set(REMOTE_ACTORS.UPDATED_AT, StoredInstant.format(updatedAt))
+                .execute()
+        }
+    }
+
+    override fun findByAcct(username: String, host: String): RemoteActorSearchRecord? = jooq.withConnection { dsl ->
+        dsl.selectFrom(REMOTE_ACTORS)
+            .where(REMOTE_ACTORS.PREFERRED_USERNAME.eq(username))
+            .fetch()
+            .firstOrNull { runCatching { URI(it.actorUri).host }.getOrNull().equals(host, ignoreCase = true) }
+            ?.let { record ->
+                RemoteActorSearchRecord(
+                    actorUri = checkNotNull(record.actorUri),
+                    preferredUsername = checkNotNull(record.preferredUsername),
+                    displayName = record.displayName,
+                    iconUrl = record.iconUrl,
+                    updatedAt = StoredInstant.parse(checkNotNull(record.updatedAt)),
+                )
+            }
+    }
+
     override fun searchByName(
         keyword: String,
         after: RemoteActorSearchCursor?,

@@ -9,6 +9,7 @@ type Query {
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
     user(username: String!): User
+    userProfile(acct: String!): UserProfile
     """
     名前の一部で、このサーバーのユーザーとフォローなどで受け取った他のサーバーのユーザーをまとめて探す。
     after には前回の nextCursor を渡す

@@ -112,7 +112,7 @@ private fun ScreenContent(
         }
 
         is Screen.UserProfile -> {
-            UserProfileScreen(username = screen.username)
+            UserProfileScreen(username = screen.username, navigator = navigator)
         }
     }
 }

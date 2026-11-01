@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
+import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
@@ -162,6 +163,15 @@ private class FakePasskeyRepository(
 
 internal class FakeRemoteActorRepository : RemoteActorRepository {
     private val rows = mutableListOf<RemoteActorSearchRecord>()
+
+    override fun save(actor: RemoteActorRecord, updatedAt: Instant) {
+        val username = actor.profile.preferredUsername ?: return
+        rows.removeAll { it.actorUri == actor.actorUri }
+        rows.add(RemoteActorSearchRecord(actor.actorUri, username, actor.profile.displayName, actor.profile.iconUrl, updatedAt))
+    }
+
+    override fun findByAcct(username: String, host: String): RemoteActorSearchRecord? =
+        rows.firstOrNull { it.preferredUsername == username && it.actorUri.substringAfter("://").substringBefore('/') == host }
 
     fun add(record: RemoteActorSearchRecord) {
         rows += record
