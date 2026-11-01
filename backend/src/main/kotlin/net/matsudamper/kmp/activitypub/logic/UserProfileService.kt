@@ -15,8 +15,10 @@ class UserProfileService(
     private val localDomain: String,
 ) {
     suspend fun profile(acct: String, viewer: AccountId?): UserProfile? {
-        val username = acct.removePrefix("@").substringBefore('@')
-        val host = acct.removePrefix("@").substringAfter('@', localDomain)
+        val normalizedAcct = acct.removePrefix("@")
+        val username = normalizedAcct.substringBefore('@')
+        if (username.isEmpty()) return null
+        val host = normalizedAcct.substringAfter('@', "").ifEmpty { localDomain }
         if (host.equals(localDomain, ignoreCase = true)) {
             val account = accounts.findByUsername(username) ?: return null
             return UserProfile(

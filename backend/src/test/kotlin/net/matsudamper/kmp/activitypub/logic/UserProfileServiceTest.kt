@@ -69,6 +69,23 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun emptyUsernameDoesNotFetchRemoteProfile() = runBlocking {
+        for (acct in listOf("", "@", "@@remote.example")) {
+            assertNull(service.profile(acct, viewer))
+        }
+        assertEquals(listOf(), requests)
+    }
+
+    @Test
+    fun emptyHostUsesLocalProfile() = runBlocking {
+        val profile = assertNotNull(service.profile("alice@", viewer))
+        assertEquals("alice", profile.user.username)
+        assertEquals("local.example", profile.user.host)
+        assertEquals(true, profile.user.isLocal)
+        assertEquals(listOf(), requests)
+    }
+
+    @Test
     fun anonymousViewerDoesNotFetchRemoteProfile() = runBlocking {
         assertNull(service.profile("bob@remote.example", null))
         assertEquals(listOf(), requests)
