@@ -149,19 +149,26 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val actorIds = dsl.select(REMOTE_ACTORS.ID).from(ACCOUNT_FOLLOWING)
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ACTOR_URI.eq(ACCOUNT_FOLLOWING.ACTOR_URI))
             .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).fetch(REMOTE_ACTORS.ID)
-        val followed = actorIds.flatMap { actorId ->
+        val perActor = actorIds.map { actorId ->
             dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
                 .where(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(actorId)).and(readable(dsl, accountId))
                 .and(olderThan(REMOTE_NOTES.SCORE_MS, remoteMember, after))
                 .orderBy(REMOTE_NOTES.SCORE_MS.desc(), remoteMember.desc()).limit(perActorLimit).fetch { it.toRemotePosition() }
+        }
+        val newestFirst = compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member }
+        val cutoff = if (perActorLimit < limit) {
+            perActor.filter { it.size == perActorLimit }.map { it.last() }.minWithOrNull(newestFirst)
+        } else {
+            null
         }
         val addressed = dsl.select(REMOTE_NOTE_RECIPIENTS.SCORE_MS, REMOTE_NOTE_RECIPIENTS.MEMBER).from(REMOTE_NOTE_RECIPIENTS)
             .where(REMOTE_NOTE_RECIPIENTS.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_RECIPIENTS.KIND.eq("explicit"))
             .and(olderThan(REMOTE_NOTE_RECIPIENTS.SCORE_MS, REMOTE_NOTE_RECIPIENTS.MEMBER, after))
             .orderBy(REMOTE_NOTE_RECIPIENTS.SCORE_MS.desc(), REMOTE_NOTE_RECIPIENTS.MEMBER.desc()).limit(limit)
             .fetch { TimelinePosition(checkNotNull(it.value1()), checkNotNull(it.value2())) }
-        (followed + addressed + localPositions(dsl, accountId, after, limit)).distinctBy { it.member }
-            .sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member }).take(limit)
+        (perActor.flatten() + addressed + localPositions(dsl, accountId, after, limit)).distinctBy { it.member }
+            .filter { cutoff == null || newestFirst.compare(it, cutoff) <= 0 }
+            .sortedWith(newestFirst).take(limit)
     }
 
     private fun localPositions(dsl: DSLContext, accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition> {

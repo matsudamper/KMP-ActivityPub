@@ -116,7 +116,8 @@ class TimelineRepositoryTest {
         val second = repository.page(alice, first.last(), 7)
         assertEquals(positions.reversed().take(14), first + second)
         val ownDirect = checkNotNull(repository.receive(note("own-direct", "direct", setOf("alice"))))
-        assertTrue(ownDirect in repository.rebuild(alice, 400))
+        assertEquals(positions.reversed().take(20), repository.rebuild(alice, 400))
+        assertTrue(ownDirect in repository.page(alice, positions.reversed()[19], 100))
         assertEquals(false, repository.shouldReceive("https://unknown.example/actor", setOf()))
         assertTrue(repository.shouldReceive("https://unknown.example/actor", setOf("alice")))
         assertTrue(repository.shouldReceive(ACTOR, setOf()))
@@ -145,6 +146,50 @@ class TimelineRepositoryTest {
         assertEquals(expected.take(24), first + second)
         assertEquals(expected, repository.rebuild(accounts.getValue("alice"), 400))
         assertTrue(repository.page(accounts.getValue("bob"), null, 100).isEmpty())
+    }
+
+    @Test
+    fun rebuiltPrefixAndSqlContinuationIncludeEveryPostFromBusyActors() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val account = accounts.getValue("alice")
+        val olderActor = "https://older.example/actor"
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(olderActor, "$olderActor/inbox", null, "key", RemoteActorProfileRecord("older", null, null, null)),
+            NOW,
+        )
+        listOf(ACTOR, olderActor).forEach { repositories.followingRepository.add(account, it, NOW) }
+        val newer = (1..30).map { index ->
+            val published = NOW.minusSeconds(index.toLong())
+            checkNotNull(repository.receive(note("newer-$index", "public", setOf()).copy(publishedAt = published)))
+        }
+        val older = (1..20).map { index ->
+            checkNotNull(
+                repository.receive(
+                    note("older-$index", "public", setOf()).copy(
+                        actorUri = olderActor,
+                        objectUri = "$olderActor/notes/$index",
+                        publishedAt = NOW.minusSeconds(100L + index),
+                    ),
+                ),
+            )
+        }
+        val rebuilt = repository.rebuild(account, 400)
+        assertEquals(newer.take(20), rebuilt)
+        val allPages = buildList {
+            var cursor: TimelinePosition? = null
+            do {
+                val pageCursor = cursor
+                val cached = rebuilt.filter { position ->
+                    pageCursor == null || position.score < pageCursor.score ||
+                        (position.score == pageCursor.score && position.member < pageCursor.member)
+                }.take(7)
+                val page = cached + repository.page(account, cached.lastOrNull() ?: pageCursor, 7 - cached.size)
+                addAll(page)
+                cursor = page.lastOrNull()
+            } while (cursor != null)
+        }
+        assertEquals(newer + older, allPages)
+        assertEquals(newer + older, repository.page(account, null, 100))
     }
 
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(

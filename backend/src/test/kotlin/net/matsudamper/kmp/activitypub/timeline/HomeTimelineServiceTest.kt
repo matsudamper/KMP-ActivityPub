@@ -5,6 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
+import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class HomeTimelineServiceTest {
@@ -34,6 +35,27 @@ class HomeTimelineServiceTest {
         }
         assertEquals(repository.positions.sortedByDescending { it.member }, received)
         assertTrue(repository.pageRequests.any { it != null })
+    }
+
+    @Test
+    fun pagesContinueFromRebuiltPrefixWithoutSkippingBusyActors() {
+        val repository = FakeTimelineRepository()
+        val newer = (1..30).map { TimelinePosition(100L - it, "r$it") }
+        val older = (31..50).map { TimelinePosition(-it.toLong(), "r$it") }
+        repository.positions.addAll(newer + older)
+        val prefixRepository = object : TimelineRepository by repository {
+            override fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition> = newer.take(20)
+        }
+        val service = HomeTimelineService(prefixRepository, FakeTimelineStore(repository.events), Clock.systemUTC())
+        val received = buildList {
+            var cursor: String? = null
+            do {
+                val page = service.page(AccountId(1), cursor, 7)
+                addAll(page.posts.map { it.position })
+                cursor = page.nextCursor
+            } while (cursor != null)
+        }
+        assertEquals(newer + older, received)
     }
 
     @Test
