@@ -28,6 +28,11 @@ class UserProfileServiceTest {
             requests.add("posts")
             return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString()))
         }
+
+        override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
+            requests.add("profile:$actorUri")
+            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null), "自己紹介")
+        }
     }
     private val service = UserProfileService(repositories.accountRepository, repositories.remoteActorRepository, repositories.noteRepository, following, remoteProfiles, "local.example")
 
@@ -38,6 +43,16 @@ class UserProfileServiceTest {
         assertEquals("自己紹介", profile.biography)
         assertEquals("<p>最新の投稿</p>", profile.posts.single().contentHtml)
         assertEquals(false, profile.following)
+    }
+
+    @Test
+    fun storedActorLoadsProfileByUriWithoutResolvingAcct() = runBlocking {
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, Instant.EPOCH))
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        assertEquals(listOf("profile:$actorUri", "posts"), requests)
+        assertEquals(actorUri, profile.user.actorUri)
+        assertEquals("自己紹介", profile.biography)
+        assertEquals("<p>最新の投稿</p>", profile.posts.single().contentHtml)
     }
 
     @Test

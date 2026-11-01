@@ -41,20 +41,24 @@ class UserProfileService(
             )
         }
         if (viewer == null) return null
-        val remote = remoteProfiles?.find(username, host) ?: return null
+        val profiles = remoteProfiles ?: return null
+        val remote = if (storedActor != null) profiles.findByActorUri(storedActor.actorUri) else profiles.find(username, host)
+        if (remote == null) return null
         val actorHost = URI(remote.user.actorUri).host ?: return null
         val remoteFollowed = following.isFollowing(viewer, remote.user.actorUri)
         return UserProfile(
             user = SearchedUser(remote.user.actorUri, remote.user.username, actorHost, false, remote.user.displayName ?: remote.user.username, remote.user.iconUrl, null),
             following = remoteFollowed,
             biography = remote.biography,
-            posts = if (remoteFollowed) listOf() else remoteProfiles.recentPosts(remote.user.actorUri),
+            posts = if (remoteFollowed) listOf() else profiles.recentPosts(remote.user.actorUri),
         )
     }
 }
 
 interface RemoteUserProfiles {
     suspend fun find(username: String, host: String): RemoteUserProfile?
+
+    suspend fun findByActorUri(actorUri: String): RemoteUserProfile?
 
     suspend fun recentPosts(actorUri: String): List<ProfilePost>
 }
