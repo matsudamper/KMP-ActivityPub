@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.UserInfoResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.oidc.oidcRoutes
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
@@ -84,6 +85,8 @@ internal fun Application.module(deps: AppDependencies) {
         log.warn("COOKIE_SECURE=false なのでセッション Cookie に Secure を付けない。http で試すとき以外は外すこと")
     }
 
+    launch { deps.timelineWorker.run() }
+
     val federation = deps.federation
     if (federation == null) {
         log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
@@ -103,6 +106,7 @@ internal fun Application.module(deps: AppDependencies) {
         GraphQlEngine.create(
             resolvers = listOf(
                 QueryResolverImpl(),
+                UserInfoResolverImpl(),
                 MutationResolverImpl(),
                 UserMutationResolverImpl(),
             ),
@@ -115,6 +119,7 @@ internal fun Application.module(deps: AppDependencies) {
                 )
             },
             diContainer = DiContainer(
+                homeTimelineService = deps.homeTimelineService,
                 accountService = deps.accountService,
                 userSearchService = deps.userSearchService,
                 userProfileService = deps.userProfileService,

@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
@@ -38,6 +39,20 @@ class UserApi(
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
+
+    suspend fun homeTimeline(cursor: String?): UserHomeTimelineResult {
+        val client = clients.awaitLoadedClient() ?: return UserHomeTimelineResult.Failure("接続先が未設定")
+        val response = client.query(HomeTimelineQuery(cursor = Optional.presentIfNotNull(cursor), limit = 40)).execute()
+        if (response.exception != null || response.hasErrors()) return UserHomeTimelineResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserHomeTimelineResult.Failure(response.failureMessage())
+        val timeline = data.userInfo?.homeTimeline ?: return UserHomeTimelineResult.NotLoggedIn
+        return UserHomeTimelineResult.Success(
+            posts = timeline.posts.map {
+                UserHomeTimelineResult.Post(it.content, it.publishedAt, it.username, it.host, it.displayName, it.summary, it.sensitive)
+            },
+            nextCursor = timeline.nextCursor,
+        )
+    }
 
     suspend fun setFollowing(actorUri: String, followed: Boolean): String? {
         val client = clients.client.value ?: return "接続先が未設定"

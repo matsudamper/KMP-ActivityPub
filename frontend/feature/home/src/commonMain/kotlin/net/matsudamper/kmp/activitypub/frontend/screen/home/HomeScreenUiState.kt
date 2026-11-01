@@ -6,6 +6,7 @@ data class HomeScreenUiState(
     val selectedTab: Tab,
     val timelineItems: List<TimelineItem>,
     val timelineRefreshing: Boolean,
+    val timelineLoadMoreVisible: Boolean,
     val search: Search,
     val profile: Profile,
     val userTabIconUrl: String?,
@@ -85,6 +86,8 @@ data class HomeScreenUiState(
         fun onTabChanged(tab: Tab)
 
         fun onRefreshTimeline()
+
+        fun onLoadMoreTimeline()
 
         fun onSearchQueryChanged(query: String)
 
