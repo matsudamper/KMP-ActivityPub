@@ -59,6 +59,19 @@ class HomeTimelineServiceTest {
     }
 
     @Test
+    fun invalidationDropsRemovedPostsBeforeRebuilding() {
+        val repository = FakeTimelineRepository()
+        repository.positions.addAll(listOf(TimelinePosition(2, "r1"), TimelinePosition(1, "r2")))
+        val service = HomeTimelineService(repository, FakeTimelineStore(repository.events), Clock.systemUTC())
+        assertEquals(1, service.page(AccountId(1), null, 1).posts.size)
+        repository.positions.clear()
+        service.invalidate(AccountId(1))
+        val rebuilt = service.page(AccountId(1), null, 1)
+        assertTrue(rebuilt.posts.isEmpty())
+        assertEquals(null, rebuilt.nextCursor)
+    }
+
+    @Test
     fun unavailableValkeyAndContendedLockUseSqlWithoutBuilding() {
         listOf(false, true).forEach { unavailable ->
             val repository = FakeTimelineRepository()
@@ -99,6 +112,7 @@ internal class FakeTimelineStore(private val events: MutableList<String>) : Time
     }
     override fun invalidate(accountId: AccountId) {
         built = false
+        members.clear()
     }
     override fun expire(accountId: AccountId) {
         events.add("expire")

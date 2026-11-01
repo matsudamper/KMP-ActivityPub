@@ -41,7 +41,7 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
     }
 
     override fun invalidate(accountId: AccountId) {
-        connection.sync().del("${key(accountId)}:built")
+        connection.sync().del("${key(accountId)}:built", key(accountId))
     }
 
     override fun expire(accountId: AccountId) {
