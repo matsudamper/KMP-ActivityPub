@@ -299,6 +299,7 @@ internal class HomeScreenViewModel(
                             state
                         }
                     }
+                    loadProfile()
                 } else {
                     events.send { it.showMessage(error) }
                 }
