@@ -6,7 +6,8 @@ CREATE TABLE accounts (
     -- 未設定なら NULL
     display_name TEXT,
     -- 画像の置き場の中でのプロフィール画像の場所。未設定なら NULL
-    icon_path TEXT
+    icon_path TEXT,
+    last_active_at TEXT
 );
 
 -- 行が無ければパスワードは無い
@@ -126,10 +127,44 @@ CREATE TABLE health_check (
     checked_at TEXT NOT NULL
 );
 
--- 第一段階では内部のフォローだけを保存し、連合先の承認状態は扱わない
 CREATE TABLE account_following (
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     actor_uri TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    follow_activity_uri TEXT,
+    accepted_at TEXT,
     PRIMARY KEY (account_id, actor_uri)
 );
+
+CREATE INDEX account_following_actor_uri ON account_following (actor_uri, account_id);
+
+CREATE TABLE remote_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    object_uri TEXT NOT NULL UNIQUE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    content_html TEXT NOT NULL,
+    visibility TEXT NOT NULL,
+    in_reply_to TEXT,
+    summary TEXT,
+    sensitive INTEGER NOT NULL,
+    published_at TEXT NOT NULL,
+    received_at TEXT NOT NULL,
+    score_ms INTEGER NOT NULL
+);
+
+CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);
+
+CREATE TABLE remote_note_recipients (
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    score_ms INTEGER NOT NULL,
+    member TEXT NOT NULL,
+    PRIMARY KEY (remote_note_id, account_id, kind)
+);
+
+CREATE INDEX remote_note_recipients_account ON remote_note_recipients (account_id, remote_note_id);
+
+CREATE INDEX remote_notes_actor_score_member ON remote_notes (remote_actor_id, score_ms DESC, ('r' || CAST(id AS varchar)) DESC);
+
+CREATE INDEX remote_note_recipients_account_score ON remote_note_recipients (account_id, kind, score_ms DESC, member DESC);
