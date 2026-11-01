@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
 
 import kotlin.io.encoding.Base64
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
@@ -31,6 +33,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 class UserApi(
     private val clients: GraphQlClientSource,
 ) {
+    private val followingChangesFlow = MutableSharedFlow<FollowingChange>()
+    val followingChanges = followingChangesFlow.asSharedFlow()
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
@@ -39,7 +43,9 @@ class UserApi(
         val client = clients.client.value ?: return "接続先が未設定"
         val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
-        return if (response.data?.user?.setFollowing == true) null else "フォロー状態を変更できませんでした"
+        if (response.data?.user?.setFollowing != true) return "フォロー状態を変更できませんでした"
+        followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
+        return null
     }
 
     suspend fun followingUsers(after: String?): UserFollowListResult {
@@ -239,6 +245,11 @@ class UserApi(
             UpdateProfileIconFailure.UNKNOWN__ -> UserUpdateProfileIconResult.Failure("Unknown")
         }
     }
+
+    data class FollowingChange(
+        val actorUri: String,
+        val following: Boolean,
+    )
 
     private fun ActorListFields.toUserFollowListResult(): UserFollowListResult =
         UserFollowListResult.Success(

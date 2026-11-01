@@ -113,6 +113,21 @@ internal class HomeScreenViewModel(
 
     init {
         viewModelScope.launch {
+            userApi.followingChanges.collect { change ->
+                searchStateFlow.update { state ->
+                    if (state is SearchState.Loaded) {
+                        state.copy(
+                            users = state.users.map { user ->
+                                if (user.actorUri == change.actorUri) user.copy(following = change.following) else user
+                            },
+                        )
+                    } else {
+                        state
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
             searchStateFlow.collect { searchState ->
                 mutableUiStateFlow.update { uiState ->
                     uiState.copy(search = uiState.search.copy(result = createSearchResult(searchState)))
@@ -292,13 +307,6 @@ internal class HomeScreenViewModel(
             try {
                 val error = userApi.setFollowing(actorUri, followed = !user.following)
                 if (error == null) {
-                    searchStateFlow.update { state ->
-                        if (state is SearchState.Loaded) {
-                            state.copy(users = state.users.map { if (it.actorUri == actorUri) it.copy(following = !user.following) else it })
-                        } else {
-                            state
-                        }
-                    }
                     loadProfile()
                 } else {
                     events.send { it.showMessage(error) }
