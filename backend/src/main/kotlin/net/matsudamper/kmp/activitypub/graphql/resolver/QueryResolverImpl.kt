@@ -19,8 +19,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
+import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
 import net.matsudamper.kmp.activitypub.shared.AccountId
-import org.jsoup.Jsoup
 
 class QueryResolverImpl : QueryResolver {
     override fun userProfile(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserProfile?>> {
@@ -32,8 +32,8 @@ class QueryResolverImpl : QueryResolver {
             val result = profile?.let {
                 QlUserProfile(
                     user = it.user.toQlSearchedUser(env, accountId).copy(following = it.following),
-                    biography = it.biography?.let { html -> Jsoup.parse(html).wholeText() },
-                    posts = it.posts.map { post -> QlProfilePost(content = Jsoup.parse(post.contentHtml).wholeText(), publishedAt = post.publishedAt) },
+                    biography = it.biography?.let { html -> htmlToPlainText(html) },
+                    posts = it.posts.map { post -> QlProfilePost(content = htmlToPlainText(post.contentHtml), publishedAt = post.publishedAt) },
                 )
             }
             DataFetcherResult.Builder<QlUserProfile?>(result).build()
