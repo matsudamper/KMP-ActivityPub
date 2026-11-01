@@ -91,6 +91,18 @@ internal class HomeScreenViewModel(
                         loadProfile()
                     }
 
+                    override fun onClickFollowing() {
+                        viewModelScope.launch {
+                            events.send { it.navigateToFollowing() }
+                        }
+                    }
+
+                    override fun onClickFollowers() {
+                        viewModelScope.launch {
+                            events.send { it.navigateToFollowers() }
+                        }
+                    }
+
                     override fun onScreenShown() {
                         loadProfile()
                     }
@@ -122,6 +134,8 @@ internal class HomeScreenViewModel(
                         iconUrl = result.iconUrl,
                         displayName = result.displayName ?: result.username,
                         acct = "@${result.username}",
+                        followingCount = result.followingCount.toString(),
+                        followersCount = result.followersCount.toString(),
                     )
 
                     UserMyProfileResult.NotLoggedIn -> HomeScreenUiState.Profile.Error("ログインしていません")
@@ -311,6 +325,10 @@ internal class HomeScreenViewModel(
         fun navigateToUserProfile(username: String)
 
         fun navigateToProfileEdit()
+
+        fun navigateToFollowing()
+
+        fun navigateToFollowers()
 
         fun showMessage(message: String)
     }

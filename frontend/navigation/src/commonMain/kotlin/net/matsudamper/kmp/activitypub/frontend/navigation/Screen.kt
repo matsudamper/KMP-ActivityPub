@@ -73,6 +73,22 @@ sealed interface Screen : NavKey {
         override val loginRequired: Boolean get() = true
     }
 
+    @Serializable
+    data object Following : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/profile/following")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Home(tab = Home.Tab.User)
+        override val loginRequired: Boolean get() = true
+    }
+
+    @Serializable
+    data object Followers : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/profile/followers")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Home(tab = Home.Tab.User)
+        override val loginRequired: Boolean get() = true
+    }
+
     /**
      * Mastodon に合わせたパス。
      */
@@ -98,6 +114,8 @@ sealed interface Screen : NavKey {
                 Post.pathPattern to { _ -> Post },
                 Settings.pathPattern to { _ -> Settings },
                 ProfileEdit.pathPattern to { _ -> ProfileEdit },
+                Following.pathPattern to { _ -> Following },
+                Followers.pathPattern to { _ -> Followers },
                 UserProfile.PATH_PATTERN to { parameters ->
                     UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
                 },

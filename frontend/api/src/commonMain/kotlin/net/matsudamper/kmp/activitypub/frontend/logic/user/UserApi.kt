@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
+import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
@@ -17,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -37,6 +40,26 @@ class UserApi(
         val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
         return if (response.data?.user?.setFollowing == true) null else "フォロー状態を変更できませんでした"
+    }
+
+    suspend fun followingUsers(after: String?): UserFollowListResult {
+        val client = clients.awaitLoadedClient() ?: return UserFollowListResult.Failure("接続先が未設定")
+        val response = client.query(FollowingUsersQuery(after = Optional.presentIfNotNull(after))).execute()
+        if (response.exception != null || response.hasErrors()) return UserFollowListResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserFollowListResult.Failure(response.failureMessage())
+        val actorList = data.followingUsers ?: return UserFollowListResult.NotLoggedIn
+
+        return actorList.actorListFields.toUserFollowListResult()
+    }
+
+    suspend fun followerUsers(after: String?): UserFollowListResult {
+        val client = clients.awaitLoadedClient() ?: return UserFollowListResult.Failure("接続先が未設定")
+        val response = client.query(FollowerUsersQuery(after = Optional.presentIfNotNull(after))).execute()
+        if (response.exception != null || response.hasErrors()) return UserFollowListResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserFollowListResult.Failure(response.failureMessage())
+        val actorList = data.followerUsers ?: return UserFollowListResult.NotLoggedIn
+
+        return actorList.actorListFields.toUserFollowListResult()
     }
 
     suspend fun login(
@@ -168,7 +191,13 @@ class UserApi(
         val data = response.data ?: return UserMyProfileResult.Failure(response.failureMessage())
         val profile = data.profile ?: return UserMyProfileResult.NotLoggedIn
 
-        return UserMyProfileResult.Found(username = profile.username, displayName = profile.displayName, iconUrl = profile.iconUrl)
+        return UserMyProfileResult.Found(
+            username = profile.username,
+            displayName = profile.displayName,
+            iconUrl = profile.iconUrl,
+            followingCount = profile.followingCount,
+            followersCount = profile.followersCount,
+        )
     }
 
     /**
@@ -210,6 +239,21 @@ class UserApi(
             UpdateProfileIconFailure.UNKNOWN__ -> UserUpdateProfileIconResult.Failure("Unknown")
         }
     }
+
+    private fun ActorListFields.toUserFollowListResult(): UserFollowListResult =
+        UserFollowListResult.Success(
+            users = users.map {
+                UserFollowListResult.User(
+                    actorUri = it.actorUri,
+                    following = it.following,
+                    username = it.username,
+                    host = it.host,
+                    displayName = it.displayName,
+                    iconUrl = it.iconUrl,
+                )
+            },
+            nextCursor = nextCursor,
+        )
 
     private fun ApolloResponse<*>.failureMessage(): String {
         return exception?.message

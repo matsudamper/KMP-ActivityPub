@@ -3,3 +3,27 @@ mutation SetFollowing($actorUri: String!, $followed: Boolean!) {
         setFollowing(actorUri: $actorUri, followed: $followed)
     }
 }
+
+query FollowingUsers($after: String) {
+    followingUsers(after: $after) {
+        ...ActorListFields
+    }
+}
+
+query FollowerUsers($after: String) {
+    followerUsers(after: $after) {
+        ...ActorListFields
+    }
+}
+
+fragment ActorListFields on ActorList {
+    users {
+        actorUri
+        following
+        username
+        host
+        displayName
+        iconUrl
+    }
+    nextCursor
+}
