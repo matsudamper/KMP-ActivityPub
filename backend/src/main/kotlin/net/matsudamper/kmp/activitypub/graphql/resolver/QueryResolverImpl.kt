@@ -19,21 +19,25 @@ import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.jsoup.Jsoup
 
 class QueryResolverImpl : QueryResolver {
-    override fun userProfile(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserProfile?>> = otelSupplyAsync {
-        val profile = runBlocking {
-            GraphQlEngine.diContainer(env).userProfileService.profile(acct, GraphQlEngine.graphQlContext(env).userAccountId())
+    override fun userProfile(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserProfile?>> {
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        return otelSupplyAsync {
+            val profile = runBlocking {
+                GraphQlEngine.diContainer(env).userProfileService.profile(acct, accountId)
+            }
+            val result = profile?.let {
+                QlUserProfile(
+                    user = it.user.toQlSearchedUser(env, accountId).copy(following = it.following),
+                    biography = it.biography?.let { html -> Jsoup.parse(html).wholeText() },
+                    posts = it.posts.map { post -> QlProfilePost(content = Jsoup.parse(post.contentHtml).wholeText(), publishedAt = post.publishedAt) },
+                )
+            }
+            DataFetcherResult.Builder<QlUserProfile?>(result).build()
         }
-        val result = profile?.let {
-            QlUserProfile(
-                user = it.user.toQlSearchedUser(env).copy(following = it.following),
-                biography = it.biography?.let { html -> Jsoup.parse(html).wholeText() },
-                posts = it.posts.map { post -> QlProfilePost(content = Jsoup.parse(post.contentHtml).wholeText(), publishedAt = post.publishedAt) },
-            )
-        }
-        DataFetcherResult.Builder<QlUserProfile?>(result).build()
     }
 
     override fun unused(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<Boolean?>> {
@@ -105,6 +109,7 @@ class QueryResolverImpl : QueryResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserSearchResult>> {
         val cursor = after?.let { UserSearchCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         val result =
             GraphQlEngine.diContainer(env).userSearchService.searchUsers(
                 query = query,
@@ -113,7 +118,7 @@ class QueryResolverImpl : QueryResolver {
         return CompletableFuture.completedFuture(
             DataFetcherResult.Builder(
                 QlUserSearchResult(
-                    users = result.users.map { it.toQlSearchedUser(env) },
+                    users = result.users.map { it.toQlSearchedUser(env, accountId) },
                     nextCursor = result.nextCursor?.encode(),
                 ),
             ).build(),
@@ -125,22 +130,22 @@ class QueryResolverImpl : QueryResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSearchedUser?>> {
         val userSearchService = GraphQlEngine.diContainer(env).userSearchService
-        val remoteLookupAllowed = GraphQlEngine.graphQlContext(env).userAccountId() != null
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         return otelSupplyAsync {
             val user =
                 runBlocking {
-                    userSearchService.resolveUser(query = query, remoteLookupAllowed = remoteLookupAllowed)
+                    userSearchService.resolveUser(query = query, remoteLookupAllowed = accountId != null)
                 }
-            DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser(env)).build()
+            DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser(env, accountId)).build()
         }
     }
 
-    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser {
+    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment, accountId: AccountId?): QlSearchedUser {
         val diContainer = GraphQlEngine.diContainer(env)
         return QlSearchedUser(
             actorUri = actorUri,
             following = diContainer.followingService.isFollowing(
-                GraphQlEngine.graphQlContext(env).userAccountId(),
+                accountId,
                 actorUri,
             ),
             username = username,
