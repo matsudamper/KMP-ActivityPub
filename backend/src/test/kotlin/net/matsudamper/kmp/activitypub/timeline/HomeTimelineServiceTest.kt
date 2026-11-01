@@ -126,6 +126,57 @@ class HomeTimelineServiceTest {
     }
 
     @Test
+    fun rebuildingDropsOldFanoutBeforeOrDuringRebuildAndSqlReturnsEveryPage() {
+        listOf(false, true).forEach { duringRebuild ->
+            val account = AccountId(1)
+            val repository = FakeTimelineRepository()
+            val existing = (1..30).map { TimelinePosition(100L - it, "r$it") }
+            val delayed = TimelinePosition(10, "r31")
+            repository.positions.addAll(existing + delayed)
+            val prefixRepository = object : TimelineRepository by repository {
+                override fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition> = existing.take(20)
+            }
+            val store = FakeTimelineStore(repository.events)
+            val rebuildingStore = object : TimelineStore by store {
+                override fun markBuilt(accountId: AccountId) {
+                    store.markBuilt(accountId)
+                    if (duringRebuild) store.distribute(listOf(accountId), delayed)
+                }
+            }
+            val service = HomeTimelineService(prefixRepository, rebuildingStore, Clock.systemUTC())
+            store.appendRebuilt(account, existing.take(20))
+            service.invalidate(account)
+            if (!duringRebuild) store.distribute(listOf(account), delayed)
+            val allPages = buildList {
+                var cursor: String? = null
+                do {
+                    val page = service.page(account, cursor, 7)
+                    addAll(page.posts.map { it.position })
+                    cursor = page.nextCursor
+                } while (cursor != null)
+            }
+            assertEquals(existing.take(20), store.read(account, null, 100))
+            assertEquals(existing + delayed, allPages)
+        }
+    }
+
+    @Test
+    fun emptyRebuildClearsFanoutAndEqualScoreMembersRemain() {
+        val account = AccountId(1)
+        val store = FakeTimelineStore(mutableListOf())
+        val tail = TimelinePosition(10, "r5")
+        val sameScore = TimelinePosition(10, "r1")
+        val newer = TimelinePosition(20, "r10")
+        store.distribute(listOf(account), TimelinePosition(9, "r9"))
+        store.distribute(listOf(account), sameScore)
+        store.distribute(listOf(account), newer)
+        store.appendRebuilt(account, listOf(tail))
+        assertEquals(listOf(newer, tail, sameScore), store.read(account, null, 100))
+        store.appendRebuilt(account, listOf())
+        assertTrue(store.read(account, null, 100).isEmpty())
+    }
+
+    @Test
     fun unavailableValkeyAndContendedLockUseSqlWithoutBuilding() {
         listOf(false, true).forEach { unavailable ->
             val repository = FakeTimelineRepository()
@@ -177,15 +228,19 @@ internal class FakeTimelineStore(private val events: MutableList<String>) : Time
         accountIds.forEach { accountId ->
             val oldest = oldestByAccount[accountId]
             if (oldest == null || positionOrder.compare(position, oldest) >= 0) {
-                appendRebuilt(accountId, listOf(position))
+                append(accountId, listOf(position))
             }
         }
     }
 
     override fun appendRebuilt(accountId: AccountId, positions: List<TimelinePosition>) {
-        events.add("zadd")
-        members[accountId] = (members[accountId].orEmpty() + positions.associateBy { it.member }).values
-            .sortedWith(positionOrder.reversed()).take(400).associateBy { it.member }
+        val tail = positions.lastOrNull()
+        if (tail == null) {
+            members.remove(accountId)
+        } else {
+            append(accountId, positions)
+            members[accountId] = members[accountId].orEmpty().filterValues { it.score >= tail.score }
+        }
     }
 
     override fun read(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition> = members[accountId].orEmpty().values
@@ -197,4 +252,10 @@ internal class FakeTimelineStore(private val events: MutableList<String>) : Time
     override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = listOf()
     override fun acknowledge(id: String) = Unit
     override fun close() = Unit
+
+    private fun append(accountId: AccountId, positions: List<TimelinePosition>) {
+        events.add("zadd")
+        members[accountId] = (members[accountId].orEmpty() + positions.associateBy { it.member }).values
+            .sortedWith(positionOrder.reversed()).take(400).associateBy { it.member }
+    }
 }

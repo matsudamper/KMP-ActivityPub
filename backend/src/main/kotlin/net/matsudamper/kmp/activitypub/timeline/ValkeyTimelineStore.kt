@@ -64,11 +64,11 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
             val oldest = oldestByAccount.getValue(accountId).getOrThrow()
             oldest == null || position.score > oldest.score || (position.score == oldest.score && position.member >= oldest.member)
         }
-        append(recipients, listOf(position))
+        append(recipients, listOf(position), null)
     }
 
     override fun appendRebuilt(accountId: AccountId, positions: List<TimelinePosition>) {
-        append(listOf(accountId), positions)
+        append(listOf(accountId), positions, positions.lastOrNull())
     }
 
     override fun read(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition> {
@@ -126,13 +126,21 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         resources.shutdown()
     }
 
-    private fun append(accountIds: List<AccountId>, positions: List<TimelinePosition>) {
+    private fun append(accountIds: List<AccountId>, positions: List<TimelinePosition>, rebuiltTail: TimelinePosition?) {
         val commands = connection.async()
         val writes = accountIds.associateWith { account ->
             buildList {
-                positions.forEach { position -> add(commands.zadd(key(account), position.score.toDouble(), position.member)) }
-                add(commands.zremrangebyrank(key(account), 0, -401))
-                add(commands.expire(key(account), TTL))
+                if (positions.isEmpty()) {
+                    add(commands.del(key(account)))
+                } else {
+                    positions.forEach { position -> add(commands.zadd(key(account), position.score.toDouble(), position.member)) }
+                    if (rebuiltTail != null) {
+                        val olderScores = Range.from(Range.Boundary.unbounded<Double>(), Range.Boundary.excluding(rebuiltTail.score.toDouble()))
+                        add(commands.zremrangebyscore(key(account), olderScores))
+                    }
+                    add(commands.zremrangebyrank(key(account), 0, -401))
+                    add(commands.expire(key(account), TTL))
+                }
             }
         }
         val failures = writes.filterValues { futures -> futures.any { runCatching { it.get() }.isFailure } }.keys
