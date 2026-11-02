@@ -142,7 +142,7 @@ class HomeTimelineServiceTest {
         val deliveryStore = object : TimelineStore by store {
             override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = listOf(FanoutJob("1-0", position))
         }
-        TimelineFanoutWorker(recipientsRepository, deliveryStore, Clock.fixed(now, ZoneOffset.UTC)).runOnce(false)
+        TimelineFanoutWorker(recipientsRepository, deliveryStore, HomeTimelineArrivals(recipientsRepository), Clock.fixed(now, ZoneOffset.UTC)).runOnce(false)
         assertEquals(listOf(position), store.read(recentlyActive, null, 10))
         assertEquals(listOf(position), store.read(boundary, null, 10))
         assertTrue(store.read(expired, null, 10).isEmpty())
@@ -228,7 +228,7 @@ class HomeTimelineServiceTest {
         val deliveryStore = object : TimelineStore by store {
             override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = listOf(FanoutJob("1-0", delayed))
         }
-        TimelineFanoutWorker(prefixRepository, deliveryStore, Clock.systemUTC()).runOnce(false)
+        TimelineFanoutWorker(prefixRepository, deliveryStore, HomeTimelineArrivals(prefixRepository), Clock.systemUTC()).runOnce(false)
         assertEquals(existing.take(20), store.read(account, null, 100))
         val allPages = buildList {
             addAll(first.posts.map { it.position })

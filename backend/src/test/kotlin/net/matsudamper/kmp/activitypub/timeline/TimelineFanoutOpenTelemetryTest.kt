@@ -29,7 +29,7 @@ class TimelineFanoutOpenTelemetryTest {
         }
         val store = InstrumentedStore(tracer)
         store.pending = listOf(FanoutJob("1-0", TimelinePosition(1, "r1")))
-        val worker = TimelineFanoutWorker(repository, store, Clock.systemUTC(), telemetry)
+        val worker = TimelineFanoutWorker(repository, store, HomeTimelineArrivals(repository), Clock.systemUTC(), telemetry)
         assertEquals(1, worker.runOnce(false))
         val spans = exporter.finishedSpanItems
         val job = spans.single { it.name == "TimelineFanout.distribute" }
@@ -50,7 +50,7 @@ class TimelineFanoutOpenTelemetryTest {
     fun emptyPollingAndGroupInitializationDoNotExportSpans() = withTelemetry { telemetry, exporter ->
         val store = InstrumentedStore(telemetry.getTracer("fake-instrumentation"))
         store.initializeGroup()
-        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, Clock.systemUTC(), telemetry)
+        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, HomeTimelineArrivals(FakeTimelineRepository()), Clock.systemUTC(), telemetry)
         repeat(3) { assertEquals(0, worker.runOnce(true)) }
         assertTrue(exporter.finishedSpanItems.isEmpty())
     }

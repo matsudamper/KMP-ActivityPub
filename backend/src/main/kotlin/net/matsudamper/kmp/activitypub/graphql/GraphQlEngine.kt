@@ -1,9 +1,15 @@
 package net.matsudamper.kmp.activitypub.graphql
 
 import kotlin.time.TimeSource
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.reactive.asFlow
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import graphql.ExceptionWhileDataFetching
 import graphql.ExecutionInput
+import graphql.ExecutionResult
 import graphql.GraphQL
 import graphql.analysis.MaxQueryComplexityInstrumentation
 import graphql.execution.instrumentation.ChainedInstrumentation
@@ -18,6 +24,7 @@ import io.opentelemetry.instrumentation.graphql.v20_0.GraphQLTelemetry
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
+import org.reactivestreams.Publisher
 import org.slf4j.LoggerFactory
 
 class GraphQlEngine private constructor(
@@ -39,27 +46,10 @@ class GraphQlEngine private constructor(
         call: ApplicationCall,
     ): JsonObject {
         val mark = TimeSource.Monotonic.markNow()
-        val input =
-            ExecutionInput
-                .newExecutionInput(request.query)
-                .operationName(request.operationName)
-                .variables(variablesOf(request))
-                .graphQLContext(mapOf(CONTEXT_KEY to createContext(call)))
-                .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
-                .build()
+        val executionResult = graphQl.execute(executionInput(request, call))
+        logErrors(executionResult)
 
-        val executionResult = graphQl.execute(input)
-        executionResult.errors.forEach { error ->
-            val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
-            if (dataFetchingException == null || dataFetchingException is GraphQlClientException) {
-                logger.debug("GraphQL の実行に失敗した: {}", error.message)
-            } else {
-                TraceLogger.impl().noticeThrowable(dataFetchingException, isError = true)
-            }
-        }
-
-        val response = GraphQlValues.toJsonElement(executionResult.toSpecification())
-        check(response is JsonObject) { "GraphQL の結果がオブジェクトではない" }
+        val response = toJsonObject(executionResult)
 
         operationDurationHistogram.record(
             mark.elapsedNow().inWholeMilliseconds.toDouble(),
@@ -69,6 +59,66 @@ class GraphQlEngine private constructor(
             ),
         )
 
+        return response
+    }
+
+    /**
+     * subscription なら結果を流し続ける。query と mutation は結果を 1 つ流して終える
+     */
+    fun subscribe(
+        request: GraphQlRequest,
+        call: ApplicationCall,
+    ): GraphQlSubscription {
+        val executionResult = graphQl.execute(executionInput(request, call))
+        logErrors(executionResult)
+
+        val data: Any? = executionResult.getData()
+        val publisher = data as? Publisher<*>
+        return when {
+            publisher != null -> GraphQlSubscription.Stream(
+                publisher.asFlow().map { item ->
+                    val itemResult = item as ExecutionResult
+                    logErrors(itemResult)
+                    toJsonObject(itemResult)
+                },
+            )
+
+            executionResult.errors.isNotEmpty() && data == null -> {
+                val errors = toJsonObject(executionResult)["errors"]
+                check(errors is JsonArray) { "GraphQL のエラーが配列ではない" }
+                GraphQlSubscription.Rejected(errors)
+            }
+
+            else -> GraphQlSubscription.Stream(flowOf(toJsonObject(executionResult)))
+        }
+    }
+
+    private fun executionInput(
+        request: GraphQlRequest,
+        call: ApplicationCall,
+    ): ExecutionInput =
+        ExecutionInput
+            .newExecutionInput(request.query)
+            .operationName(request.operationName)
+            .variables(variablesOf(request))
+            .graphQLContext(mapOf(CONTEXT_KEY to createContext(call)))
+            .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
+            .build()
+
+    private fun logErrors(executionResult: ExecutionResult) {
+        executionResult.errors.forEach { error ->
+            val dataFetchingException = (error as? ExceptionWhileDataFetching)?.exception
+            if (dataFetchingException == null || dataFetchingException is GraphQlClientException) {
+                logger.debug("GraphQL の実行に失敗した: {}", error.message)
+            } else {
+                TraceLogger.impl().noticeThrowable(dataFetchingException, isError = true)
+            }
+        }
+    }
+
+    private fun toJsonObject(executionResult: ExecutionResult): JsonObject {
+        val response = GraphQlValues.toJsonElement(executionResult.toSpecification())
+        check(response is JsonObject) { "GraphQL の結果がオブジェクトではない" }
         return response
     }
 
@@ -154,4 +204,17 @@ class GraphQlEngine private constructor(
             return stream.use { it.readBytes().decodeToString() }
         }
     }
+}
+
+sealed interface GraphQlSubscription {
+    class Stream(
+        val results: Flow<JsonObject>,
+    ) : GraphQlSubscription
+
+    /**
+     * 検証や認可で実行前に断った。結果を 1 つも流さない
+     */
+    class Rejected(
+        val errors: JsonArray,
+    ) : GraphQlSubscription
 }
