@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineLinkPreviewsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
@@ -48,9 +49,25 @@ class UserApi(
         val timeline = data.userInfo?.homeTimeline ?: return UserHomeTimelineResult.NotLoggedIn
         return UserHomeTimelineResult.Success(
             posts = timeline.posts.map {
-                UserHomeTimelineResult.Post(it.id, it.content, it.publishedAt, it.username, it.host, it.displayName, it.summary, it.sensitive)
+                UserHomeTimelineResult.Post(it.id, it.content, it.publishedAt, it.username, it.host, it.displayName, it.summary, it.sensitive, it.linkUrls)
             },
             nextCursor = timeline.nextCursor,
+        )
+    }
+
+    /**
+     * @param postId [UserHomeTimelineResult.Post.id]
+     */
+    suspend fun linkPreviews(postId: String): UserLinkPreviewsResult {
+        val client = clients.awaitLoadedClient() ?: return UserLinkPreviewsResult.Failure("接続先が未設定")
+        val response = client.query(HomeTimelineLinkPreviewsQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserLinkPreviewsResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserLinkPreviewsResult.Failure(response.failureMessage())
+        val previews = data.userInfo?.linkPreviews ?: return UserLinkPreviewsResult.NotLoggedIn
+        return UserLinkPreviewsResult.Success(
+            previews = previews.map {
+                UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl)
+            },
         )
     }
 

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
@@ -40,6 +41,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -48,6 +50,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.ui.LinkPreviewCard
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
@@ -64,8 +67,9 @@ internal fun HomeScreen(
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
 
-    LaunchedEffect(viewModel.eventHandler, navigator) {
+    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(
             object : HomeScreenViewModel.Event {
                 override fun navigateToTab(tab: HomeScreenUiState.Tab) {
@@ -98,6 +102,10 @@ internal fun HomeScreen(
 
                 override fun showMessage(message: String) {
                     coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
+
+                override fun openUrl(url: String) {
+                    uriHandler.openUri(url)
                 }
             },
         )
@@ -533,6 +541,24 @@ private fun TimelineItem(
             text = item.body,
             style = MaterialTheme.typography.bodyMedium,
         )
+        if (item.linkPreviews.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(item.linkPreviews) { preview ->
+                    LinkPreviewCard(
+                        title = preview.title,
+                        siteName = preview.siteName,
+                        imageUrl = preview.imageUrl,
+                        onClick = preview.listener::onClick,
+                    )
+                }
+            }
+        }
+    }
+    LaunchedEffect(item.listener) {
+        item.listener.onVisible()
     }
 }
 

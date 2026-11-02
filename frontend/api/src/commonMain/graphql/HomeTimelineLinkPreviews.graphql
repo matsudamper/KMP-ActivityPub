@@ -1,0 +1,10 @@
+query HomeTimelineLinkPreviews($postId: ID!) {
+    userInfo {
+        linkPreviews(postId: $postId) {
+            url
+            title
+            siteName
+            imageUrl
+        }
+    }
+}

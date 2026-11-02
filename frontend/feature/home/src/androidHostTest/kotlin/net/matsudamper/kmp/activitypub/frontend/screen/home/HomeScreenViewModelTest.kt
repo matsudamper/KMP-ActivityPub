@@ -120,7 +120,7 @@ class HomeScreenViewModelTest {
 
     private fun page(ids: List<String>, cursor: String?): HttpResponse {
         val posts = ids.joinToString(",") { id ->
-            """{"id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false}"""
+            """{"id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[]}"""
         }
         val next = if (cursor == null) "null" else "\"${cursor}\""
         return response("""{"data":{"userInfo":{"homeTimeline":{"posts":[$posts],"nextCursor":$next}}}}""")
