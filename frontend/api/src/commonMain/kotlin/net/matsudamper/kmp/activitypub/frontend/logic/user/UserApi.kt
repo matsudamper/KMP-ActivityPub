@@ -1,10 +1,5 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
-import com.apollographql.apollo.api.ApolloResponse
-import com.apollographql.apollo.api.Optional
-import com.apollographql.cache.normalized.api.CacheKey
-import com.apollographql.cache.normalized.apolloStore
-import com.apollographql.cache.normalized.watch
 import kotlin.io.encoding.Base64
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -13,6 +8,11 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import com.apollographql.apollo.api.ApolloResponse
+import com.apollographql.apollo.api.Optional
+import com.apollographql.cache.normalized.api.CacheKey
+import com.apollographql.cache.normalized.apolloStore
+import com.apollographql.cache.normalized.watch
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
