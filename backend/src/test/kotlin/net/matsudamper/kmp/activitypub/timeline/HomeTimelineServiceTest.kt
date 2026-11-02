@@ -13,6 +13,43 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class HomeTimelineServiceTest {
     @Test
+    fun deletedCachedPositionsAreReplacedWithOlderPostsIncludingSqlContinuation() {
+        listOf(10, 400).forEach { deletedCount ->
+            val account = AccountId(1)
+            val repository = FakeTimelineRepository()
+            val positions = (1..430).map { TimelinePosition(1000L - it, "r$it") }
+            repository.positions.addAll(positions)
+            val service = HomeTimelineService(repository, FakeTimelineStore(repository.events), Clock.systemUTC())
+            service.page(account, null, 10)
+            repository.positions.removeAll(positions.take(deletedCount).toSet())
+            val first = service.page(account, null, 10)
+            assertEquals(positions.drop(deletedCount).take(10), first.posts.map { it.position })
+            assertEquals(first.posts.last().position, first.nextCursor?.let { TimelineCursor.decode(it) })
+            val second = service.page(account, first.nextCursor, 10)
+            assertEquals(positions.drop(deletedCount + 10).take(10), second.posts.map { it.position })
+            if (deletedCount == 400) assertTrue(repository.pageRequests.any { it != null })
+        }
+    }
+
+    @Test
+    fun deletedPositionsAtEndDoNotProduceAnEmptyNextPage() {
+        val account = AccountId(1)
+        val repository = FakeTimelineRepository()
+        val positions = (1..15).map { TimelinePosition(100L - it, "r$it") }
+        repository.positions.addAll(positions)
+        val service = HomeTimelineService(repository, FakeTimelineStore(repository.events), Clock.systemUTC())
+        service.page(account, null, 10)
+        repository.positions.removeAll(positions.drop(5).toSet())
+        val page = service.page(account, null, 10)
+        assertEquals(positions.take(5), page.posts.map { it.position })
+        assertEquals(null, page.nextCursor)
+        repository.positions.clear()
+        val empty = service.page(account, null, 10)
+        assertTrue(empty.posts.isEmpty())
+        assertEquals(null, empty.nextCursor)
+    }
+
+    @Test
     fun readingDuringRebuildUsesOnlySqlEvenAfterMarkBuilt() {
         val account = AccountId(1)
         val repository = FakeTimelineRepository()

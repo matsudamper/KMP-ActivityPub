@@ -22,14 +22,24 @@ class HomeTimelineService(
         require(cursor == null || after != null) { "cursor が読めない" }
         val pageSize = limit.coerceIn(1, 100)
         repository.touch(accountId, clock.instant(), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
-        val cached = runCatching { cachedPositions(accountId, after, pageSize + 1) }
-            .onFailure { logger.warn("Valkey を使えないので DB からタイムラインを読む", it) }.getOrNull()
-        val positions = cached ?: repository.page(accountId, after, pageSize + 1)
-        val posts = repository.hydrate(accountId, positions.map { it.member }).associateBy { it.position.member }
-        val selected = positions.take(pageSize)
+        val posts = buildList {
+            var positionCursor = after
+            while (size < pageSize + 1) {
+                val remaining = pageSize + 1 - size
+                val cached = runCatching { cachedPositions(accountId, positionCursor, remaining) }
+                    .onFailure { logger.warn("Valkey を使えないので DB からタイムラインを読む", it) }.getOrNull()
+                val positions = cached ?: repository.page(accountId, positionCursor, remaining)
+                if (positions.isEmpty()) break
+                val hydrated = repository.hydrate(accountId, positions.map { it.member }).associateBy { it.position.member }
+                addAll(positions.mapNotNull { hydrated[it.member] })
+                positionCursor = positions.last()
+                if (positions.size < remaining) break
+            }
+        }
+        val selected = posts.take(pageSize)
         return TimelinePage(
-            posts = selected.mapNotNull { posts[it.member] },
-            nextCursor = if (positions.size > pageSize) selected.lastOrNull()?.let { TimelineCursor.encode(it) } else null,
+            posts = selected,
+            nextCursor = if (posts.size > pageSize) selected.lastOrNull()?.let { TimelineCursor.encode(it.position) } else null,
         )
     }
 
