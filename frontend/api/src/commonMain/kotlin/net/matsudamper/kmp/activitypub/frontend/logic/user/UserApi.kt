@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
+import com.apollographql.cache.normalized.apolloStore
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
@@ -29,7 +29,9 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
+import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.failureMessage
 
 class UserApi(
     private val clients: GraphQlClientSource,
@@ -40,17 +42,25 @@ class UserApi(
 
     fun isReady(): Boolean = clients.client.value != null
 
-    suspend fun homeTimeline(cursor: String?): UserHomeTimelineResult {
-        val client = clients.awaitLoadedClient() ?: return UserHomeTimelineResult.Failure("接続先が未設定")
-        val response = client.query(HomeTimelineQuery(cursor = Optional.presentIfNotNull(cursor), limit = 40)).execute()
-        if (response.exception != null || response.hasErrors()) return UserHomeTimelineResult.Failure(response.failureMessage())
-        val data = response.data ?: return UserHomeTimelineResult.Failure(response.failureMessage())
-        val timeline = data.userInfo?.homeTimeline ?: return UserHomeTimelineResult.NotLoggedIn
-        return UserHomeTimelineResult.Success(
-            posts = timeline.posts.map {
-                UserHomeTimelineResult.Post(it.id, it.content, it.publishedAt, it.username, it.host, it.displayName, it.summary, it.sensitive)
+    fun homeTimelinePaging(): CursorPagingModel<HomeTimelineQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = HomeTimelineQuery(cursor = Optional.present(null), limit = HOME_TIMELINE_PAGE_SIZE),
+            queryAfter = { cursor -> HomeTimelineQuery(cursor = Optional.present(cursor), limit = HOME_TIMELINE_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.homeTimeline?.nextCursor },
+            appendPage = { before, page ->
+                val beforeUserInfo = before.userInfo ?: return@CursorPagingModel null
+                val pageTimeline = page.userInfo?.homeTimeline ?: return@CursorPagingModel null
+                val beforeTimeline = beforeUserInfo.homeTimeline ?: return@CursorPagingModel null
+                before.copy(
+                    userInfo = beforeUserInfo.copy(
+                        homeTimeline = beforeTimeline.copy(
+                            posts = beforeTimeline.posts + pageTimeline.posts,
+                            nextCursor = pageTimeline.nextCursor,
+                        ),
+                    ),
+                )
             },
-            nextCursor = timeline.nextCursor,
         )
     }
 
@@ -63,24 +73,32 @@ class UserApi(
         return null
     }
 
-    suspend fun followingUsers(after: String?): UserFollowListResult {
-        val client = clients.awaitLoadedClient() ?: return UserFollowListResult.Failure("接続先が未設定")
-        val response = client.query(FollowingUsersQuery(after = Optional.presentIfNotNull(after))).execute()
-        if (response.exception != null || response.hasErrors()) return UserFollowListResult.Failure(response.failureMessage())
-        val data = response.data ?: return UserFollowListResult.Failure(response.failureMessage())
-        val actorList = data.followingUsers ?: return UserFollowListResult.NotLoggedIn
-
-        return actorList.actorListFields.toUserFollowListResult()
+    fun followingUsersPaging(): CursorPagingModel<FollowingUsersQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = FollowingUsersQuery(after = Optional.present(null)),
+            queryAfter = { cursor -> FollowingUsersQuery(after = Optional.present(cursor)) },
+            nextCursorOf = { it.followingUsers?.actorListFields?.nextCursor },
+            appendPage = { before, page ->
+                val beforeList = before.followingUsers ?: return@CursorPagingModel null
+                val pageList = page.followingUsers ?: return@CursorPagingModel null
+                before.copy(followingUsers = beforeList.copy(actorListFields = beforeList.actorListFields.append(pageList.actorListFields)))
+            },
+        )
     }
 
-    suspend fun followerUsers(after: String?): UserFollowListResult {
-        val client = clients.awaitLoadedClient() ?: return UserFollowListResult.Failure("接続先が未設定")
-        val response = client.query(FollowerUsersQuery(after = Optional.presentIfNotNull(after))).execute()
-        if (response.exception != null || response.hasErrors()) return UserFollowListResult.Failure(response.failureMessage())
-        val data = response.data ?: return UserFollowListResult.Failure(response.failureMessage())
-        val actorList = data.followerUsers ?: return UserFollowListResult.NotLoggedIn
-
-        return actorList.actorListFields.toUserFollowListResult()
+    fun followerUsersPaging(): CursorPagingModel<FollowerUsersQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = FollowerUsersQuery(after = Optional.present(null)),
+            queryAfter = { cursor -> FollowerUsersQuery(after = Optional.present(cursor)) },
+            nextCursorOf = { it.followerUsers?.actorListFields?.nextCursor },
+            appendPage = { before, page ->
+                val beforeList = before.followerUsers ?: return@CursorPagingModel null
+                val pageList = page.followerUsers ?: return@CursorPagingModel null
+                before.copy(followerUsers = beforeList.copy(actorListFields = beforeList.actorListFields.append(pageList.actorListFields)))
+            },
+        )
     }
 
     suspend fun login(
@@ -102,8 +120,14 @@ class UserApi(
         val login = response.data?.user?.login ?: return UserLoginResult.Failure(response.failureMessage())
 
         return when (login.failure) {
-            null -> UserLoginResult.Success
+            null -> {
+                // 別のアカウントで取得した内容を出さない
+                client.apolloStore.clearAll()
+                UserLoginResult.Success
+            }
+
             UserLoginFailure.WRONG_USERNAME_OR_PASSWORD -> UserLoginResult.WrongUsernameOrPassword
+
             UserLoginFailure.UNKNOWN__ -> UserLoginResult.Failure("Unknown")
         }
     }
@@ -113,6 +137,7 @@ class UserApi(
         val response = client.mutation(UserLogoutMutation()).execute()
         if (response.exception != null || response.hasErrors()) return UserLogoutResult.Failure(response.failureMessage())
         if (response.data?.user?.logout != true) return UserLogoutResult.Failure(response.failureMessage())
+        client.apolloStore.clearAll()
 
         return UserLogoutResult.Success
     }
@@ -150,28 +175,20 @@ class UserApi(
         )
     }
 
-    suspend fun searchUsers(
-        query: String,
-        after: String?,
-    ): UserSearchResult {
-        val client = clients.awaitLoadedClient() ?: return UserSearchResult.Failure("接続先が未設定")
-        val response = client.query(HomeScreenSearchUsersQuery(query = query, after = Optional.presentIfNotNull(after))).execute()
-        if (response.exception != null || response.hasErrors()) return UserSearchResult.Failure(response.failureMessage())
-        val searchUsers = response.data?.searchUsers ?: return UserSearchResult.Failure(response.failureMessage())
-
-        return UserSearchResult.Success(
-            users = searchUsers.users.map {
-                UserSearchResult.User(
-                    actorUri = it.actorUri,
-                    following = it.following,
-                    username = it.username,
-                    host = it.host,
-                    isLocal = it.isLocal,
-                    displayName = it.displayName,
-                    iconUrl = it.iconUrl,
+    fun searchUsersPaging(query: String): CursorPagingModel<HomeScreenSearchUsersQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = HomeScreenSearchUsersQuery(query = query, after = Optional.present(null)),
+            queryAfter = { cursor -> HomeScreenSearchUsersQuery(query = query, after = Optional.present(cursor)) },
+            nextCursorOf = { it.searchUsers.nextCursor },
+            appendPage = { before, page ->
+                before.copy(
+                    searchUsers = before.searchUsers.copy(
+                        users = before.searchUsers.users + page.searchUsers.users,
+                        nextCursor = page.searchUsers.nextCursor,
+                    ),
                 )
             },
-            nextCursor = searchUsers.nextCursor,
         )
     }
 
@@ -275,24 +292,10 @@ class UserApi(
         val following: Boolean,
     )
 
-    private fun ActorListFields.toUserFollowListResult(): UserFollowListResult =
-        UserFollowListResult.Success(
-            users = users.map {
-                UserFollowListResult.User(
-                    actorUri = it.actorUri,
-                    following = it.following,
-                    username = it.username,
-                    host = it.host,
-                    displayName = it.displayName,
-                    iconUrl = it.iconUrl,
-                )
-            },
-            nextCursor = nextCursor,
-        )
+    private fun ActorListFields.append(page: ActorListFields): ActorListFields =
+        copy(users = users + page.users, nextCursor = page.nextCursor)
 
-    private fun ApolloResponse<*>.failureMessage(): String {
-        return exception?.message
-            ?: errors?.joinToString("\n") { it.message }?.takeIf { it.isNotEmpty() }
-            ?: "ネットワークエラー"
+    private companion object {
+        const val HOME_TIMELINE_PAGE_SIZE = 40
     }
 }
