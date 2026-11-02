@@ -1,10 +1,13 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
 import kotlin.io.encoding.Base64
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
@@ -12,6 +15,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelinePostsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
@@ -52,6 +56,24 @@ class UserApi(
             },
             nextCursor = timeline.nextCursor,
         )
+    }
+
+    /**
+     * ホームタイムラインに新しく載った投稿を流し続ける。切れたら間を置いてつなぎ直す
+     */
+    fun homeTimelineArrivals(): Flow<UserHomeTimelineResult.Post> = flow {
+        while (true) {
+            val client = clients.awaitLoadedClient()
+            if (client != null) {
+                client.subscription(HomeTimelinePostsSubscription()).toFlow().collect { response ->
+                    val post = response.data?.homeTimelinePosts
+                    if (post != null) {
+                        emit(UserHomeTimelineResult.Post(post.id, post.content, post.publishedAt, post.username, post.host, post.displayName, post.summary, post.sensitive))
+                    }
+                }
+            }
+            delay(HOME_TIMELINE_RECONNECT_DELAY)
+        }
     }
 
     suspend fun setFollowing(actorUri: String, followed: Boolean): String? {
@@ -294,5 +316,9 @@ class UserApi(
         return exception?.message
             ?: errors?.joinToString("\n") { it.message }?.takeIf { it.isNotEmpty() }
             ?: "ネットワークエラー"
+    }
+
+    private companion object {
+        val HOME_TIMELINE_RECONNECT_DELAY = 5.seconds
     }
 }

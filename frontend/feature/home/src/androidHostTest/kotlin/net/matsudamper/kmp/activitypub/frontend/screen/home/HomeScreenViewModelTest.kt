@@ -11,8 +11,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -21,8 +24,14 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.api.ApolloRequest
+import com.apollographql.apollo.api.ApolloResponse
+import com.apollographql.apollo.api.Operation
 import com.apollographql.apollo.api.http.HttpRequest
 import com.apollographql.apollo.api.http.HttpResponse
+import com.apollographql.apollo.api.json.jsonReader
+import com.apollographql.apollo.api.parseResponse
+import com.apollographql.apollo.network.NetworkTransport
 import com.apollographql.apollo.network.http.HttpEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
@@ -30,6 +39,29 @@ import okio.Buffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeScreenViewModelTest {
+    private val arrivals = Channel<String>(Channel.UNLIMITED)
+
+    @Test
+    fun arrivedPostsArePrependedAndKeptAcrossRefresh() = withViewModel { viewModel, engine ->
+        engine.responses.send { page(listOf("a"), null) }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
+        arrivals.send("b")
+        viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
+        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body })
+
+        val pending = CompletableDeferred<HttpResponse>()
+        engine.responses.send { pending.await() }
+        viewModel.uiStateFlow.value.listener.onRefreshTimeline()
+        runCurrent()
+        engine.started.first { it == 2 }
+        arrivals.send("c")
+        viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
+        pending.complete(page(listOf("b", "a"), null))
+        viewModel.uiStateFlow.first { !it.timelineRefreshing }
+        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body })
+    }
+
     @Test
     fun appendHasItsOwnLoadingIndicatorAndDeduplicatesPageBoundary() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a", "b"), "next") }
@@ -103,7 +135,11 @@ class HomeScreenViewModelTest {
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val engine = QueueEngine()
-        val apolloClient = ApolloClient.Builder().serverUrl("https://example.com/graphql").httpEngine(engine).build()
+        val apolloClient = ApolloClient.Builder()
+            .serverUrl("https://example.com/graphql")
+            .httpEngine(engine)
+            .subscriptionNetworkTransport(ArrivalTransport())
+            .build()
         val source = object : GraphQlClientSource {
             override val client = MutableStateFlow<ApolloClient?>(apolloClient)
             override suspend fun awaitLoadedClient(): ApolloClient? = client.value
@@ -119,12 +155,13 @@ class HomeScreenViewModelTest {
     }
 
     private fun page(ids: List<String>, cursor: String?): HttpResponse {
-        val posts = ids.joinToString(",") { id ->
-            """{"id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false}"""
-        }
+        val posts = ids.joinToString(",") { id -> post(id) }
         val next = if (cursor == null) "null" else "\"${cursor}\""
         return response("""{"data":{"userInfo":{"homeTimeline":{"posts":[$posts],"nextCursor":$next}}}}""")
     }
+
+    private fun post(id: String): String =
+        """{"id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false}"""
 
     private fun response(json: String): HttpResponse = HttpResponse.Builder(200).body(Buffer().writeUtf8(json)).build()
 
@@ -134,10 +171,24 @@ class HomeScreenViewModelTest {
         val requests: Int get() = started.value
 
         override suspend fun execute(request: HttpRequest): HttpResponse {
+            // タイムラインと同時に読むので、並べた応答を取り合わないよう別に返す
+            val body = Buffer().also { request.body?.writeTo(it) }.readUtf8()
+            if (body.contains("\"operationName\":\"MyProfile\"")) {
+                return HttpResponse.Builder(200).body(Buffer().writeUtf8("""{"errors":[{"message":"プロフィールは見ない"}]}""")).build()
+            }
             started.value++
             return responses.receive().invoke()
         }
 
         override fun close() = Unit
+    }
+
+    private inner class ArrivalTransport : NetworkTransport {
+        override fun <D : Operation.Data> execute(request: ApolloRequest<D>): Flow<ApolloResponse<D>> =
+            arrivals.receiveAsFlow().map { id ->
+                request.operation.parseResponse(Buffer().writeUtf8("""{"data":{"homeTimelinePosts":${post(id)}}}""").jsonReader())
+            }
+
+        override fun dispose() = Unit
     }
 }

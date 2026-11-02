@@ -31,8 +31,14 @@ internal class HomeScreenViewModel(
     private var searchJob: Job? = null
     private var profileJob: Job? = null
     private var timelineJob: Job? = null
+    private var timelineArrivalsJob: Job? = null
     private var timelineCursor: String? = null
     private var timelinePosts = listOf<UserHomeTimelineResult.Post>()
+
+    /**
+     * 読み直しの結果は届く前に読んだものなので、その間に流れてきた投稿を先頭に足し直す
+     */
+    private var postsArrivedSinceRefresh = listOf<UserHomeTimelineResult.Post>()
     private var followingChangeInProgress = false
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
@@ -120,6 +126,8 @@ internal class HomeScreenViewModel(
 
                     override fun onScreenShown() {
                         loadProfile()
+                        // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
+                        collectTimelineArrivals()
                         loadTimeline(false)
                     }
                 },
@@ -284,6 +292,7 @@ internal class HomeScreenViewModel(
                 timelineFooter = if (append) HomeScreenUiState.TimelineFooter.Loading else HomeScreenUiState.TimelineFooter.None,
             )
         }
+        if (!append) postsArrivedSinceRefresh = listOf()
         timelineJob = viewModelScope.launch {
             try {
                 val result = userApi.homeTimeline(cursor)
@@ -291,17 +300,9 @@ internal class HomeScreenViewModel(
                 when (result) {
                     is UserHomeTimelineResult.Success -> {
                         timelineCursor = result.nextCursor
-                        timelinePosts = (if (append) timelinePosts + result.posts else result.posts).distinctBy { it.id }
-                        val items = timelinePosts.map { post ->
-                            HomeScreenUiState.TimelineItem(
-                                displayName = post.displayName,
-                                acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
-                                body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
-                                postedAt = post.publishedAt,
-                            )
-                        }
+                        timelinePosts = (if (append) timelinePosts + result.posts else postsArrivedSinceRefresh + result.posts).distinctBy { it.id }
                         mutableUiStateFlow.update {
-                            it.copy(timelineItems = items, timelineFooter = HomeScreenUiState.TimelineFooter.None)
+                            it.copy(timelineItems = createTimelineItems(), timelineFooter = HomeScreenUiState.TimelineFooter.None)
                         }
                     }
 
@@ -316,6 +317,27 @@ internal class HomeScreenViewModel(
             }
         }
     }
+
+    private fun collectTimelineArrivals() {
+        if (timelineArrivalsJob?.isActive == true) return
+        timelineArrivalsJob = viewModelScope.launch {
+            userApi.homeTimelineArrivals().collect { post ->
+                postsArrivedSinceRefresh = listOf(post) + postsArrivedSinceRefresh
+                timelinePosts = (listOf(post) + timelinePosts).distinctBy { it.id }
+                mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
+            }
+        }
+    }
+
+    private fun createTimelineItems(): List<HomeScreenUiState.TimelineItem> =
+        timelinePosts.map { post ->
+            HomeScreenUiState.TimelineItem(
+                displayName = post.displayName,
+                acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
+                body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
+                postedAt = post.publishedAt,
+            )
+        }
 
     private suspend fun timelineFailed(append: Boolean, message: String) {
         if (append) {

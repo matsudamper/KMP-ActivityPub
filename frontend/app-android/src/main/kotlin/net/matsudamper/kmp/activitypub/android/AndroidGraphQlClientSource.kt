@@ -14,11 +14,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.network.okHttpClient
+import com.apollographql.apollo.network.websocket.WebSocketEngine
 import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
 import net.matsudamper.kmp.activitypub.android.session.BlockStoreSessionBackup
 import net.matsudamper.kmp.activitypub.android.session.EncryptedSessionStore
 import net.matsudamper.kmp.activitypub.android.session.SessionHttpInterceptor
 import net.matsudamper.kmp.activitypub.android.session.SessionRepository
+import net.matsudamper.kmp.activitypub.android.session.SessionWebSocketInterceptor
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import okhttp3.OkHttpClient
@@ -41,6 +43,13 @@ internal class AndroidGraphQlClientSource(
         .followSslRedirects(false)
         .build()
 
+    /**
+     * Apollo の HttpInterceptor は WebSocket の接続を通らないので、OkHttp の段で Cookie を付ける
+     */
+    private val webSocketClient = httpClient.newBuilder()
+        .addInterceptor(SessionWebSocketInterceptor(sessionRepository))
+        .build()
+
     private val clientState: StateFlow<ClientState> =
         serverSettingStore.serverUrlFlow
             .distinctUntilChanged()
@@ -49,7 +58,12 @@ internal class AndroidGraphQlClientSource(
                     ClientState.Loaded(client = null)
                 } else {
                     ClientState.Loaded(
-                        client = GraphQlClient.builder("$serverUrl/graphql")
+                        client = GraphQlClient
+                            .builder(
+                                serverUrl = "$serverUrl/graphql",
+                                webSocketServerUrl = "${serverUrl.replaceFirst("https://", "wss://")}/graphql",
+                                webSocketEngine = WebSocketEngine(webSocketClient),
+                            )
                             .okHttpClient(httpClient)
                             .addHttpInterceptor(SessionHttpInterceptor(sessionRepository))
                             .build(),
