@@ -68,6 +68,7 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
     apiInterfaceStrategy = ApiInterfaceStrategy.DO_NOT_GENERATE
 
     apiReturnType = "java.util.concurrent.CompletionStage<graphql.execution.DataFetcherResult<{{TYPE}}>>"
+    subscriptionReturnType = "org.reactivestreams.Publisher"
     generateApisWithThrowsException = false
     generateDataFetchingEnvironmentArgumentInApis = true
 

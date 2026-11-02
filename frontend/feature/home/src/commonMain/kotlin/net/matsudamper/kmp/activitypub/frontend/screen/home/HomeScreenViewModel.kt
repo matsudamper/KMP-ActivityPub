@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
@@ -40,6 +41,12 @@ internal class HomeScreenViewModel(
     private var timelineJob: Job? = null
     private val timelinePaging = userApi.homeTimelinePaging()
     private var timelineNextCursor: String? = null
+    private var timelineArrivalsJob: Job? = null
+
+    /**
+     * 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
+     */
+    private var postsArrivedSinceRefresh = listOf<UserHomeTimelineResult.Post>()
     private var followingChangeInProgress = false
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
@@ -127,6 +134,8 @@ internal class HomeScreenViewModel(
 
                     override fun onScreenShown() {
                         loadProfile()
+                        // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
+                        collectTimelineArrivals()
                         loadTimeline(false)
                     }
                 },
@@ -229,6 +238,16 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private fun collectTimelineArrivals() {
+        if (timelineArrivalsJob?.isActive == true) return
+        timelineArrivalsJob = viewModelScope.launch {
+            userApi.homeTimelineArrivals().collect { post ->
+                postsArrivedSinceRefresh = listOf(post) + postsArrivedSinceRefresh
+                timelinePaging.updateCache { it.withArrivedPosts(listOf(post)) }
+            }
+        }
+    }
+
     /**
      * 同じ内容を書き込んだときは watch が流れないので、取得結果はここでも反映する
      */
@@ -305,6 +324,7 @@ internal class HomeScreenViewModel(
                 timelineFooter = if (append) HomeScreenUiState.TimelineFooter.Loading else HomeScreenUiState.TimelineFooter.None,
             )
         }
+        if (!append) postsArrivedSinceRefresh = listOf()
         timelineJob = viewModelScope.launch {
             try {
                 val result = if (append) timelinePaging.fetchNext() else timelinePaging.refresh()
@@ -312,6 +332,9 @@ internal class HomeScreenViewModel(
                     is UpdateOperationResponseResult.Success -> {
                         val timeline = result.result.data?.toUserHomeTimelineResult()
                         if (timeline != null) applyTimeline(timeline)
+                        if (!append && postsArrivedSinceRefresh.isNotEmpty()) {
+                            timelinePaging.updateCache { it.withArrivedPosts(postsArrivedSinceRefresh) }
+                        }
                         if (timeline == UserHomeTimelineResult.NotLoggedIn) {
                             timelineFailed(append, NOT_LOGGED_IN_MESSAGE)
                         } else {

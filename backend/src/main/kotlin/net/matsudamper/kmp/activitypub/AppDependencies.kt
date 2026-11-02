@@ -27,6 +27,7 @@ import net.matsudamper.kmp.activitypub.session.ValkeyPasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.session.ValkeyUserSessionStore
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
+import net.matsudamper.kmp.activitypub.timeline.HomeTimelineArrivals
 import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineFanoutWorker
 import net.matsudamper.kmp.activitypub.timeline.TimelineStore
@@ -44,6 +45,7 @@ class AppDependencies(
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
     val homeTimelineService = HomeTimelineService(repositories.timelineRepository, timelineStore, Clock.systemUTC())
+    val homeTimelineArrivals = HomeTimelineArrivals(repositories.timelineRepository)
     val followListService: FollowListService = FollowListService(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
@@ -146,7 +148,7 @@ class AppDependencies(
         lockDuration = 30.days,
     )
 
-    val timelineWorker = TimelineFanoutWorker(repositories.timelineRepository, timelineStore, Clock.systemUTC())
+    val timelineWorker = TimelineFanoutWorker(repositories.timelineRepository, timelineStore, homeTimelineArrivals, Clock.systemUTC())
 
     /**
      * 順に閉じると、どれかの close が返らないときに後ろが閉じられない。

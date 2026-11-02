@@ -11,10 +11,12 @@ import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
+import net.matsudamper.kmp.activitypub.timeline.HomeTimelineArrivals
 import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
 
 class DiContainer(
     val homeTimelineService: HomeTimelineService,
+    val homeTimelineArrivals: HomeTimelineArrivals,
     val accountService: AccountService,
     val followingService: FollowingService,
     val followListService: FollowListService,

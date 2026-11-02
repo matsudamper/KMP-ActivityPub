@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub
 
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.launch
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -12,14 +13,17 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import io.ktor.server.websocket.WebSockets
 import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
 import net.matsudamper.kmp.activitypub.federation.federationRoutes
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
+import net.matsudamper.kmp.activitypub.graphql.graphQlWebSocketRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.SubscriptionResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserInfoResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.oidc.oidcRoutes
@@ -53,6 +57,12 @@ fun main() {
 internal fun Application.module(deps: AppDependencies) {
     install(KtorServerTelemetry) {
         setOpenTelemetry(OpenTelemetryInitializer.get())
+    }
+    install(WebSockets) {
+        // 無通信が続くとリバースプロキシに切られるので、こちらから ping を送る
+        pingPeriodMillis = 30.seconds.inWholeMilliseconds
+        timeoutMillis = 60.seconds.inWholeMilliseconds
+        maxFrameSize = 64 * 1024L
     }
     install(StatusPages) {
         exception<Throwable> { call, cause ->
@@ -109,6 +119,7 @@ internal fun Application.module(deps: AppDependencies) {
                 UserInfoResolverImpl(),
                 MutationResolverImpl(),
                 UserMutationResolverImpl(),
+                SubscriptionResolverImpl(),
             ),
             createContext = { call ->
                 GraphQlContext(
@@ -120,6 +131,7 @@ internal fun Application.module(deps: AppDependencies) {
             },
             diContainer = DiContainer(
                 homeTimelineService = deps.homeTimelineService,
+                homeTimelineArrivals = deps.homeTimelineArrivals,
                 accountService = deps.accountService,
                 userSearchService = deps.userSearchService,
                 userProfileService = deps.userProfileService,
@@ -142,6 +154,7 @@ internal fun Application.module(deps: AppDependencies) {
             call.respondText("Hello World")
         }
         graphQlRoutes(graphQl)
+        graphQlWebSocketRoutes(graphQl)
         wellKnownRoutes(deps.env.passkeyAndroidApp)
         if (s3 != null && oidcSigningKey != null) {
             oidcRoutes(oidc = s3.oidc, signingKey = oidcSigningKey)

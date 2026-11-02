@@ -16,6 +16,28 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
     )
 }
 
+/**
+ * 購読で届いた投稿を、取得し直さずに先頭へ足す。[posts] は新しい順
+ */
+fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.Post>): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    val arrived = posts.map {
+        HomeTimelineQuery.Post(
+            __typename = "HomeTimelinePost",
+            id = it.id,
+            content = it.content,
+            publishedAt = it.publishedAt,
+            username = it.username,
+            host = it.host,
+            displayName = it.displayName,
+            summary = it.summary,
+            sensitive = it.sensitive,
+        )
+    }
+    return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))
+}
+
 fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Success {
     return UserSearchResult.Success(
         users = searchUsers.users.map {
