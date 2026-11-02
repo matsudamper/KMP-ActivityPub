@@ -146,7 +146,7 @@ CREATE TABLE remote_notes (
     visibility TEXT NOT NULL,
     in_reply_to TEXT,
     summary TEXT,
-    sensitive INTEGER NOT NULL,
+    "sensitive" INTEGER NOT NULL,
     published_at TEXT NOT NULL,
     received_at TEXT NOT NULL,
     score_ms INTEGER NOT NULL
