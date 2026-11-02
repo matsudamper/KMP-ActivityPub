@@ -20,7 +20,7 @@ internal class FakeDeliveryQueueRepository(
     override fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant) {
         followBodies.add(body)
     }
-    override fun enqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant) {
+    override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant) {
         followBodies.add(body)
     }
     val profileUpdates = mutableListOf<ProfileUpdate>()

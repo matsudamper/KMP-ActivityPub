@@ -20,11 +20,24 @@ internal class SqliteDeliveryQueueRepository(
     private val jooq: SqliteJooq,
 ) : DeliveryQueueRepository {
     override fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant) {
-        enqueueFollowing(accountId, inbox, body, now, DeliveryQueueValues.KIND_FOLLOW)
+        jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_FOLLOW) }
     }
 
-    override fun enqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant) {
-        enqueueFollowing(accountId, inbox, body, now, DeliveryQueueValues.KIND_UNDO_FOLLOW)
+    override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant) {
+        jooq.transaction { dsl ->
+            val matchingFollow = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
+                .and(DELIVERY_QUEUE.INBOX.eq(inbox))
+                .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_FOLLOW))
+            val removed = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingFollow)
+                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING)).execute()
+            val delivering = dsl.fetchExists(
+                DELIVERY_QUEUE,
+                matchingFollow.and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING)),
+            )
+            if (removed == 0 || delivering) {
+                enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_UNDO_FOLLOW)
+            }
+        }
     }
 
     override fun enqueueNote(post: NotePost): EnqueueNoteResult = jooq.transaction { dsl ->
@@ -226,13 +239,11 @@ internal class SqliteDeliveryQueueRepository(
             .execute()
     }
 
-    private fun enqueueFollowing(accountId: AccountId, inbox: String, body: String, now: Instant, kind: String) {
-        jooq.withConnection { dsl ->
-            dsl.insertInto(DELIVERY_QUEUE).set(DELIVERY_QUEUE.KIND, kind).set(DELIVERY_QUEUE.ACCOUNT_ID, accountId.value)
-                .set(DELIVERY_QUEUE.INBOX, inbox).set(DELIVERY_QUEUE.BODY, body).set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
-                .set(DELIVERY_QUEUE.ATTEMPTS, 0L).set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
-                .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now)).execute()
-        }
+    private fun enqueueFollowing(dsl: DSLContext, accountId: AccountId, inbox: String, body: String, now: Instant, kind: String) {
+        dsl.insertInto(DELIVERY_QUEUE).set(DELIVERY_QUEUE.KIND, kind).set(DELIVERY_QUEUE.ACCOUNT_ID, accountId.value)
+            .set(DELIVERY_QUEUE.INBOX, inbox).set(DELIVERY_QUEUE.BODY, body).set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, 0L).set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
+            .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now)).execute()
     }
 
     private fun DSLContext.findRow(id: Long): QueueRow? =

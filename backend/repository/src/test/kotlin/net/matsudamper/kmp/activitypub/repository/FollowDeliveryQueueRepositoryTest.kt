@@ -1,0 +1,67 @@
+package net.matsudamper.kmp.activitypub.repository
+
+import java.time.Instant
+import kotlin.io.path.createTempDirectory
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import net.matsudamper.kmp.activitypub.shared.AccountId
+
+class FollowDeliveryQueueRepositoryTest {
+    @Test
+    fun unfollowCancelsRetryingFollowWithoutEnqueuingUndo() = withQueue { queue, alice, bob ->
+        queue.enqueueFollow(alice, INBOX, "follow", NOW)
+        val follow = queue.claim(NOW, 10).single()
+        queue.scheduleRetry(follow.id, NOW.plusSeconds(3600), "接続失敗")
+        queue.enqueueFollow(bob, INBOX, "other-account", NOW)
+        queue.enqueueFollow(alice, "$INBOX/other", "other-inbox", NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "undo", NOW)
+        assertEquals(listOf("other-account", "other-inbox"), queue.claim(NOW.plusSeconds(7200), 10).map { it.body })
+        assertTrue(queue.claim(NOW.plusSeconds(10800), 10).isEmpty())
+    }
+
+    @Test
+    fun unfollowEnqueuesUndoAfterFollowWasDelivered() = withQueue { queue, alice, _ ->
+        queue.enqueueFollow(alice, INBOX, "follow", NOW)
+        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "undo", NOW)
+        assertEquals(listOf("undo"), queue.claim(NOW, 10).map { it.body })
+    }
+
+    @Test
+    fun unfollowKeepsDeliveringFollowAndEnqueuesUndoEvenWhenPendingFollowIsRemoved() = withQueue { queue, alice, _ ->
+        queue.enqueueFollow(alice, INBOX, "delivering-follow", NOW)
+        val delivering = queue.claim(NOW, 10).single()
+        queue.enqueueFollow(alice, INBOX, "pending-follow", NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "undo", NOW)
+        assertEquals(listOf("undo"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(2, queue.recoverDelivering(NOW))
+        assertEquals(listOf("delivering-follow", "undo"), queue.claim(NOW, 10).map { it.body })
+        queue.markDelivered(delivering.id, NOW)
+    }
+
+    private fun withQueue(block: (DeliveryQueueRepository, AccountId, AccountId) -> Unit) {
+        val directory = createTempDirectory("follow-delivery-test")
+        try {
+            val path = directory.resolve("test.db")
+            TestSchema.applyTo(path)
+            listOf("alice", "bob").forEach { username ->
+                Accounts.insert(path, username, "hash", "type", "public-key", "private-key", NOW.toString())
+            }
+            Repositories.create(DatabaseConfig(path)).use { repositories ->
+                block(
+                    repositories.deliveryQueueRepository,
+                    checkNotNull(repositories.accountRepository.findByUsername("alice")).id,
+                    checkNotNull(repositories.accountRepository.findByUsername("bob")).id,
+                )
+            }
+        } finally {
+            directory.toFile().deleteRecursively()
+        }
+    }
+
+    private companion object {
+        const val INBOX = "https://remote.example/inbox"
+        val NOW: Instant = Instant.parse("2026-11-01T12:00:00Z")
+    }
+}

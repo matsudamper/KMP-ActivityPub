@@ -50,7 +50,7 @@ internal class QueuedFollowDelivery(
             }
             val follow = FollowActivities.follow(followId, sender.actorId, actorUri)
             val undo = FollowActivities.undo("${sender.actorId}/undo/${UUID.randomUUID()}", follow)
-            queue.enqueueUndo(accountId, inbox, AppJson.encodeToString(OutgoingActivity.serializer(), undo), clock.instant())
+            queue.cancelPendingFollowAndEnqueueUndo(accountId, inbox, AppJson.encodeToString(OutgoingActivity.serializer(), undo), clock.instant())
         }
         onEnqueued()
     }
