@@ -46,7 +46,13 @@ class TimelineFanoutWorker(
     }
 
     fun runOnce(block: Boolean): Int {
-        val jobs = store.jobs(consumer, block)
+        val jobs = try {
+            store.jobs(consumer, block)
+        } catch (failure: Exception) {
+            if (failure.message?.contains("NOGROUP") != true) throw failure
+            store.initializeGroup()
+            store.jobs(consumer, block)
+        }
         jobs.forEach { job ->
             distribute(job)
             store.acknowledge(job.id)

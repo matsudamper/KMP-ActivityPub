@@ -93,6 +93,7 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
     override fun initializeGroup() {
         runCatching { streamConnection.sync().xgroupCreate(XReadArgs.StreamOffset.from(STREAM, "0-0"), GROUP, XGroupCreateArgs.Builder.mkstream()) }
             .onFailure { if (it.message?.contains("BUSYGROUP") != true) throw it }
+        claimCursor = "0-0"
     }
 
     override fun jobs(consumer: String, block: Boolean): List<FanoutJob> {
