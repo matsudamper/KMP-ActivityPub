@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.slf4j.LoggerFactory
@@ -56,7 +57,7 @@ class TimelineFanoutWorker(
     private fun distribute(job: FanoutJob) {
         var after: AccountId? = null
         do {
-            val recipients = repository.recipients(job.position.member, clock.instant().minusSeconds(604800), after, 1000)
+            val recipients = repository.recipients(job.position.member, clock.instant().minusSeconds(TimelineCachePolicy.FANOUT_ACTIVE_WINDOW_SECONDS), after, 1000)
             store.distribute(recipients, job.position)
             after = recipients.lastOrNull()
         } while (recipients.size == 1000)

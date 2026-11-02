@@ -13,6 +13,7 @@ import io.lettuce.core.ZRange
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.resource.ClientResources
 import io.opentelemetry.instrumentation.lettuce.v5_1.LettuceTelemetry
+import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
@@ -33,7 +34,7 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         connection.sync().set("${key(accountId)}:lock", "1", SetArgs.Builder.nx().px(10000)) == "OK"
 
     override fun markBuilt(accountId: AccountId) {
-        connection.sync().set("${key(accountId)}:built", "1", SetArgs.Builder.ex(TTL))
+        connection.sync().set("${key(accountId)}:built", "1", SetArgs.Builder.ex(TimelineCachePolicy.CACHE_TTL_SECONDS))
     }
 
     override fun unlock(accountId: AccountId) {
@@ -45,8 +46,8 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
     }
 
     override fun expire(accountId: AccountId) {
-        connection.sync().expire(key(accountId), TTL)
-        connection.sync().expire("${key(accountId)}:built", TTL)
+        connection.sync().expire(key(accountId), TimelineCachePolicy.CACHE_TTL_SECONDS)
+        connection.sync().expire("${key(accountId)}:built", TimelineCachePolicy.CACHE_TTL_SECONDS)
     }
 
     override fun distribute(accountIds: List<AccountId>, position: TimelinePosition) {
@@ -139,7 +140,7 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
                         add(commands.zremrangebyscore(key(account), olderScores))
                     }
                     add(commands.zremrangebyrank(key(account), 0, -401))
-                    add(commands.expire(key(account), TTL))
+                    add(commands.expire(key(account), TimelineCachePolicy.CACHE_TTL_SECONDS))
                 }
             }
         }
@@ -154,7 +155,6 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         FanoutJob(id, TimelinePosition(checkNotNull(body["score"]).toLong(), checkNotNull(body["member"])))
 
     private companion object {
-        const val TTL = 604800L
         const val STREAM = "timeline:fanout"
         const val GROUP = "home-timeline"
     }

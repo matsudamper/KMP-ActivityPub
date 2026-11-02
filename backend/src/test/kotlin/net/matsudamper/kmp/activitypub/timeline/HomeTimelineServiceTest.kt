@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.timeline
 
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -10,6 +11,33 @@ import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class HomeTimelineServiceTest {
+    @Test
+    fun fanoutIncludesAccountsActiveSevenDaysAndThirtyMinutesAgo() {
+        val now = Instant.parse("2026-11-01T12:00:00Z")
+        val recentlyActive = AccountId(1)
+        val boundary = AccountId(2)
+        val expired = AccountId(3)
+        val lastActive = mapOf(
+            recentlyActive to now.minusSeconds(7 * 24 * 60 * 60L + 30 * 60),
+            boundary to now.minusSeconds(7 * 24 * 60 * 60L + 60 * 60),
+            expired to now.minusSeconds(7 * 24 * 60 * 60L + 60 * 60 + 1),
+        )
+        val repository = FakeTimelineRepository()
+        val recipientsRepository = object : TimelineRepository by repository {
+            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> =
+                lastActive.filterValues { it >= activeSince }.keys.toList()
+        }
+        val store = FakeTimelineStore(repository.events)
+        val position = TimelinePosition(now.toEpochMilli(), "r1")
+        val deliveryStore = object : TimelineStore by store {
+            override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = listOf(FanoutJob("1-0", position))
+        }
+        TimelineFanoutWorker(recipientsRepository, deliveryStore, Clock.fixed(now, ZoneOffset.UTC)).runOnce(false)
+        assertEquals(listOf(position), store.read(recentlyActive, null, 10))
+        assertEquals(listOf(position), store.read(boundary, null, 10))
+        assertTrue(store.read(expired, null, 10).isEmpty())
+    }
+
     @Test
     fun rebuildMarksBuiltBeforeReadingSqlAndAddingMembers() {
         val repository = FakeTimelineRepository()

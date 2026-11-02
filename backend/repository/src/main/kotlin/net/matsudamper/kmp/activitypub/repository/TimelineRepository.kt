@@ -8,7 +8,7 @@ interface TimelineRepository {
     fun receive(note: RemoteNoteInput): TimelinePosition?
     fun deleteRemote(actorUri: String, objectUri: String)
     fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId>
-    fun touch(accountId: AccountId, now: Instant)
+    fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long)
     fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition>
     fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>

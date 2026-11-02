@@ -102,10 +102,10 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         followers.union(addressed).orderBy(1).limit(limit).fetch { AccountId(checkNotNull(it.value1())) }
     }
 
-    override fun touch(accountId: AccountId, now: Instant) {
+    override fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long) {
         jooq.withConnection { dsl ->
             dsl.update(ACCOUNTS).set(ACCOUNTS.LAST_ACTIVE_AT, StoredInstant.format(now)).where(ACCOUNTS.ID.eq(accountId.value))
-                .and(ACCOUNTS.LAST_ACTIVE_AT.isNull.or(ACCOUNTS.LAST_ACTIVE_AT.le(StoredInstant.format(now.minusSeconds(3600)))))
+                .and(ACCOUNTS.LAST_ACTIVE_AT.isNull.or(ACCOUNTS.LAST_ACTIVE_AT.le(StoredInstant.format(now.minusSeconds(updateIntervalSeconds)))))
                 .execute()
         }
     }

@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.timeline
 import java.time.Clock
 import java.util.Base64
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
+import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -20,7 +21,7 @@ class HomeTimelineService(
         val after = cursor?.let { TimelineCursor.decode(it) }
         require(cursor == null || after != null) { "cursor が読めない" }
         val pageSize = limit.coerceIn(1, 100)
-        repository.touch(accountId, clock.instant())
+        repository.touch(accountId, clock.instant(), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
         val cached = runCatching { cachedPositions(accountId, after, pageSize + 1) }
             .onFailure { logger.warn("Valkey を使えないので DB からタイムラインを読む", it) }.getOrNull()
         val positions = cached ?: repository.page(accountId, after, pageSize + 1)

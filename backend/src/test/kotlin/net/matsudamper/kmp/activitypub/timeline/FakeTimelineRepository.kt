@@ -22,7 +22,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
     override fun deleteRemote(actorUri: String, objectUri: String) = Unit
     override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = listOf()
-    override fun touch(accountId: AccountId, now: Instant) = Unit
+    override fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long) = Unit
     override fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition> {
         events.add("rebuild")
         return sorted().take(limit)

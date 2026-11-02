@@ -12,6 +12,28 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 class TimelineRepositoryTest {
     @Test
+    fun fanoutActivityWindowIncludesCacheTtlAndThrottledTouchInterval() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val activityAges = mapOf(
+            "alice" to 7 * 24 * 60 * 60L + 30 * 60,
+            "bob" to 7 * 24 * 60 * 60L + 60 * 60,
+            "carol" to 7 * 24 * 60 * 60L + 60 * 60 + 1,
+        )
+        activityAges.forEach { (username, age) ->
+            val account = accounts.getValue(username)
+            repositories.followingRepository.add(account, ACTOR, NOW)
+            val lastActive = NOW.minusSeconds(age)
+            repository.touch(account, lastActive, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
+            repository.touch(account, lastActive.plusSeconds(50 * 60), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
+        }
+        val position = assertNotNull(repository.receive(note("activity-boundary", "public", setOf())))
+        assertEquals(
+            listOf(accounts.getValue("alice"), accounts.getValue("bob")),
+            repository.recipients(position.member, NOW.minusSeconds(TimelineCachePolicy.FANOUT_ACTIVE_WINDOW_SECONDS), null, 1000),
+        )
+    }
+
+    @Test
     fun onlyFollowedOrAddressedNotesAreSavedOnceAndDeletedByTheirAuthor() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         assertNull(repository.receive(note("1", "public", setOf())))
@@ -31,9 +53,9 @@ class TimelineRepositoryTest {
     fun fanoutUsesRecentFollowersAndExplicitRecipientsWithPrivateVisibility() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         listOf("alice", "bob", "carol").forEach { repositories.followingRepository.add(accounts.getValue(it), ACTOR, NOW) }
-        repository.touch(accounts.getValue("alice"), NOW)
-        repository.touch(accounts.getValue("bob"), NOW.minusSeconds(604800))
-        repository.touch(accounts.getValue("carol"), NOW.minusSeconds(604801))
+        repository.touch(accounts.getValue("alice"), NOW, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
+        repository.touch(accounts.getValue("bob"), NOW.minusSeconds(604800), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
+        repository.touch(accounts.getValue("carol"), NOW.minusSeconds(604801), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
         val public = assertNotNull(repository.receive(note("public", "public", setOf("dave"))))
         assertEquals(listOf("alice", "bob", "dave").map { accounts.getValue(it) }, repository.recipients(public.member, NOW.minusSeconds(604800), null, 1000))
         listOf("alice", "bob", "carol").forEach { username ->
@@ -59,7 +81,7 @@ class TimelineRepositoryTest {
         listOf(alice, bob).forEach { account ->
             following.add(account, ACTOR, NOW)
             following.recordActivity(account, ACTOR, "follow-${account.value}")
-            repository.touch(account, NOW)
+            repository.touch(account, NOW, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
         }
         following.respondToFollow(ACTOR, "follow-${alice.value}", NOW)
         val first = assertNotNull(repository.receive(note("first-private", "followers", setOf())))
@@ -175,7 +197,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.followingRepository.add(alice, ACTOR, NOW)
-        repository.touch(alice, NOW)
+        repository.touch(alice, NOW, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
         val position = checkNotNull(repository.receive(note("recipient-union", "public", setOf("alice", "dave"))))
         val first = repository.recipients(position.member, NOW.minusSeconds(604800), null, 1)
         val second = repository.recipients(position.member, NOW.minusSeconds(604800), first.single(), 1)
