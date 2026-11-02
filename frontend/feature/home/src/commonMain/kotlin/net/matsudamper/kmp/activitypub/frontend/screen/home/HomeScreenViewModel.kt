@@ -32,6 +32,7 @@ internal class HomeScreenViewModel(
     private var profileJob: Job? = null
     private var timelineJob: Job? = null
     private var timelineCursor: String? = null
+    private var timelinePosts = listOf<UserHomeTimelineResult.Post>()
     private var followingChangeInProgress = false
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
@@ -40,7 +41,7 @@ internal class HomeScreenViewModel(
                 selectedTab = selectedTab,
                 timelineItems = listOf(),
                 timelineRefreshing = false,
-                timelineLoadMoreVisible = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -74,7 +75,12 @@ internal class HomeScreenViewModel(
                         loadTimeline(false)
                     }
 
-                    override fun onLoadMoreTimeline() {
+                    override fun onScrolledToTimelineEnd() {
+                        if (mutableUiStateFlow.value.timelineFooter is HomeScreenUiState.TimelineFooter.Error) return
+                        loadTimeline(true)
+                    }
+
+                    override fun onClickRetryTimelineLoadMore() {
                         loadTimeline(true)
                     }
 
@@ -272,7 +278,12 @@ internal class HomeScreenViewModel(
         if (append && timelineJob?.isActive == true) return
         val cursor = if (append) timelineCursor ?: return else null
         timelineJob?.cancel()
-        mutableUiStateFlow.update { it.copy(timelineRefreshing = true) }
+        mutableUiStateFlow.update {
+            it.copy(
+                timelineRefreshing = !append,
+                timelineFooter = if (append) HomeScreenUiState.TimelineFooter.Loading else HomeScreenUiState.TimelineFooter.None,
+            )
+        }
         timelineJob = viewModelScope.launch {
             try {
                 val result = userApi.homeTimeline(cursor)
@@ -280,7 +291,8 @@ internal class HomeScreenViewModel(
                 when (result) {
                     is UserHomeTimelineResult.Success -> {
                         timelineCursor = result.nextCursor
-                        val items = result.posts.map { post ->
+                        timelinePosts = (if (append) timelinePosts + result.posts else result.posts).distinctBy { it.id }
+                        val items = timelinePosts.map { post ->
                             HomeScreenUiState.TimelineItem(
                                 displayName = post.displayName,
                                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
@@ -289,19 +301,27 @@ internal class HomeScreenViewModel(
                             )
                         }
                         mutableUiStateFlow.update {
-                            it.copy(timelineItems = if (append) it.timelineItems + items else items, timelineLoadMoreVisible = result.nextCursor != null)
+                            it.copy(timelineItems = items, timelineFooter = HomeScreenUiState.TimelineFooter.None)
                         }
                     }
 
-                    is UserHomeTimelineResult.Failure -> events.send { it.showMessage(result.message) }
+                    is UserHomeTimelineResult.Failure -> timelineFailed(append, result.message)
 
-                    UserHomeTimelineResult.NotLoggedIn -> events.send { it.showMessage("ログインしていません") }
+                    UserHomeTimelineResult.NotLoggedIn -> timelineFailed(append, "ログインしていません")
                 }
             } finally {
                 if (currentCoroutineContext().isActive) {
                     mutableUiStateFlow.update { it.copy(timelineRefreshing = false) }
                 }
             }
+        }
+    }
+
+    private suspend fun timelineFailed(append: Boolean, message: String) {
+        if (append) {
+            mutableUiStateFlow.update { it.copy(timelineFooter = HomeScreenUiState.TimelineFooter.Error(message)) }
+        } else {
+            events.send { it.showMessage(message) }
         }
     }
 

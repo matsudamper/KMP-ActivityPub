@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -35,12 +36,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
@@ -190,7 +194,7 @@ internal fun HomeContent(
                     TimelineTabContent(
                         timelineItems = uiState.timelineItems,
                         refreshing = uiState.timelineRefreshing,
-                        loadMoreVisible = uiState.timelineLoadMoreVisible,
+                        footer = uiState.timelineFooter,
                         listener = uiState.listener,
                         modifier = contentModifier,
                     )
@@ -220,23 +224,50 @@ internal fun HomeContent(
 private fun TimelineTabContent(
     timelineItems: List<HomeScreenUiState.TimelineItem>,
     refreshing: Boolean,
-    loadMoreVisible: Boolean,
+    footer: HomeScreenUiState.TimelineFooter,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(listState, listener, timelineItems.size, footer) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
+            val nearEnd = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - 5
+            nearEnd to layoutInfo.totalItemsCount
+        }
+            .distinctUntilChanged()
+            .filter { (nearEnd, _) -> nearEnd }
+            .collect { listener.onScrolledToTimelineEnd() }
+    }
     PullToRefreshBox(
         isRefreshing = refreshing,
         onRefresh = listener::onRefreshTimeline,
         modifier = modifier,
     ) {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             items(timelineItems) { item ->
                 TimelineItem(item = item)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
-            if (loadMoreVisible) {
-                item {
-                    TextButton(onClick = listener::onLoadMoreTimeline, modifier = Modifier.fillMaxWidth()) { Text("さらに読み込む") }
+            when (footer) {
+                HomeScreenUiState.TimelineFooter.None -> Unit
+
+                HomeScreenUiState.TimelineFooter.Loading -> item {
+                    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                is HomeScreenUiState.TimelineFooter.Error -> item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(footer.message, color = MaterialTheme.colorScheme.error)
+                        Button(onClick = listener::onClickRetryTimelineLoadMore) { Text("再読み込み") }
+                    }
                 }
             }
         }

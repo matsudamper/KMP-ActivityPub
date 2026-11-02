@@ -19,6 +19,7 @@ class UserInfoResolverImpl : UserInfoResolver {
             val result = QlHomeTimeline(
                 posts = page.posts.map { post ->
                     QlHomeTimelinePost(
+                        id = post.position.member,
                         content = htmlToPlainText(post.contentHtml),
                         publishedAt = post.publishedAt.toString(),
                         username = post.username,

@@ -48,7 +48,7 @@ class UserApi(
         val timeline = data.userInfo?.homeTimeline ?: return UserHomeTimelineResult.NotLoggedIn
         return UserHomeTimelineResult.Success(
             posts = timeline.posts.map {
-                UserHomeTimelineResult.Post(it.content, it.publishedAt, it.username, it.host, it.displayName, it.summary, it.sensitive)
+                UserHomeTimelineResult.Post(it.id, it.content, it.publishedAt, it.username, it.host, it.displayName, it.summary, it.sensitive)
             },
             nextCursor = timeline.nextCursor,
         )

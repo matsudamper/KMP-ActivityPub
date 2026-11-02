@@ -6,6 +6,7 @@ sealed interface UserHomeTimelineResult {
     data object NotLoggedIn : UserHomeTimelineResult
 
     data class Post(
+        val id: String,
         val content: String,
         val publishedAt: String,
         val username: String,

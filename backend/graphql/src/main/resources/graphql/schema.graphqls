@@ -64,6 +64,7 @@ type HomeTimeline {
 }
 
 type HomeTimelinePost {
+    id: ID!
     content: String!
     publishedAt: String!
     username: String!

@@ -6,12 +6,18 @@ data class HomeScreenUiState(
     val selectedTab: Tab,
     val timelineItems: List<TimelineItem>,
     val timelineRefreshing: Boolean,
-    val timelineLoadMoreVisible: Boolean,
+    val timelineFooter: TimelineFooter,
     val search: Search,
     val profile: Profile,
     val userTabIconUrl: String?,
     val listener: Listener,
 ) {
+    sealed interface TimelineFooter {
+        data object None : TimelineFooter
+        data object Loading : TimelineFooter
+        data class Error(val message: String) : TimelineFooter
+    }
+
     enum class Tab {
         Home,
         Search,
@@ -87,7 +93,9 @@ data class HomeScreenUiState(
 
         fun onRefreshTimeline()
 
-        fun onLoadMoreTimeline()
+        fun onScrolledToTimelineEnd()
+
+        fun onClickRetryTimelineLoadMore()
 
         fun onSearchQueryChanged(query: String)
 
