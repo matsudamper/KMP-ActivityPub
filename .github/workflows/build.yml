@@ -193,3 +193,31 @@ jobs:
 
       - name: テスト
         run: ./gradlew :backend:test
+
+  schema-migration:
+    name: schema migration
+    # マージ先のスキーマが要るので PR だけで動かす
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      SQLDEF_VERSION: v3.11.29
+      SCHEMA_PATH: backend/repository/src/main/resources/db/schema.sql
+      BASE_REF: ${{ github.base_ref }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: sqlite3def のインストール
+        run: |
+          curl -fsSL "https://github.com/sqldef/sqldef/releases/download/${SQLDEF_VERSION}/sqlite3def_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" sqlite3def
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: マージ先のスキーマを適用
+        run: |
+          git fetch --depth=1 origin "$BASE_REF"
+          git show "FETCH_HEAD:${SCHEMA_PATH}" > "$RUNNER_TEMP/base-schema.sql"
+          sqlite3def --file "$RUNNER_TEMP/base-schema.sql" "$RUNNER_TEMP/migration.db"
+
+      - name: この PR のスキーマを適用
+        run: sqlite3def --file "$SCHEMA_PATH" "$RUNNER_TEMP/migration.db"
