@@ -30,7 +30,7 @@ internal class ReceivedRemoteNotes(
     private val tracer = openTelemetry.getTracer("activitypub-inbox")
 
     override suspend fun save(note: ReceivedNote) {
-        inOpenTelemetrySuspendSpan(tracer, "Inbox.Create") { span -> saveInSpan(note, span) }
+        inOpenTelemetrySuspendSpan(tracer, "Inbox.Create", false) { span -> saveInSpan(note, span) }
     }
 
     override suspend fun delete(actorId: String, objectId: String) {

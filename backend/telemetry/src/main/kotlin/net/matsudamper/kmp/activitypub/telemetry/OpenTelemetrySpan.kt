@@ -22,8 +22,10 @@ fun <T> inOpenTelemetrySpan(tracer: Tracer, name: String, root: Boolean, block: 
     }
 }
 
-suspend fun <T> inOpenTelemetrySuspendSpan(tracer: Tracer, name: String, block: suspend (Span) -> T): T {
-    val span = tracer.spanBuilder(name).startSpan()
+suspend fun <T> inOpenTelemetrySuspendSpan(tracer: Tracer, name: String, root: Boolean, block: suspend (Span) -> T): T {
+    val builder = tracer.spanBuilder(name)
+    if (root) builder.setNoParent()
+    val span = builder.startSpan()
     try {
         return withContext(Context.current().with(span).asContextElement()) { block(span) }
     } catch (failure: Exception) {

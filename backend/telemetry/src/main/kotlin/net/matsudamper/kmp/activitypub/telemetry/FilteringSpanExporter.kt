@@ -6,13 +6,15 @@ import io.opentelemetry.sdk.trace.data.SpanData
 import io.opentelemetry.sdk.trace.export.SpanExporter
 
 /**
- * 接続初期化とStreamのポーリングは大量のルートspanになる。配布は取得したジョブのspanで追う。
+ * 初期化とポーリングのコマンドは大量のルートspanになる。取得できたclaimと配信処理は別のspanで追う。
  */
 class FilteringSpanExporter(
     private val delegate: SpanExporter,
 ) : SpanExporter {
     override fun export(spans: Collection<SpanData>): CompletableResultCode {
-        val exportTargets = spans.filterNot { it.isUnexportedRedisCommand() }
+        val exportTargets = spans.filterNot {
+            it.isUnexportedRedisCommand() || it.spanContext.traceState.get(POLLING_TRACE_STATE_KEY) == "true"
+        }
         if (exportTargets.isEmpty()) return CompletableResultCode.ofSuccess()
 
         return delegate.export(exportTargets)

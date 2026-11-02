@@ -147,4 +147,5 @@ data class ClaimedDelivery(
     val body: String,
     val attempts: Int,
     val enqueuedAt: Instant,
+    val kind: String,
 )

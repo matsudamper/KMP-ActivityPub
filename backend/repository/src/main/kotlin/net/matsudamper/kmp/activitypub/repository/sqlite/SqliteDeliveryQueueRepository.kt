@@ -139,6 +139,7 @@ internal class SqliteDeliveryQueueRepository(
             dsl.select(
                 DELIVERY_QUEUE.ID,
                 ACCOUNTS.USERNAME,
+                DELIVERY_QUEUE.KIND,
                 DELIVERY_QUEUE.INBOX,
                 DELIVERY_QUEUE.BODY,
                 DELIVERY_QUEUE.ATTEMPTS,
@@ -158,6 +159,7 @@ internal class SqliteDeliveryQueueRepository(
                         body = checkNotNull(record.get(DELIVERY_QUEUE.BODY)),
                         attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt() + 1,
                         enqueuedAt = StoredInstant.parse(checkNotNull(record.get(DELIVERY_QUEUE.ENQUEUED_AT))),
+                        kind = checkNotNull(record.get(DELIVERY_QUEUE.KIND)),
                     )
                 }
         if (due.isEmpty()) return@transaction listOf()

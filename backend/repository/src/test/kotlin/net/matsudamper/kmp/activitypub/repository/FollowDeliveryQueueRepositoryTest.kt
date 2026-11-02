@@ -12,6 +12,7 @@ class FollowDeliveryQueueRepositoryTest {
     fun unfollowCancelsRetryingFollowAndEnqueuesUndoBecauseItMayHaveArrived() = withQueue { queue, alice, bob ->
         queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
         val follow = queue.claim(NOW, 10).single()
+        assertEquals("follow", follow.kind)
         queue.scheduleRetry(follow.id, NOW.plusSeconds(3600), "接続失敗")
         queue.enqueueFollow(bob, INBOX, followBody("other-account"), NOW)
         queue.enqueueFollow(alice, "$INBOX/other", followBody("other-inbox"), NOW)
