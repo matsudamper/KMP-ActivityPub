@@ -373,6 +373,14 @@ internal class HomeScreenViewModel(
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
                 postedAt = post.publishedAt,
+                listener = object : HomeScreenUiState.TimelineItemListener {
+                    override fun onClickAuthor() {
+                        val host = post.host
+                        viewModelScope.launch {
+                            events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
+                        }
+                    }
+                },
             )
         }
         mutableUiStateFlow.update { it.copy(timelineItems = items) }

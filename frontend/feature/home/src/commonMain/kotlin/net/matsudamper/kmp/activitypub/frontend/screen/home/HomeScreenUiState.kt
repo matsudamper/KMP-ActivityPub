@@ -29,6 +29,7 @@ data class HomeScreenUiState(
         val acct: String,
         val body: String,
         val postedAt: String,
+        val listener: TimelineItemListener,
     )
 
     data class Search(
@@ -74,6 +75,11 @@ data class HomeScreenUiState(
             val followingCount: String,
             val followersCount: String,
         ) : Profile
+    }
+
+    @Immutable
+    interface TimelineItemListener {
+        fun onClickAuthor()
     }
 
     @Immutable

@@ -35,12 +35,14 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                         acct = "@kotlin@example.com",
                         body = "Kotlin 2.4 がリリースされました",
                         postedAt = "1分前",
+                        listener = AndroidPreviewTimelineItemListener,
                     ),
                     HomeScreenUiState.TimelineItem(
                         displayName = "Compose",
                         acct = "@compose@example.com",
                         body = "Compose Multiplatform で Web と Android の画面を共有している",
                         postedAt = "5分前",
+                        listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
                 timelineRefreshing = false,
@@ -210,4 +212,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
     override fun onClick() = Unit
+}
+
+private object AndroidPreviewTimelineItemListener : HomeScreenUiState.TimelineItemListener {
+    override fun onClickAuthor() = Unit
 }

@@ -508,6 +508,7 @@ private fun TimelineItem(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(
+            modifier = Modifier.clickable(onClick = item.listener::onClickAuthor),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
