@@ -48,6 +48,12 @@ internal class SqliteRemoteActorRepository(
         }
     }
 
+    override fun remove(actorUri: String) {
+        jooq.withConnection { dsl ->
+            dsl.deleteFrom(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).execute()
+        }
+    }
+
     override fun findByAcct(username: String, host: String): RemoteActorSearchRecord? = jooq.withConnection { dsl ->
         dsl.selectFrom(REMOTE_ACTORS)
             .where(REMOTE_ACTORS.PREFERRED_USERNAME.eq(username))

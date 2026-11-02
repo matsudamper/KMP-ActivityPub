@@ -31,23 +31,30 @@ internal class QueuedFollowDelivery(
         val account = checkNotNull(accounts.account(accountId))
         val sender = checkNotNull(directory.resolve(account.username))
         if (followed) {
-            val stored = storedActors.findByUri(actorUri)
-            val remote = if (stored == null) actors.findActor(actorUri) else null
-            if (remote != null) {
-                require(remote.actorId == actorUri)
-                storedActors.save(remote.toRecord(), clock.instant())
+            val remote = checkNotNull(actors.findActor(actorUri)) { "相手の inbox を取得できない" }
+            storedActors.save(remote.toRecord(), clock.instant())
+            if (actorUri != remote.actorId) storedActors.remove(actorUri)
+            if (!following.contains(accountId, actorUri)) return
+            val canonicalFollowingAdded = actorUri != remote.actorId && following.add(accountId, remote.actorId, clock.instant())
+            if (actorUri != remote.actorId) {
+                following.remove(accountId, actorUri)
+                if (!canonicalFollowingAdded) return
             }
-            val inbox = stored?.inbox ?: checkNotNull(remote?.inbox) { "相手の inbox を取得できない" }
             val id = "${sender.actorId}/follows/${UUID.randomUUID()}"
-            val follow = FollowActivities.follow(id, sender.actorId, actorUri)
-            val enqueued = following.recordActivityAndEnqueueFollow(
-                accountId,
-                actorUri,
-                id,
-                inbox,
-                AppJson.encodeToString(OutgoingActivity.serializer(), follow),
-                clock.instant(),
-            )
+            val follow = FollowActivities.follow(id, sender.actorId, remote.actorId)
+            val enqueued = try {
+                following.recordActivityAndEnqueueFollow(
+                    accountId,
+                    remote.actorId,
+                    id,
+                    remote.inbox,
+                    AppJson.encodeToString(OutgoingActivity.serializer(), follow),
+                    clock.instant(),
+                )
+            } catch (failure: Exception) {
+                if (canonicalFollowingAdded) following.remove(accountId, remote.actorId)
+                throw failure
+            }
             if (!enqueued) return
         } else {
             val inbox = storedActors.findByUri(actorUri)?.inbox

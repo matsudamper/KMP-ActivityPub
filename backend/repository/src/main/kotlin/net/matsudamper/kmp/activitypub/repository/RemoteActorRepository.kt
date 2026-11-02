@@ -8,6 +8,7 @@ import java.time.Instant
 interface RemoteActorRepository {
     fun findByUri(actorUri: String): RemoteActorRecord?
     fun save(actor: RemoteActorRecord, updatedAt: Instant)
+    fun remove(actorUri: String)
 
     fun findByAcct(username: String, host: String): RemoteActorSearchRecord?
 

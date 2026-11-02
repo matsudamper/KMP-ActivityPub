@@ -192,6 +192,11 @@ internal class FakeRemoteActorRepository : RemoteActorRepository {
 
     override fun findByUri(actorUri: String): RemoteActorRecord? = savedActors[actorUri]
 
+    override fun remove(actorUri: String) {
+        savedActors.remove(actorUri)
+        rows.removeAll { it.actorUri == actorUri }
+    }
+
     override fun save(actor: RemoteActorRecord, updatedAt: Instant) {
         savedActors[actor.actorUri] = actor
         val username = actor.profile.preferredUsername ?: return

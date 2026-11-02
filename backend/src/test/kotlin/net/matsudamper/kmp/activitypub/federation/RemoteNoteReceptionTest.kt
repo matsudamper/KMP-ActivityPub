@@ -30,8 +30,62 @@ import net.matsudamper.kotpub.actor.StoredActorNames
 import net.matsudamper.kotpub.httpsignature.PublicKeyLookup
 import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
+import net.matsudamper.kotpub.webfinger.WebFingerLookup
 
 class RemoteNoteReceptionTest {
+    @Test
+    fun profileUrlFollowUsesDocumentIdAndReceivesCreate() = runBlocking {
+        val fixture = Fixture()
+        val profileUrl = "https://remote.example/@remote"
+        fixture.repositories.remoteActorRepository.save(
+            RemoteActor(profileUrl, "$ACTOR/inbox", null, "old-key", RemoteActorProfile("remote", null, profileUrl, null)).toRecord(),
+            Instant.EPOCH,
+        )
+        val stored = fixture.repositories.timelineRepository
+        val repository = object : TimelineRepository by stored {
+            override fun shouldReceive(actorUri: String, localRecipients: Set<String>): Boolean =
+                fixture.repositories.followingRepository.contains(fixture.accountId, actorUri) || localRecipients.isNotEmpty()
+        }
+        val receiver = ReceivedRemoteNotes(repository, fixture.remote, fixture.repositories.remoteActorRepository, fixture.directory, fixture.timeline, Clock.systemUTC())
+        receiver.save(note(listOf()))
+        assertTrue(stored.received.isEmpty())
+        assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
+        assertTrue(fixture.following.isFollowing(fixture.accountId, ACTOR))
+        assertFalse(fixture.following.isFollowing(fixture.accountId, profileUrl))
+        assertEquals(1L, fixture.repositories.followingRepository.count(fixture.accountId))
+        assertEquals(null, fixture.repositories.remoteActorRepository.findByUri(profileUrl))
+        assertEquals(listOf(ACTOR), fixture.repositories.remoteActorRepository.searchByName("remote", null, 10).map { it.actorUri })
+        assertTrue(fixture.repositories.deliveryQueueRepository.followBodies.single().contains("\"object\":\"$ACTOR\""))
+        receiver.save(note(listOf()))
+        assertEquals(ACTOR, stored.received.single().actorUri)
+        assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
+        assertEquals(1L, fixture.repositories.followingRepository.count(fixture.accountId))
+        assertEquals(1, fixture.repositories.deliveryQueueRepository.followBodies.size)
+    }
+
+    @Test
+    fun urlLookupRemovesLegacyActorAndLegacyFollowingCanBeRemoved() = runBlocking {
+        val fixture = Fixture()
+        val profileUrl = "https://remote.example/@remote"
+        fixture.repositories.remoteActorRepository.save(
+            RemoteActor(profileUrl, "$ACTOR/inbox", null, "key", RemoteActorProfile("remote", null, profileUrl, null)).toRecord(),
+            Instant.EPOCH,
+        )
+        fixture.repositories.followingRepository.add(fixture.accountId, profileUrl, Instant.EPOCH)
+        val lookup = KotpubRemoteUserLookup(
+            object : WebFingerLookup {
+                override suspend fun findActorId(acct: String): String? = error("WebFinger は不要")
+            },
+            fixture.remote,
+            fixture.repositories.remoteActorRepository,
+        )
+        assertEquals(ACTOR, lookup.findByUrl(profileUrl)?.actorUri)
+        assertEquals(null, fixture.repositories.remoteActorRepository.findByUri(profileUrl))
+        assertEquals(listOf(ACTOR), fixture.repositories.remoteActorRepository.searchByName("remote", null, 10).map { it.actorUri })
+        assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, false))
+        assertEquals(0L, fixture.repositories.followingRepository.count(fixture.accountId))
+    }
+
     @Test
     fun createSpanKeepsRequestParentAndRecordsSavedAndDiscardReasons() = runBlocking {
         val exporter = InMemorySpanExporter.create()
