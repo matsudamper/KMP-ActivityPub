@@ -95,6 +95,7 @@ internal fun UserProfileContent(
                                 profile = content,
                                 onClickFollow = uiState.listener::onClickFollow,
                             )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                         item {
                             Text(
@@ -173,7 +174,6 @@ private fun ProfileHeader(
             Text(text = profile.biography, style = MaterialTheme.typography.bodyMedium)
         }
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable
