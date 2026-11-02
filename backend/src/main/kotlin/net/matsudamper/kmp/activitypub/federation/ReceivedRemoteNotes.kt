@@ -47,7 +47,10 @@ internal class ReceivedRemoteNotes(
             val username = uri.path?.substringAfterLast('/') ?: return@mapNotNull null
             directory.resolve(username)?.takeIf { it.actorId == target }?.username
         }.toSet()
-        if (!repository.shouldReceive(note.attributedTo, recipients)) {
+        val interest = repository.receptionInterest(note.attributedTo, recipients)
+        span.setAttribute(InboxSpan.FOLLOWING_ACCOUNT_COUNT, interest.followingAccountCount)
+        span.setAttribute(InboxSpan.LOCAL_RECIPIENT_COUNT, interest.localRecipientCount)
+        if (!interest.shouldReceive) {
             span.setAttribute(InboxSpan.DISCARD_REASON, "not_followed_and_not_addressed")
             return
         }

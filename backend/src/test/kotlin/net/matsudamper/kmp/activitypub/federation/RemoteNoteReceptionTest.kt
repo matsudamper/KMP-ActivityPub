@@ -7,6 +7,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
 import io.opentelemetry.sdk.trace.SdkTracerProvider
@@ -14,8 +15,10 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
+import net.matsudamper.kmp.activitypub.logic.FollowingSpan
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
@@ -34,8 +37,72 @@ import net.matsudamper.kotpub.webfinger.WebFingerLookup
 
 class RemoteNoteReceptionTest {
     @Test
+    fun followAndUndoSpansRecordCanonicalActorAndQueueDecisions() = runBlocking {
+        val exporter = InMemorySpanExporter.create()
+        val provider = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()
+        OpenTelemetrySdk.builder().setTracerProvider(provider).build().use { telemetry ->
+            val fixture = Fixture(telemetry)
+            val profileUrl = "https://remote.example/@remote"
+            val request = telemetry.getTracer("test").spanBuilder("setFollowing request").startSpan()
+            request.makeCurrent().use {
+                withOpenTelemetryContext {
+                    fixture.following.setFollowing(fixture.accountId, profileUrl, true)
+                    fixture.following.setFollowing(fixture.accountId, ACTOR, true)
+                    fixture.following.setFollowing(fixture.accountId, profileUrl, true)
+                    fixture.following.setFollowing(fixture.accountId, ACTOR, false)
+                    fixture.following.setFollowing(fixture.accountId, ACTOR, false)
+                    fixture.repositories.followingRepository.add(fixture.accountId, profileUrl, Instant.EPOCH)
+                    fixture.following.setFollowing(fixture.accountId, profileUrl, false)
+                    fixture.remote.onFindActor = { fixture.repositories.followingRepository.remove(fixture.accountId, ACTOR) }
+                    fixture.following.setFollowing(fixture.accountId, ACTOR, true)
+                }
+            }
+            request.end()
+            val services = exporter.finishedSpanItems.filter { it.name == "Following.setFollowing" }
+            services.forEach { assertEquals(request.spanContext.spanId, it.parentSpanId) }
+            val deliveries = exporter.finishedSpanItems.filter { it.name == "Following.enqueue" }
+            assertEquals(5, deliveries.size)
+            assertEquals(services.first().spanId, deliveries.first().parentSpanId)
+            val first = deliveries.first()
+            assertEquals(profileUrl, first.attributes.get(FollowingSpan.REQUESTED_URL))
+            assertEquals(ACTOR, first.attributes.get(FollowingSpan.ACTOR_ID))
+            assertEquals(true, first.attributes.get(FollowingSpan.ACTOR_ID_DIFFERS))
+            assertEquals(listOf(true, false, true, false, false), deliveries.map { it.attributes.get(FollowingSpan.ENQUEUED) })
+            assertEquals("canonical_actor_already_followed", deliveries[1].attributes.get(FollowingSpan.SKIP_REASON))
+            assertEquals(false, deliveries[2].attributes.get(FollowingSpan.FOLLOWED))
+            assertEquals(first.attributes.get(FollowingSpan.FOLLOW_ID), deliveries[2].attributes.get(FollowingSpan.FOLLOW_ID))
+            assertTrue(checkNotNull(first.attributes.get(FollowingSpan.FOLLOW_ID)).startsWith("https://local.example/"))
+            assertEquals("stored_inbox_missing", deliveries[3].attributes.get(FollowingSpan.SKIP_REASON))
+            assertEquals("following_removed", deliveries[4].attributes.get(FollowingSpan.SKIP_REASON))
+            assertEquals("already_following", services[1].attributes.get(FollowingSpan.SKIP_REASON))
+            assertEquals("following_not_found", services[4].attributes.get(FollowingSpan.SKIP_REASON))
+        }
+    }
+
+    @Test
+    fun createSpansRecordFollowingAndResolvedRecipientCounts() = runBlocking {
+        val exporter = InMemorySpanExporter.create()
+        val provider = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()
+        OpenTelemetrySdk.builder().setTracerProvider(provider).build().use { telemetry ->
+            val fixture = Fixture(telemetry)
+            val repository = fixture.repositories.timelineRepository
+            repository.interested = false
+            fixture.receiver.save(note(listOf()))
+            val localActor = checkNotNull(fixture.directory.resolve("alice")).actorId
+            fixture.receiver.save(note(listOf(localActor, localActor, "https://elsewhere.example/users/alice")))
+            repository.interested = true
+            fixture.receiver.save(note(listOf()))
+            val spans = exporter.finishedSpanItems.filter { it.name == "Inbox.Create" }
+            assertEquals(listOf(ACTOR, ACTOR, ACTOR), spans.map { it.attributes.get(InboxSpan.ACTOR) })
+            assertEquals(listOf(0L, 0L, 1L), spans.map { it.attributes.get(InboxSpan.FOLLOWING_ACCOUNT_COUNT) })
+            assertEquals(listOf(0L, 1L, 0L), spans.map { it.attributes.get(InboxSpan.LOCAL_RECIPIENT_COUNT) })
+            assertEquals("not_followed_and_not_addressed", spans.first().attributes.get(InboxSpan.DISCARD_REASON))
+        }
+    }
+
+    @Test
     fun profileUrlFollowUsesDocumentIdAndReceivesCreate() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         val profileUrl = "https://remote.example/@remote"
         fixture.repositories.remoteActorRepository.save(
             RemoteActor(profileUrl, "$ACTOR/inbox", null, "old-key", RemoteActorProfile("remote", null, profileUrl, null)).toRecord(),
@@ -43,8 +110,8 @@ class RemoteNoteReceptionTest {
         )
         val stored = fixture.repositories.timelineRepository
         val repository = object : TimelineRepository by stored {
-            override fun shouldReceive(actorUri: String, localRecipients: Set<String>): Boolean =
-                fixture.repositories.followingRepository.contains(fixture.accountId, actorUri) || localRecipients.isNotEmpty()
+            override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
+                RemoteNoteReceptionInterest(if (fixture.repositories.followingRepository.contains(fixture.accountId, actorUri)) 1 else 0, localRecipients.size.toLong())
         }
         val receiver = ReceivedRemoteNotes(repository, fixture.remote, fixture.repositories.remoteActorRepository, fixture.directory, fixture.timeline, Clock.systemUTC())
         receiver.save(note(listOf()))
@@ -65,7 +132,7 @@ class RemoteNoteReceptionTest {
 
     @Test
     fun urlLookupRemovesLegacyActorAndLegacyFollowingCanBeRemoved() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         val profileUrl = "https://remote.example/@remote"
         fixture.repositories.remoteActorRepository.save(
             RemoteActor(profileUrl, "$ACTOR/inbox", null, "key", RemoteActorProfile("remote", null, profileUrl, null)).toRecord(),
@@ -91,7 +158,7 @@ class RemoteNoteReceptionTest {
         val exporter = InMemorySpanExporter.create()
         val provider = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()
         OpenTelemetrySdk.builder().setTracerProvider(provider).build().use { telemetry ->
-            val fixture = Fixture()
+            val fixture = Fixture(OpenTelemetry.noop())
             val stored = fixture.repositories.timelineRepository
             val repository = object : TimelineRepository by stored {
                 override fun receive(note: RemoteNoteInput): TimelinePosition? =
@@ -130,7 +197,7 @@ class RemoteNoteReceptionTest {
 
     @Test
     fun unfollowWhileResolvingActorPreventsFollowEnqueue() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         fixture.remote.onFindActor = {
             assertTrue(fixture.following.setFollowing(fixture.accountId, ACTOR, false))
         }
@@ -142,7 +209,7 @@ class RemoteNoteReceptionTest {
 
     @Test
     fun unrelatedCreatesDoNotFetchOrWriteActors() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false
         fixture.receiver.save(note(listOf("https://elsewhere.example/actor")))
         assertEquals(0, fixture.remote.requests)
@@ -152,7 +219,7 @@ class RemoteNoteReceptionTest {
 
     @Test
     fun interestedCreatesReuseActorsAndFetchOnlyWhenMissing() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         fixture.receiver.save(note(listOf()))
         fixture.remote.available = false
         fixture.receiver.save(note(listOf()))
@@ -163,7 +230,7 @@ class RemoteNoteReceptionTest {
 
     @Test
     fun addressedLocalAccountsAreResolvedBeforeFetchingActors() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false
         fixture.receiver.save(note(listOf(checkNotNull(fixture.directory.resolve("alice")).actorId)))
         assertEquals(1, fixture.remote.requests)
@@ -172,7 +239,7 @@ class RemoteNoteReceptionTest {
 
     @Test
     fun unfollowUsesStoredInboxWhenRemoteServerIsUnavailable() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         assertTrue(fixture.following.setFollowing(fixture.accountId, ACTOR, true))
         fixture.remote.available = false
         assertTrue(fixture.following.setFollowing(fixture.accountId, ACTOR, false))
@@ -184,7 +251,7 @@ class RemoteNoteReceptionTest {
 
     @Test
     fun missingInboxDoesNotPreventLocalUnfollow() = runBlocking {
-        val fixture = Fixture()
+        val fixture = Fixture(OpenTelemetry.noop())
         fixture.remote.available = false
         fixture.repositories.followingRepository.add(fixture.accountId, ACTOR, Instant.EPOCH)
         fixture.repositories.followingRepository.recordActivity(fixture.accountId, ACTOR, "follow-1")
@@ -198,7 +265,7 @@ class RemoteNoteReceptionTest {
         "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", Instant.EPOCH, to, listOf(), null, null, false, NoteVisibility.Public,
     )
 
-    private class Fixture {
+    private class Fixture(openTelemetry: OpenTelemetry) {
         val repositories = FakeRepositories()
         val accountId = repositories.accountRepository.add("alice", "hash", "type")
         val remote = Remote()
@@ -210,7 +277,7 @@ class RemoteNoteReceptionTest {
             },
         )
         val timeline = HomeTimelineService(repositories.timelineRepository, FakeTimelineStore(mutableListOf()), Clock.systemUTC())
-        val receiver = ReceivedRemoteNotes(repositories.timelineRepository, remote, repositories.remoteActorRepository, directory, timeline, Clock.systemUTC())
+        val receiver = ReceivedRemoteNotes(repositories.timelineRepository, remote, repositories.remoteActorRepository, directory, timeline, Clock.systemUTC(), openTelemetry)
         val delivery = QueuedFollowDelivery(
             AccountService(repositories.accountRepository),
             directory,
@@ -220,6 +287,7 @@ class RemoteNoteReceptionTest {
             repositories.deliveryQueueRepository,
             Clock.systemUTC(),
             {},
+            openTelemetry,
         )
         val following = FollowingService(
             repositories.accountRepository,
@@ -228,6 +296,7 @@ class RemoteNoteReceptionTest {
             TimelineInvalidator {},
             "local.example",
             Clock.systemUTC(),
+            openTelemetry,
         )
     }
 

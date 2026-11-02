@@ -156,13 +156,30 @@ class TimelineRepositoryTest {
         repositories.deliveryQueueRepository.enqueueFollow(account, "$ACTOR/inbox", "follow", NOW)
         assertEquals("follow-1", repositories.followingRepository.followId(account, ACTOR))
         assertEquals("follow", repositories.deliveryQueueRepository.claim(NOW, 10).single().body)
-        repositories.followingRepository.respondToFollow(ACTOR, "old-follow", null)
+        assertEquals(0, repositories.followingRepository.respondToFollow(ACTOR, "old-follow", null))
         assertTrue(repositories.followingRepository.contains(account, ACTOR))
-        repositories.followingRepository.respondToFollow(ACTOR, "follow-1", NOW)
-        repositories.followingRepository.respondToFollow("https://other.example/actor", "follow-1", null)
+        assertEquals(1, repositories.followingRepository.respondToFollow(ACTOR, "follow-1", NOW))
+        assertEquals(0, repositories.followingRepository.respondToFollow(ACTOR, "follow-1", NOW))
+        assertEquals(0, repositories.followingRepository.respondToFollow("https://other.example/actor", "follow-1", null))
         assertTrue(repositories.followingRepository.contains(account, ACTOR))
-        repositories.followingRepository.respondToFollow(ACTOR, "follow-1", null)
+        assertEquals(1, repositories.followingRepository.respondToFollow(ACTOR, "follow-1", null))
         assertEquals(false, repositories.followingRepository.contains(account, ACTOR))
+    }
+
+    @Test
+    fun receptionInterestCountsAllMatchingAccountsAndExistingRecipients() = withRepository { repositories, accounts ->
+        val following = repositories.followingRepository
+        following.add(accounts.getValue("alice"), ACTOR, NOW)
+        following.add(accounts.getValue("bob"), ACTOR, NOW)
+        following.add(accounts.getValue("alice"), "https://other.example/actor", NOW)
+        val interest = repositories.timelineRepository.receptionInterest(ACTOR, setOf("alice", "bob", "unknown"))
+        assertEquals(2L, interest.followingAccountCount)
+        assertEquals(2L, interest.localRecipientCount)
+        assertTrue(interest.shouldReceive)
+        val unrelated = repositories.timelineRepository.receptionInterest("https://unknown.example/actor", setOf("unknown"))
+        assertEquals(0L, unrelated.followingAccountCount)
+        assertEquals(0L, unrelated.localRecipientCount)
+        assertEquals(false, unrelated.shouldReceive)
     }
 
     @Test

@@ -28,7 +28,6 @@ import net.matsudamper.kotpub.actor.ActorIconEndpoint
 import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
-import net.matsudamper.kotpub.follower.FollowingResponses
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
 import net.matsudamper.kotpub.inbox.CreateNoteHandler
 import net.matsudamper.kotpub.inbox.DeleteActorHandler
@@ -109,15 +108,7 @@ internal class Federation(
         deliveryQueueWorker::wakeUp,
     )
 
-    private val followingResponses = object : FollowingResponses {
-        override fun accept(actorId: String, followActivityId: String) {
-            followingRepository.respondToFollow(actorId, followActivityId, Clock.systemUTC().instant())
-        }
-
-        override fun reject(actorId: String, followActivityId: String) {
-            followingRepository.respondToFollow(actorId, followActivityId, null)
-        }
-    }
+    private val followingResponses = RecordedFollowingResponses(followingRepository, Clock.systemUTC(), openTelemetry)
 
     val profileUpdateService: ProfileUpdateService =
         ProfileUpdateService(

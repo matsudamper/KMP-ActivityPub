@@ -4,7 +4,8 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 interface TimelineRepository {
-    fun shouldReceive(actorUri: String, localRecipients: Set<String>): Boolean
+    fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest
+    fun shouldReceive(actorUri: String, localRecipients: Set<String>): Boolean = receptionInterest(actorUri, localRecipients).shouldReceive
     fun receive(note: RemoteNoteInput): TimelinePosition?
     fun hasRemoteNote(objectUri: String): Boolean
     fun deleteRemote(actorUri: String, objectUri: String)
@@ -14,6 +15,10 @@ interface TimelineRepository {
     fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
+}
+
+data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val localRecipientCount: Long) {
+    val shouldReceive: Boolean get() = followingAccountCount > 0 || localRecipientCount > 0
 }
 
 data class TimelinePosition(val score: Long, val member: String)

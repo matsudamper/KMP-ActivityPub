@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -22,9 +23,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     private val remoteMember = DSL.inline("r").concat(REMOTE_NOTES.ID.cast(String::class.java))
     private val localMember = DSL.inline("l").concat(NOTES.ID.cast(String::class.java))
 
-    override fun shouldReceive(actorUri: String, localRecipients: Set<String>): Boolean = jooq.withConnection { dsl ->
-        dsl.fetchExists(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)) ||
-            dsl.fetchExists(ACCOUNTS, ACCOUNTS.USERNAME.`in`(localRecipients))
+    override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest = jooq.withConnection { dsl ->
+        RemoteNoteReceptionInterest(
+            followingAccountCount = dsl.fetchCount(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)).toLong(),
+            localRecipientCount = dsl.fetchCount(ACCOUNTS, ACCOUNTS.USERNAME.`in`(localRecipients)).toLong(),
+        )
     }
 
     override fun receive(note: RemoteNoteInput): TimelinePosition? = jooq.transaction { dsl ->

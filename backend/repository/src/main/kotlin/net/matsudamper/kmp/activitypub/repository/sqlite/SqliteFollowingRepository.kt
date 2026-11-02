@@ -27,7 +27,7 @@ internal class SqliteFollowingRepository(
         }
     }
 
-    override fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?) {
+    override fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?): Int =
         jooq.withConnection { dsl ->
             val matches = ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri).and(ACCOUNT_FOLLOWING.FOLLOW_ACTIVITY_URI.eq(followId))
             if (acceptedAt == null) {
@@ -37,8 +37,6 @@ internal class SqliteFollowingRepository(
                     .where(matches).and(ACCOUNT_FOLLOWING.ACCEPTED_AT.isNull).execute()
             }
         }
-    }
-
     override fun recordActivityAndEnqueueFollow(
         accountId: AccountId,
         actorUri: String,

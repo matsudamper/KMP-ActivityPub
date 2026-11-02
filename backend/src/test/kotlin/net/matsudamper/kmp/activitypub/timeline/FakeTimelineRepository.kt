@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.timeline
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -14,7 +15,8 @@ internal class FakeTimelineRepository : TimelineRepository {
     val received = mutableListOf<RemoteNoteInput>()
 
     var interested = true
-    override fun shouldReceive(actorUri: String, localRecipients: Set<String>): Boolean = interested || localRecipients.isNotEmpty()
+    override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
+        RemoteNoteReceptionInterest(if (interested) 1 else 0, localRecipients.size.toLong())
 
     override fun receive(note: RemoteNoteInput): TimelinePosition? {
         received.add(note)

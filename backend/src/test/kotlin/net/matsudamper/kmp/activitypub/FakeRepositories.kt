@@ -43,7 +43,11 @@ internal class FakeRepositories : Repositories {
             deliveryQueueRepository.enqueueFollow(accountId, inbox, body, now)
             return true
         }
-        override fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?) = Unit
+        override fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?): Int {
+            val matches = entries.filter { it.second == actorUri && activities[it] == followId }
+            if (acceptedAt == null) entries.removeAll(matches.toSet())
+            return matches.size
+        }
         override fun contains(accountId: AccountId, actorUri: String): Boolean = (accountId to actorUri) in entries
         override fun add(accountId: AccountId, actorUri: String, createdAt: Instant): Boolean = entries.add(accountId to actorUri)
         override fun remove(accountId: AccountId, actorUri: String): Boolean = entries.remove(accountId to actorUri)
