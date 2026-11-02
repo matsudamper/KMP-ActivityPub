@@ -61,8 +61,10 @@ internal class AndroidGraphQlClientSource(
                         client = GraphQlClient
                             .builder(
                                 serverUrl = "$serverUrl/graphql",
-                                webSocketServerUrl = "${serverUrl.replaceFirst("https://", "wss://")}/graphql",
-                                webSocketEngine = WebSocketEngine(webSocketClient),
+                                subscriptionNetworkTransport = GraphQlClient.webSocketNetworkTransport(
+                                    serverUrl = "${serverUrl.replaceFirst("https://", "wss://")}/graphql",
+                                    webSocketEngine = WebSocketEngine(webSocketClient),
+                                ),
                             )
                             .okHttpClient(httpClient)
                             .addHttpInterceptor(SessionHttpInterceptor(sessionRepository))

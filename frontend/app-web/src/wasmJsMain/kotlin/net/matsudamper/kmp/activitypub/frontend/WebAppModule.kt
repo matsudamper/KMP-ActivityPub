@@ -33,8 +33,10 @@ private class WebGraphQlClientSource : GraphQlClientSource {
         MutableStateFlow(
             GraphQlClient.builder(
                 serverUrl = "/graphql",
-                webSocketServerUrl = webSocketServerUrl(),
-                webSocketEngine = WebSocketEngine(),
+                subscriptionNetworkTransport = GraphQlClient.webSocketNetworkTransport(
+                    serverUrl = webSocketServerUrl(),
+                    webSocketEngine = WebSocketEngine(),
+                ),
             ).build(),
         )
 
