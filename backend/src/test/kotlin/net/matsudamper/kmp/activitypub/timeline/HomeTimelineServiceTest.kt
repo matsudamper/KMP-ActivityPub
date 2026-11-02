@@ -6,11 +6,60 @@ import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class HomeTimelineServiceTest {
+    @Test
+    fun repeatedReadsDoNotExtendBuiltExpirationAndRebuildAtTwentyFourHours() {
+        val account = AccountId(1)
+        val repository = FakeTimelineRepository()
+        repository.positions.add(TimelinePosition(1, "r1"))
+        val store = FakeTimelineStore(repository.events)
+        val service = HomeTimelineService(repository, store, Clock.systemUTC())
+        service.page(account, null, 10)
+        (1..23).forEach { hour ->
+            store.now = Instant.EPOCH.plusSeconds(hour * 3600L)
+            service.page(account, null, 10)
+        }
+        store.now = Instant.EPOCH.plusSeconds(24 * 3600L - 1)
+        service.page(account, null, 10)
+        assertTrue(store.built(account))
+        assertEquals(1, repository.events.count { it == "rebuild" })
+        store.now = Instant.EPOCH.plusSeconds(24 * 3600L)
+        assertTrue(!store.built(account))
+        service.page(account, null, 10)
+        assertEquals(2, repository.events.count { it == "rebuild" })
+        assertEquals(listOf("lock", "built", "rebuild", "zadd", "unlock", "expire"), repository.events.takeLast(6))
+        assertTrue(store.built(account))
+    }
+
+    @Test
+    fun failedFanoutEnqueueIsRecoveredFromDatabaseAfterBuiltExpiration() {
+        val account = AccountId(1)
+        val repository = FakeTimelineRepository()
+        val existing = TimelinePosition(1, "r1")
+        repository.positions.add(existing)
+        val store = FakeTimelineStore(repository.events)
+        val failingQueueStore = object : TimelineStore by store {
+            override fun enqueue(position: TimelinePosition) {
+                error("XADD 失敗")
+            }
+        }
+        val service = HomeTimelineService(repository, failingQueueStore, Clock.systemUTC())
+        assertEquals(listOf(existing), service.page(account, null, 10).posts.map { it.position })
+        val missed = TimelinePosition(2, "r2")
+        repository.positions.add(missed)
+        service.enqueue(missed)
+        store.now = Instant.EPOCH.plusSeconds(23 * 3600L)
+        assertEquals(listOf(existing), service.page(account, null, 10).posts.map { it.position })
+        store.now = Instant.EPOCH.plusSeconds(24 * 3600L)
+        assertEquals(listOf(missed, existing), service.page(account, null, 10).posts.map { it.position })
+        assertEquals(2, repository.events.count { it == "rebuild" })
+    }
+
     @Test
     fun fanoutIncludesAccountsActiveSevenDaysAndThirtyMinutesAgo() {
         val now = Instant.parse("2026-11-01T12:00:00Z")
@@ -222,13 +271,14 @@ class HomeTimelineServiceTest {
 internal class FakeTimelineStore(private val events: MutableList<String>) : TimelineStore {
     var unavailable = false
     var lockAvailable = true
-    private val built = mutableSetOf<AccountId>()
+    var now: Instant = Instant.EPOCH
+    private val builtUntil = mutableMapOf<AccountId, Instant>()
     private val members = mutableMapOf<AccountId, Map<String, TimelinePosition>>()
     private val positionOrder = compareBy<TimelinePosition> { it.score }.thenBy { it.member }
 
     override fun built(accountId: AccountId): Boolean {
         check(!unavailable)
-        return accountId in built
+        return builtUntil[accountId]?.isAfter(now) == true
     }
 
     override fun lock(accountId: AccountId): Boolean {
@@ -238,14 +288,14 @@ internal class FakeTimelineStore(private val events: MutableList<String>) : Time
 
     override fun markBuilt(accountId: AccountId) {
         events.add("built")
-        built.add(accountId)
+        builtUntil[accountId] = now.plusSeconds(TimelineCachePolicy.BUILT_TTL_SECONDS)
     }
 
     override fun unlock(accountId: AccountId) {
         events.add("unlock")
     }
     override fun invalidate(accountId: AccountId) {
-        built.remove(accountId)
+        builtUntil.remove(accountId)
         members.remove(accountId)
     }
     override fun expire(accountId: AccountId) {

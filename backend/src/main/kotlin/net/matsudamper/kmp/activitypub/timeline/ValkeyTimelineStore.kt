@@ -34,7 +34,7 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         connection.sync().set("${key(accountId)}:lock", "1", SetArgs.Builder.nx().px(10000)) == "OK"
 
     override fun markBuilt(accountId: AccountId) {
-        connection.sync().set("${key(accountId)}:built", "1", SetArgs.Builder.ex(TimelineCachePolicy.CACHE_TTL_SECONDS))
+        connection.sync().set("${key(accountId)}:built", "1", SetArgs.Builder.ex(TimelineCachePolicy.BUILT_TTL_SECONDS))
     }
 
     override fun unlock(accountId: AccountId) {
@@ -47,7 +47,6 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
 
     override fun expire(accountId: AccountId) {
         connection.sync().expire(key(accountId), TimelineCachePolicy.CACHE_TTL_SECONDS)
-        connection.sync().expire("${key(accountId)}:built", TimelineCachePolicy.CACHE_TTL_SECONDS)
     }
 
     override fun distribute(accountIds: List<AccountId>, position: TimelinePosition) {
