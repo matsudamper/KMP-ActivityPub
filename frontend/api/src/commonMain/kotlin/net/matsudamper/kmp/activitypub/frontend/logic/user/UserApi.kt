@@ -6,6 +6,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
+import com.apollographql.cache.normalized.watch
 import com.apollographql.cache.normalized.apolloStore
 import com.apollographql.cache.normalized.api.CacheKey
 import com.apollographql.apollo.api.ApolloResponse
@@ -64,6 +67,40 @@ class UserApi(
         )
         followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
         return null
+    }
+
+    fun watchFollowingUsers(): Flow<UserFollowListResult> = flow {
+        val client = clients.awaitLoadedClient()
+        if (client == null) {
+            emit(UserFollowListResult.Failure("接続先が未設定"))
+            return@flow
+        }
+        emitAll(
+            client.query(FollowingUsersQuery(after = Optional.Absent)).watch().map { response ->
+                if (response.exception != null || response.hasErrors()) {
+                    UserFollowListResult.Failure(response.failureMessage())
+                } else {
+                    response.data?.followingUsers?.actorListFields?.toUserFollowListResult() ?: UserFollowListResult.NotLoggedIn
+                }
+            },
+        )
+    }
+
+    fun watchFollowerUsers(): Flow<UserFollowListResult> = flow {
+        val client = clients.awaitLoadedClient()
+        if (client == null) {
+            emit(UserFollowListResult.Failure("接続先が未設定"))
+            return@flow
+        }
+        emitAll(
+            client.query(FollowerUsersQuery(after = Optional.Absent)).watch().map { response ->
+                if (response.exception != null || response.hasErrors()) {
+                    UserFollowListResult.Failure(response.failureMessage())
+                } else {
+                    response.data?.followerUsers?.actorListFields?.toUserFollowListResult() ?: UserFollowListResult.NotLoggedIn
+                }
+            },
+        )
     }
 
     suspend fun followingUsers(after: String?): UserFollowListResult {
@@ -150,6 +187,41 @@ class UserApi(
             following = user.following,
             biography = profile.biography,
             posts = profile.posts.map { UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt) },
+        )
+    }
+
+    fun watchSearchUsers(query: String): Flow<UserSearchResult> = flow {
+        val client = clients.awaitLoadedClient()
+        if (client == null) {
+            emit(UserSearchResult.Failure("接続先が未設定"))
+            return@flow
+        }
+        emitAll(
+            client.query(HomeScreenSearchUsersQuery(query = query, after = Optional.Absent)).watch().map { response ->
+                if (response.exception != null || response.hasErrors()) {
+                    UserSearchResult.Failure(response.failureMessage())
+                } else {
+                    val result = response.data?.searchUsers
+                    if (result == null) {
+                        UserSearchResult.Failure(response.failureMessage())
+                    } else {
+                        UserSearchResult.Success(
+                            users = result.users.map {
+                                UserSearchResult.User(
+                                    actorUri = it.actorUri,
+                                    following = it.following,
+                                    username = it.username,
+                                    host = it.host,
+                                    isLocal = it.isLocal,
+                                    displayName = it.displayName,
+                                    iconUrl = it.iconUrl,
+                                )
+                            },
+                            nextCursor = result.nextCursor,
+                        )
+                    }
+                }
+            },
         )
     }
 

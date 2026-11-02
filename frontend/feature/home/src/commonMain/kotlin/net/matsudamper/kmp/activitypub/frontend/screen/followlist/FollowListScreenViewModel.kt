@@ -23,6 +23,7 @@ internal class FollowListScreenViewModel(
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Loading)
     private var loadJob: Job? = null
+    private var loadMoreJob: Job? = null
     private var followingChangeInProgress = false
 
     private val listener = object : FollowListScreenUiState.Listener {
@@ -58,44 +59,73 @@ internal class FollowListScreenViewModel(
                 mutableUiStateFlow.value = createUiState(viewModelState)
             }
         }
+        viewModelScope.launch {
+            userApi.followingChanges.collect { change ->
+                viewModelStateFlow.update { current ->
+                    if (current is ViewModelState.Loaded) {
+                        current.copy(
+                            users = current.users.map {
+                                if (it.actorUri == change.actorUri) it.copy(following = change.following) else it
+                            },
+                        )
+                    } else {
+                        current
+                    }
+                }
+            }
+        }
         load()
     }
 
     private fun load() {
         loadJob?.cancel()
+        loadMoreJob?.cancel()
         viewModelStateFlow.value = ViewModelState.Loading
         loadJob = viewModelScope.launch {
-            when (val result = fetch(after = null)) {
-                is UserFollowListResult.Success -> {
-                    viewModelStateFlow.value = ViewModelState.Loaded(
-                        users = result.users,
-                        nextCursor = result.nextCursor,
-                        loadMoreErrorMessage = null,
-                    )
-                }
+            val results = when (kind) {
+                FollowListKind.Following -> userApi.watchFollowingUsers()
+                FollowListKind.Followers -> userApi.watchFollowerUsers()
+            }
+            results.collect { result ->
+                when (result) {
+                    is UserFollowListResult.Success -> {
+                        viewModelStateFlow.update { current ->
+                            val loaded = current as? ViewModelState.Loaded
+                            ViewModelState.Loaded(
+                                users = result.users + (loaded?.users?.drop(loaded.firstPageSize) ?: listOf()),
+                                firstPageSize = result.users.size,
+                                nextCursor = loaded?.nextCursor ?: result.nextCursor,
+                                loadMoreErrorMessage = loaded?.loadMoreErrorMessage,
+                            )
+                        }
+                    }
 
-                UserFollowListResult.NotLoggedIn -> {
-                    viewModelStateFlow.value = ViewModelState.Failed(NOT_LOGGED_IN_MESSAGE)
-                }
+                    UserFollowListResult.NotLoggedIn -> {
+                        viewModelStateFlow.value = ViewModelState.Failed(NOT_LOGGED_IN_MESSAGE)
+                    }
 
-                is UserFollowListResult.Failure -> {
-                    viewModelStateFlow.value = ViewModelState.Failed(result.message)
+                    is UserFollowListResult.Failure -> {
+                        viewModelStateFlow.value = ViewModelState.Failed(result.message)
+                    }
                 }
             }
         }
     }
 
     private fun loadMore() {
-        if (loadJob?.isActive == true) return
+        if (loadMoreJob?.isActive == true) return
         val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
         val nextCursor = loaded.nextCursor ?: return
         viewModelStateFlow.value = loaded.copy(loadMoreErrorMessage = null)
-        loadJob = viewModelScope.launch {
+        loadMoreJob = viewModelScope.launch {
             val result = fetch(after = nextCursor)
             viewModelStateFlow.update { current ->
                 if (current !is ViewModelState.Loaded) return@update current
                 when (result) {
-                    is UserFollowListResult.Success -> current.copy(users = current.users + result.users, nextCursor = result.nextCursor)
+                    is UserFollowListResult.Success -> current.copy(
+                        users = current.users + result.users,
+                        nextCursor = result.nextCursor,
+                    )
                     UserFollowListResult.NotLoggedIn -> current.copy(loadMoreErrorMessage = NOT_LOGGED_IN_MESSAGE)
                     is UserFollowListResult.Failure -> current.copy(loadMoreErrorMessage = result.message)
                 }
@@ -218,6 +248,7 @@ internal class FollowListScreenViewModel(
          */
         data class Loaded(
             val users: List<UserFollowListResult.User>,
+            val firstPageSize: Int,
             val nextCursor: String?,
             val loadMoreErrorMessage: String?,
         ) : ViewModelState
