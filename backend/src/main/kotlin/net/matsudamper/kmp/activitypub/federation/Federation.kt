@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
@@ -163,6 +164,13 @@ internal class Federation(
             origin = "https://$domain",
             signingKey = remoteIconProxySigningKey,
             fetcher = HttpRemoteIconFetcher(httpClient),
+        )
+
+    val linkPreviewService: LinkPreviewService =
+        LinkPreviewService(
+            fetcher = HttpLinkPreviewPageFetcher(httpClient),
+            imageProxyUrlOf = remoteIconProxy::proxyUrlOf,
+            clock = Clock.systemUTC(),
         )
 
     val followerEndpoint: FollowerEndpoint = FollowerEndpoint(directory = directory, followers = followers)
