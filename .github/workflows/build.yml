@@ -219,5 +219,6 @@ jobs:
           git show "FETCH_HEAD:${SCHEMA_PATH}" > "$RUNNER_TEMP/base-schema.sql"
           sqlite3def --file "$RUNNER_TEMP/base-schema.sql" "$RUNNER_TEMP/migration.db"
 
+      # 既定では DROP がスキップされて成功扱いになり、列の削除などが確かめられない
       - name: この PR のスキーマを適用
-        run: sqlite3def --file "$SCHEMA_PATH" "$RUNNER_TEMP/migration.db"
+        run: sqlite3def --enable-drop --file "$SCHEMA_PATH" "$RUNNER_TEMP/migration.db"
