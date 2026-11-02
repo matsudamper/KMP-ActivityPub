@@ -104,11 +104,8 @@ internal class UserProfileScreenViewModel(
         return UserProfileScreenUiState(
             content = when (viewModelState) {
                 ViewModelState.Loading -> UserProfileScreenUiState.Content.Loading
-
                 is ViewModelState.Loaded -> createLoadedContent(viewModelState)
-
                 ViewModelState.NotFound -> UserProfileScreenUiState.Content.NotFound
-
                 is ViewModelState.Failed -> UserProfileScreenUiState.Content.Error(viewModelState.message)
             },
             listener = listener,
