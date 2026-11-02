@@ -160,18 +160,9 @@ internal class Federation(
             if (iconVersion == null) null else directory.resolve(username)?.icon(iconVersion)
         }
 
-    val remoteIconProxy: RemoteImageProxy =
+    val remoteImageProxy: RemoteImageProxy =
         RemoteImageProxy(
             origin = "https://$domain",
-            pathPrefix = RemoteImageProxy.ICON_PATH_PREFIX,
-            signingKey = remoteIconProxySigningKey,
-            fetcher = PublicAddressRemoteImageFetcher(publicAddressHttpClient),
-        )
-
-    val linkPreviewImageProxy: RemoteImageProxy =
-        RemoteImageProxy(
-            origin = "https://$domain",
-            pathPrefix = RemoteImageProxy.LINK_PREVIEW_IMAGE_PATH_PREFIX,
             signingKey = remoteIconProxySigningKey,
             fetcher = PublicAddressRemoteImageFetcher(publicAddressHttpClient),
         )
@@ -179,7 +170,7 @@ internal class Federation(
     val linkPreviewService: LinkPreviewService =
         LinkPreviewService(
             fetcher = HttpLinkPreviewPageFetcher(publicAddressHttpClient),
-            imageProxyUrlOf = linkPreviewImageProxy::proxyUrlOf,
+            imageProxyUrlOf = remoteImageProxy::proxyUrlOf,
             clock = Clock.systemUTC(),
         )
 

@@ -14,11 +14,9 @@ import javax.crypto.spec.SecretKeySpec
  * このサーバーが発行した URL だけを中継する。誰の指定でも取りに行くと、このサーバーを踏み台にされる
  *
  * @param origin `https://example.com` の形。末尾に / を付けない
- * @param pathPrefix 何の画像かを URL で分ける。[ICON_PATH_PREFIX] など
  */
 class RemoteImageProxy(
     private val origin: String,
-    val pathPrefix: String,
     private val signingKey: ByteArray,
     private val fetcher: RemoteImageFetcher,
 ) {
@@ -32,7 +30,7 @@ class RemoteImageProxy(
         if (scheme != "http" && scheme != "https") return null
         val encodedUrl = base64Url.encodeToString(remoteUrl.encodeToByteArray())
         val version = if (updatedAt == null) "" else "?v=${base64Url.encodeToString(updatedAt.toString().encodeToByteArray())}"
-        return "$origin$pathPrefix/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
+        return "$origin$PATH_PREFIX/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
     }
 
     suspend fun fetch(
@@ -57,9 +55,7 @@ class RemoteImageProxy(
     }
 
     companion object {
-        const val ICON_PATH_PREFIX: String = "/proxy/icon"
-
-        const val LINK_PREVIEW_IMAGE_PATH_PREFIX: String = "/proxy/link-preview-image"
+        const val PATH_PREFIX: String = "/proxy/image"
 
         /**
          * Cloudflare は拡張子でキャッシュするかを決める。.bin は既定でキャッシュする拡張子に入っていて、画像の形式を名乗らずに済む

@@ -52,8 +52,7 @@ internal fun Route.federationRoutes(federation: Federation) {
         }
     }
 
-    remoteImageProxyRoutes(federation.remoteIconProxy)
-    remoteImageProxyRoutes(federation.linkPreviewImageProxy)
+    remoteImageProxyRoutes(federation.remoteImageProxy)
 
     get("/users/{username}/followers") {
         val response =

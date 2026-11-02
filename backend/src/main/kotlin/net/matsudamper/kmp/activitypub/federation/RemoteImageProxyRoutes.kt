@@ -14,7 +14,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxyResult
  * Cloudflare に edge でキャッシュさせる。Set-Cookie や Vary を付けるとキャッシュされなくなるので付けない
  */
 internal fun Route.remoteImageProxyRoutes(proxy: RemoteImageProxy) {
-    get("${proxy.pathPrefix}/{encodedUrl}/{signature}${RemoteImageProxy.PATH_SUFFIX}") {
+    get("${RemoteImageProxy.PATH_PREFIX}/{encodedUrl}/{signature}${RemoteImageProxy.PATH_SUFFIX}") {
         val result =
             proxy.fetch(
                 encodedUrl = call.parameters["encodedUrl"].orEmpty(),

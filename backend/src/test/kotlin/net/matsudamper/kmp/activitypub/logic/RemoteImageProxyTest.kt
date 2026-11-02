@@ -33,7 +33,7 @@ class RemoteImageProxyTest {
     fun `中継 URL はこのサーバーの origin で、拡張子は bin`() {
         val proxyUrl = checkNotNull(proxy.proxyUrlOf(REMOTE_URL))
 
-        assertEquals(true, proxyUrl.startsWith("https://example.com/proxy/icon/"))
+        assertEquals(true, proxyUrl.startsWith("https://example.com/proxy/image/"))
         assertEquals(true, proxyUrl.endsWith(".bin"))
         assertEquals(proxyUrl, proxy.proxyUrlOf(REMOTE_URL))
     }
@@ -100,7 +100,6 @@ class RemoteImageProxyTest {
     private fun createProxy(signingKey: ByteArray): RemoteImageProxy =
         RemoteImageProxy(
             origin = "https://example.com",
-            pathPrefix = RemoteImageProxy.ICON_PATH_PREFIX,
             signingKey = signingKey,
             fetcher = { url, _ ->
                 fetchedUrls += url

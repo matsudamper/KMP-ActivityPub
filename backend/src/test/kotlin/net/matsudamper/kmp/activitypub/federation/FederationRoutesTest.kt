@@ -150,7 +150,7 @@ class FederationRoutesTest {
         testApplication {
             setUp()
 
-            val response = client.get("/proxy/icon/aHR0cHM6Ly9yZW1vdGUuZXhhbXBsZS9pY29uLnBuZw/invalid.bin")
+            val response = client.get("/proxy/image/aHR0cHM6Ly9yZW1vdGUuZXhhbXBsZS9pY29uLnBuZw/invalid.bin")
 
             assertEquals(HttpStatusCode.NotFound, response.status)
             assertEquals("no-store", response.headers[HttpHeaders.CacheControl])

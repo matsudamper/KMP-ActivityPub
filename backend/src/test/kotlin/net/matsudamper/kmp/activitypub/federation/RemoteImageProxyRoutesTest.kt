@@ -23,7 +23,6 @@ class RemoteImageProxyRoutesTest {
             val proxy =
                 RemoteImageProxy(
                     origin = "http://localhost",
-                    pathPrefix = RemoteImageProxy.ICON_PATH_PREFIX,
                     signingKey = "test-key".encodeToByteArray(),
                     fetcher = { url, _ ->
                         assertEquals(remoteUrl, url)
@@ -47,7 +46,7 @@ class RemoteImageProxyRoutesTest {
                 assertEquals("nosniff", response.headers["X-Content-Type-Options"])
                 assertContentEquals(bytes, response.bodyAsBytes())
             }
-            val invalid = client.get("/proxy/icon/invalid/invalid.bin?v=version")
+            val invalid = client.get("/proxy/image/invalid/invalid.bin?v=version")
             assertEquals(HttpStatusCode.NotFound, invalid.status)
             assertEquals("no-store", invalid.headers[HttpHeaders.CacheControl])
         }

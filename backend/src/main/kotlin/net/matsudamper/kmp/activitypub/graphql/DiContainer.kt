@@ -43,7 +43,7 @@ class DiContainer(
     /**
      * DOMAIN が無いと中継 URL を作れないので null
      */
-    val remoteIconProxy: RemoteImageProxy?,
+    val remoteImageProxy: RemoteImageProxy?,
     /**
      * DOMAIN が無いと OGP 画像の中継 URL を作れないので null
      */
