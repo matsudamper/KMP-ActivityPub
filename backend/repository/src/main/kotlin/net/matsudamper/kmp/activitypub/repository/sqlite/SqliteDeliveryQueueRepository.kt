@@ -23,11 +23,12 @@ internal class SqliteDeliveryQueueRepository(
         jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_FOLLOW) }
     }
 
-    override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant) {
+    override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) {
         jooq.transaction { dsl ->
             val matchingFollow = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
                 .and(DELIVERY_QUEUE.INBOX.eq(inbox))
                 .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_FOLLOW))
+                .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(followId))
             val removed = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingFollow)
                 .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING)).execute()
             val delivering = dsl.fetchExists(

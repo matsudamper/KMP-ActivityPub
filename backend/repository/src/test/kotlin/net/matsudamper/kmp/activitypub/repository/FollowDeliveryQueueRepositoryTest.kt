@@ -10,35 +10,63 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 class FollowDeliveryQueueRepositoryTest {
     @Test
     fun unfollowCancelsRetryingFollowWithoutEnqueuingUndo() = withQueue { queue, alice, bob ->
-        queue.enqueueFollow(alice, INBOX, "follow", NOW)
+        queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
         val follow = queue.claim(NOW, 10).single()
         queue.scheduleRetry(follow.id, NOW.plusSeconds(3600), "接続失敗")
-        queue.enqueueFollow(bob, INBOX, "other-account", NOW)
-        queue.enqueueFollow(alice, "$INBOX/other", "other-inbox", NOW)
-        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "undo", NOW)
-        assertEquals(listOf("other-account", "other-inbox"), queue.claim(NOW.plusSeconds(7200), 10).map { it.body })
+        queue.enqueueFollow(bob, INBOX, followBody("other-account"), NOW)
+        queue.enqueueFollow(alice, "$INBOX/other", followBody("other-inbox"), NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "follow", "undo", NOW)
+        assertEquals(listOf("other-account", "other-inbox").map(::followBody), queue.claim(NOW.plusSeconds(7200), 10).map { it.body })
         assertTrue(queue.claim(NOW.plusSeconds(10800), 10).isEmpty())
     }
 
     @Test
     fun unfollowEnqueuesUndoAfterFollowWasDelivered() = withQueue { queue, alice, _ ->
-        queue.enqueueFollow(alice, INBOX, "follow", NOW)
+        queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
         queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
-        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "undo", NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "follow", "undo", NOW)
         assertEquals(listOf("undo"), queue.claim(NOW, 10).map { it.body })
     }
 
     @Test
     fun unfollowKeepsDeliveringFollowAndEnqueuesUndoEvenWhenPendingFollowIsRemoved() = withQueue { queue, alice, _ ->
-        queue.enqueueFollow(alice, INBOX, "delivering-follow", NOW)
+        queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
         val delivering = queue.claim(NOW, 10).single()
-        queue.enqueueFollow(alice, INBOX, "pending-follow", NOW)
-        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "undo", NOW)
+        queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "follow", "undo", NOW)
         assertEquals(listOf("undo"), queue.claim(NOW, 10).map { it.body })
         assertEquals(2, queue.recoverDelivering(NOW))
-        assertEquals(listOf("delivering-follow", "undo"), queue.claim(NOW, 10).map { it.body })
+        assertEquals(listOf(followBody("follow"), "undo"), queue.claim(NOW, 10).map { it.body })
         queue.markDelivered(delivering.id, NOW)
     }
+
+    @Test
+    fun sameInboxFollowForAnotherActorDoesNotCancelOrSuppressUndo() = withQueue { queue, alice, _ ->
+        queue.enqueueFollow(alice, INBOX, followBody("actor-a"), NOW)
+        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        queue.enqueueFollow(alice, INBOX, followBody("actor-b"), NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "actor-a", "undo-a", NOW)
+        assertEquals(listOf(followBody("actor-b"), "undo-a"), queue.claim(NOW, 10).map { it.body })
+    }
+
+    @Test
+    fun sameInboxPendingFollowCancellationPreservesOtherActorsFollow() = withQueue { queue, alice, _ ->
+        queue.enqueueFollow(alice, INBOX, followBody("actor-a"), NOW)
+        queue.enqueueFollow(alice, INBOX, followBody("actor-b"), NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "actor-a", "undo-a", NOW)
+        assertEquals(listOf(followBody("actor-b")), queue.claim(NOW, 10).map { it.body })
+    }
+
+    @Test
+    fun otherActorsDeliveringFollowDoesNotCauseUnnecessaryUndo() = withQueue { queue, alice, _ ->
+        queue.enqueueFollow(alice, INBOX, followBody("actor-b"), NOW)
+        queue.claim(NOW, 10)
+        queue.enqueueFollow(alice, INBOX, followBody("actor-a"), NOW)
+        queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "actor-a", "undo-a", NOW)
+        assertTrue(queue.claim(NOW, 10).isEmpty())
+    }
+
+    private fun followBody(id: String): String = """{"id":"$id","type":"Follow"}"""
 
     private fun withQueue(block: (DeliveryQueueRepository, AccountId, AccountId) -> Unit) {
         val directory = createTempDirectory("follow-delivery-test")

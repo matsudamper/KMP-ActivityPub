@@ -12,7 +12,7 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
  */
 interface DeliveryQueueRepository {
     fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant)
-    fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, body: String, now: Instant)
+    fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant)
 
     /**
      * 投稿を記録して、宛先ごとに Create を積む。
