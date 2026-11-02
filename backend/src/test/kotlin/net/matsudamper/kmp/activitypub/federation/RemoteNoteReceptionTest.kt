@@ -7,12 +7,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.TimelinePosition
+import net.matsudamper.kmp.activitypub.repository.TimelineRepository
+import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kmp.activitypub.timeline.FakeTimelineStore
 import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.TimelineSpan
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.RemoteActor
 import net.matsudamper.kotpub.actor.RemoteActorProfile
@@ -23,6 +32,48 @@ import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
 
 class RemoteNoteReceptionTest {
+    @Test
+    fun createSpanKeepsRequestParentAndRecordsSavedAndDiscardReasons() = runBlocking {
+        val exporter = InMemorySpanExporter.create()
+        val provider = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()
+        OpenTelemetrySdk.builder().setTracerProvider(provider).build().use { telemetry ->
+            val fixture = Fixture()
+            val stored = fixture.repositories.timelineRepository
+            val repository = object : TimelineRepository by stored {
+                override fun receive(note: RemoteNoteInput): TimelinePosition? =
+                    if (stored.hasRemoteNote(note.objectUri)) null else stored.receive(note)
+            }
+            val receiver = ReceivedRemoteNotes(
+                repository,
+                fixture.remote,
+                fixture.repositories.remoteActorRepository,
+                fixture.directory,
+                fixture.timeline,
+                Clock.systemUTC(),
+                telemetry,
+            )
+            val request = telemetry.getTracer("test").spanBuilder("inbox request").startSpan()
+            request.makeCurrent().use {
+                withOpenTelemetryContext {
+                    stored.interested = false
+                    receiver.save(note(listOf()))
+                    stored.interested = true
+                    receiver.save(note(listOf()))
+                    receiver.save(note(listOf()))
+                }
+            }
+            request.end()
+            val creates = exporter.finishedSpanItems.filter { it.name == "Inbox.Create" }
+            assertEquals(3, creates.size)
+            creates.forEach { assertEquals(request.spanContext.spanId, it.parentSpanId) }
+            assertEquals(listOf(false, true, false), creates.map { it.attributes.get(InboxSpan.SAVED) })
+            assertEquals("not_followed_and_not_addressed", creates[0].attributes.get(InboxSpan.DISCARD_REASON))
+            assertEquals("saved", creates[1].attributes.get(InboxSpan.OUTCOME))
+            assertEquals("r1", creates[1].attributes.get(TimelineSpan.MEMBER))
+            assertEquals("duplicate", creates[2].attributes.get(InboxSpan.DISCARD_REASON))
+        }
+    }
+
     @Test
     fun unfollowWhileResolvingActorPreventsFollowEnqueue() = runBlocking {
         val fixture = Fixture()

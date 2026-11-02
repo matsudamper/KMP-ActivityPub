@@ -67,6 +67,10 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    override fun hasRemoteNote(objectUri: String): Boolean = jooq.withConnection { dsl ->
+        dsl.fetchExists(REMOTE_NOTES, REMOTE_NOTES.OBJECT_URI.eq(objectUri))
+    }
+
     override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = jooq.withConnection { dsl ->
         val id = member.drop(1).toLong()
         if (member.startsWith("l")) {

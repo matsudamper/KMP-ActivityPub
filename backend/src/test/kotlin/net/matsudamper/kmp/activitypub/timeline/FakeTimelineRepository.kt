@@ -21,6 +21,7 @@ internal class FakeTimelineRepository : TimelineRepository {
         return TimelinePosition(1, "r1")
     }
     override fun deleteRemote(actorUri: String, objectUri: String) = Unit
+    override fun hasRemoteNote(objectUri: String): Boolean = received.any { it.objectUri == objectUri }
     override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = listOf()
     override fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long) = Unit
     override fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition> {

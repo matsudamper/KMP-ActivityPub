@@ -55,6 +55,7 @@ class TimelineRepositoryTest {
         assertNull(repository.receive(note("1", "public", setOf())))
         repositories.followingRepository.add(accounts.getValue("alice"), ACTOR, NOW)
         val saved = assertNotNull(repository.receive(note("1", "public", setOf())))
+        assertTrue(repository.hasRemoteNote("$ACTOR/notes/1"))
         assertNull(repository.receive(note("1", "public", setOf())))
         assertEquals(listOf(saved), repository.page(accounts.getValue("alice"), null, 10))
         assertTrue(repository.page(accounts.getValue("bob"), null, 10).isEmpty())
@@ -62,6 +63,7 @@ class TimelineRepositoryTest {
         repository.deleteRemote("https://other.example/actor", "$ACTOR/notes/1")
         assertEquals(1, repository.page(accounts.getValue("alice"), null, 10).size)
         repository.deleteRemote(ACTOR, "$ACTOR/notes/1")
+        assertEquals(false, repository.hasRemoteNote("$ACTOR/notes/1"))
         assertTrue(repository.hydrate(accounts.getValue("alice"), listOf(saved.member)).isEmpty())
     }
 

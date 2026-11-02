@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 interface TimelineRepository {
     fun shouldReceive(actorUri: String, localRecipients: Set<String>): Boolean
     fun receive(note: RemoteNoteInput): TimelinePosition?
+    fun hasRemoteNote(objectUri: String): Boolean
     fun deleteRemote(actorUri: String, objectUri: String)
     fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId>
     fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long)
