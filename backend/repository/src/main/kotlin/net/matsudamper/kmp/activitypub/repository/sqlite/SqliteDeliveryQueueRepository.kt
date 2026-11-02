@@ -29,13 +29,14 @@ internal class SqliteDeliveryQueueRepository(
                 .and(DELIVERY_QUEUE.INBOX.eq(inbox))
                 .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_FOLLOW))
                 .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(followId))
-            val removed = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingFollow)
-                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING)).execute()
+            val removedAttempts = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingFollow)
+                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+                .returning(DELIVERY_QUEUE.ATTEMPTS).fetch(DELIVERY_QUEUE.ATTEMPTS)
             val delivering = dsl.fetchExists(
                 DELIVERY_QUEUE,
                 matchingFollow.and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING)),
             )
-            if (removed == 0 || delivering) {
+            if (removedAttempts.isEmpty() || removedAttempts.any { it != 0L } || delivering) {
                 enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_UNDO_FOLLOW)
             }
         }

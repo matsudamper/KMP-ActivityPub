@@ -9,14 +9,14 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class FollowDeliveryQueueRepositoryTest {
     @Test
-    fun unfollowCancelsRetryingFollowWithoutEnqueuingUndo() = withQueue { queue, alice, bob ->
+    fun unfollowCancelsRetryingFollowAndEnqueuesUndoBecauseItMayHaveArrived() = withQueue { queue, alice, bob ->
         queue.enqueueFollow(alice, INBOX, followBody("follow"), NOW)
         val follow = queue.claim(NOW, 10).single()
         queue.scheduleRetry(follow.id, NOW.plusSeconds(3600), "接続失敗")
         queue.enqueueFollow(bob, INBOX, followBody("other-account"), NOW)
         queue.enqueueFollow(alice, "$INBOX/other", followBody("other-inbox"), NOW)
         queue.cancelPendingFollowAndEnqueueUndo(alice, INBOX, "follow", "undo", NOW)
-        assertEquals(listOf("other-account", "other-inbox").map(::followBody), queue.claim(NOW.plusSeconds(7200), 10).map { it.body })
+        assertEquals(listOf(followBody("other-account"), followBody("other-inbox"), "undo"), queue.claim(NOW.plusSeconds(7200), 10).map { it.body })
         assertTrue(queue.claim(NOW.plusSeconds(10800), 10).isEmpty())
     }
 
