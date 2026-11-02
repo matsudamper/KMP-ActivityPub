@@ -1,0 +1,17 @@
+query HomeTimeline($cursor: String, $limit: Int!) {
+    userInfo {
+        homeTimeline(cursor: $cursor, limit: $limit) {
+            posts {
+                id
+                content
+                publishedAt
+                username
+                host
+                displayName
+                summary
+                sensitive
+            }
+            nextCursor
+        }
+    }
+}

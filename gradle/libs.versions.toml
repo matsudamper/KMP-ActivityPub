@@ -12,7 +12,7 @@ androidxLifecycle = "2.11.0"
 kotlinxBrowser = "0.5.0"
 ktor = "3.6.0"
 coil = "3.6.3"
-kotpub = "1.4.1"
+kotpub = "1.5.0"
 jsoup = "1.21.2"
 graphqlJava = "26.1"
 graphqlKickstartTools = "14.0.1"
@@ -111,6 +111,7 @@ opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref
 opentelemetry-extension-kotlin = { module = "io.opentelemetry:opentelemetry-extension-kotlin", version.ref = "opentelemetry" }
 opentelemetry-api-incubator = { module = "io.opentelemetry:opentelemetry-api-incubator", version.ref = "opentelemetryApiIncubator" }
 opentelemetry-sdk = { module = "io.opentelemetry:opentelemetry-sdk", version.ref = "opentelemetry" }
+opentelemetry-sdk-testing = { module = "io.opentelemetry:opentelemetry-sdk-testing", version.ref = "opentelemetry" }
 opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp", version.ref = "opentelemetry" }
 opentelemetry-sdk-autoconfigure = { module = "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", version.ref = "opentelemetry" }
 opentelemetry-ktor3 = { module = "io.opentelemetry.instrumentation:opentelemetry-ktor-3.0", version.ref = "opentelemetryInstrumentation" }

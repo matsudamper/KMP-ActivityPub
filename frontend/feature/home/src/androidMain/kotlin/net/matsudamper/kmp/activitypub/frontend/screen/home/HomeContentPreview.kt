@@ -13,7 +13,18 @@ import coil3.compose.LocalAsyncImagePreviewHandler
 
 @Preview
 @Composable
-private fun HomeContentPreview() {
+private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None)
+
+@Preview
+@Composable
+private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading)
+
+@Preview
+@Composable
+private fun HomeContentPreviewError() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Error("続きを読み込めませんでした"))
+
+@Composable
+private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
     HomePreviewTheme {
         HomeContent(
             uiState = HomeScreenUiState(
@@ -33,6 +44,7 @@ private fun HomeContentPreview() {
                     ),
                 ),
                 timelineRefreshing = false,
+                timelineFooter = footer,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -55,6 +67,7 @@ private fun HomeSearchContentPreview() {
                 selectedTab = HomeScreenUiState.Tab.Search,
                 timelineItems = listOf(),
                 timelineRefreshing = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -108,6 +121,7 @@ private fun HomeSearchEmptyContentPreview() {
                 selectedTab = HomeScreenUiState.Tab.Search,
                 timelineItems = listOf(),
                 timelineRefreshing = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -133,6 +147,7 @@ private fun HomeUserContentPreview() {
                 selectedTab = HomeScreenUiState.Tab.User,
                 timelineItems = listOf(),
                 timelineRefreshing = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -173,6 +188,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 
     override fun onRefreshTimeline() = Unit
+    override fun onScrolledToTimelineEnd() = Unit
+    override fun onClickRetryTimelineLoadMore() = Unit
 
     override fun onSearchQueryChanged(query: String) = Unit
 

@@ -3,10 +3,10 @@ package net.matsudamper.kmp.activitypub.federation
 import java.net.InetAddress
 import java.net.Proxy
 import java.time.Duration
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kotpub.http.ActivityPubClientResponse
 import net.matsudamper.kotpub.http.ActivityPubHttpClient
 import net.matsudamper.kotpub.http.ActivityPubPostResponse
@@ -84,7 +84,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         client: OkHttpClient,
         request: Request,
         block: (okhttp3.Response) -> T,
-    ): T = withContext(Dispatchers.IO) {
+    ): T = withOpenTelemetryContext {
         runInterruptible {
             client.newCall(request).execute().use(block)
         }

@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.FakeDeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.FakeFollowerRepository
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.federation.RepositoryNoteStore
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.StoredActorNames
 import net.matsudamper.kotpub.note.NotePublisher
@@ -18,6 +19,7 @@ class NotePostServiceTest {
     private val noteRepository = FakeNoteRepository()
     private val deliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
     private var enqueuedCount = 0
+    private val timelinePosts = mutableListOf<PublicNoteId>()
 
     private val service =
         NotePostService(
@@ -26,6 +28,7 @@ class NotePostServiceTest {
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
             onEnqueued = { enqueuedCount++ },
+            onPosted = { timelinePosts.add(it) },
         )
 
     @Test
@@ -43,6 +46,7 @@ class NotePostServiceTest {
         assertEquals(listOf(INBOX_A, INBOX_B), post.inboxes)
         assertTrue(post.body.contains("\"Create\""))
         assertEquals(1, enqueuedCount)
+        assertEquals(1, timelinePosts.size)
     }
 
     @Test
@@ -77,6 +81,7 @@ class NotePostServiceTest {
         assertEquals(first, resent)
         assertEquals(1, deliveryQueueRepository.posts.size)
         assertEquals(1, enqueuedCount)
+        assertEquals(1, timelinePosts.size)
     }
 
     private object OnlyUser1 : StoredActorNames {

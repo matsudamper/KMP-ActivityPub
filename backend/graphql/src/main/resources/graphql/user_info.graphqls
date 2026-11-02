@@ -1,5 +1,6 @@
 scalar UserId
 
 type UserInfo {
+    homeTimeline(cursor: String, limit: Int!): HomeTimeline @lazy
     id: UserId!
 }

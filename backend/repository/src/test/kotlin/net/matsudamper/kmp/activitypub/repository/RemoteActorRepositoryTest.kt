@@ -16,6 +16,28 @@ class RemoteActorRepositoryTest {
     private val dbPath: Path = tempDir.resolve("test.db")
 
     @Test
+    fun removingLegacyActorPreservesCanonicalActorAndFollowingCanBeRemoved() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val profileUrl = "https://remote.example/@alice"
+            val actorId = "https://remote.example/users/alice"
+            val account = checkNotNull(repositories.accountRepository.findByUsername("user1"))
+            val profile = RemoteActorProfileRecord("alice", null, profileUrl, null)
+            listOf(profileUrl, actorId).forEach { uri ->
+                repositories.remoteActorRepository.save(RemoteActorRecord(uri, "$actorId/inbox", null, "key", profile), NOW)
+            }
+            repositories.followingRepository.add(account.id, profileUrl, NOW)
+            repositories.remoteActorRepository.remove(profileUrl)
+            assertEquals(null, repositories.remoteActorRepository.findByUri(profileUrl))
+            assertEquals(listOf(actorId), repositories.remoteActorRepository.searchByName("alice", null, 10).map { it.actorUri })
+            assertTrue(repositories.followingRepository.contains(account.id, profileUrl))
+            assertTrue(repositories.followingRepository.remove(account.id, profileUrl))
+            repositories.followingRepository.add(account.id, actorId, NOW)
+            assertTrue(repositories.timelineRepository.shouldReceive(actorId, setOf()))
+            assertEquals(false, repositories.timelineRepository.shouldReceive(profileUrl, setOf()))
+        }
+    }
+
+    @Test
     fun findsExactUsernameOnSpecifiedHost() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.followerRepository.recordFollower(actorUri = "https://a.example/users/alice", preferredUsername = "alice", displayName = "Alice A")

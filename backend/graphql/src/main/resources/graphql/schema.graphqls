@@ -57,3 +57,19 @@ type RegisteredPasskey {
 type Mutation {
     user: UserMutation!
 }
+
+type HomeTimeline {
+    posts: [HomeTimelinePost!]!
+    nextCursor: String
+}
+
+type HomeTimelinePost {
+    id: ID!
+    content: String!
+    publishedAt: String!
+    username: String!
+    host: String
+    displayName: String!
+    summary: String
+    sensitive: Boolean!
+}

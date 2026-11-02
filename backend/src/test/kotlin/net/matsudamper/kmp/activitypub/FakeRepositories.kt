@@ -19,10 +19,35 @@ import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
+import net.matsudamper.kmp.activitypub.timeline.FakeTimelineRepository
 
 internal class FakeRepositories : Repositories {
+    override val timelineRepository = FakeTimelineRepository()
     override val followingRepository: FollowingRepository = object : FollowingRepository {
         private val entries = mutableSetOf<Pair<AccountId, String>>()
+        private val activities = mutableMapOf<Pair<AccountId, String>, String>()
+        override fun followId(accountId: AccountId, actorUri: String): String? = activities[accountId to actorUri]
+        override fun recordActivity(accountId: AccountId, actorUri: String, followId: String) {
+            activities[accountId to actorUri] = followId
+        }
+        override fun recordActivityAndEnqueueFollow(
+            accountId: AccountId,
+            actorUri: String,
+            followId: String,
+            inbox: String,
+            body: String,
+            now: Instant,
+        ): Boolean {
+            if (!contains(accountId, actorUri)) return false
+            recordActivity(accountId, actorUri, followId)
+            deliveryQueueRepository.enqueueFollow(accountId, inbox, body, now)
+            return true
+        }
+        override fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?): Int {
+            val matches = entries.filter { it.second == actorUri && activities[it] == followId }
+            if (acceptedAt == null) entries.removeAll(matches.toSet())
+            return matches.size
+        }
         override fun contains(accountId: AccountId, actorUri: String): Boolean = (accountId to actorUri) in entries
         override fun add(accountId: AccountId, actorUri: String, createdAt: Instant): Boolean = entries.add(accountId to actorUri)
         override fun remove(accountId: AccountId, actorUri: String): Boolean = entries.remove(accountId to actorUri)
@@ -166,9 +191,18 @@ private class FakePasskeyRepository(
 }
 
 internal class FakeRemoteActorRepository : RemoteActorRepository {
+    val savedActors = mutableMapOf<String, RemoteActorRecord>()
     private val rows = mutableListOf<RemoteActorSearchRecord>()
 
+    override fun findByUri(actorUri: String): RemoteActorRecord? = savedActors[actorUri]
+
+    override fun remove(actorUri: String) {
+        savedActors.remove(actorUri)
+        rows.removeAll { it.actorUri == actorUri }
+    }
+
     override fun save(actor: RemoteActorRecord, updatedAt: Instant) {
+        savedActors[actor.actorUri] = actor
         val username = actor.profile.preferredUsername ?: return
         rows.removeAll { it.actorUri == actor.actorUri }
         rows.add(RemoteActorSearchRecord(actor.actorUri, username, actor.profile.displayName, actor.profile.iconUrl, updatedAt))

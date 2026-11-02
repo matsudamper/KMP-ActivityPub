@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
+import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 
 internal class SqliteRepositories(
     config: DatabaseConfig,
@@ -16,6 +17,7 @@ internal class SqliteRepositories(
     private val connectionManager = SqliteConnectionManager(config)
     private val jooq = SqliteJooq(connectionManager)
     override val followingRepository: FollowingRepository = SqliteFollowingRepository(jooq)
+    override val timelineRepository: TimelineRepository = SqliteTimelineRepository(jooq)
 
     override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
     override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)

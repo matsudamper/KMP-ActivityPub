@@ -24,6 +24,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotpub.core)
     implementation(libs.jsoup)
+    implementation(libs.lettuce.core)
+    implementation(libs.opentelemetry.lettuce)
     implementation(libs.okhttp)
     implementation(libs.opentelemetry.ktor3)
     implementation(libs.opentelemetry.extension.kotlin)
@@ -35,6 +37,8 @@ dependencies {
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.opentelemetry.sdk)
+    testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(libs.nimbus.jose.jwt)
     testImplementation(testFixtures(project(":backend:passkey")))
 }

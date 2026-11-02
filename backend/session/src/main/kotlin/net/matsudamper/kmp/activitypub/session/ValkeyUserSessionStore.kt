@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.session
 
 import java.time.Instant
+import io.lettuce.core.ClientOptions
+import io.lettuce.core.MaintNotificationsConfig
 import io.lettuce.core.RedisClient
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
@@ -17,7 +19,9 @@ class ValkeyUserSessionStore(
             .builder()
             .tracing(LettuceTelemetry.create(OpenTelemetryInitializer.get()).createTracing())
             .build()
-    private val client: RedisClient = RedisClient.create(clientResources, uri)
+    private val client: RedisClient = RedisClient.create(clientResources, uri).apply {
+        setOptions(ClientOptions.builder().maintNotificationsConfig(MaintNotificationsConfig.disabled()).build())
+    }
     private val connection: StatefulRedisConnection<String, String> = client.connect()
 
     override fun create(
