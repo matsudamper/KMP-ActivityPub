@@ -10,18 +10,18 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.TestProfileIcons
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
-class RemoteIconProxyRoutesTest {
+class RemoteImageProxyRoutesTest {
     @Test
     fun `版があれば一年間の immutable とし版がなければ一日間キャッシュする`() =
         testApplication {
             val bytes = TestProfileIcons.read("400x400.png")
             val remoteUrl = "https://remote.example/icon.png"
             val proxy =
-                RemoteIconProxy(
+                RemoteImageProxy(
                     origin = "http://localhost",
                     signingKey = "test-key".encodeToByteArray(),
                     fetcher = { url, _ ->
@@ -30,7 +30,7 @@ class RemoteIconProxyRoutesTest {
                     },
                 )
             application {
-                routing { remoteIconProxyRoutes(proxy) }
+                routing { remoteImageProxyRoutes(proxy) }
             }
 
             val unversioned = checkNotNull(proxy.proxyUrlOf(remoteUrl))
@@ -46,7 +46,7 @@ class RemoteIconProxyRoutesTest {
                 assertEquals("nosniff", response.headers["X-Content-Type-Options"])
                 assertContentEquals(bytes, response.bodyAsBytes())
             }
-            val invalid = client.get("/proxy/icon/invalid/invalid.bin?v=version")
+            val invalid = client.get("/proxy/image/invalid/invalid.bin?v=version")
             assertEquals(HttpStatusCode.NotFound, invalid.status)
             assertEquals("no-store", invalid.headers[HttpHeaders.CacheControl])
         }

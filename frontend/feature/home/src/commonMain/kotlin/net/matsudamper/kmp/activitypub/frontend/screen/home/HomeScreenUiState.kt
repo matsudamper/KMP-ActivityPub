@@ -29,7 +29,21 @@ data class HomeScreenUiState(
         val acct: String,
         val body: String,
         val postedAt: String,
+        /**
+         * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく
+         */
+        val linkPreviews: List<LinkPreview>,
         val listener: TimelineItemListener,
+    )
+
+    /**
+     * @param imageUrl null でも画像の枠は出す
+     */
+    data class LinkPreview(
+        val title: String,
+        val siteName: String,
+        val imageUrl: String?,
+        val listener: LinkPreviewListener,
     )
 
     data class Search(
@@ -79,7 +93,17 @@ data class HomeScreenUiState(
 
     @Immutable
     interface TimelineItemListener {
+        /**
+         * 投稿が画面に入ったとき。OGP はここで初めて取りに行く
+         */
+        fun onVisible()
+
         fun onClickAuthor()
+    }
+
+    @Immutable
+    interface LinkPreviewListener {
+        fun onClick()
     }
 
     @Immutable
