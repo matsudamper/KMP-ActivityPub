@@ -35,6 +35,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.closeSubscriptionConnection
 import net.matsudamper.kmp.activitypub.frontend.logic.failureMessage
 
 class UserApi(
@@ -81,6 +82,8 @@ class UserApi(
                         emit(UserHomeTimelineResult.Post(post.id, post.content, post.publishedAt, post.username, post.host, post.displayName, post.summary, post.sensitive))
                     }
                 }
+                // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
+                client.closeSubscriptionConnection()
             }
             delay(HOME_TIMELINE_RECONNECT_DELAY)
         }
@@ -145,6 +148,7 @@ class UserApi(
             null -> {
                 // 別のアカウントで取得した内容を出さない
                 client.apolloStore.clearAll()
+                client.closeSubscriptionConnection()
                 UserLoginResult.Success
             }
 
@@ -160,6 +164,7 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserLogoutResult.Failure(response.failureMessage())
         if (response.data?.user?.logout != true) return UserLogoutResult.Failure(response.failureMessage())
         client.apolloStore.clearAll()
+        client.closeSubscriptionConnection()
 
         return UserLogoutResult.Success
     }
