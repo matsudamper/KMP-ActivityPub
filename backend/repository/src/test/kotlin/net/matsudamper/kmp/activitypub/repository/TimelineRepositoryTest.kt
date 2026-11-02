@@ -36,6 +36,11 @@ class TimelineRepositoryTest {
         repository.touch(accounts.getValue("carol"), NOW.minusSeconds(604801))
         val public = assertNotNull(repository.receive(note("public", "public", setOf("dave"))))
         assertEquals(listOf("alice", "bob", "dave").map { accounts.getValue(it) }, repository.recipients(public.member, NOW.minusSeconds(604800), null, 1000))
+        listOf("alice", "bob", "carol").forEach { username ->
+            val account = accounts.getValue(username)
+            repositories.followingRepository.recordActivity(account, ACTOR, username)
+            repositories.followingRepository.respondToFollow(ACTOR, username, NOW)
+        }
         val followers = assertNotNull(repository.receive(note("followers", "followers", setOf())))
         assertEquals(listOf("alice", "bob").map { accounts.getValue(it) }, repository.recipients(followers.member, NOW.minusSeconds(604800), null, 1000))
         val direct = assertNotNull(repository.receive(note("direct", "direct", setOf("dave"))))
@@ -43,6 +48,48 @@ class TimelineRepositoryTest {
         assertTrue(repository.hydrate(accounts.getValue("alice"), listOf(direct.member)).isEmpty())
         repositories.followingRepository.remove(accounts.getValue("alice"), ACTOR)
         assertTrue(repository.hydrate(accounts.getValue("alice"), listOf(followers.member)).isEmpty())
+    }
+
+    @Test
+    fun followersOnlyNotesRequireApprovalAtReceiptAndAtReadTime() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val following = repositories.followingRepository
+        val alice = accounts.getValue("alice")
+        val bob = accounts.getValue("bob")
+        listOf(alice, bob).forEach { account ->
+            following.add(account, ACTOR, NOW)
+            following.recordActivity(account, ACTOR, "follow-${account.value}")
+            repository.touch(account, NOW)
+        }
+        following.respondToFollow(ACTOR, "follow-${alice.value}", NOW)
+        val first = assertNotNull(repository.receive(note("first-private", "followers", setOf())))
+        assertEquals(listOf(alice), repository.recipients(first.member, NOW, null, 1000))
+        assertEquals(listOf(first), repository.page(alice, null, 10))
+        assertEquals(listOf(first), repository.rebuild(alice, 400))
+        assertEquals(listOf(first), repository.hydrate(alice, listOf(first.member)).map { it.position })
+        assertTrue(repository.page(bob, null, 10).isEmpty())
+        assertTrue(repository.rebuild(bob, 400).isEmpty())
+        assertTrue(repository.hydrate(bob, listOf(first.member)).isEmpty())
+
+        following.respondToFollow(ACTOR, "follow-${bob.value}", NOW)
+        val second = assertNotNull(repository.receive(note("second-private", "followers", setOf())))
+        assertEquals(listOf(alice, bob), repository.recipients(second.member, NOW, null, 1000))
+        assertEquals(listOf(second), repository.page(bob, null, 10))
+        assertEquals(listOf(second), repository.rebuild(bob, 400))
+        assertEquals(listOf(second), repository.hydrate(bob, listOf(first.member, second.member)).map { it.position })
+
+        following.remove(bob, ACTOR)
+        following.add(bob, ACTOR, NOW)
+        assertEquals(listOf(alice), repository.recipients(second.member, NOW, null, 1000))
+        assertTrue(repository.page(bob, null, 10).isEmpty())
+        assertTrue(repository.rebuild(bob, 400).isEmpty())
+        assertTrue(repository.hydrate(bob, listOf(first.member, second.member)).isEmpty())
+        listOf("public", "unlisted").forEach { visibility ->
+            val position = assertNotNull(repository.receive(note(visibility, visibility, setOf())))
+            assertEquals(listOf(alice, bob), repository.recipients(position.member, NOW, null, 1000))
+            assertEquals(listOf(position), repository.hydrate(bob, listOf(position.member)).map { it.position })
+            assertTrue(position in repository.page(bob, null, 10))
+        }
     }
 
     @Test

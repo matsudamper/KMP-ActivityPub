@@ -30,8 +30,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     override fun receive(note: RemoteNoteInput): TimelinePosition? = jooq.transaction { dsl ->
         val actorId = dsl.select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri))
             .fetchOne(REMOTE_ACTORS.ID) ?: return@transaction null
-        val followers = dsl.select(ACCOUNT_FOLLOWING.ACCOUNT_ID).from(ACCOUNT_FOLLOWING)
-            .where(ACCOUNT_FOLLOWING.ACTOR_URI.eq(note.actorUri)).fetch(ACCOUNT_FOLLOWING.ACCOUNT_ID)
+        val followers = dsl.select(ACCOUNT_FOLLOWING.ACCOUNT_ID, ACCOUNT_FOLLOWING.ACCEPTED_AT).from(ACCOUNT_FOLLOWING)
+            .where(ACCOUNT_FOLLOWING.ACTOR_URI.eq(note.actorUri)).fetch()
         val addressed = dsl.select(ACCOUNTS.ID).from(ACCOUNTS).where(ACCOUNTS.USERNAME.`in`(note.localRecipients)).fetch(ACCOUNTS.ID)
         if (followers.isEmpty() && addressed.isEmpty()) return@transaction null
         val score = minOf(note.publishedAt, note.receivedAt).toEpochMilli()
@@ -51,7 +51,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         if (inserted == 0) return@transaction null
         val id = checkNotNull(dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID))
         addressed.forEach { accountId -> addRecipient(dsl, id, checkNotNull(accountId), "explicit", score) }
-        if (note.visibility == "followers") followers.forEach { accountId -> addRecipient(dsl, id, checkNotNull(accountId), "followers", score) }
+        if (note.visibility == "followers") {
+            followers.filter { it.get(ACCOUNT_FOLLOWING.ACCEPTED_AT) != null }.forEach { follower ->
+                addRecipient(dsl, id, checkNotNull(follower.get(ACCOUNT_FOLLOWING.ACCOUNT_ID)), "followers", score)
+            }
+        }
         TimelinePosition(score, "r$id")
     }
 
@@ -82,9 +86,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 when (note.get(REMOTE_NOTES.VISIBILITY)) {
                     "public", "unlisted" -> DSL.trueCondition()
 
-                    "followers" -> DSL.exists(
-                        dsl.selectOne().from(REMOTE_NOTE_RECIPIENTS).where(REMOTE_NOTE_RECIPIENTS.REMOTE_NOTE_ID.eq(id))
-                            .and(REMOTE_NOTE_RECIPIENTS.ACCOUNT_ID.eq(ACCOUNT_FOLLOWING.ACCOUNT_ID)).and(REMOTE_NOTE_RECIPIENTS.KIND.eq("followers")),
+                    "followers" -> ACCOUNT_FOLLOWING.ACCEPTED_AT.isNotNull.and(
+                        DSL.exists(
+                            dsl.selectOne().from(REMOTE_NOTE_RECIPIENTS).where(REMOTE_NOTE_RECIPIENTS.REMOTE_NOTE_ID.eq(id))
+                                .and(REMOTE_NOTE_RECIPIENTS.ACCOUNT_ID.eq(ACCOUNT_FOLLOWING.ACCOUNT_ID)).and(REMOTE_NOTE_RECIPIENTS.KIND.eq("followers")),
+                        ),
                     )
 
                     else -> DSL.falseCondition()
@@ -196,7 +202,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         )
         val follows = DSL.exists(
             dsl.selectOne().from(ACCOUNT_FOLLOWING).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ACTOR_URI.eq(ACCOUNT_FOLLOWING.ACTOR_URI))
-                .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID)),
+                .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+                .and(REMOTE_NOTES.VISIBILITY.ne("followers").or(ACCOUNT_FOLLOWING.ACCEPTED_AT.isNotNull)),
         )
         val followerRecipient = DSL.exists(
             dsl.selectOne().from(REMOTE_NOTE_RECIPIENTS).where(REMOTE_NOTE_RECIPIENTS.REMOTE_NOTE_ID.eq(REMOTE_NOTES.ID))
