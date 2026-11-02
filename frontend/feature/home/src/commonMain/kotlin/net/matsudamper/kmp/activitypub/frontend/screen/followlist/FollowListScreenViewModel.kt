@@ -94,7 +94,7 @@ internal class FollowListScreenViewModel(
                             ViewModelState.Loaded(
                                 users = result.users + (loaded?.users?.drop(loaded.firstPageSize) ?: listOf()),
                                 firstPageSize = result.users.size,
-                                nextCursor = loaded?.nextCursor ?: result.nextCursor,
+                                nextCursor = if (loaded == null) result.nextCursor else loaded.nextCursor,
                                 loadMoreErrorMessage = loaded?.loadMoreErrorMessage,
                             )
                         }
