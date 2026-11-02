@@ -10,7 +10,6 @@ import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
-import net.matsudamper.kmp.activitypub.logic.NoOpFollowDelivery
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
@@ -28,10 +27,15 @@ import net.matsudamper.kmp.activitypub.session.ValkeyPasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.session.ValkeyUserSessionStore
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
+import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.TimelineFanoutWorker
+import net.matsudamper.kmp.activitypub.timeline.TimelineStore
+import net.matsudamper.kmp.activitypub.timeline.ValkeyTimelineStore
 
 class AppDependencies(
     val repositories: Repositories,
     private val sessionStore: UserSessionStore,
+    private val timelineStore: TimelineStore,
     private val passkeyChallengeStore: PasskeyChallengeStore,
     private val loginFailureStore: LoginFailureStore,
     val env: ServerEnv,
@@ -39,13 +43,7 @@ class AppDependencies(
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
-    val followingService: FollowingService = FollowingService(
-        accounts = repositories.accountRepository,
-        following = repositories.followingRepository,
-        delivery = NoOpFollowDelivery,
-        localDomain = checkNotNull(env.domain),
-        clock = Clock.systemUTC(),
-    )
+    val homeTimelineService = HomeTimelineService(repositories.timelineRepository, timelineStore, Clock.systemUTC())
     val followListService: FollowListService = FollowListService(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
@@ -86,14 +84,26 @@ class AppDependencies(
                 domain = domain,
                 accountService = accountService,
                 followerRepository = repositories.followerRepository,
+                followingRepository = repositories.followingRepository,
                 deliveryQueueRepository = repositories.deliveryQueueRepository,
                 noteRepository = repositories.noteRepository,
+                timelineRepository = repositories.timelineRepository,
+                timeline = homeTimelineService,
                 remoteActorRepository = repositories.remoteActorRepository,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
         }
+
+    val followingService: FollowingService = FollowingService(
+        accounts = repositories.accountRepository,
+        following = repositories.followingRepository,
+        delivery = checkNotNull(federation).followDelivery,
+        invalidator = homeTimelineService,
+        localDomain = checkNotNull(env.domain),
+        clock = Clock.systemUTC(),
+    )
 
     val userSearchService: UserSearchService =
         UserSearchService(
@@ -136,12 +146,14 @@ class AppDependencies(
         lockDuration = 30.days,
     )
 
+    val timelineWorker = TimelineFanoutWorker(repositories.timelineRepository, timelineStore, Clock.systemUTC())
+
     /**
      * 順に閉じると、どれかの close が返らないときに後ろが閉じられない。
      * SQLite の close が走らないと -wal が畳まれずに残る
      */
     fun closeIndependently() {
-        listOfNotNull(passkeyChallengeStore, federation, sessionStore, loginFailureStore, repositories)
+        listOfNotNull(timelineStore, passkeyChallengeStore, federation, sessionStore, loginFailureStore, repositories)
             .map { closeable -> thread { closeable.close() } }
             .forEach { it.join() }
     }
@@ -151,6 +163,7 @@ class AppDependencies(
             AppDependencies(
                 repositories = Repositories.create(DatabaseConfig(path = env.dbPath)),
                 sessionStore = ValkeyUserSessionStore(uri = env.valkeyUri),
+                timelineStore = ValkeyTimelineStore(env.valkeyUri),
                 passkeyChallengeStore = ValkeyPasskeyChallengeStore(uri = env.valkeyUri),
                 loginFailureStore = ValkeyLoginFailureStore(uri = env.valkeyUri),
                 env = env,

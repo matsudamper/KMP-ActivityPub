@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
@@ -18,6 +19,29 @@ import org.jooq.impl.DSL
 internal class SqliteDeliveryQueueRepository(
     private val jooq: SqliteJooq,
 ) : DeliveryQueueRepository {
+    override fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant) {
+        jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_FOLLOW) }
+    }
+
+    override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) {
+        jooq.transaction { dsl ->
+            val matchingFollow = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
+                .and(DELIVERY_QUEUE.INBOX.eq(inbox))
+                .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_FOLLOW))
+                .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(followId))
+            val removedAttempts = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingFollow)
+                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+                .returning(DELIVERY_QUEUE.ATTEMPTS).fetch(DELIVERY_QUEUE.ATTEMPTS)
+            val delivering = dsl.fetchExists(
+                DELIVERY_QUEUE,
+                matchingFollow.and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING)),
+            )
+            if (removedAttempts.isEmpty() || removedAttempts.any { it != 0L } || delivering) {
+                enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_UNDO_FOLLOW)
+            }
+        }
+    }
+
     override fun enqueueNote(post: NotePost): EnqueueNoteResult = jooq.transaction { dsl ->
         val accountId =
             dsl.select(ACCOUNTS.ID)
@@ -115,6 +139,7 @@ internal class SqliteDeliveryQueueRepository(
             dsl.select(
                 DELIVERY_QUEUE.ID,
                 ACCOUNTS.USERNAME,
+                DELIVERY_QUEUE.KIND,
                 DELIVERY_QUEUE.INBOX,
                 DELIVERY_QUEUE.BODY,
                 DELIVERY_QUEUE.ATTEMPTS,
@@ -134,6 +159,7 @@ internal class SqliteDeliveryQueueRepository(
                         body = checkNotNull(record.get(DELIVERY_QUEUE.BODY)),
                         attempts = checkNotNull(record.get(DELIVERY_QUEUE.ATTEMPTS)).toInt() + 1,
                         enqueuedAt = StoredInstant.parse(checkNotNull(record.get(DELIVERY_QUEUE.ENQUEUED_AT))),
+                        kind = checkNotNull(record.get(DELIVERY_QUEUE.KIND)),
                     )
                 }
         if (due.isEmpty()) return@transaction listOf()
@@ -215,6 +241,13 @@ internal class SqliteDeliveryQueueRepository(
             .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
             .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
             .execute()
+    }
+
+    private fun enqueueFollowing(dsl: DSLContext, accountId: AccountId, inbox: String, body: String, now: Instant, kind: String) {
+        dsl.insertInto(DELIVERY_QUEUE).set(DELIVERY_QUEUE.KIND, kind).set(DELIVERY_QUEUE.ACCOUNT_ID, accountId.value)
+            .set(DELIVERY_QUEUE.INBOX, inbox).set(DELIVERY_QUEUE.BODY, body).set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, 0L).set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
+            .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now)).execute()
     }
 
     private fun DSLContext.findRow(id: Long): QueueRow? =

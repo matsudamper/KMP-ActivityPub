@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub
 
+import net.matsudamper.kmp.activitypub.timeline.FakeTimelineStore
+
 @Suppress("FunctionName")
 internal fun TestDependencies(
     repositories: FakeRepositories = FakeRepositories(),
@@ -7,6 +9,7 @@ internal fun TestDependencies(
 ): AppDependencies = AppDependencies(
     repositories = repositories,
     sessionStore = FakeUserSessionStore(),
+    timelineStore = FakeTimelineStore(mutableListOf()),
     passkeyChallengeStore = FakePasskeyChallengeStore(),
     loginFailureStore = FakeLoginFailureStore(),
     env = env,

@@ -22,6 +22,7 @@ class NotePostService(
     private val followerRepository: FollowerRepository,
     private val deliveryQueueRepository: DeliveryQueueRepository,
     private val onEnqueued: () -> Unit,
+    private val onPosted: (PublicNoteId) -> Unit,
 ) {
     private val logger = LoggerFactory.getLogger(NotePostService::class.java)
 
@@ -58,6 +59,7 @@ class NotePostService(
             is EnqueueNoteResult.Enqueued -> {
                 logger.info("投稿を積んだ: ${sender.acct} ${prepared.publicId.value} 宛先=${enqueued.deliveries}")
                 onEnqueued()
+                onPosted(PublicNoteId(prepared.publicId.value))
                 PostNoteResult.Posted(publicId = PublicNoteId(prepared.publicId.value), url = prepared.url)
             }
 

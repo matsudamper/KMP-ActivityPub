@@ -17,8 +17,11 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
+import net.matsudamper.kmp.activitypub.repository.TimelineRepository
+import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorIconEndpoint
@@ -26,8 +29,11 @@ import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
+import net.matsudamper.kotpub.inbox.CreateNoteHandler
 import net.matsudamper.kotpub.inbox.DeleteActorHandler
+import net.matsudamper.kotpub.inbox.DeleteHandler
 import net.matsudamper.kotpub.inbox.FollowHandler
+import net.matsudamper.kotpub.inbox.FollowResponseHandler
 import net.matsudamper.kotpub.inbox.InboxEndpoint
 import net.matsudamper.kotpub.inbox.InboxService
 import net.matsudamper.kotpub.inbox.RecordedFallbackPublicKeys
@@ -46,8 +52,11 @@ internal class Federation(
     domain: String,
     accountService: AccountService,
     followerRepository: FollowerRepository,
+    followingRepository: FollowingRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
+    timelineRepository: TimelineRepository,
+    timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
@@ -61,6 +70,7 @@ internal class Federation(
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
+    private val receivedNotes = ReceivedRemoteNotes(timelineRepository, remoteActors, remoteActorRepository, directory, timeline, Clock.systemUTC())
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -84,7 +94,21 @@ internal class Federation(
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
             onEnqueued = deliveryQueueWorker::wakeUp,
+            onPosted = { publicId -> timelineRepository.localPosition(publicId.value)?.let { timeline.enqueue(it) } },
         )
+
+    val followDelivery = QueuedFollowDelivery(
+        accountService,
+        directory,
+        remoteActors,
+        remoteActorRepository,
+        followingRepository,
+        deliveryQueueRepository,
+        Clock.systemUTC(),
+        deliveryQueueWorker::wakeUp,
+    )
+
+    private val followingResponses = RecordedFollowingResponses(followingRepository, Clock.systemUTC(), openTelemetry)
 
     val profileUpdateService: ProfileUpdateService =
         ProfileUpdateService(
@@ -175,7 +199,13 @@ internal class Federation(
                         follows = UndoFollowHandler(directory = directory, followers = followers),
                     ),
                     UpdateActorHandler(followers),
-                    DeleteActorHandler(followers = followers, favourites = NoReactions, stamps = NoReactions),
+                    CreateNoteHandler(receivedNotes),
+                    FollowResponseHandler("Accept", followingResponses),
+                    FollowResponseHandler("Reject", followingResponses),
+                    DeleteHandler(
+                        actors = DeleteActorHandler(followers = followers, favourites = NoReactions, stamps = NoReactions),
+                        notes = receivedNotes,
+                    ),
                 ),
             ),
         )

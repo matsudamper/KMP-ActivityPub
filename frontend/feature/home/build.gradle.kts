@@ -13,14 +13,28 @@ kotlin {
         namespace = "net.matsudamper.kmp.activitypub.frontend.feature.home"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
         minSdk = 23
+        withHostTest {}
     }
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
-        browser()
+        browser {
+            testTask {
+                useKarma {
+                    useChromeHeadless()
+                }
+            }
+        }
+        binaries.executable()
     }
 
     sourceSets {
+        getByName("androidHostTest") {
+            dependencies {
+                implementation(libs.kotlin.test.junit)
+                implementation(libs.kotlinx.coroutines.test)
+            }
+        }
         commonMain {
             dependencies {
                 implementation(project(":frontend:ui"))
