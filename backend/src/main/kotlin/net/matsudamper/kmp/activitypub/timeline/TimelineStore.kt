@@ -4,7 +4,7 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 interface TimelineStore : AutoCloseable {
-    fun built(accountId: AccountId): Boolean
+    fun ready(accountId: AccountId): Boolean
     fun lock(accountId: AccountId): Boolean
     fun markBuilt(accountId: AccountId)
     fun unlock(accountId: AccountId)

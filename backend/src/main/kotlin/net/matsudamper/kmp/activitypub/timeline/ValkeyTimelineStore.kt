@@ -28,7 +28,10 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
     private val streamConnection: StatefulRedisConnection<String, String> by streamConnectionDelegate
     private var claimCursor = "0-0"
 
-    override fun built(accountId: AccountId): Boolean = connection.sync().exists("${key(accountId)}:built") > 0
+    override fun ready(accountId: AccountId): Boolean {
+        val state = connection.sync().mget("${key(accountId)}:built", "${key(accountId)}:lock")
+        return state[0].hasValue() && !state[1].hasValue()
+    }
 
     override fun lock(accountId: AccountId): Boolean =
         connection.sync().set("${key(accountId)}:lock", "1", SetArgs.Builder.nx().px(10000)) == "OK"

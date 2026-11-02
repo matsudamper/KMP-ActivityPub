@@ -42,7 +42,7 @@ class HomeTimelineService(
     }
 
     private fun cachedPositions(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>? {
-        if (!store.built(accountId)) {
+        if (!store.ready(accountId)) {
             if (!store.lock(accountId)) return null
             try {
                 store.markBuilt(accountId)

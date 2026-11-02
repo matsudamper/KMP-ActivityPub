@@ -13,6 +13,30 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class HomeTimelineServiceTest {
     @Test
+    fun readingDuringRebuildUsesOnlySqlEvenAfterMarkBuilt() {
+        val account = AccountId(1)
+        val repository = FakeTimelineRepository()
+        val newest = TimelinePosition(3, "r3")
+        val next = TimelinePosition(2, "r2")
+        val old = TimelinePosition(1, "r1")
+        repository.positions.addAll(listOf(newest, next, old))
+        val store = FakeTimelineStore(repository.events)
+        store.distribute(listOf(account), old)
+        assertTrue(store.lock(account))
+        store.markBuilt(account)
+        val service = HomeTimelineService(repository, store, Clock.systemUTC())
+        val page = service.page(account, null, 1)
+        assertEquals(listOf(newest), page.posts.map { it.position })
+        assertEquals(newest, page.nextCursor?.let { TimelineCursor.decode(it) })
+        assertEquals(0, repository.events.count { it == "rebuild" })
+        assertEquals(listOf(old), store.read(account, null, 10))
+        store.appendRebuilt(account, repository.rebuild(account, 400))
+        store.unlock(account)
+        assertTrue(store.ready(account))
+        assertEquals(listOf(newest, next, old), service.page(account, null, 10).posts.map { it.position })
+    }
+
+    @Test
     fun repeatedReadsDoNotExtendBuiltExpirationAndRebuildAtTwentyFourHours() {
         val account = AccountId(1)
         val repository = FakeTimelineRepository()
@@ -26,14 +50,14 @@ class HomeTimelineServiceTest {
         }
         store.now = Instant.EPOCH.plusSeconds(24 * 3600L - 1)
         service.page(account, null, 10)
-        assertTrue(store.built(account))
+        assertTrue(store.ready(account))
         assertEquals(1, repository.events.count { it == "rebuild" })
         store.now = Instant.EPOCH.plusSeconds(24 * 3600L)
-        assertTrue(!store.built(account))
+        assertTrue(!store.ready(account))
         service.page(account, null, 10)
         assertEquals(2, repository.events.count { it == "rebuild" })
         assertEquals(listOf("lock", "built", "rebuild", "zadd", "unlock", "expire"), repository.events.takeLast(6))
-        assertTrue(store.built(account))
+        assertTrue(store.ready(account))
     }
 
     @Test
@@ -272,18 +296,19 @@ internal class FakeTimelineStore(private val events: MutableList<String>) : Time
     var unavailable = false
     var lockAvailable = true
     var now: Instant = Instant.EPOCH
+    private val locked = mutableSetOf<AccountId>()
     private val builtUntil = mutableMapOf<AccountId, Instant>()
     private val members = mutableMapOf<AccountId, Map<String, TimelinePosition>>()
     private val positionOrder = compareBy<TimelinePosition> { it.score }.thenBy { it.member }
 
-    override fun built(accountId: AccountId): Boolean {
+    override fun ready(accountId: AccountId): Boolean {
         check(!unavailable)
-        return builtUntil[accountId]?.isAfter(now) == true
+        return builtUntil[accountId]?.isAfter(now) == true && accountId !in locked
     }
 
     override fun lock(accountId: AccountId): Boolean {
         events.add("lock")
-        return lockAvailable
+        return lockAvailable && locked.add(accountId)
     }
 
     override fun markBuilt(accountId: AccountId) {
@@ -293,6 +318,7 @@ internal class FakeTimelineStore(private val events: MutableList<String>) : Time
 
     override fun unlock(accountId: AccountId) {
         events.add("unlock")
+        locked.remove(accountId)
     }
     override fun invalidate(accountId: AccountId) {
         builtUntil.remove(accountId)
