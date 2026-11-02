@@ -8,10 +8,6 @@ sealed interface UserFollowListResult {
 
     data object NotLoggedIn : UserFollowListResult
 
-    data class Failure(
-        val message: String,
-    ) : UserFollowListResult
-
     /**
      * @param following ログイン中のアカウントがフォローしているか
      * @param username 相手のプロフィールをサーバーが受け取っていなければ null

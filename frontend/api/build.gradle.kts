@@ -23,6 +23,7 @@ kotlin {
             dependencies {
                 // Android が ApolloClient を渡せるように api にする
                 api(libs.apollo.runtime)
+                api(libs.apollo.normalized.cache)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
@@ -38,5 +39,7 @@ apollo {
         )
         mapScalarToKotlinString("UserId")
         mapScalarToKotlinString("PasskeyCredentialId")
+        plugin(libs.apollo.normalized.cache.compiler.plugin)
+        pluginArgument("com.apollographql.cache.packageName", packageName.get())
     }
 }

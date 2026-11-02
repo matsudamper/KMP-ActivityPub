@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,12 +11,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
+import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -30,9 +35,12 @@ internal class HomeScreenViewModel(
     internal val eventHandler = events.asHandler()
     private val searchStateFlow: MutableStateFlow<SearchState> = MutableStateFlow(SearchState.NotSearched)
     private var searchJob: Job? = null
+    private var searchWatchJob: Job? = null
+    private var searchPaging: CursorPagingModel<HomeScreenSearchUsersQuery.Data>? = null
     private var profileJob: Job? = null
     private var timelineJob: Job? = null
-    private var timelineCursor: String? = null
+    private val timelinePaging = userApi.homeTimelinePaging()
+    private var timelineNextCursor: String? = null
     private var timelinePosts = listOf<UserHomeTimelineResult.Post>()
     private var linkPreviewRequestedPostIds = setOf<String>()
     private var linkPreviews = mapOf<String, List<UserLinkPreviewsResult.LinkPreview>>()
@@ -133,6 +141,7 @@ internal class HomeScreenViewModel(
     init {
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
+                searchPaging?.updateCache { it.withFollowing(change) }
                 searchStateFlow.update { state ->
                     if (state is SearchState.Loaded) {
                         state.copy(
@@ -145,6 +154,9 @@ internal class HomeScreenViewModel(
                     }
                 }
             }
+        }
+        viewModelScope.launch {
+            timelinePaging.watch().collect { applyTimeline(it.toUserHomeTimelineResult()) }
         }
         viewModelScope.launch {
             searchStateFlow.collect { searchState ->
@@ -172,7 +184,7 @@ internal class HomeScreenViewModel(
                         followersCount = result.followersCount.toString(),
                     )
 
-                    UserMyProfileResult.NotLoggedIn -> HomeScreenUiState.Profile.Error("ログインしていません")
+                    UserMyProfileResult.NotLoggedIn -> HomeScreenUiState.Profile.Error(NOT_LOGGED_IN_MESSAGE)
 
                     is UserMyProfileResult.Failure -> HomeScreenUiState.Profile.Error(result.message)
                 }
@@ -188,6 +200,8 @@ internal class HomeScreenViewModel(
     private fun search(query: String) {
         val trimmedQuery = query.trim()
         searchJob?.cancel()
+        searchWatchJob?.cancel()
+        searchPaging = null
         if (trimmedQuery.isEmpty()) {
             searchStateFlow.value = SearchState.NotSearched
             return
@@ -197,22 +211,36 @@ internal class HomeScreenViewModel(
             searchJob = viewModelScope.launch { resolveUser(trimmedQuery) }
             return
         }
+        val paging = userApi.searchUsersPaging(trimmedQuery)
+        searchPaging = paging
+        searchWatchJob = viewModelScope.launch {
+            paging.watch().collect { applySearchResult(trimmedQuery, it.toUserSearchResult()) }
+        }
         searchJob = viewModelScope.launch {
-            when (val result = userApi.searchUsers(query = trimmedQuery, after = null)) {
-                is UserSearchResult.Success -> {
-                    searchStateFlow.value = SearchState.Loaded(
-                        query = trimmedQuery,
-                        users = result.users,
-                        nextCursor = result.nextCursor,
-                    )
+            when (val result = paging.refresh()) {
+                is UpdateOperationResponseResult.Success -> {
+                    result.result.data?.let { applySearchResult(trimmedQuery, it.toUserSearchResult()) }
                 }
 
-                is UserSearchResult.Failure -> {
+                is UpdateOperationResponseResult.Error -> {
+                    searchWatchJob?.cancel()
                     searchStateFlow.value = SearchState.NotSearched
-                    events.send { it.showMessage(result.message) }
+                    events.send { it.showMessage(result.e?.message ?: NETWORK_ERROR_MESSAGE) }
                 }
+
+                is UpdateOperationResponseResult.NoHasMore -> Unit
             }
         }
+    }
+
+    /**
+     * 同じ内容を書き込んだときは watch が流れないので、取得結果はここでも反映する
+     */
+    private fun applySearchResult(
+        query: String,
+        result: UserSearchResult.Success,
+    ) {
+        searchStateFlow.value = SearchState.Loaded(query = query, users = result.users, nextCursor = result.nextCursor)
     }
 
     /**
@@ -240,26 +268,20 @@ internal class HomeScreenViewModel(
 
     private fun loadMoreSearchResult() {
         if (searchJob?.isActive == true) return
+        val paging = searchPaging ?: return
         val loaded = searchStateFlow.value as? SearchState.Loaded ?: return
-        val nextCursor = loaded.nextCursor ?: return
+        if (loaded.nextCursor == null) return
         searchJob = viewModelScope.launch {
-            when (val result = userApi.searchUsers(query = loaded.query, after = nextCursor)) {
-                is UserSearchResult.Success -> {
-                    searchStateFlow.update { current ->
-                        if (current is SearchState.Loaded && current.query == loaded.query) {
-                            current.copy(
-                                users = current.users + result.users,
-                                nextCursor = result.nextCursor,
-                            )
-                        } else {
-                            current
-                        }
-                    }
+            when (val result = paging.fetchNext()) {
+                is UpdateOperationResponseResult.Success -> {
+                    result.result.data?.let { applySearchResult(loaded.query, it.toUserSearchResult()) }
                 }
 
-                is UserSearchResult.Failure -> {
-                    events.send { it.showMessage(result.message) }
+                is UpdateOperationResponseResult.Error -> {
+                    events.send { it.showMessage(result.e?.message ?: NETWORK_ERROR_MESSAGE) }
                 }
+
+                is UpdateOperationResponseResult.NoHasMore -> Unit
             }
         }
     }
@@ -279,7 +301,7 @@ internal class HomeScreenViewModel(
 
     private fun loadTimeline(append: Boolean) {
         if (append && timelineJob?.isActive == true) return
-        val cursor = if (append) timelineCursor ?: return else null
+        if (append && timelineNextCursor == null) return
         timelineJob?.cancel()
         mutableUiStateFlow.update {
             it.copy(
@@ -289,20 +311,23 @@ internal class HomeScreenViewModel(
         }
         timelineJob = viewModelScope.launch {
             try {
-                val result = userApi.homeTimeline(cursor)
-                currentCoroutineContext().ensureActive()
+                val result = if (append) timelinePaging.fetchNext() else timelinePaging.refresh()
                 when (result) {
-                    is UserHomeTimelineResult.Success -> {
-                        timelineCursor = result.nextCursor
-                        timelinePosts = (if (append) timelinePosts + result.posts else result.posts).distinctBy { it.id }
-                        mutableUiStateFlow.update {
-                            it.copy(timelineItems = createTimelineItems(), timelineFooter = HomeScreenUiState.TimelineFooter.None)
+                    is UpdateOperationResponseResult.Success -> {
+                        val timeline = result.result.data?.toUserHomeTimelineResult()
+                        if (timeline != null) applyTimeline(timeline)
+                        if (timeline == UserHomeTimelineResult.NotLoggedIn) {
+                            timelineFailed(append, NOT_LOGGED_IN_MESSAGE)
+                        } else {
+                            mutableUiStateFlow.update { it.copy(timelineFooter = HomeScreenUiState.TimelineFooter.None) }
                         }
                     }
 
-                    is UserHomeTimelineResult.Failure -> timelineFailed(append, result.message)
+                    is UpdateOperationResponseResult.Error -> timelineFailed(append, result.e?.message ?: NETWORK_ERROR_MESSAGE)
 
-                    UserHomeTimelineResult.NotLoggedIn -> timelineFailed(append, "ログインしていません")
+                    is UpdateOperationResponseResult.NoHasMore -> {
+                        mutableUiStateFlow.update { it.copy(timelineFooter = HomeScreenUiState.TimelineFooter.None) }
+                    }
                 }
             } finally {
                 if (currentCoroutineContext().isActive) {
@@ -310,6 +335,21 @@ internal class HomeScreenViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * 同じ内容を書き込んだときは watch が流れないので、取得結果はここでも反映する
+     */
+    private fun applyTimeline(result: UserHomeTimelineResult) {
+        val posts =
+            when (result) {
+                is UserHomeTimelineResult.Success -> result.posts
+                UserHomeTimelineResult.NotLoggedIn -> listOf()
+            }
+        timelineNextCursor = (result as? UserHomeTimelineResult.Success)?.nextCursor
+        // ページの境目で同じ投稿が両方のページに入ることがある
+        timelinePosts = posts.distinctBy { it.id }
+        mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
     }
 
     private fun createTimelineItems(): List<HomeScreenUiState.TimelineItem> {
@@ -453,6 +493,11 @@ internal class HomeScreenViewModel(
         fun showMessage(message: String)
 
         fun openUrl(url: String)
+    }
+
+    private companion object {
+        const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
+        const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
     }
 
     private sealed interface SearchState {

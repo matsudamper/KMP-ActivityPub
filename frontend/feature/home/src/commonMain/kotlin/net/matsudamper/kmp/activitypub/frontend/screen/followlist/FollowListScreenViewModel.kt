@@ -3,14 +3,21 @@ package net.matsudamper.kmp.activitypub.frontend.screen.followlist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.apollographql.apollo.api.Query
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
+import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowListResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserFollowListResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -24,6 +31,20 @@ internal class FollowListScreenViewModel(
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Loading)
     private var loadJob: Job? = null
     private var followingChangeInProgress = false
+    private val paging: FollowListPaging<*> =
+        when (kind) {
+            FollowListKind.Following -> FollowListPaging(
+                model = userApi.followingUsersPaging(),
+                toResult = { it.toUserFollowListResult() },
+                withFollowing = { data, change -> data.withFollowing(change) },
+            )
+
+            FollowListKind.Followers -> FollowListPaging(
+                model = userApi.followerUsersPaging(),
+                toResult = { it.toUserFollowListResult() },
+                withFollowing = { data, change -> data.withFollowing(change) },
+            )
+        }
 
     private val listener = object : FollowListScreenUiState.Listener {
         override fun onClickBack() {
@@ -58,6 +79,12 @@ internal class FollowListScreenViewModel(
                 mutableUiStateFlow.value = createUiState(viewModelState)
             }
         }
+        viewModelScope.launch {
+            paging.watch().collect { result -> applyResult(result) }
+        }
+        viewModelScope.launch {
+            userApi.followingChanges.collect { change -> paging.applyFollowing(change) }
+        }
         load()
     }
 
@@ -65,22 +92,10 @@ internal class FollowListScreenViewModel(
         loadJob?.cancel()
         viewModelStateFlow.value = ViewModelState.Loading
         loadJob = viewModelScope.launch {
-            when (val result = fetch(after = null)) {
-                is UserFollowListResult.Success -> {
-                    viewModelStateFlow.value = ViewModelState.Loaded(
-                        users = result.users,
-                        nextCursor = result.nextCursor,
-                        loadMoreErrorMessage = null,
-                    )
-                }
-
-                UserFollowListResult.NotLoggedIn -> {
-                    viewModelStateFlow.value = ViewModelState.Failed(NOT_LOGGED_IN_MESSAGE)
-                }
-
-                is UserFollowListResult.Failure -> {
-                    viewModelStateFlow.value = ViewModelState.Failed(result.message)
-                }
+            when (val outcome = paging.refresh()) {
+                is PagingOutcome.Fetched -> applyResult(outcome.result)
+                is PagingOutcome.Failed -> viewModelStateFlow.value = ViewModelState.Failed(outcome.message)
+                PagingOutcome.NoHasMore -> Unit
             }
         }
     }
@@ -88,25 +103,35 @@ internal class FollowListScreenViewModel(
     private fun loadMore() {
         if (loadJob?.isActive == true) return
         val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
-        val nextCursor = loaded.nextCursor ?: return
+        if (loaded.nextCursor == null) return
         viewModelStateFlow.value = loaded.copy(loadMoreErrorMessage = null)
         loadJob = viewModelScope.launch {
-            val result = fetch(after = nextCursor)
-            viewModelStateFlow.update { current ->
-                if (current !is ViewModelState.Loaded) return@update current
-                when (result) {
-                    is UserFollowListResult.Success -> current.copy(users = current.users + result.users, nextCursor = result.nextCursor)
-                    UserFollowListResult.NotLoggedIn -> current.copy(loadMoreErrorMessage = NOT_LOGGED_IN_MESSAGE)
-                    is UserFollowListResult.Failure -> current.copy(loadMoreErrorMessage = result.message)
+            when (val outcome = paging.fetchNext()) {
+                is PagingOutcome.Fetched -> applyResult(outcome.result)
+
+                is PagingOutcome.Failed -> viewModelStateFlow.update { current ->
+                    if (current is ViewModelState.Loaded) current.copy(loadMoreErrorMessage = outcome.message) else current
                 }
+
+                PagingOutcome.NoHasMore -> Unit
             }
         }
     }
 
-    private suspend fun fetch(after: String?): UserFollowListResult {
-        return when (kind) {
-            FollowListKind.Following -> userApi.followingUsers(after = after)
-            FollowListKind.Followers -> userApi.followerUsers(after = after)
+    /**
+     * 同じ内容を書き込んだときは watch が流れないので、取得結果はここでも反映する
+     */
+    private fun applyResult(result: UserFollowListResult) {
+        viewModelStateFlow.update { current ->
+            when (result) {
+                is UserFollowListResult.Success -> ViewModelState.Loaded(
+                    users = result.users,
+                    nextCursor = result.nextCursor,
+                    loadMoreErrorMessage = (current as? ViewModelState.Loaded)?.loadMoreErrorMessage,
+                )
+
+                UserFollowListResult.NotLoggedIn -> ViewModelState.Failed(NOT_LOGGED_IN_MESSAGE)
+            }
         }
     }
 
@@ -119,17 +144,8 @@ internal class FollowListScreenViewModel(
         refreshUiState()
         viewModelScope.launch {
             try {
-                val followed = !user.following
-                val error = userApi.setFollowing(user.actorUri, followed = followed)
-                if (error == null) {
-                    viewModelStateFlow.update { state ->
-                        if (state is ViewModelState.Loaded) {
-                            state.copy(users = state.users.map { if (it.actorUri == user.actorUri) it.copy(following = followed) else it })
-                        } else {
-                            state
-                        }
-                    }
-                } else {
+                val error = userApi.setFollowing(user.actorUri, followed = !user.following)
+                if (error != null) {
                     events.send { it.showMessage(error) }
                 }
             } finally {
@@ -204,6 +220,51 @@ internal class FollowListScreenViewModel(
 
     private companion object {
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
+        const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
+    }
+
+    /**
+     * フォローとフォロワーでクエリの型が違うので、画面が使う形にそろえる
+     */
+    private class FollowListPaging<D : Query.Data>(
+        private val model: CursorPagingModel<D>,
+        private val toResult: (D) -> UserFollowListResult,
+        private val withFollowing: (D, UserApi.FollowingChange) -> D,
+    ) {
+        fun watch(): Flow<UserFollowListResult> = model.watch().map(toResult)
+
+        suspend fun refresh(): PagingOutcome = model.refresh().toOutcome()
+
+        suspend fun fetchNext(): PagingOutcome = model.fetchNext().toOutcome()
+
+        suspend fun applyFollowing(change: UserApi.FollowingChange) {
+            model.updateCache { withFollowing(it, change) }
+        }
+
+        private fun UpdateOperationResponseResult<D>.toOutcome(): PagingOutcome {
+            return when (this) {
+                is UpdateOperationResponseResult.Success -> {
+                    val data = result.data ?: return PagingOutcome.Failed(NETWORK_ERROR_MESSAGE)
+                    PagingOutcome.Fetched(toResult(data))
+                }
+
+                is UpdateOperationResponseResult.Error -> PagingOutcome.Failed(e?.message ?: NETWORK_ERROR_MESSAGE)
+
+                is UpdateOperationResponseResult.NoHasMore -> PagingOutcome.NoHasMore
+            }
+        }
+    }
+
+    private sealed interface PagingOutcome {
+        data class Fetched(
+            val result: UserFollowListResult,
+        ) : PagingOutcome
+
+        data class Failed(
+            val message: String,
+        ) : PagingOutcome
+
+        data object NoHasMore : PagingOutcome
     }
 
     private sealed interface ViewModelState {

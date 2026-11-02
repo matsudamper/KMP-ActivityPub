@@ -6,10 +6,6 @@ sealed interface UserSearchResult {
         val nextCursor: String?,
     ) : UserSearchResult
 
-    data class Failure(
-        val message: String,
-    ) : UserSearchResult
-
     /**
      * @param isLocal このサーバーのユーザーか
      */
