@@ -126,7 +126,9 @@ internal class FollowListScreenViewModel(
                         users = current.users + result.users,
                         nextCursor = result.nextCursor,
                     )
+
                     UserFollowListResult.NotLoggedIn -> current.copy(loadMoreErrorMessage = NOT_LOGGED_IN_MESSAGE)
+
                     is UserFollowListResult.Failure -> current.copy(loadMoreErrorMessage = result.message)
                 }
             }

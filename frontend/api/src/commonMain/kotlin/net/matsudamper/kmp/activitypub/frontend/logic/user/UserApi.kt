@@ -1,42 +1,42 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
-import kotlin.io.encoding.Base64
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.MutableSharedFlow
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.api.CacheKey
 import com.apollographql.cache.normalized.apolloStore
 import com.apollographql.cache.normalized.watch
+import kotlin.io.encoding.Base64
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
-import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
-import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ListedActorFollowing
-import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ListedActorFollowingImpl
-import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.SearchedUserFollowing
-import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.SearchedUserFollowingImpl
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ListedActorFollowing
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ListedActorFollowingImpl
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.SearchedUserFollowing
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.SearchedUserFollowingImpl
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 
 class UserApi(
@@ -55,14 +55,14 @@ class UserApi(
         if (response.data?.user?.setFollowing != true) return "フォロー状態を変更できませんでした"
         client.apolloStore.writeFragment(
             fragment = SearchedUserFollowingImpl(),
-            cacheKey = CacheKey("SearchedUser:$actorUri"),
-            data = SearchedUserFollowing(actorUri = actorUri, following = followed),
+            cacheKey = CacheKey("SearchedUser", actorUri),
+            data = SearchedUserFollowing(__typename = "SearchedUser", actorUri = actorUri, following = followed),
             publish = true,
         )
         client.apolloStore.writeFragment(
             fragment = ListedActorFollowingImpl(),
-            cacheKey = CacheKey("ListedActor:$actorUri"),
-            data = ListedActorFollowing(actorUri = actorUri, following = followed),
+            cacheKey = CacheKey("ListedActor", actorUri),
+            data = ListedActorFollowing(__typename = "ListedActor", actorUri = actorUri, following = followed),
             publish = true,
         )
         followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
