@@ -364,14 +364,14 @@ internal class FakeTimelineStore(private val events: MutableList<String>) : Time
     override fun expire(accountId: AccountId) {
         events.add("expire")
     }
-    override fun distribute(accountIds: List<AccountId>, position: TimelinePosition) {
+    override fun distribute(accountIds: List<AccountId>, position: TimelinePosition): Int {
         val oldestByAccount = accountIds.associateWith { members[it].orEmpty().values.minWithOrNull(positionOrder) }
-        accountIds.forEach { accountId ->
+        val recipients = accountIds.filter { accountId ->
             val oldest = oldestByAccount[accountId]
-            if (oldest == null || positionOrder.compare(position, oldest) >= 0) {
-                append(accountId, listOf(position))
-            }
+            oldest == null || positionOrder.compare(position, oldest) >= 0
         }
+        recipients.forEach { append(it, listOf(position)) }
+        return recipients.size
     }
 
     override fun appendRebuilt(accountId: AccountId, positions: List<TimelinePosition>) {

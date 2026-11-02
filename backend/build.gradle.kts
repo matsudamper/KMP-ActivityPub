@@ -37,6 +37,8 @@ dependencies {
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.opentelemetry.sdk)
+    testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(libs.nimbus.jose.jwt)
     testImplementation(testFixtures(project(":backend:passkey")))
 }

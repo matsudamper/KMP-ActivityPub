@@ -56,7 +56,7 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         connection.sync().expire(key(accountId), TimelineCachePolicy.CACHE_TTL_SECONDS)
     }
 
-    override fun distribute(accountIds: List<AccountId>, position: TimelinePosition) {
+    override fun distribute(accountIds: List<AccountId>, position: TimelinePosition): Int {
         val commands = connection.async()
         val oldestReads = accountIds.associateWith { commands.zrangeWithScores(key(it), 0, 0) }
         val oldestByAccount = oldestReads.mapValues { (_, future) ->
@@ -72,6 +72,7 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
             oldest == null || position.score > oldest.score || (position.score == oldest.score && position.member >= oldest.member)
         }
         append(recipients, listOf(position), null)
+        return recipients.size
     }
 
     override fun appendRebuilt(accountId: AccountId, positions: List<TimelinePosition>) {
