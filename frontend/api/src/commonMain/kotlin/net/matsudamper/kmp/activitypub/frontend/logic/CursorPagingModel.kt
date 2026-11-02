@@ -60,7 +60,9 @@ class CursorPagingModel<D : Query.Data> internal constructor(
             val pageResult = fetchPage(client, queryAfter(cursor))
             if (pageResult !is UpdateOperationResponseResult.Success<D>) return@update pageResult
             val page = pageResult.result
-            val merged = appendPage(before, page.data ?: return@update error(GraphQlRequestException(page.failureMessage())))
+            // 取得を待つ間に updateCache で書き換わったフォロー状態を巻き戻さないよう、結合の直前に読み直す
+            val latest = client.readCacheOrNull() ?: before
+            val merged = appendPage(latest, page.data ?: return@update error(GraphQlRequestException(page.failureMessage())))
                 ?: return@update error(GraphQlRequestException(NOT_LOGGED_IN_MESSAGE))
 
             success(page.newBuilder().data(merged).build())
@@ -72,10 +74,14 @@ class CursorPagingModel<D : Query.Data> internal constructor(
      */
     suspend fun updateCache(transform: (D) -> D) {
         val client = clients.client.value ?: return
-        val response = client.apolloStore.readOperation(firstQuery)
-        if (!response.errors.isNullOrEmpty()) return
-        val data = response.data ?: return
+        val data = client.readCacheOrNull() ?: return
         client.apolloStore.writeOperation(operation = firstQuery, data = transform(data), publish = true)
+    }
+
+    private suspend fun ApolloClient.readCacheOrNull(): D? {
+        val response = apolloStore.readOperation(firstQuery)
+        if (!response.errors.isNullOrEmpty()) return null
+        return response.data
     }
 
     private suspend fun UpdateOperationResponseScope<D>.fetchPage(
