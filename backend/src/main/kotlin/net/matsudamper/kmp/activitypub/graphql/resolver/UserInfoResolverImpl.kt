@@ -1,18 +1,15 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
-import java.net.URI
 import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimeline
-import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
-import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
 
 class UserInfoResolverImpl : UserInfoResolver {
     override fun homeTimeline(userInfo: QlUserInfo, cursor: String?, limit: Int, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlHomeTimeline?>> =
@@ -20,19 +17,7 @@ class UserInfoResolverImpl : UserInfoResolver {
             val diContainer = GraphQlEngine.diContainer(env)
             val page = diContainer.homeTimelineService.page(userInfo.id, cursor, limit)
             val result = QlHomeTimeline(
-                posts = page.posts.map { post ->
-                    QlHomeTimelinePost(
-                        id = post.position.member,
-                        content = htmlToPlainText(post.contentHtml),
-                        publishedAt = post.publishedAt.toString(),
-                        username = post.username,
-                        host = post.actorUri?.let { URI(it).host },
-                        displayName = post.displayName ?: post.username,
-                        summary = post.summary,
-                        sensitive = post.sensitive,
-                        linkUrls = diContainer.linkPreviewService?.links(post.contentHtml).orEmpty(),
-                    )
-                },
+                posts = page.posts.map { it.toQlHomeTimelinePost(diContainer.linkPreviewService) },
                 nextCursor = page.nextCursor,
             )
             DataFetcherResult.Builder<QlHomeTimeline?>(result).build()

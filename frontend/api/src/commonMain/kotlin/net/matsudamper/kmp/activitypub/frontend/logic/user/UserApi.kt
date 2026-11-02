@@ -1,10 +1,13 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
 import kotlin.io.encoding.Base64
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
@@ -13,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineLinkPreviewsQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelinePostsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
@@ -32,6 +36,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.closeSubscriptionConnection
 import net.matsudamper.kmp.activitypub.frontend.logic.failureMessage
 
 class UserApi(
@@ -79,6 +84,26 @@ class UserApi(
                 UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl)
             },
         )
+    }
+
+    /**
+     * ホームタイムラインに新しく載った投稿を流し続ける。切れたら間を置いてつなぎ直す
+     */
+    fun homeTimelineArrivals(): Flow<UserHomeTimelineResult.Post> = flow {
+        while (true) {
+            val client = clients.awaitLoadedClient()
+            if (client != null) {
+                client.subscription(HomeTimelinePostsSubscription()).toFlow().collect { response ->
+                    val post = response.data?.homeTimelinePosts
+                    if (post != null) {
+                        emit(UserHomeTimelineResult.Post(post.id, post.content, post.publishedAt, post.username, post.host, post.displayName, post.summary, post.sensitive, post.linkUrls))
+                    }
+                }
+                // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
+                client.closeSubscriptionConnection()
+            }
+            delay(HOME_TIMELINE_RECONNECT_DELAY)
+        }
     }
 
     suspend fun setFollowing(actorUri: String, followed: Boolean): String? {
@@ -140,6 +165,7 @@ class UserApi(
             null -> {
                 // 別のアカウントで取得した内容を出さない
                 client.apolloStore.clearAll()
+                client.closeSubscriptionConnection()
                 UserLoginResult.Success
             }
 
@@ -155,6 +181,7 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserLogoutResult.Failure(response.failureMessage())
         if (response.data?.user?.logout != true) return UserLogoutResult.Failure(response.failureMessage())
         client.apolloStore.clearAll()
+        client.closeSubscriptionConnection()
 
         return UserLogoutResult.Success
     }
@@ -314,5 +341,6 @@ class UserApi(
 
     private companion object {
         const val HOME_TIMELINE_PAGE_SIZE = 40
+        val HOME_TIMELINE_RECONNECT_DELAY = 5.seconds
     }
 }

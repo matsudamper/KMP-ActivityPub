@@ -1,8 +1,10 @@
 package net.matsudamper.kmp.activitypub.frontend
 
+import kotlinx.browser.window
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.network.websocket.WebSocketEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyApi
@@ -28,7 +30,23 @@ class WebAppModule {
 
 private class WebGraphQlClientSource : GraphQlClientSource {
     override val client: StateFlow<ApolloClient?> =
-        MutableStateFlow(GraphQlClient.builder("/graphql").build())
+        MutableStateFlow(
+            GraphQlClient.builder(
+                serverUrl = "/graphql",
+                subscriptionNetworkTransport = GraphQlClient.webSocketNetworkTransport(
+                    serverUrl = webSocketServerUrl(),
+                    webSocketEngine = WebSocketEngine(),
+                ),
+            ).build(),
+        )
 
     override suspend fun awaitLoadedClient(): ApolloClient? = client.value
+}
+
+/**
+ * WebSocket は相対 URL を受け付けないので、開いているページのオリジンから組み立てる
+ */
+private fun webSocketServerUrl(): String {
+    val scheme = if (window.location.protocol == "https:") "wss" else "ws"
+    return "$scheme://${window.location.host}/graphql"
 }

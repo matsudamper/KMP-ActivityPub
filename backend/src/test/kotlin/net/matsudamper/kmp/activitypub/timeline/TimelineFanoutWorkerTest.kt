@@ -5,7 +5,13 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -19,7 +25,7 @@ class TimelineFanoutWorkerTest {
         }
         val cache = FakeTimelineStore(mutableListOf())
         val store = RecoverableGroupStore(cache)
-        val worker = TimelineFanoutWorker(repository, store, Clock.systemUTC())
+        val worker = TimelineFanoutWorker(repository, store, HomeTimelineArrivals(repository), Clock.systemUTC())
         store.initializeGroup()
         assertEquals(0, worker.runOnce(false))
         val position = TimelinePosition(1, "r1")
@@ -34,13 +40,37 @@ class TimelineFanoutWorkerTest {
     }
 
     @Test
+    fun distributedPostIsStreamedOnlyToRecipients() = runBlocking {
+        val recipient = AccountId(1)
+        val other = AccountId(2)
+        val position = TimelinePosition(1, "r1")
+        val stored = FakeTimelineRepository()
+        stored.positions.add(position)
+        val repository = object : TimelineRepository by stored {
+            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = listOf(recipient)
+        }
+        val arrivals = HomeTimelineArrivals(repository)
+        val store = object : TimelineStore by FakeTimelineStore(mutableListOf()) {
+            override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = listOf(FanoutJob("1-0", position))
+            override fun acknowledge(id: String) = Unit
+        }
+        val recipientPosts = async(start = CoroutineStart.UNDISPATCHED) { arrivals.posts(recipient).first() }
+        val otherPosts = async(start = CoroutineStart.UNDISPATCHED) { withTimeoutOrNull(100) { arrivals.posts(other).first() } }
+
+        TimelineFanoutWorker(repository, store, arrivals, Clock.systemUTC()).runOnce(false)
+
+        assertEquals(position, recipientPosts.await().position)
+        assertNull(otherPosts.await())
+    }
+
+    @Test
     fun otherReadFailuresArePropagatedWithoutRecreatingGroup() {
         val failure = IllegalStateException("接続失敗")
         val store = object : TimelineStore by FakeTimelineStore(mutableListOf()) {
             override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = throw failure
             override fun initializeGroup() = error("再作成してはいけない")
         }
-        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, Clock.systemUTC())
+        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, HomeTimelineArrivals(FakeTimelineRepository()), Clock.systemUTC())
         assertSame(failure, assertFailsWith<IllegalStateException> { worker.runOnce(false) })
     }
 

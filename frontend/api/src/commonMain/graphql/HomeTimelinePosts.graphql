@@ -1,0 +1,13 @@
+subscription HomeTimelinePosts {
+    homeTimelinePosts {
+        id
+        content
+        publishedAt
+        username
+        host
+        displayName
+        summary
+        sensitive
+        linkUrls
+    }
+}
