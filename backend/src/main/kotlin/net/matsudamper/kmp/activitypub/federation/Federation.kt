@@ -64,7 +64,7 @@ internal class Federation(
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
     private val httpClient = OkHttpActivityPubClient()
-    private val linkPreviewPageFetcher = HttpLinkPreviewPageFetcher()
+    private val publicAddressHttpClient = PublicAddressHttpClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     private val notes = RepositoryNoteStore(noteRepository)
@@ -173,12 +173,12 @@ internal class Federation(
             origin = "https://$domain",
             pathPrefix = RemoteImageProxy.LINK_PREVIEW_IMAGE_PATH_PREFIX,
             signingKey = remoteIconProxySigningKey,
-            fetcher = HttpRemoteImageFetcher(httpClient),
+            fetcher = PublicAddressRemoteImageFetcher(publicAddressHttpClient),
         )
 
     val linkPreviewService: LinkPreviewService =
         LinkPreviewService(
-            fetcher = linkPreviewPageFetcher,
+            fetcher = HttpLinkPreviewPageFetcher(publicAddressHttpClient),
             imageProxyUrlOf = linkPreviewImageProxy::proxyUrlOf,
             clock = Clock.systemUTC(),
         )
@@ -230,6 +230,6 @@ internal class Federation(
 
     override fun close() {
         httpClient.close()
-        linkPreviewPageFetcher.close()
+        publicAddressHttpClient.close()
     }
 }
