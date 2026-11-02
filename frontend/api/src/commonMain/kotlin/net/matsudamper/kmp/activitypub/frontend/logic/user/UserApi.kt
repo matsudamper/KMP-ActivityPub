@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import com.apollographql.cache.normalized.apolloStore
+import com.apollographql.cache.normalized.api.CacheKey
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Optional
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
@@ -22,6 +24,10 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ListedActorFollowing
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ListedActorFollowingImpl
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.SearchedUserFollowing
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.SearchedUserFollowingImpl
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -44,6 +50,18 @@ class UserApi(
         val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
         if (response.data?.user?.setFollowing != true) return "フォロー状態を変更できませんでした"
+        client.apolloStore.writeFragment(
+            fragment = SearchedUserFollowingImpl(),
+            cacheKey = CacheKey("SearchedUser:$actorUri"),
+            data = SearchedUserFollowing(actorUri = actorUri, following = followed),
+            publish = true,
+        )
+        client.apolloStore.writeFragment(
+            fragment = ListedActorFollowingImpl(),
+            cacheKey = CacheKey("ListedActor:$actorUri"),
+            data = ListedActorFollowing(actorUri = actorUri, following = followed),
+            publish = true,
+        )
         followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
         return null
     }

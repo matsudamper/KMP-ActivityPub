@@ -27,3 +27,13 @@ fragment ActorListFields on ActorList {
     }
     nextCursor
 }
+
+fragment SearchedUserFollowing on SearchedUser {
+    actorUri
+    following
+}
+
+fragment ListedActorFollowing on ListedActor {
+    actorUri
+    following
+}
