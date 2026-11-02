@@ -28,6 +28,7 @@ internal class HomeScreenViewModel(
     internal val eventHandler = events.asHandler()
     private val searchStateFlow: MutableStateFlow<SearchState> = MutableStateFlow(SearchState.NotSearched)
     private var searchJob: Job? = null
+    private var searchLoadMoreJob: Job? = null
     private var profileJob: Job? = null
     private var followingChangeInProgress = false
 
@@ -169,6 +170,7 @@ internal class HomeScreenViewModel(
     private fun search(query: String) {
         val trimmedQuery = query.trim()
         searchJob?.cancel()
+        searchLoadMoreJob?.cancel()
         if (trimmedQuery.isEmpty()) {
             searchStateFlow.value = SearchState.NotSearched
             return
@@ -179,18 +181,24 @@ internal class HomeScreenViewModel(
             return
         }
         searchJob = viewModelScope.launch {
-            when (val result = userApi.searchUsers(query = trimmedQuery, after = null)) {
-                is UserSearchResult.Success -> {
-                    searchStateFlow.value = SearchState.Loaded(
-                        query = trimmedQuery,
-                        users = result.users,
-                        nextCursor = result.nextCursor,
-                    )
-                }
+            userApi.watchSearchUsers(query = trimmedQuery).collect { result ->
+                when (result) {
+                    is UserSearchResult.Success -> {
+                        searchStateFlow.update { current ->
+                            val loaded = (current as? SearchState.Loaded)?.takeIf { it.query == trimmedQuery }
+                            SearchState.Loaded(
+                                query = trimmedQuery,
+                                users = result.users + (loaded?.users?.drop(loaded.firstPageSize) ?: listOf()),
+                                firstPageSize = result.users.size,
+                                nextCursor = if (loaded == null) result.nextCursor else loaded.nextCursor,
+                            )
+                        }
+                    }
 
-                is UserSearchResult.Failure -> {
-                    searchStateFlow.value = SearchState.NotSearched
-                    events.send { it.showMessage(result.message) }
+                    is UserSearchResult.Failure -> {
+                        searchStateFlow.value = SearchState.NotSearched
+                        events.send { it.showMessage(result.message) }
+                    }
                 }
             }
         }
@@ -205,11 +213,11 @@ internal class HomeScreenViewModel(
     private suspend fun resolveUser(query: String) {
         when (val result = userApi.resolveUser(query)) {
             is UserResolveResult.Found -> {
-                searchStateFlow.value = SearchState.Loaded(query = query, users = listOf(result.user), nextCursor = null)
+                searchStateFlow.value = SearchState.Loaded(query = query, users = listOf(result.user), firstPageSize = 1, nextCursor = null)
             }
 
             UserResolveResult.NotFound -> {
-                searchStateFlow.value = SearchState.Loaded(query = query, users = listOf(), nextCursor = null)
+                searchStateFlow.value = SearchState.Loaded(query = query, users = listOf(), firstPageSize = 0, nextCursor = null)
             }
 
             is UserResolveResult.Failure -> {
@@ -220,10 +228,10 @@ internal class HomeScreenViewModel(
     }
 
     private fun loadMoreSearchResult() {
-        if (searchJob?.isActive == true) return
+        if (searchLoadMoreJob?.isActive == true) return
         val loaded = searchStateFlow.value as? SearchState.Loaded ?: return
         val nextCursor = loaded.nextCursor ?: return
-        searchJob = viewModelScope.launch {
+        searchLoadMoreJob = viewModelScope.launch {
             when (val result = userApi.searchUsers(query = loaded.query, after = nextCursor)) {
                 is UserSearchResult.Success -> {
                     searchStateFlow.update { current ->
@@ -346,6 +354,7 @@ internal class HomeScreenViewModel(
         data class Loaded(
             val query: String,
             val users: List<UserSearchResult.User>,
+            val firstPageSize: Int,
             val nextCursor: String?,
         ) : SearchState
     }
