@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.jsoup.Jsoup
+import org.jsoup.safety.Safelist
 
 class LinkPreviewServiceTest {
     @Test
@@ -21,6 +22,20 @@ class LinkPreviewServiceTest {
             "</p>"
 
         assertEquals(listOf("https://example.com/article"), service.links(html))
+    }
+
+    @Test
+    fun 受け取って保存した投稿でもメンションとハッシュタグはカードにしない() {
+        val service = service(pages = mapOf())
+        val received = "<p>" +
+            "<span class=\"h-card\"><a href=\"https://remote.example/@alice\" class=\"u-url mention\">@<span>alice</span></a></span> " +
+            "<a href=\"https://remote.example/tags/kotlin\" class=\"mention hashtag\" rel=\"tag\">#<span>kotlin</span></a> " +
+            "<a href=\"https://example.com/article\" rel=\"nofollow noopener\">https://example.com/article</a>" +
+            "</p>"
+        // 受け取った投稿は保存前にこの形で掃除される
+        val stored = Jsoup.clean(received, Safelist.basic())
+
+        assertEquals(listOf("https://example.com/article"), service.links(stored))
     }
 
     @Test

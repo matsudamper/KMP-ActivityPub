@@ -11,8 +11,9 @@ internal object OgpParser {
     /**
      * 本文の `<a href>` を出てくる順に、重複を除いて返す。http と https のものだけ。
      *
-     * Mastodon などはメンションとハッシュタグもリンクにして `class="mention"` / `class="hashtag"` や
-     * `rel="tag"` を付ける。これらはプロフィールやタグの一覧を指すだけなのでカードにしない
+     * Mastodon などはメンションとハッシュタグもリンクにする。これらはプロフィールやタグの一覧を指すだけなので
+     * カードにしない。受け取った投稿は保存前に Safelist.basic で `class` / `rel` が落ちるので、
+     * 表示が `@` / `#` で始まるかでも見分ける
      */
     fun links(contentHtml: String): List<String> =
         Jsoup.parseBodyFragment(contentHtml).select("a[href]")
@@ -52,7 +53,10 @@ internal object OgpParser {
     }
 
     private fun Element.isMentionOrHashtag(): Boolean =
-        hasClass("mention") || hasClass("hashtag") || attr("rel").split(' ').any { it.equals("tag", ignoreCase = true) }
+        hasClass("mention") ||
+            hasClass("hashtag") ||
+            attr("rel").split(' ').any { it.equals("tag", ignoreCase = true) } ||
+            text().trimStart().let { it.startsWith("@") || it.startsWith("#") }
 
     data class Ogp(
         val title: String?,
