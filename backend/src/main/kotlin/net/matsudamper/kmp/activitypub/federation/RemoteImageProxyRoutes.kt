@@ -7,14 +7,14 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
-import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
-import net.matsudamper.kmp.activitypub.logic.RemoteIconProxyResult
+import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteImageProxyResult
 
 /**
  * Cloudflare に edge でキャッシュさせる。Set-Cookie や Vary を付けるとキャッシュされなくなるので付けない
  */
-internal fun Route.remoteIconProxyRoutes(proxy: RemoteIconProxy) {
-    get("${RemoteIconProxy.PATH_PREFIX}/{encodedUrl}/{signature}${RemoteIconProxy.PATH_SUFFIX}") {
+internal fun Route.remoteImageProxyRoutes(proxy: RemoteImageProxy) {
+    get("${proxy.pathPrefix}/{encodedUrl}/{signature}${RemoteImageProxy.PATH_SUFFIX}") {
         val result =
             proxy.fetch(
                 encodedUrl = call.parameters["encodedUrl"].orEmpty(),
@@ -22,7 +22,7 @@ internal fun Route.remoteIconProxyRoutes(proxy: RemoteIconProxy) {
             )
         call.response.header(CONTENT_TYPE_OPTIONS_HEADER, "nosniff")
         when (result) {
-            is RemoteIconProxyResult.Found -> {
+            is RemoteImageProxyResult.Found -> {
                 val cacheControl =
                     if (call.request.queryParameters.contains("v")) {
                         "public, max-age=31536000, immutable"
@@ -34,12 +34,12 @@ internal fun Route.remoteIconProxyRoutes(proxy: RemoteIconProxy) {
             }
 
             // 相手が落ちているだけのこともあるので、失敗を edge に残さない
-            RemoteIconProxyResult.Unavailable -> {
+            RemoteImageProxyResult.Unavailable -> {
                 call.response.header(HttpHeaders.CacheControl, "no-store")
                 call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.BadGateway)
             }
 
-            RemoteIconProxyResult.NotIssued -> {
+            RemoteImageProxyResult.NotIssued -> {
                 call.response.header(HttpHeaders.CacheControl, "no-store")
                 call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.NotFound)
             }

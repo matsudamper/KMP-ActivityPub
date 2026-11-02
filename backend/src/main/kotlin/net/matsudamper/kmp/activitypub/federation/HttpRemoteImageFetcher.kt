@@ -1,15 +1,15 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.io.IOException
-import net.matsudamper.kmp.activitypub.logic.RemoteIconFetcher
+import net.matsudamper.kmp.activitypub.logic.RemoteImageFetcher
 import net.matsudamper.kotpub.http.ActivityPubHttpClient
 
 /**
  * 相手が決めた URL を取りに行くので、内部のアドレスを弾く [OkHttpActivityPubClient] を通す
  */
-internal class HttpRemoteIconFetcher(
+internal class HttpRemoteImageFetcher(
     private val client: ActivityPubHttpClient,
-) : RemoteIconFetcher {
+) : RemoteImageFetcher {
     override suspend fun fetch(
         url: String,
         maxBytes: Int,

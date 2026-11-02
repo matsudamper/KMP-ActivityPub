@@ -11,7 +11,7 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.runBlocking
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
-class RemoteIconProxyTest {
+class RemoteImageProxyTest {
     private val remoteIcons = mutableMapOf<String, ByteArray>()
     private val fetchedUrls = mutableListOf<String>()
     private val proxy = createProxy(signingKey = "key-1".encodeToByteArray())
@@ -23,7 +23,7 @@ class RemoteIconProxyTest {
 
         val result = fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL)))
 
-        val found = assertIs<RemoteIconProxyResult.Found>(result)
+        val found = assertIs<RemoteImageProxyResult.Found>(result)
         assertContentEquals(png, found.bytes)
         assertEquals("image/png", found.contentType)
         assertEquals(listOf(REMOTE_URL), fetchedUrls)
@@ -50,8 +50,8 @@ class RemoteIconProxyTest {
         assertEquals(versioned, proxy.proxyUrlOf(REMOTE_URL, updatedAt))
         assertNotEquals(versioned, nextVersion)
         assertEquals(true, versioned.substringAfter("?v=").matches(Regex("[A-Za-z0-9_-]+")))
-        assertIs<RemoteIconProxyResult.Found>(fetch(versioned))
-        assertIs<RemoteIconProxyResult.Found>(fetch(nextVersion))
+        assertIs<RemoteImageProxyResult.Found>(fetch(versioned))
+        assertIs<RemoteImageProxyResult.Found>(fetch(nextVersion))
         assertEquals(listOf(REMOTE_URL, REMOTE_URL), fetchedUrls)
     }
 
@@ -69,9 +69,9 @@ class RemoteIconProxyTest {
         val (encodedUrl, _) = split(checkNotNull(proxy.proxyUrlOf(REMOTE_URL)))
         val (_, otherSignature) = split(checkNotNull(proxy.proxyUrlOf("https://remote.example/other.png")))
 
-        assertEquals(RemoteIconProxyResult.NotIssued, proxy.fetchBlocking(encodedUrl = encodedUrl, signature = otherSignature))
-        assertEquals(RemoteIconProxyResult.NotIssued, proxy.fetchBlocking(encodedUrl = encodedUrl, signature = ""))
-        assertEquals(RemoteIconProxyResult.NotIssued, proxy.fetchBlocking(encodedUrl = "!!!", signature = otherSignature))
+        assertEquals(RemoteImageProxyResult.NotIssued, proxy.fetchBlocking(encodedUrl = encodedUrl, signature = otherSignature))
+        assertEquals(RemoteImageProxyResult.NotIssued, proxy.fetchBlocking(encodedUrl = encodedUrl, signature = ""))
+        assertEquals(RemoteImageProxyResult.NotIssued, proxy.fetchBlocking(encodedUrl = "!!!", signature = otherSignature))
         assertEquals(listOf(), fetchedUrls)
     }
 
@@ -82,24 +82,25 @@ class RemoteIconProxyTest {
         val otherProxyUrl = checkNotNull(otherProxy.proxyUrlOf(REMOTE_URL))
 
         assertNotEquals(proxy.proxyUrlOf(REMOTE_URL), otherProxyUrl)
-        assertEquals(RemoteIconProxyResult.NotIssued, fetch(otherProxyUrl))
+        assertEquals(RemoteImageProxyResult.NotIssued, fetch(otherProxyUrl))
     }
 
     @Test
     fun `画像として受け付けない形式は返さない`() {
         remoteIcons[REMOTE_URL] = """<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>""".encodeToByteArray()
 
-        assertEquals(RemoteIconProxyResult.Unavailable, fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
+        assertEquals(RemoteImageProxyResult.Unavailable, fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
     }
 
     @Test
     fun `相手から取れなければ Unavailable`() {
-        assertEquals(RemoteIconProxyResult.Unavailable, fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
+        assertEquals(RemoteImageProxyResult.Unavailable, fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
     }
 
-    private fun createProxy(signingKey: ByteArray): RemoteIconProxy =
-        RemoteIconProxy(
+    private fun createProxy(signingKey: ByteArray): RemoteImageProxy =
+        RemoteImageProxy(
             origin = "https://example.com",
+            pathPrefix = RemoteImageProxy.ICON_PATH_PREFIX,
             signingKey = signingKey,
             fetcher = { url, _ ->
                 fetchedUrls += url
@@ -107,7 +108,7 @@ class RemoteIconProxyTest {
             },
         )
 
-    private fun fetch(proxyUrl: String): RemoteIconProxyResult {
+    private fun fetch(proxyUrl: String): RemoteImageProxyResult {
         val (encodedUrl, signature) = split(proxyUrl)
         return proxy.fetchBlocking(encodedUrl = encodedUrl, signature = signature)
     }
@@ -117,10 +118,10 @@ class RemoteIconProxyTest {
         return segments[segments.size - 2] to segments.last()
     }
 
-    private fun RemoteIconProxy.fetchBlocking(
+    private fun RemoteImageProxy.fetchBlocking(
         encodedUrl: String,
         signature: String,
-    ): RemoteIconProxyResult = runBlocking { fetch(encodedUrl = encodedUrl, signature = signature) }
+    ): RemoteImageProxyResult = runBlocking { fetch(encodedUrl = encodedUrl, signature = signature) }
 
     private companion object {
         const val REMOTE_URL = "https://remote.example/media/icon.png"

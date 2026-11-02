@@ -8,17 +8,19 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * 他のサーバーのプロフィール画像を、このサーバーを通して配る。
+ * 他のサーバーの画像を、このサーバーを通して配る。
  * 画面から相手のサーバーへ直接取りに行くと、Web では CORS を返さないサーバーの画像を読めない。
  *
  * このサーバーが発行した URL だけを中継する。誰の指定でも取りに行くと、このサーバーを踏み台にされる
  *
  * @param origin `https://example.com` の形。末尾に / を付けない
+ * @param pathPrefix 何の画像かを URL で分ける。[ICON_PATH_PREFIX] など
  */
-class RemoteIconProxy(
+class RemoteImageProxy(
     private val origin: String,
+    val pathPrefix: String,
     private val signingKey: ByteArray,
-    private val fetcher: RemoteIconFetcher,
+    private val fetcher: RemoteImageFetcher,
 ) {
     /**
      * http と https 以外は取りに行けないので null
@@ -30,22 +32,22 @@ class RemoteIconProxy(
         if (scheme != "http" && scheme != "https") return null
         val encodedUrl = base64Url.encodeToString(remoteUrl.encodeToByteArray())
         val version = if (updatedAt == null) "" else "?v=${base64Url.encodeToString(updatedAt.toString().encodeToByteArray())}"
-        return "$origin$PATH_PREFIX/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
+        return "$origin$pathPrefix/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
     }
 
     suspend fun fetch(
         encodedUrl: String,
         signature: String,
-    ): RemoteIconProxyResult {
+    ): RemoteImageProxyResult {
         val remoteUrl =
             runCatching { Base64.getUrlDecoder().decode(encodedUrl).decodeToString() }.getOrNull()
-                ?: return RemoteIconProxyResult.NotIssued
+                ?: return RemoteImageProxyResult.NotIssued
         val signatureMatches = MessageDigest.isEqual(sign(remoteUrl).encodeToByteArray(), signature.encodeToByteArray())
-        if (!signatureMatches) return RemoteIconProxyResult.NotIssued
+        if (!signatureMatches) return RemoteImageProxyResult.NotIssued
 
-        val bytes = fetcher.fetch(url = remoteUrl, maxBytes = MAX_ICON_BYTES) ?: return RemoteIconProxyResult.Unavailable
-        val format = ProfileIconFormat.detect(bytes) ?: return RemoteIconProxyResult.Unavailable
-        return RemoteIconProxyResult.Found(bytes = bytes, contentType = format.contentType)
+        val bytes = fetcher.fetch(url = remoteUrl, maxBytes = MAX_IMAGE_BYTES) ?: return RemoteImageProxyResult.Unavailable
+        val format = ProfileIconFormat.detect(bytes) ?: return RemoteImageProxyResult.Unavailable
+        return RemoteImageProxyResult.Found(bytes = bytes, contentType = format.contentType)
     }
 
     private fun sign(remoteUrl: String): String {
@@ -55,7 +57,9 @@ class RemoteIconProxy(
     }
 
     companion object {
-        const val PATH_PREFIX: String = "/proxy/icon"
+        const val ICON_PATH_PREFIX: String = "/proxy/icon"
+
+        const val LINK_PREVIEW_IMAGE_PATH_PREFIX: String = "/proxy/link-preview-image"
 
         /**
          * Cloudflare は拡張子でキャッシュするかを決める。.bin は既定でキャッシュする拡張子に入っていて、画像の形式を名乗らずに済む
@@ -63,12 +67,12 @@ class RemoteIconProxy(
         const val PATH_SUFFIX: String = ".bin"
 
         private const val HMAC_ALGORITHM = "HmacSHA256"
-        private const val MAX_ICON_BYTES = 5 * 1024 * 1024
+        private const val MAX_IMAGE_BYTES = 5 * 1024 * 1024
         private val base64Url = Base64.getUrlEncoder().withoutPadding()
     }
 }
 
-fun interface RemoteIconFetcher {
+fun interface RemoteImageFetcher {
     /**
      * 取れなかったときと [maxBytes] を超えたときは null
      */
@@ -78,19 +82,19 @@ fun interface RemoteIconFetcher {
     ): ByteArray?
 }
 
-sealed interface RemoteIconProxyResult {
+sealed interface RemoteImageProxyResult {
     class Found(
         val bytes: ByteArray,
         val contentType: String,
-    ) : RemoteIconProxyResult
+    ) : RemoteImageProxyResult
 
     /**
      * このサーバーが発行していない URL
      */
-    data object NotIssued : RemoteIconProxyResult
+    data object NotIssued : RemoteImageProxyResult
 
     /**
      * 相手から取れないか、受け付ける画像の形式ではない
      */
-    data object Unavailable : RemoteIconProxyResult
+    data object Unavailable : RemoteImageProxyResult
 }

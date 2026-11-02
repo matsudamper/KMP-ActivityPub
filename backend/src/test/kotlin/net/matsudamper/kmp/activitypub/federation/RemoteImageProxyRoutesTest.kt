@@ -10,19 +10,20 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
-import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.TestProfileIcons
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
-class RemoteIconProxyRoutesTest {
+class RemoteImageProxyRoutesTest {
     @Test
     fun `版があれば一年間の immutable とし版がなければ一日間キャッシュする`() =
         testApplication {
             val bytes = TestProfileIcons.read("400x400.png")
             val remoteUrl = "https://remote.example/icon.png"
             val proxy =
-                RemoteIconProxy(
+                RemoteImageProxy(
                     origin = "http://localhost",
+                    pathPrefix = RemoteImageProxy.ICON_PATH_PREFIX,
                     signingKey = "test-key".encodeToByteArray(),
                     fetcher = { url, _ ->
                         assertEquals(remoteUrl, url)
@@ -30,7 +31,7 @@ class RemoteIconProxyRoutesTest {
                     },
                 )
             application {
-                routing { remoteIconProxyRoutes(proxy) }
+                routing { remoteImageProxyRoutes(proxy) }
             }
 
             val unversioned = checkNotNull(proxy.proxyUrlOf(remoteUrl))

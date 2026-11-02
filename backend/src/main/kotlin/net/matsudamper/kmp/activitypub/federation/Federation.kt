@@ -13,7 +13,7 @@ import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
-import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
@@ -160,17 +160,26 @@ internal class Federation(
             if (iconVersion == null) null else directory.resolve(username)?.icon(iconVersion)
         }
 
-    val remoteIconProxy: RemoteIconProxy =
-        RemoteIconProxy(
+    val remoteIconProxy: RemoteImageProxy =
+        RemoteImageProxy(
             origin = "https://$domain",
+            pathPrefix = RemoteImageProxy.ICON_PATH_PREFIX,
             signingKey = remoteIconProxySigningKey,
-            fetcher = HttpRemoteIconFetcher(httpClient),
+            fetcher = HttpRemoteImageFetcher(httpClient),
+        )
+
+    val linkPreviewImageProxy: RemoteImageProxy =
+        RemoteImageProxy(
+            origin = "https://$domain",
+            pathPrefix = RemoteImageProxy.LINK_PREVIEW_IMAGE_PATH_PREFIX,
+            signingKey = remoteIconProxySigningKey,
+            fetcher = HttpRemoteImageFetcher(httpClient),
         )
 
     val linkPreviewService: LinkPreviewService =
         LinkPreviewService(
             fetcher = linkPreviewPageFetcher,
-            imageProxyUrlOf = remoteIconProxy::proxyUrlOf,
+            imageProxyUrlOf = linkPreviewImageProxy::proxyUrlOf,
             clock = Clock.systemUTC(),
         )
 
