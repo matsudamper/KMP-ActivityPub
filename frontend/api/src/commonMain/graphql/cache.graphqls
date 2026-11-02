@@ -1,0 +1,4 @@
+extend schema @link(url: "https://specs.apollo.dev/cache/v0.4", import: ["@typePolicy"])
+
+extend type SearchedUser @typePolicy(keyFields: "actorUri")
+extend type ListedActor @typePolicy(keyFields: "actorUri")

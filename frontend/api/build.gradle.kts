@@ -23,6 +23,7 @@ kotlin {
             dependencies {
                 // Android が ApolloClient を渡せるように api にする
                 api(libs.apollo.runtime)
+                api(libs.apollo.normalized.cache)
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
@@ -36,6 +37,10 @@ apollo {
         schemaFiles.from(
             rootProject.fileTree("backend/graphql/src/main/resources/graphql") { include("*.graphqls") },
         )
+        plugin("com.apollographql.cache:normalized-cache-apollo-compiler-plugin:${libs.versions.apolloNormalizedCache.get()}")
+        pluginArgument("com.apollographql.cache.packageName", packageName.get())
+        generateFragmentImplementations.set(true)
+        schemaFiles.from(file("src/commonMain/graphql/cache.graphqls"))
         mapScalarToKotlinString("UserId")
         mapScalarToKotlinString("PasskeyCredentialId")
     }
