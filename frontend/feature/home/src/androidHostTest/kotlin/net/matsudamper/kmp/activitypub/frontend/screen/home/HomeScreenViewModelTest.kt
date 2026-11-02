@@ -24,6 +24,7 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.http.HttpRequest
 import com.apollographql.apollo.api.http.HttpResponse
 import com.apollographql.apollo.network.http.HttpEngine
+import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import okio.Buffer
@@ -103,7 +104,7 @@ class HomeScreenViewModelTest {
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val engine = QueueEngine()
-        val apolloClient = ApolloClient.Builder().serverUrl("https://example.com/graphql").httpEngine(engine).build()
+        val apolloClient = GraphQlClient.builder("https://example.com/graphql").httpEngine(engine).build()
         val source = object : GraphQlClientSource {
             override val client = MutableStateFlow<ApolloClient?>(apolloClient)
             override suspend fun awaitLoadedClient(): ApolloClient? = client.value
@@ -120,10 +121,10 @@ class HomeScreenViewModelTest {
 
     private fun page(ids: List<String>, cursor: String?): HttpResponse {
         val posts = ids.joinToString(",") { id ->
-            """{"id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false}"""
+            """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false}"""
         }
         val next = if (cursor == null) "null" else "\"${cursor}\""
-        return response("""{"data":{"userInfo":{"homeTimeline":{"posts":[$posts],"nextCursor":$next}}}}""")
+        return response("""{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[$posts],"nextCursor":$next}}}}""")
     }
 
     private fun response(json: String): HttpResponse = HttpResponse.Builder(200).body(Buffer().writeUtf8(json)).build()
