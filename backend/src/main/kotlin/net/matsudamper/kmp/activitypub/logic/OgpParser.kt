@@ -28,7 +28,7 @@ internal object OgpParser {
                         add(node.attr("href").trim())
 
                     node is TextNode && (node.parent() as? Element)?.closest("a") == null ->
-                        plainTextUrl.findAll(node.wholeText).forEach { add(it.value.trimEnd(*TRAILING_PUNCTUATION)) }
+                        plainTextUrl.findAll(node.wholeText).forEach { add(trimTrailingPunctuation(it.value)) }
                 }
             }
         }
@@ -70,9 +70,26 @@ internal object OgpParser {
             text().trimStart().let { it.startsWith("@") || it.startsWith("#") }
 
     /**
-     * 文末の句読点や閉じ括弧が URL に続けて書かれることが多いので、末尾からは外す
+     * 文末の句読点や閉じ括弧が URL に続けて書かれることが多いので、末尾からは外す。
+     * `https://en.wikipedia.org/wiki/Kotlin_(programming_language)` のように URL の中で開いた括弧を
+     * 閉じているものは URL の一部なので残す
      */
-    private val TRAILING_PUNCTUATION = charArrayOf('.', ',', '!', '?', ')', ']', ':', ';', '。', '、', '」', '）')
+    private fun trimTrailingPunctuation(url: String): String {
+        var end = url.length
+        while (end > 0) {
+            val last = url[end - 1]
+            val isUnbalancedClose = when (last) {
+                ')' -> url.take(end).count { it == '(' } < url.take(end).count { it == ')' }
+                ']' -> url.take(end).count { it == '[' } < url.take(end).count { it == ']' }
+                else -> false
+            }
+            if (last !in TRAILING_PUNCTUATION && !isUnbalancedClose) break
+            end--
+        }
+        return url.take(end)
+    }
+
+    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '。', '、', '」', '）')
 
     data class Ogp(
         val title: String?,

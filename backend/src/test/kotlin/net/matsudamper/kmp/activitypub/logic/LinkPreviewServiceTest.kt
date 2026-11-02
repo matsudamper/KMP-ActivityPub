@@ -41,10 +41,20 @@ class LinkPreviewServiceTest {
     @Test
     fun このサーバーで書いた投稿の文字のままのURLもカードにする() {
         val service = service(pages = mapOf())
-        val composed = NoteComposer.compose("記事 https://example.com/article.\n\n（https://example.com/other）")
+        val composed = NoteComposer.compose(
+            "記事 https://example.com/article.\n\n（https://example.com/other）\n\n" +
+                "(https://en.wikipedia.org/wiki/Kotlin_(programming_language))",
+        )
         val contentHtml = (composed as NoteComposer.ComposeResult.Composed).contentHtml
 
-        assertEquals(listOf("https://example.com/article", "https://example.com/other"), service.links(contentHtml))
+        assertEquals(
+            listOf(
+                "https://example.com/article",
+                "https://example.com/other",
+                "https://en.wikipedia.org/wiki/Kotlin_(programming_language)",
+            ),
+            service.links(contentHtml),
+        )
     }
 
     @Test
