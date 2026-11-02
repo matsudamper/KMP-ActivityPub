@@ -3,12 +3,12 @@ package net.matsudamper.kmp.activitypub.timeline
 import java.time.Clock
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import org.slf4j.LoggerFactory
 
 class TimelineFanoutWorker(
@@ -22,7 +22,7 @@ class TimelineFanoutWorker(
     suspend fun run() {
         while (true) {
             try {
-                withContext(Dispatchers.IO) { store.initializeGroup() }
+                withOpenTelemetryContext { store.initializeGroup() }
                 break
             } catch (failure: CancellationException) {
                 throw failure
@@ -34,7 +34,7 @@ class TimelineFanoutWorker(
         var block = true
         while (true) {
             try {
-                val count = withContext(Dispatchers.IO) { runOnce(block) }
+                val count = withOpenTelemetryContext { runOnce(block) }
                 block = count < 100
             } catch (failure: CancellationException) {
                 throw failure

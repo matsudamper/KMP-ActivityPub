@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.federation
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import io.ktor.http.ContentType
@@ -20,6 +19,7 @@ import io.ktor.server.routing.RoutingResolveContext
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.utils.io.readRemaining
+import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kotpub.activitypub.ActivityPubContentTypes
 import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorUrls
@@ -31,7 +31,7 @@ import net.matsudamper.kotpub.inbox.IncomingInboxRequest
 internal fun Route.federationRoutes(federation: Federation) {
     get("/.well-known/webfinger") {
         // ActorDirectory が DB を引く
-        val response = withContext(Dispatchers.IO) { federation.webFingerEndpoint.get(call.request.queryParameters["resource"]) }
+        val response = withOpenTelemetryContext { federation.webFingerEndpoint.get(call.request.queryParameters["resource"]) }
         call.respondEndpoint(response)
     }
 
@@ -56,7 +56,7 @@ internal fun Route.federationRoutes(federation: Federation) {
 
     get("/users/{username}/followers") {
         val response =
-            withContext(Dispatchers.IO) {
+            withOpenTelemetryContext {
                 federation.followerEndpoint.get(
                     username = call.parameters["username"],
                     accept = call.request.header(HttpHeaders.Accept),
@@ -68,7 +68,7 @@ internal fun Route.federationRoutes(federation: Federation) {
 
     get("/users/{username}/outbox") {
         val response =
-            withContext(Dispatchers.IO) {
+            withOpenTelemetryContext {
                 federation.outboxEndpoint.get(
                     call.parameters["username"],
                     call.request.header(HttpHeaders.Accept),
@@ -80,7 +80,7 @@ internal fun Route.federationRoutes(federation: Federation) {
 
     get("/notes/{publicId}") {
         val response =
-            withContext(Dispatchers.IO) {
+            withOpenTelemetryContext {
                 federation.noteEndpoint.get(call.parameters["publicId"], call.request.header(HttpHeaders.Accept))
             }
         call.respondEndpoint(response)
@@ -89,7 +89,7 @@ internal fun Route.federationRoutes(federation: Federation) {
     post("/users/{username}/inbox") {
         val request = call.toIncomingInboxRequest()
         val response =
-            withContext(Dispatchers.IO) {
+            withOpenTelemetryContext {
                 federation.inboxEndpoint.receiveForAccount(username = call.parameters["username"], request = request)
             }
         call.respondEndpoint(response)
@@ -97,7 +97,7 @@ internal fun Route.federationRoutes(federation: Federation) {
 
     post(ActorUrls.SHARED_INBOX_PATH) {
         val request = call.toIncomingInboxRequest()
-        val response = withContext(Dispatchers.IO) { federation.inboxEndpoint.receiveShared(request) }
+        val response = withOpenTelemetryContext { federation.inboxEndpoint.receiveShared(request) }
         call.respondEndpoint(response)
     }
 }
@@ -121,7 +121,7 @@ private object ActivityPubAcceptRouteSelector : RouteSelector() {
 private suspend fun ApplicationCall.respondActor(actorEndpoint: ActorEndpoint) {
     // ActorDirectory が DB を引く
     val response =
-        withContext(Dispatchers.IO) {
+        withOpenTelemetryContext {
             actorEndpoint.get(username = parameters["username"], accept = request.header(HttpHeaders.Accept))
         }
     respondEndpoint(response)

@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.timeline
 
 import java.time.Duration
+import io.lettuce.core.ClientOptions
 import io.lettuce.core.Consumer
+import io.lettuce.core.MaintNotificationsConfig
 import io.lettuce.core.Range
 import io.lettuce.core.RedisClient
 import io.lettuce.core.SetArgs
@@ -21,7 +23,9 @@ import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 class ValkeyTimelineStore(uri: String) : TimelineStore {
     private val resources = ClientResources.builder()
         .tracing(LettuceTelemetry.create(OpenTelemetryInitializer.get()).createTracing()).build()
-    private val client = RedisClient.create(resources, uri)
+    private val client = RedisClient.create(resources, uri).apply {
+        setOptions(ClientOptions.builder().maintNotificationsConfig(MaintNotificationsConfig.disabled()).build())
+    }
     private val connectionDelegate = lazy { client.connect() }
     private val connection: StatefulRedisConnection<String, String> by connectionDelegate
     private val streamConnectionDelegate = lazy { client.connect() }

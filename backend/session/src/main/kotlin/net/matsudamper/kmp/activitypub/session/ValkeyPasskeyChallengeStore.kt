@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.session
 
 import java.time.Instant
+import io.lettuce.core.ClientOptions
+import io.lettuce.core.MaintNotificationsConfig
 import io.lettuce.core.RedisClient
 import io.lettuce.core.SetArgs
 import io.lettuce.core.api.StatefulRedisConnection
@@ -9,7 +11,9 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 class ValkeyPasskeyChallengeStore(
     uri: String,
 ) : PasskeyChallengeStore {
-    private val client: RedisClient = RedisClient.create(uri)
+    private val client: RedisClient = RedisClient.create(uri).apply {
+        setOptions(ClientOptions.builder().maintNotificationsConfig(MaintNotificationsConfig.disabled()).build())
+    }
     private val connection: StatefulRedisConnection<String, String> = client.connect()
 
     override fun add(

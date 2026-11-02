@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.graphql
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.JsonObject
@@ -18,6 +17,7 @@ import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.json.ServerJson
 import net.matsudamper.kmp.activitypub.json.respondJson
+import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 
 internal const val GRAPHQL_PATH = "/graphql"
 
@@ -61,7 +61,7 @@ internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
             }
 
         // graphql-java の execute は blocking で、CIO はルート内の blocking を別スレッドに移さない
-        val result = withContext(Dispatchers.IO) { engine.execute(request, call) }
+        val result = withOpenTelemetryContext { engine.execute(request, call) }
 
         call.respondJson(JsonObject.serializer(), result)
     }
