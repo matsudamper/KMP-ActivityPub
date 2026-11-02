@@ -11,14 +11,16 @@ data class UserProfileScreenUiState(
 
         /**
          * @param iconUrl プロフィール画像が無ければ null
+         * @param followButton フォローできない相手には出さないので null
          */
         data class Loaded(
             val acct: String,
             val iconUrl: String?,
             val displayName: String,
             val biography: String?,
-            val followingText: String,
+            val followButton: FollowButton?,
             val posts: List<Post>,
+            val postsEmptyMessage: String?,
         ) : Content
 
         data object NotFound : Content
@@ -27,6 +29,11 @@ data class UserProfileScreenUiState(
             val message: String,
         ) : Content
     }
+
+    data class FollowButton(
+        val text: String,
+        val enabled: Boolean,
+    )
 
     data class Post(
         val content: String,
@@ -38,5 +45,7 @@ data class UserProfileScreenUiState(
         fun onClickRetry()
 
         fun onClickBack()
+
+        fun onClickFollow()
     }
 }

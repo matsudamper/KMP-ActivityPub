@@ -23,36 +23,44 @@ internal class UserProfileScreenViewModel(
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Loading)
     private var loadJob: Job? = null
+    private var followingChangeJob: Job? = null
 
-    val uiStateFlow: StateFlow<UserProfileScreenUiState> =
-        MutableStateFlow(
-            createUiState(
-                viewModelState = viewModelStateFlow.value,
-                listener =
-                object : UserProfileScreenUiState.Listener {
-                    override fun onClickRetry() {
-                        load()
-                    }
+    private val listener = object : UserProfileScreenUiState.Listener {
+        override fun onClickRetry() {
+            load()
+        }
 
-                    override fun onClickBack() {
-                        viewModelScope.launch { events.send { it.navigateBack() } }
-                    }
-                },
-            ),
-        ).also { uiStateFlow ->
-            viewModelScope.launch {
-                viewModelStateFlow.collect { viewModelState ->
-                    uiStateFlow.update { uiState ->
-                        createUiState(
-                            viewModelState = viewModelState,
-                            listener = uiState.listener,
-                        )
+        override fun onClickBack() {
+            viewModelScope.launch { events.send { it.navigateBack() } }
+        }
+
+        override fun onClickFollow() {
+            changeFollowing()
+        }
+    }
+
+    private val mutableUiStateFlow: MutableStateFlow<UserProfileScreenUiState> =
+        MutableStateFlow(createUiState(viewModelStateFlow.value))
+    val uiStateFlow: StateFlow<UserProfileScreenUiState> = mutableUiStateFlow.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            viewModelStateFlow.collect { viewModelState ->
+                mutableUiStateFlow.value = createUiState(viewModelState)
+            }
+        }
+        viewModelScope.launch {
+            // フォローの変更はこの画面のものも他の画面のものもここで届く
+            api.followingChanges.collect { change ->
+                viewModelStateFlow.update { state ->
+                    if (state is ViewModelState.Loaded && state.profile.actorUri == change.actorUri) {
+                        state.copy(profile = state.profile.copy(following = change.following))
+                    } else {
+                        state
                     }
                 }
             }
-        }.asStateFlow()
-
-    init {
+        }
         load()
     }
 
@@ -62,29 +70,42 @@ internal class UserProfileScreenViewModel(
         loadJob = viewModelScope.launch {
             viewModelStateFlow.value =
                 when (val result = api.userProfile(username = username)) {
-                    is UserProfileResult.Found -> ViewModelState.Loaded(result)
+                    is UserProfileResult.Found -> ViewModelState.Loaded(profile = result, followingChangeInProgress = false)
                     UserProfileResult.NotFound -> ViewModelState.NotFound
                     is UserProfileResult.Failure -> ViewModelState.Failed(result.message)
                 }
         }
     }
 
-    private fun createUiState(
-        viewModelState: ViewModelState,
-        listener: UserProfileScreenUiState.Listener,
-    ): UserProfileScreenUiState {
+    private fun changeFollowing() {
+        if (followingChangeJob?.isActive == true) return
+        val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+        val actorUri = loaded.profile.actorUri ?: return
+        followingChangeJob = viewModelScope.launch {
+            updateFollowingChangeInProgress(true)
+            try {
+                val error = api.setFollowing(actorUri = actorUri, followed = !loaded.profile.following)
+                if (error != null) {
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                updateFollowingChangeInProgress(false)
+            }
+        }
+    }
+
+    private fun updateFollowingChangeInProgress(inProgress: Boolean) {
+        viewModelStateFlow.update { state ->
+            if (state is ViewModelState.Loaded) state.copy(followingChangeInProgress = inProgress) else state
+        }
+    }
+
+    private fun createUiState(viewModelState: ViewModelState): UserProfileScreenUiState {
         return UserProfileScreenUiState(
             content = when (viewModelState) {
                 ViewModelState.Loading -> UserProfileScreenUiState.Content.Loading
 
-                is ViewModelState.Loaded -> UserProfileScreenUiState.Content.Loaded(
-                    acct = "@${viewModelState.profile.username}@${viewModelState.profile.host}",
-                    iconUrl = viewModelState.profile.iconUrl,
-                    displayName = viewModelState.profile.displayName,
-                    biography = viewModelState.profile.biography,
-                    followingText = if (viewModelState.profile.following) "フォロー中" else "フォローしていません",
-                    posts = viewModelState.profile.posts.map { UserProfileScreenUiState.Post(it.content, it.publishedAt) },
-                )
+                is ViewModelState.Loaded -> createLoadedContent(viewModelState)
 
                 ViewModelState.NotFound -> UserProfileScreenUiState.Content.NotFound
 
@@ -94,8 +115,30 @@ internal class UserProfileScreenViewModel(
         )
     }
 
+    private fun createLoadedContent(loaded: ViewModelState.Loaded): UserProfileScreenUiState.Content.Loaded {
+        val profile = loaded.profile
+        return UserProfileScreenUiState.Content.Loaded(
+            acct = "@${profile.username}@${profile.host}",
+            iconUrl = profile.iconUrl,
+            displayName = profile.displayName,
+            biography = profile.biography,
+            followButton = if (profile.actorUri == null) {
+                null
+            } else {
+                UserProfileScreenUiState.FollowButton(
+                    text = if (profile.following) "フォロー中・解除" else "フォロー",
+                    enabled = !loaded.followingChangeInProgress,
+                )
+            },
+            posts = profile.posts.map { UserProfileScreenUiState.Post(content = it.content, publishedAt = it.publishedAt) },
+            postsEmptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
+        )
+    }
+
     internal interface Event {
         fun navigateBack()
+
+        fun showMessage(message: String)
     }
 
     private sealed interface ViewModelState {
@@ -103,6 +146,7 @@ internal class UserProfileScreenViewModel(
 
         data class Loaded(
             val profile: UserProfileResult.Found,
+            val followingChangeInProgress: Boolean,
         ) : ViewModelState
 
         data object NotFound : ViewModelState

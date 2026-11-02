@@ -192,6 +192,7 @@ class UserApi(
         val user = profile.user
 
         return UserProfileResult.Found(
+            actorUri = user.actorUri,
             username = user.username,
             host = user.host,
             displayName = user.displayName,

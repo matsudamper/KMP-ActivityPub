@@ -1,6 +1,7 @@
 query UserProfile($username: String!) {
     userProfile(acct: $username) {
         user {
+            actorUri
             username
             host
             displayName
