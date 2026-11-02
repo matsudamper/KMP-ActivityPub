@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 interface FollowingRepository {
     fun followId(accountId: AccountId, actorUri: String): String?
     fun recordActivity(accountId: AccountId, actorUri: String, followId: String)
+    fun recordActivityAndEnqueueFollow(accountId: AccountId, actorUri: String, followId: String, inbox: String, body: String, now: Instant): Boolean
     fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?)
     fun contains(accountId: AccountId, actorUri: String): Boolean
     fun add(accountId: AccountId, actorUri: String, createdAt: Instant): Boolean

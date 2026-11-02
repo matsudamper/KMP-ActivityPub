@@ -39,9 +39,16 @@ internal class QueuedFollowDelivery(
             }
             val inbox = stored?.inbox ?: checkNotNull(remote?.inbox) { "相手の inbox を取得できない" }
             val id = "${sender.actorId}/follows/${UUID.randomUUID()}"
-            following.recordActivity(accountId, actorUri, id)
             val follow = FollowActivities.follow(id, sender.actorId, actorUri)
-            queue.enqueueFollow(accountId, inbox, AppJson.encodeToString(OutgoingActivity.serializer(), follow), clock.instant())
+            val enqueued = following.recordActivityAndEnqueueFollow(
+                accountId,
+                actorUri,
+                id,
+                inbox,
+                AppJson.encodeToString(OutgoingActivity.serializer(), follow),
+                clock.instant(),
+            )
+            if (!enqueued) return
         } else {
             val inbox = storedActors.findByUri(actorUri)?.inbox
             if (inbox == null || followId == null) {

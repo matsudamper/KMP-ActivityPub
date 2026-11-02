@@ -12,6 +12,22 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 class TimelineRepositoryTest {
     @Test
+    fun removedFollowingCannotRecordOrEnqueueFollow() = withRepository { repositories, accounts ->
+        val alice = accounts.getValue("alice")
+        val following = repositories.followingRepository
+        val queue = repositories.deliveryQueueRepository
+        following.add(alice, ACTOR, NOW)
+        following.remove(alice, ACTOR)
+        assertEquals(false, following.recordActivityAndEnqueueFollow(alice, ACTOR, "removed", "$ACTOR/inbox", "removed-follow", NOW))
+        assertNull(following.followId(alice, ACTOR))
+        assertTrue(queue.claim(NOW, 10).isEmpty())
+        following.add(alice, ACTOR, NOW)
+        assertTrue(following.recordActivityAndEnqueueFollow(alice, ACTOR, "current", "$ACTOR/inbox", "current-follow", NOW))
+        assertEquals("current", following.followId(alice, ACTOR))
+        assertEquals(listOf("current-follow"), queue.claim(NOW, 10).map { it.body })
+    }
+
+    @Test
     fun fanoutActivityWindowIncludesCacheTtlAndThrottledTouchInterval() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val activityAges = mapOf(

@@ -30,6 +30,19 @@ internal class FakeRepositories : Repositories {
         override fun recordActivity(accountId: AccountId, actorUri: String, followId: String) {
             activities[accountId to actorUri] = followId
         }
+        override fun recordActivityAndEnqueueFollow(
+            accountId: AccountId,
+            actorUri: String,
+            followId: String,
+            inbox: String,
+            body: String,
+            now: Instant,
+        ): Boolean {
+            if (!contains(accountId, actorUri)) return false
+            recordActivity(accountId, actorUri, followId)
+            deliveryQueueRepository.enqueueFollow(accountId, inbox, body, now)
+            return true
+        }
         override fun respondToFollow(actorUri: String, followId: String, acceptedAt: Instant?) = Unit
         override fun contains(accountId: AccountId, actorUri: String): Boolean = (accountId to actorUri) in entries
         override fun add(accountId: AccountId, actorUri: String, createdAt: Instant): Boolean = entries.add(accountId to actorUri)

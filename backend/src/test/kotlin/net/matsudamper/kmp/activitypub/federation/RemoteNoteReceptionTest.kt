@@ -24,6 +24,18 @@ import net.matsudamper.kotpub.note.ReceivedNote
 
 class RemoteNoteReceptionTest {
     @Test
+    fun unfollowWhileResolvingActorPreventsFollowEnqueue() = runBlocking {
+        val fixture = Fixture()
+        fixture.remote.onFindActor = {
+            assertTrue(fixture.following.setFollowing(fixture.accountId, ACTOR, false))
+        }
+        assertTrue(fixture.following.setFollowing(fixture.accountId, ACTOR, true))
+        assertFalse(fixture.following.isFollowing(fixture.accountId, ACTOR))
+        assertEquals(null, fixture.repositories.followingRepository.followId(fixture.accountId, ACTOR))
+        assertTrue(fixture.repositories.deliveryQueueRepository.followBodies.isEmpty())
+    }
+
+    @Test
     fun unrelatedCreatesDoNotFetchOrWriteActors() = runBlocking {
         val fixture = Fixture()
         fixture.repositories.timelineRepository.interested = false
@@ -117,8 +129,10 @@ class RemoteNoteReceptionTest {
     private class Remote : RemoteActors {
         var requests = 0
         var available = true
+        var onFindActor: suspend () -> Unit = {}
         override suspend fun findActor(actorId: String): RemoteActor? {
             requests++
+            onFindActor()
             check(available) { "相手サーバーに接続できない" }
             return RemoteActor(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfile("remote", null, null, null))
         }

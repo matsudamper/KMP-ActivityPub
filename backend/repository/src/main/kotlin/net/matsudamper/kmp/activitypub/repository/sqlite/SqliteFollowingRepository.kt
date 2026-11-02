@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.jooq.Condition
@@ -36,6 +37,32 @@ internal class SqliteFollowingRepository(
                     .where(matches).and(ACCOUNT_FOLLOWING.ACCEPTED_AT.isNull).execute()
             }
         }
+    }
+
+    override fun recordActivityAndEnqueueFollow(
+        accountId: AccountId,
+        actorUri: String,
+        followId: String,
+        inbox: String,
+        body: String,
+        now: Instant,
+    ): Boolean = jooq.transaction { dsl ->
+        val recorded = dsl.update(ACCOUNT_FOLLOWING)
+            .set(ACCOUNT_FOLLOWING.FOLLOW_ACTIVITY_URI, followId).setNull(ACCOUNT_FOLLOWING.ACCEPTED_AT)
+            .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))
+            .execute()
+        if (recorded == 0) return@transaction false
+        dsl.insertInto(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_FOLLOW)
+            .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId.value)
+            .set(DELIVERY_QUEUE.INBOX, inbox)
+            .set(DELIVERY_QUEUE.BODY, body)
+            .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+            .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
+            .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now))
+            .execute()
+        true
     }
 
     override fun contains(accountId: AccountId, actorUri: String): Boolean = jooq.withConnection { dsl ->
