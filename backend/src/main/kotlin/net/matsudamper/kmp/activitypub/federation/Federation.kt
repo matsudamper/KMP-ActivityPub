@@ -165,7 +165,7 @@ internal class Federation(
             origin = "https://$domain",
             pathPrefix = RemoteImageProxy.ICON_PATH_PREFIX,
             signingKey = remoteIconProxySigningKey,
-            fetcher = HttpRemoteImageFetcher(httpClient),
+            fetcher = PublicAddressRemoteImageFetcher(publicAddressHttpClient),
         )
 
     val linkPreviewImageProxy: RemoteImageProxy =
