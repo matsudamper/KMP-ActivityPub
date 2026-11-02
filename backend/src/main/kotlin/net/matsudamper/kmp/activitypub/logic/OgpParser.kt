@@ -3,26 +3,37 @@ package net.matsudamper.kmp.activitypub.logic
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.TextNode
 
 /**
  * 投稿の本文からカードにするリンクを、リンク先の HTML から OGP を抜き出す。
  */
 internal object OgpParser {
+    private val plainTextUrl = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
+
     /**
-     * 本文の `<a href>` を出てくる順に、重複を除いて返す。http と https のものだけ。
+     * 本文のリンクを出てくる順に、重複を除いて返す。http と https のものだけ。
+     *
+     * このサーバーで書いた投稿は URL を `<a>` にせず文字のまま保存しているので、`<a>` の外にある URL も拾う。
      *
      * Mastodon などはメンションとハッシュタグもリンクにする。これらはプロフィールやタグの一覧を指すだけなので
      * カードにしない。受け取った投稿は保存前に Safelist.basic で `class` / `rel` が落ちるので、
      * 表示が `@` / `#` で始まるかでも見分ける
      */
     fun links(contentHtml: String): List<String> =
-        Jsoup.parseBodyFragment(contentHtml).select("a[href]")
-            .asSequence()
-            .filterNot { it.isMentionOrHashtag() }
-            .map { it.attr("href").trim() }
+        buildList {
+            Jsoup.parseBodyFragment(contentHtml).body().traverse { node, _ ->
+                when {
+                    node is Element && node.normalName() == "a" && node.hasAttr("href") && !node.isMentionOrHashtag() ->
+                        add(node.attr("href").trim())
+
+                    node is TextNode && (node.parent() as? Element)?.closest("a") == null ->
+                        plainTextUrl.findAll(node.wholeText).forEach { add(it.value.trimEnd(*TRAILING_PUNCTUATION)) }
+                }
+            }
+        }
             .filter { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
             .distinct()
-            .toList()
 
     /**
      * @param document リンク先の URL を baseUri にしておく。相対で書かれた画像の基準にする
@@ -57,6 +68,11 @@ internal object OgpParser {
             hasClass("hashtag") ||
             attr("rel").split(' ').any { it.equals("tag", ignoreCase = true) } ||
             text().trimStart().let { it.startsWith("@") || it.startsWith("#") }
+
+    /**
+     * 文末の句読点や閉じ括弧が URL に続けて書かれることが多いので、末尾からは外す
+     */
+    private val TRAILING_PUNCTUATION = charArrayOf('.', ',', '!', '?', ')', ']', ':', ';', '。', '、', '」', '）')
 
     data class Ogp(
         val title: String?,
