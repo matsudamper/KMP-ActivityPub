@@ -10,6 +10,7 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                 displayName
                 summary
                 sensitive
+                linkUrls
             }
             nextCursor
         }

@@ -3,11 +3,12 @@ package net.matsudamper.kmp.activitypub.graphql
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
+import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
-import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
@@ -42,5 +43,9 @@ class DiContainer(
     /**
      * DOMAIN が無いと中継 URL を作れないので null
      */
-    val remoteIconProxy: RemoteIconProxy?,
+    val remoteImageProxy: RemoteImageProxy?,
+    /**
+     * DOMAIN が無いと OGP 画像の中継 URL を作れないので null
+     */
+    val linkPreviewService: LinkPreviewService?,
 )

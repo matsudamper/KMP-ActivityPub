@@ -57,6 +57,16 @@ class HomeTimelineService(
         )
     }
 
+    /**
+     * [accountId] のタイムラインで読める投稿。[postId] が読めないか、読めない投稿なら null
+     *
+     * @param postId [TimelinePosition.member] の値
+     */
+    fun post(accountId: AccountId, postId: String): TimelinePost? {
+        if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return null
+        return repository.hydrate(accountId, listOf(postId)).firstOrNull()
+    }
+
     fun enqueue(position: TimelinePosition) {
         runCatching { store.enqueue(position) }.onFailure { logger.warn("タイムライン配布ジョブを積めなかった", it) }
     }
@@ -93,13 +103,15 @@ class HomeTimelineService(
 data class TimelinePage(val posts: List<TimelinePost>, val nextCursor: String?)
 
 object TimelineCursor {
+    internal val MEMBER_PATTERN = Regex("[lr][1-9][0-9]*")
+
     fun encode(position: TimelinePosition): String =
         Base64.getUrlEncoder().withoutPadding().encodeToString("${position.score}:${position.member}".toByteArray())
 
     fun decode(cursor: String): TimelinePosition? = runCatching {
         val decoded = Base64.getUrlDecoder().decode(cursor).decodeToString()
         val member = decoded.substringAfter(':')
-        require(member.matches(Regex("[lr][1-9][0-9]*")))
+        require(member.matches(MEMBER_PATTERN))
         TimelinePosition(decoded.substringBefore(':').toLong(), member)
     }.getOrNull()
 }

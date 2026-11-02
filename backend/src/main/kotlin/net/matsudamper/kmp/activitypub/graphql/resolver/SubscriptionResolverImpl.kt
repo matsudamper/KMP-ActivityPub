@@ -16,11 +16,12 @@ class SubscriptionResolverImpl : SubscriptionResolver {
         val context = GraphQlEngine.graphQlContext(env)
         val accountId = context.userAccountId()
             ?: throw GraphQlClientException("ログインしていない")
-        return GraphQlEngine.diContainer(env).homeTimelineArrivals
+        val diContainer = GraphQlEngine.diContainer(env)
+        return diContainer.homeTimelineArrivals
             .posts(accountId)
             // 接続はログアウトや期限切れの後も残るので、流すたびにセッションを確かめて終える
             .takeWhile { context.userAccountId() == accountId }
-            .map { it.toQlHomeTimelinePost() }
+            .map { it.toQlHomeTimelinePost(diContainer.linkPreviewService) }
             .asPublisher(Dispatchers.IO)
     }
 }

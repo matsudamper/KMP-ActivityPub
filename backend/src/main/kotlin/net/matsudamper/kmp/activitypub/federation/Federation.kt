@@ -9,10 +9,11 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
-import net.matsudamper.kmp.activitypub.logic.RemoteIconProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
@@ -63,6 +64,7 @@ internal class Federation(
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
     private val httpClient = OkHttpActivityPubClient()
+    private val publicAddressHttpClient = PublicAddressHttpClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     private val notes = RepositoryNoteStore(noteRepository)
@@ -158,11 +160,18 @@ internal class Federation(
             if (iconVersion == null) null else directory.resolve(username)?.icon(iconVersion)
         }
 
-    val remoteIconProxy: RemoteIconProxy =
-        RemoteIconProxy(
+    val remoteImageProxy: RemoteImageProxy =
+        RemoteImageProxy(
             origin = "https://$domain",
             signingKey = remoteIconProxySigningKey,
-            fetcher = HttpRemoteIconFetcher(httpClient),
+            fetcher = PublicAddressRemoteImageFetcher(publicAddressHttpClient),
+        )
+
+    val linkPreviewService: LinkPreviewService =
+        LinkPreviewService(
+            fetcher = HttpLinkPreviewPageFetcher(publicAddressHttpClient),
+            imageProxyUrlOf = remoteImageProxy::proxyUrlOf,
+            clock = Clock.systemUTC(),
         )
 
     val followerEndpoint: FollowerEndpoint = FollowerEndpoint(directory = directory, followers = followers)
@@ -212,5 +221,6 @@ internal class Federation(
 
     override fun close() {
         httpClient.close()
+        publicAddressHttpClient.close()
     }
 }

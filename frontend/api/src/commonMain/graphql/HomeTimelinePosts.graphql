@@ -8,5 +8,6 @@ subscription HomeTimelinePosts {
         displayName
         summary
         sensitive
+        linkUrls
     }
 }
