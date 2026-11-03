@@ -123,7 +123,7 @@ internal actual fun ByteArray.toLosslessWebpOrNull(): ByteArray? =
         val height = if (origin.swapsWidthHeight()) image.width else image.height
         val surface = Surface.makeRasterN32Premul(width, height)
         try {
-            // EXIF を残さないので、向きは画素に反映する
+            // 書き出す WebP に EXIF を書き込まず向きの情報も無くなるので、向きは画素に反映する
             surface.canvas.setMatrix(origin.toMatrix(image.width, image.height))
             surface.canvas.drawImage(image, 0f, 0f)
             // Skia は WebP の品質 100 を可逆で書き出す

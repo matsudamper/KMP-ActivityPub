@@ -49,7 +49,7 @@ internal class ProfileIconImage(
 )
 
 /**
- * 縮めずに可逆の WebP に描き直す。写真の向きは画素に反映し、EXIF などのメタデータは残さない。
+ * 縮めずに可逆の WebP に描き直す。書き出す WebP には EXIF などのメタデータを書き込まないので、写真の向きは画素に反映しておく。
  * 画像として読めないか、画素数が大きすぎて展開できなければ null
  */
 internal expect fun ByteArray.toLosslessWebpOrNull(): ByteArray?
