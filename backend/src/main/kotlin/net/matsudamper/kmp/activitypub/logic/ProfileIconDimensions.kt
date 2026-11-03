@@ -16,14 +16,14 @@ internal data class ProfileIconDimensions(
          */
         fun read(
             bytes: ByteArray,
-            format: ProfileIconFormat,
+            format: ImageFormat,
         ): ProfileIconDimensions? {
             val dimensions =
                 when (format) {
-                    ProfileIconFormat.Png -> readPng(bytes)
-                    ProfileIconFormat.Gif -> readGif(bytes)
-                    ProfileIconFormat.Webp -> readWebp(bytes)
-                    ProfileIconFormat.Jpeg -> readJpeg(bytes)
+                    ImageFormat.Png -> readPng(bytes)
+                    ImageFormat.Gif -> readGif(bytes)
+                    ImageFormat.Webp -> readWebp(bytes)
+                    ImageFormat.Jpeg -> readJpeg(bytes)
                 }
             return dimensions?.takeIf { it.width > 0 && it.height > 0 }
         }
