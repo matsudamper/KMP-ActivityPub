@@ -23,7 +23,7 @@ android {
 
     defaultConfig {
         applicationId = "net.matsudamper.kmp.activitypub"
-        minSdk = 23
+        minSdk = 29
         targetSdk = libs.versions.androidCompileSdk.get().toInt()
         versionCode = 1
         versionName = "0.1.0"
