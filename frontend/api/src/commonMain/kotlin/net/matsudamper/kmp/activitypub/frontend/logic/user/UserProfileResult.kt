@@ -18,9 +18,14 @@ sealed interface UserProfileResult {
 
     data object NotFound : UserProfileResult
 
+    /**
+     * @param linkPreviewId OGP を [UserApi.linkPreviews] で取るときの id。取れない投稿は null
+     */
     data class Post(
         val content: String,
         val publishedAt: String,
+        val linkPreviewId: String?,
+        val linkUrls: List<String>,
     )
 
     data class Failure(

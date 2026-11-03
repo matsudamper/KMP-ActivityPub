@@ -28,7 +28,7 @@ class UserProfileServiceTest {
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
             requests.add("posts")
-            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString()))
+            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), linkPreviewId = null))
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -76,6 +76,7 @@ class UserProfileServiceTest {
         assertEquals("保存済みの Bob", profile.user.displayName)
         assertEquals(true, profile.following)
         assertEquals(listOf("<p>受け取った投稿</p>", "注意書き"), profile.posts.map { it.contentHtml })
+        assertEquals(listOf("r1", null), profile.posts.map { it.linkPreviewId })
     }
 
     @Test
@@ -92,7 +93,10 @@ class UserProfileServiceTest {
         repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH))
         val profile = assertNotNull(service.profile("alice", viewer))
         assertEquals(listOf(), requests)
-        assertEquals("<p>保存済みの投稿</p>", profile.posts.single().contentHtml)
+        val post = profile.posts.single()
+        assertEquals("<p>保存済みの投稿</p>", post.contentHtml)
+        assertEquals("<p>保存済みの投稿</p>", service.localNoteContentHtml(assertNotNull(post.linkPreviewId)))
+        assertNull(service.localNoteContentHtml("r1"))
     }
 
     @Test

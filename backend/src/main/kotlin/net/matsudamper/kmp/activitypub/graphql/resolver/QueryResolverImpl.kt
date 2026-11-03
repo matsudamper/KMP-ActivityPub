@@ -29,15 +29,24 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 class QueryResolverImpl : QueryResolver {
     override fun userProfile(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserProfile?>> {
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val diContainer = GraphQlEngine.diContainer(env)
         return otelSupplyAsync {
             val profile = runBlocking {
-                GraphQlEngine.diContainer(env).userProfileService.profile(acct, accountId)
+                diContainer.userProfileService.profile(acct, accountId)
             }
             val result = profile?.let {
                 QlUserProfile(
                     user = it.user.toQlSearchedUser(env, accountId).copy(following = it.following),
                     biography = it.biography?.let { html -> htmlToPlainText(html) },
-                    posts = it.posts.map { post -> QlProfilePost(content = htmlToPlainText(post.contentHtml), publishedAt = post.publishedAt) },
+                    posts = it.posts.map { post ->
+                        QlProfilePost(
+                            content = htmlToPlainText(post.contentHtml),
+                            publishedAt = post.publishedAt,
+                            linkPreviewId = post.linkPreviewId,
+                            // DOMAIN が無いと linkPreviewService は null。そのときはカードにするリンクを返さない
+                            linkUrls = if (post.linkPreviewId == null) listOf() else diContainer.linkPreviewService?.links(post.contentHtml).orEmpty(),
+                        )
+                    },
                 )
             }
             DataFetcherResult.Builder<QlUserProfile?>(result).build()

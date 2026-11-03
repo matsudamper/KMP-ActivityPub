@@ -6,11 +6,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
@@ -40,20 +43,17 @@ internal class UserProfileScreenViewModel(
         }
     }
 
-    private val postItemListener = object : PostItemUiState.Listener {
-        override fun onVisible() = Unit
-
-        override fun onClickAuthor() = Unit
-    }
+    private val linkPreviewsFlow = MutableStateFlow<Map<String, List<UserLinkPreviewsResult.LinkPreview>>>(mapOf())
+    private var linkPreviewRequestedIds = setOf<String>()
 
     private val mutableUiStateFlow: MutableStateFlow<UserProfileScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value))
+        MutableStateFlow(createUiState(viewModelStateFlow.value, linkPreviewsFlow.value))
     val uiStateFlow: StateFlow<UserProfileScreenUiState> = mutableUiStateFlow.asStateFlow()
 
     init {
         viewModelScope.launch {
-            viewModelStateFlow.collect { viewModelState ->
-                mutableUiStateFlow.value = createUiState(viewModelState)
+            combine(viewModelStateFlow, linkPreviewsFlow, ::createUiState).collect { uiState ->
+                mutableUiStateFlow.value = uiState
             }
         }
         viewModelScope.launch {
@@ -107,11 +107,29 @@ internal class UserProfileScreenViewModel(
         }
     }
 
-    private fun createUiState(viewModelState: ViewModelState): UserProfileScreenUiState {
+    private fun loadLinkPreviews(linkPreviewId: String) {
+        if (linkPreviewId in linkPreviewRequestedIds) return
+        linkPreviewRequestedIds = linkPreviewRequestedIds + linkPreviewId
+        viewModelScope.launch {
+            when (val result = api.linkPreviews(linkPreviewId)) {
+                is UserLinkPreviewsResult.Success -> linkPreviewsFlow.update { it + (linkPreviewId to result.previews) }
+
+                // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
+                is UserLinkPreviewsResult.Failure,
+                UserLinkPreviewsResult.NotLoggedIn,
+                -> linkPreviewRequestedIds = linkPreviewRequestedIds - linkPreviewId
+            }
+        }
+    }
+
+    private fun createUiState(
+        viewModelState: ViewModelState,
+        linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
+    ): UserProfileScreenUiState {
         return UserProfileScreenUiState(
             content = when (viewModelState) {
                 ViewModelState.Loading -> UserProfileScreenUiState.Content.Loading
-                is ViewModelState.Loaded -> createLoadedContent(viewModelState)
+                is ViewModelState.Loaded -> createLoadedContent(viewModelState, linkPreviews)
                 ViewModelState.NotFound -> UserProfileScreenUiState.Content.NotFound
                 is ViewModelState.Failed -> UserProfileScreenUiState.Content.Error(viewModelState.message)
             },
@@ -119,7 +137,10 @@ internal class UserProfileScreenViewModel(
         )
     }
 
-    private fun createLoadedContent(loaded: ViewModelState.Loaded): UserProfileScreenUiState.Content.Loaded {
+    private fun createLoadedContent(
+        loaded: ViewModelState.Loaded,
+        linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
+    ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
         return UserProfileScreenUiState.Content.Loaded(
@@ -136,16 +157,30 @@ internal class UserProfileScreenViewModel(
                 )
             },
             posts = profile.posts.map { post ->
+                val linkPreviewId = post.linkPreviewId
+                val previews = linkPreviewId?.let { linkPreviews[it] }.orEmpty()
                 PostItemUiState(
                     iconUrl = profile.iconUrl,
                     displayName = profile.displayName,
                     acct = acct,
                     body = post.content,
                     postedAt = post.publishedAt,
-                    linkPreviews = listOf(),
+                    linkPreviews = post.linkUrls.map { url ->
+                        createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
+                            viewModelScope.launch { events.send { it.openUrl(url) } }
+                        }
+                    },
                     // 開いているのがその人の画面なので、押しても移る先が無い
                     authorClickable = false,
-                    listener = postItemListener,
+                    listener = object : PostItemUiState.Listener {
+                        override fun onVisible() {
+                            if (linkPreviewId != null && post.linkUrls.isNotEmpty()) {
+                                loadLinkPreviews(linkPreviewId)
+                            }
+                        }
+
+                        override fun onClickAuthor() = Unit
+                    },
                 )
             },
             postsEmptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
@@ -156,6 +191,8 @@ internal class UserProfileScreenViewModel(
         fun navigateBack()
 
         fun showMessage(message: String)
+
+        fun openUrl(url: String)
     }
 
     private sealed interface ViewModelState {

@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -48,7 +49,8 @@ internal fun UserProfileScreen(
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    LaunchedEffect(viewModel.eventHandler, navigator) {
+    val uriHandler = LocalUriHandler.current
+    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(object : UserProfileScreenViewModel.Event {
             override fun navigateBack() {
                 navigator.back()
@@ -56,6 +58,10 @@ internal fun UserProfileScreen(
 
             override fun showMessage(message: String) {
                 coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+            }
+
+            override fun openUrl(url: String) {
+                uriHandler.openUri(url)
             }
         })
     }

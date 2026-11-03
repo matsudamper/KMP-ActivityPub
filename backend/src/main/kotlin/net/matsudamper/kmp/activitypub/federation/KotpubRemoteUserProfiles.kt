@@ -24,7 +24,14 @@ internal class KotpubRemoteUserProfiles(
     }
 
     override suspend fun recentPosts(actorUri: String): List<ProfilePost> =
-        outbox.recent(actorUri, limit = 20).map { ProfilePost(contentHtml = it.contentHtml, publishedAt = it.publishedAt) }
+        outbox.recent(actorUri, limit = 20).map {
+            ProfilePost(
+                contentHtml = it.contentHtml,
+                publishedAt = it.publishedAt,
+                // 保存していない投稿なので、後から OGP を取りに行く元が無い
+                linkPreviewId = null,
+            )
+        }
 
     private suspend fun profileFor(user: RemoteUser): RemoteUserProfile? {
         val actor = actors.findActor(user.actorUri) ?: return null

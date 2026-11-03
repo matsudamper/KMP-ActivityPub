@@ -229,7 +229,9 @@ class UserApi(
             iconUrl = user.iconUrl,
             following = user.following,
             biography = profile.biography,
-            posts = profile.posts.map { UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt) },
+            posts = profile.posts.map {
+                UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt, linkPreviewId = it.linkPreviewId, linkUrls = it.linkUrls)
+            },
         )
     }
 

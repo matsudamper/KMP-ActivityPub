@@ -23,9 +23,16 @@ private fun UserProfileContentPreview() {
                             iconUrl = null,
                             displayName = "Alice",
                             acct = "@alice@example.social",
-                            body = "今日はプロフィール画面を作っています。",
+                            body = "今日はプロフィール画面を作っています。 https://kotlinlang.org/",
                             postedAt = "2026-11-01T12:00:00Z",
-                            linkPreviews = listOf(),
+                            linkPreviews = listOf(
+                                PostItemUiState.LinkPreview(
+                                    title = "Kotlin Programming Language",
+                                    siteName = "Kotlin",
+                                    imageUrl = null,
+                                    listener = AndroidPreviewLinkPreviewListener,
+                                ),
+                            ),
                             authorClickable = false,
                             listener = AndroidPreviewPostItemListener,
                         ),
@@ -87,4 +94,8 @@ private object AndroidPreviewPostItemListener : PostItemUiState.Listener {
     override fun onVisible() = Unit
 
     override fun onClickAuthor() = Unit
+}
+
+private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
+    override fun onClick() = Unit
 }

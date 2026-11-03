@@ -27,12 +27,13 @@ class UserInfoResolverImpl : UserInfoResolver {
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
             val linkPreviewService = diContainer.linkPreviewService
-            val post = diContainer.homeTimelineService.post(userInfo.id, postId)
+            val contentHtml = diContainer.userProfileService.localNoteContentHtml(postId)
+                ?: diContainer.homeTimelineService.post(userInfo.id, postId)?.contentHtml
             val previews =
-                if (linkPreviewService == null || post == null) {
+                if (linkPreviewService == null || contentHtml == null) {
                     listOf()
                 } else {
-                    linkPreviewService.previews(post.contentHtml).map { preview ->
+                    linkPreviewService.previews(contentHtml).map { preview ->
                         QlLinkPreview(
                             url = preview.url,
                             title = preview.title,

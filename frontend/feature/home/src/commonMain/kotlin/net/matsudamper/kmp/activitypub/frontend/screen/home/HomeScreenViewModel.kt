@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
@@ -389,7 +390,11 @@ internal class HomeScreenViewModel(
                 linkPreviews = if (post.sensitive) {
                     listOf()
                 } else {
-                    post.linkUrls.map { url -> createLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) }
+                    post.linkUrls.map { url ->
+                        createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
+                            viewModelScope.launch { events.send { it.openUrl(url) } }
+                        }
+                    }
                 },
                 authorClickable = true,
                 listener = object : PostItemUiState.Listener {
@@ -408,27 +413,6 @@ internal class HomeScreenViewModel(
                 },
             )
         }
-    }
-
-    /**
-     * @param preview まだ取れていなければ null。枠は先に出しておき、取れたら中身だけ差し替える
-     */
-    private fun createLinkPreview(
-        url: String,
-        preview: UserLinkPreviewsResult.LinkPreview?,
-    ): PostItemUiState.LinkPreview {
-        return PostItemUiState.LinkPreview(
-            title = preview?.title ?: url,
-            siteName = preview?.siteName ?: url.substringAfter("://").substringBefore('/'),
-            imageUrl = preview?.imageUrl,
-            listener = object : PostItemUiState.LinkPreviewListener {
-                override fun onClick() {
-                    viewModelScope.launch {
-                        events.send { it.openUrl(url) }
-                    }
-                }
-            },
-        )
     }
 
     private fun loadLinkPreviews(postId: String) {

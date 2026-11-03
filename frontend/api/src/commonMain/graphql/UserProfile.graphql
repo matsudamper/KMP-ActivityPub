@@ -12,6 +12,8 @@ query UserProfile($username: String!) {
         posts {
             content
             publishedAt
+            linkPreviewId
+            linkUrls
         }
     }
 }

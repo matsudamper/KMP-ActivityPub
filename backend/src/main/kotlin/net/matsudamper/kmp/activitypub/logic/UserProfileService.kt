@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 class UserProfileService(
     private val accounts: AccountRepository,
@@ -28,7 +29,9 @@ class UserProfileService(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, null),
                 following = false,
                 biography = null,
-                posts = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT).map { ProfilePost(it.contentHtml, it.publishedAt.toString()) },
+                posts = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT).map {
+                    ProfilePost(contentHtml = it.contentHtml, publishedAt = it.publishedAt.toString(), linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value)
+                },
             )
         }
         val storedActor = remoteActors.findByAcct(username, host)
@@ -65,12 +68,30 @@ class UserProfileService(
     private fun TimelinePost.toProfilePost(): ProfilePost {
         // タイムラインと同じく、閲覧注意の投稿は本文を出さない
         val shownHtml = if (sensitive) summary ?: SENSITIVE_PLACEHOLDER else contentHtml
-        return ProfilePost(contentHtml = shownHtml, publishedAt = publishedAt.toString())
+        return ProfilePost(
+            contentHtml = shownHtml,
+            publishedAt = publishedAt.toString(),
+            // 閲覧注意の投稿は本文を隠しているので、リンク先も出さない
+            linkPreviewId = if (sensitive) null else position.member,
+        )
+    }
+
+    /**
+     * [linkPreviewId] がこのサーバーの投稿を指すなら、その本文。指さないか、投稿が無ければ null
+     */
+    fun localNoteContentHtml(linkPreviewId: String): String? {
+        if (!linkPreviewId.startsWith(LOCAL_NOTE_ID_PREFIX)) return null
+        return notes.find(PublicNoteId(linkPreviewId.removePrefix(LOCAL_NOTE_ID_PREFIX)))?.contentHtml
     }
 
     private companion object {
         const val PROFILE_POST_LIMIT = 20
         const val SENSITIVE_PLACEHOLDER = "閲覧注意の投稿"
+
+        /**
+         * このサーバーの投稿は公開されているので、タイムラインの id ではなく公開 id で OGP を引けるようにする
+         */
+        const val LOCAL_NOTE_ID_PREFIX = "note:"
     }
 }
 
@@ -94,7 +115,11 @@ data class UserProfile(
     val posts: List<ProfilePost>,
 )
 
+/**
+ * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
+ */
 data class ProfilePost(
     val contentHtml: String,
     val publishedAt: String,
+    val linkPreviewId: String?,
 )
