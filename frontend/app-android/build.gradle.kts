@@ -57,6 +57,11 @@ android {
                 taskName.contains("Paparazzi", ignoreCase = true)
             }
         unitTests.all { test ->
+            test.javaLauncher.set(
+                javaToolchains.launcherFor {
+                    languageVersion.set(JavaLanguageVersion.of(25))
+                },
+            )
             test.useJUnit {
                 if (isPaparazziRequested) {
                     includeCategories("net.matsudamper.kmp.activitypub.android.PaparazziTestCategory")
