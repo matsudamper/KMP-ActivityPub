@@ -9,7 +9,6 @@ data class HomeScreenUiState(
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
     val timelineStreamStatus: TimelineStreamStatus,
-    val timelineStreamReconnectButtonEnabled: Boolean,
     val search: Search,
     val profile: Profile,
     val userTabIconUrl: String?,
@@ -99,7 +98,7 @@ data class HomeScreenUiState(
 
         fun onClickRetryTimelineLoadMore()
 
-        fun onClickReconnectTimelineStream()
+        fun onClickTimelineStreamStatus()
 
         fun onSearchQueryChanged(query: String)
 

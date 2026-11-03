@@ -51,6 +51,11 @@ internal class HomeScreenViewModel(
     private var timelineArrivalsJob: Job? = null
 
     /**
+     * 自分で切ったときは、画面に戻ってきてもつなぎ直さない
+     */
+    private var timelineStreamStoppedByUser = false
+
+    /**
      * 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
      */
     private var postsArrivedSinceRefresh = listOf<UserHomeTimelineResult.Post>()
@@ -64,7 +69,6 @@ internal class HomeScreenViewModel(
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
-                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -107,10 +111,19 @@ internal class HomeScreenViewModel(
                         loadTimeline(true)
                     }
 
-                    override fun onClickReconnectTimelineStream() {
-                        collectTimelineArrivals()
-                        // 切れていた間の投稿は流れてこないので、読み直して埋める
-                        loadTimeline(false)
+                    override fun onClickTimelineStreamStatus() {
+                        when (mutableUiStateFlow.value.timelineStreamStatus) {
+                            HomeScreenUiState.TimelineStreamStatus.Receiving,
+                            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect,
+                            -> stopTimelineArrivals()
+
+                            HomeScreenUiState.TimelineStreamStatus.Disconnected -> {
+                                timelineStreamStoppedByUser = false
+                                collectTimelineArrivals()
+                                // 切れていた間の投稿は流れてこないので、読み直して埋める
+                                loadTimeline(false)
+                            }
+                        }
                     }
 
                     override fun onSearchQueryChanged(query: String) {
@@ -150,7 +163,7 @@ internal class HomeScreenViewModel(
                     override fun onScreenShown() {
                         loadProfile()
                         // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
-                        collectTimelineArrivals()
+                        if (!timelineStreamStoppedByUser) collectTimelineArrivals()
                         loadTimeline(false)
                     }
                 },
@@ -279,13 +292,14 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private fun stopTimelineArrivals() {
+        timelineStreamStoppedByUser = true
+        timelineArrivalsJob?.cancel()
+        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Disconnected)
+    }
+
     private fun updateTimelineStreamStatus(status: HomeScreenUiState.TimelineStreamStatus) {
-        mutableUiStateFlow.update {
-            it.copy(
-                timelineStreamStatus = status,
-                timelineStreamReconnectButtonEnabled = status == HomeScreenUiState.TimelineStreamStatus.Disconnected,
-            )
-        }
+        mutableUiStateFlow.update { it.copy(timelineStreamStatus = status) }
     }
 
     /**

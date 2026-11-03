@@ -92,7 +92,6 @@ private fun HomeTimelinePreview(
                 timelineRefreshing = false,
                 timelineFooter = footer,
                 timelineStreamStatus = streamStatus,
-                timelineStreamReconnectButtonEnabled = streamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -117,7 +116,6 @@ private fun HomeSearchContentPreview() {
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
-                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -173,7 +171,6 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
-                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -201,7 +198,6 @@ private fun HomeUserContentPreview() {
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
-                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -245,7 +241,7 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onScrolledToTimelineEnd() = Unit
     override fun onClickRetryTimelineLoadMore() = Unit
 
-    override fun onClickReconnectTimelineStream() = Unit
+    override fun onClickTimelineStreamStatus() = Unit
 
     override fun onSearchQueryChanged(query: String) = Unit
 

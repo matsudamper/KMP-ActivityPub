@@ -141,17 +141,38 @@ class HomeScreenViewModelTest {
         engine.responses.send { page(listOf("a"), null) }
         viewModel.uiStateFlow.value.listener.onScreenShown()
         viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected }
-        assertTrue(viewModel.uiStateFlow.value.timelineStreamReconnectButtonEnabled)
 
         subscriptionRejected.value = false
         engine.responses.send { page(listOf("b", "a"), null) }
-        viewModel.uiStateFlow.value.listener.onClickReconnectTimelineStream()
+        viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 && !it.timelineRefreshing }
         arrivals.send("c")
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
         assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
         assertEquals(HomeScreenUiState.TimelineStreamStatus.Receiving, viewModel.uiStateFlow.value.timelineStreamStatus)
-        assertFalse(viewModel.uiStateFlow.value.timelineStreamReconnectButtonEnabled)
+    }
+
+    @Test
+    fun pressingStatusWhileReceivingStopsStreamUntilPressedAgain() = withViewModel { viewModel, engine ->
+        engine.responses.send { page(listOf("a"), null) }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
+        viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
+        assertEquals(HomeScreenUiState.TimelineStreamStatus.Disconnected, viewModel.uiStateFlow.value.timelineStreamStatus)
+
+        // 画面に戻ってきても、自分で切った購読はつなぎ直さない
+        engine.responses.send { page(listOf("a"), null) }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { !it.timelineRefreshing }
+        arrivals.send("b")
+        advanceUntilIdle()
+        assertEquals(HomeScreenUiState.TimelineStreamStatus.Disconnected, viewModel.uiStateFlow.value.timelineStreamStatus)
+        assertEquals(listOf("a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+
+        engine.responses.send { page(listOf("b", "a"), null) }
+        viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
+        viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Receiving }
+        viewModel.uiStateFlow.first { it.timelineItems.size == 2 && !it.timelineRefreshing }
     }
 
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
