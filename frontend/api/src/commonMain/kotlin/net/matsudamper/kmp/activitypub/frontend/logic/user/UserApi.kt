@@ -101,8 +101,8 @@ class UserApi(
         var consecutiveFailureCount = 0
         while (true) {
             emit(HomeTimelineStreamEvent.Subscribing)
-            val connectedAt = TimeSource.Monotonic.markNow()
             val client = clients.awaitLoadedClient()
+            val connectedAt = TimeSource.Monotonic.markNow()
             val receivedPostCount = if (client == null) 0 else collectHomeTimelinePosts(client)
             val connectionWasHealthy = receivedPostCount > 0 || connectedAt.elapsedNow() >= HOME_TIMELINE_HEALTHY_CONNECTION_DURATION
             consecutiveFailureCount = if (connectionWasHealthy) 0 else consecutiveFailureCount + 1
