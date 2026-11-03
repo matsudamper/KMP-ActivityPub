@@ -140,6 +140,12 @@ internal fun HomeContent(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
+                    if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
+                        TimelineStreamStatusButton(
+                            status = uiState.timelineStreamStatus,
+                            onClick = uiState.listener::onClickTimelineStreamStatus,
+                        )
+                    }
                     IconButton(onClick = uiState.listener::onClickSettings) {
                         Icon(
                             imageVector = AppIcons.Settings,
@@ -278,6 +284,32 @@ private fun TimelineTabContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TimelineStreamStatusButton(
+    status: HomeScreenUiState.TimelineStreamStatus,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick) {
+        when (status) {
+            HomeScreenUiState.TimelineStreamStatus.Receiving -> Icon(
+                imageVector = AppIcons.CloudDone,
+                contentDescription = "新着投稿を受信中。押すと切断",
+            )
+
+            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect -> Icon(
+                imageVector = AppIcons.Sync,
+                contentDescription = "新着投稿の受信に再接続中。押すと切断",
+            )
+
+            HomeScreenUiState.TimelineStreamStatus.Disconnected -> Icon(
+                imageVector = AppIcons.CloudOff,
+                contentDescription = "新着投稿の受信を切断中。押すと再接続",
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

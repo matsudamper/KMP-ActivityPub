@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.HomeTimelineStreamEvent
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
@@ -50,6 +51,11 @@ internal class HomeScreenViewModel(
     private var timelineArrivalsJob: Job? = null
 
     /**
+     * 自分で切ったときは、画面に戻ってきてもつなぎ直さない
+     */
+    private var timelineStreamStoppedByUser = false
+
+    /**
      * 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
      */
     private var postsArrivedSinceRefresh = listOf<UserHomeTimelineResult.Post>()
@@ -62,6 +68,7 @@ internal class HomeScreenViewModel(
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -104,6 +111,21 @@ internal class HomeScreenViewModel(
                         loadTimeline(true)
                     }
 
+                    override fun onClickTimelineStreamStatus() {
+                        when (mutableUiStateFlow.value.timelineStreamStatus) {
+                            HomeScreenUiState.TimelineStreamStatus.Receiving,
+                            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect,
+                            -> stopTimelineArrivals()
+
+                            HomeScreenUiState.TimelineStreamStatus.Disconnected -> {
+                                timelineStreamStoppedByUser = false
+                                collectTimelineArrivals()
+                                // 切れていた間の投稿は流れてこないので、読み直して埋める
+                                loadTimeline(false)
+                            }
+                        }
+                    }
+
                     override fun onSearchQueryChanged(query: String) {
                         mutableUiStateFlow.update { it.copy(search = it.search.copy(query = query)) }
                     }
@@ -141,7 +163,7 @@ internal class HomeScreenViewModel(
                     override fun onScreenShown() {
                         loadProfile()
                         // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
-                        collectTimelineArrivals()
+                        if (!timelineStreamStoppedByUser) collectTimelineArrivals()
                         loadTimeline(false)
                     }
                 },
@@ -247,11 +269,37 @@ internal class HomeScreenViewModel(
     private fun collectTimelineArrivals() {
         if (timelineArrivalsJob?.isActive == true) return
         timelineArrivalsJob = viewModelScope.launch {
-            userApi.homeTimelineArrivals().collect { post ->
-                postsArrivedSinceRefresh = listOf(post) + postsArrivedSinceRefresh
-                timelinePaging.updateCache { it.withArrivedPosts(listOf(post)) }
+            userApi.homeTimelineStream().collect { event ->
+                when (event) {
+                    HomeTimelineStreamEvent.Subscribing -> updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Receiving)
+
+                    is HomeTimelineStreamEvent.Arrived -> {
+                        postsArrivedSinceRefresh = listOf(event.post) + postsArrivedSinceRefresh
+                        timelinePaging.updateCache { it.withArrivedPosts(listOf(event.post)) }
+                    }
+
+                    HomeTimelineStreamEvent.WaitingToReconnect -> {
+                        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect)
+                    }
+
+                    HomeTimelineStreamEvent.GaveUp -> {
+                        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Disconnected)
+                        // 受け手が居ないと送り終わらず購読の Job が残り、再接続で始め直せなくなる
+                        viewModelScope.launch { events.send { it.showMessage(TIMELINE_STREAM_DISCONNECTED_MESSAGE) } }
+                    }
+                }
             }
         }
+    }
+
+    private fun stopTimelineArrivals() {
+        timelineStreamStoppedByUser = true
+        timelineArrivalsJob?.cancel()
+        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Disconnected)
+    }
+
+    private fun updateTimelineStreamStatus(status: HomeScreenUiState.TimelineStreamStatus) {
+        mutableUiStateFlow.update { it.copy(timelineStreamStatus = status) }
     }
 
     /**
@@ -504,6 +552,7 @@ internal class HomeScreenViewModel(
     private companion object {
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
+        const val TIMELINE_STREAM_DISCONNECTED_MESSAGE = "新着投稿の受信が切れました"
     }
 
     private sealed interface SearchState {
