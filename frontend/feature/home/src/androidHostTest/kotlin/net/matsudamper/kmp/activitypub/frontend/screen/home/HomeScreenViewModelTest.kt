@@ -13,6 +13,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -41,6 +42,7 @@ import okio.Buffer
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeScreenViewModelTest {
     private val arrivals = Channel<String>(Channel.UNLIMITED)
+    private val subscriptionRejected = MutableStateFlow(false)
 
     @Test
     fun arrivedPostsArePrependedAndKeptAcrossRefresh() = withViewModel { viewModel, engine ->
@@ -133,6 +135,24 @@ class HomeScreenViewModelTest {
         assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
     }
 
+    @Test
+    fun streamGivesUpAfterConsecutiveFailuresAndReconnectButtonRestartsIt() = withViewModel { viewModel, engine ->
+        subscriptionRejected.value = true
+        engine.responses.send { page(listOf("a"), null) }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.timelineStreamGaveUpBannerVisible }
+
+        subscriptionRejected.value = false
+        engine.responses.send { page(listOf("b", "a"), null) }
+        viewModel.uiStateFlow.value.listener.onClickReconnectTimelineStream()
+        assertFalse(viewModel.uiStateFlow.value.timelineStreamGaveUpBannerVisible)
+        viewModel.uiStateFlow.first { it.timelineItems.size == 2 && !it.timelineRefreshing }
+        arrivals.send("c")
+        viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
+        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertFalse(viewModel.uiStateFlow.value.timelineStreamGaveUpBannerVisible)
+    }
+
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val engine = QueueEngine()
@@ -182,8 +202,12 @@ class HomeScreenViewModelTest {
 
     private inner class ArrivalTransport : NetworkTransport {
         override fun <D : Operation.Data> execute(request: ApolloRequest<D>): Flow<ApolloResponse<D>> =
-            arrivals.receiveAsFlow().map { id ->
-                request.operation.parseResponse(Buffer().writeUtf8("""{"data":{"homeTimelinePosts":${post(id)}}}""").jsonReader())
+            if (subscriptionRejected.value) {
+                emptyFlow()
+            } else {
+                arrivals.receiveAsFlow().map { id ->
+                    request.operation.parseResponse(Buffer().writeUtf8("""{"data":{"homeTimelinePosts":${post(id)}}}""").jsonReader())
+                }
             }
 
         override fun dispose() = Unit

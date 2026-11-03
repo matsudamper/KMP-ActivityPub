@@ -15,18 +15,28 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
-private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None)
+private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamGaveUpBannerVisible = false)
 
 @Preview
 @Composable
-private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading)
+private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading, streamGaveUpBannerVisible = false)
 
 @Preview
 @Composable
-private fun HomeContentPreviewError() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Error("続きを読み込めませんでした"))
+private fun HomeContentPreviewError() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.Error("続きを読み込めませんでした"),
+    streamGaveUpBannerVisible = false,
+)
+
+@Preview
+@Composable
+private fun HomeContentPreviewStreamGaveUp() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamGaveUpBannerVisible = true)
 
 @Composable
-private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
+private fun HomeTimelinePreview(
+    footer: HomeScreenUiState.TimelineFooter,
+    streamGaveUpBannerVisible: Boolean,
+) {
     HomePreviewTheme {
         HomeContent(
             uiState = HomeScreenUiState(
@@ -78,6 +88,7 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                 ),
                 timelineRefreshing = false,
                 timelineFooter = footer,
+                timelineStreamGaveUpBannerVisible = streamGaveUpBannerVisible,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -101,6 +112,7 @@ private fun HomeSearchContentPreview() {
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamGaveUpBannerVisible = false,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -155,6 +167,7 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamGaveUpBannerVisible = false,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -181,6 +194,7 @@ private fun HomeUserContentPreview() {
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamGaveUpBannerVisible = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -223,6 +237,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onRefreshTimeline() = Unit
     override fun onScrolledToTimelineEnd() = Unit
     override fun onClickRetryTimelineLoadMore() = Unit
+
+    override fun onClickReconnectTimelineStream() = Unit
 
     override fun onSearchQueryChanged(query: String) = Unit
 

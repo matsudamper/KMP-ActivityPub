@@ -1,14 +1,21 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
 import kotlin.io.encoding.Base64
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
+import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
@@ -87,39 +94,51 @@ class UserApi(
     }
 
     /**
-     * ホームタイムラインに新しく載った投稿を流し続ける。切れたら間を置いてつなぎ直す
+     * ホームタイムラインに新しく載った投稿を流し続ける。
+     * 切れたら間隔を倍に延ばしながらつなぎ直し、続けて失敗したら [HomeTimelineArrival.GaveUp] を流して終わる
      */
-    fun homeTimelineArrivals(): Flow<UserHomeTimelineResult.Post> = flow {
+    fun homeTimelineArrivals(): Flow<HomeTimelineArrival> = flow {
+        var consecutiveFailureCount = 0
         while (true) {
+            val connectedAt = TimeSource.Monotonic.markNow()
             val client = clients.awaitLoadedClient()
-            if (client != null) {
-                client.subscription(HomeTimelinePostsSubscription()).toFlow().collect { response ->
-                    val post = response.data?.homeTimelinePosts
-                    if (post != null) {
-                        emit(
-                            UserHomeTimelineResult.Post(
-                                id = post.id,
-                                username = post.username,
-                                host = post.host,
-                                displayName = post.displayName,
-                                iconUrl = post.iconUrl,
-                                body = UserPostBody(
-                                    content = post.content,
-                                    publishedAt = post.publishedAt,
-                                    summary = post.summary,
-                                    sensitive = post.sensitive,
-                                    linkUrls = post.linkUrls,
-                                    images = post.images.map { UserPostImage(url = it.url, description = it.description) },
-                                ),
-                            ),
-                        )
-                    }
-                }
-                // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
-                client.closeSubscriptionConnection()
-            }
-            delay(HOME_TIMELINE_RECONNECT_DELAY)
+            val receivedPostCount = if (client == null) 0 else collectHomeTimelinePosts(client)
+            val connectionWasHealthy = receivedPostCount > 0 || connectedAt.elapsedNow() >= HOME_TIMELINE_HEALTHY_CONNECTION_DURATION
+            consecutiveFailureCount = if (connectionWasHealthy) 0 else consecutiveFailureCount + 1
+            if (consecutiveFailureCount >= HOME_TIMELINE_MAX_CONSECUTIVE_FAILURES) break
+            delay(HOME_TIMELINE_RECONNECT_BASE_DELAY * (1 shl (consecutiveFailureCount - 1).coerceAtLeast(0)))
         }
+        emit(HomeTimelineArrival.GaveUp)
+    }
+
+    private suspend fun FlowCollector<HomeTimelineArrival>.collectHomeTimelinePosts(client: ApolloClient): Int {
+        val receivedPostCount = client.subscription(HomeTimelinePostsSubscription()).toFlow()
+            .mapNotNull { response -> response.data?.homeTimelinePosts }
+            .onEach { post ->
+                emit(
+                    HomeTimelineArrival.Arrived(
+                        UserHomeTimelineResult.Post(
+                            id = post.id,
+                            username = post.username,
+                            host = post.host,
+                            displayName = post.displayName,
+                            iconUrl = post.iconUrl,
+                            body = UserPostBody(
+                                content = post.content,
+                                publishedAt = post.publishedAt,
+                                summary = post.summary,
+                                sensitive = post.sensitive,
+                                linkUrls = post.linkUrls,
+                                images = post.images.map { UserPostImage(url = it.url, description = it.description) },
+                            ),
+                        ),
+                    ),
+                )
+            }
+            .count()
+        // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
+        client.closeSubscriptionConnection()
+        return receivedPostCount
     }
 
     suspend fun setFollowing(actorUri: String, followed: Boolean): String? {
@@ -370,6 +389,16 @@ class UserApi(
 
     private companion object {
         const val HOME_TIMELINE_PAGE_SIZE = 40
-        val HOME_TIMELINE_RECONNECT_DELAY = 5.seconds
+        const val HOME_TIMELINE_MAX_CONSECUTIVE_FAILURES = 5
+
+        /**
+         * 失敗の回数に応じて倍にしていく。5 回続けて失敗すると、諦めるまでに 5 + 10 + 20 + 40 秒待つ
+         */
+        val HOME_TIMELINE_RECONNECT_BASE_DELAY = 5.seconds
+
+        /**
+         * 投稿が来なくても、これだけ切れずにいられたなら接続できていたとみなし、失敗の回数を数え直す
+         */
+        val HOME_TIMELINE_HEALTHY_CONNECTION_DURATION = 1.minutes
     }
 }

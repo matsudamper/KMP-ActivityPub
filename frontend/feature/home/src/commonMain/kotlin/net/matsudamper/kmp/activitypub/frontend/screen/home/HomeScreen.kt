@@ -203,6 +203,7 @@ internal fun HomeContent(
                         timelineItems = uiState.timelineItems,
                         refreshing = uiState.timelineRefreshing,
                         footer = uiState.timelineFooter,
+                        streamGaveUpBannerVisible = uiState.timelineStreamGaveUpBannerVisible,
                         listener = uiState.listener,
                         modifier = contentModifier,
                     )
@@ -233,6 +234,7 @@ private fun TimelineTabContent(
     timelineItems: List<PostItemUiState>,
     refreshing: Boolean,
     footer: HomeScreenUiState.TimelineFooter,
+    streamGaveUpBannerVisible: Boolean,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
@@ -278,6 +280,37 @@ private fun TimelineTabContent(
                     }
                 }
             }
+        }
+        // タイムラインを押し下げないよう、上に重ねる
+        if (streamGaveUpBannerVisible) {
+            TimelineStreamGaveUpBanner(
+                onClickReconnect = listener::onClickReconnectTimelineStream,
+                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimelineStreamGaveUpBanner(
+    onClickReconnect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "新着投稿の受信が切れました",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onClickReconnect) { Text("再接続") }
         }
     }
 }

@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.HomeTimelineArrival
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
@@ -62,6 +63,7 @@ internal class HomeScreenViewModel(
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamGaveUpBannerVisible = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -102,6 +104,12 @@ internal class HomeScreenViewModel(
 
                     override fun onClickRetryTimelineLoadMore() {
                         loadTimeline(true)
+                    }
+
+                    override fun onClickReconnectTimelineStream() {
+                        collectTimelineArrivals()
+                        // 切れていた間の投稿は流れてこないので、読み直して埋める
+                        loadTimeline(false)
                     }
 
                     override fun onSearchQueryChanged(query: String) {
@@ -246,10 +254,19 @@ internal class HomeScreenViewModel(
 
     private fun collectTimelineArrivals() {
         if (timelineArrivalsJob?.isActive == true) return
+        mutableUiStateFlow.update { it.copy(timelineStreamGaveUpBannerVisible = false) }
         timelineArrivalsJob = viewModelScope.launch {
-            userApi.homeTimelineArrivals().collect { post ->
-                postsArrivedSinceRefresh = listOf(post) + postsArrivedSinceRefresh
-                timelinePaging.updateCache { it.withArrivedPosts(listOf(post)) }
+            userApi.homeTimelineArrivals().collect { arrival ->
+                when (arrival) {
+                    is HomeTimelineArrival.Arrived -> {
+                        postsArrivedSinceRefresh = listOf(arrival.post) + postsArrivedSinceRefresh
+                        timelinePaging.updateCache { it.withArrivedPosts(listOf(arrival.post)) }
+                    }
+
+                    HomeTimelineArrival.GaveUp -> {
+                        mutableUiStateFlow.update { it.copy(timelineStreamGaveUpBannerVisible = true) }
+                    }
+                }
             }
         }
     }
