@@ -80,8 +80,7 @@ class AndroidLoginCrashTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val saved = runBlocking { EncryptedSessionStore(context).read() }
         assertNotNull(saved?.session?.forRequest("${server.origin}/graphql".toHttpUrl(), System.currentTimeMillis()))
-        scenario?.recreate()
-        assertHomeRendered()
+        assertSubscriptionSurvivesRecreation()
     }
 
     @Test
@@ -90,8 +89,7 @@ class AndroidLoginCrashTest {
         scenario = ActivityScenario.launch(MainActivity::class.java)
         assertHomeRendered()
         assertEquals(0, server.logins.get())
-        scenario?.recreate()
-        assertHomeRendered()
+        assertSubscriptionSurvivesRecreation()
     }
 
     private fun saveSession(session: SessionCookie?) {
@@ -102,6 +100,19 @@ class AndroidLoginCrashTest {
     private fun assertHomeRendered() {
         waitForText("ログイン後のテスト投稿 https://example.com/")
         compose.waitUntil(timeoutMillis = 15_000) { server.subscriptions.get() > 0 }
+    }
+
+    private fun assertSubscriptionSurvivesRecreation() {
+        val subscriptionsBeforeRecreation = server.subscriptions.get()
+        val connectionsBeforeRecreation = server.openedConnections.get()
+        val closuresBeforeRecreation = server.closedConnections.get()
+        requireNotNull(scenario).recreate()
+        waitForText("ログイン後のテスト投稿 https://example.com/")
+        server.publishPostAfterRecreation()
+        waitForText("Activity 再生成後の新着投稿")
+        assertEquals(subscriptionsBeforeRecreation, server.subscriptions.get(), server.connectionEvents.toString())
+        assertEquals(connectionsBeforeRecreation, server.openedConnections.get(), server.connectionEvents.toString())
+        assertEquals(closuresBeforeRecreation, server.closedConnections.get(), server.connectionEvents.toString())
     }
 
     private fun waitForText(text: String) {

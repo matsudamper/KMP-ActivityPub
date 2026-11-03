@@ -1,12 +1,15 @@
 package net.matsudamper.kmp.activitypub.android
 
 import java.io.Closeable
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
 import okhttp3.Protocol
+import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.tls.HandshakeCertificates
@@ -17,6 +20,10 @@ internal class LoginTestServer : Closeable {
     val certificate = HeldCertificate.Builder().commonName("localhost").addSubjectAlternativeName("localhost").build()
     val logins = AtomicInteger()
     val subscriptions = AtomicInteger()
+    val openedConnections = AtomicInteger()
+    val closedConnections = AtomicInteger()
+    val connectionEvents = ConcurrentLinkedQueue<String>()
+    private val activeSubscriptions = ConcurrentHashMap<WebSocket, String>()
     private val server = MockWebServer().apply {
         useHttps(HandshakeCertificates.Builder().heldCertificate(certificate).build().sslSocketFactory())
         protocols = listOf(Protocol.HTTP_1_1)
@@ -26,12 +33,44 @@ internal class LoginTestServer : Closeable {
                     check(request.headers["Cookie"] == "user_session=test-session")
                     return MockResponse.Builder().setHeader("Sec-WebSocket-Protocol", "graphql-transport-ws")
                         .webSocketUpgrade(object : WebSocketListener() {
+                            override fun onOpen(webSocket: WebSocket, response: Response) {
+                                openedConnections.incrementAndGet()
+                                connectionEvents.add("接続")
+                            }
+
                             override fun onMessage(webSocket: WebSocket, text: String) {
                                 val message = JSONObject(text)
                                 when (message.getString("type")) {
                                     "connection_init" -> webSocket.send("""{"type":"connection_ack"}""")
-                                    "subscribe" -> subscriptions.incrementAndGet()
+
+                                    "subscribe" -> {
+                                        activeSubscriptions[webSocket] = message.getString("id")
+                                        subscriptions.incrementAndGet()
+                                        connectionEvents.add("購読開始:${message.getString("id")}")
+                                    }
+
+                                    "complete" -> {
+                                        activeSubscriptions.remove(webSocket)
+                                        connectionEvents.add("購読終了:${message.getString("id")}")
+                                    }
                                 }
+                            }
+
+                            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                                activeSubscriptions.remove(webSocket)
+                                connectionEvents.add("切断要求:$code:$reason")
+                                webSocket.close(code, reason)
+                            }
+
+                            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                                activeSubscriptions.remove(webSocket)
+                                closedConnections.incrementAndGet()
+                                connectionEvents.add("切断完了:$code:$reason")
+                            }
+
+                            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                                activeSubscriptions.remove(webSocket)
+                                connectionEvents.add("接続失敗:${t.message}")
                             }
                         }).build()
                 }
@@ -75,6 +114,18 @@ internal class LoginTestServer : Closeable {
         start()
     }
     val origin: String = server.url("/").toString().removeSuffix("/")
+
+    fun publishPostAfterRecreation() {
+        check(activeSubscriptions.isNotEmpty()) { "購読が残っていない: $connectionEvents" }
+        activeSubscriptions.forEach { (webSocket, id) ->
+            val subscriptionId = JSONObject.quote(id)
+            check(
+                webSocket.send(
+                    """{"type":"next","id":$subscriptionId,"payload":{"data":{"homeTimelinePosts":{"__typename":"HomeTimelinePost","id":"post-after-recreation","content":"Activity 再生成後の新着投稿","publishedAt":"2026-11-03T10:01:00Z","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[]}}}}""",
+                ),
+            ) { "新着投稿を送信できない: $connectionEvents" }
+        }
+    }
 
     override fun close() = server.close()
 }
