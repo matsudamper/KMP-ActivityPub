@@ -168,6 +168,4 @@ enum UploadNoteImageFailure {
     UNSUPPORTED_OPERATION
     "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
-    "サーバーに DOMAIN が無く、投稿を配れない"
-    FEDERATION_DISABLED
 }

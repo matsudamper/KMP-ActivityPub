@@ -172,7 +172,6 @@ internal class PostScreenViewModel(
             UserUploadNoteImageResult.DescriptionTooLong -> "画像の説明が長すぎます"
             UserUploadNoteImageResult.UnsupportedOperation -> "このサーバーでは画像を投稿できません"
             UserUploadNoteImageResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
-            UserUploadNoteImageResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
             is UserUploadNoteImageResult.Failure -> result.message
         }
 

@@ -332,7 +332,6 @@ class UserApi(
             UploadNoteImageFailure.DESCRIPTION_TOO_LONG -> UserUploadNoteImageResult.DescriptionTooLong
             UploadNoteImageFailure.UNSUPPORTED_OPERATION -> UserUploadNoteImageResult.UnsupportedOperation
             UploadNoteImageFailure.INTERNAL_SERVER_ERROR -> UserUploadNoteImageResult.InternalServerError
-            UploadNoteImageFailure.FEDERATION_DISABLED -> UserUploadNoteImageResult.FederationDisabled
             UploadNoteImageFailure.UNKNOWN__ -> UserUploadNoteImageResult.Failure("Unknown")
         }
     }

@@ -312,7 +312,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.NOT_LOGGED_IN)
         val notePostService =
             diContainer.notePostService
-                ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.FEDERATION_DISABLED)
+                ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.UNSUPPORTED_OPERATION)
         val failure =
             when (val result = notePostService.uploadImage(username = account.username, image = NoteImageUpload(bytes = image.bytes, description = description))) {
                 is UploadNoteImageResult.Uploaded -> return QlUploadNoteImageResult(imageId = result.publicId.value, failure = null)

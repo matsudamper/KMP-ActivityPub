@@ -17,8 +17,6 @@ sealed interface UserUploadNoteImageResult {
 
     data object InternalServerError : UserUploadNoteImageResult
 
-    data object FederationDisabled : UserUploadNoteImageResult
-
     data class Failure(
         val message: String,
     ) : UserUploadNoteImageResult
