@@ -384,7 +384,7 @@ internal class HomeScreenViewModel(
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
-                contentWarningLabel = if (post.sensitive) post.summary ?: "閲覧注意" else null,
+                contentWarningLabel = if (post.sensitive) post.summary?.takeIf { it.isNotBlank() } ?: "閲覧注意" else null,
                 body = post.content,
                 postedAt = post.publishedAt,
                 linkPreviews = post.linkUrls.map { url ->
