@@ -90,8 +90,8 @@ class NoteRepositoryTest {
             notes.addUploadedImage(UploadedNoteImage(accountId, left, expiresAt = NOW.plusSeconds(60)))
 
             assertEquals(listOf(left, attached), notes.findUploadedImages(accountId, listOf(left.publicId, attached.publicId), now = NOW))
-            assertNull(notes.findUploadedImages(AccountId(accountId.value + 1), listOf(left.publicId), now = NOW))
-            assertNull(notes.findUploadedImages(accountId, listOf(left.publicId), now = NOW.plusSeconds(60)))
+            assertEquals(listOf(), notes.findUploadedImages(AccountId(accountId.value + 1), listOf(left.publicId), now = NOW))
+            assertEquals(listOf(), notes.findUploadedImages(accountId, listOf(left.publicId), now = NOW.plusSeconds(60)))
 
             repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()).copy(images = listOf(attached)))
 

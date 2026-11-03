@@ -77,7 +77,7 @@ internal class SqliteNoteRepository(
         ownerAccountId: AccountId,
         publicIds: List<NoteImagePublicId>,
         now: Instant,
-    ): List<NoteImage>? {
+    ): List<NoteImage> {
         if (publicIds.isEmpty()) return listOf()
         val found =
             jooq.withConnection { dsl ->
@@ -88,7 +88,7 @@ internal class SqliteNoteRepository(
                     .fetch { it.toUploadedNoteImage().image }
                     .associateBy { it.publicId }
             }
-        return publicIds.map { found[it] ?: return null }
+        return publicIds.mapNotNull { found[it] }
     }
 
     override fun listExpiredUploadedImages(

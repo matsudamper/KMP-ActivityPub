@@ -125,9 +125,8 @@ class NotePostService(
             return PostNoteResult.Posted(publicId = alreadyPostedPublicId, url = noteUrl(sender.domain, alreadyPostedPublicId))
         }
         if (imageIds.distinct().size != imageIds.size) return PostNoteResult.ImageNotFound
-        val images =
-            noteRepository.findUploadedImages(ownerAccountId = account.id, publicIds = imageIds, now = clock.instant())
-                ?: return PostNoteResult.ImageNotFound
+        val images = noteRepository.findUploadedImages(ownerAccountId = account.id, publicIds = imageIds, now = clock.instant())
+        if (images.size != imageIds.size) return PostNoteResult.ImageNotFound
 
         val prepared =
             publisher.prepare(

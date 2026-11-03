@@ -17,13 +17,13 @@ interface NoteRepository {
     fun addUploadedImage(upload: UploadedNoteImage)
 
     /**
-     * [ownerAccountId] が置いた、期限内の画像を渡した順に返す。1 枚でも無ければ null
+     * [ownerAccountId] が置いた、期限内の画像を渡した順に返す。見つからない画像は入らない
      */
     fun findUploadedImages(
         ownerAccountId: AccountId,
         publicIds: List<NoteImagePublicId>,
         now: Instant,
-    ): List<NoteImage>?
+    ): List<NoteImage>
 
     /**
      * 期限を過ぎてもまだ投稿に付いていない画像を、期限の古い順に返す

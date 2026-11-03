@@ -39,10 +39,9 @@ internal class FakeNoteRepository : NoteRepository {
         ownerAccountId: AccountId,
         publicIds: List<NoteImagePublicId>,
         now: Instant,
-    ): List<NoteImage>? =
-        publicIds.map { publicId ->
+    ): List<NoteImage> =
+        publicIds.mapNotNull { publicId ->
             uploadedImages.firstOrNull { it.image.publicId == publicId && it.ownerAccountId == ownerAccountId && it.expiresAt > now }?.image
-                ?: return null
         }
 
     override fun listExpiredUploadedImages(
