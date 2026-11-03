@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
+import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -30,7 +31,7 @@ class UserProfileService(
                 following = false,
                 biography = null,
                 posts = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT).map {
-                    ProfilePost(contentHtml = it.contentHtml, publishedAt = it.publishedAt.toString(), linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value)
+                    ProfilePost(contentHtml = it.contentHtml, publishedAt = it.publishedAt.toString(), linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value, images = listOf())
                 },
             )
         }
@@ -73,6 +74,7 @@ class UserProfileService(
             publishedAt = publishedAt.toString(),
             // 閲覧注意の投稿は本文を隠しているので、リンク先も出さない
             linkPreviewId = if (sensitive) null else position.member,
+            images = if (sensitive) listOf() else images,
         )
     }
 
@@ -117,9 +119,11 @@ data class UserProfile(
 
 /**
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
+ * @param images 他のサーバーにある画像。中継する URL にはしていない
  */
 data class ProfilePost(
     val contentHtml: String,
     val publishedAt: String,
     val linkPreviewId: String?,
+    val images: List<TimelinePostImage>,
 )

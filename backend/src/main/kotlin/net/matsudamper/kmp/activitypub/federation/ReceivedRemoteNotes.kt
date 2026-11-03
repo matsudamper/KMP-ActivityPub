@@ -6,6 +6,7 @@ import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
+import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.inOpenTelemetrySuspendSpan
@@ -14,6 +15,7 @@ import net.matsudamper.kmp.activitypub.timeline.TimelineSpan
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.ReceivedNote
+import net.matsudamper.kotpub.note.ReceivedNoteAttachment
 import net.matsudamper.kotpub.note.RemoteNoteStore
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
@@ -79,6 +81,7 @@ internal class ReceivedRemoteNotes(
                 sensitive = note.sensitive,
                 publishedAt = note.published ?: now,
                 receivedAt = now,
+                images = note.attachments.mapNotNull { it.toImage() },
             ),
         )
         if (position != null) {
@@ -90,5 +93,11 @@ internal class ReceivedRemoteNotes(
             val reason = if (repository.hasRemoteNote(note.id)) "duplicate" else "no_eligible_recipient_or_actor"
             span.setAttribute(InboxSpan.DISCARD_REASON, reason)
         }
+    }
+
+    // 動画や音声も添付で来る。画像だけを出すので、申告が画像のものだけを残す
+    private fun ReceivedNoteAttachment.toImage(): TimelinePostImage? {
+        if (mediaType?.startsWith("image/") != true) return null
+        return TimelinePostImage(url = url, description = name?.let { Jsoup.clean(it, Safelist.none()) }?.takeIf { it.isNotBlank() })
     }
 }

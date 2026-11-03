@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
+import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 class UserProfileServiceTest {
@@ -28,7 +29,7 @@ class UserProfileServiceTest {
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
             requests.add("posts")
-            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), linkPreviewId = null))
+            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), linkPreviewId = null, images = listOf()))
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -77,6 +78,7 @@ class UserProfileServiceTest {
         assertEquals(true, profile.following)
         assertEquals(listOf("<p>受け取った投稿</p>", "注意書き"), profile.posts.map { it.contentHtml })
         assertEquals(listOf("r1", null), profile.posts.map { it.linkPreviewId })
+        assertEquals(listOf(listOf(image), listOf()), profile.posts.map { it.images })
     }
 
     @Test
@@ -123,5 +125,9 @@ class UserProfileServiceTest {
     }
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
-        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null)
+        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null, listOf(image))
+
+    private companion object {
+        val image = TimelinePostImage(url = "https://remote.example/a.png", description = null)
+    }
 }

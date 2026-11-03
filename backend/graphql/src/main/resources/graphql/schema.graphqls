@@ -85,6 +85,14 @@ type HomeTimelinePost {
     linkUrls: [String!]!
     "投稿者のプロフィール画像の URL。無ければ null"
     iconUrl: String
+    "投稿に付いた画像。付いた順"
+    images: [PostImage!]!
+}
+
+type PostImage {
+    url: String!
+    "画像の説明文。無ければ null"
+    description: String
 }
 
 "投稿の本文にあるリンク先の OGP。取れなかった項目は null"
