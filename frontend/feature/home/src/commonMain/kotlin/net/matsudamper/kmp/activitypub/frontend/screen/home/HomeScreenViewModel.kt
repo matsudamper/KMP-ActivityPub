@@ -384,16 +384,12 @@ internal class HomeScreenViewModel(
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
-                body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
+                contentWarningLabel = if (post.sensitive) post.summary ?: "閲覧注意" else null,
+                body = post.content,
                 postedAt = post.publishedAt,
-                // 閲覧注意の投稿は本文を隠しているので、リンク先も出さない
-                linkPreviews = if (post.sensitive) {
-                    listOf()
-                } else {
-                    post.linkUrls.map { url ->
-                        createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
-                            viewModelScope.launch { events.send { it.openUrl(url) } }
-                        }
+                linkPreviews = post.linkUrls.map { url ->
+                    createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
+                        viewModelScope.launch { events.send { it.openUrl(url) } }
                     }
                 },
                 authorListener = object : PostItemUiState.AuthorListener {
@@ -406,7 +402,7 @@ internal class HomeScreenViewModel(
                 },
                 listener = object : PostItemUiState.Listener {
                     override fun onVisible() {
-                        if (post.sensitive.not() && post.linkUrls.isNotEmpty()) {
+                        if (post.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(post.id)
                         }
                     }

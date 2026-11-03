@@ -9,6 +9,10 @@ data class PostItemUiState(
     val iconUrl: String?,
     val displayName: String,
     val acct: String,
+    /**
+     * 閲覧注意の投稿だけ持つ。投稿者が注意書きを付けていればその文言になる
+     */
+    val contentWarningLabel: String?,
     val body: String,
     val postedAt: String,
     /**

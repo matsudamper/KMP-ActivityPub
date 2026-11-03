@@ -163,6 +163,7 @@ internal class UserProfileScreenViewModel(
                     iconUrl = profile.iconUrl,
                     displayName = profile.displayName,
                     acct = acct,
+                    contentWarningLabel = null,
                     body = post.content,
                     postedAt = post.publishedAt,
                     linkPreviews = post.linkUrls.map { url ->
