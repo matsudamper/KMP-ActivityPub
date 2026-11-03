@@ -119,7 +119,7 @@ internal class PostScreenViewModel(
         when (val result = file.read(maxBytes = MAX_SOURCE_IMAGE_BYTES)) {
             is PickedImageFile.ReadResult.Success -> {
                 // 展開と JPEG への書き出しは画面を止めるほど重い
-                val image = withContext(Dispatchers.Default) { result.bytes.toPostImageOrNull(maxSidePx = IMAGE_MAX_SIDE_PX) }
+                val image = withContext(Dispatchers.Default) { result.bytes.toPostImageOrNull(maxSidePx = IMAGE_MAX_SIDE_PX, maxBytes = MAX_IMAGE_BYTES) }
                 if (image == null) events.send { it.showMessage("画像として読み込めませんでした") }
                 image
             }
@@ -260,9 +260,14 @@ private const val REQUEST_ID_KEY = "requestId"
 private const val MAX_IMAGES = 4
 
 /**
- * 長い辺をこの大きさまで縮めて送る。サーバーの 1 枚 2MiB に収まる大きさにする
+ * 長い辺をこの大きさまで縮めて送る
  */
 private const val IMAGE_MAX_SIDE_PX = 1920
+
+/**
+ * サーバーの 1 枚あたりの上限
+ */
+private const val MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
 /**
  * 縮める前のファイルの上限。大きな写真を丸ごと読むとメモリが足りなくなる

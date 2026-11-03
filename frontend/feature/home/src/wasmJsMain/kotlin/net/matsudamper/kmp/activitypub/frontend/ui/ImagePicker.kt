@@ -112,7 +112,10 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
         }
     }.getOrNull()
 
-internal actual fun ByteArray.toPostImageOrNull(maxSidePx: Int): PostImage? =
+internal actual fun ByteArray.toPostImageOrNull(
+    maxSidePx: Int,
+    maxBytes: Int,
+): PostImage? =
     runCatching {
         val codec = Codec.makeFromData(Data.makeFromBytes(this))
         val pixelCount = codec.width.toLong() * codec.height
@@ -120,30 +123,40 @@ internal actual fun ByteArray.toPostImageOrNull(maxSidePx: Int): PostImage? =
         if (pixelCount > MAX_DECODED_PIXELS) return@runCatching null
 
         val image = Image.makeFromEncoded(this)
-        val scale = minOf(1f, maxSidePx.toFloat() / maxOf(image.width, image.height))
-        val targetWidth = maxOf(1, (image.width * scale).roundToInt())
-        val targetHeight = maxOf(1, (image.height * scale).roundToInt())
-        val surface = Surface.makeRasterN32Premul(targetWidth, targetHeight)
         try {
-            // JPEG は透明を持てず、そのまま書き出すと透明な部分が黒くなる
-            surface.canvas.clear(Color.WHITE)
-            surface.canvas.drawImageRect(
-                image,
-                Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
-                Rect.makeWH(targetWidth.toFloat(), targetHeight.toFloat()),
-                // 既定の最近傍で大きく縮めるとギザギザになる
-                FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
-                null,
-                true,
-            )
-            val snapshot = surface.makeImageSnapshot()
-            val jpeg = snapshot.encodeToData(EncodedImageFormat.JPEG, POST_IMAGE_JPEG_QUALITY)?.bytes ?: return@runCatching null
-            PostImage(jpeg = jpeg, bitmap = snapshot.toComposeImageBitmap())
+            val longestSide = maxOf(image.width, image.height)
+            postImageSideCandidates(sourceLongestSide = longestSide, maxSidePx = maxSidePx)
+                .asSequence()
+                .mapNotNull { side -> image.toOpaqueJpegOrNull(scale = side.toFloat() / longestSide) }
+                .firstOrNull { it.jpeg.size <= maxBytes }
         } finally {
-            surface.close()
             image.close()
         }
     }.getOrNull()
+
+private fun Image.toOpaqueJpegOrNull(scale: Float): PostImage? {
+    val targetWidth = maxOf(1, (width * scale).roundToInt())
+    val targetHeight = maxOf(1, (height * scale).roundToInt())
+    val surface = Surface.makeRasterN32Premul(targetWidth, targetHeight)
+    try {
+        // JPEG は透明を持てず、そのまま書き出すと透明な部分が黒くなる
+        surface.canvas.clear(Color.WHITE)
+        surface.canvas.drawImageRect(
+            this,
+            Rect.makeWH(width.toFloat(), height.toFloat()),
+            Rect.makeWH(targetWidth.toFloat(), targetHeight.toFloat()),
+            // 既定の最近傍で大きく縮めるとギザギザになる
+            FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+            null,
+            true,
+        )
+        val snapshot = surface.makeImageSnapshot()
+        val jpeg = snapshot.encodeToData(EncodedImageFormat.JPEG, POST_IMAGE_JPEG_QUALITY)?.bytes ?: return null
+        return PostImage(jpeg = jpeg, bitmap = snapshot.toComposeImageBitmap())
+    } finally {
+        surface.close()
+    }
+}
 
 private const val POST_IMAGE_JPEG_QUALITY = 85
 
