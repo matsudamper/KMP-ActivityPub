@@ -69,7 +69,7 @@ class ProfileUpdateService(
         icon: ByteArray,
     ): UpdateIconResult {
         if (icon.size > MAX_ICON_BYTES) return UpdateIconResult.TooLarge
-        val format = ProfileIconFormat.detect(icon) ?: return UpdateIconResult.Unsupported
+        val format = ImageFormat.detect(icon) ?: return UpdateIconResult.Unsupported
         val dimensions = ProfileIconDimensions.read(icon, format) ?: return UpdateIconResult.Unsupported
         if (dimensions.width > MAX_ICON_SIDE_PX || dimensions.height > MAX_ICON_SIDE_PX) {
             return UpdateIconResult.DimensionsTooLarge
@@ -155,7 +155,7 @@ class ProfileUpdateService(
     private fun putIcon(
         accountId: AccountId,
         icon: ByteArray,
-        format: ProfileIconFormat,
+        format: ImageFormat,
     ): PutIconResult {
         val storage = imageStorage ?: return PutIconResult.Failure(UpdateIconResult.ImageStorageDisabled)
         val result =
