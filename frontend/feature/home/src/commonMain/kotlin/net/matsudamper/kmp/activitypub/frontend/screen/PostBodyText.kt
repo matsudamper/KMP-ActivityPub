@@ -32,19 +32,27 @@ internal fun createPostBodyText(
 
 // 文末の句読点や、URL の外側で閉じている括弧までリンクにしない
 private fun trimTrailingPunctuation(url: String): String {
-    val trimmedLength = generateSequence(url.length) { length -> (length - 1).takeIf { it > 0 } }
-        .firstOrNull { length ->
-            val last = url[length - 1]
-            val head = url.take(length)
-            val isUnbalancedClose = when (last) {
-                ')' -> head.count { it == '(' } < head.count { it == ')' }
-                ']' -> head.count { it == '[' } < head.count { it == ']' }
-                else -> false
-            }
-            last !in TrailingPunctuation && !isUnbalancedClose
+    // 長い句読点の連なりでも遅くならないよう、括弧は最初に一度だけ数え、削った分を差し引く
+    val openParenCount = url.count { it == '(' }
+    val openBracketCount = url.count { it == '[' }
+    var closeParenCount = url.count { it == ')' }
+    var closeBracketCount = url.count { it == ']' }
+    var end = url.length
+    while (end > 0) {
+        val last = url[end - 1]
+        val isUnbalancedClose = when (last) {
+            ')' -> openParenCount < closeParenCount
+            ']' -> openBracketCount < closeBracketCount
+            else -> false
         }
-        ?: 0
-    return url.take(trimmedLength)
+        if (last !in TrailingPunctuation && !isUnbalancedClose) break
+        when (last) {
+            ')' -> closeParenCount--
+            ']' -> closeBracketCount--
+        }
+        end--
+    }
+    return url.take(end)
 }
 
 private val PlainTextUrl = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
