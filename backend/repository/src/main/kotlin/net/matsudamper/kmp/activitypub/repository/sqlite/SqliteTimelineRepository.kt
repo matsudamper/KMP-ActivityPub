@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
@@ -17,6 +16,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field

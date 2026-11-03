@@ -40,8 +40,8 @@ import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.UpdateDisplayNameResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
-import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
@@ -219,7 +219,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         body: String,
         requestId: String,
-        imageIds: List<String>,
+        imageIds: List<NoteImagePublicId>,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
         val result = postNote(body = body, requestId = requestId, imageIds = imageIds, env = env)
@@ -264,7 +264,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     private fun postNote(
         body: String,
         requestId: String,
-        imageIds: List<String>,
+        imageIds: List<NoteImagePublicId>,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -283,7 +283,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 username = account.username,
                 body = body,
                 requestId = requestId,
-                imageIds = imageIds.map { NoteImagePublicId(it) },
+                imageIds = imageIds,
             )
         val failure =
             when (result) {
@@ -315,7 +315,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.UNSUPPORTED_OPERATION)
         val failure =
             when (val result = notePostService.uploadImage(username = account.username, image = NoteImageUpload(bytes = image.bytes, description = description))) {
-                is UploadNoteImageResult.Uploaded -> return QlUploadNoteImageResult(imageId = result.publicId.value, failure = null)
+                is UploadNoteImageResult.Uploaded -> return QlUploadNoteImageResult(imageId = result.publicId, failure = null)
                 UploadNoteImageResult.TooLarge -> QlUploadNoteImageFailure.TOO_LARGE
                 UploadNoteImageResult.UnsupportedImage -> QlUploadNoteImageFailure.UNSUPPORTED_IMAGE
                 UploadNoteImageResult.DescriptionTooLong -> QlUploadNoteImageFailure.DESCRIPTION_TOO_LONG

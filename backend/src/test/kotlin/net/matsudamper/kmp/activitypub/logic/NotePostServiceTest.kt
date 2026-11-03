@@ -19,7 +19,7 @@ import net.matsudamper.kmp.activitypub.FakeImageStorage
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.federation.RepositoryNoteStore
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
-import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.StoredActorNames

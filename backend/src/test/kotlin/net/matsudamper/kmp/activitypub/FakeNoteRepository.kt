@@ -3,12 +3,12 @@ package net.matsudamper.kmp.activitypub
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NoteImage
-import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.StoredNoteImage
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**

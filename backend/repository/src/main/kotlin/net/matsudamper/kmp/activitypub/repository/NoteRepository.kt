@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
@@ -137,9 +138,3 @@ data class UploadedNoteImage(
     val image: NoteImage,
     val expiresAt: Instant,
 )
-
-/**
- * 画像の URL に入る識別子。投稿の公開 id は配る文書を組み立てるときに決まるので、画像には別の識別子を付ける
- */
-@JvmInline
-value class NoteImagePublicId(val value: String)

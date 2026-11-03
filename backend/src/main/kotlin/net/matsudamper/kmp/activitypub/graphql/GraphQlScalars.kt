@@ -11,6 +11,7 @@ import graphql.schema.CoercingParseValueException
 import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 
 object GraphQlScalars {
@@ -29,6 +30,13 @@ object GraphQlScalars {
             .newScalar()
             .name("PasskeyCredentialId")
             .coercing(StringIdCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
+            .build()
+
+    val noteImageId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("NoteImageId")
+            .coercing(StringIdCoercing(name = "NoteImageId", type = NoteImagePublicId::class.java, wrap = ::NoteImagePublicId, unwrap = NoteImagePublicId::value))
             .build()
 
     /**

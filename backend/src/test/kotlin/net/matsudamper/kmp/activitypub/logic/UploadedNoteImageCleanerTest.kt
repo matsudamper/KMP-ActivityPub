@@ -10,9 +10,9 @@ import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.repository.NoteImage
-import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class UploadedNoteImageCleanerTest {

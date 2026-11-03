@@ -1,4 +1,4 @@
-mutation UserPostNote($body: String!, $requestId: String!, $imageIds: [ID!]!) {
+mutation UserPostNote($body: String!, $requestId: String!, $imageIds: [NoteImageId!]!) {
     user {
         postNote(body: $body, requestId: $requestId, imageIds: $imageIds) {
             url

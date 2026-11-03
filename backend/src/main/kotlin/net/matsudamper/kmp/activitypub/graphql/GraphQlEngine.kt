@@ -153,7 +153,7 @@ class GraphQlEngine private constructor(
                     .newParser()
                     .schemaString(readSchema())
                     .resolvers(resolvers)
-                    .scalars(GraphQlScalars.userId, GraphQlScalars.passkeyCredentialId, GraphQlScalars.upload)
+                    .scalars(GraphQlScalars.userId, GraphQlScalars.passkeyCredentialId, GraphQlScalars.noteImageId, GraphQlScalars.upload)
                     .build()
                     .makeExecutableSchema()
 

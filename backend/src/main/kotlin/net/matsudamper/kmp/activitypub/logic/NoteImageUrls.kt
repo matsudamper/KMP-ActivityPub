@@ -1,6 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
-import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 
 /**
  * 投稿に付けた画像の URL。他のサーバーにも画面にも同じものを見せる。

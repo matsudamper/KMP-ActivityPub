@@ -16,7 +16,7 @@ type UserMutation {
     ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す。
     imageIds には uploadNoteImage で置いた画像を付ける順に渡す。省略すると画像無し。画像があれば本文は空でもよい
     """
-    postNote(body: String!, requestId: String!, imageIds: [ID!]! = []): UserPostNoteResult! @lazy
+    postNote(body: String!, requestId: String!, imageIds: [NoteImageId!]! = []): UserPostNoteResult! @lazy
     """
     投稿に付ける画像を置く。multipart で送る。PNG / JPEG / GIF / WebP で 20MB まで。
     description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える
@@ -151,8 +151,8 @@ enum UpdateProfileIconFailure {
 }
 
 type UploadNoteImageResult {
-    "postNote の imageIds に渡す id。置けなければ null"
-    imageId: ID
+    "postNote の imageIds に渡す識別子。置けなければ null"
+    imageId: NoteImageId
     failure: UploadNoteImageFailure
 }
 

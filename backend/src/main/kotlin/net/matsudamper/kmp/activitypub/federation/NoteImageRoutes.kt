@@ -10,8 +10,8 @@ import io.ktor.server.routing.get
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
-import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import org.slf4j.LoggerFactory
 
