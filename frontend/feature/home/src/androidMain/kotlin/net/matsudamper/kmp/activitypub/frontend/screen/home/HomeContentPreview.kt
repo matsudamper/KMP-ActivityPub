@@ -15,27 +15,30 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
-private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamGaveUpBannerVisible = false)
+private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving)
 
 @Preview
 @Composable
-private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading, streamGaveUpBannerVisible = false)
+private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving)
 
 @Preview
 @Composable
 private fun HomeContentPreviewError() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.Error("続きを読み込めませんでした"),
-    streamGaveUpBannerVisible = false,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
 )
 
 @Preview
 @Composable
-private fun HomeContentPreviewStreamGaveUp() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamGaveUpBannerVisible = true)
+private fun HomeContentPreviewStreamDisconnected() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.None,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Disconnected,
+)
 
 @Composable
 private fun HomeTimelinePreview(
     footer: HomeScreenUiState.TimelineFooter,
-    streamGaveUpBannerVisible: Boolean,
+    streamStatus: HomeScreenUiState.TimelineStreamStatus,
 ) {
     HomePreviewTheme {
         HomeContent(
@@ -88,7 +91,8 @@ private fun HomeTimelinePreview(
                 ),
                 timelineRefreshing = false,
                 timelineFooter = footer,
-                timelineStreamGaveUpBannerVisible = streamGaveUpBannerVisible,
+                timelineStreamStatus = streamStatus,
+                timelineStreamReconnectButtonEnabled = streamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -112,7 +116,8 @@ private fun HomeSearchContentPreview() {
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
-                timelineStreamGaveUpBannerVisible = false,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -167,7 +172,8 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
-                timelineStreamGaveUpBannerVisible = false,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -194,7 +200,8 @@ private fun HomeUserContentPreview() {
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
-                timelineStreamGaveUpBannerVisible = false,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,

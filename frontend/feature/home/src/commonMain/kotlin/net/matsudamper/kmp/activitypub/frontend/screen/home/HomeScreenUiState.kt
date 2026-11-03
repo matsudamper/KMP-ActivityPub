@@ -8,7 +8,8 @@ data class HomeScreenUiState(
     val timelineItems: List<PostItemUiState>,
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
-    val timelineStreamGaveUpBannerVisible: Boolean,
+    val timelineStreamStatus: TimelineStreamStatus,
+    val timelineStreamReconnectButtonEnabled: Boolean,
     val search: Search,
     val profile: Profile,
     val userTabIconUrl: String?,
@@ -18,6 +19,12 @@ data class HomeScreenUiState(
         data object None : TimelineFooter
         data object Loading : TimelineFooter
         data class Error(val message: String) : TimelineFooter
+    }
+
+    enum class TimelineStreamStatus {
+        Receiving,
+        WaitingToReconnect,
+        Disconnected,
     }
 
     enum class Tab {

@@ -18,6 +18,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -140,6 +142,13 @@ internal fun HomeContent(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
+                    if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
+                        TimelineStreamStatusButton(
+                            status = uiState.timelineStreamStatus,
+                            enabled = uiState.timelineStreamReconnectButtonEnabled,
+                            onClick = uiState.listener::onClickReconnectTimelineStream,
+                        )
+                    }
                     IconButton(onClick = uiState.listener::onClickSettings) {
                         Icon(
                             imageVector = AppIcons.Settings,
@@ -203,7 +212,6 @@ internal fun HomeContent(
                         timelineItems = uiState.timelineItems,
                         refreshing = uiState.timelineRefreshing,
                         footer = uiState.timelineFooter,
-                        streamGaveUpBannerVisible = uiState.timelineStreamGaveUpBannerVisible,
                         listener = uiState.listener,
                         modifier = contentModifier,
                     )
@@ -234,7 +242,6 @@ private fun TimelineTabContent(
     timelineItems: List<PostItemUiState>,
     refreshing: Boolean,
     footer: HomeScreenUiState.TimelineFooter,
-    streamGaveUpBannerVisible: Boolean,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
@@ -281,36 +288,37 @@ private fun TimelineTabContent(
                 }
             }
         }
-        // タイムラインを押し下げないよう、上に重ねる
-        if (streamGaveUpBannerVisible) {
-            TimelineStreamGaveUpBanner(
-                onClickReconnect = listener::onClickReconnectTimelineStream,
-                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
-            )
-        }
     }
 }
 
 @Composable
-private fun TimelineStreamGaveUpBanner(
-    onClickReconnect: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun TimelineStreamStatusButton(
+    status: HomeScreenUiState.TimelineStreamStatus,
+    enabled: Boolean,
+    onClick: () -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        modifier = modifier,
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        // 押せない間も状態は見せたいので、無効時の薄い色にしない
+        colors = IconButtonDefaults.iconButtonColors(disabledContentColor = LocalContentColor.current),
     ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "新着投稿の受信が切れました",
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
+        when (status) {
+            HomeScreenUiState.TimelineStreamStatus.Receiving -> Icon(
+                imageVector = AppIcons.CloudDone,
+                contentDescription = "新着投稿を受信中",
             )
-            TextButton(onClick = onClickReconnect) { Text("再接続") }
+
+            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect -> Icon(
+                imageVector = AppIcons.Sync,
+                contentDescription = "新着投稿の受信に再接続中",
+            )
+
+            HomeScreenUiState.TimelineStreamStatus.Disconnected -> Icon(
+                imageVector = AppIcons.CloudOff,
+                contentDescription = "新着投稿の受信が切れています。押すと再接続",
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

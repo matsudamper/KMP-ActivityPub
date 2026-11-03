@@ -14,7 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
-import net.matsudamper.kmp.activitypub.frontend.logic.user.HomeTimelineArrival
+import net.matsudamper.kmp.activitypub.frontend.logic.user.HomeTimelineStreamEvent
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
@@ -63,7 +63,8 @@ internal class HomeScreenViewModel(
                 timelineItems = listOf(),
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
-                timelineStreamGaveUpBannerVisible = false,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                timelineStreamReconnectButtonEnabled = false,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -254,20 +255,36 @@ internal class HomeScreenViewModel(
 
     private fun collectTimelineArrivals() {
         if (timelineArrivalsJob?.isActive == true) return
-        mutableUiStateFlow.update { it.copy(timelineStreamGaveUpBannerVisible = false) }
         timelineArrivalsJob = viewModelScope.launch {
-            userApi.homeTimelineArrivals().collect { arrival ->
-                when (arrival) {
-                    is HomeTimelineArrival.Arrived -> {
-                        postsArrivedSinceRefresh = listOf(arrival.post) + postsArrivedSinceRefresh
-                        timelinePaging.updateCache { it.withArrivedPosts(listOf(arrival.post)) }
+            userApi.homeTimelineStream().collect { event ->
+                when (event) {
+                    HomeTimelineStreamEvent.Subscribing -> updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Receiving)
+
+                    is HomeTimelineStreamEvent.Arrived -> {
+                        postsArrivedSinceRefresh = listOf(event.post) + postsArrivedSinceRefresh
+                        timelinePaging.updateCache { it.withArrivedPosts(listOf(event.post)) }
                     }
 
-                    HomeTimelineArrival.GaveUp -> {
-                        mutableUiStateFlow.update { it.copy(timelineStreamGaveUpBannerVisible = true) }
+                    HomeTimelineStreamEvent.WaitingToReconnect -> {
+                        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect)
+                    }
+
+                    HomeTimelineStreamEvent.GaveUp -> {
+                        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Disconnected)
+                        // 受け手が居ないと送り終わらず購読の Job が残り、再接続で始め直せなくなる
+                        viewModelScope.launch { events.send { it.showMessage(TIMELINE_STREAM_DISCONNECTED_MESSAGE) } }
                     }
                 }
             }
+        }
+    }
+
+    private fun updateTimelineStreamStatus(status: HomeScreenUiState.TimelineStreamStatus) {
+        mutableUiStateFlow.update {
+            it.copy(
+                timelineStreamStatus = status,
+                timelineStreamReconnectButtonEnabled = status == HomeScreenUiState.TimelineStreamStatus.Disconnected,
+            )
         }
     }
 
@@ -521,6 +538,7 @@ internal class HomeScreenViewModel(
     private companion object {
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
+        const val TIMELINE_STREAM_DISCONNECTED_MESSAGE = "新着投稿の受信が切れました"
     }
 
     private sealed interface SearchState {

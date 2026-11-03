@@ -95,28 +95,30 @@ class UserApi(
 
     /**
      * ホームタイムラインに新しく載った投稿を流し続ける。
-     * 切れたら間隔を倍に延ばしながらつなぎ直し、続けて失敗したら [HomeTimelineArrival.GaveUp] を流して終わる
+     * 切れたら間隔を倍に延ばしながらつなぎ直し、続けて失敗したら [HomeTimelineStreamEvent.GaveUp] を流して終わる
      */
-    fun homeTimelineArrivals(): Flow<HomeTimelineArrival> = flow {
+    fun homeTimelineStream(): Flow<HomeTimelineStreamEvent> = flow {
         var consecutiveFailureCount = 0
         while (true) {
+            emit(HomeTimelineStreamEvent.Subscribing)
             val connectedAt = TimeSource.Monotonic.markNow()
             val client = clients.awaitLoadedClient()
             val receivedPostCount = if (client == null) 0 else collectHomeTimelinePosts(client)
             val connectionWasHealthy = receivedPostCount > 0 || connectedAt.elapsedNow() >= HOME_TIMELINE_HEALTHY_CONNECTION_DURATION
             consecutiveFailureCount = if (connectionWasHealthy) 0 else consecutiveFailureCount + 1
             if (consecutiveFailureCount >= HOME_TIMELINE_MAX_CONSECUTIVE_FAILURES) break
+            emit(HomeTimelineStreamEvent.WaitingToReconnect)
             delay(HOME_TIMELINE_RECONNECT_BASE_DELAY * (1 shl (consecutiveFailureCount - 1).coerceAtLeast(0)))
         }
-        emit(HomeTimelineArrival.GaveUp)
+        emit(HomeTimelineStreamEvent.GaveUp)
     }
 
-    private suspend fun FlowCollector<HomeTimelineArrival>.collectHomeTimelinePosts(client: ApolloClient): Int {
+    private suspend fun FlowCollector<HomeTimelineStreamEvent>.collectHomeTimelinePosts(client: ApolloClient): Int {
         val receivedPostCount = client.subscription(HomeTimelinePostsSubscription()).toFlow()
             .mapNotNull { response -> response.data?.homeTimelinePosts }
             .onEach { post ->
                 emit(
-                    HomeTimelineArrival.Arrived(
+                    HomeTimelineStreamEvent.Arrived(
                         UserHomeTimelineResult.Post(
                             id = post.id,
                             username = post.username,

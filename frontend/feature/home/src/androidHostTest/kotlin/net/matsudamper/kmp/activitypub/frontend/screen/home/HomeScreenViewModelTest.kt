@@ -136,21 +136,22 @@ class HomeScreenViewModelTest {
     }
 
     @Test
-    fun streamGivesUpAfterConsecutiveFailuresAndReconnectButtonRestartsIt() = withViewModel { viewModel, engine ->
+    fun streamGivesUpAfterConsecutiveFailuresAndReconnectIconRestartsIt() = withViewModel { viewModel, engine ->
         subscriptionRejected.value = true
         engine.responses.send { page(listOf("a"), null) }
         viewModel.uiStateFlow.value.listener.onScreenShown()
-        viewModel.uiStateFlow.first { it.timelineStreamGaveUpBannerVisible }
+        viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected }
+        assertTrue(viewModel.uiStateFlow.value.timelineStreamReconnectButtonEnabled)
 
         subscriptionRejected.value = false
         engine.responses.send { page(listOf("b", "a"), null) }
         viewModel.uiStateFlow.value.listener.onClickReconnectTimelineStream()
-        assertFalse(viewModel.uiStateFlow.value.timelineStreamGaveUpBannerVisible)
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 && !it.timelineRefreshing }
         arrivals.send("c")
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
         assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
-        assertFalse(viewModel.uiStateFlow.value.timelineStreamGaveUpBannerVisible)
+        assertEquals(HomeScreenUiState.TimelineStreamStatus.Receiving, viewModel.uiStateFlow.value.timelineStreamStatus)
+        assertFalse(viewModel.uiStateFlow.value.timelineStreamReconnectButtonEnabled)
     }
 
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
