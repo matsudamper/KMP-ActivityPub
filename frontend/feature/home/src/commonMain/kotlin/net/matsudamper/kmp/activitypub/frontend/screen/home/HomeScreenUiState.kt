@@ -8,6 +8,7 @@ data class HomeScreenUiState(
     val timelineItems: List<PostItemUiState>,
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
+    val timelineStreamStatus: TimelineStreamStatus,
     val search: Search,
     val profile: Profile,
     val userTabIconUrl: String?,
@@ -17,6 +18,12 @@ data class HomeScreenUiState(
         data object None : TimelineFooter
         data object Loading : TimelineFooter
         data class Error(val message: String) : TimelineFooter
+    }
+
+    enum class TimelineStreamStatus {
+        Receiving,
+        WaitingToReconnect,
+        Disconnected,
     }
 
     enum class Tab {
@@ -90,6 +97,8 @@ data class HomeScreenUiState(
         fun onScrolledToTimelineEnd()
 
         fun onClickRetryTimelineLoadMore()
+
+        fun onClickTimelineStreamStatus()
 
         fun onSearchQueryChanged(query: String)
 
