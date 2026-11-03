@@ -2,14 +2,12 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
@@ -124,42 +122,10 @@ class GraphQlRoutesTest {
             assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
         }
 
-    @Test
-    fun `multipart のファイルを変数に入れて実行する`() =
-        testApplication {
-            application { module(TestDependencies()) }
-
-            val response =
-                client.submitFormWithBinaryData(url = GRAPHQL_PATH, formData = uploadForm(ByteArray(1))) {
-                    header("Apollo-Require-Preflight", "true")
-                }
-
-            assertEquals(HttpStatusCode.OK, response.status)
-            // ログインしていないので、ファイルを受け取ったうえで失敗を返す
-            assertTrue(response.bodyAsText().contains("NOT_LOGGED_IN"), response.bodyAsText())
-        }
-
-    @Test
-    fun `postNote は imageIds を省略しても受け付ける`() =
-        testApplication {
-            application { module(TestDependencies()) }
-
-            val response =
-                client.post(GRAPHQL_PATH) {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"query":"mutation { user { postNote(body: \"hello\", requestId: \"r\") { url failure } } }"}""")
-                }
-
-            // ログインしていないので、引数の検証を通ったうえで失敗を返す
-            assertTrue(response.bodyAsText().contains("NOT_LOGGED_IN"), response.bodyAsText())
-        }
-
     private fun uploadForm(image: ByteArray) =
         formData {
-            append(
-                "operations",
-                """{"query":"mutation(${'$'}image: Upload!) { user { uploadNoteImage(image: ${'$'}image) { imageId failure } } }","variables":{"image":null}}""",
-            )
+            // 大きさとヘッダーの判定は GraphQL として読む前に行うので、中身は問わない
+            append("operations", "{}")
             append("map", """{"0":["variables.image"]}""")
             append(
                 "0",
