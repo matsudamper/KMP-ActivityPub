@@ -206,6 +206,19 @@ class UserSearchServiceTest {
     }
 
     @Test
+    fun `他のホストのユーザーを表示するURLはアクターのホストのユーザーになる`() {
+        remoteUserLookup.users["https://viewer.example/@bob@remote.example"] =
+            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = null, iconUrl = null)
+
+        val user = runBlocking { service.resolveUser(query = "https://viewer.example/@bob@remote.example", remoteLookupAllowed = true) }
+
+        assertEquals(
+            SearchedUser(actorUri = "https://remote.example/users/bob", username = "bob", host = "remote.example", isLocal = false, displayName = "bob", iconUrl = null, updatedAt = null),
+            user,
+        )
+    }
+
+    @Test
     fun `他のホストで見つからなければnullを返す`() {
         assertNull(runBlocking { service.resolveUser(query = "@bob@remote.example", remoteLookupAllowed = true) })
     }

@@ -42,7 +42,7 @@ class NotePostService(
             }
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
 
-        val prepared = publisher.prepare(sender = sender, contentHtml = contentHtml)
+        val prepared = publisher.prepare(sender = sender, contentHtml = contentHtml, attachments = listOf())
         val enqueued =
             deliveryQueueRepository.enqueueNote(
                 NotePost(

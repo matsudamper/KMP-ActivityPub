@@ -73,7 +73,8 @@ class UserSearchService(
         if (!remoteLookupAllowed || remoteUserLookup == null) return null
 
         val remoteUser = remoteUserLookup.findByUrl(url) ?: return null
-        return remoteUser.toSearchedUser(host = host)
+        val actorHost = runCatching { URI(remoteUser.actorUri).host }.getOrNull() ?: return null
+        return remoteUser.toSearchedUser(host = actorHost)
     }
 
     private fun findLocalUser(username: String): SearchedUser? {
