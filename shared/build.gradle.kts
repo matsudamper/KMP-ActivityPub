@@ -13,7 +13,7 @@ kotlin {
     android {
         namespace = "net.matsudamper.kmp.activitypub.shared"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
-        minSdk = 23
+        minSdk = 29
     }
 
     @OptIn(ExperimentalWasmDsl::class)

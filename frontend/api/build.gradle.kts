@@ -10,7 +10,7 @@ kotlin {
     android {
         namespace = "net.matsudamper.kmp.activitypub.frontend.api"
         compileSdk = libs.versions.androidCompileSdk.get().toInt()
-        minSdk = 23
+        minSdk = 29
     }
 
     @OptIn(ExperimentalWasmDsl::class)
