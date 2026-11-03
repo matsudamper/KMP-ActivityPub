@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.text.AnnotatedString
 
 /**
  * @param iconUrl 投稿者のプロフィール画像が無ければ null
@@ -13,7 +14,7 @@ data class PostItemUiState(
      * 閲覧注意の投稿だけ持つ。投稿者が注意書きを付けていればその文言になる
      */
     val contentWarningLabel: String?,
-    val body: String,
+    val body: AnnotatedString,
     val postedAt: String,
     /**
      * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく

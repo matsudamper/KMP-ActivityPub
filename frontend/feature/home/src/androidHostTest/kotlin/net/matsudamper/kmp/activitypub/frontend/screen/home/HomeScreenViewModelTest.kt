@@ -49,7 +49,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
         arrivals.send("b")
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
-        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body })
+        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
 
         val pending = CompletableDeferred<HttpResponse>()
         engine.responses.send { pending.await() }
@@ -60,7 +60,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
         pending.complete(page(listOf("b", "a"), null))
         viewModel.uiStateFlow.first { !it.timelineRefreshing && it.timelineItems.size == 3 }
-        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body })
+        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
     }
 
     @Test
@@ -79,7 +79,7 @@ class HomeScreenViewModelTest {
         assertEquals(2, engine.requests)
         pending.complete(page(listOf("b", "c"), null))
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
-        assertEquals(listOf("a", "b", "c"), viewModel.uiStateFlow.value.timelineItems.map { it.body })
+        assertEquals(listOf("a", "b", "c"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
         viewModel.uiStateFlow.value.listener.onScrolledToTimelineEnd()
         advanceUntilIdle()
         assertEquals(2, engine.requests)
@@ -100,7 +100,7 @@ class HomeScreenViewModelTest {
         engine.responses.send { page(listOf("b"), null) }
         viewModel.uiStateFlow.value.listener.onClickRetryTimelineLoadMore()
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
-        assertEquals(listOf("a", "b"), viewModel.uiStateFlow.value.timelineItems.map { it.body })
+        assertEquals(listOf("a", "b"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
         assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.timelineFooter)
     }
 
@@ -125,11 +125,11 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
         assertTrue(viewModel.uiStateFlow.value.timelineRefreshing)
         assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.timelineFooter)
-        viewModel.uiStateFlow.first { it.timelineItems.singleOrNull()?.body == "fresh" && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.timelineItems.singleOrNull()?.body?.text == "fresh" && !it.timelineRefreshing }
         assertTrue(cancelled.isCompleted)
         pending.complete(page(listOf("stale"), null))
         advanceUntilIdle()
-        assertEquals(listOf("fresh"), viewModel.uiStateFlow.value.timelineItems.map { it.body })
+        assertEquals(listOf("fresh"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
         assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
     }
 
