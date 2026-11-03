@@ -139,6 +139,21 @@ class GraphQlRoutesTest {
             assertTrue(response.bodyAsText().contains("NOT_LOGGED_IN"), response.bodyAsText())
         }
 
+    @Test
+    fun `postNote は imageIds を省略しても受け付ける`() =
+        testApplication {
+            application { module(TestDependencies()) }
+
+            val response =
+                client.post(GRAPHQL_PATH) {
+                    contentType(ContentType.Application.Json)
+                    setBody("""{"query":"mutation { user { postNote(body: \"hello\", requestId: \"r\") { url failure } } }"}""")
+                }
+
+            // ログインしていないので、引数の検証を通ったうえで失敗を返す
+            assertTrue(response.bodyAsText().contains("NOT_LOGGED_IN"), response.bodyAsText())
+        }
+
     private fun uploadForm(image: ByteArray) =
         formData {
             append(
