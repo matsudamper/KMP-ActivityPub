@@ -4,16 +4,19 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.toLosslessWebpOrNull
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -110,22 +113,35 @@ internal class PostScreenViewModel(
     }
 
     /**
-     * 読めなければメッセージを出して null。形式はサーバーが判定するので、ここでは見ない
+     * 可逆の WebP に描き直して EXIF を落とす。読めないか送れなければメッセージを出して null
      */
-    private suspend fun readImage(file: PickedImageFile): ByteArray? =
-        when (val result = file.read(maxBytes = MAX_IMAGE_BYTES)) {
-            is PickedImageFile.ReadResult.Success -> result.bytes
+    private suspend fun readImage(file: PickedImageFile): ByteArray? {
+        val source =
+            when (val result = file.read(maxBytes = MAX_SOURCE_IMAGE_BYTES)) {
+                is PickedImageFile.ReadResult.Success -> result.bytes
 
-            PickedImageFile.ReadResult.TooLarge -> {
-                events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") }
-                null
-            }
+                PickedImageFile.ReadResult.TooLarge -> {
+                    events.send { it.showMessage("画像ファイルが大きすぎます。50MB までにしてください") }
+                    return null
+                }
 
-            PickedImageFile.ReadResult.Error -> {
-                events.send { it.showMessage("画像ファイルを読み込めませんでした") }
-                null
+                PickedImageFile.ReadResult.Error -> {
+                    events.send { it.showMessage("画像ファイルを読み込めませんでした") }
+                    return null
+                }
             }
+        // 展開と WebP への書き出しは画面を止めるほど重い
+        val webp = withContext(Dispatchers.Default) { source.toLosslessWebpOrNull() }
+        if (webp == null) {
+            events.send { it.showMessage("画像として読み込めませんでした") }
+            return null
         }
+        if (webp.size > MAX_IMAGE_BYTES) {
+            events.send { it.showMessage("画像を WebP にすると 20MB を超えるため送れません") }
+            return null
+        }
+        return webp
+    }
 
     private fun post() {
         val state = viewModelStateFlow.value
@@ -275,3 +291,8 @@ private const val MAX_IMAGES = 4
  * サーバーの 1 枚あたりの上限
  */
 private const val MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+/**
+ * WebP にする前のファイルの上限。大きなファイルを丸ごと読むとメモリが足りなくなる
+ */
+private const val MAX_SOURCE_IMAGE_BYTES = 50 * 1024 * 1024

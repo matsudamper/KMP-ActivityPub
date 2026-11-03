@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -97,6 +98,25 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     val png = ByteArrayOutputStream().also { icon.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
     return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
+
+internal actual fun ByteArray.toLosslessWebpOrNull(): ByteArray? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(this, 0, size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return null
+
+    val decoded = runCatching { BitmapFactory.decodeByteArray(this, 0, size) }.getOrNull() ?: return null
+    // 向きを変えるだけなので、補間して画素を混ぜない
+    val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), false)
+    // Android 10 は WEBP_LOSSLESS が無く、WEBP の品質 100 が可逆になる
+    val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP
+    return ByteArrayOutputStream().also { oriented.compress(format, 100, it) }.toByteArray()
+}
+
+/**
+ * 縮めずに展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度
+ */
+private const val MAX_DECODED_PIXELS = 50_000_000L
 
 private fun ByteArray.readExifOrientation(): Int =
     runCatching { ExifInterface(ByteArrayInputStream(this)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }

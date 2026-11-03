@@ -110,6 +110,30 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
         }
     }.getOrNull()
 
+internal actual fun ByteArray.toLosslessWebpOrNull(): ByteArray? =
+    runCatching {
+        val codec = Codec.makeFromData(Data.makeFromBytes(this))
+        val origin = codec.encodedOrigin
+        val pixelCount = codec.width.toLong() * codec.height
+        codec.close()
+        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching null
+
+        val image = Image.makeFromEncoded(this)
+        val width = if (origin.swapsWidthHeight()) image.height else image.width
+        val height = if (origin.swapsWidthHeight()) image.width else image.height
+        val surface = Surface.makeRasterN32Premul(width, height)
+        try {
+            // EXIF を残さないので、向きは画素に反映する
+            surface.canvas.setMatrix(origin.toMatrix(image.width, image.height))
+            surface.canvas.drawImage(image, 0f, 0f)
+            // Skia は WebP の品質 100 を可逆で書き出す
+            surface.makeImageSnapshot().encodeToData(EncodedImageFormat.WEBP, 100)?.bytes
+        } finally {
+            surface.close()
+            image.close()
+        }
+    }.getOrNull()
+
 /**
  * 縮める前に一度は原寸で展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度
  */

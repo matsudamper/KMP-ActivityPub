@@ -21,7 +21,7 @@ data class PostScreenUiState(
     val listener: Listener,
 ) {
     /**
-     * @param imageBytes 選んだファイルそのまま。表示するときに読む
+     * @param imageBytes 送る画像。表示するときに読む
      */
     data class Image(
         val imageBytes: ByteArray,

@@ -47,3 +47,9 @@ internal class ProfileIconImage(
     val png: ByteArray,
     val bitmap: ImageBitmap,
 )
+
+/**
+ * 縮めずに可逆の WebP に描き直す。写真の向きは画素に反映し、EXIF などのメタデータは残さない。
+ * 画像として読めないか、画素数が大きすぎて展開できなければ null
+ */
+internal expect fun ByteArray.toLosslessWebpOrNull(): ByteArray?
