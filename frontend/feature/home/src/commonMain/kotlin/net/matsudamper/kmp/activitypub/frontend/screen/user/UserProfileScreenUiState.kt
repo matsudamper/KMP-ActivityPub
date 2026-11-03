@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 data class UserProfileScreenUiState(
     val content: Content,
@@ -11,14 +12,16 @@ data class UserProfileScreenUiState(
 
         /**
          * @param iconUrl プロフィール画像が無ければ null
+         * @param followButton フォローできない相手には出さないので null
          */
         data class Loaded(
             val acct: String,
             val iconUrl: String?,
             val displayName: String,
             val biography: String?,
-            val followingText: String,
-            val posts: List<Post>,
+            val followButton: FollowButton?,
+            val posts: List<PostItemUiState>,
+            val postsEmptyMessage: String?,
         ) : Content
 
         data object NotFound : Content
@@ -28,9 +31,9 @@ data class UserProfileScreenUiState(
         ) : Content
     }
 
-    data class Post(
-        val content: String,
-        val publishedAt: String,
+    data class FollowButton(
+        val text: String,
+        val enabled: Boolean,
     )
 
     @Immutable
@@ -38,5 +41,7 @@ data class UserProfileScreenUiState(
         fun onClickRetry()
 
         fun onClickBack()
+
+        fun onClickFollow()
     }
 }

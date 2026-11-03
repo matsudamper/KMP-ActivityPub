@@ -13,6 +13,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     val pageRequests = mutableListOf<TimelinePosition?>()
     val events = mutableListOf<String>()
     val received = mutableListOf<RemoteNoteInput>()
+    val actorPosts = mutableListOf<TimelinePost>()
 
     var interested = true
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
@@ -37,8 +38,11 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
-        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false)
+        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null)
     }
+
+    override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> =
+        actorPosts.filter { it.actorUri == actorUri }.take(limit)
 
     override fun localPosition(publicId: String): TimelinePosition? = null
 

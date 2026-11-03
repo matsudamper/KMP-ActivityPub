@@ -24,6 +24,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -375,10 +377,11 @@ internal class HomeScreenViewModel(
         mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
     }
 
-    private fun createTimelineItems(): List<HomeScreenUiState.TimelineItem> {
+    private fun createTimelineItems(): List<PostItemUiState> {
         return timelinePosts.map { post ->
             val previews = linkPreviews[post.id].orEmpty()
-            HomeScreenUiState.TimelineItem(
+            PostItemUiState(
+                iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
@@ -387,9 +390,21 @@ internal class HomeScreenViewModel(
                 linkPreviews = if (post.sensitive) {
                     listOf()
                 } else {
-                    post.linkUrls.map { url -> createLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) }
+                    post.linkUrls.map { url ->
+                        createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
+                            viewModelScope.launch { events.send { it.openUrl(url) } }
+                        }
+                    }
                 },
-                listener = object : HomeScreenUiState.TimelineItemListener {
+                authorListener = object : PostItemUiState.AuthorListener {
+                    override fun onClick() {
+                        val host = post.host
+                        viewModelScope.launch {
+                            events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
+                        }
+                    }
+                },
+                listener = object : PostItemUiState.Listener {
                     override fun onVisible() {
                         if (post.sensitive.not() && post.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(post.id)
@@ -398,27 +413,6 @@ internal class HomeScreenViewModel(
                 },
             )
         }
-    }
-
-    /**
-     * @param preview まだ取れていなければ null。枠は先に出しておき、取れたら中身だけ差し替える
-     */
-    private fun createLinkPreview(
-        url: String,
-        preview: UserLinkPreviewsResult.LinkPreview?,
-    ): HomeScreenUiState.LinkPreview {
-        return HomeScreenUiState.LinkPreview(
-            title = preview?.title ?: url,
-            siteName = preview?.siteName ?: url.substringAfter("://").substringBefore('/'),
-            imageUrl = preview?.imageUrl,
-            listener = object : HomeScreenUiState.LinkPreviewListener {
-                override fun onClick() {
-                    viewModelScope.launch {
-                        events.send { it.openUrl(url) }
-                    }
-                }
-            },
-        )
     }
 
     private fun loadLinkPreviews(postId: String) {

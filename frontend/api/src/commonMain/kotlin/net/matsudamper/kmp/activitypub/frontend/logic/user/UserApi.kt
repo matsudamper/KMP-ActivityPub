@@ -96,7 +96,20 @@ class UserApi(
                 client.subscription(HomeTimelinePostsSubscription()).toFlow().collect { response ->
                     val post = response.data?.homeTimelinePosts
                     if (post != null) {
-                        emit(UserHomeTimelineResult.Post(post.id, post.content, post.publishedAt, post.username, post.host, post.displayName, post.summary, post.sensitive, post.linkUrls))
+                        emit(
+                            UserHomeTimelineResult.Post(
+                                id = post.id,
+                                content = post.content,
+                                publishedAt = post.publishedAt,
+                                username = post.username,
+                                host = post.host,
+                                displayName = post.displayName,
+                                summary = post.summary,
+                                sensitive = post.sensitive,
+                                linkUrls = post.linkUrls,
+                                iconUrl = post.iconUrl,
+                            ),
+                        )
                     }
                 }
                 // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
@@ -209,13 +222,16 @@ class UserApi(
         val user = profile.user
 
         return UserProfileResult.Found(
+            actorUri = user.actorUri,
             username = user.username,
             host = user.host,
             displayName = user.displayName,
             iconUrl = user.iconUrl,
             following = user.following,
             biography = profile.biography,
-            posts = profile.posts.map { UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt) },
+            posts = profile.posts.map {
+                UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt, linkPreviewId = it.linkPreviewId, linkUrls = it.linkUrls)
+            },
         )
     }
 

@@ -204,9 +204,18 @@ internal class FollowListScreenViewModel(
             acct = if (username == null) user.host else "@$username@${user.host}",
             followButtonText = if (user.following) "フォロー中・解除" else "フォロー",
             followButtonEnabled = !followingChangeInProgress,
+            // プロフィールは acct で引くので、ユーザー名を受け取っていない相手は開けない
+            clickable = username != null,
             listener = object : FollowListScreenUiState.AccountListener {
                 override fun onClickFollow() {
                     changeFollowing(user)
+                }
+
+                override fun onClick() {
+                    if (username == null) return
+                    viewModelScope.launch {
+                        events.send { it.navigateToUserProfile("$username@${user.host}") }
+                    }
                 }
             },
         )
@@ -214,6 +223,8 @@ internal class FollowListScreenViewModel(
 
     interface Event {
         fun navigateBack()
+
+        fun navigateToUserProfile(username: String)
 
         fun showMessage(message: String)
     }

@@ -14,6 +14,11 @@ interface TimelineRepository {
     fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition>
     fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
+
+    /**
+     * [accountId] が読める、[actorUri] の保存済みの投稿を新しい順に返す
+     */
+    fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
 }
 
@@ -23,6 +28,10 @@ data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val loca
 
 data class TimelinePosition(val score: Long, val member: String)
 
+/**
+ * @param actorIconUrl 他のサーバーの投稿者のプロフィール画像の URL。このサーバーの投稿や、画像の無い相手は null
+ * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
+ */
 data class TimelinePost(
     val position: TimelinePosition,
     val contentHtml: String,
@@ -32,6 +41,8 @@ data class TimelinePost(
     val displayName: String?,
     val summary: String?,
     val sensitive: Boolean,
+    val actorIconUrl: String?,
+    val actorUpdatedAt: Instant?,
 )
 
 data class RemoteNoteInput(

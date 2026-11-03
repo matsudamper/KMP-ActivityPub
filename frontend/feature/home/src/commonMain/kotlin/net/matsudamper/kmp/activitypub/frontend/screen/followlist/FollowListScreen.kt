@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.followlist
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
@@ -56,6 +58,10 @@ internal fun FollowListScreen(
             object : FollowListScreenViewModel.Event {
                 override fun navigateBack() {
                     navigator.back()
+                }
+
+                override fun navigateToUserProfile(username: String) {
+                    navigator.navigate(Screen.UserProfile(username = username))
                 }
 
                 override fun showMessage(message: String) {
@@ -197,7 +203,10 @@ private fun AccountItem(
     account: FollowListScreenUiState.Account,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = account.clickable, onClick = account.listener::onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
