@@ -43,7 +43,14 @@ data class TimelinePost(
     val sensitive: Boolean,
     val actorIconUrl: String?,
     val actorUpdatedAt: Instant?,
+    val images: List<TimelinePostImage>,
 )
+
+/**
+ * @param url 他のサーバーにある画像の URL
+ * @param description 画像の説明文。無ければ null
+ */
+data class TimelinePostImage(val url: String, val description: String?)
 
 data class RemoteNoteInput(
     val objectUri: String,
@@ -56,4 +63,5 @@ data class RemoteNoteInput(
     val sensitive: Boolean,
     val publishedAt: Instant,
     val receivedAt: Instant,
+    val images: List<TimelinePostImage>,
 )

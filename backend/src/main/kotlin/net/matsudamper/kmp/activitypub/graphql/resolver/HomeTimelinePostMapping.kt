@@ -3,8 +3,10 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 import java.net.URI
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostImage
 import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
+import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 
 internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHomeTimelinePost =
     QlHomeTimelinePost(
@@ -23,4 +25,10 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         } else {
             actorIconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = actorUpdatedAt) }
         },
+        images = if (sensitive) listOf() else images.toQlPostImages(diContainer),
     )
+
+// Web では CORS を返さないサーバーの画像を読めないので、中継できない画像は返さない
+internal fun List<TimelinePostImage>.toQlPostImages(diContainer: DiContainer): List<QlPostImage> = mapNotNull { image ->
+    diContainer.remoteImageProxy?.proxyUrlOf(image.url)?.let { QlPostImage(url = it, description = image.description) }
+}

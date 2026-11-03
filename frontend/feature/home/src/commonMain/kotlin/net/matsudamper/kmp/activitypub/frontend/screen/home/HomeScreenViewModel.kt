@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostImage
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
@@ -390,6 +391,11 @@ internal class HomeScreenViewModel(
                 linkPreviews = post.linkUrls.map { url ->
                     createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
                         viewModelScope.launch { events.send { it.openUrl(url) } }
+                    }
+                },
+                images = post.images.map { image ->
+                    createPostImage(image) {
+                        viewModelScope.launch { events.send { it.openUrl(image.url) } }
                     }
                 },
                 authorListener = object : PostItemUiState.AuthorListener {

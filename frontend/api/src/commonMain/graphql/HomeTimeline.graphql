@@ -12,6 +12,10 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                 sensitive
                 linkUrls
                 iconUrl
+                images {
+                    url
+                    description
+                }
             }
             nextCursor
         }

@@ -158,7 +158,7 @@ class HomeScreenViewModelTest {
     }
 
     private fun post(id: String): String =
-        """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[]}"""
+        """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"images":[]}"""
 
     private fun response(json: String): HttpResponse = HttpResponse.Builder(200).body(Buffer().writeUtf8(json)).build()
 

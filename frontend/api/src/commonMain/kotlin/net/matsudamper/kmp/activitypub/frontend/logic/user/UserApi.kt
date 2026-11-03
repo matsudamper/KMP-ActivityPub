@@ -108,6 +108,7 @@ class UserApi(
                                 sensitive = post.sensitive,
                                 linkUrls = post.linkUrls,
                                 iconUrl = post.iconUrl,
+                                images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                             ),
                         )
                     }
@@ -230,7 +231,13 @@ class UserApi(
             following = user.following,
             biography = profile.biography,
             posts = profile.posts.map {
-                UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt, linkPreviewId = it.linkPreviewId, linkUrls = it.linkUrls)
+                UserProfileResult.Post(
+                    content = it.content,
+                    publishedAt = it.publishedAt,
+                    linkPreviewId = it.linkPreviewId,
+                    linkUrls = it.linkUrls,
+                    images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                )
             },
         )
     }

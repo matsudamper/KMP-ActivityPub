@@ -45,6 +45,7 @@ class QueryResolverImpl : QueryResolver {
                             linkPreviewId = post.linkPreviewId,
                             // DOMAIN が無いと linkPreviewService は null。そのときはカードにするリンクを返さない
                             linkUrls = if (post.linkPreviewId == null) listOf() else diContainer.linkPreviewService?.links(post.contentHtml).orEmpty(),
+                            images = post.images.toQlPostImages(diContainer),
                         )
                     },
                 )

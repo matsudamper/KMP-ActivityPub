@@ -21,5 +21,6 @@ sealed interface UserHomeTimelineResult {
          * 投稿者のプロフィール画像が無ければ null
          */
         val iconUrl: String?,
+        val images: List<UserPostImage>,
     )
 }

@@ -18,6 +18,8 @@ type ProfilePost {
     linkPreviewId: ID
     "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び"
     linkUrls: [String!]!
+    "投稿に付いた画像。付いた順"
+    images: [PostImage!]!
 }
 
 type UserSearchResult {

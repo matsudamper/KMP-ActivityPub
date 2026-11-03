@@ -10,7 +10,19 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
     val timeline = userInfo?.homeTimeline ?: return UserHomeTimelineResult.NotLoggedIn
     return UserHomeTimelineResult.Success(
         posts = timeline.posts.map {
-            UserHomeTimelineResult.Post(it.id, it.content, it.publishedAt, it.username, it.host, it.displayName, it.summary, it.sensitive, it.linkUrls, it.iconUrl)
+            UserHomeTimelineResult.Post(
+                id = it.id,
+                content = it.content,
+                publishedAt = it.publishedAt,
+                username = it.username,
+                host = it.host,
+                displayName = it.displayName,
+                summary = it.summary,
+                sensitive = it.sensitive,
+                linkUrls = it.linkUrls,
+                iconUrl = it.iconUrl,
+                images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+            )
         },
         nextCursor = timeline.nextCursor,
     )
@@ -35,6 +47,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             sensitive = it.sensitive,
             linkUrls = it.linkUrls,
             iconUrl = it.iconUrl,
+            images = it.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))
