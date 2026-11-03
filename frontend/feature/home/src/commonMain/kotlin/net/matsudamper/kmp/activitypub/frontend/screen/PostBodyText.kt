@@ -56,6 +56,6 @@ private fun trimTrailingPunctuation(url: String): String {
 }
 
 // URL に使える ASCII の文字だけを拾う。日本語の本文や全角の括弧が URL に続いても、そこで切る
-private val PlainTextUrl = Regex("""https?://[A-Za-z0-9\-._~:/?#\[\]@!$&()*+,;=%]+""", RegexOption.IGNORE_CASE)
-private val TrailingPunctuation = setOf('.', ',', '!', '?', ':', ';', '。', '、', '」', '）')
+private val PlainTextUrl = Regex("""https?://[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+""", RegexOption.IGNORE_CASE)
+private val TrailingPunctuation = setOf('.', ',', '!', '?', ':', ';', '\'', '。', '、', '」', '）')
 private val PostBodyLinkStyles = TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline))
