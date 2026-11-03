@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
+import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kmp.activitypub.timeline.FakeTimelineStore
@@ -33,6 +34,7 @@ import net.matsudamper.kotpub.actor.StoredActorNames
 import net.matsudamper.kotpub.httpsignature.PublicKeyLookup
 import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
+import net.matsudamper.kotpub.note.ReceivedNoteAttachment
 import net.matsudamper.kotpub.webfinger.WebFingerLookup
 
 class RemoteNoteReceptionTest {
@@ -229,6 +231,25 @@ class RemoteNoteReceptionTest {
     }
 
     @Test
+    fun onlyImageAttachmentsAreSavedAsImages() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        val attachments = listOf(
+            ReceivedNoteAttachment(url = "https://remote.example/a.png", mediaType = "image/png", name = "<b>説明</b>"),
+            ReceivedNoteAttachment(url = "https://remote.example/b.mp4", mediaType = "video/mp4", name = null),
+            ReceivedNoteAttachment(url = "https://remote.example/c", mediaType = null, name = null),
+            ReceivedNoteAttachment(url = "https://remote.example/d.webp", mediaType = "image/webp", name = null),
+        )
+        fixture.receiver.save(note(listOf()).copy(attachments = attachments))
+        assertEquals(
+            listOf(
+                TimelinePostImage(url = "https://remote.example/a.png", description = "説明"),
+                TimelinePostImage(url = "https://remote.example/d.webp", description = null),
+            ),
+            fixture.repositories.timelineRepository.received.single().images,
+        )
+    }
+
+    @Test
     fun addressedLocalAccountsAreResolvedBeforeFetchingActors() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false
@@ -262,7 +283,7 @@ class RemoteNoteReceptionTest {
     }
 
     private fun note(to: List<String>): ReceivedNote = ReceivedNote(
-        "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", Instant.EPOCH, to, listOf(), null, null, false, NoteVisibility.Public,
+        "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", Instant.EPOCH, to, listOf(), null, null, false, NoteVisibility.Public, listOf(),
     )
 
     private class Fixture(openTelemetry: OpenTelemetry) {

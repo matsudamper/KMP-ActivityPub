@@ -26,6 +26,7 @@ sealed interface UserProfileResult {
         val publishedAt: String,
         val linkPreviewId: String?,
         val linkUrls: List<String>,
+        val images: List<UserPostImage>,
     )
 
     data class Failure(

@@ -10,5 +10,9 @@ subscription HomeTimelinePosts {
         sensitive
         linkUrls
         iconUrl
+        images {
+            url
+            description
+        }
     }
 }

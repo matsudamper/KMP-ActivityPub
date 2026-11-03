@@ -51,6 +51,9 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                                 listener = AndroidPreviewLinkPreviewListener,
                             ),
                         ),
+                        images = listOf(
+                            PostItemUiState.Image(url = "https://example.com/photo.png", description = "写真", listener = AndroidPreviewImageListener),
+                        ),
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
@@ -61,6 +64,11 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                         body = "Compose Multiplatform で Web と Android の画面を共有している",
                         postedAt = "5分前",
                         linkPreviews = listOf(),
+                        images = listOf(
+                            PostItemUiState.Image(url = "https://example.com/1.png", description = null, listener = AndroidPreviewImageListener),
+                            PostItemUiState.Image(url = "https://example.com/2.png", description = null, listener = AndroidPreviewImageListener),
+                            PostItemUiState.Image(url = "https://example.com/3.png", description = null, listener = AndroidPreviewImageListener),
+                        ),
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
@@ -239,6 +247,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
 }
 
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
     override fun onClick() = Unit
 }
 

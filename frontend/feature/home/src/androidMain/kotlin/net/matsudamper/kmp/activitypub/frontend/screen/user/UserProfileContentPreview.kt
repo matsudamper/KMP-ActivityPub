@@ -33,6 +33,7 @@ private fun UserProfileContentPreview() {
                                     listener = AndroidPreviewLinkPreviewListener,
                                 ),
                             ),
+                            images = listOf(),
                             authorListener = null,
                             listener = AndroidPreviewPostItemListener,
                         ),

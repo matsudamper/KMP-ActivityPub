@@ -81,6 +81,23 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun receivedImagesAreReturnedInOrderWithTheirPost() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val images = listOf(
+            TimelinePostImage(url = "https://remote.example/a.png", description = "説明"),
+            TimelinePostImage(url = "https://remote.example/b.png", description = null),
+        )
+        val withImages = assertNotNull(repository.receive(note("with-images", "public", setOf()).copy(images = images)))
+        val withoutImages = assertNotNull(repository.receive(note("without-images", "public", setOf())))
+        val hydrated = repository.hydrate(alice, listOf(withImages.member, withoutImages.member)).associateBy { it.position.member }
+        assertEquals(images, hydrated.getValue(withImages.member).images)
+        assertTrue(hydrated.getValue(withoutImages.member).images.isEmpty())
+        assertEquals(images, repository.actorPosts(alice, ACTOR, 10).single { it.position == withImages }.images)
+    }
+
+    @Test
     fun fanoutUsesRecentFollowersAndExplicitRecipientsWithPrivateVisibility() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         listOf("alice", "bob", "carol").forEach { repositories.followingRepository.add(accounts.getValue(it), ACTOR, NOW) }
@@ -312,6 +329,7 @@ class TimelineRepositoryTest {
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = visibility,
         localRecipients = recipients, inReplyTo = null, summary = null, sensitive = false, publishedAt = NOW.plusSeconds(3600), receivedAt = NOW,
+        images = listOf(),
     )
 
     private fun withRepository(block: (Repositories, Map<String, AccountId>) -> Unit) {
