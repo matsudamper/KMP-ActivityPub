@@ -13,8 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
-import net.matsudamper.kmp.activitypub.frontend.screen.createPostImage
-import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
@@ -160,29 +159,18 @@ internal class UserProfileScreenViewModel(
             posts = profile.posts.map { post ->
                 val linkPreviewId = post.linkPreviewId
                 val previews = linkPreviewId?.let { linkPreviews[it] }.orEmpty()
-                PostItemUiState(
+                createPostItemUiState(
                     iconUrl = profile.iconUrl,
                     displayName = profile.displayName,
                     acct = acct,
-                    body = post.content,
-                    postedAt = post.publishedAt,
-                    linkPreviews = post.linkUrls.map { url ->
-                        createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
-                            viewModelScope.launch { events.send { it.openUrl(url) } }
-                        }
-                    },
-                    images = post.images.map { image ->
-                        createPostImage(image) {
-                            viewModelScope.launch { events.send { it.openUrl(image.url) } }
-                        }
-                    },
+                    body = post.body,
+                    linkPreviews = previews,
                     // 開いているのがその人の画面なので、押しても移る先が無い
                     authorListener = null,
-                    listener = object : PostItemUiState.Listener {
-                        override fun onVisible() {
-                            if (linkPreviewId != null && post.linkUrls.isNotEmpty()) {
-                                loadLinkPreviews(linkPreviewId)
-                            }
+                    onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                    onVisible = {
+                        if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
+                            loadLinkPreviews(linkPreviewId)
                         }
                     },
                 )

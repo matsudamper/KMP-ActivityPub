@@ -12,16 +12,18 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
         posts = timeline.posts.map {
             UserHomeTimelineResult.Post(
                 id = it.id,
-                content = it.content,
-                publishedAt = it.publishedAt,
                 username = it.username,
                 host = it.host,
                 displayName = it.displayName,
-                summary = it.summary,
-                sensitive = it.sensitive,
-                linkUrls = it.linkUrls,
                 iconUrl = it.iconUrl,
-                images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                body = UserPostBody(
+                    content = it.content,
+                    publishedAt = it.publishedAt,
+                    summary = it.summary,
+                    sensitive = it.sensitive,
+                    linkUrls = it.linkUrls,
+                    images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                ),
             )
         },
         nextCursor = timeline.nextCursor,
@@ -38,16 +40,16 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
         HomeTimelineQuery.Post(
             __typename = "HomeTimelinePost",
             id = it.id,
-            content = it.content,
-            publishedAt = it.publishedAt,
+            content = it.body.content,
+            publishedAt = it.body.publishedAt,
             username = it.username,
             host = it.host,
             displayName = it.displayName,
-            summary = it.summary,
-            sensitive = it.sensitive,
-            linkUrls = it.linkUrls,
+            summary = it.body.summary,
+            sensitive = it.body.sensitive,
+            linkUrls = it.body.linkUrls,
             iconUrl = it.iconUrl,
-            images = it.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
+            images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))

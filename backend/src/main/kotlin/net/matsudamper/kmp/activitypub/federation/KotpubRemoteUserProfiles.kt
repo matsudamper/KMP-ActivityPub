@@ -28,6 +28,9 @@ internal class KotpubRemoteUserProfiles(
             ProfilePost(
                 contentHtml = it.contentHtml,
                 publishedAt = it.publishedAt,
+                // outbox から取った投稿は閲覧注意かどうかを持っていない
+                summary = null,
+                sensitive = false,
                 // 保存していない投稿なので、後から OGP を取りに行く元が無い
                 linkPreviewId = null,
                 images = listOf(),

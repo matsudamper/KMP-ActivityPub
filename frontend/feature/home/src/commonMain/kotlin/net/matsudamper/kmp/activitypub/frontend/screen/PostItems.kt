@@ -1,0 +1,42 @@
+package net.matsudamper.kmp.activitypub.frontend.screen
+
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+
+/**
+ * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
+ *
+ * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
+ */
+internal fun createPostItemUiState(
+    iconUrl: String?,
+    displayName: String,
+    acct: String,
+    body: UserPostBody,
+    linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
+    authorListener: PostItemUiState.AuthorListener?,
+    onOpenUrl: (url: String) -> Unit,
+    onVisible: () -> Unit,
+): PostItemUiState {
+    return PostItemUiState(
+        iconUrl = iconUrl,
+        displayName = displayName,
+        acct = acct,
+        contentWarningLabel = if (body.sensitive) body.summary?.takeIf { it.isNotBlank() } ?: "閲覧注意" else null,
+        body = body.content,
+        postedAt = body.publishedAt,
+        linkPreviews = body.linkUrls.map { url ->
+            createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
+        },
+        images = body.images.map { image ->
+            createPostImage(image) { onOpenUrl(image.url) }
+        },
+        authorListener = authorListener,
+        listener = object : PostItemUiState.Listener {
+            override fun onVisible() {
+                onVisible()
+            }
+        },
+    )
+}

@@ -35,6 +35,7 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
+                        contentWarningLabel = null,
                         body = "Kotlin 2.4 がリリースされました https://kotlinlang.org/",
                         postedAt = "1分前",
                         linkPreviews = listOf(
@@ -61,6 +62,7 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                         iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
+                        contentWarningLabel = "ネタバレ注意",
                         body = "Compose Multiplatform で Web と Android の画面を共有している",
                         postedAt = "5分前",
                         linkPreviews = listOf(),
