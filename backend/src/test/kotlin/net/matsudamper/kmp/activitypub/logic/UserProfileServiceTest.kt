@@ -29,7 +29,7 @@ class UserProfileServiceTest {
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
             requests.add("posts")
-            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), linkPreviewId = null, images = listOf()))
+            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), summary = null, sensitive = false, linkPreviewId = null, images = listOf()))
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -69,16 +69,18 @@ class UserProfileServiceTest {
     @Test
     fun followedUserUsesStoredProfileWithoutRemoteRequests() = runBlocking {
         repositories.timelineRepository.actorPosts.add(storedPost("<p>受け取った投稿</p>", summary = null, sensitive = false))
-        repositories.timelineRepository.actorPosts.add(storedPost("<p>隠す本文</p>", summary = "注意書き", sensitive = true))
+        repositories.timelineRepository.actorPosts.add(storedPost("<p>閲覧注意の本文</p>", summary = "注意書き", sensitive = true))
         repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, Instant.EPOCH))
         following.setFollowing(viewer, actorUri, true)
         val profile = assertNotNull(service.profile("bob@remote.example", viewer))
         assertEquals(listOf(), requests)
         assertEquals("保存済みの Bob", profile.user.displayName)
         assertEquals(true, profile.following)
-        assertEquals(listOf("<p>受け取った投稿</p>", "注意書き"), profile.posts.map { it.contentHtml })
-        assertEquals(listOf("r1", null), profile.posts.map { it.linkPreviewId })
-        assertEquals(listOf(listOf(image), listOf()), profile.posts.map { it.images })
+        assertEquals(listOf("<p>受け取った投稿</p>", "<p>閲覧注意の本文</p>"), profile.posts.map { it.contentHtml })
+        assertEquals(listOf(null, "注意書き"), profile.posts.map { it.summary })
+        assertEquals(listOf(false, true), profile.posts.map { it.sensitive })
+        assertEquals(listOf("r1", "r1"), profile.posts.map { it.linkPreviewId })
+        assertEquals(listOf(listOf(image), listOf(image)), profile.posts.map { it.images })
     }
 
     @Test

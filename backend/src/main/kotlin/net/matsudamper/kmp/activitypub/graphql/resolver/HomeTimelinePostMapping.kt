@@ -25,7 +25,7 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         } else {
             actorIconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = actorUpdatedAt) }
         },
-        images = if (sensitive) listOf() else images.toQlPostImages(diContainer),
+        images = images.toQlPostImages(diContainer),
     )
 
 // Web では CORS を返さないサーバーの画像を読めないので、中継できない画像は返さない

@@ -42,6 +42,8 @@ class QueryResolverImpl : QueryResolver {
                         QlProfilePost(
                             content = htmlToPlainText(post.contentHtml),
                             publishedAt = post.publishedAt,
+                            summary = post.summary,
+                            sensitive = post.sensitive,
                             linkPreviewId = post.linkPreviewId,
                             // DOMAIN が無いと linkPreviewService は null。そのときはカードにするリンクを返さない
                             linkUrls = if (post.linkPreviewId == null) listOf() else diContainer.linkPreviewService?.links(post.contentHtml).orEmpty(),

@@ -13,6 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostContentWarningLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostImage
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -164,7 +165,7 @@ internal class UserProfileScreenViewModel(
                     iconUrl = profile.iconUrl,
                     displayName = profile.displayName,
                     acct = acct,
-                    contentWarningLabel = null,
+                    contentWarningLabel = createPostContentWarningLabel(sensitive = post.sensitive, summary = post.summary),
                     body = post.content,
                     postedAt = post.publishedAt,
                     linkPreviews = post.linkUrls.map { url ->

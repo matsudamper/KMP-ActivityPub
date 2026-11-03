@@ -234,6 +234,8 @@ class UserApi(
                 UserProfileResult.Post(
                     content = it.content,
                     publishedAt = it.publishedAt,
+                    summary = it.summary,
+                    sensitive = it.sensitive,
                     linkPreviewId = it.linkPreviewId,
                     linkUrls = it.linkUrls,
                     images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },

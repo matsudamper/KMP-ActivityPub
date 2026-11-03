@@ -24,6 +24,8 @@ sealed interface UserProfileResult {
     data class Post(
         val content: String,
         val publishedAt: String,
+        val summary: String?,
+        val sensitive: Boolean,
         val linkPreviewId: String?,
         val linkUrls: List<String>,
         val images: List<UserPostImage>,

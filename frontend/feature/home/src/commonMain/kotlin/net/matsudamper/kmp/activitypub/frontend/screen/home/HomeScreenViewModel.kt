@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostContentWarningLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostImage
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -385,7 +386,7 @@ internal class HomeScreenViewModel(
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
-                contentWarningLabel = if (post.sensitive) post.summary?.takeIf { it.isNotBlank() } ?: "閲覧注意" else null,
+                contentWarningLabel = createPostContentWarningLabel(sensitive = post.sensitive, summary = post.summary),
                 body = post.content,
                 postedAt = post.publishedAt,
                 linkPreviews = post.linkUrls.map { url ->

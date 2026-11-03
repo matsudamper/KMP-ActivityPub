@@ -14,6 +14,8 @@ type UserProfile {
 type ProfilePost {
     content: String!
     publishedAt: String!
+    summary: String
+    sensitive: Boolean!
     "OGP を UserInfo.linkPreviews で取るときに postId に渡す id。取れない投稿は null"
     linkPreviewId: ID
     "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び"

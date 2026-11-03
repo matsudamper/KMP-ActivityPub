@@ -31,7 +31,14 @@ class UserProfileService(
                 following = false,
                 biography = null,
                 posts = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT).map {
-                    ProfilePost(contentHtml = it.contentHtml, publishedAt = it.publishedAt.toString(), linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value, images = listOf())
+                    ProfilePost(
+                        contentHtml = it.contentHtml,
+                        publishedAt = it.publishedAt.toString(),
+                        summary = null,
+                        sensitive = false,
+                        linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
+                        images = listOf(),
+                    )
                 },
             )
         }
@@ -67,14 +74,13 @@ class UserProfileService(
         timeline.actorPosts(viewer, actorUri, limit = PROFILE_POST_LIMIT).map { it.toProfilePost() }
 
     private fun TimelinePost.toProfilePost(): ProfilePost {
-        // タイムラインと同じく、閲覧注意の投稿は本文を出さない
-        val shownHtml = if (sensitive) summary ?: SENSITIVE_PLACEHOLDER else contentHtml
         return ProfilePost(
-            contentHtml = shownHtml,
+            contentHtml = contentHtml,
             publishedAt = publishedAt.toString(),
-            // 閲覧注意の投稿は本文を隠しているので、リンク先も出さない
-            linkPreviewId = if (sensitive) null else position.member,
-            images = if (sensitive) listOf() else images,
+            summary = summary,
+            sensitive = sensitive,
+            linkPreviewId = position.member,
+            images = images,
         )
     }
 
@@ -88,7 +94,6 @@ class UserProfileService(
 
     private companion object {
         const val PROFILE_POST_LIMIT = 20
-        const val SENSITIVE_PLACEHOLDER = "閲覧注意の投稿"
 
         /**
          * このサーバーの投稿は公開されているので、タイムラインの id ではなく公開 id で OGP を引けるようにする
@@ -124,6 +129,8 @@ data class UserProfile(
 data class ProfilePost(
     val contentHtml: String,
     val publishedAt: String,
+    val summary: String?,
+    val sensitive: Boolean,
     val linkPreviewId: String?,
     val images: List<TimelinePostImage>,
 )
