@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import com.apollographql.apollo.ApolloClient
-import com.apollographql.apollo.network.okHttpClient
+import com.apollographql.apollo.network.okHttpCallFactory
 import com.apollographql.apollo.network.websocket.WebSocketEngine
 import net.matsudamper.kmp.activitypub.android.server.ServerSettingStore
 import net.matsudamper.kmp.activitypub.android.session.BlockStoreSessionBackup
@@ -66,7 +66,7 @@ internal class AndroidGraphQlClientSource(
                                     webSocketEngine = WebSocketEngine(webSocketClient),
                                 ),
                             )
-                            .okHttpClient(httpClient)
+                            .okHttpCallFactory(httpClient)
                             .addHttpInterceptor(SessionHttpInterceptor(sessionRepository))
                             .build(),
                     )
