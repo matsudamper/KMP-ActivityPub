@@ -63,7 +63,11 @@ class RemoteImageProxy(
         const val PATH_SUFFIX: String = ".bin"
 
         private const val HMAC_ALGORITHM = "HmacSHA256"
-        private const val MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+        /**
+         * 同じ実装の別のサーバーが配る投稿の画像も表示できるよう、こちらで受け付ける投稿の画像の上限に揃える
+         */
+        private const val MAX_IMAGE_BYTES = NotePostService.MAX_IMAGE_BYTES
         private val base64Url = Base64.getUrlEncoder().withoutPadding()
     }
 }
