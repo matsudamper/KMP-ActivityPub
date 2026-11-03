@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
@@ -17,7 +18,18 @@ private fun UserProfileContentPreview() {
                     displayName = "Alice",
                     biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                     followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
-                    posts = listOf(UserProfileScreenUiState.Post("今日はプロフィール画面を作っています。", "2026-11-01T12:00:00Z")),
+                    posts = listOf(
+                        PostItemUiState(
+                            iconUrl = null,
+                            displayName = "Alice",
+                            acct = "@alice@example.social",
+                            body = "今日はプロフィール画面を作っています。",
+                            postedAt = "2026-11-01T12:00:00Z",
+                            linkPreviews = listOf(),
+                            authorClickable = false,
+                            listener = AndroidPreviewPostItemListener,
+                        ),
+                    ),
                     postsEmptyMessage = null,
                 ),
                 listener = AndroidPreviewUserProfileListener,
@@ -69,4 +81,10 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickBack() = Unit
 
     override fun onClickFollow() = Unit
+}
+
+private object AndroidPreviewPostItemListener : PostItemUiState.Listener {
+    override fun onVisible() = Unit
+
+    override fun onClickAuthor() = Unit
 }

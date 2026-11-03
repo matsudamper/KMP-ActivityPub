@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
@@ -50,7 +49,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
-import net.matsudamper.kmp.activitypub.frontend.ui.LinkPreviewCard
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
@@ -230,7 +230,7 @@ internal fun HomeContent(
 
 @Composable
 private fun TimelineTabContent(
-    timelineItems: List<HomeScreenUiState.TimelineItem>,
+    timelineItems: List<PostItemUiState>,
     refreshing: Boolean,
     footer: HomeScreenUiState.TimelineFooter,
     listener: HomeScreenUiState.Listener,
@@ -255,7 +255,7 @@ private fun TimelineTabContent(
     ) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             items(timelineItems) { item ->
-                TimelineItem(item = item)
+                PostItem(uiState = item)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             when (footer) {
@@ -504,62 +504,6 @@ private fun SearchAccountItem(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TimelineItem(
-    item: HomeScreenUiState.TimelineItem,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(
-            modifier = Modifier.clickable(onClick = item.listener::onClickAuthor),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = item.displayName,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = item.acct,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-            Text(
-                text = item.postedAt,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Text(
-            text = item.body,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        if (item.linkPreviews.isNotEmpty()) {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(item.linkPreviews) { preview ->
-                    LinkPreviewCard(
-                        title = preview.title,
-                        siteName = preview.siteName,
-                        imageUrl = preview.imageUrl,
-                        onClick = preview.listener::onClick,
-                    )
-                }
-            }
-        }
-    }
-    LaunchedEffect(item.listener) {
-        item.listener.onVisible()
     }
 }
 

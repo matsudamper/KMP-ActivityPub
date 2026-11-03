@@ -1,10 +1,11 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 data class HomeScreenUiState(
     val selectedTab: Tab,
-    val timelineItems: List<TimelineItem>,
+    val timelineItems: List<PostItemUiState>,
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
     val search: Search,
@@ -23,28 +24,6 @@ data class HomeScreenUiState(
         Search,
         User,
     }
-
-    data class TimelineItem(
-        val displayName: String,
-        val acct: String,
-        val body: String,
-        val postedAt: String,
-        /**
-         * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく
-         */
-        val linkPreviews: List<LinkPreview>,
-        val listener: TimelineItemListener,
-    )
-
-    /**
-     * @param imageUrl null でも画像の枠は出す
-     */
-    data class LinkPreview(
-        val title: String,
-        val siteName: String,
-        val imageUrl: String?,
-        val listener: LinkPreviewListener,
-    )
 
     data class Search(
         val query: String,
@@ -89,21 +68,6 @@ data class HomeScreenUiState(
             val followingCount: String,
             val followersCount: String,
         ) : Profile
-    }
-
-    @Immutable
-    interface TimelineItemListener {
-        /**
-         * 投稿が画面に入ったとき。OGP はここで初めて取りに行く
-         */
-        fun onVisible()
-
-        fun onClickAuthor()
-    }
-
-    @Immutable
-    interface LinkPreviewListener {
-        fun onClick()
     }
 
     @Immutable

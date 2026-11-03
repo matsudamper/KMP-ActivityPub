@@ -10,6 +10,7 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
@@ -30,33 +31,37 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
-                    HomeScreenUiState.TimelineItem(
+                    PostItemUiState(
+                        iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
                         body = "Kotlin 2.4 がリリースされました https://kotlinlang.org/",
                         postedAt = "1分前",
                         linkPreviews = listOf(
-                            HomeScreenUiState.LinkPreview(
+                            PostItemUiState.LinkPreview(
                                 title = "Kotlin Programming Language",
                                 siteName = "Kotlin",
                                 imageUrl = "https://example.com/ogp.png",
                                 listener = AndroidPreviewLinkPreviewListener,
                             ),
-                            HomeScreenUiState.LinkPreview(
+                            PostItemUiState.LinkPreview(
                                 title = "https://example.com/not-loaded",
                                 siteName = "example.com",
                                 imageUrl = null,
                                 listener = AndroidPreviewLinkPreviewListener,
                             ),
                         ),
+                        authorClickable = true,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
-                    HomeScreenUiState.TimelineItem(
+                    PostItemUiState(
+                        iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
                         body = "Compose Multiplatform で Web と Android の画面を共有している",
                         postedAt = "5分前",
                         linkPreviews = listOf(),
+                        authorClickable = true,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
@@ -225,13 +230,13 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onScreenShown() = Unit
 }
 
-private object AndroidPreviewTimelineItemListener : HomeScreenUiState.TimelineItemListener {
+private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
     override fun onVisible() = Unit
 
     override fun onClickAuthor() = Unit
 }
 
-private object AndroidPreviewLinkPreviewListener : HomeScreenUiState.LinkPreviewListener {
+private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
     override fun onClick() = Unit
 }
 

@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -375,10 +376,11 @@ internal class HomeScreenViewModel(
         mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
     }
 
-    private fun createTimelineItems(): List<HomeScreenUiState.TimelineItem> {
+    private fun createTimelineItems(): List<PostItemUiState> {
         return timelinePosts.map { post ->
             val previews = linkPreviews[post.id].orEmpty()
-            HomeScreenUiState.TimelineItem(
+            PostItemUiState(
+                iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
@@ -389,7 +391,8 @@ internal class HomeScreenViewModel(
                 } else {
                     post.linkUrls.map { url -> createLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) }
                 },
-                listener = object : HomeScreenUiState.TimelineItemListener {
+                authorClickable = true,
+                listener = object : PostItemUiState.Listener {
                     override fun onVisible() {
                         if (post.sensitive.not() && post.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(post.id)
@@ -413,12 +416,12 @@ internal class HomeScreenViewModel(
     private fun createLinkPreview(
         url: String,
         preview: UserLinkPreviewsResult.LinkPreview?,
-    ): HomeScreenUiState.LinkPreview {
-        return HomeScreenUiState.LinkPreview(
+    ): PostItemUiState.LinkPreview {
+        return PostItemUiState.LinkPreview(
             title = preview?.title ?: url,
             siteName = preview?.siteName ?: url.substringAfter("://").substringBefore('/'),
             imageUrl = preview?.imageUrl,
-            listener = object : HomeScreenUiState.LinkPreviewListener {
+            listener = object : PostItemUiState.LinkPreviewListener {
                 override fun onClick() {
                     viewModelScope.launch {
                         events.send { it.openUrl(url) }

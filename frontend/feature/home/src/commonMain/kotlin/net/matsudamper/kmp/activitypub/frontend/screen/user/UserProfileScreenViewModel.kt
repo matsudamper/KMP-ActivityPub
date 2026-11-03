@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -37,6 +38,12 @@ internal class UserProfileScreenViewModel(
         override fun onClickFollow() {
             changeFollowing()
         }
+    }
+
+    private val postItemListener = object : PostItemUiState.Listener {
+        override fun onVisible() = Unit
+
+        override fun onClickAuthor() = Unit
     }
 
     private val mutableUiStateFlow: MutableStateFlow<UserProfileScreenUiState> =
@@ -114,8 +121,9 @@ internal class UserProfileScreenViewModel(
 
     private fun createLoadedContent(loaded: ViewModelState.Loaded): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
+        val acct = "@${profile.username}@${profile.host}"
         return UserProfileScreenUiState.Content.Loaded(
-            acct = "@${profile.username}@${profile.host}",
+            acct = acct,
             iconUrl = profile.iconUrl,
             displayName = profile.displayName,
             biography = profile.biography,
@@ -127,7 +135,19 @@ internal class UserProfileScreenViewModel(
                     enabled = !loaded.followingChangeInProgress,
                 )
             },
-            posts = profile.posts.map { UserProfileScreenUiState.Post(content = it.content, publishedAt = it.publishedAt) },
+            posts = profile.posts.map { post ->
+                PostItemUiState(
+                    iconUrl = profile.iconUrl,
+                    displayName = profile.displayName,
+                    acct = acct,
+                    body = post.content,
+                    postedAt = post.publishedAt,
+                    linkPreviews = listOf(),
+                    // 開いているのがその人の画面なので、押しても移る先が無い
+                    authorClickable = false,
+                    listener = postItemListener,
+                )
+            },
             postsEmptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
         )
     }

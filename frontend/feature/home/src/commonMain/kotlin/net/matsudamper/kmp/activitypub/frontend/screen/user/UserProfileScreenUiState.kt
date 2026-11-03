@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 data class UserProfileScreenUiState(
     val content: Content,
@@ -19,7 +20,7 @@ data class UserProfileScreenUiState(
             val displayName: String,
             val biography: String?,
             val followButton: FollowButton?,
-            val posts: List<Post>,
+            val posts: List<PostItemUiState>,
             val postsEmptyMessage: String?,
         ) : Content
 
@@ -33,11 +34,6 @@ data class UserProfileScreenUiState(
     data class FollowButton(
         val text: String,
         val enabled: Boolean,
-    )
-
-    data class Post(
-        val content: String,
-        val publishedAt: String,
     )
 
     @Immutable
