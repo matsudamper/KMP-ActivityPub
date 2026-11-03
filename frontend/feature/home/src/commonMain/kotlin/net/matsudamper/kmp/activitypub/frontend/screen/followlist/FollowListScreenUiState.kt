@@ -43,12 +43,15 @@ data class FollowListScreenUiState(
         val acct: String,
         val followButtonText: String,
         val followButtonEnabled: Boolean,
+        val clickable: Boolean,
         val listener: AccountListener,
     )
 
     @Immutable
     interface AccountListener {
         fun onClickFollow()
+
+        fun onClick()
     }
 
     @Immutable

@@ -120,6 +120,7 @@ class AppDependencies(
         accounts = repositories.accountRepository,
         remoteActors = repositories.remoteActorRepository,
         notes = repositories.noteRepository,
+        timeline = repositories.timelineRepository,
         following = followingService,
         remoteProfiles = federation?.remoteUserProfiles,
         localDomain = checkNotNull(env.domain),

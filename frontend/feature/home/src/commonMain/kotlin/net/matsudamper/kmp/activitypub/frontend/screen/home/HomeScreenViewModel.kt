@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
@@ -23,6 +24,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostImage
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -41,6 +45,9 @@ internal class HomeScreenViewModel(
     private var timelineJob: Job? = null
     private val timelinePaging = userApi.homeTimelinePaging()
     private var timelineNextCursor: String? = null
+    private var timelinePosts = listOf<UserHomeTimelineResult.Post>()
+    private var linkPreviewRequestedPostIds = setOf<String>()
+    private var linkPreviews = mapOf<String, List<UserLinkPreviewsResult.LinkPreview>>()
     private var timelineArrivalsJob: Job? = null
 
     /**
@@ -367,15 +374,69 @@ internal class HomeScreenViewModel(
             }
         timelineNextCursor = (result as? UserHomeTimelineResult.Success)?.nextCursor
         // ページの境目で同じ投稿が両方のページに入ることがある
-        val items = posts.distinctBy { it.id }.map { post ->
-            HomeScreenUiState.TimelineItem(
+        timelinePosts = posts.distinctBy { it.id }
+        mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
+    }
+
+    private fun createTimelineItems(): List<PostItemUiState> {
+        return timelinePosts.map { post ->
+            val previews = linkPreviews[post.id].orEmpty()
+            PostItemUiState(
+                iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = if (post.sensitive) post.summary ?: "閲覧注意の投稿" else post.content,
                 postedAt = post.publishedAt,
+                // 閲覧注意の投稿は本文を隠しているので、リンク先も出さない
+                linkPreviews = if (post.sensitive) {
+                    listOf()
+                } else {
+                    post.linkUrls.map { url ->
+                        createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
+                            viewModelScope.launch { events.send { it.openUrl(url) } }
+                        }
+                    }
+                },
+                images = post.images.map { image ->
+                    createPostImage(image) {
+                        viewModelScope.launch { events.send { it.openUrl(image.url) } }
+                    }
+                },
+                authorListener = object : PostItemUiState.AuthorListener {
+                    override fun onClick() {
+                        val host = post.host
+                        viewModelScope.launch {
+                            events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
+                        }
+                    }
+                },
+                listener = object : PostItemUiState.Listener {
+                    override fun onVisible() {
+                        if (post.sensitive.not() && post.linkUrls.isNotEmpty()) {
+                            loadLinkPreviews(post.id)
+                        }
+                    }
+                },
             )
         }
-        mutableUiStateFlow.update { it.copy(timelineItems = items) }
+    }
+
+    private fun loadLinkPreviews(postId: String) {
+        if (postId in linkPreviewRequestedPostIds) return
+        linkPreviewRequestedPostIds = linkPreviewRequestedPostIds + postId
+        viewModelScope.launch {
+            when (val result = userApi.linkPreviews(postId)) {
+                is UserLinkPreviewsResult.Success -> {
+                    linkPreviews = linkPreviews + (postId to result.previews)
+                    mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
+                }
+
+                // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
+                is UserLinkPreviewsResult.Failure,
+                UserLinkPreviewsResult.NotLoggedIn,
+                -> linkPreviewRequestedPostIds = linkPreviewRequestedPostIds - postId
+            }
+        }
     }
 
     private suspend fun timelineFailed(append: Boolean, message: String) {
@@ -453,6 +514,8 @@ internal class HomeScreenViewModel(
         fun navigateToFollowers()
 
         fun showMessage(message: String)
+
+        fun openUrl(url: String)
     }
 
     private companion object {

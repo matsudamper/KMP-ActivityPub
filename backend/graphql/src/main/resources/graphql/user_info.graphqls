@@ -2,5 +2,10 @@ scalar UserId
 
 type UserInfo {
     homeTimeline(cursor: String, limit: Int!): HomeTimeline @lazy
+    """
+    投稿の本文にあるリンク先の OGP。postId には HomeTimelinePost.id か ProfilePost.linkPreviewId を渡す。
+    リンク先へ取りに行くので遅い。読めない投稿か、サーバーに DOMAIN が無ければ空
+    """
+    linkPreviews(postId: ID!): [LinkPreview!]! @lazy
     id: UserId!
 }

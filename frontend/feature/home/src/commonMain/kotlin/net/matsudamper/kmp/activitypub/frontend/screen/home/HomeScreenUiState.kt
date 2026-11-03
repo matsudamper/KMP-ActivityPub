@@ -1,10 +1,11 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 data class HomeScreenUiState(
     val selectedTab: Tab,
-    val timelineItems: List<TimelineItem>,
+    val timelineItems: List<PostItemUiState>,
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
     val search: Search,
@@ -23,13 +24,6 @@ data class HomeScreenUiState(
         Search,
         User,
     }
-
-    data class TimelineItem(
-        val displayName: String,
-        val acct: String,
-        val body: String,
-        val postedAt: String,
-    )
 
     data class Search(
         val query: String,

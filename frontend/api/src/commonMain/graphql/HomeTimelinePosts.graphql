@@ -8,5 +8,11 @@ subscription HomeTimelinePosts {
         displayName
         summary
         sensitive
+        linkUrls
+        iconUrl
+        images {
+            url
+            description
+        }
     }
 }

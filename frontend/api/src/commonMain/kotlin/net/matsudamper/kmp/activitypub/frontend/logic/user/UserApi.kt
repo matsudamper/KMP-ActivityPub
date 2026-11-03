@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineLinkPreviewsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelinePostsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
@@ -70,6 +71,22 @@ class UserApi(
     }
 
     /**
+     * @param postId [UserHomeTimelineResult.Post.id]
+     */
+    suspend fun linkPreviews(postId: String): UserLinkPreviewsResult {
+        val client = clients.awaitLoadedClient() ?: return UserLinkPreviewsResult.Failure("接続先が未設定")
+        val response = client.query(HomeTimelineLinkPreviewsQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserLinkPreviewsResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserLinkPreviewsResult.Failure(response.failureMessage())
+        val previews = data.userInfo?.linkPreviews ?: return UserLinkPreviewsResult.NotLoggedIn
+        return UserLinkPreviewsResult.Success(
+            previews = previews.map {
+                UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl)
+            },
+        )
+    }
+
+    /**
      * ホームタイムラインに新しく載った投稿を流し続ける。切れたら間を置いてつなぎ直す
      */
     fun homeTimelineArrivals(): Flow<UserHomeTimelineResult.Post> = flow {
@@ -79,7 +96,21 @@ class UserApi(
                 client.subscription(HomeTimelinePostsSubscription()).toFlow().collect { response ->
                     val post = response.data?.homeTimelinePosts
                     if (post != null) {
-                        emit(UserHomeTimelineResult.Post(post.id, post.content, post.publishedAt, post.username, post.host, post.displayName, post.summary, post.sensitive))
+                        emit(
+                            UserHomeTimelineResult.Post(
+                                id = post.id,
+                                content = post.content,
+                                publishedAt = post.publishedAt,
+                                username = post.username,
+                                host = post.host,
+                                displayName = post.displayName,
+                                summary = post.summary,
+                                sensitive = post.sensitive,
+                                linkUrls = post.linkUrls,
+                                iconUrl = post.iconUrl,
+                                images = post.images.map { UserPostImage(url = it.url, description = it.description) },
+                            ),
+                        )
                     }
                 }
                 // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
@@ -192,13 +223,22 @@ class UserApi(
         val user = profile.user
 
         return UserProfileResult.Found(
+            actorUri = user.actorUri,
             username = user.username,
             host = user.host,
             displayName = user.displayName,
             iconUrl = user.iconUrl,
             following = user.following,
             biography = profile.biography,
-            posts = profile.posts.map { UserProfileResult.Post(content = it.content, publishedAt = it.publishedAt) },
+            posts = profile.posts.map {
+                UserProfileResult.Post(
+                    content = it.content,
+                    publishedAt = it.publishedAt,
+                    linkPreviewId = it.linkPreviewId,
+                    linkUrls = it.linkUrls,
+                    images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                )
+            },
         )
     }
 

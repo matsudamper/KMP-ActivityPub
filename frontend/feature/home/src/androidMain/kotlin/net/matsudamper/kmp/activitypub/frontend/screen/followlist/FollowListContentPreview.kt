@@ -26,6 +26,7 @@ private fun FollowListContentPreview() {
                             acct = "@kotlinweekly@remote.example",
                             followButtonText = "フォロー中・解除",
                             followButtonEnabled = true,
+                            clickable = true,
                             listener = AndroidPreviewAccountListener,
                         ),
                         FollowListScreenUiState.Account(
@@ -34,6 +35,7 @@ private fun FollowListContentPreview() {
                             acct = "other.example",
                             followButtonText = "フォロー",
                             followButtonEnabled = true,
+                            clickable = false,
                             listener = AndroidPreviewAccountListener,
                         ),
                     ),
@@ -104,4 +106,6 @@ private object AndroidPreviewFollowListListener : FollowListScreenUiState.Listen
 
 private object AndroidPreviewAccountListener : FollowListScreenUiState.AccountListener {
     override fun onClickFollow() = Unit
+
+    override fun onClick() = Unit
 }

@@ -176,6 +176,14 @@ CREATE TABLE remote_notes (
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);
 
+CREATE TABLE remote_note_images (
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT,
+    PRIMARY KEY (remote_note_id, position)
+);
+
 CREATE TABLE remote_note_recipients (
     remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,

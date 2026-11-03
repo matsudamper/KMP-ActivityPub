@@ -13,5 +13,14 @@ sealed interface UserHomeTimelineResult {
         val displayName: String,
         val summary: String?,
         val sensitive: Boolean,
+        /**
+         * カードにするリンク。OGP は [UserApi.linkPreviews] で別に取る
+         */
+        val linkUrls: List<String>,
+        /**
+         * 投稿者のプロフィール画像が無ければ null
+         */
+        val iconUrl: String?,
+        val images: List<UserPostImage>,
     )
 }

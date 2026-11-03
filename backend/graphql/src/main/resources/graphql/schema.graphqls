@@ -81,13 +81,24 @@ type HomeTimelinePost {
     displayName: String!
     summary: String
     sensitive: Boolean!
+    "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び。取りに行かないので速い"
+    linkUrls: [String!]!
+    "投稿者のプロフィール画像の URL。無ければ null"
+    iconUrl: String
+    "投稿に付いた画像。付いた順"
     images: [PostImage!]!
 }
 
 type PostImage {
     url: String!
-    "代替テキスト"
+    "画像の説明文。無ければ null"
     description: String
-    width: Int!
-    height: Int!
+}
+
+"投稿の本文にあるリンク先の OGP。取れなかった項目は null"
+type LinkPreview {
+    url: String!
+    title: String
+    siteName: String
+    imageUrl: String
 }

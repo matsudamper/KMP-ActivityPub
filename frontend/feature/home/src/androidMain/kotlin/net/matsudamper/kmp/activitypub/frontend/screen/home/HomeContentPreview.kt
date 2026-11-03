@@ -10,6 +10,7 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
@@ -30,17 +31,46 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
-                    HomeScreenUiState.TimelineItem(
+                    PostItemUiState(
+                        iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
-                        body = "Kotlin 2.4 がリリースされました",
+                        body = "Kotlin 2.4 がリリースされました https://kotlinlang.org/",
                         postedAt = "1分前",
+                        linkPreviews = listOf(
+                            PostItemUiState.LinkPreview(
+                                title = "Kotlin Programming Language",
+                                siteName = "Kotlin",
+                                imageUrl = "https://example.com/ogp.png",
+                                listener = AndroidPreviewLinkPreviewListener,
+                            ),
+                            PostItemUiState.LinkPreview(
+                                title = "https://example.com/not-loaded",
+                                siteName = "example.com",
+                                imageUrl = null,
+                                listener = AndroidPreviewLinkPreviewListener,
+                            ),
+                        ),
+                        images = listOf(
+                            PostItemUiState.Image(url = "https://example.com/photo.png", description = "写真", listener = AndroidPreviewImageListener),
+                        ),
+                        authorListener = AndroidPreviewAuthorListener,
+                        listener = AndroidPreviewTimelineItemListener,
                     ),
-                    HomeScreenUiState.TimelineItem(
+                    PostItemUiState(
+                        iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
                         body = "Compose Multiplatform で Web と Android の画面を共有している",
                         postedAt = "5分前",
+                        linkPreviews = listOf(),
+                        images = listOf(
+                            PostItemUiState.Image(url = "https://example.com/1.png", description = null, listener = AndroidPreviewImageListener),
+                            PostItemUiState.Image(url = "https://example.com/2.png", description = null, listener = AndroidPreviewImageListener),
+                            PostItemUiState.Image(url = "https://example.com/3.png", description = null, listener = AndroidPreviewImageListener),
+                        ),
+                        authorListener = AndroidPreviewAuthorListener,
+                        listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
                 timelineRefreshing = false,
@@ -206,6 +236,22 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickFollowers() = Unit
 
     override fun onScreenShown() = Unit
+}
+
+private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
+    override fun onVisible() = Unit
+}
+
+private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
+    override fun onClick() = Unit
 }
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {

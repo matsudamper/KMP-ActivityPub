@@ -14,6 +14,11 @@ interface TimelineRepository {
     fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition>
     fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
+
+    /**
+     * [accountId] が読める、[actorUri] の保存済みの投稿を新しい順に返す
+     */
+    fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
 }
 
@@ -23,6 +28,12 @@ data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val loca
 
 data class TimelinePosition(val score: Long, val member: String)
 
+/**
+ * @param actorIconUrl 他のサーバーの投稿者のプロフィール画像の URL。このサーバーの投稿や、画像の無い相手は null
+ * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
+ * @param images 他のサーバーの投稿に付いた画像。このサーバーの投稿は空
+ * @param localImages このサーバーの投稿に添えた画像。他のサーバーの投稿は空
+ */
 data class TimelinePost(
     val position: TimelinePosition,
     val contentHtml: String,
@@ -32,8 +43,17 @@ data class TimelinePost(
     val displayName: String?,
     val summary: String?,
     val sensitive: Boolean,
-    val images: List<NoteImage>,
+    val actorIconUrl: String?,
+    val actorUpdatedAt: Instant?,
+    val images: List<TimelinePostImage>,
+    val localImages: List<NoteImage>,
 )
+
+/**
+ * @param url 他のサーバーにある画像の URL
+ * @param description 画像の説明文。無ければ null
+ */
+data class TimelinePostImage(val url: String, val description: String?)
 
 data class RemoteNoteInput(
     val objectUri: String,
@@ -46,4 +66,5 @@ data class RemoteNoteInput(
     val sensitive: Boolean,
     val publishedAt: Instant,
     val receivedAt: Instant,
+    val images: List<TimelinePostImage>,
 )

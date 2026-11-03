@@ -5,12 +5,14 @@ import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
+import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.jooq.Condition
@@ -53,6 +55,14 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .execute()
         if (inserted == 0) return@transaction null
         val id = checkNotNull(dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID))
+        note.images.forEachIndexed { index, image ->
+            dsl.insertInto(REMOTE_NOTE_IMAGES)
+                .set(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, id)
+                .set(REMOTE_NOTE_IMAGES.POSITION, index.toLong())
+                .set(REMOTE_NOTE_IMAGES.URL, image.url)
+                .set(REMOTE_NOTE_IMAGES.DESCRIPTION, image.description)
+                .execute()
+        }
         addressed.forEach { accountId -> addRecipient(dsl, id, checkNotNull(accountId), "explicit", score) }
         if (note.visibility == "followers") {
             followers.filter { it.get(ACCOUNT_FOLLOWING.ACCEPTED_AT) != null }.forEach { follower ->
@@ -129,20 +139,24 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             val local = dsl.select(
                 NOTES.ID, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME,
                 DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
+                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
             ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.ID.`in`(localIds)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
             val remote = dsl.select(
                 REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.PUBLISHED_AT,
                 DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
                 REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
+                REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT,
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
             val imagesByLocalNoteId = dsl.fetchAttachedNoteImages(localIds)
+            val imagesByMember = remoteImages(dsl, remoteIds)
             local.unionAll(remote).fetch { record ->
                 val published = StoredInstant.parse(checkNotNull(record.value3()))
                 val actor = record.value6()
+                val member = "${if (actor == null) "l" else "r"}${record.value1()}"
                 TimelinePost(
-                    TimelinePosition(record.value9() ?: published.toEpochMilli(), "${if (actor == null) "l" else "r"}${record.value1()}"),
+                    TimelinePosition(record.value9() ?: published.toEpochMilli(), member),
                     checkNotNull(record.value2()),
                     published,
                     actor,
@@ -150,11 +164,25 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value5(),
                     record.value7(),
                     record.value8() == 1L,
-                    // 相手の投稿の添付はまだ受け取っていない
+                    record.value10(),
+                    record.value11()?.let { StoredInstant.parse(it) },
+                    imagesByMember[member].orEmpty(),
                     if (actor == null) imagesByLocalNoteId[record.value1()].orEmpty() else listOf(),
                 )
             }
         }
+    }
+
+    override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> {
+        val members = jooq.withConnection { dsl ->
+            dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
+                .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+                .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(readable(dsl, accountId))
+                .orderBy(REMOTE_NOTES.SCORE_MS.desc(), REMOTE_NOTES.ID.desc()).limit(limit)
+                .fetch { it.toRemotePosition().member }
+        }
+        val hydrated = hydrate(accountId, members).associateBy { it.position.member }
+        return members.mapNotNull { hydrated[it] }
     }
 
     override fun localPosition(publicId: String): TimelinePosition? = jooq.withConnection { dsl ->
@@ -203,6 +231,18 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .and(NOTES.PUBLISHED_AT.lt(StoredInstant.format(Instant.ofEpochMilli(boundary).plusMillis(1))))
             .orderBy(localMember.desc()).limit(limit).fetch { it.toLocalPosition() }
         return recent.filter { it.score > boundary } + tied
+    }
+
+    private fun remoteImages(dsl: DSLContext, remoteIds: List<Long>): Map<String, List<TimelinePostImage>> {
+        if (remoteIds.isEmpty()) return mapOf()
+        return dsl.select(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, REMOTE_NOTE_IMAGES.URL, REMOTE_NOTE_IMAGES.DESCRIPTION)
+            .from(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.`in`(remoteIds))
+            .orderBy(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, REMOTE_NOTE_IMAGES.POSITION)
+            .fetch()
+            .groupBy(
+                keySelector = { "r${it.value1()}" },
+                valueTransform = { TimelinePostImage(url = checkNotNull(it.value2()), description = it.value3()) },
+            )
     }
 
     private fun readable(dsl: DSLContext, accountId: AccountId): Condition {
