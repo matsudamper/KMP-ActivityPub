@@ -53,6 +53,10 @@ internal fun Route.federationRoutes(federation: Federation) {
     }
 
     remoteImageProxyRoutes(federation.remoteImageProxy)
+    val noteImageFiles = federation.noteImageFiles
+    if (noteImageFiles != null) {
+        noteImageRoutes(noteImageFiles)
+    }
 
     get("/users/{username}/followers") {
         val response =

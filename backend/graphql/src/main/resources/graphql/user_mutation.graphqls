@@ -12,8 +12,11 @@ type UserMutation {
     deletePassword: DeletePasswordResult! @lazy
     "セッションが無くても成功する"
     logout: Boolean! @lazy
-    "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
-    postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
+    """
+    ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す。
+    画像があれば本文は空でもよい
+    """
+    postNote(body: String!, requestId: String!, images: [PostNoteImageInput!]!): UserPostNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -83,6 +86,13 @@ enum DeletePasswordFailure {
     NO_PASSKEY
 }
 
+input PostNoteImageInput {
+    "画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで"
+    data: String!
+    "画像の説明文。無ければ null。1500 文字まで"
+    description: String
+}
+
 type UserPostNoteResult {
     "投稿の URL。投稿できなければ null"
     url: String
@@ -91,9 +101,22 @@ type UserPostNoteResult {
 
 enum UserPostNoteFailure {
     NOT_LOGGED_IN
+    "本文も画像も無い"
     EMPTY_BODY
     "本文が長すぎる。上限は 500 文字"
     TOO_LONG
+    "画像が多すぎる。上限は 4 枚"
+    TOO_MANY_IMAGES
+    "画像が大きすぎる。上限は 1 枚 2MiB"
+    IMAGE_TOO_LARGE
+    "base64 として読めないか、PNG / JPEG / GIF / WebP ではない画像がある"
+    UNSUPPORTED_IMAGE
+    "画像の説明文が長すぎる。上限は 1500 文字"
+    DESCRIPTION_TOO_LONG
+    "このサーバーでは画像を置けない"
+    UNSUPPORTED_OPERATION
+    "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
+    INTERNAL_SERVER_ERROR
     "サーバーに DOMAIN が無く、投稿を配れない"
     FEDERATION_DISABLED
 }

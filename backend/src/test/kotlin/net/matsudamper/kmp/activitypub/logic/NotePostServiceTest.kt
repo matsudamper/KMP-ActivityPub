@@ -4,13 +4,21 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import net.matsudamper.kmp.activitypub.FakeAccountRepository
 import net.matsudamper.kmp.activitypub.FakeDeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.FakeFollowerRepository
+import net.matsudamper.kmp.activitypub.FakeImageStorage
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.federation.RepositoryNoteStore
+import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.StoredActorNames
+import net.matsudamper.kotpub.json.AppJson
 import net.matsudamper.kotpub.note.NotePublisher
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
@@ -20,11 +28,17 @@ class NotePostServiceTest {
     private val deliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
     private var enqueuedCount = 0
     private val timelinePosts = mutableListOf<PublicNoteId>()
+    private val imageStorage = FakeImageStorage()
+    private val imageUrls = NoteImageUrls(DOMAIN)
+    private val accountRepository = FakeAccountRepository(hasPasskey = { false }).apply { add(username = "user1", passwordHash = "hash", passwordHashType = "type") }
 
     private val service =
         NotePostService(
             directory = ActorDirectory(domain = DOMAIN, stored = OnlyUser1),
-            publisher = NotePublisher(RepositoryNoteStore(noteRepository), null),
+            publisher = NotePublisher(RepositoryNoteStore(noteRepository, imageUrls), null),
+            accountService = AccountService(accountRepository),
+            imageStorage = imageStorage,
+            imageUrls = imageUrls,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
             onEnqueued = { enqueuedCount++ },
@@ -35,7 +49,7 @@ class NotePostServiceTest {
     fun `投稿すると本文を HTML にしてフォロワーの inbox ごとに積む`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
 
-        val result = service.post(username = "user1", body = "<b>hello</b>\nworld", requestId = REQUEST_ID)
+        val result = service.post(username = "user1", body = "<b>hello</b>\nworld", requestId = REQUEST_ID, images = listOf())
 
         val posted = assertIs<PostNoteResult.Posted>(result)
         assertTrue(posted.url.startsWith("https://$DOMAIN/"))
@@ -51,7 +65,7 @@ class NotePostServiceTest {
 
     @Test
     fun `空の本文は積まない`() {
-        assertEquals(PostNoteResult.EmptyBody, service.post(username = "user1", body = " \n ", requestId = REQUEST_ID))
+        assertEquals(PostNoteResult.EmptyBody, service.post(username = "user1", body = " \n ", requestId = REQUEST_ID, images = listOf()))
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
         assertEquals(0, enqueuedCount)
@@ -59,14 +73,14 @@ class NotePostServiceTest {
 
     @Test
     fun `長すぎる本文は積まない`() {
-        assertEquals(PostNoteResult.TooLong, service.post(username = "user1", body = "あ".repeat(NoteComposer.MAX_LENGTH + 1), requestId = REQUEST_ID))
+        assertEquals(PostNoteResult.TooLong, service.post(username = "user1", body = "あ".repeat(NoteComposer.MAX_LENGTH + 1), requestId = REQUEST_ID, images = listOf()))
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
     }
 
     @Test
     fun `アクターとして扱えないアカウントでは積まない`() {
-        assertEquals(PostNoteResult.AccountNotFound, service.post(username = "other", body = "hello", requestId = REQUEST_ID))
+        assertEquals(PostNoteResult.AccountNotFound, service.post(username = "other", body = "hello", requestId = REQUEST_ID, images = listOf()))
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
     }
@@ -75,13 +89,85 @@ class NotePostServiceTest {
     fun `同じ requestId で送り直されたら最初の投稿の URL を返して積み直さない`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A)
 
-        val first = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID))
-        val resent = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID))
+        val first = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf()))
+        val resent = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf()))
 
         assertEquals(first, resent)
         assertEquals(1, deliveryQueueRepository.posts.size)
         assertEquals(1, enqueuedCount)
         assertEquals(1, timelinePosts.size)
+    }
+
+    @Test
+    fun `画像を置いて付けた順に記録し、配る Note に自分のサーバーの URL で載せる`() {
+        val result =
+            service.post(
+                username = "user1",
+                body = "画像",
+                requestId = REQUEST_ID,
+                images = listOf(NoteImageUpload(PNG, description = " 猫 "), NoteImageUpload(JPEG, description = " ")),
+            )
+
+        assertIs<PostNoteResult.Posted>(result)
+        val images = deliveryQueueRepository.posts.single().images
+        assertEquals(listOf("image/png", "image/jpeg"), images.map { it.contentType })
+        assertEquals(listOf("猫", null), images.map { it.description })
+        assertEquals(listOf(PNG.toList(), JPEG.toList()), images.map { imageStorage.images.getValue(ImagePath(it.path)).bytes.toList() })
+        assertTrue(images.all { it.path.startsWith("users/1/note-images/") })
+
+        val attachment = (AppJson.parseToJsonElement(deliveryQueueRepository.posts.single().body) as JsonObject)
+            .getValue("object").jsonObject.getValue("attachment").jsonArray
+        assertEquals(images.map { imageUrls.url(it.publicId) }, attachment.map { it.jsonObject.getValue("url").jsonPrimitive.content })
+        assertTrue(images.all { imageUrls.url(it.publicId).startsWith("https://$DOMAIN/media/") })
+    }
+
+    @Test
+    fun `画像があれば本文は空でもよい`() {
+        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = " ", requestId = REQUEST_ID, images = listOf(NoteImageUpload(PNG, null))))
+
+        assertEquals("", deliveryQueueRepository.posts.single().contentHtml)
+    }
+
+    @Test
+    fun `画像が多すぎたら置かずに積まない`() {
+        val images = List(NotePostService.MAX_IMAGES + 1) { NoteImageUpload(PNG, null) }
+
+        assertEquals(PostNoteResult.TooManyImages, service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = images))
+
+        assertEquals(listOf(), deliveryQueueRepository.posts)
+        assertTrue(imageStorage.images.isEmpty())
+    }
+
+    @Test
+    fun `画像として読めないものが混ざっていたら置かずに積まない`() {
+        val images = listOf(NoteImageUpload(PNG, null), NoteImageUpload("<svg/>".encodeToByteArray(), null))
+
+        assertEquals(PostNoteResult.UnsupportedImage, service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = images))
+
+        assertEquals(listOf(), deliveryQueueRepository.posts)
+        assertTrue(imageStorage.images.isEmpty())
+    }
+
+    @Test
+    fun `大きすぎる画像や長すぎる説明文は積まない`() {
+        val large = PNG + ByteArray(NotePostService.MAX_IMAGE_BYTES)
+        assertEquals(PostNoteResult.ImageTooLarge, service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf(NoteImageUpload(large, null))))
+        val longDescription = "あ".repeat(NotePostService.MAX_DESCRIPTION_LENGTH + 1)
+        assertEquals(
+            PostNoteResult.DescriptionTooLong,
+            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf(NoteImageUpload(PNG, longDescription))),
+        )
+
+        assertEquals(listOf(), deliveryQueueRepository.posts)
+    }
+
+    @Test
+    fun `同じ requestId で送り直されたら置いた画像を消して最初の投稿を返す`() {
+        val first = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf(NoteImageUpload(PNG, null)))
+        val resent = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf(NoteImageUpload(PNG, null)))
+
+        assertEquals(first, resent)
+        assertEquals(1, imageStorage.images.size)
     }
 
     private object OnlyUser1 : StoredActorNames {
@@ -96,5 +182,7 @@ class NotePostServiceTest {
         const val INBOX_A = "https://a.example/inbox"
         const val INBOX_B = "https://b.example/inbox"
         const val REQUEST_ID = "request-1"
+        val PNG = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1)
+        val JPEG = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 2)
     }
 }

@@ -8,6 +8,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
@@ -50,6 +51,26 @@ class NoteRepositoryTest {
             assertEquals(setOf(INBOX_A, INBOX_B), claimed.map { it.inbox }.toSet())
             assertEquals(listOf(1, 1), claimed.map { it.attempts })
             assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+        }
+    }
+
+    @Test
+    fun `付けた画像を付けた順に記録し、画像の識別子で引ける`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val images =
+                listOf(
+                    NoteImage(NoteImagePublicId("image-a"), path = "users/1/note-images/a", contentType = "image/png", description = "猫"),
+                    NoteImage(NoteImagePublicId("image-b"), path = "users/1/note-images/b", contentType = "image/jpeg", description = null),
+                )
+            repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()).copy(images = images))
+
+            val notes = repositories.noteRepository
+            assertEquals(images, notes.find(PublicNoteId("note-1"))?.images)
+            assertEquals(images, notes.list("user1", after = null, limit = 10).single().images)
+            val second = assertNotNull(notes.findImage(NoteImagePublicId("image-b")))
+            assertEquals(images[1], second.image)
+            assertEquals(repositories.accountRepository.findByUsername("user1")?.id, second.ownerAccountId)
+            assertNull(notes.findImage(NoteImagePublicId("missing")))
         }
     }
 
@@ -173,6 +194,7 @@ class NoteRepositoryTest {
             publicId = PublicNoteId(publicId),
             contentHtml = "<p>hello</p>",
             publishedAt = NOW,
+            images = listOf(),
             body = "create-$publicId",
             inboxes = inboxes,
         )

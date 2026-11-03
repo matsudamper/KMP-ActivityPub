@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.DSLContext
@@ -71,6 +72,16 @@ internal class SqliteDeliveryQueueRepository(
                     .returning(NOTES.ID)
                     .fetchOne(NOTES.ID),
             ) { "記録した投稿の id を引けない: ${post.publicId}" }
+        post.images.forEachIndexed { position, image ->
+            dsl.insertInto(NOTE_IMAGES)
+                .set(NOTE_IMAGES.NOTE_ID, noteId)
+                .set(NOTE_IMAGES.POSITION, position.toLong())
+                .set(NOTE_IMAGES.PUBLIC_ID, image.publicId.value)
+                .set(NOTE_IMAGES.PATH, image.path)
+                .set(NOTE_IMAGES.CONTENT_TYPE, image.contentType)
+                .set(NOTE_IMAGES.DESCRIPTION, image.description)
+                .execute()
+        }
 
         val inboxes = post.inboxes.distinct()
         inboxes.forEach { inbox ->

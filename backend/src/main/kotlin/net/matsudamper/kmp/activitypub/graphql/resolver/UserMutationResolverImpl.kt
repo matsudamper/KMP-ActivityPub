@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostNoteImageInput
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
@@ -31,6 +32,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.UpdateDisplayNameResult
@@ -213,9 +215,10 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         body: String,
         requestId: String,
+        images: List<QlPostNoteImageInput>,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val result = postNote(body = body, requestId = requestId, env = env)
+        val result = postNote(body = body, requestId = requestId, images = images, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -247,6 +250,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     private fun postNote(
         body: String,
         requestId: String,
+        images: List<QlPostNoteImageInput>,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -260,13 +264,29 @@ class UserMutationResolverImpl : UserMutationResolver {
         val notePostService =
             diContainer.notePostService
                 ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.FEDERATION_DISABLED)
+        val uploads =
+            images.map { image ->
+                val bytes =
+                    runCatching { Base64.Default.decode(image.data) }.getOrNull()
+                        ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.UNSUPPORTED_IMAGE)
+                NoteImageUpload(bytes = bytes, description = image.description)
+            }
 
-        return when (val result = notePostService.post(username = account.username, body = body, requestId = requestId)) {
-            is PostNoteResult.Posted -> QlUserPostNoteResult(url = result.url, failure = null)
-            PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
-            PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)
-            PostNoteResult.AccountNotFound -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
-        }
+        val result = notePostService.post(username = account.username, body = body, requestId = requestId, images = uploads)
+        val failure =
+            when (result) {
+                is PostNoteResult.Posted -> return QlUserPostNoteResult(url = result.url, failure = null)
+                PostNoteResult.EmptyBody -> QlUserPostNoteFailure.EMPTY_BODY
+                PostNoteResult.TooLong -> QlUserPostNoteFailure.TOO_LONG
+                PostNoteResult.TooManyImages -> QlUserPostNoteFailure.TOO_MANY_IMAGES
+                PostNoteResult.ImageTooLarge -> QlUserPostNoteFailure.IMAGE_TOO_LARGE
+                PostNoteResult.UnsupportedImage -> QlUserPostNoteFailure.UNSUPPORTED_IMAGE
+                PostNoteResult.DescriptionTooLong -> QlUserPostNoteFailure.DESCRIPTION_TOO_LONG
+                PostNoteResult.ImageStorageDisabled -> QlUserPostNoteFailure.UNSUPPORTED_OPERATION
+                PostNoteResult.UploadFailed -> QlUserPostNoteFailure.INTERNAL_SERVER_ERROR
+                PostNoteResult.AccountNotFound -> QlUserPostNoteFailure.NOT_LOGGED_IN
+            }
+        return QlUserPostNoteResult(url = null, failure = failure)
     }
 
     private fun updateProfile(

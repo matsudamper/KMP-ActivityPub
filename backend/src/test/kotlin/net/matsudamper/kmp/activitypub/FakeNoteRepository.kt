@@ -1,8 +1,11 @@
 package net.matsudamper.kmp.activitypub
 
 import net.matsudamper.kmp.activitypub.repository.Note
+import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.StoredNoteImage
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
@@ -15,6 +18,12 @@ internal class FakeNoteRepository : NoteRepository {
 
     override fun findByPublicIds(publicIds: Set<PublicNoteId>): Map<PublicNoteId, Note> =
         notes.filter { it.publicId in publicIds }.associateBy { it.publicId }
+
+    /**
+     * 画像の持ち主は区別しないので、どれもアカウント 1 のものとして返す
+     */
+    override fun findImage(publicId: NoteImagePublicId): StoredNoteImage? =
+        notes.flatMap { it.images }.firstOrNull { it.publicId == publicId }?.let { StoredNoteImage(ownerAccountId = AccountId(1), image = it) }
 
     override fun delete(publicId: PublicNoteId) {
         notes.removeAll { it.publicId == publicId }

@@ -1,16 +1,19 @@
 package net.matsudamper.kmp.activitypub.federation
 
+import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NotePosition as RepositoryNotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
+import net.matsudamper.kotpub.note.NoteAttachment
 import net.matsudamper.kotpub.note.NotePosition
 import net.matsudamper.kotpub.note.NoteStore
 import net.matsudamper.kotpub.note.StoredNote
 
 internal class RepositoryNoteStore(
     private val noteRepository: NoteRepository,
+    private val imageUrls: NoteImageUrls,
 ) : NoteStore {
     override fun find(publicId: KotpubPublicNoteId): StoredNote? = noteRepository.find(publicId.toRepository())?.toStored()
 
@@ -70,5 +73,9 @@ internal class RepositoryNoteStore(
             username = username,
             contentHtml = contentHtml,
             publishedAt = publishedAt,
+            attachments =
+            images.map { image ->
+                NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
+            },
         )
 }

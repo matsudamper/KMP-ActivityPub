@@ -95,6 +95,7 @@ sealed interface EnqueueNoteResult {
 
 /**
  * @param requestId 画面が送信ごとに作る ID。応答を受け取れずに送り直されたときに同じ投稿だと分かる
+ * @param images 置き場に置き終えた画像。付けた順
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
  */
 data class NotePost(
@@ -103,6 +104,7 @@ data class NotePost(
     val publicId: PublicNoteId,
     val contentHtml: String,
     val publishedAt: Instant,
+    val images: List<NoteImage>,
     val body: String,
     val inboxes: List<String>,
 )
