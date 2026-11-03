@@ -57,7 +57,6 @@ android {
                 taskName.contains("Paparazzi", ignoreCase = true)
             }
         unitTests.all { test ->
-            // 何もしないと Gradle を動かしている JDK で走り、jvmToolchain(25) でビルドした :frontend:core などを読めない
             test.javaLauncher.set(
                 javaToolchains.launcherFor {
                     languageVersion.set(JavaLanguageVersion.of(25))
