@@ -99,16 +99,18 @@ class UserApi(
                         emit(
                             UserHomeTimelineResult.Post(
                                 id = post.id,
-                                content = post.content,
-                                publishedAt = post.publishedAt,
                                 username = post.username,
                                 host = post.host,
                                 displayName = post.displayName,
-                                summary = post.summary,
-                                sensitive = post.sensitive,
-                                linkUrls = post.linkUrls,
                                 iconUrl = post.iconUrl,
-                                images = post.images.map { UserPostImage(url = it.url, description = it.description) },
+                                body = UserPostBody(
+                                    content = post.content,
+                                    publishedAt = post.publishedAt,
+                                    summary = post.summary,
+                                    sensitive = post.sensitive,
+                                    linkUrls = post.linkUrls,
+                                    images = post.images.map { UserPostImage(url = it.url, description = it.description) },
+                                ),
                             ),
                         )
                     }
@@ -232,13 +234,15 @@ class UserApi(
             biography = profile.biography,
             posts = profile.posts.map {
                 UserProfileResult.Post(
-                    content = it.content,
-                    publishedAt = it.publishedAt,
-                    summary = it.summary,
-                    sensitive = it.sensitive,
                     linkPreviewId = it.linkPreviewId,
-                    linkUrls = it.linkUrls,
-                    images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                    body = UserPostBody(
+                        content = it.content,
+                        publishedAt = it.publishedAt,
+                        summary = it.summary,
+                        sensitive = it.sensitive,
+                        linkUrls = it.linkUrls,
+                        images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                    ),
                 )
             },
         )

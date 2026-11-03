@@ -39,15 +39,22 @@ class QueryResolverImpl : QueryResolver {
                     user = it.user.toQlSearchedUser(env, accountId).copy(following = it.following),
                     biography = it.biography?.let { html -> htmlToPlainText(html) },
                     posts = it.posts.map { post ->
-                        QlProfilePost(
-                            content = htmlToPlainText(post.contentHtml),
-                            publishedAt = post.publishedAt,
+                        val body = createQlPostBody(
+                            contentHtml = post.contentHtml,
                             summary = post.summary,
                             sensitive = post.sensitive,
+                            images = post.images,
+                            linkUrlsEnabled = post.linkPreviewId != null,
+                            diContainer = diContainer,
+                        )
+                        QlProfilePost(
+                            content = body.content,
+                            publishedAt = post.publishedAt,
+                            summary = body.summary,
+                            sensitive = body.sensitive,
                             linkPreviewId = post.linkPreviewId,
-                            // DOMAIN が無いと linkPreviewService は null。そのときはカードにするリンクを返さない
-                            linkUrls = if (post.linkPreviewId == null) listOf() else diContainer.linkPreviewService?.links(post.contentHtml).orEmpty(),
-                            images = post.images.toQlPostImages(diContainer),
+                            linkUrls = body.linkUrls,
+                            images = body.images,
                         )
                     },
                 )

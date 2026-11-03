@@ -24,9 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
-import net.matsudamper.kmp.activitypub.frontend.screen.createPostContentWarningLabel
-import net.matsudamper.kmp.activitypub.frontend.screen.createPostImage
-import net.matsudamper.kmp.activitypub.frontend.screen.createPostLinkPreview
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
@@ -382,23 +380,12 @@ internal class HomeScreenViewModel(
     private fun createTimelineItems(): List<PostItemUiState> {
         return timelinePosts.map { post ->
             val previews = linkPreviews[post.id].orEmpty()
-            PostItemUiState(
+            createPostItemUiState(
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
-                contentWarningLabel = createPostContentWarningLabel(sensitive = post.sensitive, summary = post.summary),
-                body = post.content,
-                postedAt = post.publishedAt,
-                linkPreviews = post.linkUrls.map { url ->
-                    createPostLinkPreview(url = url, preview = previews.firstOrNull { it.url == url }) {
-                        viewModelScope.launch { events.send { it.openUrl(url) } }
-                    }
-                },
-                images = post.images.map { image ->
-                    createPostImage(image) {
-                        viewModelScope.launch { events.send { it.openUrl(image.url) } }
-                    }
-                },
+                body = post.body,
+                linkPreviews = previews,
                 authorListener = object : PostItemUiState.AuthorListener {
                     override fun onClick() {
                         val host = post.host
@@ -407,11 +394,10 @@ internal class HomeScreenViewModel(
                         }
                     }
                 },
-                listener = object : PostItemUiState.Listener {
-                    override fun onVisible() {
-                        if (post.linkUrls.isNotEmpty()) {
-                            loadLinkPreviews(post.id)
-                        }
+                onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                onVisible = {
+                    if (post.body.linkUrls.isNotEmpty()) {
+                        loadLinkPreviews(post.id)
                     }
                 },
             )
