@@ -171,15 +171,13 @@ internal class UserProfileScreenViewModel(
                         }
                     },
                     // 開いているのがその人の画面なので、押しても移る先が無い
-                    authorClickable = false,
+                    authorListener = null,
                     listener = object : PostItemUiState.Listener {
                         override fun onVisible() {
                             if (linkPreviewId != null && post.linkUrls.isNotEmpty()) {
                                 loadLinkPreviews(linkPreviewId)
                             }
                         }
-
-                        override fun onClickAuthor() = Unit
                     },
                 )
             },

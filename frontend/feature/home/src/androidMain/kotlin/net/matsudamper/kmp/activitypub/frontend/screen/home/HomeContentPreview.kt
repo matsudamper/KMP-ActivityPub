@@ -51,7 +51,7 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                                 listener = AndroidPreviewLinkPreviewListener,
                             ),
                         ),
-                        authorClickable = true,
+                        authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
@@ -61,7 +61,7 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                         body = "Compose Multiplatform で Web と Android の画面を共有している",
                         postedAt = "5分前",
                         linkPreviews = listOf(),
-                        authorClickable = true,
+                        authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
@@ -232,8 +232,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
 private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
     override fun onVisible() = Unit
+}
 
-    override fun onClickAuthor() = Unit
+private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
+    override fun onClick() = Unit
 }
 
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {

@@ -29,6 +29,8 @@ internal fun PostItem(
     uiState: PostItemUiState,
     modifier: Modifier = Modifier,
 ) {
+    val authorListener = uiState.authorListener
+    val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -39,14 +41,14 @@ internal fun PostItem(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .clickable(enabled = uiState.authorClickable, onClick = uiState.listener::onClickAuthor),
+                .then(authorClickModifier),
         )
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
-                modifier = Modifier.clickable(enabled = uiState.authorClickable, onClick = uiState.listener::onClickAuthor),
+                modifier = authorClickModifier,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -15,7 +15,10 @@ data class PostItemUiState(
      * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく
      */
     val linkPreviews: List<LinkPreview>,
-    val authorClickable: Boolean,
+    /**
+     * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
+     */
+    val authorListener: AuthorListener?,
     val listener: Listener,
 ) {
     /**
@@ -34,8 +37,11 @@ data class PostItemUiState(
          * 投稿が画面に入ったとき。OGP はここで初めて取りに行く
          */
         fun onVisible()
+    }
 
-        fun onClickAuthor()
+    @Immutable
+    interface AuthorListener {
+        fun onClick()
     }
 
     @Immutable

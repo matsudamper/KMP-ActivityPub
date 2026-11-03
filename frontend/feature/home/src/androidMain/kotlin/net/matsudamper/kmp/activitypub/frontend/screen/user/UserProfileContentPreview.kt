@@ -33,7 +33,7 @@ private fun UserProfileContentPreview() {
                                     listener = AndroidPreviewLinkPreviewListener,
                                 ),
                             ),
-                            authorClickable = false,
+                            authorListener = null,
                             listener = AndroidPreviewPostItemListener,
                         ),
                     ),
@@ -92,8 +92,6 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
 
 private object AndroidPreviewPostItemListener : PostItemUiState.Listener {
     override fun onVisible() = Unit
-
-    override fun onClickAuthor() = Unit
 }
 
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {

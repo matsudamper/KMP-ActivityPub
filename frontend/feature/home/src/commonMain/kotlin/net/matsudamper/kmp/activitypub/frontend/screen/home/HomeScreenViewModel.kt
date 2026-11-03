@@ -396,18 +396,18 @@ internal class HomeScreenViewModel(
                         }
                     }
                 },
-                authorClickable = true,
+                authorListener = object : PostItemUiState.AuthorListener {
+                    override fun onClick() {
+                        val host = post.host
+                        viewModelScope.launch {
+                            events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
+                        }
+                    }
+                },
                 listener = object : PostItemUiState.Listener {
                     override fun onVisible() {
                         if (post.sensitive.not() && post.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(post.id)
-                        }
-                    }
-
-                    override fun onClickAuthor() {
-                        val host = post.host
-                        viewModelScope.launch {
-                            events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
                         }
                     }
                 },
