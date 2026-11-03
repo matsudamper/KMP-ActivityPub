@@ -13,15 +13,10 @@ sealed interface UserPostNoteResult {
 
     data object TooManyImages : UserPostNoteResult
 
-    data object ImageTooLarge : UserPostNoteResult
-
-    data object UnsupportedImage : UserPostNoteResult
-
-    data object DescriptionTooLong : UserPostNoteResult
-
-    data object UnsupportedOperation : UserPostNoteResult
-
-    data object InternalServerError : UserPostNoteResult
+    /**
+     * 置いていないか、期限を過ぎた画像がある
+     */
+    data object ImageNotFound : UserPostNoteResult
 
     data class Failure(
         val message: String,

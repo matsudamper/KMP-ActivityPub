@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostImage
 import net.matsudamper.kmp.activitypub.frontend.ui.toPostImageOrNull
@@ -150,18 +151,8 @@ internal class PostScreenViewModel(
                             images = state.images.map { UserPostNoteImage(bytes = it.image.jpeg, description = null) },
                         )
                     when (result) {
-                        UserPostNoteResult.Success -> null
-                        UserPostNoteResult.NotLoggedIn -> "ログインしていません"
-                        UserPostNoteResult.EmptyBody -> "本文が空です"
-                        UserPostNoteResult.TooLong -> "本文が長すぎます"
-                        UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
-                        UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
-                        UserPostNoteResult.ImageTooLarge -> "画像が大きすぎます"
-                        UserPostNoteResult.UnsupportedImage -> "送れない形式の画像があります"
-                        UserPostNoteResult.DescriptionTooLong -> "画像の説明が長すぎます"
-                        UserPostNoteResult.UnsupportedOperation -> "このサーバーでは画像を投稿できません"
-                        UserPostNoteResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
-                        is UserPostNoteResult.Failure -> result.message
+                        is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
+                        is PostNoteSubmitResult.Submitted -> postErrorMessage(result.result)
                     }
                 } finally {
                     viewModelStateFlow.update { it.copy(submitting = false) }
@@ -177,6 +168,37 @@ internal class PostScreenViewModel(
             events.send { it.navigateBack() }
         }
     }
+
+    /**
+     * 置けたら null
+     */
+    private fun uploadErrorMessage(result: UserUploadNoteImageResult): String? =
+        when (result) {
+            is UserUploadNoteImageResult.Success -> null
+            UserUploadNoteImageResult.NotLoggedIn -> "ログインしていません"
+            UserUploadNoteImageResult.TooLarge -> "画像が大きすぎます"
+            UserUploadNoteImageResult.UnsupportedImage -> "送れない形式の画像があります"
+            UserUploadNoteImageResult.DescriptionTooLong -> "画像の説明が長すぎます"
+            UserUploadNoteImageResult.UnsupportedOperation -> "このサーバーでは画像を投稿できません"
+            UserUploadNoteImageResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
+            UserUploadNoteImageResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
+            is UserUploadNoteImageResult.Failure -> result.message
+        }
+
+    /**
+     * 投稿できたら null
+     */
+    private fun postErrorMessage(result: UserPostNoteResult): String? =
+        when (result) {
+            UserPostNoteResult.Success -> null
+            UserPostNoteResult.NotLoggedIn -> "ログインしていません"
+            UserPostNoteResult.EmptyBody -> "本文が空です"
+            UserPostNoteResult.TooLong -> "本文が長すぎます"
+            UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
+            UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
+            UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
+            is UserPostNoteResult.Failure -> result.message
+        }
 
     private fun requestId(): String =
         savedStateHandle.get<String>(REQUEST_ID_KEY)

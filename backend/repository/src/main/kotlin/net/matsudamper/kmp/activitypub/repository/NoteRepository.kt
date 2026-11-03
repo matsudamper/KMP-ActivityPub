@@ -14,6 +14,35 @@ interface NoteRepository {
 
     fun findImage(publicId: NoteImagePublicId): StoredNoteImage?
 
+    fun addUploadedImage(upload: UploadedNoteImage)
+
+    /**
+     * [ownerAccountId] が置いた、期限内の画像を渡した順に返す。1 枚でも無ければ null
+     */
+    fun findUploadedImages(
+        ownerAccountId: AccountId,
+        publicIds: List<NoteImagePublicId>,
+        now: Instant,
+    ): List<NoteImage>?
+
+    /**
+     * 期限を過ぎてもまだ投稿に付いていない画像を、期限の古い順に返す
+     */
+    fun listExpiredUploadedImages(
+        now: Instant,
+        limit: Int,
+    ): List<UploadedNoteImage>
+
+    /**
+     * 期限を過ぎてまだ投稿に付いていなければ記録を消す。間に投稿に付いたら消さない
+     *
+     * @return 消したら true。置き場の画像はこれが true のときだけ消す
+     */
+    fun deleteExpiredUploadedImage(
+        publicId: NoteImagePublicId,
+        now: Instant,
+    ): Boolean
+
     /**
      * [DeliveryQueueRepository.enqueueNote] に渡した requestId で記録した投稿。無ければ null
      */
@@ -98,6 +127,15 @@ data class NoteImage(
 data class StoredNoteImage(
     val ownerAccountId: AccountId,
     val image: NoteImage,
+)
+
+/**
+ * @param expiresAt これを過ぎても投稿に付いていなければ消す
+ */
+data class UploadedNoteImage(
+    val ownerAccountId: AccountId,
+    val image: NoteImage,
+    val expiresAt: Instant,
 )
 
 /**

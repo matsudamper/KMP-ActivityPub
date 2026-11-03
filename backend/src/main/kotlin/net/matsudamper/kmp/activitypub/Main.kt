@@ -102,6 +102,10 @@ internal fun Application.module(deps: AppDependencies) {
         log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
     } else {
         launch { federation.deliveryQueueWorker.run() }
+        val uploadedNoteImageCleaner = federation.uploadedNoteImageCleaner
+        if (uploadedNoteImageCleaner != null) {
+            launch { uploadedNoteImageCleaner.run() }
+        }
     }
 
     val s3 = deps.env.s3

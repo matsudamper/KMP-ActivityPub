@@ -1,14 +1,18 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
+import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.StoredNoteImage
+import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.records.UploadedNoteImagesRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.UPLOADED_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
@@ -54,6 +58,58 @@ internal class SqliteNoteRepository(
                     image = record.toNoteImage(),
                 )
             }
+    }
+
+    override fun addUploadedImage(upload: UploadedNoteImage) {
+        jooq.withConnection { dsl ->
+            dsl.insertInto(UPLOADED_NOTE_IMAGES)
+                .set(UPLOADED_NOTE_IMAGES.PUBLIC_ID, upload.image.publicId.value)
+                .set(UPLOADED_NOTE_IMAGES.ACCOUNT_ID, upload.ownerAccountId.value)
+                .set(UPLOADED_NOTE_IMAGES.PATH, upload.image.path)
+                .set(UPLOADED_NOTE_IMAGES.CONTENT_TYPE, upload.image.contentType)
+                .set(UPLOADED_NOTE_IMAGES.DESCRIPTION, upload.image.description)
+                .set(UPLOADED_NOTE_IMAGES.EXPIRES_AT, StoredInstant.format(upload.expiresAt))
+                .execute()
+        }
+    }
+
+    override fun findUploadedImages(
+        ownerAccountId: AccountId,
+        publicIds: List<NoteImagePublicId>,
+        now: Instant,
+    ): List<NoteImage>? {
+        if (publicIds.isEmpty()) return listOf()
+        val found =
+            jooq.withConnection { dsl ->
+                dsl.selectFrom(UPLOADED_NOTE_IMAGES)
+                    .where(UPLOADED_NOTE_IMAGES.ACCOUNT_ID.eq(ownerAccountId.value))
+                    .and(UPLOADED_NOTE_IMAGES.PUBLIC_ID.`in`(publicIds.map { it.value }))
+                    .and(UPLOADED_NOTE_IMAGES.EXPIRES_AT.gt(StoredInstant.format(now)))
+                    .fetch { it.toUploadedNoteImage().image }
+                    .associateBy { it.publicId }
+            }
+        return publicIds.map { found[it] ?: return null }
+    }
+
+    override fun listExpiredUploadedImages(
+        now: Instant,
+        limit: Int,
+    ): List<UploadedNoteImage> = jooq.withConnection { dsl ->
+        dsl.selectFrom(UPLOADED_NOTE_IMAGES)
+            .where(UPLOADED_NOTE_IMAGES.EXPIRES_AT.le(StoredInstant.format(now)))
+            .orderBy(UPLOADED_NOTE_IMAGES.EXPIRES_AT)
+            .limit(limit)
+            .fetch { it.toUploadedNoteImage() }
+    }
+
+    override fun deleteExpiredUploadedImage(
+        publicId: NoteImagePublicId,
+        now: Instant,
+    ): Boolean = jooq.withConnection { dsl ->
+        dsl.deleteFrom(UPLOADED_NOTE_IMAGES)
+            .where(UPLOADED_NOTE_IMAGES.PUBLIC_ID.eq(publicId.value))
+            .and(UPLOADED_NOTE_IMAGES.EXPIRES_AT.le(StoredInstant.format(now)))
+            .execute() > 0
     }
 
     override fun findPublicIdByRequestId(
@@ -189,6 +245,18 @@ internal class SqliteNoteRepository(
             )
         }
     }
+
+    private fun UploadedNoteImagesRecord.toUploadedNoteImage(): UploadedNoteImage =
+        UploadedNoteImage(
+            ownerAccountId = AccountId(checkNotNull(accountId)),
+            image = NoteImage(
+                publicId = NoteImagePublicId(checkNotNull(publicId)),
+                path = checkNotNull(path),
+                contentType = checkNotNull(contentType),
+                description = description,
+            ),
+            expiresAt = StoredInstant.parse(checkNotNull(expiresAt)),
+        )
 
     private fun Record.toNoteImage(): NoteImage =
         NoteImage(

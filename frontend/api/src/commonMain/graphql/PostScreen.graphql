@@ -1,7 +1,16 @@
-mutation UserPostNote($body: String!, $requestId: String!, $images: [PostNoteImageInput!]!) {
+mutation UserPostNote($body: String!, $requestId: String!, $imageIds: [ID!]!) {
     user {
-        postNote(body: $body, requestId: $requestId, images: $images) {
+        postNote(body: $body, requestId: $requestId, imageIds: $imageIds) {
             url
+            failure
+        }
+    }
+}
+
+mutation UploadNoteImage($image: String!, $description: String) {
+    user {
+        uploadNoteImage(image: $image, description: $description) {
+            imageId
             failure
         }
     }

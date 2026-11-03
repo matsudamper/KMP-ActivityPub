@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
+import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
@@ -101,6 +102,7 @@ internal class Federation(
             imageUrls = noteImageUrls,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
+            clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
             onPosted = { publicId -> timelineRepository.localPosition(publicId.value)?.let { timeline.enqueue(it) } },
         )
@@ -164,6 +166,9 @@ internal class Federation(
      * 画像の置き場が無ければ画像付きの投稿もできないので作らない
      */
     val noteImageFiles: NoteImageFiles? = imageStorage?.let { NoteImageFiles(noteRepository = noteRepository, imageStorage = it) }
+
+    val uploadedNoteImageCleaner: UploadedNoteImageCleaner? =
+        imageStorage?.let { UploadedNoteImageCleaner(noteRepository = noteRepository, imageStorage = it, clock = Clock.systemUTC()) }
 
     val profileIconUrls: ProfileIconUrls =
         ProfileIconUrls { username ->

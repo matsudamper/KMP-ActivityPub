@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.time.Clock
+import java.time.Duration
 import java.util.UUID
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
@@ -10,6 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.actor.ActorDirectory
@@ -20,7 +23,8 @@ import net.matsudamper.kotpub.note.NoteUrls
 import org.slf4j.LoggerFactory
 
 /**
- * 投稿を記録して、フォロワーへの配信を積む。送るのは配信キューのワーカー
+ * 投稿を記録して、フォロワーへの配信を積む。送るのは配信キューのワーカー。
+ * 画像は先に [uploadImage] で置き、[post] には置いた画像の id を渡す
  *
  * @param imageStorage null なら画像を置けないので、画像付きの投稿はできない
  * @param onEnqueued 積んだ後に呼ぶ。次の巡回を待たずに送らせる
@@ -34,57 +38,103 @@ class NotePostService(
     private val imageUrls: NoteImageUrls,
     private val followerRepository: FollowerRepository,
     private val deliveryQueueRepository: DeliveryQueueRepository,
+    private val clock: Clock,
     private val onEnqueued: () -> Unit,
     private val onPosted: (PublicNoteId) -> Unit,
 ) {
     private val logger = LoggerFactory.getLogger(NotePostService::class.java)
 
     /**
+     * 画像を置き場に置く。[UPLOADED_IMAGE_LIFETIME] のうちに投稿に付けなければ [UploadedNoteImageCleaner] が消す
+     */
+    fun uploadImage(
+        username: String,
+        image: NoteImageUpload,
+    ): UploadNoteImageResult {
+        if (image.bytes.size > MAX_IMAGE_BYTES) return UploadNoteImageResult.TooLarge
+        val format = ImageFormat.detect(image.bytes) ?: return UploadNoteImageResult.UnsupportedImage
+        val description = image.description?.trim()?.ifEmpty { null }
+        // 書いた人の数え方と合わせるため、コードポイントで数える
+        if (description != null && description.codePointCount(0, description.length) > MAX_DESCRIPTION_LENGTH) {
+            return UploadNoteImageResult.DescriptionTooLong
+        }
+        val account = accountService.account(username) ?: return UploadNoteImageResult.AccountNotFound
+        val storage = imageStorage ?: return UploadNoteImageResult.ImageStorageDisabled
+
+        val path = NoteImagePaths.create(account.id)
+        val result =
+            storage.put(
+                ImageStorage.PutRequest(
+                    ownerAccountId = account.id,
+                    path = path,
+                    contentType = format.contentType,
+                    maxBytes = MAX_IMAGE_BYTES.toLong(),
+                    inputStream = image.bytes.inputStream(),
+                ),
+            )
+        when (result) {
+            is ImageStorage.PutResult.Success -> Unit
+
+            ImageStorage.PutResult.PayloadTooLarge -> return UploadNoteImageResult.TooLarge
+
+            ImageStorage.PutResult.Empty -> return UploadNoteImageResult.UnsupportedImage
+
+            is ImageStorage.PutResult.Failure -> {
+                logger.error("投稿の画像を置けなかった: ${account.id}", result.cause)
+                return UploadNoteImageResult.UploadFailed
+            }
+        }
+        val noteImage =
+            NoteImage(
+                publicId = NoteImagePublicId(UUID.randomUUID().toString()),
+                path = path.value,
+                contentType = format.contentType,
+                description = description,
+            )
+        noteRepository.addUploadedImage(
+            UploadedNoteImage(ownerAccountId = account.id, image = noteImage, expiresAt = clock.instant().plus(UPLOADED_IMAGE_LIFETIME)),
+        )
+        return UploadNoteImageResult.Uploaded(noteImage.publicId)
+    }
+
+    /**
      * 画像があれば本文は空でもよい
      *
      * @param requestId 画面が送信ごとに作る ID。同じ ID で送り直されたら、新しく作らずに前の投稿を返す
-     * @param images 付ける画像。付けた順に並ぶ
+     * @param imageIds [uploadImage] で置いた画像。付けた順に並ぶ
      */
     fun post(
         username: String,
         body: String,
         requestId: String,
-        images: List<NoteImageUpload>,
+        imageIds: List<NoteImagePublicId>,
     ): PostNoteResult {
-        if (images.size > MAX_IMAGES) return PostNoteResult.TooManyImages
+        if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
         val contentHtml =
             when (val composed = NoteComposer.compose(body)) {
                 is NoteComposer.ComposeResult.Composed -> composed.contentHtml
-                NoteComposer.ComposeResult.Empty -> if (images.isEmpty()) return PostNoteResult.EmptyBody else ""
+                NoteComposer.ComposeResult.Empty -> if (imageIds.isEmpty()) return PostNoteResult.EmptyBody else ""
                 NoteComposer.ComposeResult.TooLong -> return PostNoteResult.TooLong
-            }
-        val checkedImages =
-            images.map { image ->
-                when (val checked = check(image)) {
-                    is CheckImageResult.Accepted -> checked.image
-                    is CheckImageResult.Rejected -> return checked.result
-                }
             }
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
         val account = accountService.account(sender.username) ?: return PostNoteResult.AccountNotFound
-        // 置き場が止まっていても、記録済みの投稿への送り直しは成功として返す
+        // 送り直しで付ける画像は最初の投稿に付いて期限の記録から消えているので、画像を探す前に見分ける
         val alreadyPostedPublicId = noteRepository.findPublicIdByRequestId(username = sender.username, requestId = requestId)
         if (alreadyPostedPublicId != null) {
             logger.info("送り直された投稿なので新しく作らない: ${sender.acct} ${alreadyPostedPublicId.value}")
             return PostNoteResult.Posted(publicId = alreadyPostedPublicId, url = noteUrl(sender.domain, alreadyPostedPublicId))
         }
+        if (imageIds.distinct().size != imageIds.size) return PostNoteResult.ImageNotFound
+        val images =
+            noteRepository.findUploadedImages(ownerAccountId = account.id, publicIds = imageIds, now = clock.instant())
+                ?: return PostNoteResult.ImageNotFound
 
-        val storedImages =
-            when (val put = putImages(accountId = account.id, images = checkedImages)) {
-                is PutImagesResult.Success -> put.images
-                is PutImagesResult.Failure -> return put.result
-            }
         val prepared =
             publisher.prepare(
                 sender = sender,
                 contentHtml = contentHtml,
                 attachments =
-                storedImages.map { image ->
+                images.map { image ->
                     NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
                 },
             )
@@ -96,7 +146,7 @@ class NotePostService(
                     publicId = PublicNoteId(prepared.publicId.value),
                     contentHtml = prepared.contentHtml,
                     publishedAt = prepared.publishedAt,
-                    images = storedImages,
+                    images = images,
                     body = prepared.activityJson,
                     inboxes = followerRepository.findDeliveryInboxes(sender.username),
                 ),
@@ -111,14 +161,12 @@ class NotePostService(
 
             is EnqueueNoteResult.AlreadyPosted -> {
                 logger.info("送り直された投稿なので新しく作らない: ${sender.acct} ${enqueued.publicId.value}")
-                deleteImages(accountId = account.id, images = storedImages)
                 PostNoteResult.Posted(publicId = enqueued.publicId, url = noteUrl(sender.domain, enqueued.publicId))
             }
 
-            EnqueueNoteResult.AccountNotFound -> {
-                deleteImages(accountId = account.id, images = storedImages)
-                PostNoteResult.AccountNotFound
-            }
+            EnqueueNoteResult.AccountNotFound -> PostNoteResult.AccountNotFound
+
+            EnqueueNoteResult.ImageNotFound -> PostNoteResult.ImageNotFound
         }
     }
 
@@ -126,102 +174,6 @@ class NotePostService(
         domain: String,
         publicId: PublicNoteId,
     ): String = NoteUrls(domain, KotpubPublicNoteId(publicId.value)).noteUrl
-
-    private fun check(image: NoteImageUpload): CheckImageResult {
-        if (image.bytes.size > MAX_IMAGE_BYTES) return CheckImageResult.Rejected(PostNoteResult.ImageTooLarge)
-        val format = ImageFormat.detect(image.bytes) ?: return CheckImageResult.Rejected(PostNoteResult.UnsupportedImage)
-        val description = image.description?.trim()?.ifEmpty { null }
-        // 書いた人の数え方と合わせるため、コードポイントで数える
-        if (description != null && description.codePointCount(0, description.length) > MAX_DESCRIPTION_LENGTH) {
-            return CheckImageResult.Rejected(PostNoteResult.DescriptionTooLong)
-        }
-        return CheckImageResult.Accepted(CheckedImage(bytes = image.bytes, format = format, description = description))
-    }
-
-    /**
-     * 1 枚でも置けなければ、置いた分を消して投稿をやめる
-     */
-    private fun putImages(
-        accountId: AccountId,
-        images: List<CheckedImage>,
-    ): PutImagesResult {
-        if (images.isEmpty()) return PutImagesResult.Success(listOf())
-        val storage = imageStorage ?: return PutImagesResult.Failure(PostNoteResult.ImageStorageDisabled)
-
-        val stored = mutableListOf<NoteImage>()
-        images.forEach { image ->
-            val path = NoteImagePaths.create(accountId)
-            val result =
-                storage.put(
-                    ImageStorage.PutRequest(
-                        ownerAccountId = accountId,
-                        path = path,
-                        contentType = image.format.contentType,
-                        maxBytes = MAX_IMAGE_BYTES.toLong(),
-                        inputStream = image.bytes.inputStream(),
-                    ),
-                )
-            val failure =
-                when (result) {
-                    is ImageStorage.PutResult.Success -> null
-
-                    ImageStorage.PutResult.PayloadTooLarge -> PostNoteResult.ImageTooLarge
-
-                    ImageStorage.PutResult.Empty -> PostNoteResult.UnsupportedImage
-
-                    is ImageStorage.PutResult.Failure -> {
-                        logger.error("投稿の画像を置けなかった: $accountId", result.cause)
-                        PostNoteResult.UploadFailed
-                    }
-                }
-            if (failure != null) {
-                deleteImages(accountId = accountId, images = stored)
-                return PutImagesResult.Failure(failure)
-            }
-            stored +=
-                NoteImage(
-                    publicId = NoteImagePublicId(UUID.randomUUID().toString()),
-                    path = path.value,
-                    contentType = image.format.contentType,
-                    description = image.description,
-                )
-        }
-        return PutImagesResult.Success(stored)
-    }
-
-    /**
-     * 消せなくても使われない画像が残るだけなので、投稿の結果は変えない
-     */
-    private fun deleteImages(
-        accountId: AccountId,
-        images: List<NoteImage>,
-    ) {
-        val storage = imageStorage ?: return
-        images.forEach { image ->
-            val result = storage.delete(ImageStorage.DeleteRequest(ownerAccountId = accountId, path = ImagePath(image.path)))
-            if (result is ImageStorage.DeleteResult.Failure) {
-                logger.warn("使わなくなった投稿の画像を消せなかった: ${image.path}", result.cause)
-            }
-        }
-    }
-
-    private class CheckedImage(
-        val bytes: ByteArray,
-        val format: ImageFormat,
-        val description: String?,
-    )
-
-    private sealed interface CheckImageResult {
-        class Accepted(val image: CheckedImage) : CheckImageResult
-
-        class Rejected(val result: PostNoteResult) : CheckImageResult
-    }
-
-    private sealed interface PutImagesResult {
-        class Success(val images: List<NoteImage>) : PutImagesResult
-
-        class Failure(val result: PostNoteResult) : PutImagesResult
-    }
 
     companion object {
         /**
@@ -238,6 +190,11 @@ class NotePostService(
          * Mastodon の画像の説明文の上限
          */
         const val MAX_DESCRIPTION_LENGTH: Int = 1500
+
+        /**
+         * 置いてから投稿に付けるまでの猶予。画面は投稿する直前に置くので、送り直しを含めても足りる
+         */
+        val UPLOADED_IMAGE_LIFETIME: Duration = Duration.ofHours(1)
     }
 }
 
@@ -260,6 +217,27 @@ internal object NoteImagePaths {
     fun create(accountId: AccountId): ImagePath = ImagePath("users/${accountId.value}/note-images/${UUID.randomUUID()}")
 }
 
+sealed interface UploadNoteImageResult {
+    data class Uploaded(
+        val publicId: NoteImagePublicId,
+    ) : UploadNoteImageResult
+
+    data object TooLarge : UploadNoteImageResult
+
+    /**
+     * PNG / JPEG / GIF / WebP ではない
+     */
+    data object UnsupportedImage : UploadNoteImageResult
+
+    data object DescriptionTooLong : UploadNoteImageResult
+
+    data object ImageStorageDisabled : UploadNoteImageResult
+
+    data object UploadFailed : UploadNoteImageResult
+
+    data object AccountNotFound : UploadNoteImageResult
+}
+
 sealed interface PostNoteResult {
     data class Posted(
         val publicId: PublicNoteId,
@@ -275,18 +253,10 @@ sealed interface PostNoteResult {
 
     data object TooManyImages : PostNoteResult
 
-    data object ImageTooLarge : PostNoteResult
-
     /**
-     * PNG / JPEG / GIF / WebP ではない
+     * 置いていないか、期限を過ぎたか、もう別の投稿に付けた画像がある
      */
-    data object UnsupportedImage : PostNoteResult
-
-    data object DescriptionTooLong : PostNoteResult
-
-    data object ImageStorageDisabled : PostNoteResult
-
-    data object UploadFailed : PostNoteResult
+    data object ImageNotFound : PostNoteResult
 
     /**
      * アカウントが無いか、鍵が無くてアクターとして扱えない

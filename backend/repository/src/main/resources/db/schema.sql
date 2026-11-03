@@ -100,6 +100,18 @@ CREATE TABLE note_images (
     PRIMARY KEY (note_id, position)
 );
 
+-- 置いたがまだ投稿に付けていない画像。投稿に付けたら note_images に移し、期限までに付かなければ消す
+CREATE TABLE uploaded_note_images (
+    public_id TEXT PRIMARY KEY,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    description TEXT,
+    expires_at TEXT NOT NULL
+);
+
+CREATE INDEX uploaded_note_images_expires_at ON uploaded_note_images (expires_at);
+
 CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id);
 
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す

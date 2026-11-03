@@ -91,11 +91,16 @@ sealed interface EnqueueNoteResult {
     ) : EnqueueNoteResult
 
     data object AccountNotFound : EnqueueNoteResult
+
+    /**
+     * 付ける画像が、そのアカウントが置いたまだ投稿に付いていない画像ではない
+     */
+    data object ImageNotFound : EnqueueNoteResult
 }
 
 /**
  * @param requestId 画面が送信ごとに作る ID。応答を受け取れずに送り直されたときに同じ投稿だと分かる
- * @param images 置き場に置き終えた画像。付けた順
+ * @param images [NoteRepository.addUploadedImage] で記録した画像。付けた順。投稿に付けると、期限で消されなくなる
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
  */
 data class NotePost(

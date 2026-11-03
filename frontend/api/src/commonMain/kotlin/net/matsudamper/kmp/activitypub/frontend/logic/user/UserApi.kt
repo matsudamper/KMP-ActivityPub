@@ -23,15 +23,16 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.PostNoteImageInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UploadNoteImageFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserPostNoteFailure
@@ -289,14 +290,10 @@ class UserApi(
     suspend fun postNote(
         body: String,
         requestId: String,
-        images: List<UserPostNoteImage>,
+        imageIds: List<String>,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
-        val imageInputs =
-            images.map { image ->
-                PostNoteImageInput(data = Base64.Default.encode(image.bytes), description = Optional.presentIfNotNull(image.description))
-            }
-        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId, images = imageInputs)).execute()
+        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId, imageIds = imageIds)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
         val postNote = response.data?.user?.postNote ?: return UserPostNoteResult.Failure(response.failureMessage())
 
@@ -307,12 +304,28 @@ class UserApi(
             UserPostNoteFailure.TOO_LONG -> UserPostNoteResult.TooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
-            UserPostNoteFailure.IMAGE_TOO_LARGE -> UserPostNoteResult.ImageTooLarge
-            UserPostNoteFailure.UNSUPPORTED_IMAGE -> UserPostNoteResult.UnsupportedImage
-            UserPostNoteFailure.DESCRIPTION_TOO_LONG -> UserPostNoteResult.DescriptionTooLong
-            UserPostNoteFailure.UNSUPPORTED_OPERATION -> UserPostNoteResult.UnsupportedOperation
-            UserPostNoteFailure.INTERNAL_SERVER_ERROR -> UserPostNoteResult.InternalServerError
+            UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
+        }
+    }
+
+    suspend fun uploadNoteImage(image: UserPostNoteImage): UserUploadNoteImageResult {
+        val client = clients.client.value ?: return UserUploadNoteImageResult.Failure("接続先が未設定")
+        val mutation = UploadNoteImageMutation(image = Base64.Default.encode(image.bytes), description = Optional.presentIfNotNull(image.description))
+        val response = client.mutation(mutation).execute()
+        if (response.exception != null || response.hasErrors()) return UserUploadNoteImageResult.Failure(response.failureMessage())
+        val uploadNoteImage = response.data?.user?.uploadNoteImage ?: return UserUploadNoteImageResult.Failure(response.failureMessage())
+
+        return when (uploadNoteImage.failure) {
+            null -> uploadNoteImage.imageId?.let { UserUploadNoteImageResult.Success(imageId = it) } ?: UserUploadNoteImageResult.Failure(response.failureMessage())
+            UploadNoteImageFailure.NOT_LOGGED_IN -> UserUploadNoteImageResult.NotLoggedIn
+            UploadNoteImageFailure.TOO_LARGE -> UserUploadNoteImageResult.TooLarge
+            UploadNoteImageFailure.UNSUPPORTED_IMAGE -> UserUploadNoteImageResult.UnsupportedImage
+            UploadNoteImageFailure.DESCRIPTION_TOO_LONG -> UserUploadNoteImageResult.DescriptionTooLong
+            UploadNoteImageFailure.UNSUPPORTED_OPERATION -> UserUploadNoteImageResult.UnsupportedOperation
+            UploadNoteImageFailure.INTERNAL_SERVER_ERROR -> UserUploadNoteImageResult.InternalServerError
+            UploadNoteImageFailure.FEDERATION_DISABLED -> UserUploadNoteImageResult.FederationDisabled
+            UploadNoteImageFailure.UNKNOWN__ -> UserUploadNoteImageResult.Failure("Unknown")
         }
     }
 

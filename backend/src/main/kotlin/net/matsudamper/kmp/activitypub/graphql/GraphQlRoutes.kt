@@ -22,9 +22,9 @@ import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 internal const val GRAPHQL_PATH = "/graphql"
 
 /**
- * 投稿の画像の上限 2MiB × 4 枚を base64 にした分が入る大きさ
+ * プロフィール画像や投稿の画像の上限 2MiB を base64 にした分が入る大きさ
  */
-private const val MAX_BODY_BYTES = 11 * 1024 * 1024
+private const val MAX_BODY_BYTES = 3 * 1024 * 1024
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {

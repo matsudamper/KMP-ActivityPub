@@ -14,9 +14,14 @@ type UserMutation {
     logout: Boolean! @lazy
     """
     ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す。
-    画像があれば本文は空でもよい
+    imageIds には uploadNoteImage で置いた画像を付ける順に渡す。画像があれば本文は空でもよい
     """
-    postNote(body: String!, requestId: String!, images: [PostNoteImageInput!]!): UserPostNoteResult! @lazy
+    postNote(body: String!, requestId: String!, imageIds: [ID!]!): UserPostNoteResult! @lazy
+    """
+    投稿に付ける画像を置く。image は画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで。
+    description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える
+    """
+    uploadNoteImage(image: String!, description: String): UploadNoteImageResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -86,13 +91,6 @@ enum DeletePasswordFailure {
     NO_PASSKEY
 }
 
-input PostNoteImageInput {
-    "画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで"
-    data: String!
-    "画像の説明文。無ければ null。1500 文字まで"
-    description: String
-}
-
 type UserPostNoteResult {
     "投稿の URL。投稿できなければ null"
     url: String
@@ -107,16 +105,8 @@ enum UserPostNoteFailure {
     TOO_LONG
     "画像が多すぎる。上限は 4 枚"
     TOO_MANY_IMAGES
-    "画像が大きすぎる。上限は 1 枚 2MiB"
-    IMAGE_TOO_LARGE
-    "base64 として読めないか、PNG / JPEG / GIF / WebP ではない画像がある"
-    UNSUPPORTED_IMAGE
-    "画像の説明文が長すぎる。上限は 1500 文字"
-    DESCRIPTION_TOO_LONG
-    "このサーバーでは画像を置けない"
-    UNSUPPORTED_OPERATION
-    "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
-    INTERNAL_SERVER_ERROR
+    "置いていないか、期限を過ぎたか、もう別の投稿に付けた画像がある"
+    IMAGE_NOT_FOUND
     "サーバーに DOMAIN が無く、投稿を配れない"
     FEDERATION_DISABLED
 }
@@ -157,5 +147,27 @@ enum UpdateProfileIconFailure {
     "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
     "サーバーに DOMAIN が無く、更新を配れない"
+    FEDERATION_DISABLED
+}
+
+type UploadNoteImageResult {
+    "postNote の imageIds に渡す id。置けなければ null"
+    imageId: ID
+    failure: UploadNoteImageFailure
+}
+
+enum UploadNoteImageFailure {
+    NOT_LOGGED_IN
+    "大きすぎる。上限は 2MiB"
+    TOO_LARGE
+    "base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
+    UNSUPPORTED_IMAGE
+    "画像の説明文が長すぎる。上限は 1500 文字"
+    DESCRIPTION_TOO_LONG
+    "このサーバーでは画像を置けない"
+    UNSUPPORTED_OPERATION
+    "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
+    INTERNAL_SERVER_ERROR
+    "サーバーに DOMAIN が無く、投稿を配れない"
     FEDERATION_DISABLED
 }
