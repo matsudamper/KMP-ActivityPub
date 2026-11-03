@@ -92,17 +92,14 @@ internal fun PostItem(
                 text = uiState.body,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (uiState.images.isNotEmpty()) {
-                PostImageGrid(
-                    images = uiState.images,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-            }
-            if (uiState.linkPreviews.isNotEmpty()) {
+            if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    items(uiState.images) { image ->
+                        PostImageCard(image = image)
+                    }
                     items(uiState.linkPreviews) { preview ->
                         LinkPreviewCard(
                             title = preview.title,

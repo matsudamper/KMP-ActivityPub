@@ -26,7 +26,7 @@ internal class KotpubRemoteUserLookup(
      * acct のユーザー名は preferredUsername から決まるので、無いアクターは返さない
      */
     override suspend fun findByUrl(url: String): RemoteUser? {
-        val actor = remoteActors.findActor(url) ?: return null
+        val actor = remoteActors.findActorByUrl(url) ?: return null
         if (url != actor.actorId) storedActors.remove(url)
         val username = actor.profile.preferredUsername ?: return null
         storedActors.save(

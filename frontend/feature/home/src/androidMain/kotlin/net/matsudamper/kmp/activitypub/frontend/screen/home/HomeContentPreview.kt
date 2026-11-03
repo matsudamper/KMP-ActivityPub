@@ -10,6 +10,7 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
@@ -36,7 +37,7 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
                         contentWarningLabel = null,
-                        body = "Kotlin 2.4 がリリースされました https://kotlinlang.org/",
+                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", onOpenUrl = {}),
                         postedAt = "1分前",
                         linkPreviews = listOf(
                             PostItemUiState.LinkPreview(
@@ -63,7 +64,7 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                         displayName = "Compose",
                         acct = "@compose@example.com",
                         contentWarningLabel = "ネタバレ注意",
-                        body = "Compose Multiplatform で Web と Android の画面を共有している",
+                        body = createPostBodyText(content = "Compose Multiplatform で Web と Android の画面を共有している", onOpenUrl = {}),
                         postedAt = "5分前",
                         linkPreviews = listOf(),
                         images = listOf(

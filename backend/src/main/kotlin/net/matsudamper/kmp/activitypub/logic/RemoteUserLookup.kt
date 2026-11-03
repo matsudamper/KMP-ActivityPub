@@ -10,7 +10,8 @@ interface RemoteUserLookup {
     ): RemoteUser?
 
     /**
-     * @param url アクターの URL。プロフィールの URL でも、相手のサーバーがアクター文書を返せば引ける
+     * @param url アクターの URL。プロフィールの URL でも、相手のサーバーがアクター文書を返すか、
+     *   アクターへリダイレクトすれば引ける。他のホストへリダイレクトした場合はそのホストのユーザーになる
      */
     suspend fun findByUrl(url: String): RemoteUser?
 }
