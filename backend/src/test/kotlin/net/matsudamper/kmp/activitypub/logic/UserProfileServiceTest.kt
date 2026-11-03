@@ -119,5 +119,5 @@ class UserProfileServiceTest {
     }
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
-        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive)
+        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null)
 }

@@ -17,7 +17,7 @@ class UserInfoResolverImpl : UserInfoResolver {
             val diContainer = GraphQlEngine.diContainer(env)
             val page = diContainer.homeTimelineService.page(userInfo.id, cursor, limit)
             val result = QlHomeTimeline(
-                posts = page.posts.map { it.toQlHomeTimelinePost(diContainer.linkPreviewService) },
+                posts = page.posts.map { it.toQlHomeTimelinePost(diContainer) },
                 nextCursor = page.nextCursor,
             )
             DataFetcherResult.Builder<QlHomeTimeline?>(result).build()

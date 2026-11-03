@@ -9,5 +9,6 @@ subscription HomeTimelinePosts {
         summary
         sensitive
         linkUrls
+        iconUrl
     }
 }

@@ -129,12 +129,14 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             val local = dsl.select(
                 NOTES.ID, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME,
                 DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
+                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
             ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.ID.`in`(localIds)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
             val remote = dsl.select(
                 REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.PUBLISHED_AT,
                 DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
                 REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
+                REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT,
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
             local.unionAll(remote).fetch { record ->
@@ -149,6 +151,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value5(),
                     record.value7(),
                     record.value8() == 1L,
+                    record.value10(),
+                    record.value11()?.let { StoredInstant.parse(it) },
                 )
             }
         }

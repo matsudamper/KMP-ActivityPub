@@ -96,7 +96,20 @@ class UserApi(
                 client.subscription(HomeTimelinePostsSubscription()).toFlow().collect { response ->
                     val post = response.data?.homeTimelinePosts
                     if (post != null) {
-                        emit(UserHomeTimelineResult.Post(post.id, post.content, post.publishedAt, post.username, post.host, post.displayName, post.summary, post.sensitive, post.linkUrls))
+                        emit(
+                            UserHomeTimelineResult.Post(
+                                id = post.id,
+                                content = post.content,
+                                publishedAt = post.publishedAt,
+                                username = post.username,
+                                host = post.host,
+                                displayName = post.displayName,
+                                summary = post.summary,
+                                sensitive = post.sensitive,
+                                linkUrls = post.linkUrls,
+                                iconUrl = post.iconUrl,
+                            ),
+                        )
                     }
                 }
                 // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
