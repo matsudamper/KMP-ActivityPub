@@ -11,6 +11,13 @@ sealed interface UserPostNoteResult {
 
     data object FederationDisabled : UserPostNoteResult
 
+    data object TooManyImages : UserPostNoteResult
+
+    /**
+     * 置いていないか、期限を過ぎた画像がある
+     */
+    data object ImageNotFound : UserPostNoteResult
+
     data class Failure(
         val message: String,
     ) : UserPostNoteResult

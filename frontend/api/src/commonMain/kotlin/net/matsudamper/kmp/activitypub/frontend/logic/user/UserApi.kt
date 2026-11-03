@@ -321,6 +321,8 @@ class UserApi(
             UserPostNoteFailure.EMPTY_BODY -> UserPostNoteResult.EmptyBody
             UserPostNoteFailure.TOO_LONG -> UserPostNoteResult.TooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
+            UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
+            UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
         }
     }

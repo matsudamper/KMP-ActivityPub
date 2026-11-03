@@ -81,6 +81,8 @@ internal class PostScreenViewModel(
                         UserPostNoteResult.EmptyBody -> "本文が空です"
                         UserPostNoteResult.TooLong -> "本文が長すぎます"
                         UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
+                        UserPostNoteResult.TooManyImages -> "画像が多すぎます"
+                        UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
                         is UserPostNoteResult.Failure -> result.message
                     }
                 } finally {
