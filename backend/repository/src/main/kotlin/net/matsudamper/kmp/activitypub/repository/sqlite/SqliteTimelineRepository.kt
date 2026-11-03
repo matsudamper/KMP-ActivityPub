@@ -154,6 +154,18 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> {
+        val members = jooq.withConnection { dsl ->
+            dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
+                .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+                .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(readable(dsl, accountId))
+                .orderBy(REMOTE_NOTES.SCORE_MS.desc(), REMOTE_NOTES.ID.desc()).limit(limit)
+                .fetch { it.toRemotePosition().member }
+        }
+        val hydrated = hydrate(accountId, members).associateBy { it.position.member }
+        return members.mapNotNull { hydrated[it] }
+    }
+
     override fun localPosition(publicId: String): TimelinePosition? = jooq.withConnection { dsl ->
         dsl.select(NOTES.ID, NOTES.PUBLISHED_AT).from(NOTES).where(NOTES.PUBLIC_ID.eq(publicId)).fetchOne()?.toLocalPosition()
     }

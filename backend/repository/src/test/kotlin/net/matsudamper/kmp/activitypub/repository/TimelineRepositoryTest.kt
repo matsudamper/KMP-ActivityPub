@@ -68,6 +68,19 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun actorPostsReturnOnlyThatActorsReadableNotesNewestFirst() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val older = assertNotNull(repository.receive(note("older", "public", setOf())))
+        val newer = assertNotNull(repository.receive(note("newer", "public", setOf())))
+        assertEquals(listOf(newer.member, older.member), repository.actorPosts(alice, ACTOR, 10).map { it.position.member })
+        assertEquals(listOf(newer.member), repository.actorPosts(alice, ACTOR, 1).map { it.position.member })
+        assertTrue(repository.actorPosts(alice, "https://other.example/actor", 10).isEmpty())
+        assertTrue(repository.actorPosts(accounts.getValue("bob"), ACTOR, 10).isEmpty())
+    }
+
+    @Test
     fun fanoutUsesRecentFollowersAndExplicitRecipientsWithPrivateVisibility() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         listOf("alice", "bob", "carol").forEach { repositories.followingRepository.add(accounts.getValue(it), ACTOR, NOW) }

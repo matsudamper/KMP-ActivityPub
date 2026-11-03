@@ -14,6 +14,11 @@ interface TimelineRepository {
     fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition>
     fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
+
+    /**
+     * [accountId] が読める、[actorUri] の保存済みの投稿を新しい順に返す
+     */
+    fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
 }
 
