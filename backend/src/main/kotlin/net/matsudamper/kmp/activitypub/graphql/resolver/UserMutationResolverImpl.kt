@@ -35,6 +35,7 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.UpdateDisplayNameResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
+import net.matsudamper.kmp.activitypub.repository.NoteImageId
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
@@ -213,9 +214,10 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         body: String,
         requestId: String,
+        imageIds: List<String>,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val result = postNote(body = body, requestId = requestId, env = env)
+        val result = postNote(body = body, requestId = requestId, imageIds = imageIds, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -247,6 +249,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     private fun postNote(
         body: String,
         requestId: String,
+        imageIds: List<String>,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -261,10 +264,20 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.notePostService
                 ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.FEDERATION_DISABLED)
 
-        return when (val result = notePostService.post(username = account.username, body = body, requestId = requestId)) {
+        val result =
+            notePostService.post(
+                accountId = account.id,
+                username = account.username,
+                body = body,
+                requestId = requestId,
+                imageIds = imageIds.map(::NoteImageId),
+            )
+        return when (result) {
             is PostNoteResult.Posted -> QlUserPostNoteResult(url = result.url, failure = null)
             PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
             PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)
+            PostNoteResult.TooManyImages -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_MANY_IMAGES)
+            PostNoteResult.ImageNotFound -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.IMAGE_NOT_FOUND)
             PostNoteResult.AccountNotFound -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
         }
     }

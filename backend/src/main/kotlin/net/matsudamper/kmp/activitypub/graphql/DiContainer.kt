@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.graphql
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
+import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
@@ -43,4 +44,8 @@ class DiContainer(
      * DOMAIN が無いと中継 URL を作れないので null
      */
     val remoteIconProxy: RemoteIconProxy?,
+    /**
+     * DOMAIN が無いと画像の URL を作れないので null
+     */
+    val noteImageUrls: NoteImageUrls?,
 )

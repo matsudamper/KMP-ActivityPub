@@ -20,7 +20,8 @@ interface DeliveryQueueRepository {
      *
      * 宛先が無くても投稿は記録する。フォロワーがいない間の投稿も outbox には並ぶ
      *
-     * 同じアカウントで同じ [NotePost.requestId] の投稿が既にあれば、何も書かずにその投稿を返す
+     * 同じアカウントで同じ [NotePost.requestId] の投稿が既にあれば、何も書かずにその投稿を返す。
+     * [NotePost.imageIds] のどれかが、このアカウントのまだ添えていない画像でなければ何も書かない
      */
     fun enqueueNote(post: NotePost): EnqueueNoteResult
 
@@ -91,6 +92,11 @@ sealed interface EnqueueNoteResult {
     ) : EnqueueNoteResult
 
     data object AccountNotFound : EnqueueNoteResult
+
+    /**
+     * 他の投稿に添えられたか、別のアカウントの画像
+     */
+    data object ImageNotAvailable : EnqueueNoteResult
 }
 
 /**
@@ -103,6 +109,7 @@ data class NotePost(
     val publicId: PublicNoteId,
     val contentHtml: String,
     val publishedAt: Instant,
+    val imageIds: List<NoteImageId>,
     val body: String,
     val inboxes: List<String>,
 )

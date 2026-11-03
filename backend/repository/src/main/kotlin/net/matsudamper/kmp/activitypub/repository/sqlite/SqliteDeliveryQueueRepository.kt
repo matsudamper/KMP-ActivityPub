@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.DSLContext
@@ -42,7 +43,14 @@ internal class SqliteDeliveryQueueRepository(
         }
     }
 
-    override fun enqueueNote(post: NotePost): EnqueueNoteResult = jooq.transaction { dsl ->
+    override fun enqueueNote(post: NotePost): EnqueueNoteResult =
+        try {
+            enqueueNoteInTransaction(post)
+        } catch (_: ImageNotAvailableException) {
+            EnqueueNoteResult.ImageNotAvailable
+        }
+
+    private fun enqueueNoteInTransaction(post: NotePost): EnqueueNoteResult = jooq.transaction { dsl ->
         val accountId =
             dsl.select(ACCOUNTS.ID)
                 .from(ACCOUNTS)
@@ -71,6 +79,21 @@ internal class SqliteDeliveryQueueRepository(
                     .returning(NOTES.ID)
                     .fetchOne(NOTES.ID),
             ) { "記録した投稿の id を引けない: ${post.publicId}" }
+
+        val attachedImageCount =
+            post.imageIds.withIndex().sumOf { (sortOrder, imageId) ->
+                dsl.update(NOTE_IMAGES)
+                    .set(NOTE_IMAGES.NOTE_ID, noteId)
+                    .set(NOTE_IMAGES.SORT_ORDER, sortOrder.toLong())
+                    .where(NOTE_IMAGES.PUBLIC_ID.eq(imageId.value))
+                    .and(NOTE_IMAGES.ACCOUNT_ID.eq(accountId))
+                    .and(NOTE_IMAGES.NOTE_ID.isNull)
+                    .execute()
+            }
+        if (attachedImageCount != post.imageIds.size) {
+            // 投稿の記録ごと取り消す。添えられない画像を落として配ると、選んだ画像の欠けた投稿になる
+            throw ImageNotAvailableException()
+        }
 
         val inboxes = post.inboxes.distinct()
         inboxes.forEach { inbox ->
@@ -269,3 +292,8 @@ internal class SqliteDeliveryQueueRepository(
         val remoteActorId: Long?,
     )
 }
+
+/**
+ * 投げるとトランザクションが巻き戻る
+ */
+private class ImageNotAvailableException : RuntimeException()

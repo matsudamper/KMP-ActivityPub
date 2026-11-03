@@ -89,6 +89,28 @@ CREATE INDEX notes_published_at ON notes (published_at, public_id);
 
 CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id);
 
+-- 投稿に添える画像。先に置いておき、投稿するときに note_id を埋める
+CREATE TABLE note_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    -- 画面が投稿に添えるときに指す ID
+    public_id TEXT NOT NULL UNIQUE,
+    -- 投稿に添える前は NULL
+    note_id INTEGER REFERENCES notes (id) ON DELETE CASCADE,
+    -- 投稿の中での並び順。投稿に添える前は NULL
+    sort_order INTEGER,
+    -- 画像の置き場の中での場所
+    path TEXT NOT NULL,
+    media_type TEXT NOT NULL,
+    -- 代替テキスト
+    description TEXT,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    uploaded_at TEXT NOT NULL
+);
+
+CREATE INDEX note_images_note_id_sort_order ON note_images (note_id, sort_order);
+
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

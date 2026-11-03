@@ -12,6 +12,14 @@ interface NoteRepository {
     fun findByPublicIds(publicIds: Set<PublicNoteId>): Map<PublicNoteId, Note>
 
     /**
+     * [DeliveryQueueRepository.enqueueNote] に渡した requestId で記録した投稿
+     */
+    fun findPublicIdByRequestId(
+        username: String,
+        requestId: String,
+    ): PublicNoteId?
+
+    /**
      * まだ送っていない配信も一緒に消える
      */
     fun delete(publicId: PublicNoteId)
@@ -59,9 +67,13 @@ data class NotePosition(
     val publicId: PublicNoteId,
 )
 
+/**
+ * @param images 添えた画像。並び順のまま
+ */
 data class Note(
     val publicId: PublicNoteId,
     val username: String,
     val contentHtml: String,
     val publishedAt: Instant,
+    val images: List<NoteImage>,
 )

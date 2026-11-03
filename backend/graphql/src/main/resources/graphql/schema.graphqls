@@ -81,4 +81,13 @@ type HomeTimelinePost {
     displayName: String!
     summary: String
     sensitive: Boolean!
+    images: [PostImage!]!
+}
+
+type PostImage {
+    url: String!
+    "代替テキスト"
+    description: String
+    width: Int!
+    height: Int!
 }

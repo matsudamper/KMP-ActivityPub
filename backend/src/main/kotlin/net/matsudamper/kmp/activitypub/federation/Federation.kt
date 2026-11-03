@@ -9,6 +9,9 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.NoteImageMedia
+import net.matsudamper.kmp.activitypub.logic.NoteImageService
+import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
@@ -18,6 +21,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.NoteImageRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -55,6 +59,7 @@ internal class Federation(
     followingRepository: FollowingRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
+    noteImageRepository: NoteImageRepository,
     timelineRepository: TimelineRepository,
     timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
@@ -65,7 +70,8 @@ internal class Federation(
     private val httpClient = OkHttpActivityPubClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
-    private val notes = RepositoryNoteStore(noteRepository)
+    val noteImageUrls: NoteImageUrls = NoteImageUrls(domain)
+    private val notes = RepositoryNoteStore(noteRepository = noteRepository, noteImageUrls = noteImageUrls)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
@@ -90,6 +96,9 @@ internal class Federation(
     val notePostService: NotePostService =
         NotePostService(
             directory = directory,
+            noteRepository = noteRepository,
+            noteImageRepository = noteImageRepository,
+            noteImageUrls = noteImageUrls,
             publisher = NotePublisher(notes, null),
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
@@ -123,6 +132,19 @@ internal class Federation(
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
+
+    /**
+     * 画像の置き場が無ければ null
+     */
+    val noteImageService: NoteImageService? =
+        imageStorage?.let { storage ->
+            NoteImageService(imageStorage = storage, noteImageRepository = noteImageRepository, clock = Clock.systemUTC())
+        }
+
+    /**
+     * 画像の置き場が無ければ null
+     */
+    val noteImageMedia: NoteImageMedia? = imageStorage?.let(::NoteImageMedia)
 
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
 

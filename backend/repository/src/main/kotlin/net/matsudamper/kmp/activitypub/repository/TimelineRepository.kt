@@ -32,6 +32,7 @@ data class TimelinePost(
     val displayName: String?,
     val summary: String?,
     val sensitive: Boolean,
+    val images: List<NoteImage>,
 )
 
 data class RemoteNoteInput(

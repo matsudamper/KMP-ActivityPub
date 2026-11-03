@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
  */
 internal class FakeDeliveryQueueRepository(
     private val notes: FakeNoteRepository,
+    private val noteImages: FakeNoteImageRepository,
 ) : DeliveryQueueRepository {
     val posts = mutableListOf<NotePost>()
     val followBodies = mutableListOf<String>()
@@ -28,8 +29,20 @@ internal class FakeDeliveryQueueRepository(
     override fun enqueueNote(post: NotePost): EnqueueNoteResult {
         val alreadyPosted = posts.firstOrNull { it.username.equals(post.username, ignoreCase = true) && it.requestId == post.requestId }
         if (alreadyPosted != null) return EnqueueNoteResult.AlreadyPosted(alreadyPosted.publicId)
+        // 本物はアカウントを username で引く。Fake では画像を置いたアカウントのどれかなら添えられることにする
+        if (!noteImages.attach(accountIds = noteImages.added.map { it.accountId }.toSet(), ids = post.imageIds)) {
+            return EnqueueNoteResult.ImageNotAvailable
+        }
         posts += post
-        notes.notes += Note(publicId = post.publicId, username = post.username, contentHtml = post.contentHtml, publishedAt = post.publishedAt)
+        notes.notes +=
+            Note(
+                publicId = post.publicId,
+                username = post.username,
+                contentHtml = post.contentHtml,
+                publishedAt = post.publishedAt,
+                images = noteImages.images(post.imageIds),
+            )
+        notes.requestIds[post.username.lowercase() to post.requestId] = post.publicId
         return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)
     }
 

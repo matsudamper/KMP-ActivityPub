@@ -9,6 +9,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
@@ -163,9 +164,62 @@ class NoteRepositoryTest {
         }
     }
 
+    @Test
+    fun `置いた画像を投稿に添え、並び順のまま引ける`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val images = repositories.noteImageRepository
+            images.add(newImage(id = "image-a"))
+            images.add(newImage(id = "image-b"))
+            assertEquals(
+                listOf("image-b", "image-a"),
+                images.findUnattached(USER1_ID, listOf(NoteImageId("image-b"), NoteImageId("image-a"), NoteImageId("missing"))).map { it.id.value },
+            )
+
+            val result =
+                repositories.deliveryQueueRepository.enqueueNote(
+                    notePost(publicId = "note-1", inboxes = listOf(), imageIds = listOf(NoteImageId("image-b"), NoteImageId("image-a"))),
+                )
+
+            assertEquals(EnqueueNoteResult.Enqueued(deliveries = 0), result)
+            assertEquals(listOf("image-b", "image-a"), repositories.noteRepository.find(PublicNoteId("note-1"))?.images?.map { it.id.value })
+            assertEquals(listOf(), images.findUnattached(USER1_ID, listOf(NoteImageId("image-a"))))
+            assertEquals(PublicNoteId("note-1"), repositories.noteRepository.findPublicIdByRequestId(username = "USER1", requestId = "request-note-1"))
+        }
+    }
+
+    @Test
+    fun `添えられない画像があれば投稿ごと記録しない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            repositories.noteImageRepository.add(newImage(id = "image-a"))
+            repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(), imageIds = listOf(NoteImageId("image-a"))))
+
+            val result =
+                repositories.deliveryQueueRepository.enqueueNote(
+                    notePost(publicId = "note-2", inboxes = listOf(INBOX_A), imageIds = listOf(NoteImageId("image-a"))),
+                )
+
+            assertEquals(EnqueueNoteResult.ImageNotAvailable, result)
+            assertNull(repositories.noteRepository.find(PublicNoteId("note-2")))
+            assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10))
+        }
+    }
+
+    private fun newImage(id: String): NewNoteImage =
+        NewNoteImage(
+            accountId = USER1_ID,
+            id = NoteImageId(id),
+            path = "users/1/note-image/$id",
+            mediaType = "image/webp",
+            description = null,
+            width = 10,
+            height = 20,
+            uploadedAt = NOW,
+        )
+
     private fun notePost(
         publicId: String,
         inboxes: List<String>,
+        imageIds: List<NoteImageId> = listOf(),
     ): NotePost =
         NotePost(
             username = "user1",
@@ -173,6 +227,7 @@ class NoteRepositoryTest {
             publicId = PublicNoteId(publicId),
             contentHtml = "<p>hello</p>",
             publishedAt = NOW,
+            imageIds = imageIds,
             body = "create-$publicId",
             inboxes = inboxes,
         )
@@ -181,5 +236,6 @@ class NoteRepositoryTest {
         val NOW: Instant = Instant.parse("2026-10-01T00:00:00Z")
         const val INBOX_A = "https://a.example/inbox"
         const val INBOX_B = "https://b.example/inbox"
+        val USER1_ID = AccountId(1)
     }
 }

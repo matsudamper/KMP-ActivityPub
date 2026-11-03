@@ -137,6 +137,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
+            val imagesByLocalNoteId = dsl.fetchAttachedNoteImages(localIds)
             local.unionAll(remote).fetch { record ->
                 val published = StoredInstant.parse(checkNotNull(record.value3()))
                 val actor = record.value6()
@@ -149,6 +150,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value5(),
                     record.value7(),
                     record.value8() == 1L,
+                    // 相手の投稿の添付はまだ受け取っていない
+                    if (actor == null) imagesByLocalNoteId[record.value1()].orEmpty() else listOf(),
                 )
             }
         }

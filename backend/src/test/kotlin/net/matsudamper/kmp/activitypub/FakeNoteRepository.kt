@@ -11,10 +11,20 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 internal class FakeNoteRepository : NoteRepository {
     val notes = mutableListOf<Note>()
 
+    /**
+     * 小文字の username と requestId から投稿を引く
+     */
+    val requestIds = mutableMapOf<Pair<String, String>, PublicNoteId>()
+
     override fun find(publicId: PublicNoteId): Note? = notes.firstOrNull { it.publicId == publicId }
 
     override fun findByPublicIds(publicIds: Set<PublicNoteId>): Map<PublicNoteId, Note> =
         notes.filter { it.publicId in publicIds }.associateBy { it.publicId }
+
+    override fun findPublicIdByRequestId(
+        username: String,
+        requestId: String,
+    ): PublicNoteId? = requestIds[username.lowercase() to requestId]
 
     override fun delete(publicId: PublicNoteId) {
         notes.removeAll { it.publicId == publicId }

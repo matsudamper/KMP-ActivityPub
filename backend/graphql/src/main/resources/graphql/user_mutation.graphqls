@@ -12,8 +12,11 @@ type UserMutation {
     deletePassword: DeletePasswordResult! @lazy
     "セッションが無くても成功する"
     logout: Boolean! @lazy
-    "ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す"
-    postNote(body: String!, requestId: String!): UserPostNoteResult! @lazy
+    """
+    ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す。
+    imageIds は POST /api/note-images で置いた画像で、この順に並べる。4 枚まで
+    """
+    postNote(body: String!, requestId: String!, imageIds: [ID!]!): UserPostNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -91,9 +94,14 @@ type UserPostNoteResult {
 
 enum UserPostNoteFailure {
     NOT_LOGGED_IN
+    "本文も画像も無い"
     EMPTY_BODY
     "本文が長すぎる。上限は 500 文字"
     TOO_LONG
+    "画像が多すぎる。上限は 4 枚"
+    TOO_MANY_IMAGES
+    "置いていないか、別の投稿に添えた画像"
+    IMAGE_NOT_FOUND
     "サーバーに DOMAIN が無く、投稿を配れない"
     FEDERATION_DISABLED
 }

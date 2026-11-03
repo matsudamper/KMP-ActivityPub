@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.FakeAccountRepository
 import net.matsudamper.kmp.activitypub.FakeDeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.FakeFollowerRepository
 import net.matsudamper.kmp.activitypub.FakeImageStorage
+import net.matsudamper.kmp.activitypub.FakeNoteImageRepository
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
 import net.matsudamper.kmp.activitypub.federation.FrontendWebPageUrls
@@ -37,7 +38,7 @@ class ProfileUpdateServiceTest {
     private val accountRepository = FakeAccountRepository(hasPasskey = { false })
     private val user1Id = accountRepository.add(username = "user1", passwordHash = "hash", passwordHashType = "type")
     private val followerRepository = FakeFollowerRepository()
-    private val deliveryQueueRepository = FakeDeliveryQueueRepository(FakeNoteRepository())
+    private val deliveryQueueRepository = FakeDeliveryQueueRepository(FakeNoteRepository(), FakeNoteImageRepository())
     private val imageStorage = FakeImageStorage()
     private var enqueuedCount = 0
 

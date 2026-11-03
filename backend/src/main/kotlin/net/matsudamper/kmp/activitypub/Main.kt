@@ -16,6 +16,8 @@ import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import io.opentelemetry.instrumentation.ktor.v3_0.KtorServerTelemetry
 import net.matsudamper.kmp.activitypub.federation.federationRoutes
+import net.matsudamper.kmp.activitypub.federation.noteImageMediaRoutes
+import net.matsudamper.kmp.activitypub.federation.noteImageUploadRoutes
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
@@ -143,6 +145,7 @@ internal fun Application.module(deps: AppDependencies) {
                 profileUpdateService = federation?.profileUpdateService,
                 profileIconUrls = federation?.profileIconUrls,
                 remoteIconProxy = federation?.remoteIconProxy,
+                noteImageUrls = federation?.noteImageUrls,
             ),
         )
 
@@ -161,6 +164,14 @@ internal fun Application.module(deps: AppDependencies) {
         }
         if (federation != null) {
             federationRoutes(federation)
+            val noteImageService = federation.noteImageService
+            if (noteImageService != null) {
+                noteImageUploadRoutes(service = noteImageService, sessionService = deps.sessionService, cookieSecure = deps.env.cookieSecure)
+            }
+            val noteImageMedia = federation.noteImageMedia
+            if (noteImageMedia != null) {
+                noteImageMediaRoutes(noteImageMedia)
+            }
         }
         staticRoutes(staticFiles)
     }

@@ -77,7 +77,7 @@ class UserProfileServiceTest {
 
     @Test
     fun localProfileUsesStoredPosts() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH, listOf()))
         val profile = assertNotNull(service.profile("alice", viewer))
         assertEquals(listOf(), requests)
         assertEquals("<p>保存済みの投稿</p>", profile.posts.single().contentHtml)

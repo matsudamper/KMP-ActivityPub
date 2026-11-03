@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.NoteImageRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -23,6 +24,7 @@ internal class SqliteRepositories(
     override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)
     override val deliveryQueueRepository: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
+    override val noteImageRepository: NoteImageRepository = SqliteNoteImageRepository(jooq)
     override val remoteActorRepository: RemoteActorRepository = SqliteRemoteActorRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)

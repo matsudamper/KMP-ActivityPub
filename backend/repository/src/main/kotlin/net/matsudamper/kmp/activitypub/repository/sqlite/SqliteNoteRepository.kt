@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
+import org.jooq.DSLContext
 import org.jooq.Record
 import org.jooq.impl.DSL
 
@@ -14,25 +15,40 @@ internal class SqliteNoteRepository(
     private val jooq: SqliteJooq,
 ) : NoteRepository {
     override fun find(publicId: PublicNoteId): Note? = jooq.withConnection { dsl ->
-        dsl.select(NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
+        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
             .from(NOTES)
             .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.PUBLIC_ID.eq(publicId.value))
-            .fetchOne()
-            ?.toNote()
+            .fetch()
+            .toNotes(dsl)
+            .singleOrNull()
     }
 
     override fun findByPublicIds(publicIds: Set<PublicNoteId>): Map<PublicNoteId, Note> {
         if (publicIds.isEmpty()) return mapOf()
 
         return jooq.withConnection { dsl ->
-            dsl.select(NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
+            dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
                 .from(NOTES)
                 .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.PUBLIC_ID.`in`(publicIds.map { it.value }))
-                .fetch { it.toNote() }
+                .fetch()
+                .toNotes(dsl)
                 .associateBy { it.publicId }
         }
+    }
+
+    override fun findPublicIdByRequestId(
+        username: String,
+        requestId: String,
+    ): PublicNoteId? = jooq.withConnection { dsl ->
+        dsl.select(NOTES.PUBLIC_ID)
+            .from(NOTES)
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .and(NOTES.REQUEST_ID.eq(requestId))
+            .fetchOne(NOTES.PUBLIC_ID)
+            ?.let(::PublicNoteId)
     }
 
     override fun delete(publicId: PublicNoteId) {
@@ -54,14 +70,15 @@ internal class SqliteNoteRepository(
         after: NotePosition?,
         limit: Int,
     ): List<Note> = jooq.withConnection { dsl ->
-        dsl.select(NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
+        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT)
             .from(NOTES)
             .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .and(olderThan(after))
             .orderBy(NOTES.PUBLISHED_AT.desc(), NOTES.PUBLIC_ID.desc())
             .limit(limit)
-            .fetch { it.toNote() }
+            .fetch()
+            .toNotes(dsl)
     }
 
     override fun listPositions(
@@ -128,11 +145,16 @@ internal class SqliteNoteRepository(
             publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
         )
 
-    private fun Record.toNote(): Note =
-        Note(
-            publicId = PublicNoteId(checkNotNull(get(NOTES.PUBLIC_ID))),
-            username = checkNotNull(get(ACCOUNTS.USERNAME)),
-            contentHtml = checkNotNull(get(NOTES.CONTENT_HTML)),
-            publishedAt = StoredInstant.parse(checkNotNull(get(NOTES.PUBLISHED_AT))),
-        )
+    private fun List<Record>.toNotes(dsl: DSLContext): List<Note> {
+        val imagesByNoteId = dsl.fetchAttachedNoteImages(map { checkNotNull(it.get(NOTES.ID)) })
+        return map { record ->
+            Note(
+                publicId = PublicNoteId(checkNotNull(record.get(NOTES.PUBLIC_ID))),
+                username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
+                contentHtml = checkNotNull(record.get(NOTES.CONTENT_HTML)),
+                publishedAt = StoredInstant.parse(checkNotNull(record.get(NOTES.PUBLISHED_AT))),
+                images = imagesByNoteId[record.get(NOTES.ID)].orEmpty(),
+            )
+        }
+    }
 }
