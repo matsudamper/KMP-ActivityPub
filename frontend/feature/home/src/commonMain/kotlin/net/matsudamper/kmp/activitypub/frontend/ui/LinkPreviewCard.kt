@@ -81,9 +81,11 @@ internal fun LinkPreviewCard(
     }
 }
 
-private val LinkPreviewCardWidth: Dp = 240.dp
+internal val LinkPreviewCardWidth: Dp = 240.dp
 
 /**
  * og:image の推奨サイズ 1200x630 の比率
  */
 private const val OgpImageAspectRatio: Float = 1200f / 630f
+
+internal val LinkPreviewImageHeight: Dp = LinkPreviewCardWidth / OgpImageAspectRatio
