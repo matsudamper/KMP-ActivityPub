@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import org.koin.core.annotation.Singleton
 
@@ -21,5 +22,6 @@ internal class PostNoteSubmitter(
     suspend fun submit(
         body: String,
         requestId: String,
-    ): UserPostNoteResult = scope.async { api.postNote(body = body, requestId = requestId) }.await()
+        images: List<UserPostNoteImage>,
+    ): UserPostNoteResult = scope.async { api.postNote(body = body, requestId = requestId, images = images) }.await()
 }

@@ -11,6 +11,18 @@ sealed interface UserPostNoteResult {
 
     data object FederationDisabled : UserPostNoteResult
 
+    data object TooManyImages : UserPostNoteResult
+
+    data object ImageTooLarge : UserPostNoteResult
+
+    data object UnsupportedImage : UserPostNoteResult
+
+    data object DescriptionTooLong : UserPostNoteResult
+
+    data object UnsupportedOperation : UserPostNoteResult
+
+    data object InternalServerError : UserPostNoteResult
+
     data class Failure(
         val message: String,
     ) : UserPostNoteResult

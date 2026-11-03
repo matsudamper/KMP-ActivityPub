@@ -10,9 +10,11 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import kotlin.coroutines.resume
 import kotlin.js.ExperimentalWasmJsInterop
+import kotlin.math.roundToInt
 import kotlinx.browser.document
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.jetbrains.skia.Codec
+import org.jetbrains.skia.Color
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.FilterMipmap
@@ -109,6 +111,41 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
             image.close()
         }
     }.getOrNull()
+
+internal actual fun ByteArray.toPostImageOrNull(maxSidePx: Int): PostImage? =
+    runCatching {
+        val codec = Codec.makeFromData(Data.makeFromBytes(this))
+        val pixelCount = codec.width.toLong() * codec.height
+        codec.close()
+        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching null
+
+        val image = Image.makeFromEncoded(this)
+        val scale = minOf(1f, maxSidePx.toFloat() / maxOf(image.width, image.height))
+        val targetWidth = maxOf(1, (image.width * scale).roundToInt())
+        val targetHeight = maxOf(1, (image.height * scale).roundToInt())
+        val surface = Surface.makeRasterN32Premul(targetWidth, targetHeight)
+        try {
+            // JPEG は透明を持てず、そのまま書き出すと透明な部分が黒くなる
+            surface.canvas.clear(Color.WHITE)
+            surface.canvas.drawImageRect(
+                image,
+                Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
+                Rect.makeWH(targetWidth.toFloat(), targetHeight.toFloat()),
+                // 既定の最近傍で大きく縮めるとギザギザになる
+                FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+                null,
+                true,
+            )
+            val snapshot = surface.makeImageSnapshot()
+            val jpeg = snapshot.encodeToData(EncodedImageFormat.JPEG, POST_IMAGE_JPEG_QUALITY)?.bytes ?: return@runCatching null
+            PostImage(jpeg = jpeg, bitmap = snapshot.toComposeImageBitmap())
+        } finally {
+            surface.close()
+            image.close()
+        }
+    }.getOrNull()
+
+private const val POST_IMAGE_JPEG_QUALITY = 85
 
 /**
  * 縮める前に一度は原寸で展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度

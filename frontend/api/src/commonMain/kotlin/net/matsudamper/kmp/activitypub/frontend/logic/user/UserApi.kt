@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.PostNoteImageInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -288,9 +289,14 @@ class UserApi(
     suspend fun postNote(
         body: String,
         requestId: String,
+        images: List<UserPostNoteImage>,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
-        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId)).execute()
+        val imageInputs =
+            images.map { image ->
+                PostNoteImageInput(data = Base64.Default.encode(image.bytes), description = Optional.presentIfNotNull(image.description))
+            }
+        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId, images = imageInputs)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
         val postNote = response.data?.user?.postNote ?: return UserPostNoteResult.Failure(response.failureMessage())
 
@@ -300,6 +306,12 @@ class UserApi(
             UserPostNoteFailure.EMPTY_BODY -> UserPostNoteResult.EmptyBody
             UserPostNoteFailure.TOO_LONG -> UserPostNoteResult.TooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
+            UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
+            UserPostNoteFailure.IMAGE_TOO_LARGE -> UserPostNoteResult.ImageTooLarge
+            UserPostNoteFailure.UNSUPPORTED_IMAGE -> UserPostNoteResult.UnsupportedImage
+            UserPostNoteFailure.DESCRIPTION_TOO_LONG -> UserPostNoteResult.DescriptionTooLong
+            UserPostNoteFailure.UNSUPPORTED_OPERATION -> UserPostNoteResult.UnsupportedOperation
+            UserPostNoteFailure.INTERNAL_SERVER_ERROR -> UserPostNoteResult.InternalServerError
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
         }
     }

@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -97,6 +98,30 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     val png = ByteArrayOutputStream().also { icon.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
     return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
+
+internal actual fun ByteArray.toPostImageOrNull(maxSidePx: Int): PostImage? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(this, 0, size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    val longestSide = maxOf(bounds.outWidth, bounds.outHeight)
+    val sampleSize = generateSequence(1) { it * 2 }.takeWhile { longestSide / it >= maxSidePx }.lastOrNull() ?: 1
+    val decoded = BitmapFactory.decodeByteArray(this, 0, size, BitmapFactory.Options().apply { inSampleSize = sampleSize }) ?: return null
+
+    val scale = minOf(1f, maxSidePx.toFloat() / maxOf(decoded.width, decoded.height))
+    val matrix = orientationMatrix(readExifOrientation()).apply { postScale(scale, scale) }
+    val transformed = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+    val opaque = Bitmap.createBitmap(transformed.width, transformed.height, Bitmap.Config.ARGB_8888)
+    Canvas(opaque).apply {
+        // JPEG は透明を持てず、そのまま書き出すと透明な部分が黒くなる
+        drawColor(android.graphics.Color.WHITE)
+        drawBitmap(transformed, 0f, 0f, null)
+    }
+    val jpeg = ByteArrayOutputStream().also { opaque.compress(Bitmap.CompressFormat.JPEG, POST_IMAGE_JPEG_QUALITY, it) }.toByteArray()
+    return PostImage(jpeg = jpeg, bitmap = opaque.asImageBitmap())
+}
+
+private const val POST_IMAGE_JPEG_QUALITY = 85
 
 private fun ByteArray.readExifOrientation(): Int =
     runCatching { ExifInterface(ByteArrayInputStream(this)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }

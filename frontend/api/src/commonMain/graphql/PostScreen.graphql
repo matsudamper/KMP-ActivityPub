@@ -1,6 +1,6 @@
-mutation UserPostNote($body: String!, $requestId: String!) {
+mutation UserPostNote($body: String!, $requestId: String!, $images: [PostNoteImageInput!]!) {
     user {
-        postNote(body: $body, requestId: $requestId) {
+        postNote(body: $body, requestId: $requestId, images: $images) {
             url
             failure
         }
