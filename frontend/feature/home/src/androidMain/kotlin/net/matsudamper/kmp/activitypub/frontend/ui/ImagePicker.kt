@@ -105,12 +105,21 @@ internal actual fun ByteArray.toLosslessWebpOrNull(): ByteArray? {
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
     if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return null
 
-    val decoded = runCatching { BitmapFactory.decodeByteArray(this, 0, size) }.getOrNull() ?: return null
-    // 向きを変えるだけなので、補間して画素を混ぜない
-    val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), false)
-    // Android 10 は WEBP_LOSSLESS が無く、WEBP の品質 100 が可逆になる
-    val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP
-    return ByteArrayOutputStream().also { oriented.compress(format, 100, it) }.toByteArray()
+    // 向きを変えるときに原寸のビットマップをもう 1 枚作るので、展開と同じくメモリが足りなくなることがある
+    return runCatching {
+        val decoded = BitmapFactory.decodeByteArray(this, 0, size) ?: return@runCatching null
+        // 向きを変えるだけなので、補間して画素を混ぜない
+        val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), false)
+        try {
+            // Android 10 は WEBP_LOSSLESS が無く、WEBP の品質 100 が可逆になる
+            val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP
+            val output = ByteArrayOutputStream()
+            if (oriented.compress(format, 100, output)) output.toByteArray() else null
+        } finally {
+            if (oriented !== decoded) oriented.recycle()
+            decoded.recycle()
+        }
+    }.getOrNull()
 }
 
 /**

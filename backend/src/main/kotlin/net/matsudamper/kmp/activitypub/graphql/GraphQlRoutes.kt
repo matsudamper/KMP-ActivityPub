@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.graphql
 
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -43,39 +45,56 @@ private const val MAX_MULTIPART_BODY_BYTES = NotePostService.MAX_IMAGE_BYTES + 1
  */
 private const val REQUIRE_PREFLIGHT_HEADER = "Apollo-Require-Preflight"
 
+/**
+ * multipart はログインを確かめる前に画像をメモリに読むので、未ログインでも同時に送られるとメモリが足りなくなる。
+ * 受け取ってから応答するまでの数をこれで抑える
+ */
+private const val MAX_CONCURRENT_MULTIPART_REQUESTS = 4
+
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
+    val multipartPermits = Semaphore(MAX_CONCURRENT_MULTIPART_REQUESTS)
     post(GRAPHQL_PATH) {
         val contentType = call.request.contentType()
-        val received =
-            when {
-                contentType.match(ContentType.Application.Json) -> receiveJson(call)
+        when {
+            contentType.match(ContentType.Application.Json) -> respond(call, engine, receiveJson(call))
 
-                contentType.match(ContentType.MultiPart.FormData) -> receiveMultipart(call)
+            contentType.match(ContentType.MultiPart.FormData) -> multipartPermits.withPermit { respond(call, engine, receiveMultipart(call)) }
 
-                // text/plain などはプリフライト無しで別オリジンから送れる
-                else -> ReceivedGraphQlRequest.Rejected(
+            // text/plain などはプリフライト無しで別オリジンから送れる
+            else -> respond(
+                call,
+                engine,
+                ReceivedGraphQlRequest.Rejected(
                     message = "Content-Type は application/json か multipart/form-data にすること",
                     status = HttpStatusCode.UnsupportedMediaType,
-                )
-            }
-        when (received) {
-            is ReceivedGraphQlRequest.Rejected -> {
-                call.respondText(received.message, status = received.status)
-            }
+                ),
+            )
+        }
+    }
+}
 
-            ReceivedGraphQlRequest.Unreadable -> {
-                call.respondJson(
-                    GraphQlBadRequest.serializer(),
-                    GraphQlBadRequest("GraphQL のリクエストとして読めない"),
-                    status = HttpStatusCode.BadRequest,
-                )
-            }
+private suspend fun respond(
+    call: ApplicationCall,
+    engine: GraphQlEngine,
+    received: ReceivedGraphQlRequest,
+) {
+    when (received) {
+        is ReceivedGraphQlRequest.Rejected -> {
+            call.respondText(received.message, status = received.status)
+        }
 
-            is ReceivedGraphQlRequest.Accepted -> {
-                // graphql-java の execute は blocking で、CIO はルート内の blocking を別スレッドに移さない
-                val result = withOpenTelemetryContext { engine.execute(received.request, call, received.uploads) }
-                call.respondJson(JsonObject.serializer(), result)
-            }
+        ReceivedGraphQlRequest.Unreadable -> {
+            call.respondJson(
+                GraphQlBadRequest.serializer(),
+                GraphQlBadRequest("GraphQL のリクエストとして読めない"),
+                status = HttpStatusCode.BadRequest,
+            )
+        }
+
+        is ReceivedGraphQlRequest.Accepted -> {
+            // graphql-java の execute は blocking で、CIO はルート内の blocking を別スレッドに移さない
+            val result = withOpenTelemetryContext { engine.execute(received.request, call, received.uploads) }
+            call.respondJson(JsonObject.serializer(), result)
         }
     }
 }
