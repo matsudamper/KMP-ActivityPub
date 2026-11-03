@@ -33,14 +33,31 @@ private fun HomeTimelinePreview(footer: HomeScreenUiState.TimelineFooter) {
                     HomeScreenUiState.TimelineItem(
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
-                        body = "Kotlin 2.4 がリリースされました",
+                        body = "Kotlin 2.4 がリリースされました https://kotlinlang.org/",
                         postedAt = "1分前",
+                        linkPreviews = listOf(
+                            HomeScreenUiState.LinkPreview(
+                                title = "Kotlin Programming Language",
+                                siteName = "Kotlin",
+                                imageUrl = "https://example.com/ogp.png",
+                                listener = AndroidPreviewLinkPreviewListener,
+                            ),
+                            HomeScreenUiState.LinkPreview(
+                                title = "https://example.com/not-loaded",
+                                siteName = "example.com",
+                                imageUrl = null,
+                                listener = AndroidPreviewLinkPreviewListener,
+                            ),
+                        ),
+                        listener = AndroidPreviewTimelineItemListener,
                     ),
                     HomeScreenUiState.TimelineItem(
                         displayName = "Compose",
                         acct = "@compose@example.com",
                         body = "Compose Multiplatform で Web と Android の画面を共有している",
                         postedAt = "5分前",
+                        linkPreviews = listOf(),
+                        listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
                 timelineRefreshing = false,
@@ -206,6 +223,14 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickFollowers() = Unit
 
     override fun onScreenShown() = Unit
+}
+
+private object AndroidPreviewTimelineItemListener : HomeScreenUiState.TimelineItemListener {
+    override fun onVisible() = Unit
+}
+
+private object AndroidPreviewLinkPreviewListener : HomeScreenUiState.LinkPreviewListener {
+    override fun onClick() = Unit
 }
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {

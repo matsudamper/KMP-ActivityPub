@@ -186,7 +186,7 @@ class QueryResolverImpl : QueryResolver {
                     username = user.username,
                     host = user.host,
                     displayName = user.displayName,
-                    iconUrl = user.iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(remoteUrl = it, updatedAt = user.updatedAt) },
+                    iconUrl = user.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = user.updatedAt) },
                 )
             },
             nextCursor = nextCursor?.encode(),
@@ -209,7 +209,7 @@ class QueryResolverImpl : QueryResolver {
             if (isLocal) {
                 diContainer.profileIconUrls?.find(username)
             } else {
-                iconUrl?.let { diContainer.remoteIconProxy?.proxyUrlOf(remoteUrl = it, updatedAt = updatedAt) }
+                iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = updatedAt) }
             },
         )
     }
