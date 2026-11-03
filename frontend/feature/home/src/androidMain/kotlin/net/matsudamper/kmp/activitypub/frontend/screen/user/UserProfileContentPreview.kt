@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
@@ -24,7 +25,7 @@ private fun UserProfileContentPreview() {
                             displayName = "Alice",
                             acct = "@alice@example.social",
                             contentWarningLabel = null,
-                            body = "今日はプロフィール画面を作っています。 https://kotlinlang.org/",
+                            body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", onOpenUrl = {}),
                             postedAt = "2026-11-01T12:00:00Z",
                             linkPreviews = listOf(
                                 PostItemUiState.LinkPreview(
