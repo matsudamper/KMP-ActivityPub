@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.graphics.ImageBitmap
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 data class PostScreenUiState(
@@ -21,8 +20,11 @@ data class PostScreenUiState(
     val addImageLoadingVisible: Boolean,
     val listener: Listener,
 ) {
+    /**
+     * @param imageBytes 選んだファイルそのまま。表示するときに読む
+     */
     data class Image(
-        val bitmap: ImageBitmap,
+        val imageBytes: ByteArray,
         val removeButtonEnabled: Boolean,
         val listener: ImageListener,
     )

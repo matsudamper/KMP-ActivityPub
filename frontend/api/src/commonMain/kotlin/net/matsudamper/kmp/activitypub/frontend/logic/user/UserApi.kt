@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
@@ -311,8 +312,15 @@ class UserApi(
 
     suspend fun uploadNoteImage(image: UserPostNoteImage): UserUploadNoteImageResult {
         val client = clients.client.value ?: return UserUploadNoteImageResult.Failure("接続先が未設定")
-        val mutation = UploadNoteImageMutation(image = Base64.Default.encode(image.bytes), description = Optional.presentIfNotNull(image.description))
-        val response = client.mutation(mutation).execute()
+        val upload =
+            DefaultUpload.Builder()
+                .content(image.bytes)
+                .contentType("application/octet-stream")
+                .fileName("image")
+                .build()
+        val mutation = UploadNoteImageMutation(image = upload, description = Optional.presentIfNotNull(image.description))
+        // multipart はプリフライト無しで別オリジンから送れるので、サーバーはこのヘッダーで弾いている
+        val response = client.mutation(mutation).addHttpHeader("Apollo-Require-Preflight", "true").execute()
         if (response.exception != null || response.hasErrors()) return UserUploadNoteImageResult.Failure(response.failureMessage())
         val uploadNoteImage = response.data?.user?.uploadNoteImage ?: return UserUploadNoteImageResult.Failure(response.failureMessage())
 

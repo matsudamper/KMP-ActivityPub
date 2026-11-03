@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -164,8 +164,8 @@ private fun SelectedImage(image: PostScreenUiState.Image) {
     Box(
         modifier = Modifier.size(SELECTED_IMAGE_SIZE).clip(RoundedCornerShape(8.dp)),
     ) {
-        Image(
-            bitmap = image.bitmap,
+        AsyncImage(
+            model = image.imageBytes,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),

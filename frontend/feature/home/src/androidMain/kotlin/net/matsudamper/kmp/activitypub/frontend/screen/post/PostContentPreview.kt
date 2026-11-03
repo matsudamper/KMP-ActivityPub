@@ -3,18 +3,19 @@ package net.matsudamper.kmp.activitypub.frontend.screen.post
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Canvas
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Paint
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.ColorImage
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImagePreviewHandler
+import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 @Preview
 @Composable
 private fun PostContentPreview() {
-    MaterialTheme {
+    PostPreviewTheme {
         PostContent(
             uiState = previewUiState(images = listOf(), addImageLoadingVisible = false),
             snackbarHostState = SnackbarHostState(),
@@ -25,12 +26,12 @@ private fun PostContentPreview() {
 @Preview
 @Composable
 private fun PostContentImagesPreview() {
-    MaterialTheme {
+    PostPreviewTheme {
         PostContent(
             uiState = previewUiState(
-                images = listOf(Color(0xFF4FC3F7), Color(0xFFFFB74D), Color(0xFF81C784)).map { color ->
+                images = List(3) {
                     PostScreenUiState.Image(
-                        bitmap = previewBitmap(color),
+                        imageBytes = ByteArray(0),
                         removeButtonEnabled = true,
                         listener = AndroidPreviewImageListener,
                     )
@@ -58,13 +59,15 @@ private fun previewUiState(
         listener = AndroidPreviewPostListener,
     )
 
-private fun previewBitmap(color: Color): ImageBitmap {
-    val bitmap = ImageBitmap(width = 120, height = 80)
-    Canvas(bitmap).apply {
-        drawRect(Rect(0f, 0f, 120f, 80f), Paint().apply { this.color = color })
-        drawRect(Rect(20f, 20f, 60f, 60f), Paint().apply { this.color = Color.White })
+@OptIn(ExperimentalCoilApi::class)
+@Composable
+private fun PostPreviewTheme(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalInspectionMode provides true,
+        LocalAsyncImagePreviewHandler provides AsyncImagePreviewHandler { ColorImage(0xFF4FC3F7.toInt()) },
+    ) {
+        MaterialTheme(content = content)
     }
-    return bitmap
 }
 
 private object AndroidPreviewPostListener : PostScreenUiState.Listener {

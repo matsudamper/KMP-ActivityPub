@@ -8,6 +8,7 @@ import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.GraphQlUpload
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
@@ -227,7 +228,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     override fun uploadNoteImage(
         userMutation: QlUserMutation,
-        image: String,
+        image: GraphQlUpload,
         description: String?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUploadNoteImageResult>> {
@@ -297,7 +298,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     }
 
     private fun uploadNoteImage(
-        image: String,
+        image: GraphQlUpload,
         description: String?,
         env: DataFetchingEnvironment,
     ): QlUploadNoteImageResult {
@@ -312,12 +313,8 @@ class UserMutationResolverImpl : UserMutationResolver {
         val notePostService =
             diContainer.notePostService
                 ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.FEDERATION_DISABLED)
-        val bytes =
-            runCatching { Base64.Default.decode(image) }.getOrNull()
-                ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.UNSUPPORTED_IMAGE)
-
         val failure =
-            when (val result = notePostService.uploadImage(username = account.username, image = NoteImageUpload(bytes = bytes, description = description))) {
+            when (val result = notePostService.uploadImage(username = account.username, image = NoteImageUpload(bytes = image.bytes, description = description))) {
                 is UploadNoteImageResult.Uploaded -> return QlUploadNoteImageResult(imageId = result.publicId.value, failure = null)
                 UploadNoteImageResult.TooLarge -> QlUploadNoteImageFailure.TOO_LARGE
                 UploadNoteImageResult.UnsupportedImage -> QlUploadNoteImageFailure.UNSUPPORTED_IMAGE

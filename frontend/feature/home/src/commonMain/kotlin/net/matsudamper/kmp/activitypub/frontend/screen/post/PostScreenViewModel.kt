@@ -4,20 +4,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
-import net.matsudamper.kmp.activitypub.frontend.ui.PostImage
-import net.matsudamper.kmp.activitypub.frontend.ui.toPostImageOrNull
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -102,7 +98,7 @@ internal class PostScreenViewModel(
             if (image == null) return@launch
             renewRequestId()
             viewModelStateFlow.update { state ->
-                state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), image = image), error = null)
+                state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), bytes = image), error = null)
             }
         }
     }
@@ -114,16 +110,11 @@ internal class PostScreenViewModel(
     }
 
     /**
-     * 読めなければメッセージを出して null
+     * 読めなければメッセージを出して null。形式はサーバーが判定するので、ここでは見ない
      */
-    private suspend fun readImage(file: PickedImageFile): PostImage? =
-        when (val result = file.read(maxBytes = MAX_SOURCE_IMAGE_BYTES)) {
-            is PickedImageFile.ReadResult.Success -> {
-                // 展開と JPEG への書き出しは画面を止めるほど重い
-                val image = withContext(Dispatchers.Default) { result.bytes.toPostImageOrNull(maxSidePx = IMAGE_MAX_SIDE_PX, maxBytes = MAX_IMAGE_BYTES) }
-                if (image == null) events.send { it.showMessage("画像として読み込めませんでした") }
-                image
-            }
+    private suspend fun readImage(file: PickedImageFile): ByteArray? =
+        when (val result = file.read(maxBytes = MAX_IMAGE_BYTES)) {
+            is PickedImageFile.ReadResult.Success -> result.bytes
 
             PickedImageFile.ReadResult.TooLarge -> {
                 events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") }
@@ -148,7 +139,7 @@ internal class PostScreenViewModel(
                         postNoteSubmitter.submit(
                             body = state.body,
                             requestId = requestId(),
-                            images = state.images.map { UserPostNoteImage(bytes = it.image.jpeg, description = null) },
+                            images = state.images.map { UserPostNoteImage(bytes = it.bytes, description = null) },
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -226,7 +217,7 @@ internal class PostScreenViewModel(
             images =
             viewModelState.images.map { selected ->
                 PostScreenUiState.Image(
-                    bitmap = selected.image.bitmap,
+                    imageBytes = selected.bytes,
                     removeButtonEnabled = viewModelState.submitting.not(),
                     listener = selected.removeListener,
                 )
@@ -251,7 +242,7 @@ internal class PostScreenViewModel(
 
     inner class SelectedImage(
         val id: String,
-        val image: PostImage,
+        val bytes: ByteArray,
     ) {
         /**
          * 状態が変わるたびに作り直すと、画像の部品が毎回描き直される
@@ -282,16 +273,6 @@ private const val REQUEST_ID_KEY = "requestId"
 private const val MAX_IMAGES = 4
 
 /**
- * 長い辺をこの大きさまで縮めて送る
- */
-private const val IMAGE_MAX_SIDE_PX = 1920
-
-/**
  * サーバーの 1 枚あたりの上限
  */
-private const val MAX_IMAGE_BYTES = 2 * 1024 * 1024
-
-/**
- * 縮める前のファイルの上限。大きな写真を丸ごと読むとメモリが足りなくなる
- */
-private const val MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024
+private const val MAX_IMAGE_BYTES = 20 * 1024 * 1024

@@ -3,10 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
 import android.graphics.Matrix
-import android.graphics.Paint
-import android.graphics.Rect
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -22,7 +19,6 @@ import androidx.exifinterface.media.ExifInterface
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
-import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -101,40 +97,6 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     val png = ByteArrayOutputStream().also { icon.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
     return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
-
-internal actual fun ByteArray.toPostImageOrNull(
-    maxSidePx: Int,
-    maxBytes: Int,
-): PostImage? {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(this, 0, size, bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-    val longestSide = maxOf(bounds.outWidth, bounds.outHeight)
-    val sampleSize = generateSequence(1) { it * 2 }.takeWhile { longestSide / it >= maxSidePx }.lastOrNull() ?: 1
-    val decoded = BitmapFactory.decodeByteArray(this, 0, size, BitmapFactory.Options().apply { inSampleSize = sampleSize }) ?: return null
-    val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), true)
-    val orientedLongestSide = maxOf(oriented.width, oriented.height)
-
-    return postImageSideCandidates(sourceLongestSide = orientedLongestSide, maxSidePx = maxSidePx)
-        .asSequence()
-        .map { side -> oriented.toOpaqueJpeg(scale = side.toFloat() / orientedLongestSide) }
-        .firstOrNull { it.jpeg.size <= maxBytes }
-}
-
-private fun Bitmap.toOpaqueJpeg(scale: Float): PostImage {
-    val opaque =
-        Bitmap.createBitmap(maxOf(1, (width * scale).roundToInt()), maxOf(1, (height * scale).roundToInt()), Bitmap.Config.ARGB_8888)
-    Canvas(opaque).apply {
-        // JPEG は透明を持てず、そのまま書き出すと透明な部分が黒くなる
-        drawColor(android.graphics.Color.WHITE)
-        drawBitmap(this@toOpaqueJpeg, null, Rect(0, 0, opaque.width, opaque.height), Paint(Paint.FILTER_BITMAP_FLAG))
-    }
-    val jpeg = ByteArrayOutputStream().also { opaque.compress(Bitmap.CompressFormat.JPEG, POST_IMAGE_JPEG_QUALITY, it) }.toByteArray()
-    return PostImage(jpeg = jpeg, bitmap = opaque.asImageBitmap())
-}
-
-private const val POST_IMAGE_JPEG_QUALITY = 85
 
 private fun ByteArray.readExifOrientation(): Int =
     runCatching { ExifInterface(ByteArrayInputStream(this)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }

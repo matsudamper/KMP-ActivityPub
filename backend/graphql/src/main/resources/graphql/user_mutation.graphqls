@@ -18,10 +18,10 @@ type UserMutation {
     """
     postNote(body: String!, requestId: String!, imageIds: [ID!]!): UserPostNoteResult! @lazy
     """
-    投稿に付ける画像を置く。image は画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで。
+    投稿に付ける画像を置く。multipart で送る。PNG / JPEG / GIF / WebP で 20MB まで。
     description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える
     """
-    uploadNoteImage(image: String!, description: String): UploadNoteImageResult! @lazy
+    uploadNoteImage(image: Upload!, description: String): UploadNoteImageResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -158,9 +158,9 @@ type UploadNoteImageResult {
 
 enum UploadNoteImageFailure {
     NOT_LOGGED_IN
-    "大きすぎる。上限は 2MiB"
+    "大きすぎる。上限は 20MB"
     TOO_LARGE
-    "base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
+    "PNG / JPEG / GIF / WebP ではない"
     UNSUPPORTED_IMAGE
     "画像の説明文が長すぎる。上限は 1500 文字"
     DESCRIPTION_TOO_LONG

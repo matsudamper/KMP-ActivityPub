@@ -47,22 +47,3 @@ internal class ProfileIconImage(
     val png: ByteArray,
     val bitmap: ImageBitmap,
 )
-
-/**
- * 長い辺が [maxSidePx] に収まるよう縮め、JPEG に描き直す。元が小さければ拡大しない。
- * 細かい絵は JPEG にしても大きいので、[maxBytes] に収まるまで長い辺をさらに縮めて描き直す。
- * 透明な部分は白で塗る。画像として読めないか、画素数が大きすぎて展開できなければ null
- */
-internal expect fun ByteArray.toPostImageOrNull(
-    maxSidePx: Int,
-    maxBytes: Int,
-): PostImage?
-
-/**
- * @param jpeg 送る画像。写真の位置情報などのメタデータは描き直したときに落ちる
- * @param bitmap [jpeg] と同じ絵。プレビューに出す
- */
-internal class PostImage(
-    val jpeg: ByteArray,
-    val bitmap: ImageBitmap,
-)

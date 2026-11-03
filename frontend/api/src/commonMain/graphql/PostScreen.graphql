@@ -7,7 +7,7 @@ mutation UserPostNote($body: String!, $requestId: String!, $imageIds: [ID!]!) {
     }
 }
 
-mutation UploadNoteImage($image: String!, $description: String) {
+mutation UploadNoteImage($image: Upload!, $description: String) {
     user {
         uploadNoteImage(image: $image, description: $description) {
             imageId

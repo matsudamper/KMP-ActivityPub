@@ -1,14 +1,19 @@
 package net.matsudamper.kmp.activitypub.graphql
 
-import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.contentType
 import io.ktor.server.request.header
 import io.ktor.server.request.receiveChannel
+import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
@@ -17,52 +22,145 @@ import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.json.ServerJson
 import net.matsudamper.kmp.activitypub.json.respondJson
+import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 
 internal const val GRAPHQL_PATH = "/graphql"
 
 /**
- * プロフィール画像や投稿の画像の上限 2MiB を base64 にした分が入る大きさ
+ * プロフィール画像の上限 2MiB を base64 にした分が入る大きさ
  */
 private const val MAX_BODY_BYTES = 3 * 1024 * 1024
 
+/**
+ * 投稿の画像の上限に、operations と map と multipart の区切りが入る分を足した大きさ
+ */
+private const val MAX_MULTIPART_BODY_BYTES = NotePostService.MAX_IMAGE_BYTES + 1024 * 1024
+
+/**
+ * Apollo Kotlin の multipart に付けさせるヘッダー。multipart/form-data はプリフライト無しで別オリジンから送れるので、
+ * 単純でないヘッダーを求めてプリフライトを起こさせる
+ */
+private const val REQUIRE_PREFLIGHT_HEADER = "Apollo-Require-Preflight"
+
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     post(GRAPHQL_PATH) {
-        // text/plain などはプリフライト無しで別オリジンから送れる
-        if (!call.request.contentType().match(ContentType.Application.Json)) {
-            call.respondText("Content-Type は application/json にすること", status = HttpStatusCode.UnsupportedMediaType)
-            return@post
-        }
+        val contentType = call.request.contentType()
+        val received =
+            when {
+                contentType.match(ContentType.Application.Json) -> receiveJson(call)
 
-        val declaredLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
-        if (declaredLength != null && declaredLength > MAX_BODY_BYTES) {
-            call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
-            return@post
-        }
+                contentType.match(ContentType.MultiPart.FormData) -> receiveMultipart(call)
 
-        // chunked は上の判定をすり抜ける
-        val bodyBytes = call.receiveChannel().readBuffer(MAX_BODY_BYTES + 1L).readByteArray()
-        if (bodyBytes.size > MAX_BODY_BYTES) {
-            call.respondText("ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
-            return@post
-        }
-        val body = bodyBytes.decodeToString()
+                // text/plain などはプリフライト無しで別オリジンから送れる
+                else -> ReceivedGraphQlRequest.Rejected(
+                    message = "Content-Type は application/json か multipart/form-data にすること",
+                    status = HttpStatusCode.UnsupportedMediaType,
+                )
+            }
+        when (received) {
+            is ReceivedGraphQlRequest.Rejected -> {
+                call.respondText(received.message, status = received.status)
+            }
 
-        val request =
-            runCatching {
-                ServerJson.value.decodeFromString(GraphQlRequest.serializer(), body)
-            }.getOrElse {
+            ReceivedGraphQlRequest.Unreadable -> {
                 call.respondJson(
                     GraphQlBadRequest.serializer(),
                     GraphQlBadRequest("GraphQL のリクエストとして読めない"),
                     status = HttpStatusCode.BadRequest,
                 )
-                return@post
             }
 
-        // graphql-java の execute は blocking で、CIO はルート内の blocking を別スレッドに移さない
-        val result = withOpenTelemetryContext { engine.execute(request, call) }
-
-        call.respondJson(JsonObject.serializer(), result)
+            is ReceivedGraphQlRequest.Accepted -> {
+                // graphql-java の execute は blocking で、CIO はルート内の blocking を別スレッドに移さない
+                val result = withOpenTelemetryContext { engine.execute(received.request, call, received.uploads) }
+                call.respondJson(JsonObject.serializer(), result)
+            }
+        }
     }
+}
+
+private suspend fun receiveJson(call: ApplicationCall): ReceivedGraphQlRequest {
+    if (call.declaredLengthExceeds(MAX_BODY_BYTES.toLong())) return payloadTooLarge()
+
+    // chunked は上の判定をすり抜ける
+    val bodyBytes = call.receiveChannel().readBuffer(MAX_BODY_BYTES + 1L).readByteArray()
+    if (bodyBytes.size > MAX_BODY_BYTES) return payloadTooLarge()
+
+    val request = decodeRequest(bodyBytes.decodeToString()) ?: return ReceivedGraphQlRequest.Unreadable
+    return ReceivedGraphQlRequest.Accepted(request = request, uploads = mapOf())
+}
+
+/**
+ * GraphQL multipart request の形を受ける。ファイルは変数の直下にだけ置ける
+ */
+private suspend fun receiveMultipart(call: ApplicationCall): ReceivedGraphQlRequest {
+    if (call.request.header(REQUIRE_PREFLIGHT_HEADER) == null) {
+        return ReceivedGraphQlRequest.Rejected(message = "$REQUIRE_PREFLIGHT_HEADER ヘッダーを付けること", status = HttpStatusCode.BadRequest)
+    }
+    if (call.declaredLengthExceeds(MAX_MULTIPART_BODY_BYTES.toLong())) return payloadTooLarge()
+
+    val fields = mutableMapOf<String, String>()
+    val files = mutableMapOf<String, ByteArray>()
+    var fileTooLarge = false
+    // Ktor は部分ごとの上限を超えると、解析しているコルーチンごと呼び出しを 500 で落とす。
+    // ここでは 413 を返せるよう、Ktor の上限は本文全体の大きさにし、ファイルは自分で数える
+    call.receiveMultipart(formFieldLimit = MAX_MULTIPART_BODY_BYTES.toLong()).forEachPart { part ->
+        try {
+            val name = part.name
+            when {
+                name == null || fileTooLarge -> Unit
+
+                part is PartData.FormItem -> fields[name] = part.value
+
+                part is PartData.FileItem -> {
+                    val bytes = part.provider().readBuffer(NotePostService.MAX_IMAGE_BYTES + 1L).readByteArray()
+                    if (bytes.size > NotePostService.MAX_IMAGE_BYTES) fileTooLarge = true else files[name] = bytes
+                }
+
+                else -> Unit
+            }
+        } finally {
+            part.dispose()
+        }
+    }
+    if (fileTooLarge) return payloadTooLarge()
+
+    val request = fields["operations"]?.let(::decodeRequest) ?: return ReceivedGraphQlRequest.Unreadable
+    val map =
+        fields["map"]?.let { runCatching { ServerJson.value.parseToJsonElement(it) as? JsonObject }.getOrNull() }
+            ?: return ReceivedGraphQlRequest.Unreadable
+    val uploads =
+        map.entries.associate { (fileName, paths) ->
+            val path = ((paths as? JsonArray)?.singleOrNull() as? JsonPrimitive)?.content ?: return ReceivedGraphQlRequest.Unreadable
+            val variableName = path.removePrefix("variables.").takeIf { path.startsWith("variables.") && !it.contains('.') }
+                ?: return ReceivedGraphQlRequest.Unreadable
+            val bytes = files[fileName] ?: return ReceivedGraphQlRequest.Unreadable
+            variableName to GraphQlUpload(bytes)
+        }
+    return ReceivedGraphQlRequest.Accepted(request = request, uploads = uploads)
+}
+
+private fun ApplicationCall.declaredLengthExceeds(maxBytes: Long): Boolean {
+    val declaredLength = request.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: return false
+    return declaredLength > maxBytes
+}
+
+private fun decodeRequest(body: String): GraphQlRequest? =
+    runCatching { ServerJson.value.decodeFromString(GraphQlRequest.serializer(), body) }.getOrNull()
+
+private fun payloadTooLarge(): ReceivedGraphQlRequest = ReceivedGraphQlRequest.Rejected(message = "ボディが大きすぎる", status = HttpStatusCode.PayloadTooLarge)
+
+private sealed interface ReceivedGraphQlRequest {
+    class Accepted(
+        val request: GraphQlRequest,
+        val uploads: Map<String, GraphQlUpload>,
+    ) : ReceivedGraphQlRequest
+
+    class Rejected(
+        val message: String,
+        val status: HttpStatusCode,
+    ) : ReceivedGraphQlRequest
+
+    data object Unreadable : ReceivedGraphQlRequest
 }

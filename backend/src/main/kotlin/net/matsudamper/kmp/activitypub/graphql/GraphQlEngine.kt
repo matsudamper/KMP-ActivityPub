@@ -41,12 +41,16 @@ class GraphQlEngine private constructor(
             .setUnit("ms")
             .build()
 
+    /**
+     * @param uploads multipart で送られたファイル。同じ名前の変数に入れる
+     */
     fun execute(
         request: GraphQlRequest,
         call: ApplicationCall,
+        uploads: Map<String, GraphQlUpload>,
     ): JsonObject {
         val mark = TimeSource.Monotonic.markNow()
-        val executionResult = graphQl.execute(executionInput(request, call))
+        val executionResult = graphQl.execute(executionInput(request, call, uploads))
         logErrors(executionResult)
 
         val response = toJsonObject(executionResult)
@@ -69,7 +73,7 @@ class GraphQlEngine private constructor(
         request: GraphQlRequest,
         call: ApplicationCall,
     ): GraphQlSubscription {
-        val executionResult = graphQl.execute(executionInput(request, call))
+        val executionResult = graphQl.execute(executionInput(request, call, mapOf()))
         logErrors(executionResult)
 
         val data: Any? = executionResult.getData()
@@ -96,11 +100,12 @@ class GraphQlEngine private constructor(
     private fun executionInput(
         request: GraphQlRequest,
         call: ApplicationCall,
+        uploads: Map<String, GraphQlUpload>,
     ): ExecutionInput =
         ExecutionInput
             .newExecutionInput(request.query)
             .operationName(request.operationName)
-            .variables(variablesOf(request))
+            .variables(variablesOf(request) + uploads)
             .graphQLContext(mapOf(CONTEXT_KEY to createContext(call)))
             .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
             .build()
@@ -148,7 +153,7 @@ class GraphQlEngine private constructor(
                     .newParser()
                     .schemaString(readSchema())
                     .resolvers(resolvers)
-                    .scalars(GraphQlScalars.userId, GraphQlScalars.passkeyCredentialId)
+                    .scalars(GraphQlScalars.userId, GraphQlScalars.passkeyCredentialId, GraphQlScalars.upload)
                     .build()
                     .makeExecutableSchema()
 

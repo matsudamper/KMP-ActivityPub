@@ -182,9 +182,9 @@ class NotePostService(
         const val MAX_IMAGES: Int = 4
 
         /**
-         * 画面は送る前に縮めるので、縮めた写真が収まる大きさにする。GraphQL の本文の上限はこれに合わせている
+         * 写真をそのまま送れる大きさにする。GraphQL の multipart の上限はこれに合わせている
          */
-        const val MAX_IMAGE_BYTES: Int = 2 * 1024 * 1024
+        const val MAX_IMAGE_BYTES: Int = 20 * 1024 * 1024
 
         /**
          * Mastodon の画像の説明文の上限
