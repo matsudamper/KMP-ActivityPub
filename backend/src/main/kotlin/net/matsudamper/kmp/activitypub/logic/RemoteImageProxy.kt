@@ -44,7 +44,7 @@ class RemoteImageProxy(
         if (!signatureMatches) return RemoteImageProxyResult.NotIssued
 
         val bytes = fetcher.fetch(url = remoteUrl, maxBytes = MAX_IMAGE_BYTES) ?: return RemoteImageProxyResult.Unavailable
-        val format = ProfileIconFormat.detect(bytes) ?: return RemoteImageProxyResult.Unavailable
+        val format = ImageFormat.detect(bytes) ?: return RemoteImageProxyResult.Unavailable
         return RemoteImageProxyResult.Found(bytes = bytes, contentType = format.contentType)
     }
 

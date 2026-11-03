@@ -18,7 +18,7 @@ class ProfileIconDimensionsTest {
             "407x15-extended.webp" to ProfileIconDimensions(width = 407, height = 15),
         ).forEach { (fileName, expected) ->
             val bytes = TestProfileIcons.read(fileName)
-            val format = checkNotNull(ProfileIconFormat.detect(bytes)) { fileName }
+            val format = checkNotNull(ImageFormat.detect(bytes)) { fileName }
 
             assertEquals(expected, ProfileIconDimensions.read(bytes, format), fileName)
         }
@@ -36,7 +36,7 @@ class ProfileIconDimensionsTest {
             "407x15-extended.webp" to 29,
         ).forEach { (fileName, length) ->
             val bytes = TestProfileIcons.read(fileName)
-            val format = checkNotNull(ProfileIconFormat.detect(bytes)) { fileName }
+            val format = checkNotNull(ImageFormat.detect(bytes)) { fileName }
 
             assertNull(ProfileIconDimensions.read(bytes.copyOf(length), format), fileName)
         }
@@ -46,13 +46,13 @@ class ProfileIconDimensionsTest {
     fun `JPEG で寸法の前に画像データが始まれば読めない扱いにする`() {
         val startOfScanOnly = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xDA.toByte(), 0x00, 0x08)
 
-        assertNull(ProfileIconDimensions.read(startOfScanOnly, ProfileIconFormat.Jpeg))
+        assertNull(ProfileIconDimensions.read(startOfScanOnly, ImageFormat.Jpeg))
     }
 
     @Test
     fun `JPEG のセグメント長が 2 未満なら先へ進まずに読めない扱いにする`() {
         val brokenLength = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 0x00, 0x00)
 
-        assertNull(ProfileIconDimensions.read(brokenLength, ProfileIconFormat.Jpeg))
+        assertNull(ProfileIconDimensions.read(brokenLength, ImageFormat.Jpeg))
     }
 }
