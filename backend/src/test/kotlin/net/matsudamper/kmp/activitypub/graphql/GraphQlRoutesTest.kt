@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.graphql
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.header
@@ -88,6 +89,36 @@ class GraphQlRoutesTest {
             val response =
                 client.submitFormWithBinaryData(url = GRAPHQL_PATH, formData = uploadForm(ByteArray(NotePostService.MAX_IMAGE_BYTES + 1))) {
                     header("Apollo-Require-Preflight", "true")
+                }
+
+            assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
+        }
+
+    @Test
+    fun `Content-Length の無い multipart で上限以内のファイルを何枚も送られても、本文全体の上限を超えたら 413`() =
+        testApplication {
+            application { module(TestDependencies()) }
+
+            val fileSize = NotePostService.MAX_IMAGE_BYTES / 2
+            val multipart =
+                MultiPartFormDataContent(
+                    formData {
+                        repeat(3) { index ->
+                            append(
+                                "$index",
+                                ByteArray(fileSize),
+                                Headers.build {
+                                    append(HttpHeaders.ContentType, "application/octet-stream")
+                                    append(HttpHeaders.ContentDisposition, "filename=\"image$index\"")
+                                },
+                            )
+                        }
+                    },
+                )
+            val response =
+                client.post(GRAPHQL_PATH) {
+                    header("Apollo-Require-Preflight", "true")
+                    setBody(ChannelWriterContent(body = { multipart.writeTo(this) }, contentType = multipart.contentType))
                 }
 
             assertEquals(HttpStatusCode.PayloadTooLarge, response.status)

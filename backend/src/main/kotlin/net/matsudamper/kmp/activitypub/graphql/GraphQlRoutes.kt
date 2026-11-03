@@ -102,20 +102,32 @@ private suspend fun receiveMultipart(call: ApplicationCall): ReceivedGraphQlRequ
 
     val fields = mutableMapOf<String, String>()
     val files = mutableMapOf<String, ByteArray>()
-    var fileTooLarge = false
+    var receivedBytes = 0L
+    var tooLarge = false
     // Ktor は部分ごとの上限を超えると、解析しているコルーチンごと呼び出しを 500 で落とす。
-    // ここでは 413 を返せるよう、Ktor の上限は本文全体の大きさにし、ファイルは自分で数える
+    // ここでは 413 を返せるよう、Ktor の上限は本文全体の大きさにし、受け取った量は自分で数える。
+    // chunked では Content-Length の判定をすり抜けるので、部分ごとではなく合計で数える
     call.receiveMultipart(formFieldLimit = MAX_MULTIPART_BODY_BYTES.toLong()).forEachPart { part ->
         try {
             val name = part.name
+            val remainingBytes = MAX_MULTIPART_BODY_BYTES - receivedBytes
             when {
-                name == null || fileTooLarge -> Unit
+                name == null || tooLarge -> Unit
 
-                part is PartData.FormItem -> fields[name] = part.value
+                part is PartData.FormItem -> {
+                    receivedBytes += part.value.encodeToByteArray().size
+                    if (receivedBytes > MAX_MULTIPART_BODY_BYTES) tooLarge = true else fields[name] = part.value
+                }
 
                 part is PartData.FileItem -> {
-                    val bytes = part.provider().readBuffer(NotePostService.MAX_IMAGE_BYTES + 1L).readByteArray()
-                    if (bytes.size > NotePostService.MAX_IMAGE_BYTES) fileTooLarge = true else files[name] = bytes
+                    val readLimit = minOf(NotePostService.MAX_IMAGE_BYTES.toLong(), remainingBytes) + 1
+                    val bytes = part.provider().readBuffer(readLimit).readByteArray()
+                    receivedBytes += bytes.size
+                    if (bytes.size > NotePostService.MAX_IMAGE_BYTES || receivedBytes > MAX_MULTIPART_BODY_BYTES) {
+                        tooLarge = true
+                    } else {
+                        files[name] = bytes
+                    }
                 }
 
                 else -> Unit
@@ -124,7 +136,7 @@ private suspend fun receiveMultipart(call: ApplicationCall): ReceivedGraphQlRequ
             part.dispose()
         }
     }
-    if (fileTooLarge) return payloadTooLarge()
+    if (tooLarge) return payloadTooLarge()
 
     val request = fields["operations"]?.let(::decodeRequest) ?: return ReceivedGraphQlRequest.Unreadable
     val map =
