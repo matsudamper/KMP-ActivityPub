@@ -15,6 +15,14 @@ interface NoteRepository {
     fun findImage(publicId: NoteImagePublicId): StoredNoteImage?
 
     /**
+     * [DeliveryQueueRepository.enqueueNote] に渡した requestId で記録した投稿。無ければ null
+     */
+    fun findPublicIdByRequestId(
+        username: String,
+        requestId: String,
+    ): PublicNoteId?
+
+    /**
      * まだ送っていない配信も一緒に消える
      */
     fun delete(publicId: PublicNoteId)

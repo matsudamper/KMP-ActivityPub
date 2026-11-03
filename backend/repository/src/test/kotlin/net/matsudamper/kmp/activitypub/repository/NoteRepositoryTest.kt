@@ -71,6 +71,8 @@ class NoteRepositoryTest {
             assertEquals(images[1], second.image)
             assertEquals(repositories.accountRepository.findByUsername("user1")?.id, second.ownerAccountId)
             assertNull(notes.findImage(NoteImagePublicId("missing")))
+            assertEquals(PublicNoteId("note-1"), notes.findPublicIdByRequestId("USER1", "request-note-1"))
+            assertNull(notes.findPublicIdByRequestId("user1", "request-other"))
         }
     }
 

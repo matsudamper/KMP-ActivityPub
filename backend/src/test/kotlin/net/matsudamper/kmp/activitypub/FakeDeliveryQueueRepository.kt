@@ -29,6 +29,7 @@ internal class FakeDeliveryQueueRepository(
         val alreadyPosted = posts.firstOrNull { it.username.equals(post.username, ignoreCase = true) && it.requestId == post.requestId }
         if (alreadyPosted != null) return EnqueueNoteResult.AlreadyPosted(alreadyPosted.publicId)
         posts += post
+        notes.requestIds[post.username.lowercase() to post.requestId] = post.publicId
         notes.notes += Note(publicId = post.publicId, username = post.username, contentHtml = post.contentHtml, publishedAt = post.publishedAt, images = post.images)
         return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)
     }

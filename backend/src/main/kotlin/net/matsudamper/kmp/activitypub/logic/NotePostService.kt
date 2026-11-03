@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.repository.NotePost
+import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.actor.ActorDirectory
@@ -28,6 +29,7 @@ class NotePostService(
     private val directory: ActorDirectory,
     private val publisher: NotePublisher,
     private val accountService: AccountService,
+    private val noteRepository: NoteRepository,
     private val imageStorage: ImageStorage?,
     private val imageUrls: NoteImageUrls,
     private val followerRepository: FollowerRepository,
@@ -65,6 +67,12 @@ class NotePostService(
             }
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
         val account = accountService.account(sender.username) ?: return PostNoteResult.AccountNotFound
+        // 置き場が止まっていても、記録済みの投稿への送り直しは成功として返す
+        val alreadyPostedPublicId = noteRepository.findPublicIdByRequestId(username = sender.username, requestId = requestId)
+        if (alreadyPostedPublicId != null) {
+            logger.info("送り直された投稿なので新しく作らない: ${sender.acct} ${alreadyPostedPublicId.value}")
+            return PostNoteResult.Posted(publicId = alreadyPostedPublicId, url = noteUrl(sender.domain, alreadyPostedPublicId))
+        }
 
         val storedImages =
             when (val put = putImages(accountId = account.id, images = checkedImages)) {
@@ -104,10 +112,7 @@ class NotePostService(
             is EnqueueNoteResult.AlreadyPosted -> {
                 logger.info("送り直された投稿なので新しく作らない: ${sender.acct} ${enqueued.publicId.value}")
                 deleteImages(accountId = account.id, images = storedImages)
-                PostNoteResult.Posted(
-                    publicId = enqueued.publicId,
-                    url = NoteUrls(sender.domain, KotpubPublicNoteId(enqueued.publicId.value)).noteUrl,
-                )
+                PostNoteResult.Posted(publicId = enqueued.publicId, url = noteUrl(sender.domain, enqueued.publicId))
             }
 
             EnqueueNoteResult.AccountNotFound -> {
@@ -116,6 +121,11 @@ class NotePostService(
             }
         }
     }
+
+    private fun noteUrl(
+        domain: String,
+        publicId: PublicNoteId,
+    ): String = NoteUrls(domain, KotpubPublicNoteId(publicId.value)).noteUrl
 
     private fun check(image: NoteImageUpload): CheckImageResult {
         if (image.bytes.size > MAX_IMAGE_BYTES) return CheckImageResult.Rejected(PostNoteResult.ImageTooLarge)

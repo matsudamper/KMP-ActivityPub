@@ -96,6 +96,7 @@ internal class Federation(
             directory = directory,
             publisher = NotePublisher(notes, null),
             accountService = accountService,
+            noteRepository = noteRepository,
             imageStorage = imageStorage,
             imageUrls = noteImageUrls,
             followerRepository = followerRepository,

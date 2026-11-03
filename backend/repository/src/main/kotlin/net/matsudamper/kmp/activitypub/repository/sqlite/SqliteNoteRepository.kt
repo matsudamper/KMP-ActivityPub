@@ -56,6 +56,19 @@ internal class SqliteNoteRepository(
             }
     }
 
+    override fun findPublicIdByRequestId(
+        username: String,
+        requestId: String,
+    ): PublicNoteId? = jooq.withConnection { dsl ->
+        dsl.select(NOTES.PUBLIC_ID)
+            .from(NOTES)
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .and(NOTES.REQUEST_ID.eq(requestId))
+            .fetchOne(NOTES.PUBLIC_ID)
+            ?.let { PublicNoteId(it) }
+    }
+
     override fun delete(publicId: PublicNoteId) {
         jooq.withConnection { dsl ->
             dsl.deleteFrom(NOTES)

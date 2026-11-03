@@ -25,6 +25,13 @@ internal class FakeNoteRepository : NoteRepository {
     override fun findImage(publicId: NoteImagePublicId): StoredNoteImage? =
         notes.flatMap { it.images }.firstOrNull { it.publicId == publicId }?.let { StoredNoteImage(ownerAccountId = AccountId(1), image = it) }
 
+    val requestIds = mutableMapOf<Pair<String, String>, PublicNoteId>()
+
+    override fun findPublicIdByRequestId(
+        username: String,
+        requestId: String,
+    ): PublicNoteId? = requestIds[username.lowercase() to requestId]
+
     override fun delete(publicId: PublicNoteId) {
         notes.removeAll { it.publicId == publicId }
     }

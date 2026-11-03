@@ -37,6 +37,7 @@ class NotePostServiceTest {
             directory = ActorDirectory(domain = DOMAIN, stored = OnlyUser1),
             publisher = NotePublisher(RepositoryNoteStore(noteRepository, imageUrls), null),
             accountService = AccountService(accountRepository),
+            noteRepository = noteRepository,
             imageStorage = imageStorage,
             imageUrls = imageUrls,
             followerRepository = followerRepository,
@@ -162,12 +163,13 @@ class NotePostServiceTest {
     }
 
     @Test
-    fun `同じ requestId で送り直されたら置いた画像を消して最初の投稿を返す`() {
+    fun `同じ requestId で送り直されたら画像を置き直さずに最初の投稿を返す`() {
         val first = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf(NoteImageUpload(PNG, null)))
+        val storedPaths = imageStorage.images.keys.toSet()
         val resent = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, images = listOf(NoteImageUpload(PNG, null)))
 
         assertEquals(first, resent)
-        assertEquals(1, imageStorage.images.size)
+        assertEquals(storedPaths, imageStorage.images.keys)
     }
 
     private object OnlyUser1 : StoredActorNames {
