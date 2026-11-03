@@ -15,6 +15,7 @@ data class PostItemUiState(
      * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく
      */
     val linkPreviews: List<LinkPreview>,
+    val images: List<Image>,
     /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
      */
@@ -29,6 +30,15 @@ data class PostItemUiState(
         val siteName: String,
         val imageUrl: String?,
         val listener: LinkPreviewListener,
+    )
+
+    /**
+     * @param description 画像の説明文。無ければ null
+     */
+    data class Image(
+        val url: String,
+        val description: String?,
+        val listener: ImageListener,
     )
 
     @Immutable
@@ -46,6 +56,11 @@ data class PostItemUiState(
 
     @Immutable
     interface LinkPreviewListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface ImageListener {
         fun onClick()
     }
 }
