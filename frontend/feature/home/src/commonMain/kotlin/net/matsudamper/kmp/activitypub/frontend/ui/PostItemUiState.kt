@@ -22,6 +22,10 @@ data class PostItemUiState(
     val linkPreviews: List<LinkPreview>,
     val images: List<Image>,
     /**
+     * 1 件も無ければ null で、お気に入りの数を出さない
+     */
+    val favouriteCountText: String?,
+    /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
      */
     val authorListener: AuthorListener?,

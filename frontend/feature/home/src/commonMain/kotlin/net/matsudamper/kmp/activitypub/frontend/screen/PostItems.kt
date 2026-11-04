@@ -32,6 +32,7 @@ internal fun createPostItemUiState(
         images = body.images.map { image ->
             createPostImage(image) { onOpenUrl(image.url) }
         },
+        favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         authorListener = authorListener,
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {

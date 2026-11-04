@@ -132,6 +132,7 @@ class UserApi(
                                 sensitive = post.sensitive,
                                 linkUrls = post.linkUrls,
                                 images = post.images.map { UserPostImage(url = it.url, description = it.description) },
+                                favouriteCount = post.favouriteCount,
                             ),
                         ),
                     ),
@@ -263,6 +264,7 @@ class UserApi(
                         sensitive = it.sensitive,
                         linkUrls = it.linkUrls,
                         images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                        favouriteCount = it.favouriteCount,
                     ),
                 )
             },

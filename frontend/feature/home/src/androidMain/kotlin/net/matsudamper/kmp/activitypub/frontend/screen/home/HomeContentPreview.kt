@@ -69,6 +69,7 @@ private fun HomeTimelinePreview(
                         images = listOf(
                             PostItemUiState.Image(url = "https://example.com/photo.png", description = "写真", listener = AndroidPreviewImageListener),
                         ),
+                        favouriteCountText = null,
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
@@ -85,6 +86,7 @@ private fun HomeTimelinePreview(
                             PostItemUiState.Image(url = "https://example.com/2.png", description = null, listener = AndroidPreviewImageListener),
                             PostItemUiState.Image(url = "https://example.com/3.png", description = null, listener = AndroidPreviewImageListener),
                         ),
+                        favouriteCountText = "3",
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),

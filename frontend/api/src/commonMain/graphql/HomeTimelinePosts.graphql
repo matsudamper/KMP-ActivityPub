@@ -14,5 +14,6 @@ subscription HomeTimelinePosts {
             url
             description
         }
+        favouriteCount
     }
 }

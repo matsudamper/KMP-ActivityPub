@@ -156,6 +156,20 @@ object AppIcons {
             ).build()
     }
 
+    val Star: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Star",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M12,17.27L18.18,21l-1.64,-7.03L22,9.24l-7.19,-0.61L12,2 9.19,8.63 2,9.24l5.46,4.73L5.82,21z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val Sync: ImageVector by lazy {
         ImageVector
             .Builder(

@@ -36,6 +36,7 @@ private fun UserProfileContentPreview() {
                                 ),
                             ),
                             images = listOf(),
+                            favouriteCountText = "12",
                             authorListener = null,
                             listener = AndroidPreviewPostItemListener,
                         ),
