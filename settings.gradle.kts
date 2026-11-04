@@ -10,8 +10,8 @@ pluginManagement {
                 excludeGroup("com.apollographql.apollo")
             }
         }
-        mavenCentral()
         google()
+        mavenCentral()
     }
 }
 
@@ -32,8 +32,8 @@ dependencyResolutionManagement {
                 includeGroup("net.matsudamper.kotpub")
             }
         }
-        mavenCentral()
         google()
+        mavenCentral()
     }
 }
 
