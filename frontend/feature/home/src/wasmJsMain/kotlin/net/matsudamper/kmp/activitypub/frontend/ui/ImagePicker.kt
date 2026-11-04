@@ -130,7 +130,7 @@ internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult 
             surface.canvas.setMatrix(origin.toMatrix(image.width, image.height))
             surface.canvas.drawImage(image, 0f, 0f)
             // Skia は WebP の品質 100 を可逆で書き出す
-            val webp = surface.makeImageSnapshot().encodeToData(EncodedImageFormat.WEBP, 100)?.bytes
+            val webp = surface.makeImageSnapshot().encodeWebpBytes()
             when {
                 webp == null -> LosslessWebpResult.Unreadable
                 webp.size > maxBytes -> LosslessWebpResult.TooLarge
@@ -141,6 +141,22 @@ internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult 
             image.close()
         }
     }.getOrDefault(LosslessWebpResult.Unreadable)
+
+/**
+ * 画像も書き出した Data も Wasm のメモリを持つので、続けて選ばれても溜まらないよう使い終えたら閉じる
+ */
+private fun Image.encodeWebpBytes(): ByteArray? {
+    try {
+        val data = encodeToData(EncodedImageFormat.WEBP, 100) ?: return null
+        try {
+            return data.bytes
+        } finally {
+            data.close()
+        }
+    } finally {
+        close()
+    }
+}
 
 /**
  * 縮める前に一度は原寸で展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度
