@@ -70,7 +70,7 @@ internal fun <K : Any> DSLContext.stampCountsBy(
         .join(NOTES).on(NOTES.ID.eq(NOTE_STAMPS.NOTE_ID))
         .where(condition)
         .groupBy(noteKey, NOTE_STAMPS.EMOJI, NOTE_STAMPS.EMOJI_IMAGE_URL)
-        .orderBy(count.desc(), DSL.min(NOTE_STAMPS.RECEIVED_AT), NOTE_STAMPS.EMOJI)
+        .orderBy(count.desc(), DSL.min(NOTE_STAMPS.RECEIVED_AT), NOTE_STAMPS.EMOJI, NOTE_STAMPS.EMOJI_IMAGE_URL)
         .fetch()
         .groupBy(
             keySelector = { checkNotNull(it.value1()) },
