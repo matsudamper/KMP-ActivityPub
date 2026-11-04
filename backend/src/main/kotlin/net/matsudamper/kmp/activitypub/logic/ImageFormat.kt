@@ -1,12 +1,12 @@
 package net.matsudamper.kmp.activitypub.logic
 
 /**
- * プロフィール画像として受け付ける形式。
+ * プロフィール画像や投稿の画像として受け付ける形式。
  *
  * 送ってきた側の申告は信じず、先頭のバイト列で決める。
  * 画像以外を画像の種類で配ると、相手やブラウザがそれを解釈してしまう
  */
-internal enum class ProfileIconFormat(
+internal enum class ImageFormat(
     val contentType: String,
 ) {
     Png("image/png"),
@@ -16,7 +16,7 @@ internal enum class ProfileIconFormat(
     ;
 
     companion object {
-        fun detect(bytes: ByteArray): ProfileIconFormat? =
+        fun detect(bytes: ByteArray): ImageFormat? =
             when {
                 bytes.startsWith(PNG_SIGNATURE) -> Png
                 bytes.startsWith(JPEG_SIGNATURE) -> Jpeg
