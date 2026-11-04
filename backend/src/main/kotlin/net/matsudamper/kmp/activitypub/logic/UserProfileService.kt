@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
@@ -14,6 +15,7 @@ class UserProfileService(
     private val accounts: AccountRepository,
     private val remoteActors: RemoteActorRepository,
     private val notes: NoteRepository,
+    private val favourites: FavouriteRepository,
     private val timeline: TimelineRepository,
     private val following: FollowingService,
     private val remoteProfiles: RemoteUserProfiles?,
@@ -26,11 +28,13 @@ class UserProfileService(
         val host = normalizedAcct.substringAfter('@', "").ifEmpty { localDomain }
         if (host.equals(localDomain, ignoreCase = true)) {
             val account = accounts.findByUsername(username) ?: return null
+            val localNotes = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT)
+            val favouriteCounts = favourites.counts(localNotes.map { it.publicId }.toSet())
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, null),
                 following = false,
                 biography = null,
-                posts = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT).map {
+                posts = localNotes.map {
                     ProfilePost(
                         contentHtml = it.contentHtml,
                         publishedAt = it.publishedAt.toString(),
@@ -38,6 +42,7 @@ class UserProfileService(
                         sensitive = false,
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
                         images = listOf(),
+                        favouriteCount = favouriteCounts[it.publicId],
                     )
                 },
             )
@@ -81,6 +86,7 @@ class UserProfileService(
             sensitive = sensitive,
             linkPreviewId = position.member,
             images = images,
+            favouriteCount = favouriteCount,
         )
     }
 
@@ -125,6 +131,7 @@ data class UserProfile(
 /**
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
  * @param images 他のサーバーにある画像。中継する URL にはしていない
+ * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -133,4 +140,5 @@ data class ProfilePost(
     val sensitive: Boolean,
     val linkPreviewId: String?,
     val images: List<TimelinePostImage>,
+    val favouriteCount: Long?,
 )

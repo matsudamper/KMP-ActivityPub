@@ -87,6 +87,8 @@ type HomeTimelinePost {
     iconUrl: String
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
+    "他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null"
+    favouriteCount: Int
 }
 
 type PostImage {

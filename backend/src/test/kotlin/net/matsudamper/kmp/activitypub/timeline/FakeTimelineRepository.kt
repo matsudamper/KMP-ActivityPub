@@ -38,7 +38,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
-        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf())
+        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), null)
     }
 
     override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> =

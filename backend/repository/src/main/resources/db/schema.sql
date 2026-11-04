@@ -176,3 +176,21 @@ CREATE INDEX remote_note_recipients_account ON remote_note_recipients (account_i
 CREATE INDEX remote_notes_actor_score_member ON remote_notes (remote_actor_id, score_ms DESC, ('r' || CAST(id AS varchar)) DESC);
 
 CREATE INDEX remote_note_recipients_account_score ON remote_note_recipients (account_id, kind, score_ms DESC, member DESC);
+
+-- 他のサーバーから届いた、こちらの投稿へのお気に入り
+CREATE TABLE note_favourites (
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    received_at TEXT NOT NULL,
+    PRIMARY KEY (note_id, remote_actor_id)
+);
+
+CREATE INDEX note_favourites_remote_actor_id ON note_favourites (remote_actor_id);
+
+-- Like より先に届いた Undo が指していた Like の id。後から届いた Like を記録しないために覚える
+CREATE TABLE early_undone_likes (
+    actor_uri TEXT NOT NULL,
+    activity_uri TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    PRIMARY KEY (actor_uri, activity_uri)
+);

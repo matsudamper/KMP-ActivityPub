@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
@@ -37,6 +38,7 @@ import net.matsudamper.kotpub.inbox.FollowHandler
 import net.matsudamper.kotpub.inbox.FollowResponseHandler
 import net.matsudamper.kotpub.inbox.InboxEndpoint
 import net.matsudamper.kotpub.inbox.InboxService
+import net.matsudamper.kotpub.inbox.ReactionHandler
 import net.matsudamper.kotpub.inbox.RecordedFallbackPublicKeys
 import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
@@ -59,6 +61,7 @@ internal class Federation(
     timelineRepository: TimelineRepository,
     timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
+    favouriteRepository: FavouriteRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
@@ -72,6 +75,7 @@ internal class Federation(
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
+    private val favourites = RecordedFavourites(favouriteRepository)
     private val receivedNotes = ReceivedRemoteNotes(timelineRepository, remoteActors, remoteActorRepository, directory, timeline, Clock.systemUTC())
 
     val deliveryQueueWorker: DeliveryQueueWorker =
@@ -181,7 +185,8 @@ internal class Federation(
     val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, null)
 
     /**
-     * kotpub の InboxService.default からお気に入りとスタンプの受け付けを抜いたもの
+     * kotpub の InboxService.default からスタンプの受け付けを抜いたもの。
+     * 絵文字付きの Like はスタンプとして扱われるので、それも残らない
      */
     val inboxEndpoint: InboxEndpoint =
         InboxEndpoint(
@@ -191,19 +196,27 @@ internal class Federation(
                     RecordedFallbackPublicKeys(
                         remote = remoteActors,
                         followers = followers,
-                        favourites = NoReactions,
-                        stamps = NoReactions,
+                        favourites = favourites,
+                        stamps = NoStamps,
                     ),
                 ),
                 domainBlocks = NoInboxDomainBlocks,
                 handlers = listOf(
                     FollowHandler(directory = directory, remoteActors = remoteActors, followers = followers),
+                    ReactionHandler(
+                        type = ReactionHandler.LIKE_TYPE,
+                        domain = domain,
+                        remoteActors = remoteActors,
+                        favourites = favourites,
+                        stamps = NoStamps,
+                        earlyUndoneLikes = favourites,
+                    ),
                     UndoHandler(
                         reactions = UndoReactionHandler(
                             domain = domain,
-                            favourites = NoReactions,
-                            stamps = NoReactions,
-                            earlyUndoneLikes = NoReactions,
+                            favourites = favourites,
+                            stamps = NoStamps,
+                            earlyUndoneLikes = favourites,
                         ),
                         follows = UndoFollowHandler(directory = directory, followers = followers),
                     ),
@@ -212,7 +225,7 @@ internal class Federation(
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(
-                        actors = DeleteActorHandler(followers = followers, favourites = NoReactions, stamps = NoReactions),
+                        actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = NoStamps),
                         notes = receivedNotes,
                     ),
                 ),
