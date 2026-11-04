@@ -12,6 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.request.contentType
 import io.ktor.server.request.header
 import io.ktor.server.request.receiveChannel
@@ -19,6 +20,7 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import io.ktor.utils.io.readBuffer
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
@@ -53,7 +55,22 @@ private const val MAX_CONCURRENT_MULTIPART_REQUESTS = 4
 
 internal fun Route.graphQlRoutes(engine: GraphQlEngine) {
     val multipartPermits = Semaphore(MAX_CONCURRENT_MULTIPART_REQUESTS)
-    post(GRAPHQL_PATH) {
+    route(GRAPHQL_PATH) {
+        // chunked では Content-Length の判定をすり抜ける。上限を超えた後も読み続けると、multipart の同時に受ける枠を塞がれるので、受信そのものを打ち切る
+        install(RequestBodyLimit) {
+            bodyLimit { call ->
+                if (call.request.contentType().match(ContentType.MultiPart.FormData)) MAX_MULTIPART_BODY_BYTES.toLong() else MAX_BODY_BYTES.toLong()
+            }
+        }
+        graphQlPost(engine = engine, multipartPermits = multipartPermits)
+    }
+}
+
+private fun Route.graphQlPost(
+    engine: GraphQlEngine,
+    multipartPermits: Semaphore,
+) {
+    post {
         val contentType = call.request.contentType()
         when {
             contentType.match(ContentType.Application.Json) -> respond(call, engine, receiveJson(call))
