@@ -52,6 +52,7 @@ android {
     }
 
     testOptions {
+        unitTests.isIncludeAndroidResources = true
         val isPaparazziRequested =
             gradle.startParameter.taskNames.any { taskName ->
                 taskName.contains("Paparazzi", ignoreCase = true)
@@ -116,6 +117,10 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
 
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.okhttp.tls)
     testImplementation(libs.paparazzi)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
