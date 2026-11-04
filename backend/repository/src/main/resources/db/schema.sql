@@ -194,3 +194,17 @@ CREATE TABLE early_undone_likes (
     expires_at TEXT NOT NULL,
     PRIMARY KEY (actor_uri, activity_uri)
 );
+
+-- 他のサーバーから届いた、こちらの投稿への絵文字のスタンプ。1 人が同じ投稿に違う絵文字を押せる
+CREATE TABLE note_stamps (
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    -- 絵文字そのもの、またはカスタム絵文字の :name:
+    emoji TEXT NOT NULL,
+    -- カスタム絵文字の画像の URL。Unicode の絵文字では NULL
+    emoji_image_url TEXT,
+    received_at TEXT NOT NULL,
+    PRIMARY KEY (note_id, remote_actor_id, emoji)
+);
+
+CREATE INDEX note_stamps_remote_actor_id ON note_stamps (remote_actor_id);

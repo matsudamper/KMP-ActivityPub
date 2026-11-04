@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
+import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 
 internal class SqliteRepositories(
@@ -26,6 +27,7 @@ internal class SqliteRepositories(
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
     override val remoteActorRepository: RemoteActorRepository = SqliteRemoteActorRepository(jooq)
     override val favouriteRepository: FavouriteRepository = SqliteFavouriteRepository(jooq)
+    override val stampRepository: StampRepository = SqliteStampRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

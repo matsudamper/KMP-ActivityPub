@@ -35,6 +35,7 @@ internal class KotpubRemoteUserProfiles(
                 linkPreviewId = null,
                 images = listOf(),
                 favouriteCount = null,
+                stamps = listOf(),
             )
         }
 

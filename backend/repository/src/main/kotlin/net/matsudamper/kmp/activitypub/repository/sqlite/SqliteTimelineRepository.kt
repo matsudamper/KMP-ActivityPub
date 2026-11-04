@@ -152,6 +152,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
             val imagesByMember = remoteImages(dsl, remoteIds)
+            val stampsByMember = if (localIds.isEmpty()) mapOf() else dsl.stampCountsBy(NOTES.ID, NOTES.ID.`in`(localIds)).mapKeys { "l${it.key}" }
             local.unionAll(remote).fetch { record ->
                 val published = StoredInstant.parse(checkNotNull(record.value3()))
                 val actor = record.value6()
@@ -169,6 +170,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value11()?.let { StoredInstant.parse(it) },
                     imagesByMember[member].orEmpty(),
                     record.value12(),
+                    stampsByMember[member].orEmpty(),
                 )
             }
         }

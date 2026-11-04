@@ -2,8 +2,6 @@ package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
-import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
-import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
 import net.matsudamper.kotpub.favourite.FavouriteStore
@@ -13,21 +11,9 @@ internal class RecordedFavourites(
     private val favouriteRepository: FavouriteRepository,
 ) : FavouriteStore, EarlyUndoneLikes {
     override fun add(favourite: FavouriteStore.ReceivedFavourite): Boolean {
-        val actor = favourite.actor
         return favouriteRepository.add(
             notePublicId = PublicNoteId(favourite.notePublicId.value),
-            actor = RemoteActorRecord(
-                actorUri = actor.actorId,
-                inbox = actor.inbox,
-                sharedInbox = actor.sharedInbox,
-                publicKeyPem = actor.publicKeyPem,
-                profile = RemoteActorProfileRecord(
-                    preferredUsername = actor.profile.preferredUsername,
-                    displayName = actor.profile.displayName,
-                    profileUrl = actor.profile.profileUrl,
-                    iconUrl = actor.profile.iconUrl,
-                ),
-            ),
+            actor = favourite.actor.toRecord(),
             receivedAt = favourite.receivedAt,
         )
     }

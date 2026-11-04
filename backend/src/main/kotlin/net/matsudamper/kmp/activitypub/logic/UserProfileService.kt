@@ -5,6 +5,8 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
+import net.matsudamper.kmp.activitypub.repository.StampCount
+import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -16,6 +18,7 @@ class UserProfileService(
     private val remoteActors: RemoteActorRepository,
     private val notes: NoteRepository,
     private val favourites: FavouriteRepository,
+    private val stamps: StampRepository,
     private val timeline: TimelineRepository,
     private val following: FollowingService,
     private val remoteProfiles: RemoteUserProfiles?,
@@ -29,7 +32,9 @@ class UserProfileService(
         if (host.equals(localDomain, ignoreCase = true)) {
             val account = accounts.findByUsername(username) ?: return null
             val localNotes = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT)
-            val favouriteCounts = favourites.counts(localNotes.map { it.publicId }.toSet())
+            val localNoteIds = localNotes.map { it.publicId }.toSet()
+            val favouriteCounts = favourites.counts(localNoteIds)
+            val stampCounts = stamps.counts(localNoteIds)
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, null),
                 following = false,
@@ -43,6 +48,7 @@ class UserProfileService(
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
                         images = listOf(),
                         favouriteCount = favouriteCounts[it.publicId],
+                        stamps = stampCounts[it.publicId].orEmpty(),
                     )
                 },
             )
@@ -87,6 +93,7 @@ class UserProfileService(
             linkPreviewId = position.member,
             images = images,
             favouriteCount = favouriteCount,
+            stamps = stamps,
         )
     }
 
@@ -132,6 +139,7 @@ data class UserProfile(
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
  * @param images 他のサーバーにある画像。中継する URL にはしていない
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
+ * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -141,4 +149,5 @@ data class ProfilePost(
     val linkPreviewId: String?,
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
+    val stamps: List<StampCount>,
 )

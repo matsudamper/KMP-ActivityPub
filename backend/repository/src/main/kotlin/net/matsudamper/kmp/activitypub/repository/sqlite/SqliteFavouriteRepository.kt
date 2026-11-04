@@ -8,7 +8,6 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_FAVOURITES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
-import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
 internal class SqliteFavouriteRepository(
@@ -20,36 +19,12 @@ internal class SqliteFavouriteRepository(
         receivedAt: Instant,
     ): Boolean = jooq.transaction { dsl ->
         val noteId = dsl.findNoteId(notePublicId) ?: return@transaction false
-        val storedReceivedAt = StoredInstant.format(receivedAt)
-        val profile = actor.profile
-        dsl.insertInto(REMOTE_ACTORS)
-            .set(REMOTE_ACTORS.ACTOR_URI, actor.actorUri)
-            .set(REMOTE_ACTORS.INBOX, actor.inbox)
-            .set(REMOTE_ACTORS.SHARED_INBOX, actor.sharedInbox)
-            .set(REMOTE_ACTORS.PUBLIC_KEY_PEM, actor.publicKeyPem)
-            .set(REMOTE_ACTORS.PREFERRED_USERNAME, profile.preferredUsername)
-            .set(REMOTE_ACTORS.DISPLAY_NAME, profile.displayName)
-            .set(REMOTE_ACTORS.PROFILE_URL, profile.profileUrl)
-            .set(REMOTE_ACTORS.ICON_URL, profile.iconUrl)
-            .set(REMOTE_ACTORS.UPDATED_AT, storedReceivedAt)
-            .onConflict(REMOTE_ACTORS.ACTOR_URI)
-            .doUpdate()
-            .set(REMOTE_ACTORS.INBOX, actor.inbox)
-            .set(REMOTE_ACTORS.SHARED_INBOX, actor.sharedInbox)
-            .set(REMOTE_ACTORS.PUBLIC_KEY_PEM, actor.publicKeyPem)
-            .set(REMOTE_ACTORS.PREFERRED_USERNAME, profile.preferredUsername)
-            .set(REMOTE_ACTORS.DISPLAY_NAME, profile.displayName)
-            .set(REMOTE_ACTORS.PROFILE_URL, profile.profileUrl)
-            .set(REMOTE_ACTORS.ICON_URL, profile.iconUrl)
-            .set(REMOTE_ACTORS.UPDATED_AT, storedReceivedAt)
-            .execute()
-        val remoteActorId =
-            checkNotNull(dsl.findRemoteActorId(actor.actorUri)) { "記録したアクターを引けない: ${actor.actorUri}" }
+        val remoteActorId = dsl.upsertRemoteActor(actor, updatedAt = receivedAt)
 
         dsl.insertInto(NOTE_FAVOURITES)
             .set(NOTE_FAVOURITES.NOTE_ID, noteId)
             .set(NOTE_FAVOURITES.REMOTE_ACTOR_ID, remoteActorId)
-            .set(NOTE_FAVOURITES.RECEIVED_AT, storedReceivedAt)
+            .set(NOTE_FAVOURITES.RECEIVED_AT, StoredInstant.format(receivedAt))
             .onConflictDoNothing()
             .execute() > 0
     }
@@ -127,16 +102,4 @@ internal class SqliteFavouriteRepository(
                 .and(EARLY_UNDONE_LIKES.EXPIRES_AT.gt(StoredInstant.format(now))),
         )
     }
-
-    private fun DSLContext.findNoteId(publicId: PublicNoteId): Long? =
-        select(NOTES.ID)
-            .from(NOTES)
-            .where(NOTES.PUBLIC_ID.eq(publicId.value))
-            .fetchOne(NOTES.ID)
-
-    private fun DSLContext.findRemoteActorId(actorUri: String): Long? =
-        select(REMOTE_ACTORS.ID)
-            .from(REMOTE_ACTORS)
-            .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
-            .fetchOne(REMOTE_ACTORS.ID)
 }

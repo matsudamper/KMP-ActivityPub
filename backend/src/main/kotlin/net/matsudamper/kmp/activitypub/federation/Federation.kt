@@ -22,6 +22,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
+import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
 import net.matsudamper.kotpub.actor.ActorDirectory
@@ -62,6 +63,7 @@ internal class Federation(
     timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
+    stampRepository: StampRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
@@ -76,6 +78,7 @@ internal class Federation(
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
     private val favourites = RecordedFavourites(favouriteRepository)
+    private val stamps = RecordedStamps(stampRepository)
     private val receivedNotes = ReceivedRemoteNotes(timelineRepository, remoteActors, remoteActorRepository, directory, timeline, Clock.systemUTC())
 
     val deliveryQueueWorker: DeliveryQueueWorker =
@@ -185,8 +188,7 @@ internal class Federation(
     val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, null)
 
     /**
-     * kotpub の InboxService.default からスタンプの受け付けを抜いたもの。
-     * 絵文字付きの Like はスタンプとして扱われるので、それも残らない
+     * kotpub の InboxService.default に、他のサーバーからの投稿の受け取りとフォローへの応答の受け取りを足したもの
      */
     val inboxEndpoint: InboxEndpoint =
         InboxEndpoint(
@@ -197,7 +199,7 @@ internal class Federation(
                         remote = remoteActors,
                         followers = followers,
                         favourites = favourites,
-                        stamps = NoStamps,
+                        stamps = stamps,
                     ),
                 ),
                 domainBlocks = NoInboxDomainBlocks,
@@ -208,14 +210,22 @@ internal class Federation(
                         domain = domain,
                         remoteActors = remoteActors,
                         favourites = favourites,
-                        stamps = NoStamps,
+                        stamps = stamps,
+                        earlyUndoneLikes = favourites,
+                    ),
+                    ReactionHandler(
+                        type = ReactionHandler.EMOJI_REACT_TYPE,
+                        domain = domain,
+                        remoteActors = remoteActors,
+                        favourites = favourites,
+                        stamps = stamps,
                         earlyUndoneLikes = favourites,
                     ),
                     UndoHandler(
                         reactions = UndoReactionHandler(
                             domain = domain,
                             favourites = favourites,
-                            stamps = NoStamps,
+                            stamps = stamps,
                             earlyUndoneLikes = favourites,
                         ),
                         follows = UndoFollowHandler(directory = directory, followers = followers),
@@ -225,7 +235,7 @@ internal class Federation(
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(
-                        actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = NoStamps),
+                        actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = stamps),
                         notes = receivedNotes,
                     ),
                 ),
