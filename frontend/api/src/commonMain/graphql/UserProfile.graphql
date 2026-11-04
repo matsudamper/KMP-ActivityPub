@@ -21,6 +21,11 @@ query UserProfile($username: String!) {
                 description
             }
             favouriteCount
+            stamps {
+                emoji
+                imageUrl
+                count
+            }
         }
     }
 }

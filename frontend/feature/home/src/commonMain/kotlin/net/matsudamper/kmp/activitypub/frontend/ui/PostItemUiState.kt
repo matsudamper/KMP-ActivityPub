@@ -25,6 +25,7 @@ data class PostItemUiState(
      * 1 件も無ければ null で、お気に入りの数を出さない
      */
     val favouriteCountText: String?,
+    val stamps: List<Stamp>,
     /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
      */
@@ -39,6 +40,15 @@ data class PostItemUiState(
         val siteName: String,
         val imageUrl: String?,
         val listener: LinkPreviewListener,
+    )
+
+    /**
+     * @param imageUrl カスタム絵文字の画像。null なら [emoji] の文字で見せる
+     */
+    data class Stamp(
+        val emoji: String,
+        val imageUrl: String?,
+        val countText: String,
     )
 
     /**

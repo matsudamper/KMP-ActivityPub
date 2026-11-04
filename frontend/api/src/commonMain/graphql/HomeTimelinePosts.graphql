@@ -15,5 +15,10 @@ subscription HomeTimelinePosts {
             description
         }
         favouriteCount
+        stamps {
+            emoji
+            imageUrl
+            count
+        }
     }
 }
