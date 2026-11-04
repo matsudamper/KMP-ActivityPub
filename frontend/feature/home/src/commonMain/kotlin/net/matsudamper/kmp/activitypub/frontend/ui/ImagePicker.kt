@@ -50,6 +50,19 @@ internal class ProfileIconImage(
 
 /**
  * 縮めずに可逆の WebP に描き直す。書き出す WebP には EXIF などのメタデータを書き込まないので、写真の向きは画素に反映しておく。
- * 画像として読めないか、画素数が大きすぎて展開できなければ null
+ * 書き出した WebP が [maxBytes] を超えたら [LosslessWebpResult.TooLarge]
  */
-internal expect fun ByteArray.toLosslessWebpOrNull(): ByteArray?
+internal expect fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult
+
+internal sealed interface LosslessWebpResult {
+    class Success(
+        val bytes: ByteArray,
+    ) : LosslessWebpResult
+
+    data object TooLarge : LosslessWebpResult
+
+    /**
+     * 画像として読めないか、画素数が大きすぎて展開できない
+     */
+    data object Unreadable : LosslessWebpResult
+}

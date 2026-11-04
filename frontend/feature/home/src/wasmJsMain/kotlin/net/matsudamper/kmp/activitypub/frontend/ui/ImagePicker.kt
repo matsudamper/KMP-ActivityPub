@@ -110,13 +110,16 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
         }
     }.getOrNull()
 
-internal actual fun ByteArray.toLosslessWebpOrNull(): ByteArray? =
+/**
+ * Skia は書き出しを途中で止められないので、書き出し終えてから大きさを見る
+ */
+internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult =
     runCatching {
         val codec = Codec.makeFromData(Data.makeFromBytes(this))
         val origin = codec.encodedOrigin
         val pixelCount = codec.width.toLong() * codec.height
         codec.close()
-        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching null
+        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching LosslessWebpResult.Unreadable
 
         val image = Image.makeFromEncoded(this)
         val width = if (origin.swapsWidthHeight()) image.height else image.width
@@ -127,12 +130,17 @@ internal actual fun ByteArray.toLosslessWebpOrNull(): ByteArray? =
             surface.canvas.setMatrix(origin.toMatrix(image.width, image.height))
             surface.canvas.drawImage(image, 0f, 0f)
             // Skia は WebP の品質 100 を可逆で書き出す
-            surface.makeImageSnapshot().encodeToData(EncodedImageFormat.WEBP, 100)?.bytes
+            val webp = surface.makeImageSnapshot().encodeToData(EncodedImageFormat.WEBP, 100)?.bytes
+            when {
+                webp == null -> LosslessWebpResult.Unreadable
+                webp.size > maxBytes -> LosslessWebpResult.TooLarge
+                else -> LosslessWebpResult.Success(webp)
+            }
         } finally {
             surface.close()
             image.close()
         }
-    }.getOrNull()
+    }.getOrDefault(LosslessWebpResult.Unreadable)
 
 /**
  * 縮める前に一度は原寸で展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度

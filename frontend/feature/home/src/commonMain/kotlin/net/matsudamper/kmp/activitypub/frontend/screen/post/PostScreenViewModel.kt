@@ -15,8 +15,9 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
+import net.matsudamper.kmp.activitypub.frontend.ui.LosslessWebpResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
-import net.matsudamper.kmp.activitypub.frontend.ui.toLosslessWebpOrNull
+import net.matsudamper.kmp.activitypub.frontend.ui.toLosslessWebp
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -131,16 +132,19 @@ internal class PostScreenViewModel(
                 }
             }
         // 展開と WebP への書き出しは画面を止めるほど重い
-        val webp = withContext(Dispatchers.Default) { source.toLosslessWebpOrNull() }
-        if (webp == null) {
-            events.send { it.showMessage("画像として読み込めませんでした") }
-            return null
+        return when (val webp = withContext(Dispatchers.Default) { source.toLosslessWebp(maxBytes = MAX_IMAGE_BYTES) }) {
+            is LosslessWebpResult.Success -> webp.bytes
+
+            LosslessWebpResult.TooLarge -> {
+                events.send { it.showMessage("画像を WebP にすると 20MB を超えるため送れません") }
+                null
+            }
+
+            LosslessWebpResult.Unreadable -> {
+                events.send { it.showMessage("画像として読み込めませんでした") }
+                null
+            }
         }
-        if (webp.size > MAX_IMAGE_BYTES) {
-            events.send { it.showMessage("画像を WebP にすると 20MB を超えるため送れません") }
-            return null
-        }
-        return webp
     }
 
     private fun post() {

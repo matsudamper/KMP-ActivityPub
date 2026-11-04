@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.exifinterface.media.ExifInterface
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -99,27 +100,62 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
 
-internal actual fun ByteArray.toLosslessWebpOrNull(): ByteArray? {
+internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(this, 0, size, bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-    if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return null
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return LosslessWebpResult.Unreadable
+    if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return LosslessWebpResult.Unreadable
 
     // 向きを変えるときに原寸のビットマップをもう 1 枚作るので、展開と同じくメモリが足りなくなることがある
     return runCatching {
-        val decoded = BitmapFactory.decodeByteArray(this, 0, size) ?: return@runCatching null
+        val decoded = BitmapFactory.decodeByteArray(this, 0, size) ?: return@runCatching LosslessWebpResult.Unreadable
         // 向きを変えるだけなので、補間して画素を混ぜない
         val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), false)
         try {
             // Android 10 は WEBP_LOSSLESS が無く、WEBP の品質 100 が可逆になる
             val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP
-            val output = ByteArrayOutputStream()
-            if (oriented.compress(format, 100, output)) output.toByteArray() else null
+            val output = MaxBytesOutputStream(maxBytes)
+            val compressed = runCatching { oriented.compress(format, 100, output) }.getOrDefault(false)
+            when {
+                output.exceeded -> LosslessWebpResult.TooLarge
+                compressed -> LosslessWebpResult.Success(output.toByteArray())
+                else -> LosslessWebpResult.Unreadable
+            }
         } finally {
             if (oriented !== decoded) oriented.recycle()
             decoded.recycle()
         }
-    }.getOrNull()
+    }.getOrDefault(LosslessWebpResult.Unreadable)
+}
+
+/**
+ * 上限を超えたところで書くのをやめる。compress は書き込み先の例外を握りつぶして false を返すことがあるので、超えたことは [exceeded] で見分ける
+ */
+private class MaxBytesOutputStream(
+    private val maxBytes: Int,
+) : ByteArrayOutputStream() {
+    var exceeded: Boolean = false
+        private set
+
+    override fun write(b: Int) {
+        checkCapacity(1)
+        super.write(b)
+    }
+
+    override fun write(
+        b: ByteArray,
+        off: Int,
+        len: Int,
+    ) {
+        checkCapacity(len)
+        super.write(b, off, len)
+    }
+
+    private fun checkCapacity(additionalBytes: Int) {
+        if (size().toLong() + additionalBytes <= maxBytes) return
+        exceeded = true
+        throw IOException("WebP が $maxBytes バイトを超えた")
+    }
 }
 
 /**
