@@ -8,7 +8,7 @@ import net.matsudamper.kmp.activitypub.session.UserSessionService
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class GraphQlContext(
-    call: ApplicationCall,
+    private val call: ApplicationCall,
     private val sessionService: UserSessionService,
     cookieSecure: Boolean,
     trustCfConnectingIp: Boolean,
@@ -41,7 +41,13 @@ class GraphQlContext(
 
     fun userAccountId(): AccountId? {
         val token = userCookie.token() ?: return null
-        return sessionService.accountIdOf(token)
+        // WebSocket は接続済みで Cookie を出し直せない。サーバー側だけ延ばすと Cookie が先に切れる
+        val cookieWritable = !call.response.isCommitted
+        val session = sessionService.authenticate(token = token, extendable = cookieWritable) ?: return null
+        if (session.extended) {
+            userCookie.append(token = token, maxAgeSeconds = sessionService.ttlSeconds)
+        }
+        return session.accountId
     }
 
     fun issueUserSession(accountId: AccountId) {

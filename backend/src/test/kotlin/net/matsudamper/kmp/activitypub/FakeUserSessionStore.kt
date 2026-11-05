@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.session.StoredUserSession
 import net.matsudamper.kmp.activitypub.session.UserSessionStore
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
@@ -16,10 +17,21 @@ internal class FakeUserSessionStore : UserSessionStore {
         rows[tokenHash] = accountId to expiresAt
     }
 
-    override fun findAccountId(
+    override fun find(
         tokenHash: String,
         now: Instant,
-    ): AccountId? = rows[tokenHash]?.takeIf { (_, expiresAt) -> expiresAt > now }?.first
+    ): StoredUserSession? =
+        rows[tokenHash]
+            ?.takeIf { (_, expiresAt) -> expiresAt > now }
+            ?.let { (accountId, expiresAt) -> StoredUserSession(accountId = accountId, expiresAt = expiresAt) }
+
+    override fun extend(
+        tokenHash: String,
+        expiresAt: Instant,
+    ) {
+        val (accountId, _) = rows[tokenHash] ?: return
+        rows[tokenHash] = accountId to expiresAt
+    }
 
     override fun delete(tokenHash: String) {
         rows.remove(tokenHash)

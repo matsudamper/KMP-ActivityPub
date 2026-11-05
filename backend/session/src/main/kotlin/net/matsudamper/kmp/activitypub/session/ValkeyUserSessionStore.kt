@@ -37,10 +37,27 @@ class ValkeyUserSessionStore(
         )
     }
 
-    override fun findAccountId(
+    override fun find(
         tokenHash: String,
         now: Instant,
-    ): AccountId? = connection.sync().get(keyOf(tokenHash))?.let { AccountId(it.toLong()) }
+    ): StoredUserSession? {
+        val key = keyOf(tokenHash)
+        val accountId = connection.sync().get(key) ?: return null
+        val expiresAtMillis = connection.sync().pexpiretime(key)
+        // GET の直後に期限が切れると負の値が返る
+        if (expiresAtMillis < 0) return null
+        return StoredUserSession(
+            accountId = AccountId(accountId.toLong()),
+            expiresAt = Instant.ofEpochMilli(expiresAtMillis),
+        )
+    }
+
+    override fun extend(
+        tokenHash: String,
+        expiresAt: Instant,
+    ) {
+        connection.sync().pexpireat(keyOf(tokenHash), expiresAt.toEpochMilli())
+    }
 
     override fun delete(tokenHash: String) {
         connection.sync().del(keyOf(tokenHash))
