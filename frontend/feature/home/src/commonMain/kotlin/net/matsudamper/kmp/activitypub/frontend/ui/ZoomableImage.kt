@@ -14,6 +14,7 @@ internal expect val ComposeCanDrawOverZoomableImage: Boolean
 @Composable
 internal expect fun ZoomableImage(
     imageUrl: String,
+    onClickImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
     modifier: Modifier = Modifier,
