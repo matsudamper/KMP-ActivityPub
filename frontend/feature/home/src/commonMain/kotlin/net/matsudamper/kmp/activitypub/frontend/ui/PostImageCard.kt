@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
+import coil3.size.Precision
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
@@ -62,11 +63,14 @@ internal fun PostImageCard(
                 modifier = Modifier.alpha(0f),
             )
             if (blurred) {
-                // Modifier.blur は Android 11 以下で効かないので、小さく読み込んで引き伸ばしたぼやけでも隠す
+                // Modifier.blur は Android 11 以下で効かないので、小さく読み込んで引き伸ばしたぼやけでも隠す。
+                // 一度表示した通常の大きさの画像がキャッシュから使われると隠れないので、キャッシュを分けて大きさも固定する
                 AsyncImage(
                     model = ImageRequest.Builder(LocalPlatformContext.current)
                         .data(image.url)
+                        .memoryCacheKey("blurred:${image.url}")
                         .size(BlurredImageLoadSizePx)
+                        .precision(Precision.EXACT)
                         .build(),
                     contentDescription = null,
                     modifier = Modifier.matchParentSize().blur(32.dp),
