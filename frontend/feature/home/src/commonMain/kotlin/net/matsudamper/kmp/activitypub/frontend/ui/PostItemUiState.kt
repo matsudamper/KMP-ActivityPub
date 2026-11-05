@@ -18,6 +18,11 @@ data class PostItemUiState(
     val linkPreviews: List<LinkPreview>,
     val images: List<Image>,
     /**
+     * 1 件も無ければ null で、お気に入りのアイコンだけを出す
+     */
+    val favouriteCountText: String?,
+    val stamps: List<Stamp>,
+    /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
      */
     val authorListener: AuthorListener?,
@@ -31,6 +36,15 @@ data class PostItemUiState(
         val siteName: String,
         val imageUrl: String?,
         val listener: LinkPreviewListener,
+    )
+
+    /**
+     * @param imageUrl カスタム絵文字の画像。null なら [emoji] の文字で見せる
+     */
+    data class Stamp(
+        val emoji: String,
+        val imageUrl: String?,
+        val countText: String,
     )
 
     /**
