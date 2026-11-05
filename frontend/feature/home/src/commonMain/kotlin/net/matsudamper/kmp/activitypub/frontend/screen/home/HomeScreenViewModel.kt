@@ -448,6 +448,7 @@ internal class HomeScreenViewModel(
                     }
                 },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)
@@ -554,6 +555,8 @@ internal class HomeScreenViewModel(
         fun showMessage(message: String)
 
         fun openUrl(url: String)
+
+        fun navigateToImage(url: String)
     }
 
     private companion object {

@@ -31,6 +31,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
             subclass(Screen.Following::class)
             subclass(Screen.Followers::class)
             subclass(Screen.UserProfile::class)
+            subclass(Screen.Image::class)
         }
     }
 }

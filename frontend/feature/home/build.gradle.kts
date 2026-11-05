@@ -47,6 +47,7 @@ kotlin {
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose.viewmodel)
                 implementation(libs.coil.compose)
+                implementation(libs.zoomable)
             }
         }
 

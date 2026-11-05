@@ -114,6 +114,10 @@ internal fun HomeScreen(
                 override fun openUrl(url: String) {
                     uriHandler.openUri(url)
                 }
+
+                override fun navigateToImage(url: String) {
+                    navigator.navigate(Screen.Image(url = url))
+                }
             },
         )
     }
