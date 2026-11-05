@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.net.URI
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -54,14 +55,32 @@ internal object OgpParser {
             ?: document.title().trim().ifEmpty { null }
         val imageUrl = (metas["og:image:secure_url"] ?: metas["og:image"] ?: metas["twitter:image"])
             ?.absUrl("content")
-            ?.takeIf { it.startsWith("http://", ignoreCase = true) || it.startsWith("https://", ignoreCase = true) }
+            ?.takeIf { it.isHttpUrl() }
 
         return Ogp(
             title = title,
             siteName = metas["og:site_name"]?.attr("content")?.trim(),
             imageUrl = imageUrl,
+            faviconUrl = faviconUrl(document),
         )
     }
+
+    /**
+     * `<link rel="icon">` が無いサイトもブラウザが /favicon.ico を見に行くので、それに倣う
+     */
+    private fun faviconUrl(document: Document): String? {
+        val declared = document.select("link[rel][href]")
+            .firstOrNull { link -> link.attr("rel").lowercase().split(' ').any { it in FAVICON_RELS } }
+            ?.absUrl("href")
+            ?.takeIf { it.isHttpUrl() }
+        if (declared != null) return declared
+
+        val location = document.location()
+        if (!location.isHttpUrl()) return null
+        return runCatching { URI(location).resolve("/favicon.ico").toString() }.getOrNull()
+    }
+
+    private fun String.isHttpUrl(): Boolean = startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
 
     private fun Element.isMentionOrHashtag(): Boolean =
         hasClass("mention") ||
@@ -91,9 +110,12 @@ internal object OgpParser {
 
     private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '。', '、', '」', '）')
 
+    private val FAVICON_RELS = setOf("icon", "apple-touch-icon")
+
     data class Ogp(
         val title: String?,
         val siteName: String?,
         val imageUrl: String?,
+        val faviconUrl: String?,
     )
 }
