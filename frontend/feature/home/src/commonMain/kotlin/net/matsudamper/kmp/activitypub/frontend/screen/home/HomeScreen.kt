@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -49,6 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -58,6 +66,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
@@ -174,7 +183,7 @@ internal fun HomeContent(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -299,12 +308,18 @@ private fun TimelineTabContent(
             .filter { (nearEnd, _) -> nearEnd }
             .collect { listener.onScrolledToTimelineEnd() }
     }
+    val wheelPullToRefreshBlocker = remember { WheelPullToRefreshBlocker() }
     PullToRefreshBox(
         isRefreshing = refreshing,
         onRefresh = listener::onRefreshTimeline,
         modifier = modifier,
     ) {
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(wheelPullToRefreshBlocker.modifier),
+        ) {
             items(timelineItems) { item ->
                 PostItem(uiState = item)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -632,5 +647,33 @@ private val HomeScreenUiState.Tab.label: String
         HomeScreenUiState.Tab.Search -> "検索"
         HomeScreenUiState.Tab.User -> "ユーザー"
     }
+
+/**
+ * ドラッグの移動量は指を離した後にまとめて処理されることがあるため、離した時点では判定を切り替えない。
+ * 次にホイールが回るか押下されるまで、直前の入力の種類を保つ
+ */
+private class WheelPullToRefreshBlocker : NestedScrollConnection {
+    private var lastScrollInputIsWheel = false
+
+    val modifier: Modifier = Modifier
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    when (event.type) {
+                        PointerEventType.Scroll -> lastScrollInputIsWheel = true
+                        PointerEventType.Press -> lastScrollInputIsWheel = false
+                        else -> Unit
+                    }
+                }
+            }
+        }
+        .nestedScroll(this)
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        val pullOverscrollByWheel = source == NestedScrollSource.UserInput && lastScrollInputIsWheel && available.y > 0f
+        return if (pullOverscrollByWheel) Offset(x = 0f, y = available.y) else Offset.Zero
+    }
+}
 
 private const val SEARCH_QUERY_INPUT_ID = "home-search-query"

@@ -4,8 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
@@ -17,6 +20,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyOptionsResu
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyRegistrationResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasswordDeleteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.RegisteredPasskey
+import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeMode
+import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLogoutResult
 import org.koin.core.annotation.KoinViewModel
@@ -30,6 +35,7 @@ internal class SettingsScreenViewModel(
     private val passkeyAuthenticator: PasskeyAuthenticator,
     private val savedStateHandle: SavedStateHandle,
     private val api: UserApi,
+    private val themeSettingStore: ThemeSettingStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -46,6 +52,8 @@ internal class SettingsScreenViewModel(
                 loggingOut = false,
             ),
         )
+    private val themeModeStateFlow: StateFlow<ThemeMode> =
+        themeSettingStore.themeModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.System)
 
     private val listener =
         object : SettingsScreenUiState.Listener {
@@ -91,11 +99,25 @@ internal class SettingsScreenViewModel(
             }
         }
 
+    private val themeOptionListeners: Map<ThemeMode, SettingsScreenUiState.ThemeOptionListener> =
+        ThemeMode.entries.associateWith { themeMode ->
+            object : SettingsScreenUiState.ThemeOptionListener {
+                override fun onClick() {
+                    viewModelScope.launch {
+                        val saved = themeSettingStore.save(themeMode)
+                        if (saved.not()) {
+                            events.send { it.showMessage("テーマを保存できなかった") }
+                        }
+                    }
+                }
+            }
+        }
+
     val uiStateFlow: StateFlow<SettingsScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
+        MutableStateFlow(createUiState(viewModelStateFlow.value, themeModeStateFlow.value)).also { uiStateFlow ->
             viewModelScope.launch {
-                viewModelStateFlow.collect { viewModelState ->
-                    uiStateFlow.value = createUiState(viewModelState)
+                combine(viewModelStateFlow, themeModeStateFlow, ::createUiState).collect { uiState ->
+                    uiStateFlow.value = uiState
                 }
             }
         }.asStateFlow()
@@ -258,10 +280,26 @@ internal class SettingsScreenViewModel(
         }
     }
 
-    private fun createUiState(viewModelState: ViewModelState): SettingsScreenUiState {
+    private fun createUiState(
+        viewModelState: ViewModelState,
+        themeMode: ThemeMode,
+    ): SettingsScreenUiState {
         val passkeys = viewModelState.passkeys
         val busy = viewModelState.busy()
         return SettingsScreenUiState(
+            themeOptions =
+            ThemeMode.entries.map { option ->
+                SettingsScreenUiState.ThemeOption(
+                    label =
+                    when (option) {
+                        ThemeMode.System -> "端末の設定に合わせる"
+                        ThemeMode.Light -> "ライト"
+                        ThemeMode.Dark -> "ダーク"
+                    },
+                    selected = option == themeMode,
+                    listener = themeOptionListeners.getValue(option),
+                )
+            },
             passkeyList =
             when (passkeys) {
                 PasskeysState.Loading -> {
