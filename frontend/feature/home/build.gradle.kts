@@ -47,7 +47,6 @@ kotlin {
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose.viewmodel)
                 implementation(libs.coil.compose)
-                implementation(libs.zoomable)
             }
         }
 
@@ -66,6 +65,7 @@ kotlin {
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.exifinterface)
                 implementation(libs.coil.network.okhttp)
+                implementation(libs.zoomable)
             }
         }
     }
