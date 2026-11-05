@@ -100,15 +100,17 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
 
-internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult {
+internal actual suspend fun ByteArray.toWebp(maxBytes: Int): WebpResult = withContext(Dispatchers.Default) { toLosslessWebp(maxBytes) }
+
+private fun ByteArray.toLosslessWebp(maxBytes: Int): WebpResult {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(this, 0, size, bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return LosslessWebpResult.Unreadable
-    if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return LosslessWebpResult.TooManyPixels
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return WebpResult.Unreadable
+    if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return WebpResult.TooManyPixels
 
     // 向きを変えるときに原寸のビットマップをもう 1 枚作るので、展開と同じくメモリが足りなくなることがある
     return runCatching {
-        val decoded = BitmapFactory.decodeByteArray(this, 0, size) ?: return@runCatching LosslessWebpResult.Unreadable
+        val decoded = BitmapFactory.decodeByteArray(this, 0, size) ?: return@runCatching WebpResult.Unreadable
         // 向きを変えるだけなので、補間して画素を混ぜない
         val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), false)
         try {
@@ -117,15 +119,15 @@ internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult 
             val output = MaxBytesOutputStream(maxBytes)
             val compressed = runCatching { oriented.compress(format, 100, output) }.getOrDefault(false)
             when {
-                output.exceeded -> LosslessWebpResult.TooLarge
-                compressed -> LosslessWebpResult.Success(output.toByteArray())
-                else -> LosslessWebpResult.Unreadable
+                output.exceeded -> WebpResult.TooLarge
+                compressed -> WebpResult.Success(output.toByteArray())
+                else -> WebpResult.Unreadable
             }
         } finally {
             if (oriented !== decoded) oriented.recycle()
             decoded.recycle()
         }
-    }.getOrDefault(LosslessWebpResult.Unreadable)
+    }.getOrDefault(WebpResult.Unreadable)
 }
 
 /**

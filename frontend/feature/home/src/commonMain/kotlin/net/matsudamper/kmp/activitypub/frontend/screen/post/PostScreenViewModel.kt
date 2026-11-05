@@ -4,20 +4,18 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
-import net.matsudamper.kmp.activitypub.frontend.ui.LosslessWebpResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
-import net.matsudamper.kmp.activitypub.frontend.ui.toLosslessWebp
+import net.matsudamper.kmp.activitypub.frontend.ui.WebpResult
+import net.matsudamper.kmp.activitypub.frontend.ui.toWebp
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -114,7 +112,7 @@ internal class PostScreenViewModel(
     }
 
     /**
-     * 可逆の WebP に描き直して EXIF を落とす。読めないか送れなければメッセージを出して null
+     * WebP に描き直して EXIF を落とす。読めないか送れなければメッセージを出して null
      */
     private suspend fun readImage(file: PickedImageFile): ByteArray? {
         val source =
@@ -131,21 +129,20 @@ internal class PostScreenViewModel(
                     return null
                 }
             }
-        // 展開と WebP への書き出しは画面を止めるほど重い
-        return when (val webp = withContext(Dispatchers.Default) { source.toLosslessWebp(maxBytes = MAX_IMAGE_BYTES) }) {
-            is LosslessWebpResult.Success -> webp.bytes
+        return when (val webp = source.toWebp(maxBytes = MAX_IMAGE_BYTES)) {
+            is WebpResult.Success -> webp.bytes
 
-            LosslessWebpResult.TooLarge -> {
+            WebpResult.TooLarge -> {
                 events.send { it.showMessage("画像を WebP にすると 20MB を超えるため送れません") }
                 null
             }
 
-            LosslessWebpResult.TooManyPixels -> {
+            WebpResult.TooManyPixels -> {
                 events.send { it.showMessage("画像の画素数が多すぎます。6400 万画素までにしてください") }
                 null
             }
 
-            LosslessWebpResult.Unreadable -> {
+            WebpResult.Unreadable -> {
                 events.send { it.showMessage("画像として読み込めませんでした") }
                 null
             }
