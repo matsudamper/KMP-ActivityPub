@@ -35,6 +35,13 @@ private fun HomeContentPreviewStreamDisconnected() = HomeTimelinePreview(
     streamStatus = HomeScreenUiState.TimelineStreamStatus.Disconnected,
 )
 
+@Preview
+@Composable
+private fun HomeContentPreviewStreamWaitingToReconnect() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.None,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect,
+)
+
 @Composable
 private fun HomeTimelinePreview(
     footer: HomeScreenUiState.TimelineFooter,
