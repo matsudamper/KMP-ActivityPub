@@ -24,14 +24,13 @@ internal fun createPostItemUiState(
         iconUrl = iconUrl,
         displayName = displayName,
         acct = acct,
-        contentWarningLabel = if (body.sensitive) body.summary?.takeIf { it.isNotBlank() } ?: "閲覧注意" else null,
         body = createPostBodyText(content = body.content, onOpenUrl = onOpenUrl),
         postedAt = body.publishedAt,
         linkPreviews = body.linkUrls.map { url ->
             createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
         },
         images = body.images.map { image ->
-            createPostImage(image) { onOpenImage(image.url) }
+            createPostImage(image = image, blurredUntilRevealed = body.sensitive) { onOpenImage(image.url) }
         },
         authorListener = authorListener,
         listener = object : PostItemUiState.Listener {
