@@ -381,7 +381,7 @@ internal class SettingsScreenViewModel(
 
     private fun ViewModelState.busy(): Boolean = registering || deleting || deletingPassword
 
-    data class ViewModelState(
+    private data class ViewModelState(
         val passkeys: PasskeysState,
         val passkeyName: String,
         val registering: Boolean,

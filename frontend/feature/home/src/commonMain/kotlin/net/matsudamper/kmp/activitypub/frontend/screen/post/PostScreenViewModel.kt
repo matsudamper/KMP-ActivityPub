@@ -241,7 +241,7 @@ internal class PostScreenViewModel(
 
     private fun ViewModelState.imageAddable(): Boolean = submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
 
-    data class ViewModelState(
+    private data class ViewModelState(
         val body: String,
         val images: List<SelectedImage>,
         val loadingImage: Boolean,
