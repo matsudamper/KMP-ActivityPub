@@ -5,6 +5,7 @@ import java.security.SecureRandom
 import java.time.Clock
 import java.util.Base64
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.toJavaDuration
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
@@ -29,7 +30,24 @@ class UserSessionService(
         return token
     }
 
-    fun accountIdOf(token: String): AccountId? = sessionStore.findAccountId(tokenHash = hash(token), now = clock.instant())
+    /**
+     * 使われている間は期限を ttl 先まで延ばす。
+     * 延ばすたびに Cookie を出し直すとアプリが保存とバックアップを毎回やり直すので、延ばすのは 1 日に 1 回までにする
+     */
+    fun authenticate(
+        token: String,
+        extendable: Boolean,
+    ): AuthenticatedUserSession? {
+        val tokenHash = hash(token)
+        val now = clock.instant()
+        val stored = sessionStore.find(tokenHash = tokenHash, now = now) ?: return null
+        val extendedExpiresAt = now.plus(ttl.toJavaDuration())
+        val extended = extendable && stored.expiresAt.plus(EXTEND_INTERVAL.toJavaDuration()) <= extendedExpiresAt
+        if (extended && !sessionStore.extend(tokenHash = tokenHash, expiresAt = extendedExpiresAt)) {
+            return null
+        }
+        return AuthenticatedUserSession(accountId = stored.accountId, extended = extended)
+    }
 
     fun delete(token: String) {
         sessionStore.delete(tokenHash = hash(token))
@@ -44,6 +62,13 @@ class UserSessionService(
     private companion object {
         const val TOKEN_SIZE_BYTES = 32
 
+        val EXTEND_INTERVAL: Duration = 1.days
+
         val BASE64_ENCODER: Base64.Encoder = Base64.getUrlEncoder().withoutPadding()
     }
 }
+
+data class AuthenticatedUserSession(
+    val accountId: AccountId,
+    val extended: Boolean,
+)

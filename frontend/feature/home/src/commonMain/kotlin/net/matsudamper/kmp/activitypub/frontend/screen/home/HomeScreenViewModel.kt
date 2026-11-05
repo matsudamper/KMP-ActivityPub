@@ -89,8 +89,13 @@ internal class HomeScreenViewModel(
                     }
 
                     override fun onClickTab(tab: HomeScreenUiState.Tab) {
+                        val reselected = mutableUiStateFlow.value.selectedTab == tab
                         viewModelScope.launch {
-                            events.send { it.navigateToTab(tab) }
+                            if (reselected) {
+                                events.send { it.scrollTabToTop(tab) }
+                            } else {
+                                events.send { it.navigateToTab(tab) }
+                            }
                         }
                     }
 
@@ -443,6 +448,7 @@ internal class HomeScreenViewModel(
                     }
                 },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)
@@ -532,6 +538,8 @@ internal class HomeScreenViewModel(
     interface Event {
         fun navigateToTab(tab: HomeScreenUiState.Tab)
 
+        fun scrollTabToTop(tab: HomeScreenUiState.Tab)
+
         fun navigateToPost()
 
         fun navigateToSettings()
@@ -547,6 +555,8 @@ internal class HomeScreenViewModel(
         fun showMessage(message: String)
 
         fun openUrl(url: String)
+
+        fun navigateToImage(url: String)
     }
 
     private companion object {

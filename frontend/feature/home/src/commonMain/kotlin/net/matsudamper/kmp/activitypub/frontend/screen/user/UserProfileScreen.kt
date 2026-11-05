@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -62,6 +63,10 @@ internal fun UserProfileScreen(
 
             override fun openUrl(url: String) {
                 uriHandler.openUri(url)
+            }
+
+            override fun navigateToImage(url: String) {
+                navigator.navigate(Screen.Image(url = url))
             }
         })
     }
