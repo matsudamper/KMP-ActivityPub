@@ -19,6 +19,7 @@ private fun UserProfileContentPreview() {
                     displayName = "Alice",
                     biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                     followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
+                    selectedTab = UserProfileScreenUiState.Tab.Posts,
                     posts = listOf(
                         PostItemUiState(
                             iconUrl = null,
@@ -43,6 +44,8 @@ private fun UserProfileContentPreview() {
                         ),
                     ),
                     postsEmptyMessage = null,
+                    media = listOf(),
+                    mediaEmptyMessage = "表示できるメディアはありません",
                 ),
                 listener = AndroidPreviewUserProfileListener,
             ),
@@ -63,8 +66,42 @@ private fun UserProfileContentLocalUserPreview() {
                     displayName = "Bob",
                     biography = null,
                     followButton = null,
+                    selectedTab = UserProfileScreenUiState.Tab.Posts,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
+                    media = listOf(),
+                    mediaEmptyMessage = "表示できるメディアはありません",
+                ),
+                listener = AndroidPreviewUserProfileListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun UserProfileContentMediaPreview() {
+    MaterialTheme {
+        UserProfileContent(
+            uiState = UserProfileScreenUiState(
+                content = UserProfileScreenUiState.Content.Loaded(
+                    acct = "@alice@example.social",
+                    iconUrl = null,
+                    displayName = "Alice",
+                    biography = null,
+                    followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
+                    selectedTab = UserProfileScreenUiState.Tab.Media,
+                    posts = listOf(),
+                    postsEmptyMessage = "表示できる投稿はありません",
+                    media = List(7) { index ->
+                        UserProfileScreenUiState.Media(
+                            url = "https://example.social/media/$index.png",
+                            description = null,
+                            blurred = index == 1,
+                        )
+                    },
+                    mediaEmptyMessage = null,
                 ),
                 listener = AndroidPreviewUserProfileListener,
             ),
@@ -93,6 +130,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickBack() = Unit
 
     override fun onClickFollow() = Unit
+
+    override fun onClickTab(tab: UserProfileScreenUiState.Tab) = Unit
 }
 
 private object AndroidPreviewPostItemListener : PostItemUiState.Listener {

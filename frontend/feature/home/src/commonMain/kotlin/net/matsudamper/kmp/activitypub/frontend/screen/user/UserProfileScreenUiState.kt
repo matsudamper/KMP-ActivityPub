@@ -20,8 +20,11 @@ data class UserProfileScreenUiState(
             val displayName: String,
             val biography: String?,
             val followButton: FollowButton?,
+            val selectedTab: Tab,
             val posts: List<PostItemUiState>,
             val postsEmptyMessage: String?,
+            val media: List<Media>,
+            val mediaEmptyMessage: String?,
         ) : Content
 
         data object NotFound : Content
@@ -30,6 +33,20 @@ data class UserProfileScreenUiState(
             val message: String,
         ) : Content
     }
+
+    enum class Tab {
+        Posts,
+        Media,
+    }
+
+    /**
+     * @param description 画像の説明文。無ければ null
+     */
+    data class Media(
+        val url: String,
+        val description: String?,
+        val blurred: Boolean,
+    )
 
     data class FollowButton(
         val text: String,
@@ -43,5 +60,7 @@ data class UserProfileScreenUiState(
         fun onClickBack()
 
         fun onClickFollow()
+
+        fun onClickTab(tab: Tab)
     }
 }

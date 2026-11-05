@@ -34,6 +34,7 @@ internal class UserProfileScreenViewModel(
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 blurToggledImageUrls = setOf(),
+                selectedTab = UserProfileScreenUiState.Tab.Posts,
             ),
         )
     private var loadJob: Job? = null
@@ -55,6 +56,10 @@ internal class UserProfileScreenViewModel(
 
         override fun onClickFollow() {
             changeFollowing()
+        }
+
+        override fun onClickTab(tab: UserProfileScreenUiState.Tab) {
+            viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }
     }
 
@@ -171,6 +176,15 @@ internal class UserProfileScreenViewModel(
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
+        val media = profile.posts.flatMap { post ->
+            post.body.images.map { image ->
+                UserProfileScreenUiState.Media(
+                    url = image.url,
+                    description = image.description,
+                    blurred = post.body.sensitive,
+                )
+            }
+        }
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
             iconUrl = profile.iconUrl,
@@ -184,6 +198,7 @@ internal class UserProfileScreenViewModel(
                     enabled = !loaded.followingChangeInProgress,
                 )
             },
+            selectedTab = viewModelState.selectedTab,
             posts = profile.posts.map { post ->
                 val linkPreviewId = post.linkPreviewId
                 val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
@@ -208,6 +223,8 @@ internal class UserProfileScreenViewModel(
                 )
             },
             postsEmptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
+            media = media,
+            mediaEmptyMessage = if (media.isEmpty()) "表示できるメディアはありません" else null,
         )
     }
 
@@ -225,6 +242,7 @@ internal class UserProfileScreenViewModel(
         val profile: ProfileState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         val blurToggledImageUrls: Set<String>,
+        val selectedTab: UserProfileScreenUiState.Tab,
     )
 
     private sealed interface ProfileState {
