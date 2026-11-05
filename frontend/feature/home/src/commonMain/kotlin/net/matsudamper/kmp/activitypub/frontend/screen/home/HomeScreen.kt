@@ -155,12 +155,13 @@ internal fun HomeScreen(
 internal class HomeTabListStates(
     val timeline: LazyListState,
     val search: LazyListState,
+    val user: LazyListState,
 ) {
     suspend fun scrollToTop(tab: HomeScreenUiState.Tab) {
         when (tab) {
             HomeScreenUiState.Tab.Home -> timeline.animateScrollToItem(0)
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
-            HomeScreenUiState.Tab.User -> Unit
+            HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
         }
     }
 }
@@ -169,7 +170,8 @@ internal class HomeTabListStates(
 internal fun rememberHomeTabListStates(): HomeTabListStates {
     val timeline = rememberLazyListState()
     val search = rememberLazyListState()
-    return remember(timeline, search) { HomeTabListStates(timeline = timeline, search = search) }
+    val user = rememberLazyListState()
+    return remember(timeline, search, user) { HomeTabListStates(timeline = timeline, search = search, user = user) }
 }
 
 @Composable
@@ -291,7 +293,9 @@ internal fun HomeContent(
 
                 HomeScreenUiState.Tab.User -> {
                     UserTabContent(
+                        listState = tabListStates.user,
                         profile = uiState.profile,
+                        userPosts = uiState.userPosts,
                         listener = uiState.listener,
                         modifier = contentModifier,
                     )
@@ -476,7 +480,9 @@ private fun SearchTabContent(
 
 @Composable
 private fun UserTabContent(
+    listState: LazyListState,
     profile: HomeScreenUiState.Profile,
+    userPosts: HomeScreenUiState.UserPosts,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
@@ -503,56 +509,109 @@ private fun UserTabContent(
             }
 
             is HomeScreenUiState.Profile.Loaded -> {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ProfileIcon(
-                            iconUrl = profile.iconUrl,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    item {
+                        UserProfileHeader(profile = profile, listener = listener)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    item {
+                        Text(
+                            text = "投稿",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         )
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Text(
-                                text = profile.displayName,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = profile.acct,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    when (userPosts) {
+                        HomeScreenUiState.UserPosts.Loading -> item {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
                         }
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FollowCount(
-                            count = profile.followingCount,
-                            label = "フォロー",
-                            onClick = listener::onClickFollowing,
-                        )
-                        FollowCount(
-                            count = profile.followersCount,
-                            label = "フォロワー",
-                            onClick = listener::onClickFollowers,
-                        )
-                    }
-                    OutlinedButton(
-                        onClick = listener::onClickEditProfile,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("プロフィールを編集")
+
+                        HomeScreenUiState.UserPosts.LoadFailed -> item {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                Button(onClick = listener::onClickRetryUserPosts) { Text("再読み込み") }
+                            }
+                        }
+
+                        is HomeScreenUiState.UserPosts.Loaded -> {
+                            val emptyMessage = userPosts.emptyMessage
+                            if (emptyMessage != null) {
+                                item {
+                                    Text(
+                                        text = emptyMessage,
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            items(userPosts.items) { post ->
+                                PostItem(uiState = post)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun UserProfileHeader(
+    profile: HomeScreenUiState.Profile.Loaded,
+    listener: HomeScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ProfileIcon(
+                iconUrl = profile.iconUrl,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = profile.displayName,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = profile.acct,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FollowCount(
+                count = profile.followingCount,
+                label = "フォロー",
+                onClick = listener::onClickFollowing,
+            )
+            FollowCount(
+                count = profile.followersCount,
+                label = "フォロワー",
+                onClick = listener::onClickFollowers,
+            )
+        }
+        OutlinedButton(
+            onClick = listener::onClickEditProfile,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("プロフィールを編集")
         }
     }
 }
