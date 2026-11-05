@@ -49,7 +49,7 @@ internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -
     }
 }
 
-private class ContentUriImageFile(
+internal class ContentUriImageFile(
     private val context: Context,
     private val uri: Uri,
 ) : PickedImageFile {
