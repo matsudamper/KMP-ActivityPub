@@ -110,7 +110,7 @@ private fun ScreenContent(
         }
 
         Screen.Post -> {
-            PostScreen(navigator = navigator)
+            PostScreen(onNavigateBack = navigator::back)
         }
 
         Screen.Settings -> {

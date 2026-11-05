@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
-import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -48,7 +47,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun PostScreen(
-    navigator: Navigator,
+    onNavigateBack: () -> Unit,
 ) {
     val viewModel = koinViewModel<PostScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
@@ -56,11 +55,11 @@ internal fun PostScreen(
     val coroutineScope = rememberCoroutineScope()
     val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
 
-    LaunchedEffect(viewModel.eventHandler, navigator, pickImage) {
+    LaunchedEffect(viewModel.eventHandler, onNavigateBack, pickImage) {
         viewModel.eventHandler.collect(
             object : PostScreenViewModel.Event {
                 override fun navigateBack() {
-                    navigator.back()
+                    onNavigateBack()
                 }
 
                 override fun openImagePicker() {

@@ -76,6 +76,7 @@ internal class HomeScreenViewModel(
      * 一括で切り替えたら、画像ごとに開け閉めした分は捨てて揃える
      */
     private var blurToggledImageUrls = setOf<String>()
+    private var openedColumns = setOf<HomeScreenUiState.Column>()
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
@@ -93,6 +94,8 @@ internal class HomeScreenViewModel(
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                openedColumns = listOf(),
+                railItems = createRailItems(),
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
                         viewModelScope.launch {
@@ -115,6 +118,14 @@ internal class HomeScreenViewModel(
                                 events.send { it.navigateToTab(tab) }
                             }
                         }
+                    }
+
+                    override fun onClickRailItem(column: HomeScreenUiState.Column) {
+                        updateOpenedColumns(if (column in openedColumns) openedColumns - column else openedColumns + column)
+                    }
+
+                    override fun onClickCloseColumn(column: HomeScreenUiState.Column) {
+                        updateOpenedColumns(openedColumns - column)
                     }
 
                     override fun onTabChanged(tab: HomeScreenUiState.Tab) {
@@ -237,6 +248,22 @@ internal class HomeScreenViewModel(
                     uiState.copy(search = uiState.search.copy(result = createSearchResult(searchState)))
                 }
             }
+        }
+    }
+
+    private fun updateOpenedColumns(columns: Set<HomeScreenUiState.Column>) {
+        openedColumns = columns
+        mutableUiStateFlow.update {
+            it.copy(
+                openedColumns = HomeScreenUiState.Column.entries.filter { column -> column in openedColumns },
+                railItems = createRailItems(),
+            )
+        }
+    }
+
+    private fun createRailItems(): List<HomeScreenUiState.RailItem> {
+        return HomeScreenUiState.Column.entries.map { column ->
+            HomeScreenUiState.RailItem(column = column, selected = column in openedColumns)
         }
     }
 

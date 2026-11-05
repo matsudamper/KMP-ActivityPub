@@ -14,8 +14,24 @@ data class HomeScreenUiState(
     val profile: Profile,
     val userPosts: UserPosts,
     val userTabIconUrl: String?,
+    /**
+     * 横に広い画面でタイムラインの左に並べる順
+     */
+    val openedColumns: List<Column>,
+    val railItems: List<RailItem>,
     val listener: Listener,
 ) {
+    enum class Column {
+        Post,
+        Search,
+        User,
+    }
+
+    data class RailItem(
+        val column: Column,
+        val selected: Boolean,
+    )
+
     sealed interface TimelineFooter {
         data object None : TimelineFooter
         data object Loading : TimelineFooter
@@ -102,6 +118,10 @@ data class HomeScreenUiState(
         fun onClickSettings()
 
         fun onClickTab(tab: Tab)
+
+        fun onClickRailItem(column: Column)
+
+        fun onClickCloseColumn(column: Column)
 
         fun onTabChanged(tab: Tab)
 

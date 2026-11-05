@@ -1,9 +1,12 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.ColorImage
@@ -137,6 +140,8 @@ private fun HomeTimelinePreview(
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                openedColumns = listOf(),
+                railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -195,6 +200,8 @@ private fun HomeSearchContentPreview() {
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                openedColumns = listOf(),
+                railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -225,6 +232,8 @@ private fun HomeSearchEmptyContentPreview() {
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                openedColumns = listOf(),
+                railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -275,10 +284,77 @@ private fun HomeUserContentPreview() {
                     emptyMessage = null,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
+                openedColumns = listOf(),
+                railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
             tabListStates = rememberHomeTabListStates(),
+        )
+    }
+}
+
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun HomeColumnsContentPreview() {
+    HomePreviewTheme {
+        HomeColumnsContent(
+            uiState = HomeScreenUiState(
+                selectedTab = HomeScreenUiState.Tab.Home,
+                timelineItems = listOf(
+                    PostItemUiState(
+                        iconUrl = "https://example.com/kotlin.png",
+                        displayName = "Kotlin",
+                        acct = "@kotlin@example.com",
+                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", onOpenUrl = {}),
+                        postedAt = "1分前",
+                        linkPreviews = listOf(),
+                        images = listOf(),
+                        favouriteCountText = null,
+                        stamps = listOf(),
+                        authorListener = AndroidPreviewAuthorListener,
+                        listener = AndroidPreviewTimelineItemListener,
+                    ),
+                ),
+                timelineRefreshing = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
+                search = HomeScreenUiState.Search(
+                    query = "kotlin",
+                    result = HomeScreenUiState.SearchResult.Loaded(
+                        accounts = listOf(
+                            HomeScreenUiState.SearchAccount(
+                                iconUrl = "https://example.com/icon.png",
+                                displayName = "kotlin",
+                                acct = "@kotlin",
+                                followButtonText = null,
+                                followButtonEnabled = false,
+                                onClickFollow = {},
+                                listener = AndroidPreviewSearchAccountListener,
+                            ),
+                        ),
+                        loadMoreButtonVisible = false,
+                    ),
+                ),
+                profile = HomeScreenUiState.Profile.Loading,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
+                userTabIconUrl = null,
+                openedColumns = listOf(HomeScreenUiState.Column.Post, HomeScreenUiState.Column.Search),
+                railItems = listOf(
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Post, selected = true),
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Search, selected = true),
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.User, selected = false),
+                ),
+                listener = AndroidPreviewHomeListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
+            postColumn = { modifier ->
+                Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                    Text("投稿")
+                }
+            },
         )
     }
 }
@@ -300,6 +376,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickSettings() = Unit
 
     override fun onClickTab(tab: HomeScreenUiState.Tab) = Unit
+
+    override fun onClickRailItem(column: HomeScreenUiState.Column) = Unit
+
+    override fun onClickCloseColumn(column: HomeScreenUiState.Column) = Unit
 
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 

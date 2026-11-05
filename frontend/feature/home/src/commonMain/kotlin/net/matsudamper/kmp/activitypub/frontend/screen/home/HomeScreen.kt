@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -66,6 +67,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -145,7 +147,22 @@ internal fun HomeScreen(
     LaunchedEffect(uiState.listener) {
         uiState.listener.onScreenShown()
     }
-    HomeContent(uiState = uiState, snackbarHostState = snackbarHostState, tabListStates = tabListStates)
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        if (maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH) {
+            HomeColumnsContent(
+                uiState = uiState,
+                snackbarHostState = snackbarHostState,
+                tabListStates = tabListStates,
+                postColumn = { modifier ->
+                    Box(modifier = modifier) {
+                        PostScreen(onNavigateBack = { uiState.listener.onClickCloseColumn(HomeScreenUiState.Column.Post) })
+                    }
+                },
+            )
+        } else {
+            HomeContent(uiState = uiState, snackbarHostState = snackbarHostState, tabListStates = tabListStates)
+        }
+    }
 }
 
 /**
@@ -195,19 +212,10 @@ internal fun HomeContent(
                         fontWeight = FontWeight.Bold,
                     )
                     if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
-                        IconButton(onClick = uiState.listener::onClickSensitiveImagesVisibility) {
-                            if (uiState.sensitiveImagesBlurred) {
-                                Icon(
-                                    imageVector = AppIcons.VisibilityOff,
-                                    contentDescription = "閲覧注意の画像を隠している。押すと全部表示",
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = AppIcons.Visibility,
-                                    contentDescription = "閲覧注意の画像を全部表示している。押すと隠す",
-                                )
-                            }
-                        }
+                        SensitiveImagesVisibilityButton(
+                            sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
+                            onClick = uiState.listener::onClickSensitiveImagesVisibility,
+                        )
                         TimelineStreamStatusButton(
                             status = uiState.timelineStreamStatus,
                             onClick = uiState.listener::onClickTimelineStreamStatus,
@@ -306,7 +314,27 @@ internal fun HomeContent(
 }
 
 @Composable
-private fun TimelineTabContent(
+internal fun SensitiveImagesVisibilityButton(
+    sensitiveImagesBlurred: Boolean,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick) {
+        if (sensitiveImagesBlurred) {
+            Icon(
+                imageVector = AppIcons.VisibilityOff,
+                contentDescription = "閲覧注意の画像を隠している。押すと全部表示",
+            )
+        } else {
+            Icon(
+                imageVector = AppIcons.Visibility,
+                contentDescription = "閲覧注意の画像を全部表示している。押すと隠す",
+            )
+        }
+    }
+}
+
+@Composable
+internal fun TimelineTabContent(
     listState: LazyListState,
     timelineItems: List<PostItemUiState>,
     refreshing: Boolean,
@@ -366,7 +394,7 @@ private fun TimelineTabContent(
 }
 
 @Composable
-private fun TimelineStreamStatusButton(
+internal fun TimelineStreamStatusButton(
     status: HomeScreenUiState.TimelineStreamStatus,
     onClick: () -> Unit,
 ) {
@@ -410,7 +438,7 @@ private fun ReconnectingIcon(contentDescription: String) {
 }
 
 @Composable
-private fun SearchTabContent(
+internal fun SearchTabContent(
     listState: LazyListState,
     search: HomeScreenUiState.Search,
     listener: HomeScreenUiState.Listener,
@@ -479,7 +507,7 @@ private fun SearchTabContent(
 }
 
 @Composable
-private fun UserTabContent(
+internal fun UserTabContent(
     listState: LazyListState,
     profile: HomeScreenUiState.Profile,
     userPosts: HomeScreenUiState.UserPosts,
@@ -747,5 +775,10 @@ private class WheelPullToRefreshBlocker : NestedScrollConnection {
         return if (pullOverscrollByWheel) Offset(x = 0f, y = available.y) else Offset.Zero
     }
 }
+
+/**
+ * レールとタイムラインに加えて、投稿などのカラムを 1 つ並べられる幅
+ */
+private val COLUMNS_LAYOUT_MIN_WIDTH = 840.dp
 
 private const val SEARCH_QUERY_INPUT_ID = "home-search-query"
