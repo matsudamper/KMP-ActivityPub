@@ -127,7 +127,7 @@ class UserProfileServiceTest {
     }
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
-        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null, listOf(image))
+        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null, listOf(image), null)
 
     private companion object {
         val image = TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null)

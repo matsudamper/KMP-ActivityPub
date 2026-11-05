@@ -87,6 +87,8 @@ type HomeTimelinePost {
     iconUrl: String
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
+    "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
+    deletableNoteId: ID
 }
 
 type PostImage {

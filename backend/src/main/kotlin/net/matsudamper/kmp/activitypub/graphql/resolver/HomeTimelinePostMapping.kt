@@ -30,5 +30,6 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
             actorIconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = actorUpdatedAt) }
         },
         images = body.images,
+        deletableNoteId = localPublicId?.value,
     )
 }

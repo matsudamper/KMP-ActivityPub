@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.repository
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 interface TimelineRepository {
     fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest
@@ -32,6 +33,7 @@ data class TimelinePosition(val score: Long, val member: String)
 /**
  * @param actorIconUrl 他のサーバーの投稿者のプロフィール画像の URL。このサーバーの投稿や、画像の無い相手は null
  * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
+ * @param localPublicId このサーバーの投稿の公開 id。他のサーバーの投稿は null
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -45,6 +47,7 @@ data class TimelinePost(
     val actorIconUrl: String?,
     val actorUpdatedAt: Instant?,
     val images: List<TimelinePostImage>,
+    val localPublicId: PublicNoteId?,
 )
 
 sealed interface TimelinePostImage {

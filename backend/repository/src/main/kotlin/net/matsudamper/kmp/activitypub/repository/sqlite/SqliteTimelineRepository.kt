@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
@@ -141,14 +142,14 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             val local = dsl.select(
                 NOTES.ID, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME,
                 DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
-                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
+                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), NOTES.PUBLIC_ID,
             ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.ID.`in`(localIds)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
             val remote = dsl.select(
                 REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.PUBLISHED_AT,
                 DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
                 REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
-                REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT,
+                REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, String::class.java),
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
             val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -168,6 +169,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value10(),
                     record.value11()?.let { StoredInstant.parse(it) },
                     imagesByMember[member].orEmpty(),
+                    record.value12()?.let { PublicNoteId(it) },
                 )
             }
         }
