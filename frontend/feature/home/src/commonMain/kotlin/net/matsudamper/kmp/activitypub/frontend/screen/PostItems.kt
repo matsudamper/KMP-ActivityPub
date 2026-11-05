@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -28,7 +30,11 @@ internal fun createPostItemUiState(
         displayName = displayName,
         acct = acct,
         body = createPostBodyText(content = body.content, onOpenUrl = onOpenUrl),
-        postedAt = body.publishedAt,
+        postedAt = createPostedAtText(
+            publishedAt = body.publishedAt,
+            now = Clock.System.now(),
+            timeZone = TimeZone.currentSystemDefault(),
+        ),
         linkPreviews = body.linkUrls.map { url ->
             createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
         },
