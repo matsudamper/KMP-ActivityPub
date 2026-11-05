@@ -15,7 +15,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import org.jetbrains.skia.Codec
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.EncodedImageFormat
-import org.jetbrains.skia.EncodedOrigin
 import org.jetbrains.skia.FilterMipmap
 import org.jetbrains.skia.FilterMode
 import org.jetbrains.skia.Image
@@ -117,37 +116,18 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
 internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult =
     runCatching {
         val codec = Codec.makeFromData(Data.makeFromBytes(this))
-        val origin = codec.encodedOrigin
         val pixelCount = codec.width.toLong() * codec.height
         codec.close()
         if (pixelCount > MAX_DECODED_PIXELS) return@runCatching LosslessWebpResult.TooManyPixels
 
-        // Skia は WebP の品質 100 を可逆で書き出す
-        val webp = Image.makeFromEncoded(this).let { image -> if (origin == EncodedOrigin.TOP_LEFT) image else image.toOriented(origin) }.encodeWebpBytes()
+        // 書き出す WebP に EXIF を書き込まず向きの情報も無くなるが、Skia は展開するときに向きを画素に反映している
+        val webp = Image.makeFromEncoded(this).encodeWebpBytes()
         when {
             webp == null -> LosslessWebpResult.Unreadable
             webp.size > maxBytes -> LosslessWebpResult.TooLarge
             else -> LosslessWebpResult.Success(webp)
         }
     }.getOrDefault(LosslessWebpResult.Unreadable)
-
-/**
- * 書き出す WebP に EXIF を書き込まず向きの情報も無くなるので、向きは画素に反映する。
- * 描き込み先にもう 1 枚原寸の画素を持つので、向きを変えない画像はここを通さない
- */
-private fun Image.toOriented(origin: EncodedOrigin): Image {
-    val orientedWidth = if (origin.swapsWidthHeight()) height else width
-    val orientedHeight = if (origin.swapsWidthHeight()) width else height
-    val surface = Surface.makeRasterN32Premul(orientedWidth, orientedHeight)
-    try {
-        surface.canvas.setMatrix(origin.toMatrix(width, height))
-        surface.canvas.drawImage(this, 0f, 0f)
-        return surface.makeImageSnapshot()
-    } finally {
-        surface.close()
-        close()
-    }
-}
 
 /**
  * 画像も書き出した Data も Wasm のメモリを持つので、続けて選ばれても溜まらないよう使い終えたら閉じる
