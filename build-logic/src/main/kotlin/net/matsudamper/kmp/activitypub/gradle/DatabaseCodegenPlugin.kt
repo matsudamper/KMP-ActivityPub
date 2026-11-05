@@ -19,7 +19,6 @@ class DatabaseCodegenPlugin : Plugin<Project> {
             target.layout.projectDirectory.file("src/main/resources/db/schema.sql"),
         )
         extension.excludes.convention("schema_version|sqlite_.*")
-        // reflect-config の META-INF/native-image/<path>/ の既定。未設定なら group とモジュール名から作る
         extension.nativeImageReflectConfigOutputPath.convention(
             target.provider { "${target.group}/${target.name}-jooq" },
         )

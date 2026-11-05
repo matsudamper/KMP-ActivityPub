@@ -5,9 +5,6 @@ import androidx.compose.runtime.LaunchedEffect
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 
-/**
- * ログイン画面へ戻す
- */
 @Composable
 internal actual fun LoginRequestContent(
     uiState: LoginGateUiState,
