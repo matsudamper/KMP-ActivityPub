@@ -62,7 +62,9 @@ internal sealed interface LosslessWebpResult {
     data object TooLarge : LosslessWebpResult
 
     /**
-     * 画像として読めないか、画素数が大きすぎて展開できない
+     * 原寸で展開するとメモリが足りなくなる
      */
+    data object TooManyPixels : LosslessWebpResult
+
     data object Unreadable : LosslessWebpResult
 }

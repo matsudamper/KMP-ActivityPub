@@ -104,7 +104,7 @@ internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult 
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(this, 0, size, bounds)
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return LosslessWebpResult.Unreadable
-    if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return LosslessWebpResult.Unreadable
+    if (bounds.outWidth.toLong() * bounds.outHeight > MAX_DECODED_PIXELS) return LosslessWebpResult.TooManyPixels
 
     // 向きを変えるときに原寸のビットマップをもう 1 枚作るので、展開と同じくメモリが足りなくなることがある
     return runCatching {
@@ -159,9 +159,9 @@ private class MaxBytesOutputStream(
 }
 
 /**
- * 縮めずに展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度
+ * 縮めずに展開するので、その大きさを抑える。4 バイト/画素で 256MB 程度。50MP のカメラの写真が入る大きさにする
  */
-private const val MAX_DECODED_PIXELS = 50_000_000L
+private const val MAX_DECODED_PIXELS = 64_000_000L
 
 private fun ByteArray.readExifOrientation(): Int =
     runCatching { ExifInterface(ByteArrayInputStream(this)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }

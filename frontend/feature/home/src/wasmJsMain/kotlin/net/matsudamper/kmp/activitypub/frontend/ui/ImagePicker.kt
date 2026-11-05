@@ -119,7 +119,7 @@ internal actual fun ByteArray.toLosslessWebp(maxBytes: Int): LosslessWebpResult 
         val origin = codec.encodedOrigin
         val pixelCount = codec.width.toLong() * codec.height
         codec.close()
-        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching LosslessWebpResult.Unreadable
+        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching LosslessWebpResult.TooManyPixels
 
         val image = Image.makeFromEncoded(this)
         val width = if (origin.swapsWidthHeight()) image.height else image.width
@@ -159,6 +159,6 @@ private fun Image.encodeWebpBytes(): ByteArray? {
 }
 
 /**
- * 縮める前に一度は原寸で展開するので、その大きさを抑える。4 バイト/画素で 200MB 程度
+ * 縮める前に一度は原寸で展開するので、その大きさを抑える。4 バイト/画素で 256MB 程度。50MP のカメラの写真が入る大きさにする
  */
-private const val MAX_DECODED_PIXELS = 50_000_000L
+private const val MAX_DECODED_PIXELS = 64_000_000L

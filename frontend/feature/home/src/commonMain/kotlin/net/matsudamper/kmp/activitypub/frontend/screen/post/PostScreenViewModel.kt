@@ -140,6 +140,11 @@ internal class PostScreenViewModel(
                 null
             }
 
+            LosslessWebpResult.TooManyPixels -> {
+                events.send { it.showMessage("画像の画素数が多すぎます。6400 万画素までにしてください") }
+                null
+            }
+
             LosslessWebpResult.Unreadable -> {
                 events.send { it.showMessage("画像として読み込めませんでした") }
                 null
