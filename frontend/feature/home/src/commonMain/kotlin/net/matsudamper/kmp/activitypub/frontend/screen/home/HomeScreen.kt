@@ -193,6 +193,19 @@ internal fun HomeContent(
                         fontWeight = FontWeight.Bold,
                     )
                     if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
+                        IconButton(onClick = uiState.listener::onClickSensitiveImagesVisibility) {
+                            if (uiState.sensitiveImagesBlurred) {
+                                Icon(
+                                    imageVector = AppIcons.VisibilityOff,
+                                    contentDescription = "閲覧注意の画像を隠している。押すと全部表示",
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = AppIcons.Visibility,
+                                    contentDescription = "閲覧注意の画像を全部表示している。押すと隠す",
+                                )
+                            }
+                        }
                         TimelineStreamStatusButton(
                             status = uiState.timelineStreamStatus,
                             onClick = uiState.listener::onClickTimelineStreamStatus,

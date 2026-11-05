@@ -5,13 +5,15 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 internal fun createPostImage(
     image: UserPostImage,
-    blurredUntilRevealed: Boolean,
+    sensitive: Boolean,
+    sensitiveImagesBlurred: Boolean,
     onClick: () -> Unit,
 ): PostItemUiState.Image {
     return PostItemUiState.Image(
         url = image.url,
         description = image.description,
-        blurredUntilRevealed = blurredUntilRevealed,
+        blurToggleButtonVisible = sensitive,
+        blurredInitially = sensitive && sensitiveImagesBlurred,
         listener = object : PostItemUiState.ImageListener {
             override fun onClick() {
                 onClick()

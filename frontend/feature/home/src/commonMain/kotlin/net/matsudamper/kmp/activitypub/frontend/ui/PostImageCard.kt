@@ -39,13 +39,12 @@ internal fun PostImageCard(
     image: PostItemUiState.Image,
     modifier: Modifier = Modifier,
 ) {
-    var revealed by rememberSaveable(image.url) { mutableStateOf(false) }
-    val blurred = image.blurredUntilRevealed && !revealed
+    var blurred by rememberSaveable(image.url, image.blurredInitially) { mutableStateOf(image.blurredInitially) }
     Surface(
         modifier = modifier.width(LinkPreviewCardWidth),
         onClick = {
             if (blurred) {
-                revealed = true
+                blurred = false
             } else {
                 image.listener.onClick()
             }
@@ -93,9 +92,9 @@ internal fun PostImageCard(
                     contentScale = ContentScale.Crop,
                 )
             }
-            if (image.blurredUntilRevealed) {
+            if (image.blurToggleButtonVisible) {
                 IconButton(
-                    onClick = { revealed = !revealed },
+                    onClick = { blurred = !blurred },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(4.dp)

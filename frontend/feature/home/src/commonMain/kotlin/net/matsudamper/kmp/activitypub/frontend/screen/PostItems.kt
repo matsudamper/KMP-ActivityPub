@@ -15,6 +15,7 @@ internal fun createPostItemUiState(
     acct: String,
     body: UserPostBody,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
+    sensitiveImagesBlurred: Boolean,
     authorListener: PostItemUiState.AuthorListener?,
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
@@ -30,7 +31,7 @@ internal fun createPostItemUiState(
             createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
         },
         images = body.images.map { image ->
-            createPostImage(image = image, blurredUntilRevealed = body.sensitive) { onOpenImage(image.url) }
+            createPostImage(image = image, sensitive = body.sensitive, sensitiveImagesBlurred = sensitiveImagesBlurred) { onOpenImage(image.url) }
         },
         authorListener = authorListener,
         listener = object : PostItemUiState.Listener {

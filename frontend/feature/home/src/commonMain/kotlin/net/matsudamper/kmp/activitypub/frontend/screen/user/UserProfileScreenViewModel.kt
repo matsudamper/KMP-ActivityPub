@@ -165,6 +165,7 @@ internal class UserProfileScreenViewModel(
                     acct = acct,
                     body = post.body,
                     linkPreviews = previews,
+                    sensitiveImagesBlurred = true,
                     // 開いているのがその人の画面なので、押しても移る先が無い
                     authorListener = null,
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
