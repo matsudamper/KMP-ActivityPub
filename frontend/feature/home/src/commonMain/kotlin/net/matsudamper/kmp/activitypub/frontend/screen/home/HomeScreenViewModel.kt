@@ -89,8 +89,13 @@ internal class HomeScreenViewModel(
                     }
 
                     override fun onClickTab(tab: HomeScreenUiState.Tab) {
+                        val reselected = mutableUiStateFlow.value.selectedTab == tab
                         viewModelScope.launch {
-                            events.send { it.navigateToTab(tab) }
+                            if (reselected) {
+                                events.send { it.scrollTabToTop(tab) }
+                            } else {
+                                events.send { it.navigateToTab(tab) }
+                            }
                         }
                     }
 
@@ -531,6 +536,8 @@ internal class HomeScreenViewModel(
 
     interface Event {
         fun navigateToTab(tab: HomeScreenUiState.Tab)
+
+        fun scrollTabToTop(tab: HomeScreenUiState.Tab)
 
         fun navigateToPost()
 

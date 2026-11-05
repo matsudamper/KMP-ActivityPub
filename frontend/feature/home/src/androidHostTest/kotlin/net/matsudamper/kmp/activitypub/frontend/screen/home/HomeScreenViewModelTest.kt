@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -173,6 +174,47 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
         viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Receiving }
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 && !it.timelineRefreshing }
+    }
+
+    @Test
+    fun pressingSelectedTabAgainScrollsToTopInsteadOfNavigating() = withViewModel { viewModel, _ ->
+        val receivedEvents = Channel<String>(Channel.UNLIMITED)
+        val collectJob = backgroundScope.launch {
+            viewModel.eventHandler.collect(RecordingEvent(receivedEvents))
+        }
+        viewModel.uiStateFlow.value.listener.onClickTab(HomeScreenUiState.Tab.Home)
+        assertEquals("scrollTabToTop:Home", receivedEvents.receive())
+        viewModel.uiStateFlow.value.listener.onClickTab(HomeScreenUiState.Tab.Search)
+        assertEquals("navigateToTab:Search", receivedEvents.receive())
+        collectJob.cancel()
+    }
+
+    private class RecordingEvent(
+        private val receivedEvents: Channel<String>,
+    ) : HomeScreenViewModel.Event {
+        override fun navigateToTab(tab: HomeScreenUiState.Tab) {
+            receivedEvents.trySend("navigateToTab:${tab.name}")
+        }
+
+        override fun scrollTabToTop(tab: HomeScreenUiState.Tab) {
+            receivedEvents.trySend("scrollTabToTop:${tab.name}")
+        }
+
+        override fun navigateToPost() = Unit
+
+        override fun navigateToSettings() = Unit
+
+        override fun navigateToUserProfile(username: String) = Unit
+
+        override fun navigateToProfileEdit() = Unit
+
+        override fun navigateToFollowing() = Unit
+
+        override fun navigateToFollowers() = Unit
+
+        override fun showMessage(message: String) = Unit
+
+        override fun openUrl(url: String) = Unit
     }
 
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
