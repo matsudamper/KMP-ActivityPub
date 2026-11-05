@@ -25,6 +25,20 @@ object AppIcons {
             ).build()
     }
 
+    val Close: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Close",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val CloudDone: ImageVector by lazy {
         ImageVector
             .Builder(
@@ -91,6 +105,23 @@ object AppIcons {
                 viewportHeight = 24f,
             ).addPath(
                 pathData = addPathNodes("M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
+    val Image: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Image",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes(
+                    "M21,19V5c0,-1.1 -0.9,-2 -2,-2H5c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2z" +
+                        "M8.5,13.5l2.5,3.01L14.5,12l4.5,6H5l3.5,-4.5z",
+                ),
                 fill = SolidColor(Color.Black),
             ).build()
     }

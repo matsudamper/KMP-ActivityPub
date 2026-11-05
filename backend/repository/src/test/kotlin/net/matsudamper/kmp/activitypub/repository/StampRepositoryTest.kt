@@ -125,6 +125,7 @@ class StampRepositoryTest {
                 publishedAt = NOW,
                 body = "create-$publicId",
                 inboxes = listOf(),
+                images = listOf(),
             ),
         )
     }

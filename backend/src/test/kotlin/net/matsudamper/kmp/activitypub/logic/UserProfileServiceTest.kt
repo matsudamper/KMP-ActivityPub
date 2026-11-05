@@ -96,7 +96,7 @@ class UserProfileServiceTest {
 
     @Test
     fun localProfileUsesStoredPosts() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH, listOf()))
         val profile = assertNotNull(service.profile("alice", viewer))
         assertEquals(listOf(), requests)
         val post = profile.posts.single()
@@ -132,6 +132,6 @@ class UserProfileServiceTest {
         TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null, listOf(image), null, listOf())
 
     private companion object {
-        val image = TimelinePostImage(url = "https://remote.example/a.png", description = null)
+        val image = TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null)
     }
 }

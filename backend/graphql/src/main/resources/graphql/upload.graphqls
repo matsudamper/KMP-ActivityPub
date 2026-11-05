@@ -1,0 +1,2 @@
+"multipart で送るファイル。GraphQL multipart request の形で送る"
+scalar Upload

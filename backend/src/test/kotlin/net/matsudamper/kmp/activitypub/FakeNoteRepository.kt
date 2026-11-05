@@ -1,8 +1,14 @@
 package net.matsudamper.kmp.activitypub
 
+import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Note
+import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.StoredNoteImage
+import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
+import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
@@ -15,6 +21,43 @@ internal class FakeNoteRepository : NoteRepository {
 
     override fun findByPublicIds(publicIds: Set<PublicNoteId>): Map<PublicNoteId, Note> =
         notes.filter { it.publicId in publicIds }.associateBy { it.publicId }
+
+    /**
+     * 画像の持ち主は区別しないので、どれもアカウント 1 のものとして返す
+     */
+    override fun findImage(publicId: NoteImagePublicId): StoredNoteImage? =
+        notes.flatMap { it.images }.firstOrNull { it.publicId == publicId }?.let { StoredNoteImage(ownerAccountId = AccountId(1), image = it) }
+
+    val requestIds = mutableMapOf<Pair<String, String>, PublicNoteId>()
+    val uploadedImages = mutableListOf<UploadedNoteImage>()
+
+    override fun addUploadedImage(upload: UploadedNoteImage) {
+        uploadedImages += upload
+    }
+
+    override fun findUploadedImages(
+        ownerAccountId: AccountId,
+        publicIds: List<NoteImagePublicId>,
+        now: Instant,
+    ): List<NoteImage> =
+        publicIds.mapNotNull { publicId ->
+            uploadedImages.firstOrNull { it.image.publicId == publicId && it.ownerAccountId == ownerAccountId && it.expiresAt > now }?.image
+        }
+
+    override fun listExpiredUploadedImages(
+        now: Instant,
+        limit: Int,
+    ): List<UploadedNoteImage> = uploadedImages.filter { it.expiresAt <= now }.sortedBy { it.expiresAt }.take(limit)
+
+    override fun deleteExpiredUploadedImage(
+        publicId: NoteImagePublicId,
+        now: Instant,
+    ): Boolean = uploadedImages.removeAll { it.image.publicId == publicId && it.expiresAt <= now }
+
+    override fun findPublicIdByRequestId(
+        username: String,
+        requestId: String,
+    ): PublicNoteId? = requestIds[username.lowercase() to requestId]
 
     override fun delete(publicId: PublicNoteId) {
         notes.removeAll { it.publicId == publicId }

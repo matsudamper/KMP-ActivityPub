@@ -50,5 +50,10 @@ internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlP
 
 // Web では CORS を返さないサーバーの画像を読めないので、中継できない画像は返さない
 private fun List<TimelinePostImage>.toQlPostImages(diContainer: DiContainer): List<QlPostImage> = mapNotNull { image ->
-    diContainer.remoteImageProxy?.proxyUrlOf(image.url)?.let { QlPostImage(url = it, description = image.description) }
+    val url =
+        when (image) {
+            is TimelinePostImage.Remote -> diContainer.remoteImageProxy?.proxyUrlOf(image.url)
+            is TimelinePostImage.Local -> diContainer.noteImageUrls?.url(image.publicId)
+        }
+    url?.let { QlPostImage(url = it, description = image.description) }
 }

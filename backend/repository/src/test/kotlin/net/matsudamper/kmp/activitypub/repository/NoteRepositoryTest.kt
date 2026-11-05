@@ -8,7 +8,10 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
@@ -50,6 +53,67 @@ class NoteRepositoryTest {
             assertEquals(setOf(INBOX_A, INBOX_B), claimed.map { it.inbox }.toSet())
             assertEquals(listOf(1, 1), claimed.map { it.attempts })
             assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+        }
+    }
+
+    @Test
+    fun `付けた画像を付けた順に記録し、画像の識別子で引ける`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val images =
+                listOf(
+                    NoteImage(NoteImagePublicId("image-a"), path = "users/1/note-images/a", contentType = "image/png", description = "猫"),
+                    NoteImage(NoteImagePublicId("image-b"), path = "users/1/note-images/b", contentType = "image/jpeg", description = null),
+                )
+            val accountId = checkNotNull(repositories.accountRepository.findByUsername("user1")).id
+            images.forEach { repositories.noteRepository.addUploadedImage(UploadedNoteImage(accountId, it, expiresAt = NOW.plusSeconds(60))) }
+            repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()).copy(images = images))
+
+            val notes = repositories.noteRepository
+            assertEquals(images, notes.find(PublicNoteId("note-1"))?.images)
+            assertEquals(images, notes.list("user1", after = null, limit = 10).single().images)
+            val second = assertNotNull(notes.findImage(NoteImagePublicId("image-b")))
+            assertEquals(images[1], second.image)
+            assertEquals(repositories.accountRepository.findByUsername("user1")?.id, second.ownerAccountId)
+            assertNull(notes.findImage(NoteImagePublicId("missing")))
+            assertEquals(PublicNoteId("note-1"), notes.findPublicIdByRequestId("USER1", "request-note-1"))
+            assertNull(notes.findPublicIdByRequestId("user1", "request-other"))
+        }
+    }
+
+    @Test
+    fun `置いた画像は期限内なら置いた人だけが引けて、投稿に付けると期限切れの一覧から外れる`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val notes = repositories.noteRepository
+            val accountId = checkNotNull(repositories.accountRepository.findByUsername("user1")).id
+            val attached = NoteImage(NoteImagePublicId("attached"), path = "users/1/note-images/a", contentType = "image/png", description = null)
+            val left = NoteImage(NoteImagePublicId("left"), path = "users/1/note-images/b", contentType = "image/png", description = null)
+            notes.addUploadedImage(UploadedNoteImage(accountId, attached, expiresAt = NOW.plusSeconds(60)))
+            notes.addUploadedImage(UploadedNoteImage(accountId, left, expiresAt = NOW.plusSeconds(60)))
+
+            assertEquals(listOf(left, attached), notes.findUploadedImages(accountId, listOf(left.publicId, attached.publicId), now = NOW))
+            assertEquals(listOf(), notes.findUploadedImages(AccountId(accountId.value + 1), listOf(left.publicId), now = NOW))
+            assertEquals(listOf(), notes.findUploadedImages(accountId, listOf(left.publicId), now = NOW.plusSeconds(60)))
+
+            repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()).copy(images = listOf(attached)))
+
+            val expiredAt = NOW.plusSeconds(60)
+            assertEquals(listOf(left.publicId), notes.listExpiredUploadedImages(now = expiredAt, limit = 10).map { it.image.publicId })
+            assertEquals(false, notes.deleteExpiredUploadedImage(left.publicId, now = NOW))
+            assertEquals(true, notes.deleteExpiredUploadedImage(left.publicId, now = expiredAt))
+            assertEquals(listOf(), notes.listExpiredUploadedImages(now = expiredAt, limit = 10))
+        }
+    }
+
+    @Test
+    fun `置いていない画像を付けた投稿は記録しない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val image = NoteImage(NoteImagePublicId("missing"), path = "users/1/note-images/a", contentType = "image/png", description = null)
+
+            assertEquals(
+                EnqueueNoteResult.ImageNotFound,
+                repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)).copy(images = listOf(image))),
+            )
+            assertNull(repositories.noteRepository.find(PublicNoteId("note-1")))
         }
     }
 
@@ -173,6 +237,7 @@ class NoteRepositoryTest {
             publicId = PublicNoteId(publicId),
             contentHtml = "<p>hello</p>",
             publishedAt = NOW,
+            images = listOf(),
             body = "create-$publicId",
             inboxes = inboxes,
         )

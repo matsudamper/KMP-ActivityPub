@@ -46,7 +46,7 @@ class UserProfileService(
                         summary = null,
                         sensitive = false,
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
-                        images = listOf(),
+                        images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
                     )
@@ -137,7 +137,7 @@ data class UserProfile(
 
 /**
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
- * @param images 他のサーバーにある画像。中継する URL にはしていない
+ * @param images URL にはしていない画像
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  */

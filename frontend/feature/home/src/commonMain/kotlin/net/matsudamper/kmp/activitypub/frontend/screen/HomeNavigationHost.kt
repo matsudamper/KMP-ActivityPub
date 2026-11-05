@@ -5,17 +5,20 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListKind
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.image.ImageViewerScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginCheckFailedContent
@@ -44,8 +47,13 @@ fun HomeNavigationHost(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
         ),
+        sceneStrategies = listOf(DialogSceneStrategy()),
         entryProvider = { key ->
-            NavEntry(key, contentKey = if (key is Screen.Home) Screen.Home.Timeline.path else (key as Screen).path) { screenKey ->
+            NavEntry(
+                key,
+                contentKey = if (key is Screen.Home) Screen.Home.Timeline.path else (key as Screen).path,
+                metadata = if (key is Screen.Image) ImageViewerDialogMetadata else mapOf(),
+            ) { screenKey ->
                 val screen = screenKey as Screen
                 if (screen.loginRequired) {
                     val loginGateViewModel = koinViewModel<LoginGateViewModel>()
@@ -124,5 +132,12 @@ private fun ScreenContent(
         is Screen.UserProfile -> {
             UserProfileScreen(username = screen.username, navigator = navigator)
         }
+
+        is Screen.Image -> {
+            ImageViewerScreen(imageUrl = screen.url, navigator = navigator)
+        }
     }
 }
+
+private val ImageViewerDialogMetadata: Map<String, Any> =
+    DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false))

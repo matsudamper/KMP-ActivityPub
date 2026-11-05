@@ -86,8 +86,8 @@ class TimelineRepositoryTest {
         val alice = accounts.getValue("alice")
         repositories.followingRepository.add(alice, ACTOR, NOW)
         val images = listOf(
-            TimelinePostImage(url = "https://remote.example/a.png", description = "説明"),
-            TimelinePostImage(url = "https://remote.example/b.png", description = null),
+            TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明"),
+            TimelinePostImage.Remote(url = "https://remote.example/b.png", description = null),
         )
         val withImages = assertNotNull(repository.receive(note("with-images", "public", setOf()).copy(images = images)))
         val withoutImages = assertNotNull(repository.receive(note("without-images", "public", setOf())))
@@ -216,7 +216,7 @@ class TimelineRepositoryTest {
     fun localPostsUseEpochMillisecondsAndOnlyReachTheirAuthor() = withRepository { repositories, accounts ->
         val time = NOW.plusNanos(999999999)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, "create", listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, listOf(), "create", listOf()),
         )
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
