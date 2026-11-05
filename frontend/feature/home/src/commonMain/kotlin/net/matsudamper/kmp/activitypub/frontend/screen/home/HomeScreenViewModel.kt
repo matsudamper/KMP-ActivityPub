@@ -60,6 +60,18 @@ internal class HomeScreenViewModel(
      */
     private var postsArrivedSinceRefresh = listOf<UserHomeTimelineResult.Post>()
     private var followingChangeInProgress = false
+    private var timelineStreamConnectionStatus = HomeScreenUiState.TimelineStreamStatus.Receiving
+
+    /**
+     * 再接続直後は購読がつながっていても切れていた間の投稿を読み直し終えるまでは追いついていないので、再接続中として見せる
+     */
+    private var timelineCatchingUpAfterReconnect = false
+    private var sensitiveImagesBlurred = true
+
+    /**
+     * 一括で切り替えたら、画像ごとに開け閉めした分は捨てて揃える
+     */
+    private var blurToggledImageUrls = setOf<String>()
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
@@ -69,6 +81,7 @@ internal class HomeScreenViewModel(
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = sensitiveImagesBlurred,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -104,16 +117,16 @@ internal class HomeScreenViewModel(
                     }
 
                     override fun onRefreshTimeline() {
-                        loadTimeline(false)
+                        loadTimeline(TimelineLoadTrigger.PullToRefresh)
                     }
 
                     override fun onScrolledToTimelineEnd() {
                         if (mutableUiStateFlow.value.timelineFooter is HomeScreenUiState.TimelineFooter.Error) return
-                        loadTimeline(true)
+                        loadTimeline(TimelineLoadTrigger.Append)
                     }
 
                     override fun onClickRetryTimelineLoadMore() {
-                        loadTimeline(true)
+                        loadTimeline(TimelineLoadTrigger.Append)
                     }
 
                     override fun onClickTimelineStreamStatus() {
@@ -126,8 +139,19 @@ internal class HomeScreenViewModel(
                                 timelineStreamStoppedByUser = false
                                 collectTimelineArrivals()
                                 // 切れていた間の投稿は流れてこないので、読み直して埋める
-                                loadTimeline(false)
+                                loadTimeline(TimelineLoadTrigger.Reconnect)
                             }
+                        }
+                    }
+
+                    override fun onClickSensitiveImagesVisibility() {
+                        sensitiveImagesBlurred = !sensitiveImagesBlurred
+                        blurToggledImageUrls = setOf()
+                        mutableUiStateFlow.update {
+                            it.copy(
+                                sensitiveImagesBlurred = sensitiveImagesBlurred,
+                                timelineItems = createTimelineItems(),
+                            )
                         }
                     }
 
@@ -169,7 +193,7 @@ internal class HomeScreenViewModel(
                         loadProfile()
                         // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
                         if (!timelineStreamStoppedByUser) collectTimelineArrivals()
-                        loadTimeline(false)
+                        loadTimeline(TimelineLoadTrigger.ScreenShown)
                     }
                 },
             ),
@@ -304,6 +328,24 @@ internal class HomeScreenViewModel(
     }
 
     private fun updateTimelineStreamStatus(status: HomeScreenUiState.TimelineStreamStatus) {
+        timelineStreamConnectionStatus = status
+        publishTimelineStreamStatus()
+    }
+
+    private fun updateTimelineCatchingUpAfterReconnect(catchingUp: Boolean) {
+        timelineCatchingUpAfterReconnect = catchingUp
+        publishTimelineStreamStatus()
+    }
+
+    private fun publishTimelineStreamStatus() {
+        val status = if (
+            timelineCatchingUpAfterReconnect &&
+            timelineStreamConnectionStatus == HomeScreenUiState.TimelineStreamStatus.Receiving
+        ) {
+            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect
+        } else {
+            timelineStreamConnectionStatus
+        }
         mutableUiStateFlow.update { it.copy(timelineStreamStatus = status) }
     }
 
@@ -373,13 +415,16 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun loadTimeline(append: Boolean) {
+    private fun loadTimeline(trigger: TimelineLoadTrigger) {
+        val append = trigger == TimelineLoadTrigger.Append
         if (append && timelineJob?.isActive == true) return
         if (append && timelineNextCursor == null) return
         timelineJob?.cancel()
+        // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
+        if (!append) updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
         mutableUiStateFlow.update {
             it.copy(
-                timelineRefreshing = !append,
+                timelineRefreshing = trigger == TimelineLoadTrigger.PullToRefresh,
                 timelineFooter = if (append) HomeScreenUiState.TimelineFooter.Loading else HomeScreenUiState.TimelineFooter.None,
             )
         }
@@ -410,6 +455,7 @@ internal class HomeScreenViewModel(
             } finally {
                 if (currentCoroutineContext().isActive) {
                     mutableUiStateFlow.update { it.copy(timelineRefreshing = false) }
+                    if (trigger == TimelineLoadTrigger.Reconnect) updateTimelineCatchingUpAfterReconnect(false)
                 }
             }
         }
@@ -439,6 +485,8 @@ internal class HomeScreenViewModel(
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = post.body,
                 linkPreviews = previews,
+                sensitiveImagesBlurred = sensitiveImagesBlurred,
+                blurToggledImageUrls = blurToggledImageUrls,
                 authorListener = object : PostItemUiState.AuthorListener {
                     override fun onClick() {
                         val host = post.host
@@ -449,6 +497,10 @@ internal class HomeScreenViewModel(
                 },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
+                onToggleImageBlur = { url ->
+                    blurToggledImageUrls = if (url in blurToggledImageUrls) blurToggledImageUrls - url else blurToggledImageUrls + url
+                    mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
+                },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)
@@ -563,6 +615,13 @@ internal class HomeScreenViewModel(
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
         const val TIMELINE_STREAM_DISCONNECTED_MESSAGE = "新着投稿の受信が切れました"
+    }
+
+    private enum class TimelineLoadTrigger {
+        PullToRefresh,
+        ScreenShown,
+        Reconnect,
+        Append,
     }
 
     private sealed interface SearchState {

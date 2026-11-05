@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -82,18 +81,6 @@ internal fun PostItem(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                )
-            }
-            val contentWarningLabel = uiState.contentWarningLabel
-            if (contentWarningLabel != null) {
-                Text(
-                    text = contentWarningLabel,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.errorContainer)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
                 )
             }
             Text(

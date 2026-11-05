@@ -1,5 +1,11 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +49,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -186,6 +193,19 @@ internal fun HomeContent(
                         fontWeight = FontWeight.Bold,
                     )
                     if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
+                        IconButton(onClick = uiState.listener::onClickSensitiveImagesVisibility) {
+                            if (uiState.sensitiveImagesBlurred) {
+                                Icon(
+                                    imageVector = AppIcons.VisibilityOff,
+                                    contentDescription = "閲覧注意の画像を隠している。押すと全部表示",
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = AppIcons.Visibility,
+                                    contentDescription = "閲覧注意の画像を全部表示している。押すと隠す",
+                                )
+                            }
+                        }
                         TimelineStreamStatusButton(
                             status = uiState.timelineStreamStatus,
                             onClick = uiState.listener::onClickTimelineStreamStatus,
@@ -353,8 +373,7 @@ private fun TimelineStreamStatusButton(
                 contentDescription = "新着投稿を受信中。押すと切断",
             )
 
-            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect -> Icon(
-                imageVector = AppIcons.Sync,
+            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect -> ReconnectingIcon(
                 contentDescription = "新着投稿の受信に再接続中。押すと切断",
             )
 
@@ -365,6 +384,25 @@ private fun TimelineStreamStatusButton(
             )
         }
     }
+}
+
+@Composable
+private fun ReconnectingIcon(contentDescription: String) {
+    val rotationDegrees by rememberInfiniteTransition(label = "ReconnectingIcon").animateFloat(
+        initialValue = 0f,
+        // Sync アイコンの矢印が反時計回りを向いているので、それに合わせて回す
+        targetValue = -360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "rotationDegrees",
+    )
+    Icon(
+        imageVector = AppIcons.Sync,
+        contentDescription = contentDescription,
+        modifier = Modifier.rotate(rotationDegrees),
+    )
 }
 
 @Composable

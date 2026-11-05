@@ -141,12 +141,19 @@ class HomeScreenViewModelTest {
         subscriptionRejected.value = true
         engine.responses.send { page(listOf("a"), null) }
         viewModel.uiStateFlow.value.listener.onScreenShown()
+        assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
         viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected }
 
         subscriptionRejected.value = false
-        engine.responses.send { page(listOf("b", "a"), null) }
+        val pending = CompletableDeferred<HttpResponse>()
+        engine.responses.send { pending.await() }
         viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
-        viewModel.uiStateFlow.first { it.timelineItems.size == 2 && !it.timelineRefreshing }
+        runCurrent()
+        // 再接続の読み直しは引っ張って更新したときの表示を出さず、アイコンで再接続中を見せる
+        assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
+        assertEquals(HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect, viewModel.uiStateFlow.value.timelineStreamStatus)
+        pending.complete(page(listOf("b", "a"), null))
+        viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
         arrivals.send("c")
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
         assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
