@@ -9,8 +9,6 @@ class PostedAtTextTest {
     private val now = Instant.parse("2026-11-05T12:00:00Z")
     private val timeZone = TimeZone.of("Asia/Tokyo")
 
-    private fun text(publishedAt: String): String = createPostedAtText(publishedAt = publishedAt, now = now, timeZone = timeZone)
-
     @Test
     fun underOneHourShowsMinutes() {
         assertEquals("0分前", text("2026-11-05T11:59:30Z"))
@@ -39,4 +37,6 @@ class PostedAtTextTest {
     fun unparsableIsReturnedAsIs() {
         assertEquals("2026-11-01", text("2026-11-01"))
     }
+
+    private fun text(publishedAt: String): String = createPostedAtText(publishedAt = publishedAt, now = now, timeZone = timeZone)
 }

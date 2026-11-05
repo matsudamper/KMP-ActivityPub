@@ -16,6 +16,8 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
  */
 internal class FakeNoteRepository : NoteRepository {
     val notes = mutableListOf<Note>()
+    val requestIds = mutableMapOf<Pair<String, String>, PublicNoteId>()
+    val uploadedImages = mutableListOf<UploadedNoteImage>()
 
     override fun find(publicId: PublicNoteId): Note? = notes.firstOrNull { it.publicId == publicId }
 
@@ -27,9 +29,6 @@ internal class FakeNoteRepository : NoteRepository {
      */
     override fun findImage(publicId: NoteImagePublicId): StoredNoteImage? =
         notes.flatMap { it.images }.firstOrNull { it.publicId == publicId }?.let { StoredNoteImage(ownerAccountId = AccountId(1), image = it) }
-
-    val requestIds = mutableMapOf<Pair<String, String>, PublicNoteId>()
-    val uploadedImages = mutableListOf<UploadedNoteImage>()
 
     override fun addUploadedImage(upload: UploadedNoteImage) {
         uploadedImages += upload
