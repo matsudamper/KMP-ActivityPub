@@ -55,11 +55,14 @@ internal fun ImageViewerContent(
     }
 }
 
+/**
+ * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする
+ */
 @Composable
 private fun OverlayImageViewerContent(
     uiState: ImageViewerScreenUiState,
 ) {
-    var imageZoomed by remember { mutableStateOf(false) }
+    var closeButtonVisible by remember { mutableStateOf(true) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -67,11 +70,12 @@ private fun OverlayImageViewerContent(
     ) {
         ZoomableImage(
             imageUrl = uiState.imageUrl,
+            onClickImage = { closeButtonVisible = !closeButtonVisible },
             onClickOutsideImage = uiState.listener::onClickOutsideImage,
-            onZoomedChange = { imageZoomed = it },
+            onZoomedChange = { zoomed -> closeButtonVisible = !zoomed },
             modifier = Modifier.fillMaxSize(),
         )
-        if (!imageZoomed) {
+        if (closeButtonVisible) {
             CloseButton(
                 uiState = uiState,
                 modifier = Modifier
@@ -92,6 +96,7 @@ private fun ImageOnlyViewerContent(
 ) {
     ZoomableImage(
         imageUrl = uiState.imageUrl,
+        onClickImage = {},
         onClickOutsideImage = uiState.listener::onClickOutsideImage,
         onZoomedChange = {},
         modifier = Modifier
