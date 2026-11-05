@@ -3,10 +3,8 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.ColorImage
@@ -14,6 +12,10 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
@@ -140,7 +142,7 @@ private fun HomeTimelinePreview(
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
-                openedColumns = listOf(),
+                openedColumn = null,
                 railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
@@ -200,7 +202,7 @@ private fun HomeSearchContentPreview() {
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
-                openedColumns = listOf(),
+                openedColumn = null,
                 railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
@@ -232,7 +234,7 @@ private fun HomeSearchEmptyContentPreview() {
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
-                openedColumns = listOf(),
+                openedColumn = null,
                 railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
@@ -284,7 +286,7 @@ private fun HomeUserContentPreview() {
                     emptyMessage = null,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
-                openedColumns = listOf(),
+                openedColumn = null,
                 railItems = listOf(),
                 listener = AndroidPreviewHomeListener,
             ),
@@ -340,10 +342,10 @@ private fun HomeColumnsContentPreview() {
                 profile = HomeScreenUiState.Profile.Loading,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
-                openedColumns = listOf(HomeScreenUiState.Column.Post, HomeScreenUiState.Column.Search),
+                openedColumn = HomeScreenUiState.Column.Post,
                 railItems = listOf(
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Post, selected = true),
-                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Search, selected = true),
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Search, selected = false),
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.User, selected = false),
                 ),
                 listener = AndroidPreviewHomeListener,
@@ -351,8 +353,22 @@ private fun HomeColumnsContentPreview() {
             snackbarHostState = SnackbarHostState(),
             tabListStates = rememberHomeTabListStates(),
             postColumn = { modifier ->
-                Box(modifier = modifier, contentAlignment = Alignment.Center) {
-                    Text("投稿")
+                Box(modifier = modifier) {
+                    PostContent(
+                        uiState = PostScreenUiState(
+                            body = "",
+                            inputHasError = false,
+                            inputEnabled = true,
+                            backButtonEnabled = true,
+                            postButtonEnabled = false,
+                            images = listOf(),
+                            addImageButtonEnabled = true,
+                            addImageLoadingVisible = false,
+                            listener = AndroidPreviewPostListener,
+                        ),
+                        navigationIcon = PostNavigationIcon.Close,
+                        snackbarHostState = SnackbarHostState(),
+                    )
                 }
             },
         )
@@ -430,4 +446,16 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
     override fun onClick() = Unit
+}
+
+private object AndroidPreviewPostListener : PostScreenUiState.Listener {
+    override fun onBodyChanged(text: String) = Unit
+
+    override fun onClickAddImage() = Unit
+
+    override fun onImagePicked(file: PickedImageFile) = Unit
+
+    override fun onClickPost() = Unit
+
+    override fun onClickBack() = Unit
 }

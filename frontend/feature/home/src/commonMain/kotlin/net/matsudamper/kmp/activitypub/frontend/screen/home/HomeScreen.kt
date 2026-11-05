@@ -67,6 +67,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
@@ -155,7 +156,10 @@ internal fun HomeScreen(
                 tabListStates = tabListStates,
                 postColumn = { modifier ->
                     Box(modifier = modifier) {
-                        PostScreen(onNavigateBack = { uiState.listener.onClickCloseColumn(HomeScreenUiState.Column.Post) })
+                        PostScreen(
+                            navigationIcon = PostNavigationIcon.Close,
+                            onNavigateBack = { uiState.listener.onClickCloseColumn(HomeScreenUiState.Column.Post) },
+                        )
                     }
                 },
             )

@@ -14,12 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -35,7 +35,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
- * 横に広い画面向け。タブを切り替えずに、レールから開いたカラムをタイムラインの左に並べる
+ * 横に広い画面向け。タブを切り替えずに、レールから開いたカラムを 1 つだけタイムラインの左に出す
  *
  * @param postColumn 投稿の画面は別の ViewModel で動くので、外から差し込む
  */
@@ -54,7 +54,8 @@ internal fun HomeColumnsContent(
                 Row(
                     modifier = Modifier.fillMaxHeight().weight(1f).horizontalScroll(rememberScrollState()),
                 ) {
-                    uiState.openedColumns.forEach { column ->
+                    val column = uiState.openedColumn
+                    if (column != null) {
                         val columnModifier = Modifier.width(COLUMN_WIDTH).fillMaxHeight()
                         when (column) {
                             HomeScreenUiState.Column.Post -> postColumn(columnModifier)
@@ -114,29 +115,10 @@ internal fun HomeColumnsContent(
 private fun HomeRail(uiState: HomeScreenUiState) {
     NavigationRail {
         uiState.railItems.forEach { item ->
-            NavigationRailItem(
-                selected = item.selected,
+            ColumnToggleButton(
+                item = item,
+                userIconUrl = uiState.userTabIconUrl,
                 onClick = { uiState.listener.onClickRailItem(item.column) },
-                icon = {
-                    when (item.column) {
-                        HomeScreenUiState.Column.Post -> Icon(
-                            imageVector = AppIcons.Edit,
-                            contentDescription = null,
-                        )
-
-                        HomeScreenUiState.Column.Search -> Icon(
-                            imageVector = AppIcons.Search,
-                            contentDescription = null,
-                        )
-
-                        HomeScreenUiState.Column.User -> ProfileIcon(
-                            iconUrl = uiState.userTabIconUrl,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                },
-                label = { Text(item.column.label) },
             )
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -155,6 +137,48 @@ private fun HomeRail(uiState: HomeScreenUiState) {
             onClick = uiState.listener::onClickSensitiveImagesVisibility,
         )
         Spacer(modifier = Modifier.size(8.dp))
+    }
+}
+
+/**
+ * 押すたびにカラムを開け閉めするので、開いているかを塗りで見せる
+ */
+@Composable
+private fun ColumnToggleButton(
+    item: HomeScreenUiState.RailItem,
+    userIconUrl: String?,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        FilledIconToggleButton(
+            checked = item.selected,
+            onCheckedChange = { onClick() },
+        ) {
+            when (item.column) {
+                HomeScreenUiState.Column.Post -> Icon(
+                    imageVector = AppIcons.Edit,
+                    contentDescription = null,
+                )
+
+                HomeScreenUiState.Column.Search -> Icon(
+                    imageVector = AppIcons.Search,
+                    contentDescription = null,
+                )
+
+                HomeScreenUiState.Column.User -> ProfileIcon(
+                    iconUrl = userIconUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+        Text(
+            text = item.column.label,
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 

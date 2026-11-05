@@ -47,6 +47,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun PostScreen(
+    navigationIcon: PostNavigationIcon,
     onNavigateBack: () -> Unit,
 ) {
     val viewModel = koinViewModel<PostScreenViewModel>()
@@ -73,12 +74,21 @@ internal fun PostScreen(
         )
     }
 
-    PostContent(uiState = uiState, snackbarHostState = snackbarHostState)
+    PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+}
+
+/**
+ * 画面として開いたときは戻る、カラムとして開いたときは閉じる
+ */
+internal enum class PostNavigationIcon {
+    Back,
+    Close,
 }
 
 @Composable
 internal fun PostContent(
     uiState: PostScreenUiState,
+    navigationIcon: PostNavigationIcon,
     snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
@@ -94,10 +104,17 @@ internal fun PostContent(
                     onClick = uiState.listener::onClickBack,
                     enabled = uiState.backButtonEnabled,
                 ) {
-                    Icon(
-                        imageVector = AppIcons.ArrowBack,
-                        contentDescription = "戻る",
-                    )
+                    when (navigationIcon) {
+                        PostNavigationIcon.Back -> Icon(
+                            imageVector = AppIcons.ArrowBack,
+                            contentDescription = "戻る",
+                        )
+
+                        PostNavigationIcon.Close -> Icon(
+                            imageVector = AppIcons.Close,
+                            contentDescription = "投稿を閉じる",
+                        )
+                    }
                 }
                 Text(
                     text = "投稿",

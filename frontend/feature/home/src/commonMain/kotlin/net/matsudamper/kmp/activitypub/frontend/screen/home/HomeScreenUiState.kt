@@ -15,9 +15,9 @@ data class HomeScreenUiState(
     val userPosts: UserPosts,
     val userTabIconUrl: String?,
     /**
-     * 横に広い画面でタイムラインの左に並べる順
+     * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null
      */
-    val openedColumns: List<Column>,
+    val openedColumn: Column?,
     val railItems: List<RailItem>,
     val listener: Listener,
 ) {
