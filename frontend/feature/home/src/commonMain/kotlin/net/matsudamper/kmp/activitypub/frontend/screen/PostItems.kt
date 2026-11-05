@@ -16,6 +16,7 @@ internal fun createPostItemUiState(
     body: UserPostBody,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
     authorListener: PostItemUiState.AuthorListener?,
+    menuItems: List<PostItemUiState.MenuItem>,
     onOpenUrl: (url: String) -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
@@ -33,6 +34,7 @@ internal fun createPostItemUiState(
             createPostImage(image) { onOpenUrl(image.url) }
         },
         authorListener = authorListener,
+        menuItems = menuItems,
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {
                 onVisible()

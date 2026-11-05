@@ -25,8 +25,17 @@ data class PostItemUiState(
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
      */
     val authorListener: AuthorListener?,
+    /**
+     * 空ならメニューのボタンを出さない
+     */
+    val menuItems: List<MenuItem>,
     val listener: Listener,
 ) {
+    data class MenuItem(
+        val label: String,
+        val listener: MenuItemListener,
+    )
+
     /**
      * @param imageUrl null でも画像の枠は出す
      */
@@ -61,6 +70,11 @@ data class PostItemUiState(
 
     @Immutable
     interface LinkPreviewListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface MenuItemListener {
         fun onClick()
     }
 

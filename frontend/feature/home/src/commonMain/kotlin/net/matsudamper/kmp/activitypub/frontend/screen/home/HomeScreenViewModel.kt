@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
@@ -61,6 +62,12 @@ internal class HomeScreenViewModel(
     private var postsArrivedSinceRefresh = listOf<UserHomeTimelineResult.Post>()
     private var followingChangeInProgress = false
 
+    /**
+     * 確かめのダイアログを出している投稿。出していなければ null
+     */
+    private var deletingNoteId: String? = null
+    private var noteDeletionInProgress = false
+
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
             HomeScreenUiState(
@@ -75,6 +82,7 @@ internal class HomeScreenViewModel(
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
                 userTabIconUrl = null,
+                deleteNoteDialog = null,
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
                         viewModelScope.launch {
@@ -158,6 +166,17 @@ internal class HomeScreenViewModel(
                         viewModelScope.launch {
                             events.send { it.navigateToFollowers() }
                         }
+                    }
+
+                    override fun onClickConfirmDeleteNote() {
+                        deleteNote()
+                    }
+
+                    override fun onDismissDeleteNoteDialog() {
+                        // 消している途中で閉じると、結果が出る前に別の投稿を選べてしまう
+                        if (noteDeletionInProgress) return
+                        deletingNoteId = null
+                        updateDeleteNoteDialog()
                     }
 
                     override fun onScreenShown() {
@@ -442,11 +461,63 @@ internal class HomeScreenViewModel(
                         }
                     }
                 },
+                menuItems = createTimelineMenuItems(post),
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)
                     }
+                },
+            )
+        }
+    }
+
+    private fun createTimelineMenuItems(post: UserHomeTimelineResult.Post): List<PostItemUiState.MenuItem> {
+        val deletableNoteId = post.deletableNoteId ?: return listOf()
+        return listOf(
+            PostItemUiState.MenuItem(
+                label = "削除",
+                listener = object : PostItemUiState.MenuItemListener {
+                    override fun onClick() {
+                        if (noteDeletionInProgress) return
+                        deletingNoteId = deletableNoteId
+                        updateDeleteNoteDialog()
+                    }
+                },
+            ),
+        )
+    }
+
+    private fun deleteNote() {
+        val noteId = deletingNoteId ?: return
+        if (noteDeletionInProgress) return
+        noteDeletionInProgress = true
+        updateDeleteNoteDialog()
+        viewModelScope.launch {
+            try {
+                val error = userApi.deleteNote(noteId)
+                if (error == null) {
+                    timelinePaging.updateCache { it.withoutNote(noteId) }
+                    postsArrivedSinceRefresh = postsArrivedSinceRefresh.filterNot { it.deletableNoteId == noteId }
+                    events.send { it.showMessage("投稿を削除しました") }
+                } else {
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                noteDeletionInProgress = false
+                deletingNoteId = null
+                updateDeleteNoteDialog()
+            }
+        }
+    }
+
+    private fun updateDeleteNoteDialog() {
+        mutableUiStateFlow.update {
+            it.copy(
+                deleteNoteDialog = if (deletingNoteId == null) {
+                    null
+                } else {
+                    HomeScreenUiState.DeleteNoteDialog(deleteButtonEnabled = !noteDeletionInProgress)
                 },
             )
         }

@@ -37,6 +37,7 @@ private fun UserProfileContentPreview() {
                             ),
                             images = listOf(),
                             authorListener = null,
+                            menuItems = listOf(),
                             listener = AndroidPreviewPostItemListener,
                         ),
                     ),

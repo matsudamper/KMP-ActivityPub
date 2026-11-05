@@ -167,6 +167,7 @@ internal class UserProfileScreenViewModel(
                     linkPreviews = previews,
                     // 開いているのがその人の画面なので、押しても移る先が無い
                     authorListener = null,
+                    menuItems = listOf(),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {

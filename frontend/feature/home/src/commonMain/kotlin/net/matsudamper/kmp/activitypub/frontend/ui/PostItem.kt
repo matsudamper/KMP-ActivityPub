@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,16 +13,25 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
  * タイムラインやプロフィールに並べる投稿 1 件
@@ -75,6 +85,9 @@ internal fun PostItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
+                if (uiState.menuItems.isNotEmpty()) {
+                    PostMenu(menuItems = uiState.menuItems)
+                }
             }
             val contentWarningLabel = uiState.contentWarningLabel
             if (contentWarningLabel != null) {
@@ -114,5 +127,36 @@ internal fun PostItem(
     }
     LaunchedEffect(uiState.listener) {
         uiState.listener.onVisible()
+    }
+}
+
+@Composable
+private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.size(24.dp),
+        ) {
+            Icon(
+                imageVector = AppIcons.MoreVert,
+                contentDescription = "メニュー",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            menuItems.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item.label) },
+                    onClick = {
+                        expanded = false
+                        item.listener.onClick()
+                    },
+                )
+            }
+        }
     }
 }

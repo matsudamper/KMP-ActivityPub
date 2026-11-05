@@ -12,8 +12,16 @@ data class HomeScreenUiState(
     val search: Search,
     val profile: Profile,
     val userTabIconUrl: String?,
+    /**
+     * 出していなければ null
+     */
+    val deleteNoteDialog: DeleteNoteDialog?,
     val listener: Listener,
 ) {
+    data class DeleteNoteDialog(
+        val deleteButtonEnabled: Boolean,
+    )
+
     sealed interface TimelineFooter {
         data object None : TimelineFooter
         data object Loading : TimelineFooter
@@ -113,6 +121,10 @@ data class HomeScreenUiState(
         fun onClickFollowing()
 
         fun onClickFollowers()
+
+        fun onClickConfirmDeleteNote()
+
+        fun onDismissDeleteNoteDialog()
 
         fun onScreenShown()
     }
