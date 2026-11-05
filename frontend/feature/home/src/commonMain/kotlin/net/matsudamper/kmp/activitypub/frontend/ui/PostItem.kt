@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -191,8 +190,7 @@ private fun PostActions(uiState: PostItemUiState) {
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
-        // メニューのある投稿と無い投稿で高さが変わらないよう、メニューのボタンの高さを取っておく
-        modifier = Modifier.fillMaxWidth().heightIn(min = PostMenuButtonSize).padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(modifier = Modifier.width(PostActionSlotWidth)) {
