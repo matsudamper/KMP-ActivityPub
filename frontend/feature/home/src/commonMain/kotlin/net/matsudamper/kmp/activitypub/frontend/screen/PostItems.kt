@@ -15,24 +15,33 @@ internal fun createPostItemUiState(
     acct: String,
     body: UserPostBody,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
+    sensitiveImagesBlurred: Boolean,
+    blurToggledImageUrls: Set<String>,
     authorListener: PostItemUiState.AuthorListener?,
     menuItems: List<PostItemUiState.MenuItem>,
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
+    onToggleImageBlur: (url: String) -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     return PostItemUiState(
         iconUrl = iconUrl,
         displayName = displayName,
         acct = acct,
-        contentWarningLabel = if (body.sensitive) body.summary?.takeIf { it.isNotBlank() } ?: "閲覧注意" else null,
         body = createPostBodyText(content = body.content, onOpenUrl = onOpenUrl),
         postedAt = body.publishedAt,
         linkPreviews = body.linkUrls.map { url ->
             createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
         },
         images = body.images.map { image ->
-            createPostImage(image) { onOpenImage(image.url) }
+            createPostImage(
+                image = image,
+                sensitive = body.sensitive,
+                sensitiveImagesBlurred = sensitiveImagesBlurred,
+                blurToggled = image.url in blurToggledImageUrls,
+                onOpen = { onOpenImage(image.url) },
+                onToggleBlur = { onToggleImageBlur(image.url) },
+            )
         },
         authorListener = authorListener,
         menuItems = menuItems,

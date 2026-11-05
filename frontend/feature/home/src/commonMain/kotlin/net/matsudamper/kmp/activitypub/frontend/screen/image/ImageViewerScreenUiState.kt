@@ -9,5 +9,9 @@ data class ImageViewerScreenUiState(
     @Immutable
     interface Listener {
         fun onClickClose()
+
+        fun onClickOutsideImage()
+
+        fun onClickConfirmDownload()
     }
 }

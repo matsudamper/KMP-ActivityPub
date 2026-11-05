@@ -45,14 +45,15 @@ internal class UserProfileScreenViewModel(
 
     private val linkPreviewsFlow = MutableStateFlow<Map<String, List<UserLinkPreviewsResult.LinkPreview>>>(mapOf())
     private var linkPreviewRequestedIds = setOf<String>()
+    private val blurToggledImageUrlsFlow = MutableStateFlow(setOf<String>())
 
     private val mutableUiStateFlow: MutableStateFlow<UserProfileScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value, linkPreviewsFlow.value))
+        MutableStateFlow(createUiState(viewModelStateFlow.value, linkPreviewsFlow.value, blurToggledImageUrlsFlow.value))
     val uiStateFlow: StateFlow<UserProfileScreenUiState> = mutableUiStateFlow.asStateFlow()
 
     init {
         viewModelScope.launch {
-            combine(viewModelStateFlow, linkPreviewsFlow, ::createUiState).collect { uiState ->
+            combine(viewModelStateFlow, linkPreviewsFlow, blurToggledImageUrlsFlow, ::createUiState).collect { uiState ->
                 mutableUiStateFlow.value = uiState
             }
         }
@@ -125,11 +126,12 @@ internal class UserProfileScreenViewModel(
     private fun createUiState(
         viewModelState: ViewModelState,
         linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
+        blurToggledImageUrls: Set<String>,
     ): UserProfileScreenUiState {
         return UserProfileScreenUiState(
             content = when (viewModelState) {
                 ViewModelState.Loading -> UserProfileScreenUiState.Content.Loading
-                is ViewModelState.Loaded -> createLoadedContent(viewModelState, linkPreviews)
+                is ViewModelState.Loaded -> createLoadedContent(viewModelState, linkPreviews, blurToggledImageUrls)
                 ViewModelState.NotFound -> UserProfileScreenUiState.Content.NotFound
                 is ViewModelState.Failed -> UserProfileScreenUiState.Content.Error(viewModelState.message)
             },
@@ -140,6 +142,7 @@ internal class UserProfileScreenViewModel(
     private fun createLoadedContent(
         loaded: ViewModelState.Loaded,
         linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
+        blurToggledImageUrls: Set<String>,
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
@@ -165,11 +168,16 @@ internal class UserProfileScreenViewModel(
                     acct = acct,
                     body = post.body,
                     linkPreviews = previews,
+                    sensitiveImagesBlurred = true,
+                    blurToggledImageUrls = blurToggledImageUrls,
                     // 開いているのがその人の画面なので、押しても移る先が無い
                     authorListener = null,
                     menuItems = listOf(),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
+                    onToggleImageBlur = { url ->
+                        blurToggledImageUrlsFlow.update { urls -> if (url in urls) urls - url else urls + url }
+                    },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)

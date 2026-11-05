@@ -39,4 +39,8 @@ private fun ImageViewerContentPreview() {
 
 private object AndroidPreviewImageViewerListener : ImageViewerScreenUiState.Listener {
     override fun onClickClose() = Unit
+
+    override fun onClickOutsideImage() = Unit
+
+    override fun onClickConfirmDownload() = Unit
 }
