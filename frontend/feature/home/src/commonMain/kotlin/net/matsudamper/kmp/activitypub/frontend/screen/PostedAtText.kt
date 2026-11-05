@@ -17,7 +17,9 @@ internal fun createPostedAtText(publishedAt: String, now: Instant, timeZone: Tim
     val elapsed = (now - publishedInstant).coerceAtLeast(Duration.ZERO)
     return when {
         elapsed < 1.hours -> "${elapsed.inWholeMinutes}分前"
+
         elapsed < 24.hours -> "${elapsed.inWholeHours}時間前"
+
         else -> {
             val publishedDate = publishedInstant.toLocalDateTime(timeZone).date
             val monthDay = "${publishedDate.month.number.toTwoDigits()}/${publishedDate.day.toTwoDigits()}"
