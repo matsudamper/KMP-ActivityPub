@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.status.pages)
+    implementation(libs.ktor.server.body.limit)
     implementation(libs.ktor.server.websockets)
     implementation(libs.kotlinx.coroutines.reactive)
     implementation(kotlin("reflect"))

@@ -10,11 +10,13 @@ import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
@@ -149,7 +151,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT,
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
-            val imagesByMember = remoteImages(dsl, remoteIds)
+            val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
             local.unionAll(remote).fetch { record ->
                 val published = StoredInstant.parse(checkNotNull(record.value3()))
                 val actor = record.value6()
@@ -239,7 +241,20 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .fetch()
             .groupBy(
                 keySelector = { "r${it.value1()}" },
-                valueTransform = { TimelinePostImage(url = checkNotNull(it.value2()), description = it.value3()) },
+                valueTransform = { TimelinePostImage.Remote(url = checkNotNull(it.value2()), description = it.value3()) },
+            )
+    }
+
+    private fun localImages(dsl: DSLContext, localIds: List<Long>): Map<String, List<TimelinePostImage>> {
+        if (localIds.isEmpty()) return mapOf()
+        return dsl.select(NOTE_IMAGES.NOTE_ID, NOTE_IMAGES.PUBLIC_ID, NOTE_IMAGES.DESCRIPTION)
+            .from(NOTE_IMAGES)
+            .where(NOTE_IMAGES.NOTE_ID.`in`(localIds))
+            .orderBy(NOTE_IMAGES.NOTE_ID, NOTE_IMAGES.POSITION)
+            .fetch()
+            .groupBy(
+                keySelector = { "l${it.value1()}" },
+                valueTransform = { TimelinePostImage.Local(publicId = NoteImagePublicId(checkNotNull(it.value2())), description = it.value3()) },
             )
     }
 

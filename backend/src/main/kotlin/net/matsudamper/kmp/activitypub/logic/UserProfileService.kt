@@ -37,7 +37,7 @@ class UserProfileService(
                         summary = null,
                         sensitive = false,
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
-                        images = listOf(),
+                        images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                     )
                 },
             )
@@ -124,7 +124,7 @@ data class UserProfile(
 
 /**
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
- * @param images 他のサーバーにある画像。中継する URL にはしていない
+ * @param images URL にはしていない画像
  */
 data class ProfilePost(
     val contentHtml: String,

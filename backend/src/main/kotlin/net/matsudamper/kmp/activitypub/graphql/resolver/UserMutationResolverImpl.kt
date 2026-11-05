@@ -8,6 +8,7 @@ import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.GraphQlUpload
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
@@ -20,6 +21,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlUploadNoteImageFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginResult
@@ -31,11 +34,14 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.UpdateDisplayNameResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
+import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
@@ -213,9 +219,20 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         body: String,
         requestId: String,
+        imageIds: List<NoteImagePublicId>,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val result = postNote(body = body, requestId = requestId, env = env)
+        val result = postNote(body = body, requestId = requestId, imageIds = imageIds, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    override fun uploadNoteImage(
+        userMutation: QlUserMutation,
+        image: GraphQlUpload,
+        description: String?,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUploadNoteImageResult>> {
+        val result = uploadNoteImage(image = image, description = description, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -247,6 +264,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     private fun postNote(
         body: String,
         requestId: String,
+        imageIds: List<NoteImagePublicId>,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -260,13 +278,52 @@ class UserMutationResolverImpl : UserMutationResolver {
         val notePostService =
             diContainer.notePostService
                 ?: return QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.FEDERATION_DISABLED)
+        val result =
+            notePostService.post(
+                username = account.username,
+                body = body,
+                requestId = requestId,
+                imageIds = imageIds,
+            )
+        val failure =
+            when (result) {
+                is PostNoteResult.Posted -> return QlUserPostNoteResult(url = result.url, failure = null)
+                PostNoteResult.EmptyBody -> QlUserPostNoteFailure.EMPTY_BODY
+                PostNoteResult.TooLong -> QlUserPostNoteFailure.TOO_LONG
+                PostNoteResult.TooManyImages -> QlUserPostNoteFailure.TOO_MANY_IMAGES
+                PostNoteResult.ImageNotFound -> QlUserPostNoteFailure.IMAGE_NOT_FOUND
+                PostNoteResult.AccountNotFound -> QlUserPostNoteFailure.NOT_LOGGED_IN
+            }
+        return QlUserPostNoteResult(url = null, failure = failure)
+    }
 
-        return when (val result = notePostService.post(username = account.username, body = body, requestId = requestId)) {
-            is PostNoteResult.Posted -> QlUserPostNoteResult(url = result.url, failure = null)
-            PostNoteResult.EmptyBody -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.EMPTY_BODY)
-            PostNoteResult.TooLong -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.TOO_LONG)
-            PostNoteResult.AccountNotFound -> QlUserPostNoteResult(url = null, failure = QlUserPostNoteFailure.NOT_LOGGED_IN)
-        }
+    private fun uploadNoteImage(
+        image: GraphQlUpload,
+        description: String?,
+        env: DataFetchingEnvironment,
+    ): QlUploadNoteImageResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId =
+            GraphQlEngine.graphQlContext(env).userAccountId()
+                ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.NOT_LOGGED_IN)
+        // セッションが残っていてもアカウントが消えていることがある
+        val account =
+            diContainer.accountService.account(accountId)
+                ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.NOT_LOGGED_IN)
+        val notePostService =
+            diContainer.notePostService
+                ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.UNSUPPORTED_OPERATION)
+        val failure =
+            when (val result = notePostService.uploadImage(username = account.username, image = NoteImageUpload(size = image.size, openStream = image::openStream, description = description))) {
+                is UploadNoteImageResult.Uploaded -> return QlUploadNoteImageResult(imageId = result.publicId, failure = null)
+                UploadNoteImageResult.TooLarge -> QlUploadNoteImageFailure.TOO_LARGE
+                UploadNoteImageResult.UnsupportedImage -> QlUploadNoteImageFailure.UNSUPPORTED_IMAGE
+                UploadNoteImageResult.DescriptionTooLong -> QlUploadNoteImageFailure.DESCRIPTION_TOO_LONG
+                UploadNoteImageResult.ImageStorageDisabled -> QlUploadNoteImageFailure.UNSUPPORTED_OPERATION
+                UploadNoteImageResult.UploadFailed -> QlUploadNoteImageFailure.INTERNAL_SERVER_ERROR
+                UploadNoteImageResult.AccountNotFound -> QlUploadNoteImageFailure.NOT_LOGGED_IN
+            }
+        return QlUploadNoteImageResult(imageId = null, failure = failure)
     }
 
     private fun updateProfile(
