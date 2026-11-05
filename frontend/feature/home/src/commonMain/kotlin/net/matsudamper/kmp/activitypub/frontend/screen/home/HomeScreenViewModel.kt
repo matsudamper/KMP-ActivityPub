@@ -305,6 +305,16 @@ internal class HomeScreenViewModel(
         myPostsRetryJob = viewModelScope.launch { loadMyPosts(username) }
     }
 
+    /**
+     * ユーザータブの自分の投稿は削除に使う id を持たず外せないので、読み直して消した投稿を除く
+     */
+    private fun reloadMyPostsIfLoaded() {
+        val username = myUsername ?: return
+        if (myProfileWithPosts == null) return
+        myPostsRetryJob?.cancel()
+        myPostsRetryJob = viewModelScope.launch { loadMyPosts(username) }
+    }
+
     private suspend fun loadMyPosts(username: String) {
         if (mutableUiStateFlow.value.userPosts is HomeScreenUiState.UserPosts.LoadFailed) {
             mutableUiStateFlow.update { it.copy(userPosts = HomeScreenUiState.UserPosts.Loading) }
@@ -636,6 +646,7 @@ internal class HomeScreenViewModel(
                 if (error == null) {
                     timelinePaging.updateCache { it.withoutNote(noteId) }
                     postsArrivedSinceRefresh = postsArrivedSinceRefresh.filterNot { it.deletableNoteId == noteId }
+                    reloadMyPostsIfLoaded()
                     events.send { it.showMessage("投稿を削除しました") }
                 } else {
                     events.send { it.showMessage(error) }
