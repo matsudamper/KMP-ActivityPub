@@ -95,6 +95,11 @@ private class HtmlImageZoomGesture(
     private fun onPointerMove(event: Event) {
         val pointerEvent = event as PointerEvent
         val previous = pointerPositions[pointerEvent.pointerId] ?: return
+        if (pointerEvent.buttons == NO_BUTTONS) {
+            // 取り込む前に入れ物の外で離されると pointerup が届かないので、押されていない移動で押下を終える
+            onPointerEnd(event)
+            return
+        }
         val current = positionInContainer(pointerEvent)
         captureWhenGestureStarts(pointerId = pointerEvent.pointerId, current = current)
         val other = pointerPositions.entries.firstOrNull { it.key != pointerEvent.pointerId }?.value
@@ -188,6 +193,7 @@ private class HtmlImageZoomGesture(
         const val DOUBLE_CLICK_SCALE = 2.5
         const val WHEEL_ZOOM_SENSITIVITY = 0.002
         const val MAIN_BUTTON: Short = 0
+        const val NO_BUTTONS: Short = 0
         const val GESTURE_START_DISTANCE = 8.0
     }
 }
