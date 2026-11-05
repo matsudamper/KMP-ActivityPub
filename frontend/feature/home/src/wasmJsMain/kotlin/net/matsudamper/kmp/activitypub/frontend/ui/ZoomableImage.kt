@@ -64,6 +64,7 @@ private class HtmlImageZoomGesture(
     private var translateX = 0.0
     private var translateY = 0.0
     private val pointerPositions = mutableMapOf<Int, Position>()
+    private val uncapturedPointerDownPositions = mutableMapOf<Int, Position>()
 
     fun bind() {
         container.addEventListener("wheel", ::onWheel)
@@ -85,14 +86,17 @@ private class HtmlImageZoomGesture(
 
     private fun onPointerDown(event: Event) {
         val pointerEvent = event as PointerEvent
-        container.setPointerCapture(pointerEvent.pointerId)
-        pointerPositions[pointerEvent.pointerId] = positionInContainer(pointerEvent)
+        if (pointerEvent.button != MAIN_BUTTON) return
+        val position = positionInContainer(pointerEvent)
+        pointerPositions[pointerEvent.pointerId] = position
+        uncapturedPointerDownPositions[pointerEvent.pointerId] = position
     }
 
     private fun onPointerMove(event: Event) {
         val pointerEvent = event as PointerEvent
         val previous = pointerPositions[pointerEvent.pointerId] ?: return
         val current = positionInContainer(pointerEvent)
+        captureWhenGestureStarts(pointerId = pointerEvent.pointerId, current = current)
         val other = pointerPositions.entries.firstOrNull { it.key != pointerEvent.pointerId }?.value
         pointerPositions[pointerEvent.pointerId] = current
         if (other == null) {
@@ -113,7 +117,23 @@ private class HtmlImageZoomGesture(
     }
 
     private fun onPointerEnd(event: Event) {
-        pointerPositions.remove((event as PointerEvent).pointerId)
+        val pointerId = (event as PointerEvent).pointerId
+        pointerPositions.remove(pointerId)
+        uncapturedPointerDownPositions.remove(pointerId)
+    }
+
+    /**
+     * 取り込むと Firefox は長押しのメニューを入れ物に出し、画像の保存などが出なくなる。
+     * 長押し中の指のわずかなぶれでは取り込まず、移動や拡大が始まってから取り込む
+     */
+    private fun captureWhenGestureStarts(
+        pointerId: Int,
+        current: Position,
+    ) {
+        val downPosition = uncapturedPointerDownPositions[pointerId] ?: return
+        if (pointerPositions.size < 2 && downPosition.distanceTo(current) < GESTURE_START_DISTANCE) return
+        uncapturedPointerDownPositions.remove(pointerId)
+        container.setPointerCapture(pointerId)
     }
 
     private fun onDoubleClick(event: Event) {
@@ -167,5 +187,7 @@ private class HtmlImageZoomGesture(
         const val MAX_SCALE = 5.0
         const val DOUBLE_CLICK_SCALE = 2.5
         const val WHEEL_ZOOM_SENSITIVITY = 0.002
+        const val MAIN_BUTTON: Short = 0
+        const val GESTURE_START_DISTANCE = 8.0
     }
 }
