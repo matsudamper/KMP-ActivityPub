@@ -284,6 +284,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onClickRetryProfile() = Unit
 
+    override fun onClickRetryUserPosts() = Unit
+
     override fun onClickFollowing() = Unit
 
     override fun onClickFollowers() = Unit

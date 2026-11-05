@@ -51,6 +51,8 @@ internal class HomeScreenViewModel(
     private var linkPreviews = mapOf<String, List<UserLinkPreviewsResult.LinkPreview>>()
     private var timelineArrivalsJob: Job? = null
     private var myProfileWithPosts: UserProfileResult.Found? = null
+    private var myUsername: String? = null
+    private var myPostsRetryJob: Job? = null
 
     /**
      * 自分で切ったときは、画面に戻ってきてもつなぎ直さない
@@ -162,6 +164,10 @@ internal class HomeScreenViewModel(
                         loadProfile()
                     }
 
+                    override fun onClickRetryUserPosts() {
+                        retryMyPosts()
+                    }
+
                     override fun onClickFollowing() {
                         viewModelScope.launch {
                             events.send { it.navigateToFollowing() }
@@ -242,8 +248,17 @@ internal class HomeScreenViewModel(
                     userTabIconUrl = (profile as? HomeScreenUiState.Profile.Loaded)?.iconUrl,
                 )
             }
-            if (result is UserMyProfileResult.Found) loadMyPosts(result.username)
+            if (result is UserMyProfileResult.Found) {
+                myUsername = result.username
+                loadMyPosts(result.username)
+            }
         }
+    }
+
+    private fun retryMyPosts() {
+        val username = myUsername ?: return
+        if (profileJob?.isActive == true || myPostsRetryJob?.isActive == true) return
+        myPostsRetryJob = viewModelScope.launch { loadMyPosts(username) }
     }
 
     private suspend fun loadMyPosts(username: String) {

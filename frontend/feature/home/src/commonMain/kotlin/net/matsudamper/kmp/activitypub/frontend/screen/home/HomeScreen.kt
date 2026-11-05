@@ -519,7 +519,7 @@ private fun UserTabContent(
 
                         HomeScreenUiState.UserPosts.LoadFailed -> item {
                             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                Button(onClick = listener::onClickRetryProfile) { Text("再読み込み") }
+                                Button(onClick = listener::onClickRetryUserPosts) { Text("再読み込み") }
                             }
                         }
 

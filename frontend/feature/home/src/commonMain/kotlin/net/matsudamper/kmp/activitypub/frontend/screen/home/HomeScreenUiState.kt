@@ -122,6 +122,8 @@ data class HomeScreenUiState(
 
         fun onClickRetryProfile()
 
+        fun onClickRetryUserPosts()
+
         fun onClickFollowing()
 
         fun onClickFollowers()
