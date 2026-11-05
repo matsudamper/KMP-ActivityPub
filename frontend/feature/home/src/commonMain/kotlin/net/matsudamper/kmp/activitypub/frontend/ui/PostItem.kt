@@ -178,7 +178,7 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブーストと共有はまだ無いので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプ・共有はまだ押せないので、押せないアイコンだけを置く
  */
 @Composable
 private fun PostActions(uiState: PostItemUiState) {
@@ -212,6 +212,14 @@ private fun PostActions(uiState: PostItemUiState) {
                 style = MaterialTheme.typography.bodySmall,
                 color = iconColor,
                 maxLines = 1,
+            )
+        }
+        Box(modifier = Modifier.width(PostActionSlotWidth)) {
+            Icon(
+                imageVector = AppIcons.Emoticon,
+                contentDescription = "スタンプ",
+                modifier = Modifier.size(PostActionIconSize),
+                tint = disabledIconColor,
             )
         }
         Icon(
