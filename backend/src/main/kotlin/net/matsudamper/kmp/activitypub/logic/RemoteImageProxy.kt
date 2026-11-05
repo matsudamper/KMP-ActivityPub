@@ -44,9 +44,17 @@ class RemoteImageProxy(
         if (!signatureMatches) return RemoteImageProxyResult.NotIssued
 
         val bytes = fetcher.fetch(url = remoteUrl, maxBytes = MAX_IMAGE_BYTES) ?: return RemoteImageProxyResult.Unavailable
-        val format = ImageFormat.detect(bytes) ?: return RemoteImageProxyResult.Unavailable
-        return RemoteImageProxyResult.Found(bytes = bytes, contentType = format.contentType)
+        val contentType = ImageFormat.detect(bytes)?.contentType
+            ?: ICO_CONTENT_TYPE.takeIf { bytes.isIco() }
+            ?: return RemoteImageProxyResult.Unavailable
+        return RemoteImageProxyResult.Found(bytes = bytes, contentType = contentType)
     }
+
+    /**
+     * favicon は ICO が多いので中継では通す。投稿やプロフィールの画像としては受け付けないので [ImageFormat] には入れない
+     */
+    private fun ByteArray.isIco(): Boolean =
+        size >= ICO_SIGNATURE.size && ICO_SIGNATURE.indices.all { index -> this[index] == ICO_SIGNATURE[index] }
 
     private fun sign(remoteUrl: String): String {
         val mac = Mac.getInstance(HMAC_ALGORITHM)
@@ -63,6 +71,8 @@ class RemoteImageProxy(
         const val PATH_SUFFIX: String = ".bin"
 
         private const val HMAC_ALGORITHM = "HmacSHA256"
+        private const val ICO_CONTENT_TYPE = "image/x-icon"
+        private val ICO_SIGNATURE = byteArrayOf(0x00, 0x00, 0x01, 0x00)
 
         /**
          * 同じ実装の別のサーバーが配る投稿の画像も表示できるよう、こちらで受け付ける投稿の画像の上限に揃える

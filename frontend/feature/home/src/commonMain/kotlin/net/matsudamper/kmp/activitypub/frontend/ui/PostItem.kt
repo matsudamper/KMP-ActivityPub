@@ -106,6 +106,7 @@ internal fun PostItem(
                             title = preview.title,
                             siteName = preview.siteName,
                             imageUrl = preview.imageUrl,
+                            faviconUrl = preview.faviconUrl,
                             onClick = preview.listener::onClick,
                         )
                     }
