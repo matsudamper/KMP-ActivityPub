@@ -10,12 +10,14 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
+import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
+import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
@@ -67,7 +69,8 @@ internal class Federation(
     private val publicAddressHttpClient = PublicAddressHttpClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
-    private val notes = RepositoryNoteStore(noteRepository)
+    val noteImageUrls: NoteImageUrls = NoteImageUrls(domain)
+    private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
@@ -93,8 +96,13 @@ internal class Federation(
         NotePostService(
             directory = directory,
             publisher = NotePublisher(notes, null),
+            accountService = accountService,
+            noteRepository = noteRepository,
+            imageStorage = imageStorage,
+            imageUrls = noteImageUrls,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
+            clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
             onPosted = { publicId -> timelineRepository.localPosition(publicId.value)?.let { timeline.enqueue(it) } },
         )
@@ -153,6 +161,14 @@ internal class Federation(
         imageStorage?.let { storage ->
             ActorIconEndpoint(directory = directory, icons = AccountActorIcons(accountService = accountService, imageStorage = storage))
         }
+
+    /**
+     * 画像の置き場が無ければ画像付きの投稿もできないので作らない
+     */
+    val noteImageFiles: NoteImageFiles? = imageStorage?.let { NoteImageFiles(noteRepository = noteRepository, imageStorage = it) }
+
+    val uploadedNoteImageCleaner: UploadedNoteImageCleaner? =
+        imageStorage?.let { UploadedNoteImageCleaner(noteRepository = noteRepository, imageStorage = it, clock = Clock.systemUTC()) }
 
     val profileIconUrls: ProfileIconUrls =
         ProfileIconUrls { username ->

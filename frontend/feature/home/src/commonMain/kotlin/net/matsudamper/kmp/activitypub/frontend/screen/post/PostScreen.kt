@@ -1,15 +1,23 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -23,13 +31,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -40,12 +54,17 @@ internal fun PostScreen(
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
 
-    LaunchedEffect(viewModel.eventHandler, navigator) {
+    LaunchedEffect(viewModel.eventHandler, navigator, pickImage) {
         viewModel.eventHandler.collect(
             object : PostScreenViewModel.Event {
                 override fun navigateBack() {
                     navigator.back()
+                }
+
+                override fun openImagePicker() {
+                    pickImage()
                 }
 
                 override fun showMessage(message: String) {
@@ -103,15 +122,75 @@ internal fun PostContent(
                 hasError = uiState.inputHasError,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(
-                onClick = uiState.listener::onClickPost,
-                enabled = uiState.postButtonEnabled,
-                modifier = Modifier.align(Alignment.End),
+            if (uiState.images.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    uiState.images.forEach { image ->
+                        SelectedImage(image = image)
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("投稿")
+                Box(contentAlignment = Alignment.Center) {
+                    IconButton(
+                        onClick = uiState.listener::onClickAddImage,
+                        enabled = uiState.addImageButtonEnabled,
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Image,
+                            contentDescription = "画像を追加",
+                        )
+                    }
+                    if (uiState.addImageLoadingVisible) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Button(
+                    onClick = uiState.listener::onClickPost,
+                    enabled = uiState.postButtonEnabled,
+                ) {
+                    Text("投稿")
+                }
             }
         }
     }
 }
+
+@Composable
+private fun SelectedImage(image: PostScreenUiState.Image) {
+    Box(
+        modifier = Modifier.size(SELECTED_IMAGE_SIZE).clip(RoundedCornerShape(8.dp)),
+    ) {
+        AsyncImage(
+            model = image.preview.imageRequest(LocalPlatformContext.current),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        IconButton(
+            onClick = image.listener::onClickRemove,
+            enabled = image.removeButtonEnabled,
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                contentColor = Color.White,
+            ),
+            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp),
+        ) {
+            Icon(
+                imageVector = AppIcons.Close,
+                contentDescription = "画像を外す",
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+private val SELECTED_IMAGE_SIZE = 96.dp
 
 private const val POST_BODY_INPUT_ID = "post-body"

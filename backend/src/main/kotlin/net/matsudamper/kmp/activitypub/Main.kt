@@ -9,6 +9,7 @@ import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
@@ -65,6 +66,13 @@ internal fun Application.module(deps: AppDependencies) {
         maxFrameSize = 64 * 1024L
     }
     install(StatusPages) {
+        // RequestBodyLimit が本文の上限を超えたところで投げる
+        exception<PayloadTooLargeException> { call, _ ->
+            call.respondText(
+                status = HttpStatusCode.PayloadTooLarge,
+                text = HttpStatusCode.PayloadTooLarge.description,
+            )
+        }
         exception<Throwable> { call, cause ->
             TraceLogger.impl().noticeThrowable(cause, isError = true)
             call.respondText(
@@ -102,6 +110,10 @@ internal fun Application.module(deps: AppDependencies) {
         log.info("DOMAIN が未設定なので、他のサーバーから見つけられない")
     } else {
         launch { federation.deliveryQueueWorker.run() }
+        val uploadedNoteImageCleaner = federation.uploadedNoteImageCleaner
+        if (uploadedNoteImageCleaner != null) {
+            launch { uploadedNoteImageCleaner.run() }
+        }
     }
 
     val s3 = deps.env.s3
@@ -142,6 +154,7 @@ internal fun Application.module(deps: AppDependencies) {
                 notePostService = federation?.notePostService,
                 profileUpdateService = federation?.profileUpdateService,
                 profileIconUrls = federation?.profileIconUrls,
+                noteImageUrls = federation?.noteImageUrls,
                 remoteImageProxy = federation?.remoteImageProxy,
                 linkPreviewService = federation?.linkPreviewService,
             ),

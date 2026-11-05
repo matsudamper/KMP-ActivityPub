@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
+import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.WebpImage
+import net.matsudamper.kmp.activitypub.frontend.ui.WebpResult
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -24,6 +28,8 @@ internal class PostScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                images = listOf(),
+                loadingImage = false,
                 submitting = false,
                 error = null,
             ),
@@ -36,9 +42,19 @@ internal class PostScreenViewModel(
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
                         savedStateHandle[BODY_KEY] = text
-                        // 応答が失われて送り直すときだけ同じ ID にし、書き直した本文は別の投稿として扱う
-                        savedStateHandle[REQUEST_ID_KEY] = newRequestId()
+                        renewRequestId()
                         viewModelStateFlow.update { it.copy(body = text, error = null) }
+                    }
+
+                    override fun onClickAddImage() {
+                        if (viewModelStateFlow.value.imageAddable().not()) return
+                        viewModelScope.launch {
+                            events.send { it.openImagePicker() }
+                        }
+                    }
+
+                    override fun onImagePicked(file: PickedImageFile) {
+                        addImage(file)
                     }
 
                     override fun onClickPost() {
@@ -67,6 +83,59 @@ internal class PostScreenViewModel(
             }
         }.asStateFlow()
 
+    /**
+     * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、loadingImage が下りなくなる
+     */
+    private fun addImage(file: PickedImageFile) {
+        if (viewModelStateFlow.value.imageAddable().not()) return
+        viewModelStateFlow.update { it.copy(loadingImage = true) }
+        viewModelScope.launch {
+            val image =
+                try {
+                    readImage(file)
+                } finally {
+                    viewModelStateFlow.update { it.copy(loadingImage = false) }
+                }
+            if (image == null) return@launch
+            renewRequestId()
+            viewModelStateFlow.update { state ->
+                state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), image = image), error = null)
+            }
+        }
+    }
+
+    private fun removeImage(id: String) {
+        if (viewModelStateFlow.value.submitting) return
+        renewRequestId()
+        val removed = viewModelStateFlow.value.images.filter { it.id == id }
+        viewModelStateFlow.update { state -> state.copy(images = state.images.filterNot { it.id == id }, error = null) }
+        removed.forEach { it.image.release() }
+    }
+
+    /**
+     * WebP に描き直して EXIF を落とす。読めないか送れなければメッセージを出して null
+     */
+    private suspend fun readImage(file: PickedImageFile): WebpImage? {
+        return when (val webp = file.toWebp(maxBytes = MAX_IMAGE_BYTES)) {
+            is WebpResult.Success -> webp.image
+
+            WebpResult.TooLarge -> {
+                events.send { it.showMessage("画像を WebP にすると 20MB を超えるため送れません") }
+                null
+            }
+
+            WebpResult.TooManyPixels -> {
+                events.send { it.showMessage("画像の画素数が多すぎます。6400 万画素までにしてください") }
+                null
+            }
+
+            WebpResult.Unreadable -> {
+                events.send { it.showMessage("画像として読み込めませんでした") }
+                null
+            }
+        }
+    }
+
     private fun post() {
         val state = viewModelStateFlow.value
         if (state.postable().not()) return
@@ -75,13 +144,15 @@ internal class PostScreenViewModel(
         viewModelScope.launch {
             val error =
                 try {
-                    when (val result = postNoteSubmitter.submit(body = state.body, requestId = requestId())) {
-                        UserPostNoteResult.Success -> null
-                        UserPostNoteResult.NotLoggedIn -> "ログインしていません"
-                        UserPostNoteResult.EmptyBody -> "本文が空です"
-                        UserPostNoteResult.TooLong -> "本文が長すぎます"
-                        UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
-                        is UserPostNoteResult.Failure -> result.message
+                    val result =
+                        postNoteSubmitter.submit(
+                            body = state.body,
+                            requestId = requestId(),
+                            images = state.images.map { it.image },
+                        )
+                    when (result) {
+                        is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
+                        is PostNoteSubmitResult.Submitted -> postErrorMessage(result.result)
                     }
                 } finally {
                     viewModelStateFlow.update { it.copy(submitting = false) }
@@ -92,15 +163,53 @@ internal class PostScreenViewModel(
                 return@launch
             }
             savedStateHandle[BODY_KEY] = ""
-            savedStateHandle[REQUEST_ID_KEY] = newRequestId()
-            viewModelStateFlow.update { it.copy(body = "") }
+            renewRequestId()
+            viewModelStateFlow.update { it.copy(body = "", images = listOf()) }
+            state.images.forEach { it.image.release() }
             events.send { it.navigateBack() }
         }
     }
 
+    /**
+     * 置けたら null
+     */
+    private fun uploadErrorMessage(result: UserUploadNoteImageResult): String? =
+        when (result) {
+            is UserUploadNoteImageResult.Success -> null
+            UserUploadNoteImageResult.NotLoggedIn -> "ログインしていません"
+            UserUploadNoteImageResult.TooLarge -> "画像が大きすぎます"
+            UserUploadNoteImageResult.UnsupportedImage -> "送れない形式の画像があります"
+            UserUploadNoteImageResult.DescriptionTooLong -> "画像の説明が長すぎます"
+            UserUploadNoteImageResult.UnsupportedOperation -> "このサーバーでは画像を投稿できません"
+            UserUploadNoteImageResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
+            is UserUploadNoteImageResult.Failure -> result.message
+        }
+
+    /**
+     * 投稿できたら null
+     */
+    private fun postErrorMessage(result: UserPostNoteResult): String? =
+        when (result) {
+            UserPostNoteResult.Success -> null
+            UserPostNoteResult.NotLoggedIn -> "ログインしていません"
+            UserPostNoteResult.EmptyBody -> "本文が空です"
+            UserPostNoteResult.TooLong -> "本文が長すぎます"
+            UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
+            UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
+            UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
+            is UserPostNoteResult.Failure -> result.message
+        }
+
     private fun requestId(): String =
         savedStateHandle.get<String>(REQUEST_ID_KEY)
             ?: newRequestId().also { savedStateHandle[REQUEST_ID_KEY] = it }
+
+    /**
+     * 応答が失われて送り直すときだけ同じ ID にし、書き直した投稿は別の投稿として扱う
+     */
+    private fun renewRequestId() {
+        savedStateHandle[REQUEST_ID_KEY] = newRequestId()
+    }
 
     private fun newRequestId(): String = Uuid.random().toString()
 
@@ -114,19 +223,61 @@ internal class PostScreenViewModel(
             inputEnabled = viewModelState.submitting.not(),
             backButtonEnabled = viewModelState.submitting.not(),
             postButtonEnabled = viewModelState.postable(),
+            images =
+            viewModelState.images.map { selected ->
+                PostScreenUiState.Image(
+                    preview = selected.preview,
+                    removeButtonEnabled = viewModelState.submitting.not(),
+                    listener = selected.removeListener,
+                )
+            },
+            addImageButtonEnabled = viewModelState.imageAddable(),
+            addImageLoadingVisible = viewModelState.loadingImage,
             listener = listener,
         )
 
-    private fun ViewModelState.postable(): Boolean = submitting.not() && body.isNotBlank()
+    private fun ViewModelState.postable(): Boolean =
+        submitting.not() && loadingImage.not() && (body.isNotBlank() || images.isNotEmpty())
+
+    private fun ViewModelState.imageAddable(): Boolean = submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
 
     data class ViewModelState(
         val body: String,
+        val images: List<SelectedImage>,
+        val loadingImage: Boolean,
         val submitting: Boolean,
         val error: String?,
     )
 
+    /**
+     * 送り終えるまで送信は画面より長く生きるので、送っている途中に閉じられたら画像を消さない
+     */
+    override fun onCleared() {
+        if (viewModelStateFlow.value.submitting) return
+        viewModelStateFlow.value.images.forEach { it.image.release() }
+    }
+
+    inner class SelectedImage(
+        val id: String,
+        val image: WebpImage,
+    ) {
+        val preview: PostScreenUiState.ImagePreview = PostScreenUiState.ImagePreview(image::previewRequest)
+
+        /**
+         * 状態が変わるたびに作り直すと、画像の部品が毎回描き直される
+         */
+        val removeListener: PostScreenUiState.ImageListener =
+            object : PostScreenUiState.ImageListener {
+                override fun onClickRemove() {
+                    removeImage(id)
+                }
+            }
+    }
+
     interface Event {
         fun navigateBack()
+
+        fun openImagePicker()
 
         fun showMessage(message: String)
     }
@@ -134,3 +285,13 @@ internal class PostScreenViewModel(
 
 private const val BODY_KEY = "body"
 private const val REQUEST_ID_KEY = "requestId"
+
+/**
+ * サーバーの 1 投稿あたりの上限
+ */
+private const val MAX_IMAGES = 4
+
+/**
+ * サーバーの 1 枚あたりの上限
+ */
+private const val MAX_IMAGE_BYTES = 20 * 1024 * 1024

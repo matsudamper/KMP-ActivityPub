@@ -11,6 +11,7 @@ import graphql.schema.CoercingParseValueException
 import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 
 object GraphQlScalars {
@@ -30,6 +31,44 @@ object GraphQlScalars {
             .name("PasskeyCredentialId")
             .coercing(StringIdCoercing(name = "PasskeyCredentialId", type = PasskeyCredentialId::class.java, wrap = ::PasskeyCredentialId, unwrap = PasskeyCredentialId::value))
             .build()
+
+    val noteImageId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("NoteImageId")
+            .coercing(StringIdCoercing(name = "NoteImageId", type = NoteImagePublicId::class.java, wrap = ::NoteImagePublicId, unwrap = NoteImagePublicId::value))
+            .build()
+
+    /**
+     * 中身は multipart の部分から [GraphQlRoutes] が変数に差し込む。文字列やリテラルでは受け取らない
+     */
+    val upload: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("Upload")
+            .coercing(UploadCoercing)
+            .build()
+
+    private object UploadCoercing : Coercing<GraphQlUpload, Nothing> {
+        override fun serialize(
+            dataFetcherResult: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): Nothing = throw CoercingSerializeException("Upload は返さない")
+
+        override fun parseValue(
+            input: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): GraphQlUpload = input as? GraphQlUpload ?: throw CoercingParseValueException("Upload は multipart のファイルで送ること")
+
+        override fun parseLiteral(
+            input: Value<*>,
+            variables: CoercedVariables,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): GraphQlUpload = throw CoercingParseLiteralException("Upload は multipart のファイルで送ること")
+    }
 
     private object UserIdCoercing : Coercing<AccountId, String> {
         override fun serialize(

@@ -242,8 +242,8 @@ class RemoteNoteReceptionTest {
         fixture.receiver.save(note(listOf()).copy(attachments = attachments))
         assertEquals(
             listOf(
-                TimelinePostImage(url = "https://remote.example/a.png", description = "説明"),
-                TimelinePostImage(url = "https://remote.example/d.webp", description = null),
+                TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明"),
+                TimelinePostImage.Remote(url = "https://remote.example/d.webp", description = null),
             ),
             fixture.repositories.timelineRepository.received.single().images,
         )
