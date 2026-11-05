@@ -266,6 +266,8 @@ private fun HomeUserContentPreview() {
                             postedAt = "3分前",
                             linkPreviews = listOf(),
                             images = listOf(),
+                            favouriteCountText = null,
+                            stamps = listOf(),
                             authorListener = null,
                             listener = AndroidPreviewTimelineItemListener,
                         ),
