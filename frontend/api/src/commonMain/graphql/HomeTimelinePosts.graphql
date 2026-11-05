@@ -15,6 +15,7 @@ subscription HomeTimelinePosts {
             description
         }
         favouriteCount
+        url
         stamps {
             emoji
             imageUrl

@@ -36,6 +36,7 @@ private fun UserProfileContentPreview() {
                             ),
                             images = listOf(),
                             favouriteCountText = "12",
+                            shareButtonEnabled = true,
                             stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                             authorListener = null,
                             listener = AndroidPreviewPostItemListener,
@@ -96,6 +97,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
 
 private object AndroidPreviewPostItemListener : PostItemUiState.Listener {
     override fun onVisible() = Unit
+
+    override fun onShareClick() = Unit
 }
 
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {

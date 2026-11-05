@@ -21,6 +21,7 @@ query UserProfile($username: String!) {
                 description
             }
             favouriteCount
+            url
             stamps {
                 emoji
                 imageUrl

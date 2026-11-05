@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -10,12 +11,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -109,23 +113,12 @@ internal fun PostItem(
                     }
                 }
             }
-            val favouriteCountText = uiState.favouriteCountText
-            if (favouriteCountText != null || uiState.stamps.isNotEmpty()) {
+            PostActions(uiState = uiState)
+            if (uiState.stamps.isNotEmpty()) {
                 FlowRow(
-                    modifier = Modifier.padding(top = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (favouriteCountText != null) {
-                        ReactionCount(countText = favouriteCountText) {
-                            Icon(
-                                imageVector = AppIcons.Star,
-                                contentDescription = "お気に入り",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
                     uiState.stamps.forEach { stamp ->
                         ReactionCount(countText = stamp.countText) {
                             StampEmoji(stamp = stamp)
@@ -184,3 +177,56 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
         )
     }
 }
+
+/**
+ * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブーストはまだ受け付けないので、押せないアイコンだけを置く
+ */
+@Composable
+private fun PostActions(uiState: PostItemUiState) {
+    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.width(PostActionSlotWidth)) {
+            Icon(
+                imageVector = AppIcons.Repeat,
+                contentDescription = "ブースト",
+                modifier = Modifier.size(PostActionIconSize),
+                tint = iconColor.copy(alpha = 0.38f),
+            )
+        }
+        Row(
+            modifier = Modifier.width(PostActionSlotWidth),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = AppIcons.Star,
+                contentDescription = "お気に入り",
+                modifier = Modifier.size(PostActionIconSize),
+                tint = iconColor,
+            )
+            Text(
+                text = uiState.favouriteCountText.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = iconColor,
+                maxLines = 1,
+            )
+        }
+        IconButton(
+            onClick = uiState.listener::onShareClick,
+            enabled = uiState.shareButtonEnabled,
+            colors = IconButtonDefaults.iconButtonColors(contentColor = iconColor),
+            modifier = Modifier.size(32.dp),
+        ) {
+            Icon(
+                imageVector = AppIcons.Share,
+                contentDescription = "共有",
+                modifier = Modifier.size(PostActionIconSize),
+            )
+        }
+    }
+}
+
+private val PostActionIconSize = 18.dp
+
+private val PostActionSlotWidth = 64.dp

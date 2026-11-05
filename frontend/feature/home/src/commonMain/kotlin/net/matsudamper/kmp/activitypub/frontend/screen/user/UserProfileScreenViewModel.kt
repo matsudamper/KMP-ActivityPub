@@ -174,6 +174,7 @@ internal class UserProfileScreenViewModel(
                     authorListener = null,
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
+                    onShare = { url -> viewModelScope.launch { events.send { it.sharePostUrl(url) } } },
                     onToggleImageBlur = { url ->
                         blurToggledImageUrlsFlow.update { urls -> if (url in urls) urls - url else urls + url }
                     },
@@ -196,6 +197,8 @@ internal class UserProfileScreenViewModel(
         fun openUrl(url: String)
 
         fun navigateToImage(url: String)
+
+        fun sharePostUrl(url: String)
     }
 
     private sealed interface ViewModelState {

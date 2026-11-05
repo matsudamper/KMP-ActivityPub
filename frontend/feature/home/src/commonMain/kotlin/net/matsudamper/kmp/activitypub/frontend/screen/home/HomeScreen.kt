@@ -73,6 +73,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -86,9 +87,10 @@ internal fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    val shareUrl = rememberUrlSharer()
     val tabListStates = rememberHomeTabListStates()
 
-    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, tabListStates) {
+    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, shareUrl, tabListStates) {
         viewModel.eventHandler.collect(
             object : HomeScreenViewModel.Event {
                 override fun navigateToTab(tab: HomeScreenUiState.Tab) {
@@ -133,6 +135,10 @@ internal fun HomeScreen(
 
                 override fun navigateToImage(url: String) {
                     navigator.navigate(Screen.Image(url = url))
+                }
+
+                override fun sharePostUrl(url: String) {
+                    shareUrl(url)
                 }
             },
         )

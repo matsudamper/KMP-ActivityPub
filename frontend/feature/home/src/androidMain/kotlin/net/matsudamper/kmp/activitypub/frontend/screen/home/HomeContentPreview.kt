@@ -82,6 +82,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = null,
+                        shareButtonEnabled = true,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
@@ -117,6 +118,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = "3",
+                        shareButtonEnabled = true,
                         stamps = listOf(
                             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
                             PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
@@ -309,6 +311,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
 private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
     override fun onVisible() = Unit
+
+    override fun onShareClick() = Unit
 }
 
 private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {

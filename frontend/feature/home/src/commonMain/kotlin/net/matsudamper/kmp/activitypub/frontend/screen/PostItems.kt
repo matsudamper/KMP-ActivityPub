@@ -21,6 +21,7 @@ internal fun createPostItemUiState(
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
+    onShare: (url: String) -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     return PostItemUiState(
@@ -43,6 +44,7 @@ internal fun createPostItemUiState(
             )
         },
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
+        shareButtonEnabled = body.url != null,
         stamps = body.stamps.map { stamp ->
             PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
         },
@@ -50,6 +52,11 @@ internal fun createPostItemUiState(
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {
                 onVisible()
+            }
+
+            override fun onShareClick() {
+                val url = body.url ?: return
+                onShare(url)
             }
         },
     )

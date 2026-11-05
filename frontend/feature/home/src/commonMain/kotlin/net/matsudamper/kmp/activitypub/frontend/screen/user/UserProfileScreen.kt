@@ -40,6 +40,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -53,7 +54,8 @@ internal fun UserProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
-    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
+    val shareUrl = rememberUrlSharer()
+    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, shareUrl) {
         viewModel.eventHandler.collect(object : UserProfileScreenViewModel.Event {
             override fun navigateBack() {
                 navigator.back()
@@ -69,6 +71,10 @@ internal fun UserProfileScreen(
 
             override fun navigateToImage(url: String) {
                 navigator.navigate(Screen.Image(url = url))
+            }
+
+            override fun sharePostUrl(url: String) {
+                shareUrl(url)
             }
         })
     }

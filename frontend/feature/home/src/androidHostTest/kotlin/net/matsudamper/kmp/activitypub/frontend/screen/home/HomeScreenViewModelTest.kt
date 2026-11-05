@@ -224,6 +224,8 @@ class HomeScreenViewModelTest {
         override fun openUrl(url: String) = Unit
 
         override fun navigateToImage(url: String) = Unit
+
+        override fun sharePostUrl(url: String) = Unit
     }
 
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
@@ -251,7 +253,7 @@ class HomeScreenViewModelTest {
     }
 
     private fun post(id: String): String =
-        """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"images":[],"favouriteCount":null,"stamps":[]}"""
+        """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"images":[],"favouriteCount":null,"stamps":[],"url":null}"""
 
     private fun response(json: String): HttpResponse = HttpResponse.Builder(200).body(Buffer().writeUtf8(json)).build()
 
