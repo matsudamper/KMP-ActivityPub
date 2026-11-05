@@ -41,4 +41,6 @@ private object AndroidPreviewImageViewerListener : ImageViewerScreenUiState.List
     override fun onClickClose() = Unit
 
     override fun onClickOutsideImage() = Unit
+
+    override fun onClickConfirmDownload() = Unit
 }
