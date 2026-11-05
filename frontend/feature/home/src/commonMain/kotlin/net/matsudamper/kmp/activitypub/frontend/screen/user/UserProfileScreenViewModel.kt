@@ -169,6 +169,7 @@ internal class UserProfileScreenViewModel(
                     authorListener = null,
                     menuItems = listOf(),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                    onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)
@@ -186,6 +187,8 @@ internal class UserProfileScreenViewModel(
         fun showMessage(message: String)
 
         fun openUrl(url: String)
+
+        fun navigateToImage(url: String)
     }
 
     private sealed interface ViewModelState {

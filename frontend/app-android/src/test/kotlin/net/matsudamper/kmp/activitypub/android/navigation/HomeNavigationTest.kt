@@ -74,4 +74,22 @@ class HomeNavigationTest {
             assertNull(home.parentScreen)
         }
     }
+
+    @Test
+    fun imagePathRestoresUrlAndBackClosesOnlyTheImage() {
+        val profile = Screen.UserProfile("bob@remote.example")
+        val backStack = NavBackStack<NavKey>(Screen.Home.Timeline, profile)
+        val navigator = Navigator(backStack)
+        val image = Screen.Image("https://remote.example/media/a b.png?size=large")
+
+        assertEquals(image, Screen.fromPath(image.path))
+        navigator.navigate(image)
+        navigator.back()
+        assertEquals(listOf(Screen.Home.Timeline, profile), backStack.toList())
+    }
+
+    @Test
+    fun brokenImagePathIsUnknown() {
+        assertNull(Screen.fromPath("/image/%%%"))
+    }
 }

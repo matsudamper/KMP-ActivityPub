@@ -18,6 +18,7 @@ internal fun createPostItemUiState(
     authorListener: PostItemUiState.AuthorListener?,
     menuItems: List<PostItemUiState.MenuItem>,
     onOpenUrl: (url: String) -> Unit,
+    onOpenImage: (url: String) -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     return PostItemUiState(
@@ -31,7 +32,7 @@ internal fun createPostItemUiState(
             createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
         },
         images = body.images.map { image ->
-            createPostImage(image) { onOpenUrl(image.url) }
+            createPostImage(image) { onOpenImage(image.url) }
         },
         authorListener = authorListener,
         menuItems = menuItems,
