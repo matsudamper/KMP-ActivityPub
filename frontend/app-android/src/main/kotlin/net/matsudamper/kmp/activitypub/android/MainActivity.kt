@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -90,17 +90,18 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
 @Composable
 private fun SystemBarStyleEffect(darkTheme: Boolean) {
     val activity = LocalActivity.current
-    LaunchedEffect(activity, darkTheme) {
-        if (activity !is ComponentActivity) return@LaunchedEffect
-        val systemBarStyle =
-            if (darkTheme) {
-                SystemBarStyle.dark(Color.TRANSPARENT)
-            } else {
-                SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-            }
-        activity.enableEdgeToEdge(
-            statusBarStyle = systemBarStyle,
-            navigationBarStyle = systemBarStyle,
-        )
+    SideEffect {
+        if (activity is ComponentActivity) {
+            val systemBarStyle =
+                if (darkTheme) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+            activity.enableEdgeToEdge(
+                statusBarStyle = systemBarStyle,
+                navigationBarStyle = systemBarStyle,
+            )
+        }
     }
 }
