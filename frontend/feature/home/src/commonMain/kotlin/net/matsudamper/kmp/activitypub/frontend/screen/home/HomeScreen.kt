@@ -134,6 +134,10 @@ internal fun HomeScreen(
                 override fun navigateToImage(url: String) {
                     navigator.navigate(Screen.Image(url = url))
                 }
+
+                override fun navigateToPostDetail(postId: String) {
+                    navigator.navigate(Screen.PostDetail(postId = postId))
+                }
             },
         )
     }

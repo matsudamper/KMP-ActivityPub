@@ -27,6 +27,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateUiStat
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewModel
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.user.UserProfileScreen
@@ -131,6 +132,10 @@ private fun ScreenContent(
 
         is Screen.UserProfile -> {
             UserProfileScreen(username = screen.username, navigator = navigator)
+        }
+
+        is Screen.PostDetail -> {
+            PostDetailScreen(postId = screen.postId, navigator = navigator)
         }
 
         is Screen.Image -> {
