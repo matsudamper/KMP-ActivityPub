@@ -122,20 +122,20 @@ private fun HomeRail(uiState: HomeScreenUiState) {
             )
         }
         Spacer(modifier = Modifier.weight(1f))
+        SensitiveImagesVisibilityButton(
+            sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
+            onClick = uiState.listener::onClickSensitiveImagesVisibility,
+        )
+        TimelineStreamStatusButton(
+            status = uiState.timelineStreamStatus,
+            onClick = uiState.listener::onClickTimelineStreamStatus,
+        )
         IconButton(onClick = uiState.listener::onClickSettings) {
             Icon(
                 imageVector = AppIcons.Settings,
                 contentDescription = "設定",
             )
         }
-        TimelineStreamStatusButton(
-            status = uiState.timelineStreamStatus,
-            onClick = uiState.listener::onClickTimelineStreamStatus,
-        )
-        SensitiveImagesVisibilityButton(
-            sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
-            onClick = uiState.listener::onClickSensitiveImagesVisibility,
-        )
         Spacer(modifier = Modifier.size(8.dp))
     }
 }
