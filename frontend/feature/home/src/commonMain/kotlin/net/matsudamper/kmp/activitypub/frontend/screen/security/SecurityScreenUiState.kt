@@ -4,12 +4,10 @@ import androidx.compose.runtime.Immutable
 
 data class SecurityScreenUiState(
     val passkeyList: PasskeyList,
-    val passkeyNameInputVisible: Boolean,
-    val passkeyName: String,
-    val passkeyNameInputEnabled: Boolean,
     val addPasskeyButtonVisible: Boolean,
     val addPasskeyButtonEnabled: Boolean,
     val passkeyUnavailableMessageVisible: Boolean,
+    val addDialog: AddDialog?,
     val deleteDialog: DeleteDialog?,
     val password: Password?,
     val passwordDeleteDialog: PasswordDeleteDialog?,
@@ -33,6 +31,14 @@ data class SecurityScreenUiState(
         val name: String,
         val deleteButtonEnabled: Boolean,
         val listener: PasskeyItemListener,
+    )
+
+    data class AddDialog(
+        val passkeyName: String,
+        val nameInputEnabled: Boolean,
+        val addButtonEnabled: Boolean,
+        /** 登録の途中で閉じると、結果を受け取る先が無くなるので false になる */
+        val closeEnabled: Boolean,
     )
 
     data class DeleteDialog(
@@ -60,6 +66,10 @@ data class SecurityScreenUiState(
         fun onPasskeyNameChanged(text: String)
 
         fun onClickAddPasskey()
+
+        fun onClickConfirmAdd()
+
+        fun onDismissAddDialog()
 
         fun onClickConfirmDelete()
 

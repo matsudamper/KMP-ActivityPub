@@ -21,8 +21,24 @@ private fun SecurityContentEmptyPreview() {
         SecurityContent(
             uiState = previewSecurityUiState.copy(
                 passkeyList = SecurityScreenUiState.PasskeyList.Empty,
-                passkeyName = "",
-                addPasskeyButtonEnabled = false,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun SecurityContentAddDialogPreview() {
+    MaterialTheme {
+        SecurityContent(
+            uiState = previewSecurityUiState.copy(
+                addDialog = SecurityScreenUiState.AddDialog(
+                    passkeyName = "iPhone",
+                    nameInputEnabled = true,
+                    addButtonEnabled = true,
+                    closeEnabled = true,
+                ),
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -48,7 +64,6 @@ private fun SecurityContentUnavailablePreview() {
     MaterialTheme {
         SecurityContent(
             uiState = previewSecurityUiState.copy(
-                passkeyNameInputVisible = false,
                 addPasskeyButtonVisible = false,
                 passkeyUnavailableMessageVisible = true,
             ),
@@ -102,12 +117,10 @@ private val previewSecurityUiState = SecurityScreenUiState(
             SecurityScreenUiState.PasskeyItem(name = "MacBook", deleteButtonEnabled = true, listener = AndroidPreviewPasskeyItemListener),
         ),
     ),
-    passkeyNameInputVisible = true,
-    passkeyName = "iPhone",
-    passkeyNameInputEnabled = true,
     addPasskeyButtonVisible = true,
     addPasskeyButtonEnabled = true,
     passkeyUnavailableMessageVisible = false,
+    addDialog = null,
     deleteDialog = null,
     password = SecurityScreenUiState.Password(
         description = "パスワードを削除すると、パスキーでしかログインできなくなる",
@@ -126,6 +139,10 @@ private object AndroidPreviewSecurityListener : SecurityScreenUiState.Listener {
     override fun onPasskeyNameChanged(text: String) = Unit
 
     override fun onClickAddPasskey() = Unit
+
+    override fun onClickConfirmAdd() = Unit
+
+    override fun onDismissAddDialog() = Unit
 
     override fun onClickConfirmDelete() = Unit
 

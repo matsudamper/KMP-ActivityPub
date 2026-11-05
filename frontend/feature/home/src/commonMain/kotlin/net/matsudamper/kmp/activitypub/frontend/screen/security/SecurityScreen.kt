@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
@@ -109,24 +110,6 @@ internal fun SecurityContent(
                 style = MaterialTheme.typography.bodyMedium,
             )
             PasskeyList(uiState = uiState)
-            if (uiState.passkeyNameInputVisible) {
-                SingleLineTextField(
-                    value = uiState.passkeyName,
-                    onValueChange = uiState.listener::onPasskeyNameChanged,
-                    onImeAction = {},
-                    label = "キーの名前",
-                    kind = SingleLineTextFieldKind.Plain,
-                    autofill = null,
-                    formId = null,
-                    required = false,
-                    imeAction = ImeAction.Default,
-                    inputId = PASSKEY_NAME_INPUT_ID,
-                    inputName = "passkey-name",
-                    enabled = uiState.passkeyNameInputEnabled,
-                    hasError = false,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
             if (uiState.addPasskeyButtonVisible) {
                 Button(
                     onClick = uiState.listener::onClickAddPasskey,
@@ -146,6 +129,10 @@ internal fun SecurityContent(
                 HorizontalDivider()
                 PasswordSection(password = password, listener = uiState.listener)
             }
+        }
+        val addDialog = uiState.addDialog
+        if (addDialog != null) {
+            AddPasskeyDialog(dialog = addDialog, listener = uiState.listener)
         }
         val deleteDialog = uiState.deleteDialog
         if (deleteDialog != null) {
@@ -239,6 +226,55 @@ private fun PasskeyListText(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun AddPasskeyDialog(
+    dialog: SecurityScreenUiState.AddDialog,
+    listener: SecurityScreenUiState.Listener,
+) {
+    AlertDialog(
+        onDismissRequest = listener::onDismissAddDialog,
+        properties = DialogProperties(
+            dismissOnBackPress = dialog.closeEnabled,
+            dismissOnClickOutside = dialog.closeEnabled,
+        ),
+        title = { Text("パスキーを追加") },
+        text = {
+            SingleLineTextField(
+                value = dialog.passkeyName,
+                onValueChange = listener::onPasskeyNameChanged,
+                onImeAction = listener::onClickConfirmAdd,
+                label = "キーの名前",
+                kind = SingleLineTextFieldKind.Plain,
+                autofill = null,
+                formId = null,
+                required = false,
+                imeAction = ImeAction.Done,
+                inputId = PASSKEY_NAME_INPUT_ID,
+                inputName = "passkey-name",
+                enabled = dialog.nameInputEnabled,
+                hasError = false,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = listener::onClickConfirmAdd,
+                enabled = dialog.addButtonEnabled,
+            ) {
+                Text("追加")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = listener::onDismissAddDialog,
+                enabled = dialog.closeEnabled,
+            ) {
+                Text("キャンセル")
+            }
+        },
     )
 }
 

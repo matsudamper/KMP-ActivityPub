@@ -32,6 +32,7 @@ internal class SecurityScreenViewModel(
             ViewModelState(
                 passkeys = PasskeysState.Loading,
                 passkeyName = savedStateHandle.get<String>(PASSKEY_NAME_KEY).orEmpty(),
+                addDialogVisible = false,
                 registering = false,
                 deleteTarget = null,
                 deleting = false,
@@ -48,7 +49,17 @@ internal class SecurityScreenViewModel(
             }
 
             override fun onClickAddPasskey() {
+                if (viewModelStateFlow.value.busy()) return
+                viewModelStateFlow.update { it.copy(addDialogVisible = true) }
+            }
+
+            override fun onClickConfirmAdd() {
                 addPasskey()
+            }
+
+            override fun onDismissAddDialog() {
+                if (viewModelStateFlow.value.registering) return
+                viewModelStateFlow.update { it.copy(addDialogVisible = false) }
             }
 
             override fun onClickConfirmDelete() {
@@ -119,7 +130,7 @@ internal class SecurityScreenViewModel(
                 }
             if (outcome == Outcome.Added) {
                 savedStateHandle.remove<String>(PASSKEY_NAME_KEY)
-                viewModelStateFlow.update { it.copy(passkeyName = "") }
+                viewModelStateFlow.update { it.copy(passkeyName = "", addDialogVisible = false) }
                 loadPasskeys()
             }
             showOutcome(outcome)
@@ -262,12 +273,20 @@ internal class SecurityScreenViewModel(
                     }
                 }
             },
-            passkeyNameInputVisible = passkeyAuthenticator.available,
-            passkeyName = viewModelState.passkeyName,
-            passkeyNameInputEnabled = busy.not(),
             addPasskeyButtonVisible = passkeyAuthenticator.available,
-            addPasskeyButtonEnabled = viewModelState.addable(),
+            addPasskeyButtonEnabled = busy.not(),
             passkeyUnavailableMessageVisible = passkeyAuthenticator.available.not(),
+            addDialog =
+            if (viewModelState.addDialogVisible) {
+                SecurityScreenUiState.AddDialog(
+                    passkeyName = viewModelState.passkeyName,
+                    nameInputEnabled = viewModelState.registering.not(),
+                    addButtonEnabled = viewModelState.addable(),
+                    closeEnabled = viewModelState.registering.not(),
+                )
+            } else {
+                null
+            },
             deleteDialog =
             viewModelState.deleteTarget?.let { target ->
                 SecurityScreenUiState.DeleteDialog(
@@ -314,6 +333,7 @@ internal class SecurityScreenViewModel(
     data class ViewModelState(
         val passkeys: PasskeysState,
         val passkeyName: String,
+        val addDialogVisible: Boolean,
         val registering: Boolean,
         val deleteTarget: RegisteredPasskey?,
         val deleting: Boolean,
