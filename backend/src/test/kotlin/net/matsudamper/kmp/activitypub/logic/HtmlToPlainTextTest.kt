@@ -1,10 +1,10 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import kotlin.test.Test
-import org.jsoup.Jsoup
-import org.jsoup.safety.Safelist
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import org.jsoup.Jsoup
+import org.jsoup.safety.Safelist
 
 class HtmlToPlainTextTest {
     @Test
