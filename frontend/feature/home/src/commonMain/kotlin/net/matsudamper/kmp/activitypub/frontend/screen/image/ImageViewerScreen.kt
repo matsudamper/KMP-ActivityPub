@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.image
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,11 +14,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.ui.ComposeCanDrawOverZoomableImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ZoomableImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
@@ -32,6 +39,10 @@ internal fun ImageViewerScreen(
                 override fun onClickClose() {
                     navigator.back()
                 }
+
+                override fun onClickOutsideImage() {
+                    navigator.back()
+                }
             },
         )
     }
@@ -42,30 +53,87 @@ internal fun ImageViewerScreen(
 internal fun ImageViewerContent(
     uiState: ImageViewerScreenUiState,
 ) {
-    // Web では画像を HTML の要素で重ねるので、Compose で描くボタンは画像と重ならない位置に置く
+    if (ComposeCanDrawOverZoomableImage) {
+        OverlayImageViewerContent(uiState = uiState)
+    } else {
+        SeparatedImageViewerContent(uiState = uiState)
+    }
+}
+
+@Composable
+private fun OverlayImageViewerContent(
+    uiState: ImageViewerScreenUiState,
+) {
+    var imageZoomed by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.9f)),
+    ) {
+        ZoomableImage(
+            imageUrl = uiState.imageUrl,
+            onClickOutsideImage = uiState.listener::onClickOutsideImage,
+            onZoomedChange = { imageZoomed = it },
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (!imageZoomed) {
+            CloseButton(
+                uiState = uiState,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .safeDrawingPadding()
+                    .padding(8.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeparatedImageViewerContent(
+    uiState: ImageViewerScreenUiState,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.9f))
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                onClick = uiState.listener::onClickOutsideImage,
+            )
             .safeDrawingPadding(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            IconButton(
-                onClick = uiState.listener::onClickClose,
-                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-            ) {
-                Icon(
-                    imageVector = AppIcons.Close,
-                    contentDescription = "閉じる",
-                )
-            }
+            CloseButton(uiState = uiState, modifier = Modifier)
         }
         ZoomableImage(
             imageUrl = uiState.imageUrl,
+            onClickOutsideImage = uiState.listener::onClickOutsideImage,
+            onZoomedChange = {},
             modifier = Modifier.fillMaxWidth().weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun CloseButton(
+    uiState: ImageViewerScreenUiState,
+    modifier: Modifier,
+) {
+    IconButton(
+        onClick = uiState.listener::onClickClose,
+        colors = IconButtonDefaults.iconButtonColors(
+            containerColor = Color.Black.copy(alpha = 0.5f),
+            contentColor = Color.White,
+        ),
+        modifier = modifier,
+    ) {
+        Icon(
+            imageVector = AppIcons.Close,
+            contentDescription = "閉じる",
         )
     }
 }
