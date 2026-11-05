@@ -254,7 +254,6 @@ private fun HomeUserContentPreview() {
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
-                            contentWarningLabel = null,
                             body = createPostBodyText(content = "はじめての投稿", onOpenUrl = {}),
                             postedAt = "3分前",
                             linkPreviews = listOf(),

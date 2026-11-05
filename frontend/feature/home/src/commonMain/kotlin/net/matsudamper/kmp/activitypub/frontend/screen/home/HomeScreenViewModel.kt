@@ -152,10 +152,12 @@ internal class HomeScreenViewModel(
                     override fun onClickSensitiveImagesVisibility() {
                         sensitiveImagesBlurred = !sensitiveImagesBlurred
                         blurToggledImageUrls = setOf()
+                        val myProfile = myProfileWithPosts
                         mutableUiStateFlow.update {
                             it.copy(
                                 sensitiveImagesBlurred = sensitiveImagesBlurred,
                                 timelineItems = createTimelineItems(),
+                                userPosts = if (myProfile == null) it.userPosts else createUserPosts(myProfile),
                             )
                         }
                     }
@@ -315,10 +317,13 @@ internal class HomeScreenViewModel(
                     acct = "@${profile.username}",
                     body = post.body,
                     linkPreviews = linkPreviewId?.let { linkPreviews[it] }.orEmpty(),
+                    sensitiveImagesBlurred = sensitiveImagesBlurred,
+                    blurToggledImageUrls = blurToggledImageUrls,
                     // 自分のタブに居るので、押しても移る先が無い
                     authorListener = null,
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
+                    onToggleImageBlur = { url -> toggleImageBlur(url) },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)
@@ -568,15 +573,23 @@ internal class HomeScreenViewModel(
                 },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
-                onToggleImageBlur = { url ->
-                    blurToggledImageUrls = if (url in blurToggledImageUrls) blurToggledImageUrls - url else blurToggledImageUrls + url
-                    mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
-                },
+                onToggleImageBlur = { url -> toggleImageBlur(url) },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)
                     }
                 },
+            )
+        }
+    }
+
+    private fun toggleImageBlur(url: String) {
+        blurToggledImageUrls = if (url in blurToggledImageUrls) blurToggledImageUrls - url else blurToggledImageUrls + url
+        val myProfile = myProfileWithPosts
+        mutableUiStateFlow.update {
+            it.copy(
+                timelineItems = createTimelineItems(),
+                userPosts = if (myProfile == null) it.userPosts else createUserPosts(myProfile),
             )
         }
     }
