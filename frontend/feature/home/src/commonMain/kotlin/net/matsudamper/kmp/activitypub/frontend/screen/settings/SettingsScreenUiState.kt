@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.settings
 import androidx.compose.runtime.Immutable
 
 data class SettingsScreenUiState(
+    val themeOptions: List<ThemeOption>,
     val passkeyList: PasskeyList,
     val passkeyNameInputVisible: Boolean,
     val passkeyName: String,
@@ -30,6 +31,12 @@ data class SettingsScreenUiState(
         ) : PasskeyList
     }
 
+    data class ThemeOption(
+        val label: String,
+        val selected: Boolean,
+        val listener: ThemeOptionListener,
+    )
+
     data class PasskeyItem(
         val name: String,
         val deleteButtonEnabled: Boolean,
@@ -50,6 +57,11 @@ data class SettingsScreenUiState(
     data class PasswordDeleteDialog(
         val deleteButtonEnabled: Boolean,
     )
+
+    @Immutable
+    interface ThemeOptionListener {
+        fun onClick()
+    }
 
     @Immutable
     interface PasskeyItemListener {

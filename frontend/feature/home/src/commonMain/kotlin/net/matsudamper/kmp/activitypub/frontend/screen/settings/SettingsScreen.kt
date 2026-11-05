@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -16,6 +18,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -29,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -102,6 +106,8 @@ internal fun SettingsContent(
             modifier = Modifier.fillMaxWidth().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            ThemeSection(themeOptions = uiState.themeOptions)
+            HorizontalDivider()
             Text(
                 text = "パスキー",
                 style = MaterialTheme.typography.titleMedium,
@@ -166,6 +172,44 @@ internal fun SettingsContent(
         val passwordDeleteDialog = uiState.passwordDeleteDialog
         if (passwordDeleteDialog != null) {
             DeletePasswordDialog(dialog = passwordDeleteDialog, listener = uiState.listener)
+        }
+    }
+}
+
+@Composable
+private fun ThemeSection(
+    themeOptions: List<SettingsScreenUiState.ThemeOption>,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "テーマ",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+            themeOptions.forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = option.selected,
+                            onClick = option.listener::onClick,
+                            role = Role.RadioButton,
+                        )
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = option.selected,
+                        onClick = null,
+                    )
+                    Text(
+                        text = option.label,
+                        modifier = Modifier.padding(start = 12.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
         }
     }
 }
