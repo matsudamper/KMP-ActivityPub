@@ -66,10 +66,12 @@ internal object OgpParser {
     }
 
     /**
-     * `<link rel="icon">` が無いサイトもブラウザが /favicon.ico を見に行くので、それに倣う
+     * `<link rel="icon">` が無いサイトもブラウザが /favicon.ico を見に行くので、それに倣う。
+     * SVG は中継で配れないので選ばない
      */
     private fun faviconUrl(document: Document): String? {
         val declared = document.select("link[rel][href]")
+            .filterNot { link -> link.attr("type").equals("image/svg+xml", ignoreCase = true) || link.attr("href").substringBefore('?').endsWith(".svg", ignoreCase = true) }
             .firstOrNull { link -> link.attr("rel").lowercase().split(' ').any { it in FAVICON_RELS } }
             ?.absUrl("href")
             ?.takeIf { it.isHttpUrl() }

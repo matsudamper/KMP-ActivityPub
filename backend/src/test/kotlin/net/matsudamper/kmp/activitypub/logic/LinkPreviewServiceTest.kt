@@ -65,6 +65,7 @@ class LinkPreviewServiceTest {
             <meta property="og:title" content="記事のタイトル">
             <meta property="og:site_name" content="Example">
             <meta property="og:image" content="/ogp.png">
+            <link rel="icon" type="image/svg+xml" href="/icon.svg">
             <link rel="shortcut icon" href="/icon.png">
             </head></html>
         """.trimIndent()
