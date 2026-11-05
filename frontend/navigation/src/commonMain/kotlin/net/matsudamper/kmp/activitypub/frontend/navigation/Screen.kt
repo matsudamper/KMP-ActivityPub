@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.navigation
 
 import androidx.navigation3.runtime.NavKey
+import kotlin.io.encoding.Base64
 import kotlinx.serialization.Serializable
 import net.matsudamper.kmp.activitypub.frontend.core.PathPattern
 
@@ -107,9 +108,33 @@ sealed interface Screen : NavKey {
         }
     }
 
+    /**
+     * 開いていた画面に重ねて出す。画像の URL は `/` などを含むので、パスの 1 階層に収まるよう Base64 にする
+     */
+    @Serializable
+    data class Image(
+        val url: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(ENCODED_URL_PARAMETER to UrlBase64.encode(url.encodeToByteArray()))
+        override val parentScreen: Screen get() = Home.Timeline
+        override val loginRequired: Boolean get() = false
+
+        companion object {
+            const val ENCODED_URL_PARAMETER: String = "encodedUrl"
+            val PATH_PATTERN: PathPattern = PathPattern("/image/{$ENCODED_URL_PARAMETER}")
+            private val UrlBase64: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
+
+            fun fromEncodedUrl(encodedUrl: String): Image? {
+                val url = runCatching { UrlBase64.decode(encodedUrl).decodeToString() }.getOrNull()
+                return if (url == null) null else Image(url = url)
+            }
+        }
+    }
+
     companion object {
-        private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen>> by lazy {
-            listOf<Pair<PathPattern, (Map<String, String>) -> Screen>>(
+        private val routes: List<Pair<PathPattern, (Map<String, String>) -> Screen?>> by lazy {
+            listOf<Pair<PathPattern, (Map<String, String>) -> Screen?>>(
                 Login.pathPattern to { _ -> Login },
                 Post.pathPattern to { _ -> Post },
                 Settings.pathPattern to { _ -> Settings },
@@ -118,6 +143,9 @@ sealed interface Screen : NavKey {
                 Followers.pathPattern to { _ -> Followers },
                 UserProfile.PATH_PATTERN to { parameters ->
                     UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
+                },
+                Image.PATH_PATTERN to { parameters ->
+                    Image.fromEncodedUrl(parameters.getValue(Image.ENCODED_URL_PARAMETER))
                 },
             ) + Home.Tab.entries.map { tab -> tab.pathPattern to { _ -> Home(tab = tab) } }
         }

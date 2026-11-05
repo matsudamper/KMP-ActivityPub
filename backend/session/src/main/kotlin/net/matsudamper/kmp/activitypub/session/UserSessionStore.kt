@@ -14,10 +14,23 @@ interface UserSessionStore : AutoCloseable {
         expiresAt: Instant,
     )
 
-    fun findAccountId(
+    fun find(
         tokenHash: String,
         now: Instant,
-    ): AccountId?
+    ): StoredUserSession?
+
+    /**
+     * @return 期限が切れて消えていたら false
+     */
+    fun extend(
+        tokenHash: String,
+        expiresAt: Instant,
+    ): Boolean
 
     fun delete(tokenHash: String)
 }
+
+data class StoredUserSession(
+    val accountId: AccountId,
+    val expiresAt: Instant,
+)

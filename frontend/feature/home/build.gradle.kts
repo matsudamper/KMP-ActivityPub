@@ -65,6 +65,7 @@ kotlin {
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.exifinterface)
                 implementation(libs.coil.network.okhttp)
+                implementation(libs.zoomable)
             }
         }
     }
