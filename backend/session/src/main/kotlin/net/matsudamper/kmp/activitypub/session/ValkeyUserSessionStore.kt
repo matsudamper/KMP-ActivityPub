@@ -55,9 +55,7 @@ class ValkeyUserSessionStore(
     override fun extend(
         tokenHash: String,
         expiresAt: Instant,
-    ) {
-        connection.sync().pexpireat(keyOf(tokenHash), expiresAt.toEpochMilli())
-    }
+    ): Boolean = connection.sync().pexpireat(keyOf(tokenHash), expiresAt.toEpochMilli())
 
     override fun delete(tokenHash: String) {
         connection.sync().del(keyOf(tokenHash))

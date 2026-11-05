@@ -28,9 +28,10 @@ internal class FakeUserSessionStore : UserSessionStore {
     override fun extend(
         tokenHash: String,
         expiresAt: Instant,
-    ) {
-        val (accountId, _) = rows[tokenHash] ?: return
+    ): Boolean {
+        val (accountId, _) = rows[tokenHash] ?: return false
         rows[tokenHash] = accountId to expiresAt
+        return true
     }
 
     override fun delete(tokenHash: String) {

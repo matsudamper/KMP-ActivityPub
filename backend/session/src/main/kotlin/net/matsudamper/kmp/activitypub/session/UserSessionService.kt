@@ -43,8 +43,8 @@ class UserSessionService(
         val stored = sessionStore.find(tokenHash = tokenHash, now = now) ?: return null
         val extendedExpiresAt = now.plus(ttl.toJavaDuration())
         val extended = extendable && stored.expiresAt.plus(EXTEND_INTERVAL.toJavaDuration()) <= extendedExpiresAt
-        if (extended) {
-            sessionStore.extend(tokenHash = tokenHash, expiresAt = extendedExpiresAt)
+        if (extended && !sessionStore.extend(tokenHash = tokenHash, expiresAt = extendedExpiresAt)) {
+            return null
         }
         return AuthenticatedUserSession(accountId = stored.accountId, extended = extended)
     }

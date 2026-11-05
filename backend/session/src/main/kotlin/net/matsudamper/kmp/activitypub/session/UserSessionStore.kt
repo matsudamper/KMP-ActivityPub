@@ -19,10 +19,13 @@ interface UserSessionStore : AutoCloseable {
         now: Instant,
     ): StoredUserSession?
 
+    /**
+     * @return 期限が切れて消えていたら false
+     */
     fun extend(
         tokenHash: String,
         expiresAt: Instant,
-    )
+    ): Boolean
 
     fun delete(tokenHash: String)
 }
