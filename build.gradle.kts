@@ -80,7 +80,7 @@ fun composeRulesDetektConfigFile(): java.io.File {
 
 fun parseDetektViolations(xml: java.io.File): List<String> {
     if (!xml.exists()) {
-        return emptyList()
+        return listOf()
     }
 
     val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xml)
