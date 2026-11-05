@@ -55,7 +55,6 @@ internal class HomeScreenViewModel(
                 timelineStreamConnectionStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 timelineCatchingUpAfterReconnect = false,
                 timelineStreamStoppedByUser = false,
-                linkPreviewRequestedPostIds = setOf(),
                 linkPreviews = mapOf(),
                 sensitiveImagesBlurred = true,
                 blurToggledImageUrls = setOf(),
@@ -75,6 +74,11 @@ internal class HomeScreenViewModel(
     private var myPostsRetryJob: Job? = null
     private var timelineJob: Job? = null
     private var timelineArrivalsJob: Job? = null
+
+    /**
+     * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
+     */
+    private var linkPreviewRequestedPostIds = setOf<String>()
 
     private val listener = object : HomeScreenUiState.Listener {
         override fun onClickPost() {
@@ -501,8 +505,8 @@ internal class HomeScreenViewModel(
     }
 
     private fun loadLinkPreviews(postId: String) {
-        if (postId in viewModelStateFlow.value.linkPreviewRequestedPostIds) return
-        viewModelStateFlow.update { it.copy(linkPreviewRequestedPostIds = it.linkPreviewRequestedPostIds + postId) }
+        if (postId in linkPreviewRequestedPostIds) return
+        linkPreviewRequestedPostIds = linkPreviewRequestedPostIds + postId
         viewModelScope.launch {
             when (val result = userApi.linkPreviews(postId)) {
                 is UserLinkPreviewsResult.Success -> {
@@ -512,7 +516,7 @@ internal class HomeScreenViewModel(
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
                 UserLinkPreviewsResult.NotLoggedIn,
-                -> viewModelStateFlow.update { it.copy(linkPreviewRequestedPostIds = it.linkPreviewRequestedPostIds - postId) }
+                -> linkPreviewRequestedPostIds = linkPreviewRequestedPostIds - postId
             }
         }
     }
@@ -779,7 +783,6 @@ internal class HomeScreenViewModel(
         val timelineStreamConnectionStatus: HomeScreenUiState.TimelineStreamStatus,
         val timelineCatchingUpAfterReconnect: Boolean,
         val timelineStreamStoppedByUser: Boolean,
-        val linkPreviewRequestedPostIds: Set<String>,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         val sensitiveImagesBlurred: Boolean,
         val blurToggledImageUrls: Set<String>,

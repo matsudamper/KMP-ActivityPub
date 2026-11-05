@@ -32,13 +32,17 @@ internal class UserProfileScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 profile = ProfileState.Loading,
-                linkPreviewRequestedIds = setOf(),
                 linkPreviews = mapOf(),
                 blurToggledImageUrls = setOf(),
             ),
         )
     private var loadJob: Job? = null
     private var followingChangeJob: Job? = null
+
+    /**
+     * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
+     */
+    private var linkPreviewRequestedIds = setOf<String>()
 
     private val listener = object : UserProfileScreenUiState.Listener {
         override fun onClickRetry() {
@@ -133,8 +137,8 @@ internal class UserProfileScreenViewModel(
     }
 
     private fun loadLinkPreviews(linkPreviewId: String) {
-        if (linkPreviewId in viewModelStateFlow.value.linkPreviewRequestedIds) return
-        viewModelStateFlow.update { it.copy(linkPreviewRequestedIds = it.linkPreviewRequestedIds + linkPreviewId) }
+        if (linkPreviewId in linkPreviewRequestedIds) return
+        linkPreviewRequestedIds = linkPreviewRequestedIds + linkPreviewId
         viewModelScope.launch {
             when (val result = api.linkPreviews(linkPreviewId)) {
                 is UserLinkPreviewsResult.Success -> {
@@ -144,7 +148,7 @@ internal class UserProfileScreenViewModel(
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
                 UserLinkPreviewsResult.NotLoggedIn,
-                -> viewModelStateFlow.update { it.copy(linkPreviewRequestedIds = it.linkPreviewRequestedIds - linkPreviewId) }
+                -> linkPreviewRequestedIds = linkPreviewRequestedIds - linkPreviewId
             }
         }
     }
@@ -219,7 +223,6 @@ internal class UserProfileScreenViewModel(
 
     private data class ViewModelState(
         val profile: ProfileState,
-        val linkPreviewRequestedIds: Set<String>,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         val blurToggledImageUrls: Set<String>,
     )
