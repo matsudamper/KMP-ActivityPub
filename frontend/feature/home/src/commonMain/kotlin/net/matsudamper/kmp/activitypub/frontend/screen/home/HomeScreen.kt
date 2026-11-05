@@ -47,6 +47,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -621,24 +622,29 @@ private val HomeScreenUiState.Tab.label: String
     }
 
 /**
- * ホイールは押下中のポインタが無いスクロールなので、押下の有無でタッチやドラッグと区別する
+ * ドラッグの移動量は指を離した後にまとめて処理されることがあるため、離した時点では判定を切り替えない。
+ * 次にホイールが回るか押下されるまで、直前の入力の種類を保つ
  */
 private class WheelPullToRefreshBlocker : NestedScrollConnection {
-    private var pointerPressed = false
+    private var lastScrollInputIsWheel = false
 
     val modifier: Modifier = Modifier
         .pointerInput(Unit) {
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
-                    pointerPressed = event.changes.any { it.pressed }
+                    when (event.type) {
+                        PointerEventType.Scroll -> lastScrollInputIsWheel = true
+                        PointerEventType.Press -> lastScrollInputIsWheel = false
+                        else -> Unit
+                    }
                 }
             }
         }
         .nestedScroll(this)
 
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-        val pullOverscrollByWheel = source == NestedScrollSource.UserInput && !pointerPressed && available.y > 0f
+        val pullOverscrollByWheel = source == NestedScrollSource.UserInput && lastScrollInputIsWheel && available.y > 0f
         return if (pullOverscrollByWheel) Offset(x = 0f, y = available.y) else Offset.Zero
     }
 }
