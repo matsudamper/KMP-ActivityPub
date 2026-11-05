@@ -127,6 +127,7 @@ private fun HomeTimelinePreview(
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -184,6 +185,7 @@ private fun HomeSearchContentPreview() {
                     ),
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -213,6 +215,7 @@ private fun HomeSearchEmptyContentPreview() {
                     ),
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -244,6 +247,22 @@ private fun HomeUserContentPreview() {
                     acct = "@user1",
                     followingCount = "12",
                     followersCount = "3",
+                ),
+                userPosts = HomeScreenUiState.UserPosts.Loaded(
+                    items = listOf(
+                        PostItemUiState(
+                            iconUrl = "https://example.com/icon.png",
+                            displayName = "ユーザー1",
+                            acct = "@user1",
+                            body = createPostBodyText(content = "はじめての投稿", onOpenUrl = {}),
+                            postedAt = "3分前",
+                            linkPreviews = listOf(),
+                            images = listOf(),
+                            authorListener = null,
+                            listener = AndroidPreviewTimelineItemListener,
+                        ),
+                    ),
+                    emptyMessage = null,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 listener = AndroidPreviewHomeListener,
@@ -291,6 +310,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickEditProfile() = Unit
 
     override fun onClickRetryProfile() = Unit
+
+    override fun onClickRetryUserPosts() = Unit
 
     override fun onClickFollowing() = Unit
 
