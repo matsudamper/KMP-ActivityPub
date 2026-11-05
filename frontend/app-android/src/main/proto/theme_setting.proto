@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option java_package = "net.matsudamper.kmp.activitypub.android.theme";
+option java_multiple_files = true;
+
+message ThemeSetting {
+  ThemeModeProto theme_mode = 1;
+}
+
+enum ThemeModeProto {
+  THEME_MODE_PROTO_SYSTEM = 0;
+  THEME_MODE_PROTO_LIGHT = 1;
+  THEME_MODE_PROTO_DARK = 2;
+}
