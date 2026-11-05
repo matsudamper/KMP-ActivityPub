@@ -31,6 +31,7 @@ private fun UserProfileContentPreview() {
                                     title = "Kotlin Programming Language",
                                     siteName = "Kotlin",
                                     imageUrl = null,
+                                    faviconUrl = null,
                                     listener = AndroidPreviewLinkPreviewListener,
                                 ),
                             ),

@@ -38,6 +38,7 @@ import com.apollographql.apollo.network.http.HttpEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import okio.Buffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -234,7 +235,13 @@ class HomeScreenViewModelTest {
             override val client = MutableStateFlow<ApolloClient?>(apolloClient)
             override suspend fun awaitLoadedClient(): ApolloClient? = client.value
         }
-        val viewModel = HomeScreenViewModel(HomeScreenUiState.Tab.Home, UserApi(source))
+        val viewModel = HomeScreenViewModel(
+            HomeScreenUiState.Tab.Home,
+            UserApi(source),
+            object : PostedAtRefreshTicker {
+                override val ticks: Flow<Unit> = emptyFlow()
+            },
+        )
         try {
             block(viewModel, engine)
         } finally {

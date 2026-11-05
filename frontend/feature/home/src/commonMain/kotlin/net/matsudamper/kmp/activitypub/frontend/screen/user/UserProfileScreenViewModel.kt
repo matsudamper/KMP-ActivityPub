@@ -7,12 +7,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
@@ -22,6 +24,7 @@ import org.koin.core.annotation.KoinViewModel
 internal class UserProfileScreenViewModel(
     @InjectedParam private val username: String,
     private val api: UserApi,
+    private val postedAtRefreshTicker: PostedAtRefreshTicker,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -53,7 +56,14 @@ internal class UserProfileScreenViewModel(
 
     init {
         viewModelScope.launch {
-            combine(viewModelStateFlow, linkPreviewsFlow, blurToggledImageUrlsFlow, ::createUiState).collect { uiState ->
+            combine(
+                viewModelStateFlow,
+                linkPreviewsFlow,
+                blurToggledImageUrlsFlow,
+                postedAtRefreshTicker.ticks.onStart { emit(Unit) },
+            ) { viewModelState, linkPreviews, blurToggledImageUrls, _ ->
+                createUiState(viewModelState, linkPreviews, blurToggledImageUrls)
+            }.collect { uiState ->
                 mutableUiStateFlow.value = uiState
             }
         }

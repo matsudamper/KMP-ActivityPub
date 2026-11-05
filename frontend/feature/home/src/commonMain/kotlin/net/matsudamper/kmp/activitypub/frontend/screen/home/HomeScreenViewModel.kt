@@ -27,6 +27,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
+import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
@@ -36,6 +37,7 @@ import org.koin.core.annotation.KoinViewModel
 internal class HomeScreenViewModel(
     @InjectedParam private val selectedTab: HomeScreenUiState.Tab,
     private val userApi: UserApi,
+    private val postedAtRefreshTicker: PostedAtRefreshTicker,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -249,6 +251,9 @@ internal class HomeScreenViewModel(
         }
         viewModelScope.launch {
             timelinePaging.watch().collect { applyTimeline(it.toUserHomeTimelineResult()) }
+        }
+        viewModelScope.launch {
+            postedAtRefreshTicker.ticks.collect { refreshPostItems() }
         }
         viewModelScope.launch {
             searchStateFlow.collect { searchState ->
@@ -657,6 +662,10 @@ internal class HomeScreenViewModel(
 
     private fun toggleImageBlur(url: String) {
         blurToggledImageUrls = if (url in blurToggledImageUrls) blurToggledImageUrls - url else blurToggledImageUrls + url
+        refreshPostItems()
+    }
+
+    private fun refreshPostItems() {
         val myProfile = myProfileWithPosts
         mutableUiStateFlow.update {
             it.copy(
