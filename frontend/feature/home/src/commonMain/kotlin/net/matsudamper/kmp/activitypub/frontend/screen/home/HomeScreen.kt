@@ -359,6 +359,13 @@ private fun SearchTabContent(
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
+    // 一覧の状態は画面で持ち続けるので、検索し直したら前の結果での位置を引き継がない
+    val searching = search.result == HomeScreenUiState.SearchResult.Loading
+    LaunchedEffect(listState, searching) {
+        if (searching) {
+            listState.requestScrollToItem(0)
+        }
+    }
     Column(modifier = modifier) {
         SingleLineTextField(
             value = search.query,
