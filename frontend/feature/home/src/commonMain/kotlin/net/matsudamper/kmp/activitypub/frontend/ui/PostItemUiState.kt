@@ -35,13 +35,12 @@ data class PostItemUiState(
 
     /**
      * @param description 画像の説明文。無ければ null
-     * @param blurredInitially 切り替えると、画像ごとに開け閉めした状態は捨ててこの状態に戻す
      */
     data class Image(
         val url: String,
         val description: String?,
         val blurToggleButtonVisible: Boolean,
-        val blurredInitially: Boolean,
+        val blurred: Boolean,
         val listener: ImageListener,
     )
 
@@ -66,5 +65,7 @@ data class PostItemUiState(
     @Immutable
     interface ImageListener {
         fun onClick()
+
+        fun onClickBlurToggle()
     }
 }

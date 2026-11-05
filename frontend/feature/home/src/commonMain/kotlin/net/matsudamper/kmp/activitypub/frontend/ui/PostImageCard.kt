@@ -15,10 +15,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -39,16 +35,9 @@ internal fun PostImageCard(
     image: PostItemUiState.Image,
     modifier: Modifier = Modifier,
 ) {
-    var blurred by rememberSaveable(image.url, image.blurredInitially) { mutableStateOf(image.blurredInitially) }
     Surface(
         modifier = modifier.width(LinkPreviewCardWidth),
-        onClick = {
-            if (blurred) {
-                blurred = false
-            } else {
-                image.listener.onClick()
-            }
-        },
+        onClick = image.listener::onClick,
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -61,7 +50,7 @@ internal fun PostImageCard(
                 imageUrl = null,
                 modifier = Modifier.alpha(0f),
             )
-            if (blurred) {
+            if (image.blurred) {
                 // Modifier.blur は Android 11 以下で効かないので、小さく読み込んで引き伸ばしたぼやけでも隠す。
                 // 一度表示した通常の大きさの画像がキャッシュから使われると隠れないので、キャッシュを分けて大きさも固定する
                 AsyncImage(
@@ -94,7 +83,7 @@ internal fun PostImageCard(
             }
             if (image.blurToggleButtonVisible) {
                 IconButton(
-                    onClick = { blurred = !blurred },
+                    onClick = image.listener::onClickBlurToggle,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(4.dp)
@@ -106,8 +95,8 @@ internal fun PostImageCard(
                     shape = CircleShape,
                 ) {
                     Icon(
-                        imageVector = if (blurred) AppIcons.Visibility else AppIcons.VisibilityOff,
-                        contentDescription = if (blurred) "表示する" else "隠す",
+                        imageVector = if (image.blurred) AppIcons.Visibility else AppIcons.VisibilityOff,
+                        contentDescription = if (image.blurred) "表示する" else "隠す",
                         modifier = Modifier.size(20.dp),
                     )
                 }

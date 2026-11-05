@@ -77,7 +77,7 @@ private fun HomeTimelinePreview(
                                 url = "https://example.com/photo.png",
                                 description = "写真",
                                 blurToggleButtonVisible = false,
-                                blurredInitially = false,
+                                blurred = false,
                                 listener = AndroidPreviewImageListener,
                             ),
                         ),
@@ -96,21 +96,21 @@ private fun HomeTimelinePreview(
                                 url = "https://example.com/1.png",
                                 description = null,
                                 blurToggleButtonVisible = true,
-                                blurredInitially = true,
+                                blurred = true,
                                 listener = AndroidPreviewImageListener,
                             ),
                             PostItemUiState.Image(
                                 url = "https://example.com/2.png",
                                 description = null,
                                 blurToggleButtonVisible = true,
-                                blurredInitially = true,
+                                blurred = true,
                                 listener = AndroidPreviewImageListener,
                             ),
                             PostItemUiState.Image(
                                 url = "https://example.com/3.png",
                                 description = null,
                                 blurToggleButtonVisible = true,
-                                blurredInitially = true,
+                                blurred = true,
                                 listener = AndroidPreviewImageListener,
                             ),
                         ),
@@ -313,6 +313,8 @@ private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewLi
 
 private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
     override fun onClick() = Unit
+
+    override fun onClickBlurToggle() = Unit
 }
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
