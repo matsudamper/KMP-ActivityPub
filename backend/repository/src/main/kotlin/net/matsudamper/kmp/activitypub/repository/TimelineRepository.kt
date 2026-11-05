@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.repository
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 interface TimelineRepository {
     fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest
@@ -34,6 +35,7 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿の数は受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
+ * @param note 投稿を開く URL の元。このサーバーの投稿の URL は DOMAIN が無いと作れないので、ここでは URL にしない
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -49,7 +51,17 @@ data class TimelinePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
+    val note: TimelineNoteRef,
 )
+
+sealed interface TimelineNoteRef {
+    data class Local(val publicId: PublicNoteId) : TimelineNoteRef
+
+    /**
+     * @param objectUri 投稿の持ち主のサーバーでの Note の id
+     */
+    data class Remote(val objectUri: String) : TimelineNoteRef
+}
 
 sealed interface TimelinePostImage {
     /**

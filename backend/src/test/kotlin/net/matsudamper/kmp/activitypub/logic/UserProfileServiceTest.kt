@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
@@ -29,7 +30,7 @@ class UserProfileServiceTest {
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
             requests.add("posts")
-            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), summary = null, sensitive = false, linkPreviewId = null, images = listOf(), favouriteCount = null, stamps = listOf()))
+            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), summary = null, sensitive = false, linkPreviewId = null, images = listOf(), favouriteCount = null, stamps = listOf(), note = TimelineNoteRef.Remote("https://remote.example/notes/1")))
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -129,7 +130,7 @@ class UserProfileServiceTest {
     }
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
-        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null, listOf(image), null, listOf())
+        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null, listOf(image), null, listOf(), TimelineNoteRef.Remote("https://remote.example/notes/1"))
 
     private companion object {
         val image = TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null)

@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlPostImage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostStamp
 import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
 import net.matsudamper.kmp.activitypub.repository.StampCount
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 
 /**
@@ -38,6 +39,12 @@ internal fun createQlPostBody(
         linkUrls = if (linkUrlsEnabled) diContainer.linkPreviewService?.links(contentHtml).orEmpty() else listOf(),
         images = images.toQlPostImages(diContainer),
     )
+
+internal fun TimelineNoteRef.toUrl(diContainer: DiContainer): String? =
+    when (this) {
+        is TimelineNoteRef.Local -> diContainer.localNoteUrls?.url(publicId)
+        is TimelineNoteRef.Remote -> objectUri
+    }
 
 internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlPostStamp> = map { stamp ->
     QlPostStamp(

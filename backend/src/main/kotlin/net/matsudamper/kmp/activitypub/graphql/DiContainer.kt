@@ -4,6 +4,7 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
+import net.matsudamper.kmp.activitypub.logic.LocalNoteUrls
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
@@ -45,6 +46,10 @@ class DiContainer(
      * DOMAIN が無いと画像の URL を作れないので null
      */
     val noteImageUrls: NoteImageUrls?,
+    /**
+     * DOMAIN が無いと投稿の URL を作れないので null
+     */
+    val localNoteUrls: LocalNoteUrls?,
     /**
      * DOMAIN が無いと中継 URL を作れないので null
      */

@@ -79,7 +79,7 @@ class FavouriteRepositoryTest {
     }
 
     @Test
-    fun `タイムラインのこちらの投稿にお気に入りの数が付く`() {
+    fun `タイムラインのこちらの投稿にお気に入りの数と公開 id が付く`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.postNote("note-1")
             repositories.favouriteRepository.add(NOTE_1, actor(ALICE), NOW)
@@ -89,6 +89,7 @@ class FavouriteRepositoryTest {
             val post = repositories.timelineRepository.hydrate(account.id, listOf(position.member)).single()
 
             assertEquals(1L, post.favouriteCount)
+            assertEquals(TimelineNoteRef.Local(NOTE_1), post.note)
         }
     }
 
