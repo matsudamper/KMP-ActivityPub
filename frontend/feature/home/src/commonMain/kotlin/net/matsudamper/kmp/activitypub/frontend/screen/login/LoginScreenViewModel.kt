@@ -192,7 +192,7 @@ internal class LoginScreenViewModel(
 
     private fun ViewModelState.passkeyLoginable(): Boolean = apiReady && submitting.not() && passkeyAuthenticator.available
 
-    data class ViewModelState(
+    private data class ViewModelState(
         val username: String,
         val password: String,
         val submitting: Boolean,
@@ -210,7 +210,7 @@ internal class LoginScreenViewModel(
         ) : PasskeyLoginOutcome
     }
 
-    interface Event {
+    internal interface Event {
         fun loggedIn()
 
         fun showMessage(message: String)

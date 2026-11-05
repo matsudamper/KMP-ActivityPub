@@ -28,9 +28,14 @@ internal class FollowListScreenViewModel(
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Loading)
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(
+            ViewModelState(
+                list = ListState.Loading,
+                followingChangeInProgress = false,
+            ),
+        )
     private var loadJob: Job? = null
-    private var followingChangeInProgress = false
     private val paging: FollowListPaging<*> =
         when (kind) {
             FollowListKind.Following -> FollowListPaging(
@@ -59,7 +64,7 @@ internal class FollowListScreenViewModel(
 
         override fun onScrolledToEnd() {
             // 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押したときだけ読み直す
-            val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+            val loaded = viewModelStateFlow.value.list as? ListState.Loaded ?: return
             if (loaded.loadMoreErrorMessage != null) return
             loadMore()
         }
@@ -69,16 +74,16 @@ internal class FollowListScreenViewModel(
         }
     }
 
-    private val mutableUiStateFlow: MutableStateFlow<FollowListScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value))
-    val uiStateFlow: StateFlow<FollowListScreenUiState> = mutableUiStateFlow.asStateFlow()
+    val uiStateFlow: StateFlow<FollowListScreenUiState> =
+        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
+            viewModelScope.launch {
+                viewModelStateFlow.collect { viewModelState ->
+                    uiStateFlow.value = createUiState(viewModelState)
+                }
+            }
+        }.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            viewModelStateFlow.collect { viewModelState ->
-                mutableUiStateFlow.value = createUiState(viewModelState)
-            }
-        }
         viewModelScope.launch {
             paging.watch().collect { result -> applyResult(result) }
         }
@@ -90,11 +95,11 @@ internal class FollowListScreenViewModel(
 
     private fun load() {
         loadJob?.cancel()
-        viewModelStateFlow.value = ViewModelState.Loading
+        updateList { ListState.Loading }
         loadJob = viewModelScope.launch {
             when (val outcome = paging.refresh()) {
                 is PagingOutcome.Fetched -> applyResult(outcome.result)
-                is PagingOutcome.Failed -> viewModelStateFlow.value = ViewModelState.Failed(outcome.message)
+                is PagingOutcome.Failed -> updateList { ListState.Failed(outcome.message) }
                 PagingOutcome.NoHasMore -> Unit
             }
         }
@@ -102,15 +107,15 @@ internal class FollowListScreenViewModel(
 
     private fun loadMore() {
         if (loadJob?.isActive == true) return
-        val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+        val loaded = viewModelStateFlow.value.list as? ListState.Loaded ?: return
         if (loaded.nextCursor == null) return
-        viewModelStateFlow.value = loaded.copy(loadMoreErrorMessage = null)
+        updateList { loaded.copy(loadMoreErrorMessage = null) }
         loadJob = viewModelScope.launch {
             when (val outcome = paging.fetchNext()) {
                 is PagingOutcome.Fetched -> applyResult(outcome.result)
 
-                is PagingOutcome.Failed -> viewModelStateFlow.update { current ->
-                    if (current is ViewModelState.Loaded) current.copy(loadMoreErrorMessage = outcome.message) else current
+                is PagingOutcome.Failed -> updateList { current ->
+                    if (current is ListState.Loaded) current.copy(loadMoreErrorMessage = outcome.message) else current
                 }
 
                 PagingOutcome.NoHasMore -> Unit
@@ -122,26 +127,29 @@ internal class FollowListScreenViewModel(
      * 同じ内容を書き込んだときは watch が流れないので、取得結果はここでも反映する
      */
     private fun applyResult(result: UserFollowListResult) {
-        viewModelStateFlow.update { current ->
+        updateList { current ->
             when (result) {
-                is UserFollowListResult.Success -> ViewModelState.Loaded(
+                is UserFollowListResult.Success -> ListState.Loaded(
                     users = result.users,
                     nextCursor = result.nextCursor,
-                    loadMoreErrorMessage = (current as? ViewModelState.Loaded)?.loadMoreErrorMessage,
+                    loadMoreErrorMessage = (current as? ListState.Loaded)?.loadMoreErrorMessage,
                 )
 
-                UserFollowListResult.NotLoggedIn -> ViewModelState.Failed(NOT_LOGGED_IN_MESSAGE)
+                UserFollowListResult.NotLoggedIn -> ListState.Failed(NOT_LOGGED_IN_MESSAGE)
             }
         }
+    }
+
+    private fun updateList(transform: (ListState) -> ListState) {
+        viewModelStateFlow.update { it.copy(list = transform(it.list)) }
     }
 
     /**
      * 解除しても行は残し、押し間違えたときにその場でフォローし直せるようにする
      */
     private fun changeFollowing(user: UserFollowListResult.User) {
-        if (followingChangeInProgress) return
-        followingChangeInProgress = true
-        refreshUiState()
+        if (viewModelStateFlow.value.followingChangeInProgress) return
+        viewModelStateFlow.update { it.copy(followingChangeInProgress = true) }
         viewModelScope.launch {
             try {
                 val error = userApi.setFollowing(user.actorUri, followed = !user.following)
@@ -149,14 +157,9 @@ internal class FollowListScreenViewModel(
                     events.send { it.showMessage(error) }
                 }
             } finally {
-                followingChangeInProgress = false
-                refreshUiState()
+                viewModelStateFlow.update { it.copy(followingChangeInProgress = false) }
             }
         }
-    }
-
-    private fun refreshUiState() {
-        mutableUiStateFlow.value = createUiState(viewModelStateFlow.value)
     }
 
     private fun createUiState(viewModelState: ViewModelState): FollowListScreenUiState {
@@ -165,14 +168,16 @@ internal class FollowListScreenViewModel(
                 FollowListKind.Following -> "フォロー"
                 FollowListKind.Followers -> "フォロワー"
             },
-            content = when (viewModelState) {
-                ViewModelState.Loading -> FollowListScreenUiState.Content.Loading
+            content = when (val list = viewModelState.list) {
+                ListState.Loading -> FollowListScreenUiState.Content.Loading
 
-                is ViewModelState.Failed -> FollowListScreenUiState.Content.Error(viewModelState.message)
+                is ListState.Failed -> FollowListScreenUiState.Content.Error(list.message)
 
-                is ViewModelState.Loaded -> FollowListScreenUiState.Content.Loaded(
-                    accounts = viewModelState.users.map { createAccount(it) },
-                    emptyMessage = if (viewModelState.users.isEmpty()) {
+                is ListState.Loaded -> FollowListScreenUiState.Content.Loaded(
+                    accounts = list.users.map { user ->
+                        createAccount(user, followButtonEnabled = !viewModelState.followingChangeInProgress)
+                    },
+                    emptyMessage = if (list.users.isEmpty()) {
                         when (kind) {
                             FollowListKind.Following -> "フォローしているユーザーはいません"
                             FollowListKind.Followers -> "フォロワーはいません"
@@ -180,14 +185,14 @@ internal class FollowListScreenViewModel(
                     } else {
                         null
                     },
-                    footer = createFooter(viewModelState),
+                    footer = createFooter(list),
                 )
             },
             listener = listener,
         )
     }
 
-    private fun createFooter(loaded: ViewModelState.Loaded): FollowListScreenUiState.Footer {
+    private fun createFooter(loaded: ListState.Loaded): FollowListScreenUiState.Footer {
         val loadMoreErrorMessage = loaded.loadMoreErrorMessage
         return when {
             loadMoreErrorMessage != null -> FollowListScreenUiState.Footer.Error(loadMoreErrorMessage)
@@ -196,14 +201,17 @@ internal class FollowListScreenViewModel(
         }
     }
 
-    private fun createAccount(user: UserFollowListResult.User): FollowListScreenUiState.Account {
+    private fun createAccount(
+        user: UserFollowListResult.User,
+        followButtonEnabled: Boolean,
+    ): FollowListScreenUiState.Account {
         val username = user.username
         return FollowListScreenUiState.Account(
             iconUrl = user.iconUrl,
             displayName = user.displayName ?: username ?: user.actorUri,
             acct = if (username == null) user.host else "@$username@${user.host}",
             followButtonText = if (user.following) "フォロー中・解除" else "フォロー",
-            followButtonEnabled = !followingChangeInProgress,
+            followButtonEnabled = followButtonEnabled,
             // プロフィールは acct で引くので、ユーザー名を受け取っていない相手は開けない
             clickable = username != null,
             listener = object : FollowListScreenUiState.AccountListener {
@@ -221,7 +229,7 @@ internal class FollowListScreenViewModel(
         )
     }
 
-    interface Event {
+    internal interface Event {
         fun navigateBack()
 
         fun navigateToUserProfile(username: String)
@@ -278,12 +286,17 @@ internal class FollowListScreenViewModel(
         data object NoHasMore : PagingOutcome
     }
 
-    private sealed interface ViewModelState {
-        data object Loading : ViewModelState
+    private data class ViewModelState(
+        val list: ListState,
+        val followingChangeInProgress: Boolean,
+    )
+
+    private sealed interface ListState {
+        data object Loading : ListState
 
         data class Failed(
             val message: String,
-        ) : ViewModelState
+        ) : ListState
 
         /**
          * @param loadMoreErrorMessage 続きを読めなかったときの理由。読めていれば null
@@ -292,6 +305,6 @@ internal class FollowListScreenViewModel(
             val users: List<UserFollowListResult.User>,
             val nextCursor: String?,
             val loadMoreErrorMessage: String?,
-        ) : ViewModelState
+        ) : ListState
     }
 }
