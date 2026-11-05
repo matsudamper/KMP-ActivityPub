@@ -716,7 +716,7 @@ internal class HomeScreenViewModel(
         }
     }
 
-    interface Event {
+    internal interface Event {
         fun navigateToTab(tab: HomeScreenUiState.Tab)
 
         fun scrollTabToTop(tab: HomeScreenUiState.Tab)

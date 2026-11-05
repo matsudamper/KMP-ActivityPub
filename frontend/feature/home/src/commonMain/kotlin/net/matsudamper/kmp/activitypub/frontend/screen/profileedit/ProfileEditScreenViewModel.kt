@@ -269,7 +269,7 @@ internal class ProfileEditScreenViewModel(
         ) : ViewModelState
     }
 
-    interface Event {
+    internal interface Event {
         fun openImagePicker()
 
         fun navigateBack()

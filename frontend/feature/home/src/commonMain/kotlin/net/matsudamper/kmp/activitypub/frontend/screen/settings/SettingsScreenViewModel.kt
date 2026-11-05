@@ -421,7 +421,7 @@ internal class SettingsScreenViewModel(
         ) : Outcome
     }
 
-    interface Event {
+    internal interface Event {
         fun navigateBack()
 
         fun loggedOut()

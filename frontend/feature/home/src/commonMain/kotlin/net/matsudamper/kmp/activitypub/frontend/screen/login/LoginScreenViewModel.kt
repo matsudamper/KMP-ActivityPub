@@ -210,7 +210,7 @@ internal class LoginScreenViewModel(
         ) : PasskeyLoginOutcome
     }
 
-    interface Event {
+    internal interface Event {
         fun loggedIn()
 
         fun showMessage(message: String)

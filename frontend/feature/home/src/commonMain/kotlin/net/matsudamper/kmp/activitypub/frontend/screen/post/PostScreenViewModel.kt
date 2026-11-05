@@ -274,7 +274,7 @@ internal class PostScreenViewModel(
             }
     }
 
-    interface Event {
+    internal interface Event {
         fun navigateBack()
 
         fun openImagePicker()
