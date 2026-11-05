@@ -70,6 +70,12 @@ internal class HomeScreenViewModel(
      * 再接続直後は購読がつながっていても切れていた間の投稿を読み直し終えるまでは追いついていないので、再接続中として見せる
      */
     private var timelineCatchingUpAfterReconnect = false
+    private var sensitiveImagesBlurred = true
+
+    /**
+     * 一括で切り替えたら、画像ごとに開け閉めした分は捨てて揃える
+     */
+    private var blurToggledImageUrls = setOf<String>()
 
     private val mutableUiStateFlow: MutableStateFlow<HomeScreenUiState> =
         MutableStateFlow(
@@ -79,6 +85,7 @@ internal class HomeScreenViewModel(
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = sensitiveImagesBlurred,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -139,6 +146,17 @@ internal class HomeScreenViewModel(
                                 // 切れていた間の投稿は流れてこないので、読み直して埋める
                                 loadTimeline(TimelineLoadTrigger.Reconnect)
                             }
+                        }
+                    }
+
+                    override fun onClickSensitiveImagesVisibility() {
+                        sensitiveImagesBlurred = !sensitiveImagesBlurred
+                        blurToggledImageUrls = setOf()
+                        mutableUiStateFlow.update {
+                            it.copy(
+                                sensitiveImagesBlurred = sensitiveImagesBlurred,
+                                timelineItems = createTimelineItems(),
+                            )
                         }
                     }
 
@@ -538,6 +556,8 @@ internal class HomeScreenViewModel(
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = post.body,
                 linkPreviews = previews,
+                sensitiveImagesBlurred = sensitiveImagesBlurred,
+                blurToggledImageUrls = blurToggledImageUrls,
                 authorListener = object : PostItemUiState.AuthorListener {
                     override fun onClick() {
                         val host = post.host
@@ -548,6 +568,10 @@ internal class HomeScreenViewModel(
                 },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
+                onToggleImageBlur = { url ->
+                    blurToggledImageUrls = if (url in blurToggledImageUrls) blurToggledImageUrls - url else blurToggledImageUrls + url
+                    mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
+                },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)

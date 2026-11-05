@@ -11,5 +11,7 @@ data class ImageViewerScreenUiState(
         fun onClickClose()
 
         fun onClickOutsideImage()
+
+        fun onClickConfirmDownload()
     }
 }

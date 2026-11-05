@@ -24,10 +24,13 @@ internal actual val ComposeCanDrawOverZoomableImage: Boolean = false
 @Composable
 internal actual fun ZoomableImage(
     imageUrl: String,
+    onClickImage: () -> Unit,
+    onLongPressImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
     modifier: Modifier,
 ) {
+    val currentOnClickImage by rememberUpdatedState(onClickImage)
     val currentOnClickOutsideImage by rememberUpdatedState(onClickOutsideImage)
     val currentOnZoomedChange by rememberUpdatedState(onZoomedChange)
     key(imageUrl) {
@@ -36,6 +39,7 @@ internal actual fun ZoomableImage(
             factory = {
                 createZoomableImageElement(
                     imageUrl = imageUrl,
+                    onClickImage = { currentOnClickImage() },
                     onClickOutsideImage = { currentOnClickOutsideImage() },
                     onZoomedChange = { currentOnZoomedChange(it) },
                 )
@@ -46,6 +50,7 @@ internal actual fun ZoomableImage(
 
 private fun createZoomableImageElement(
     imageUrl: String,
+    onClickImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
 ): HTMLDivElement {
@@ -71,6 +76,7 @@ private fun createZoomableImageElement(
     HtmlImageZoomGesture(
         container = container,
         image = image,
+        onClickImage = onClickImage,
         onClickOutsideImage = onClickOutsideImage,
         onZoomedChange = onZoomedChange,
     ).bind()
@@ -79,11 +85,12 @@ private fun createZoomableImageElement(
 
 /**
  * ホイールとピンチで拡大縮小し、拡大中はドラッグで動かす。ダブルクリックで拡大と等倍を切り替える。
- * 画像の外をクリックしたら知らせる
+ * 画像の上か外かを分けてクリックを知らせる
  */
 private class HtmlImageZoomGesture(
     private val container: HTMLDivElement,
     private val image: HTMLImageElement,
+    private val onClickImage: () -> Unit,
     private val onClickOutsideImage: () -> Unit,
     private val onZoomedChange: (zoomed: Boolean) -> Unit,
 ) {
@@ -177,8 +184,11 @@ private class HtmlImageZoomGesture(
 
     private fun onClick(event: Event) {
         if (gestureStartedSincePointerDown) return
-        if (isOnDisplayedImage(positionInContainer(event as MouseEvent))) return
-        onClickOutsideImage()
+        if (isOnDisplayedImage(positionInContainer(event as MouseEvent))) {
+            onClickImage()
+        } else {
+            onClickOutsideImage()
+        }
     }
 
     /**

@@ -5,9 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,13 +24,15 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.ComposeCanDrawOverZoomableImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ZoomableImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberImageDownloader
 
 @Composable
 internal fun ImageViewerScreen(
     imageUrl: String,
     navigator: Navigator,
 ) {
-    val uiState = remember(imageUrl, navigator) {
+    val downloadImage = rememberImageDownloader()
+    val uiState = remember(imageUrl, navigator, downloadImage) {
         ImageViewerScreenUiState(
             imageUrl = imageUrl,
             listener = object : ImageViewerScreenUiState.Listener {
@@ -37,6 +42,10 @@ internal fun ImageViewerScreen(
 
                 override fun onClickOutsideImage() {
                     navigator.back()
+                }
+
+                override fun onClickConfirmDownload() {
+                    downloadImage(imageUrl)
                 }
             },
         )
@@ -55,11 +64,15 @@ internal fun ImageViewerContent(
     }
 }
 
+/**
+ * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる
+ */
 @Composable
 private fun OverlayImageViewerContent(
     uiState: ImageViewerScreenUiState,
 ) {
-    var imageZoomed by remember { mutableStateOf(false) }
+    var closeButtonVisible by remember { mutableStateOf(true) }
+    var downloadDialogVisible by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -67,11 +80,13 @@ private fun OverlayImageViewerContent(
     ) {
         ZoomableImage(
             imageUrl = uiState.imageUrl,
+            onClickImage = { closeButtonVisible = !closeButtonVisible },
+            onLongPressImage = { downloadDialogVisible = true },
             onClickOutsideImage = uiState.listener::onClickOutsideImage,
-            onZoomedChange = { imageZoomed = it },
+            onZoomedChange = { zoomed -> closeButtonVisible = !zoomed },
             modifier = Modifier.fillMaxSize(),
         )
-        if (!imageZoomed) {
+        if (closeButtonVisible) {
             CloseButton(
                 uiState = uiState,
                 modifier = Modifier
@@ -81,6 +96,36 @@ private fun OverlayImageViewerContent(
             )
         }
     }
+    if (downloadDialogVisible) {
+        DownloadConfirmDialog(
+            onClickDownload = {
+                downloadDialogVisible = false
+                uiState.listener.onClickConfirmDownload()
+            },
+            onDismiss = { downloadDialogVisible = false },
+        )
+    }
+}
+
+@Composable
+internal fun DownloadConfirmDialog(
+    onClickDownload: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = { Text("画像をダウンロードしますか？") },
+        confirmButton = {
+            TextButton(onClick = onClickDownload) {
+                Text("ダウンロード")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル")
+            }
+        },
+    )
 }
 
 /**
@@ -92,6 +137,8 @@ private fun ImageOnlyViewerContent(
 ) {
     ZoomableImage(
         imageUrl = uiState.imageUrl,
+        onClickImage = {},
+        onLongPressImage = {},
         onClickOutsideImage = uiState.listener::onClickOutsideImage,
         onZoomedChange = {},
         modifier = Modifier

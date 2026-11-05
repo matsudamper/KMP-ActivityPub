@@ -26,6 +26,8 @@ internal actual val ComposeCanDrawOverZoomableImage: Boolean = true
 @Composable
 internal actual fun ZoomableImage(
     imageUrl: String,
+    onClickImage: () -> Unit,
+    onLongPressImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
     modifier: Modifier,
@@ -50,6 +52,17 @@ internal actual fun ZoomableImage(
             .onSizeChanged { layoutSize = it }
             .zoomable(
                 zoomState = zoomState,
+                onLongPress = { position ->
+                    val onImage = isOnDisplayedImage(
+                        position = position,
+                        layoutSize = layoutSize,
+                        imageSize = imageSize,
+                        zoomState = zoomState,
+                    )
+                    if (onImage) {
+                        onLongPressImage()
+                    }
+                },
                 onTap = { position ->
                     val onImage = isOnDisplayedImage(
                         position = position,
@@ -57,7 +70,9 @@ internal actual fun ZoomableImage(
                         imageSize = imageSize,
                         zoomState = zoomState,
                     )
-                    if (!onImage) {
+                    if (onImage) {
+                        onClickImage()
+                    } else {
                         onClickOutsideImage()
                     }
                 },

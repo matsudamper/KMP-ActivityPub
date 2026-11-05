@@ -9,6 +9,7 @@ data class HomeScreenUiState(
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
     val timelineStreamStatus: TimelineStreamStatus,
+    val sensitiveImagesBlurred: Boolean,
     val search: Search,
     val profile: Profile,
     val userPosts: UserPosts,
@@ -111,6 +112,8 @@ data class HomeScreenUiState(
         fun onClickRetryTimelineLoadMore()
 
         fun onClickTimelineStreamStatus()
+
+        fun onClickSensitiveImagesVisibility()
 
         fun onSearchQueryChanged(query: String)
 

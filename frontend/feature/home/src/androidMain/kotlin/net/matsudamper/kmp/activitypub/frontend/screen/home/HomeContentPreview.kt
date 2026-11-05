@@ -56,7 +56,6 @@ private fun HomeTimelinePreview(
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
-                        contentWarningLabel = null,
                         body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", onOpenUrl = {}),
                         postedAt = "1分前",
                         linkPreviews = listOf(
@@ -74,7 +73,13 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         images = listOf(
-                            PostItemUiState.Image(url = "https://example.com/photo.png", description = "写真", listener = AndroidPreviewImageListener),
+                            PostItemUiState.Image(
+                                url = "https://example.com/photo.png",
+                                description = "写真",
+                                blurToggleButtonVisible = false,
+                                blurred = false,
+                                listener = AndroidPreviewImageListener,
+                            ),
                         ),
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
@@ -83,14 +88,31 @@ private fun HomeTimelinePreview(
                         iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
-                        contentWarningLabel = "ネタバレ注意",
                         body = createPostBodyText(content = "Compose Multiplatform で Web と Android の画面を共有している", onOpenUrl = {}),
                         postedAt = "5分前",
                         linkPreviews = listOf(),
                         images = listOf(
-                            PostItemUiState.Image(url = "https://example.com/1.png", description = null, listener = AndroidPreviewImageListener),
-                            PostItemUiState.Image(url = "https://example.com/2.png", description = null, listener = AndroidPreviewImageListener),
-                            PostItemUiState.Image(url = "https://example.com/3.png", description = null, listener = AndroidPreviewImageListener),
+                            PostItemUiState.Image(
+                                url = "https://example.com/1.png",
+                                description = null,
+                                blurToggleButtonVisible = true,
+                                blurred = true,
+                                listener = AndroidPreviewImageListener,
+                            ),
+                            PostItemUiState.Image(
+                                url = "https://example.com/2.png",
+                                description = null,
+                                blurToggleButtonVisible = true,
+                                blurred = true,
+                                listener = AndroidPreviewImageListener,
+                            ),
+                            PostItemUiState.Image(
+                                url = "https://example.com/3.png",
+                                description = null,
+                                blurToggleButtonVisible = true,
+                                blurred = true,
+                                listener = AndroidPreviewImageListener,
+                            ),
                         ),
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
@@ -99,6 +121,7 @@ private fun HomeTimelinePreview(
                 timelineRefreshing = false,
                 timelineFooter = footer,
                 timelineStreamStatus = streamStatus,
+                sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -125,6 +148,7 @@ private fun HomeSearchContentPreview() {
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -182,6 +206,7 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -211,6 +236,7 @@ private fun HomeUserContentPreview() {
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -274,6 +300,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onClickTimelineStreamStatus() = Unit
 
+    override fun onClickSensitiveImagesVisibility() = Unit
+
     override fun onSearchQueryChanged(query: String) = Unit
 
     override fun onSearch() = Unit
@@ -307,6 +335,8 @@ private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewLi
 
 private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
     override fun onClick() = Unit
+
+    override fun onClickBlurToggle() = Unit
 }
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
