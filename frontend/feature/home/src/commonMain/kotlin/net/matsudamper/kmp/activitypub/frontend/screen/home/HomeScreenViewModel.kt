@@ -46,23 +46,27 @@ internal class HomeScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 selectedTab = selectedTab,
-                timelinePosts = listOf(),
-                timelineNextCursor = null,
-                timelineRefreshing = false,
-                timelineAppending = false,
-                timelineAppendErrorMessage = null,
-                postsArrivedSinceRefresh = listOf(),
-                timelineStreamConnectionStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
-                timelineCatchingUpAfterReconnect = false,
-                timelineStreamStoppedByUser = false,
+                timeline = TimelineState(
+                    posts = listOf(),
+                    nextCursor = null,
+                    postsArrivedSinceRefresh = listOf(),
+                    loading = TimelineLoading.None,
+                ),
+                timelineStream = TimelineStreamState(
+                    connection = TimelineStreamConnection.Receiving,
+                    catchingUpAfterReconnect = false,
+                ),
                 linkPreviews = mapOf(),
-                sensitiveImagesBlurred = true,
-                blurToggledImageUrls = setOf(),
-                searchQuery = "",
-                search = SearchState.NotSearched,
-                followingChangeInProgress = false,
+                imageBlur = ImageBlurState(
+                    sensitiveImagesBlurred = true,
+                    toggledImageUrls = setOf(),
+                ),
+                search = SearchState(
+                    query = "",
+                    result = SearchResultState.NotSearched,
+                    followingChangeInProgress = false,
+                ),
                 profile = ProfileState.Loading,
-                myUsername = null,
                 myPosts = MyPostsState.Loading,
             ),
         )
@@ -113,7 +117,7 @@ internal class HomeScreenViewModel(
         }
 
         override fun onScrolledToTimelineEnd() {
-            if (viewModelStateFlow.value.timelineAppendErrorMessage != null) return
+            if (viewModelStateFlow.value.timeline.loading is TimelineLoading.AppendFailed) return
             loadTimeline(TimelineLoadTrigger.Append)
         }
 
@@ -122,13 +126,12 @@ internal class HomeScreenViewModel(
         }
 
         override fun onClickTimelineStreamStatus() {
-            when (viewModelStateFlow.value.timelineStreamStatus()) {
+            when (viewModelStateFlow.value.timelineStream.status()) {
                 HomeScreenUiState.TimelineStreamStatus.Receiving,
                 HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect,
                 -> stopTimelineArrivals()
 
                 HomeScreenUiState.TimelineStreamStatus.Disconnected -> {
-                    viewModelStateFlow.update { it.copy(timelineStreamStoppedByUser = false) }
                     collectTimelineArrivals()
                     // 切れていた間の投稿は流れてこないので、読み直して埋める
                     loadTimeline(TimelineLoadTrigger.Reconnect)
@@ -139,18 +142,20 @@ internal class HomeScreenViewModel(
         override fun onClickSensitiveImagesVisibility() {
             viewModelStateFlow.update {
                 it.copy(
-                    sensitiveImagesBlurred = !it.sensitiveImagesBlurred,
-                    blurToggledImageUrls = setOf(),
+                    imageBlur = ImageBlurState(
+                        sensitiveImagesBlurred = !it.imageBlur.sensitiveImagesBlurred,
+                        toggledImageUrls = setOf(),
+                    ),
                 )
             }
         }
 
         override fun onSearchQueryChanged(query: String) {
-            viewModelStateFlow.update { it.copy(searchQuery = query) }
+            updateSearch { it.copy(query = query) }
         }
 
         override fun onSearch() {
-            search(query = viewModelStateFlow.value.searchQuery)
+            search(query = viewModelStateFlow.value.search.query)
         }
 
         override fun onClickLoadMoreSearchResult() {
@@ -186,7 +191,9 @@ internal class HomeScreenViewModel(
         override fun onScreenShown() {
             loadProfile()
             // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
-            if (!viewModelStateFlow.value.timelineStreamStoppedByUser) collectTimelineArrivals()
+            if (viewModelStateFlow.value.timelineStream.connection != TimelineStreamConnection.StoppedByUser) {
+                collectTimelineArrivals()
+            }
             loadTimeline(TimelineLoadTrigger.ScreenShown)
         }
     }
@@ -209,18 +216,15 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
                 searchPaging?.updateCache { it.withFollowing(change) }
-                viewModelStateFlow.update { state ->
-                    val search = state.search
-                    if (search is SearchState.Loaded) {
-                        state.copy(
-                            search = search.copy(
-                                users = search.users.map { user ->
-                                    if (user.actorUri == change.actorUri) user.copy(following = change.following) else user
-                                },
-                            ),
+                updateSearchResult { result ->
+                    if (result is SearchResultState.Loaded) {
+                        result.copy(
+                            users = result.users.map { user ->
+                                if (user.actorUri == change.actorUri) user.copy(following = change.following) else user
+                            },
                         )
                     } else {
-                        state
+                        result
                     }
                 }
             }
@@ -239,9 +243,7 @@ internal class HomeScreenViewModel(
         profileJob = viewModelScope.launch {
             when (val result = userApi.myProfile()) {
                 is UserMyProfileResult.Found -> {
-                    viewModelStateFlow.update {
-                        it.copy(profile = ProfileState.Loaded(result), myUsername = result.username)
-                    }
+                    viewModelStateFlow.update { it.copy(profile = ProfileState.Loaded(result)) }
                     loadMyPosts(result.username)
                 }
 
@@ -257,9 +259,9 @@ internal class HomeScreenViewModel(
     }
 
     private fun retryMyPosts() {
-        val username = viewModelStateFlow.value.myUsername ?: return
+        val failed = viewModelStateFlow.value.myPosts as? MyPostsState.LoadFailed ?: return
         if (profileJob?.isActive == true || myPostsRetryJob?.isActive == true) return
-        myPostsRetryJob = viewModelScope.launch { loadMyPosts(username) }
+        myPostsRetryJob = viewModelScope.launch { loadMyPosts(failed.username) }
     }
 
     private suspend fun loadMyPosts(username: String) {
@@ -271,18 +273,18 @@ internal class HomeScreenViewModel(
                 viewModelStateFlow.update { it.copy(myPosts = MyPostsState.Loaded(result)) }
             }
 
-            UserProfileResult.NotFound -> myPostsFailed(MY_POSTS_NOT_FOUND_MESSAGE)
+            UserProfileResult.NotFound -> myPostsFailed(username, MY_POSTS_NOT_FOUND_MESSAGE)
 
-            is UserProfileResult.Failure -> myPostsFailed(result.message)
+            is UserProfileResult.Failure -> myPostsFailed(username, result.message)
         }
     }
 
     /**
      * 出している投稿は読み直しに失敗しても残す
      */
-    private suspend fun myPostsFailed(message: String) {
+    private suspend fun myPostsFailed(username: String, message: String) {
         viewModelStateFlow.update {
-            if (it.myPosts is MyPostsState.Loaded) it else it.copy(myPosts = MyPostsState.LoadFailed)
+            if (it.myPosts is MyPostsState.Loaded) it else it.copy(myPosts = MyPostsState.LoadFailed(username))
         }
         events.send { it.showMessage(message) }
     }
@@ -293,10 +295,10 @@ internal class HomeScreenViewModel(
         searchWatchJob?.cancel()
         searchPaging = null
         if (trimmedQuery.isEmpty()) {
-            updateSearchState(SearchState.NotSearched)
+            updateSearchResult { SearchResultState.NotSearched }
             return
         }
-        updateSearchState(SearchState.Loading)
+        updateSearchResult { SearchResultState.Loading }
         if (isResolveQuery(trimmedQuery)) {
             searchJob = viewModelScope.launch { resolveUser(trimmedQuery) }
             return
@@ -314,7 +316,7 @@ internal class HomeScreenViewModel(
 
                 is UpdateOperationResponseResult.Error -> {
                     searchWatchJob?.cancel()
-                    updateSearchState(SearchState.NotSearched)
+                    updateSearchResult { SearchResultState.NotSearched }
                     events.send { it.showMessage(result.e?.message ?: NETWORK_ERROR_MESSAGE) }
                 }
 
@@ -323,8 +325,12 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun updateSearchState(search: SearchState) {
-        viewModelStateFlow.update { it.copy(search = search) }
+    private fun updateSearch(transform: (SearchState) -> SearchState) {
+        viewModelStateFlow.update { it.copy(search = transform(it.search)) }
+    }
+
+    private fun updateSearchResult(transform: (SearchResultState) -> SearchResultState) {
+        updateSearch { it.copy(result = transform(it.result)) }
     }
 
     private fun collectTimelineArrivals() {
@@ -332,21 +338,19 @@ internal class HomeScreenViewModel(
         timelineArrivalsJob = viewModelScope.launch {
             userApi.homeTimelineStream().collect { event ->
                 when (event) {
-                    HomeTimelineStreamEvent.Subscribing -> updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Receiving)
+                    HomeTimelineStreamEvent.Subscribing -> updateTimelineStreamConnection(TimelineStreamConnection.Receiving)
 
                     is HomeTimelineStreamEvent.Arrived -> {
-                        viewModelStateFlow.update {
-                            it.copy(postsArrivedSinceRefresh = listOf(event.post) + it.postsArrivedSinceRefresh)
-                        }
+                        updateTimeline { it.copy(postsArrivedSinceRefresh = listOf(event.post) + it.postsArrivedSinceRefresh) }
                         timelinePaging.updateCache { it.withArrivedPosts(listOf(event.post)) }
                     }
 
                     HomeTimelineStreamEvent.WaitingToReconnect -> {
-                        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect)
+                        updateTimelineStreamConnection(TimelineStreamConnection.WaitingToReconnect)
                     }
 
                     HomeTimelineStreamEvent.GaveUp -> {
-                        updateTimelineStreamStatus(HomeScreenUiState.TimelineStreamStatus.Disconnected)
+                        updateTimelineStreamConnection(TimelineStreamConnection.GaveUp)
                         // 受け手が居ないと送り終わらず購読の Job が残り、再接続で始め直せなくなる
                         viewModelScope.launch { events.send { it.showMessage(TIMELINE_STREAM_DISCONNECTED_MESSAGE) } }
                     }
@@ -357,16 +361,21 @@ internal class HomeScreenViewModel(
 
     private fun stopTimelineArrivals() {
         timelineArrivalsJob?.cancel()
+        updateTimelineStreamConnection(TimelineStreamConnection.StoppedByUser)
+    }
+
+    private fun updateTimelineStreamConnection(connection: TimelineStreamConnection) {
+        viewModelStateFlow.update { it.copy(timelineStream = it.timelineStream.copy(connection = connection)) }
+    }
+
+    private fun updateTimelineCatchingUpAfterReconnect(catchingUp: Boolean) {
         viewModelStateFlow.update {
-            it.copy(
-                timelineStreamStoppedByUser = true,
-                timelineStreamConnectionStatus = HomeScreenUiState.TimelineStreamStatus.Disconnected,
-            )
+            it.copy(timelineStream = it.timelineStream.copy(catchingUpAfterReconnect = catchingUp))
         }
     }
 
-    private fun updateTimelineStreamStatus(status: HomeScreenUiState.TimelineStreamStatus) {
-        viewModelStateFlow.update { it.copy(timelineStreamConnectionStatus = status) }
+    private fun updateTimeline(transform: (TimelineState) -> TimelineState) {
+        viewModelStateFlow.update { it.copy(timeline = transform(it.timeline)) }
     }
 
     /**
@@ -376,7 +385,9 @@ internal class HomeScreenViewModel(
         query: String,
         result: UserSearchResult.Success,
     ) {
-        updateSearchState(SearchState.Loaded(query = query, users = result.users, nextCursor = result.nextCursor))
+        updateSearchResult {
+            SearchResultState.Loaded(query = query, users = result.users, nextCursor = result.nextCursor)
+        }
     }
 
     /**
@@ -388,15 +399,15 @@ internal class HomeScreenViewModel(
     private suspend fun resolveUser(query: String) {
         when (val result = userApi.resolveUser(query)) {
             is UserResolveResult.Found -> {
-                updateSearchState(SearchState.Loaded(query = query, users = listOf(result.user), nextCursor = null))
+                updateSearchResult { SearchResultState.Loaded(query = query, users = listOf(result.user), nextCursor = null) }
             }
 
             UserResolveResult.NotFound -> {
-                updateSearchState(SearchState.Loaded(query = query, users = listOf(), nextCursor = null))
+                updateSearchResult { SearchResultState.Loaded(query = query, users = listOf(), nextCursor = null) }
             }
 
             is UserResolveResult.Failure -> {
-                updateSearchState(SearchState.NotSearched)
+                updateSearchResult { SearchResultState.NotSearched }
                 events.send { it.showMessage(result.message) }
             }
         }
@@ -405,7 +416,7 @@ internal class HomeScreenViewModel(
     private fun loadMoreSearchResult() {
         if (searchJob?.isActive == true) return
         val paging = searchPaging ?: return
-        val loaded = viewModelStateFlow.value.search as? SearchState.Loaded ?: return
+        val loaded = viewModelStateFlow.value.search.result as? SearchResultState.Loaded ?: return
         if (loaded.nextCursor == null) return
         searchJob = viewModelScope.launch {
             when (val result = paging.fetchNext()) {
@@ -425,18 +436,20 @@ internal class HomeScreenViewModel(
     private fun loadTimeline(trigger: TimelineLoadTrigger) {
         val append = trigger == TimelineLoadTrigger.Append
         if (append && timelineJob?.isActive == true) return
-        if (append && viewModelStateFlow.value.timelineNextCursor == null) return
+        if (append && viewModelStateFlow.value.timeline.nextCursor == null) return
         timelineJob?.cancel()
-        viewModelStateFlow.update {
+        // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
+        if (!append) updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
+        updateTimeline {
             it.copy(
-                timelineRefreshing = trigger == TimelineLoadTrigger.PullToRefresh,
-                timelineAppending = append,
-                timelineAppendErrorMessage = null,
-                // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
-                timelineCatchingUpAfterReconnect = if (append) {
-                    it.timelineCatchingUpAfterReconnect
-                } else {
-                    trigger == TimelineLoadTrigger.Reconnect
+                loading = when (trigger) {
+                    TimelineLoadTrigger.PullToRefresh -> TimelineLoading.PullToRefresh
+
+                    TimelineLoadTrigger.Append -> TimelineLoading.Append
+
+                    TimelineLoadTrigger.ScreenShown,
+                    TimelineLoadTrigger.Reconnect,
+                    -> TimelineLoading.None
                 },
                 postsArrivedSinceRefresh = if (append) it.postsArrivedSinceRefresh else listOf(),
             )
@@ -448,7 +461,7 @@ internal class HomeScreenViewModel(
                     is UpdateOperationResponseResult.Success -> {
                         val timeline = result.result.data?.toUserHomeTimelineResult()
                         if (timeline != null) applyTimeline(timeline)
-                        val postsArrivedSinceRefresh = viewModelStateFlow.value.postsArrivedSinceRefresh
+                        val postsArrivedSinceRefresh = viewModelStateFlow.value.timeline.postsArrivedSinceRefresh
                         if (!append && postsArrivedSinceRefresh.isNotEmpty()) {
                             timelinePaging.updateCache { it.withArrivedPosts(postsArrivedSinceRefresh) }
                         }
@@ -463,17 +476,10 @@ internal class HomeScreenViewModel(
                 }
             } finally {
                 if (currentCoroutineContext().isActive) {
-                    viewModelStateFlow.update {
-                        it.copy(
-                            timelineRefreshing = false,
-                            timelineAppending = false,
-                            timelineCatchingUpAfterReconnect = if (trigger == TimelineLoadTrigger.Reconnect) {
-                                false
-                            } else {
-                                it.timelineCatchingUpAfterReconnect
-                            },
-                        )
+                    updateTimeline {
+                        if (it.loading is TimelineLoading.AppendFailed) it else it.copy(loading = TimelineLoading.None)
                     }
+                    if (trigger == TimelineLoadTrigger.Reconnect) updateTimelineCatchingUpAfterReconnect(false)
                 }
             }
         }
@@ -488,19 +494,19 @@ internal class HomeScreenViewModel(
                 is UserHomeTimelineResult.Success -> result.posts
                 UserHomeTimelineResult.NotLoggedIn -> listOf()
             }
-        viewModelStateFlow.update {
+        updateTimeline {
             it.copy(
-                timelineNextCursor = (result as? UserHomeTimelineResult.Success)?.nextCursor,
+                nextCursor = (result as? UserHomeTimelineResult.Success)?.nextCursor,
                 // ページの境目で同じ投稿が両方のページに入ることがある
-                timelinePosts = posts.distinctBy { post -> post.id },
+                posts = posts.distinctBy { post -> post.id },
             )
         }
     }
 
     private fun toggleImageBlur(url: String) {
         viewModelStateFlow.update {
-            val urls = it.blurToggledImageUrls
-            it.copy(blurToggledImageUrls = if (url in urls) urls - url else urls + url)
+            val urls = it.imageBlur.toggledImageUrls
+            it.copy(imageBlur = it.imageBlur.copy(toggledImageUrls = if (url in urls) urls - url else urls + url))
         }
     }
 
@@ -523,7 +529,7 @@ internal class HomeScreenViewModel(
 
     private suspend fun timelineFailed(append: Boolean, message: String) {
         if (append) {
-            viewModelStateFlow.update { it.copy(timelineAppendErrorMessage = message) }
+            updateTimeline { it.copy(loading = TimelineLoading.AppendFailed(message)) }
         } else {
             events.send { it.showMessage(message) }
         }
@@ -531,8 +537,8 @@ internal class HomeScreenViewModel(
 
     private fun changeFollowing(user: UserSearchResult.User) {
         val actorUri = user.actorUri ?: return
-        if (viewModelStateFlow.value.followingChangeInProgress) return
-        viewModelStateFlow.update { it.copy(followingChangeInProgress = true) }
+        if (viewModelStateFlow.value.search.followingChangeInProgress) return
+        updateSearch { it.copy(followingChangeInProgress = true) }
         viewModelScope.launch {
             try {
                 val error = userApi.setFollowing(actorUri, followed = !user.following)
@@ -542,7 +548,7 @@ internal class HomeScreenViewModel(
                     events.send { it.showMessage(error) }
                 }
             } finally {
-                viewModelStateFlow.update { it.copy(followingChangeInProgress = false) }
+                updateSearch { it.copy(followingChangeInProgress = false) }
             }
         }
     }
@@ -552,13 +558,13 @@ internal class HomeScreenViewModel(
         return HomeScreenUiState(
             selectedTab = viewModelState.selectedTab,
             timelineItems = createTimelineItems(viewModelState),
-            timelineRefreshing = viewModelState.timelineRefreshing,
-            timelineFooter = createTimelineFooter(viewModelState),
-            timelineStreamStatus = viewModelState.timelineStreamStatus(),
-            sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
+            timelineRefreshing = viewModelState.timeline.loading == TimelineLoading.PullToRefresh,
+            timelineFooter = createTimelineFooter(viewModelState.timeline.loading),
+            timelineStreamStatus = viewModelState.timelineStream.status(),
+            sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
             search = HomeScreenUiState.Search(
-                query = viewModelState.searchQuery,
-                result = createSearchResult(viewModelState),
+                query = viewModelState.search.query,
+                result = createSearchResult(viewModelState.search),
             ),
             profile = createProfile(profile),
             userPosts = createUserPosts(viewModelState),
@@ -567,12 +573,15 @@ internal class HomeScreenViewModel(
         )
     }
 
-    private fun createTimelineFooter(viewModelState: ViewModelState): HomeScreenUiState.TimelineFooter {
-        val appendErrorMessage = viewModelState.timelineAppendErrorMessage
-        return when {
-            appendErrorMessage != null -> HomeScreenUiState.TimelineFooter.Error(appendErrorMessage)
-            viewModelState.timelineAppending -> HomeScreenUiState.TimelineFooter.Loading
-            else -> HomeScreenUiState.TimelineFooter.None
+    private fun createTimelineFooter(loading: TimelineLoading): HomeScreenUiState.TimelineFooter {
+        return when (loading) {
+            is TimelineLoading.AppendFailed -> HomeScreenUiState.TimelineFooter.Error(loading.message)
+
+            TimelineLoading.Append -> HomeScreenUiState.TimelineFooter.Loading
+
+            TimelineLoading.None,
+            TimelineLoading.PullToRefresh,
+            -> HomeScreenUiState.TimelineFooter.None
         }
     }
 
@@ -596,7 +605,7 @@ internal class HomeScreenViewModel(
         return when (val myPosts = viewModelState.myPosts) {
             MyPostsState.Loading -> HomeScreenUiState.UserPosts.Loading
 
-            MyPostsState.LoadFailed -> HomeScreenUiState.UserPosts.LoadFailed
+            is MyPostsState.LoadFailed -> HomeScreenUiState.UserPosts.LoadFailed
 
             is MyPostsState.Loaded -> {
                 val profile = myPosts.profile
@@ -609,8 +618,8 @@ internal class HomeScreenViewModel(
                             acct = "@${profile.username}",
                             body = post.body,
                             linkPreviews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty(),
-                            sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
-                            blurToggledImageUrls = viewModelState.blurToggledImageUrls,
+                            sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+                            blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             // 自分のタブに居るので、押しても移る先が無い
                             authorListener = null,
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
@@ -630,15 +639,15 @@ internal class HomeScreenViewModel(
     }
 
     private fun createTimelineItems(viewModelState: ViewModelState): List<PostItemUiState> {
-        return viewModelState.timelinePosts.map { post ->
+        return viewModelState.timeline.posts.map { post ->
             createPostItemUiState(
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = post.body,
                 linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
-                sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
-                blurToggledImageUrls = viewModelState.blurToggledImageUrls,
+                sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+                blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                 authorListener = object : PostItemUiState.AuthorListener {
                     override fun onClick() {
                         val host = post.host
@@ -659,17 +668,17 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun createSearchResult(viewModelState: ViewModelState): HomeScreenUiState.SearchResult {
-        return when (val search = viewModelState.search) {
-            SearchState.NotSearched -> HomeScreenUiState.SearchResult.NotSearched
+    private fun createSearchResult(search: SearchState): HomeScreenUiState.SearchResult {
+        return when (val result = search.result) {
+            SearchResultState.NotSearched -> HomeScreenUiState.SearchResult.NotSearched
 
-            SearchState.Loading -> HomeScreenUiState.SearchResult.Loading
+            SearchResultState.Loading -> HomeScreenUiState.SearchResult.Loading
 
-            is SearchState.Loaded -> HomeScreenUiState.SearchResult.Loaded(
-                accounts = search.users.map { user ->
-                    createSearchAccount(user, followButtonEnabled = !viewModelState.followingChangeInProgress)
+            is SearchResultState.Loaded -> HomeScreenUiState.SearchResult.Loaded(
+                accounts = result.users.map { user ->
+                    createSearchAccount(user, followButtonEnabled = !search.followingChangeInProgress)
                 },
-                loadMoreButtonVisible = search.nextCursor != null,
+                loadMoreButtonVisible = result.nextCursor != null,
             )
         }
     }
@@ -705,14 +714,19 @@ internal class HomeScreenViewModel(
     /**
      * 再接続直後は購読がつながっていても切れていた間の投稿を読み直し終えるまでは追いついていないので、再接続中として見せる
      */
-    private fun ViewModelState.timelineStreamStatus(): HomeScreenUiState.TimelineStreamStatus {
-        return if (
-            timelineCatchingUpAfterReconnect &&
-            timelineStreamConnectionStatus == HomeScreenUiState.TimelineStreamStatus.Receiving
-        ) {
-            HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect
-        } else {
-            timelineStreamConnectionStatus
+    private fun TimelineStreamState.status(): HomeScreenUiState.TimelineStreamStatus {
+        return when (connection) {
+            TimelineStreamConnection.Receiving -> if (catchingUpAfterReconnect) {
+                HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect
+            } else {
+                HomeScreenUiState.TimelineStreamStatus.Receiving
+            }
+
+            TimelineStreamConnection.WaitingToReconnect -> HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect
+
+            TimelineStreamConnection.GaveUp,
+            TimelineStreamConnection.StoppedByUser,
+            -> HomeScreenUiState.TimelineStreamStatus.Disconnected
         }
     }
 
@@ -754,45 +768,86 @@ internal class HomeScreenViewModel(
         Append,
     }
 
-    private sealed interface SearchState {
-        data object NotSearched : SearchState
+    private data class ViewModelState(
+        val selectedTab: HomeScreenUiState.Tab,
+        val timeline: TimelineState,
+        val timelineStream: TimelineStreamState,
+        val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
+        val imageBlur: ImageBlurState,
+        val search: SearchState,
+        val profile: ProfileState,
+        val myPosts: MyPostsState,
+    )
 
-        data object Loading : SearchState
+    /**
+     * @param postsArrivedSinceRefresh 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
+     */
+    private data class TimelineState(
+        val posts: List<UserHomeTimelineResult.Post>,
+        val nextCursor: String?,
+        val postsArrivedSinceRefresh: List<UserHomeTimelineResult.Post>,
+        val loading: TimelineLoading,
+    )
+
+    /**
+     * 画面に出ない読み直し（画面表示時・再接続時）は None
+     */
+    private sealed interface TimelineLoading {
+        data object None : TimelineLoading
+
+        data object PullToRefresh : TimelineLoading
+
+        data object Append : TimelineLoading
+
+        /**
+         * 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押すまで続きを読まない
+         */
+        data class AppendFailed(
+            val message: String,
+        ) : TimelineLoading
+    }
+
+    private data class TimelineStreamState(
+        val connection: TimelineStreamConnection,
+        val catchingUpAfterReconnect: Boolean,
+    )
+
+    private enum class TimelineStreamConnection {
+        Receiving,
+        WaitingToReconnect,
+        GaveUp,
+
+        /**
+         * 自分で切ったときは、画面に戻ってきてもつなぎ直さない
+         */
+        StoppedByUser,
+    }
+
+    /**
+     * @param toggledImageUrls 一括で切り替えたら、画像ごとに開け閉めした分は捨てて揃える
+     */
+    private data class ImageBlurState(
+        val sensitiveImagesBlurred: Boolean,
+        val toggledImageUrls: Set<String>,
+    )
+
+    private data class SearchState(
+        val query: String,
+        val result: SearchResultState,
+        val followingChangeInProgress: Boolean,
+    )
+
+    private sealed interface SearchResultState {
+        data object NotSearched : SearchResultState
+
+        data object Loading : SearchResultState
 
         data class Loaded(
             val query: String,
             val users: List<UserSearchResult.User>,
             val nextCursor: String?,
-        ) : SearchState
+        ) : SearchResultState
     }
-
-    /**
-     * @param timelineStreamStoppedByUser 自分で切ったときは、画面に戻ってきてもつなぎ直さない
-     * @param postsArrivedSinceRefresh 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
-     * @param blurToggledImageUrls 一括で切り替えたら、画像ごとに開け閉めした分は捨てて揃える
-     * @param myUsername 投稿の読み直しに使う。プロフィールの読み直しに失敗しても残す
-     */
-    private data class ViewModelState(
-        val selectedTab: HomeScreenUiState.Tab,
-        val timelinePosts: List<UserHomeTimelineResult.Post>,
-        val timelineNextCursor: String?,
-        val timelineRefreshing: Boolean,
-        val timelineAppending: Boolean,
-        val timelineAppendErrorMessage: String?,
-        val postsArrivedSinceRefresh: List<UserHomeTimelineResult.Post>,
-        val timelineStreamConnectionStatus: HomeScreenUiState.TimelineStreamStatus,
-        val timelineCatchingUpAfterReconnect: Boolean,
-        val timelineStreamStoppedByUser: Boolean,
-        val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
-        val sensitiveImagesBlurred: Boolean,
-        val blurToggledImageUrls: Set<String>,
-        val searchQuery: String,
-        val search: SearchState,
-        val followingChangeInProgress: Boolean,
-        val profile: ProfileState,
-        val myUsername: String?,
-        val myPosts: MyPostsState,
-    )
 
     private sealed interface ProfileState {
         data object Loading : ProfileState
@@ -813,6 +868,11 @@ internal class HomeScreenViewModel(
             val profile: UserProfileResult.Found,
         ) : MyPostsState
 
-        data object LoadFailed : MyPostsState
+        /**
+         * @param username 再試行で読み直す相手
+         */
+        data class LoadFailed(
+            val username: String,
+        ) : MyPostsState
     }
 }
