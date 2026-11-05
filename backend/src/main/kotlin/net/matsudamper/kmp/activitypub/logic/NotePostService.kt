@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.io.InputStream
 import java.time.Clock
 import java.time.Duration
 import java.util.UUID
@@ -51,8 +52,8 @@ class NotePostService(
         username: String,
         image: NoteImageUpload,
     ): UploadNoteImageResult {
-        if (image.bytes.size > MAX_IMAGE_BYTES) return UploadNoteImageResult.TooLarge
-        val format = ImageFormat.detect(image.bytes) ?: return UploadNoteImageResult.UnsupportedImage
+        if (image.size > MAX_IMAGE_BYTES) return UploadNoteImageResult.TooLarge
+        val format = ImageFormat.detect(image.openStream().use { it.readNBytes(ImageFormat.SIGNATURE_BYTES) }) ?: return UploadNoteImageResult.UnsupportedImage
         val description = image.description?.trim()?.ifEmpty { null }
         // 書いた人の数え方と合わせるため、コードポイントで数える
         if (description != null && description.codePointCount(0, description.length) > MAX_DESCRIPTION_LENGTH) {
@@ -63,15 +64,17 @@ class NotePostService(
 
         val path = NoteImagePaths.create(account.id)
         val result =
-            storage.put(
-                ImageStorage.PutRequest(
-                    ownerAccountId = account.id,
-                    path = path,
-                    contentType = format.contentType,
-                    maxBytes = MAX_IMAGE_BYTES.toLong(),
-                    inputStream = image.bytes.inputStream(),
-                ),
-            )
+            image.openStream().use { inputStream ->
+                storage.put(
+                    ImageStorage.PutRequest(
+                        ownerAccountId = account.id,
+                        path = path,
+                        contentType = format.contentType,
+                        maxBytes = MAX_IMAGE_BYTES.toLong(),
+                        inputStream = inputStream,
+                    ),
+                )
+            }
         when (result) {
             is ImageStorage.PutResult.Success -> Unit
 
@@ -198,11 +201,13 @@ class NotePostService(
 }
 
 /**
- * @param bytes 送られてきた画像。形式はここでは信じず、先頭のバイト列で決める
+ * @param size 送られてきた画像のバイト数
+ * @param openStream 送られてきた画像を読む。形式はここでは信じず、先頭のバイト列で決める。開くたびに先頭から読める
  * @param description 画像の説明文。無ければ null
  */
 class NoteImageUpload(
-    val bytes: ByteArray,
+    val size: Long,
+    val openStream: () -> InputStream,
     val description: String?,
 )
 

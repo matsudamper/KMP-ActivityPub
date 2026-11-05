@@ -1,7 +1,12 @@
 package net.matsudamper.kmp.activitypub.graphql
 
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -21,6 +26,8 @@ import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.readBuffer
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlBadRequest
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
@@ -30,6 +37,8 @@ import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 
 internal const val GRAPHQL_PATH = "/graphql"
+
+private const val UPLOAD_DIRECTORY_PREFIX = "graphql-upload"
 
 /**
  * プロフィール画像の上限 2MiB を base64 にした分が入る大きさ
@@ -48,7 +57,7 @@ private const val MAX_MULTIPART_BODY_BYTES = NotePostService.MAX_IMAGE_BYTES + 1
 private const val REQUIRE_PREFLIGHT_HEADER = "Apollo-Require-Preflight"
 
 /**
- * multipart はログインを確かめる前に画像をメモリに読むので、未ログインでも同時に送られるとメモリが足りなくなる。
+ * multipart はログインを確かめる前に画像を一時ファイルに書くので、未ログインでも同時に送られるとディスクを使い切られる。
  * 受け取ってから応答するまでの数をこれで抑える
  */
 private const val MAX_CONCURRENT_MULTIPART_REQUESTS = 4
@@ -75,7 +84,7 @@ private fun Route.graphQlPost(
         when {
             contentType.match(ContentType.Application.Json) -> respond(call, engine, receiveJson(call))
 
-            contentType.match(ContentType.MultiPart.FormData) -> multipartPermits.withPermit { respond(call, engine, receiveMultipart(call)) }
+            contentType.match(ContentType.MultiPart.FormData) -> multipartPermits.withPermit { respondMultipart(call, engine) }
 
             // text/plain などはプリフライト無しで別オリジンから送れる
             else -> respond(
@@ -116,6 +125,21 @@ private suspend fun respond(
     }
 }
 
+/**
+ * 受け取ったファイルは応答を返すまで使うので、返した後にまとめて消す
+ */
+private suspend fun respondMultipart(
+    call: ApplicationCall,
+    engine: GraphQlEngine,
+) {
+    val uploadDirectory = withContext(Dispatchers.IO) { Files.createTempDirectory(UPLOAD_DIRECTORY_PREFIX) }
+    try {
+        respond(call, engine, receiveMultipart(call, uploadDirectory))
+    } finally {
+        withContext(NonCancellable + Dispatchers.IO) { uploadDirectory.toFile().deleteRecursively() }
+    }
+}
+
 private suspend fun receiveJson(call: ApplicationCall): ReceivedGraphQlRequest {
     if (call.declaredLengthExceeds(MAX_BODY_BYTES.toLong())) return payloadTooLarge()
 
@@ -130,14 +154,17 @@ private suspend fun receiveJson(call: ApplicationCall): ReceivedGraphQlRequest {
 /**
  * GraphQL multipart request の形を受ける。ファイルは変数の直下にだけ置ける
  */
-private suspend fun receiveMultipart(call: ApplicationCall): ReceivedGraphQlRequest {
+private suspend fun receiveMultipart(
+    call: ApplicationCall,
+    uploadDirectory: Path,
+): ReceivedGraphQlRequest {
     if (call.request.header(REQUIRE_PREFLIGHT_HEADER) == null) {
         return ReceivedGraphQlRequest.Rejected(message = "$REQUIRE_PREFLIGHT_HEADER ヘッダーを付けること", status = HttpStatusCode.BadRequest)
     }
     if (call.declaredLengthExceeds(MAX_MULTIPART_BODY_BYTES.toLong())) return payloadTooLarge()
 
     val fields = mutableMapOf<String, String>()
-    val files = mutableMapOf<String, ByteArray>()
+    val files = mutableMapOf<String, GraphQlUpload>()
     var receivedBytes = 0L
     var tooLarge = false
     // Ktor は部分ごとの上限を超えると、解析しているコルーチンごと呼び出しを 500 で落とす。
@@ -157,12 +184,13 @@ private suspend fun receiveMultipart(call: ApplicationCall): ReceivedGraphQlRequ
 
                 part is PartData.FileItem -> {
                     val readLimit = minOf(NotePostService.MAX_IMAGE_BYTES.toLong(), remainingBytes) + 1
-                    val bytes = part.provider().readBuffer(readLimit).readByteArray()
-                    receivedBytes += bytes.size
-                    if (bytes.size > NotePostService.MAX_IMAGE_BYTES || receivedBytes > MAX_MULTIPART_BODY_BYTES) {
+                    val file = uploadDirectory.resolve(files.size.toString())
+                    val size = part.provider().writeAtMost(file = file, maxBytes = readLimit)
+                    receivedBytes += size
+                    if (size > NotePostService.MAX_IMAGE_BYTES || receivedBytes > MAX_MULTIPART_BODY_BYTES) {
                         tooLarge = true
                     } else {
-                        files[name] = bytes
+                        files[name] = GraphQlUpload(file = file, size = size)
                     }
                 }
 
@@ -183,11 +211,32 @@ private suspend fun receiveMultipart(call: ApplicationCall): ReceivedGraphQlRequ
             val path = ((paths as? JsonArray)?.singleOrNull() as? JsonPrimitive)?.content ?: return ReceivedGraphQlRequest.Unreadable
             val variableName = path.removePrefix("variables.").takeIf { path.startsWith("variables.") && !it.contains('.') }
                 ?: return ReceivedGraphQlRequest.Unreadable
-            val bytes = files[fileName] ?: return ReceivedGraphQlRequest.Unreadable
-            variableName to GraphQlUpload(bytes)
+            val upload = files[fileName] ?: return ReceivedGraphQlRequest.Unreadable
+            variableName to upload
         }
     return ReceivedGraphQlRequest.Accepted(request = request, uploads = uploads)
 }
+
+/**
+ * @return 書いたバイト数。[maxBytes] で打ち切る
+ */
+private suspend fun ByteReadChannel.writeAtMost(
+    file: Path,
+    maxBytes: Long,
+): Long =
+    withContext(Dispatchers.IO) {
+        Files.newOutputStream(file).use { output ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            var written = 0L
+            while (written < maxBytes) {
+                val read = readAvailable(buffer, 0, minOf(buffer.size.toLong(), maxBytes - written).toInt())
+                if (read == -1) break
+                output.write(buffer, 0, read)
+                written += read
+            }
+            written
+        }
+    }
 
 private fun ApplicationCall.declaredLengthExceeds(maxBytes: Long): Boolean {
     val declaredLength = request.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: return false

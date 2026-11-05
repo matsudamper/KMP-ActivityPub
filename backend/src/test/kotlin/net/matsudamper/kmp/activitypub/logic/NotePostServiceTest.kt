@@ -114,8 +114,8 @@ class NotePostServiceTest {
 
     @Test
     fun `置いた画像を付けた順に記録し、配る Note に自分のサーバーの URL で載せる`() {
-        val png = uploaded(service.uploadImage(username = "user1", image = NoteImageUpload(PNG, description = " 猫 ")))
-        val jpeg = uploaded(service.uploadImage(username = "user1", image = NoteImageUpload(JPEG, description = " ")))
+        val png = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, description = " 猫 ")))
+        val jpeg = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(JPEG, description = " ")))
 
         assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "画像", requestId = REQUEST_ID, imageIds = listOf(png, jpeg)))
 
@@ -135,14 +135,14 @@ class NotePostServiceTest {
 
     @Test
     fun `置いた画像には期限を付ける`() {
-        uploaded(service.uploadImage(username = "user1", image = NoteImageUpload(PNG, null)))
+        uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
 
         assertEquals(NOW.plus(NotePostService.UPLOADED_IMAGE_LIFETIME), noteRepository.uploadedImages.single().expiresAt)
     }
 
     @Test
     fun `画像があれば本文は空でもよい`() {
-        val image = uploaded(service.uploadImage(username = "user1", image = NoteImageUpload(PNG, null)))
+        val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
 
         assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = " ", requestId = REQUEST_ID, imageIds = listOf(image)))
 
@@ -151,7 +151,7 @@ class NotePostServiceTest {
 
     @Test
     fun `画像が多すぎたら積まない`() {
-        val images = List(NotePostService.MAX_IMAGES + 1) { uploaded(service.uploadImage(username = "user1", image = NoteImageUpload(PNG, null))) }
+        val images = List(NotePostService.MAX_IMAGES + 1) { uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null))) }
 
         assertEquals(PostNoteResult.TooManyImages, service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = images))
 
@@ -160,7 +160,7 @@ class NotePostServiceTest {
 
     @Test
     fun `置いていないか期限を過ぎた画像は付けられない`() {
-        val image = uploaded(service.uploadImage(username = "user1", image = NoteImageUpload(PNG, null)))
+        val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
         now = NOW.plus(NotePostService.UPLOADED_IMAGE_LIFETIME)
 
         assertEquals(PostNoteResult.ImageNotFound, service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image)))
@@ -174,10 +174,10 @@ class NotePostServiceTest {
 
     @Test
     fun `画像として読めないものや大きすぎるもの、長すぎる説明文は置かない`() {
-        assertEquals(UploadNoteImageResult.UnsupportedImage, service.uploadImage(username = "user1", image = NoteImageUpload("<svg/>".encodeToByteArray(), null)))
-        assertEquals(UploadNoteImageResult.TooLarge, service.uploadImage(username = "user1", image = NoteImageUpload(PNG + ByteArray(NotePostService.MAX_IMAGE_BYTES), null)))
+        assertEquals(UploadNoteImageResult.UnsupportedImage, service.uploadImage(username = "user1", image = noteImageUpload("<svg/>".encodeToByteArray(), null)))
+        assertEquals(UploadNoteImageResult.TooLarge, service.uploadImage(username = "user1", image = noteImageUpload(PNG + ByteArray(NotePostService.MAX_IMAGE_BYTES), null)))
         val longDescription = "あ".repeat(NotePostService.MAX_DESCRIPTION_LENGTH + 1)
-        assertEquals(UploadNoteImageResult.DescriptionTooLong, service.uploadImage(username = "user1", image = NoteImageUpload(PNG, longDescription)))
+        assertEquals(UploadNoteImageResult.DescriptionTooLong, service.uploadImage(username = "user1", image = noteImageUpload(PNG, longDescription)))
 
         assertTrue(imageStorage.images.isEmpty())
         assertEquals(listOf(), noteRepository.uploadedImages)
@@ -185,7 +185,7 @@ class NotePostServiceTest {
 
     @Test
     fun `同じ requestId で送り直されたら、画像が投稿に付いた後でも最初の投稿を返す`() {
-        val image = uploaded(service.uploadImage(username = "user1", image = NoteImageUpload(PNG, null)))
+        val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
         val first = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image))
         val resent = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image))
 
@@ -212,3 +212,8 @@ class NotePostServiceTest {
         val JPEG = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 2)
     }
 }
+
+private fun noteImageUpload(
+    bytes: ByteArray,
+    description: String?,
+): NoteImageUpload = NoteImageUpload(size = bytes.size.toLong(), openStream = { bytes.inputStream() }, description = description)

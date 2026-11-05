@@ -314,7 +314,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.notePostService
                 ?: return QlUploadNoteImageResult(imageId = null, failure = QlUploadNoteImageFailure.UNSUPPORTED_OPERATION)
         val failure =
-            when (val result = notePostService.uploadImage(username = account.username, image = NoteImageUpload(bytes = image.bytes, description = description))) {
+            when (val result = notePostService.uploadImage(username = account.username, image = NoteImageUpload(size = image.size, openStream = image::openStream, description = description))) {
                 is UploadNoteImageResult.Uploaded -> return QlUploadNoteImageResult(imageId = result.publicId, failure = null)
                 UploadNoteImageResult.TooLarge -> QlUploadNoteImageFailure.TOO_LARGE
                 UploadNoteImageResult.UnsupportedImage -> QlUploadNoteImageFailure.UNSUPPORTED_IMAGE
