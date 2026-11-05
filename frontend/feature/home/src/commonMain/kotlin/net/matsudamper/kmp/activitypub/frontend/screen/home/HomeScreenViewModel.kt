@@ -497,7 +497,6 @@ internal class HomeScreenViewModel(
                 },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
-                onShare = { url -> viewModelScope.launch { events.send { it.sharePostUrl(url) } } },
                 onToggleImageBlur = { url ->
                     blurToggledImageUrls = if (url in blurToggledImageUrls) blurToggledImageUrls - url else blurToggledImageUrls + url
                     mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
@@ -610,8 +609,6 @@ internal class HomeScreenViewModel(
         fun openUrl(url: String)
 
         fun navigateToImage(url: String)
-
-        fun sharePostUrl(url: String)
     }
 
     private companion object {

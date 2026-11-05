@@ -6,7 +6,6 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * @param linkUrls カードにするリンク。OGP は [UserApi.linkPreviews] で別に取る
  * @param favouriteCount 他のサーバーの投稿は数を受け取らないので null
  * @param stamps 多く押された順
- * @param url 共有する投稿の URL。サーバーが作れなければ null
  */
 data class UserPostBody(
     val content: String,
@@ -17,7 +16,6 @@ data class UserPostBody(
     val images: List<UserPostImage>,
     val favouriteCount: Int?,
     val stamps: List<UserPostStamp>,
-    val url: String?,
 )
 
 /**

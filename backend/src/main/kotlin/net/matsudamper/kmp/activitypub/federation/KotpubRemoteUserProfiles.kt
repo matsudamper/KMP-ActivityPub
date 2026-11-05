@@ -5,7 +5,6 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUser
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
-import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 
@@ -37,7 +36,6 @@ internal class KotpubRemoteUserProfiles(
                 images = listOf(),
                 favouriteCount = null,
                 stamps = listOf(),
-                note = TimelineNoteRef.Remote(it.id),
             )
         }
 

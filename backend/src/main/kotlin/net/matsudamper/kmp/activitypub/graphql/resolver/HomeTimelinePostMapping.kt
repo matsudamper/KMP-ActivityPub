@@ -32,6 +32,5 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         images = body.images,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
-        url = note.toUrl(diContainer),
     )
 }

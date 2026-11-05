@@ -18,8 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -180,18 +178,22 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブーストはまだ受け付けないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブーストと共有はまだ無いので、押せないアイコンだけを置く
  */
 @Composable
 private fun PostActions(uiState: PostItemUiState) {
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    val disabledIconColor = iconColor.copy(alpha = 0.38f)
+    Row(
+        modifier = Modifier.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(modifier = Modifier.width(PostActionSlotWidth)) {
             Icon(
                 imageVector = AppIcons.Repeat,
                 contentDescription = "ブースト",
                 modifier = Modifier.size(PostActionIconSize),
-                tint = iconColor.copy(alpha = 0.38f),
+                tint = disabledIconColor,
             )
         }
         Row(
@@ -212,18 +214,12 @@ private fun PostActions(uiState: PostItemUiState) {
                 maxLines = 1,
             )
         }
-        IconButton(
-            onClick = uiState.listener::onShareClick,
-            enabled = uiState.shareButtonEnabled,
-            colors = IconButtonDefaults.iconButtonColors(contentColor = iconColor),
-            modifier = Modifier.size(32.dp),
-        ) {
-            Icon(
-                imageVector = AppIcons.Share,
-                contentDescription = "共有",
-                modifier = Modifier.size(PostActionIconSize),
-            )
-        }
+        Icon(
+            imageVector = AppIcons.Share,
+            contentDescription = "共有",
+            modifier = Modifier.size(PostActionIconSize),
+            tint = disabledIconColor,
+        )
     }
 }
 

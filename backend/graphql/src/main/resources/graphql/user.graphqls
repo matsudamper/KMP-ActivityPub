@@ -26,8 +26,6 @@ type ProfilePost {
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
-    "投稿を開く URL。共有に使う。DOMAIN が無く、このサーバーの投稿の URL を作れなければ null"
-    url: String
 }
 
 type UserSearchResult {

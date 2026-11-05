@@ -21,10 +21,6 @@ data class PostItemUiState(
      * 1 件も無ければ null で、お気に入りのアイコンだけを出す
      */
     val favouriteCountText: String?,
-    /**
-     * サーバーが投稿の URL を作れなかったときは false
-     */
-    val shareButtonEnabled: Boolean,
     val stamps: List<Stamp>,
     /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
@@ -68,8 +64,6 @@ data class PostItemUiState(
          * 投稿が画面に入ったとき。OGP はここで初めて取りに行く
          */
         fun onVisible()
-
-        fun onShareClick()
     }
 
     @Immutable
