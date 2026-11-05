@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
@@ -168,7 +170,7 @@ internal fun HomeContent(
         topBar = {
             Surface(color = MaterialTheme.colorScheme.surface) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
