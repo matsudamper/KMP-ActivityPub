@@ -517,13 +517,8 @@ private fun UserTabContent(
                             }
                         }
 
-                        is HomeScreenUiState.UserPosts.Error -> item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Text(userPosts.message, color = MaterialTheme.colorScheme.error)
+                        HomeScreenUiState.UserPosts.LoadFailed -> item {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                 Button(onClick = listener::onClickRetryProfile) { Text("再読み込み") }
                             }
                         }

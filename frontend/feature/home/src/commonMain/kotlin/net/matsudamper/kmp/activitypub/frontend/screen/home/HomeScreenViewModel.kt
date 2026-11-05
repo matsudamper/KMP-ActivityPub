@@ -247,6 +247,9 @@ internal class HomeScreenViewModel(
     }
 
     private suspend fun loadMyPosts(username: String) {
+        if (mutableUiStateFlow.value.userPosts is HomeScreenUiState.UserPosts.LoadFailed) {
+            mutableUiStateFlow.update { it.copy(userPosts = HomeScreenUiState.UserPosts.Loading) }
+        }
         when (val result = userApi.userProfile(username = username)) {
             is UserProfileResult.Found -> {
                 myProfileWithPosts = result
@@ -262,9 +265,11 @@ internal class HomeScreenViewModel(
     /**
      * 出している投稿は読み直しに失敗しても残す
      */
-    private fun myPostsFailed(message: String) {
-        if (mutableUiStateFlow.value.userPosts is HomeScreenUiState.UserPosts.Loaded) return
-        mutableUiStateFlow.update { it.copy(userPosts = HomeScreenUiState.UserPosts.Error(message)) }
+    private suspend fun myPostsFailed(message: String) {
+        if (mutableUiStateFlow.value.userPosts !is HomeScreenUiState.UserPosts.Loaded) {
+            mutableUiStateFlow.update { it.copy(userPosts = HomeScreenUiState.UserPosts.LoadFailed) }
+        }
+        events.send { it.showMessage(message) }
     }
 
     private fun createUserPosts(profile: UserProfileResult.Found): HomeScreenUiState.UserPosts.Loaded {

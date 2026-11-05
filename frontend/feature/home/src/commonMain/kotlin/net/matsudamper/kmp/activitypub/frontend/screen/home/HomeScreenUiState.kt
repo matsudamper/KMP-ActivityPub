@@ -86,9 +86,7 @@ data class HomeScreenUiState(
             val emptyMessage: String?,
         ) : UserPosts
 
-        data class Error(
-            val message: String,
-        ) : UserPosts
+        data object LoadFailed : UserPosts
     }
 
     @Immutable
