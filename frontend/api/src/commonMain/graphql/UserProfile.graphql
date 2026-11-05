@@ -20,6 +20,12 @@ query UserProfile($username: String!) {
                 url
                 description
             }
+            favouriteCount
+            stamps {
+                emoji
+                imageUrl
+                count
+            }
         }
     }
 }
