@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -91,9 +93,6 @@ internal fun PostItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
-                if (uiState.menuItems.isNotEmpty()) {
-                    PostMenu(menuItems = uiState.menuItems)
-                }
             }
             Text(
                 text = uiState.body,
@@ -191,7 +190,8 @@ private fun PostActions(uiState: PostItemUiState) {
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
-        modifier = Modifier.padding(vertical = 4.dp),
+        // メニューのある投稿と無い投稿で高さが変わらないよう、メニューのボタンの高さを取っておく
+        modifier = Modifier.fillMaxWidth().heightIn(min = PostMenuButtonSize).padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(modifier = Modifier.width(PostActionSlotWidth)) {
@@ -234,6 +234,10 @@ private fun PostActions(uiState: PostItemUiState) {
             modifier = Modifier.size(PostActionIconSize),
             tint = disabledIconColor,
         )
+        Spacer(modifier = Modifier.weight(1f))
+        if (uiState.menuItems.isNotEmpty()) {
+            PostMenu(menuItems = uiState.menuItems)
+        }
     }
 }
 
@@ -247,11 +251,12 @@ private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
     Box {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier.size(PostMenuButtonSize),
         ) {
             Icon(
                 imageVector = AppIcons.MoreVert,
                 contentDescription = "メニュー",
+                modifier = Modifier.size(PostActionIconSize),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -271,3 +276,5 @@ private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
         }
     }
 }
+
+private val PostMenuButtonSize = 24.dp
