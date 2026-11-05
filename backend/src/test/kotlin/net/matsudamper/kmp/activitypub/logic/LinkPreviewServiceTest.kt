@@ -65,6 +65,8 @@ class LinkPreviewServiceTest {
             <meta property="og:title" content="記事のタイトル">
             <meta property="og:site_name" content="Example">
             <meta property="og:image" content="/ogp.png">
+            <link rel="icon" type="image/svg+xml" href="/icon.svg">
+            <link rel="shortcut icon" href="/icon.png">
             </head></html>
         """.trimIndent()
         val service = service(pages = mapOf("https://example.com/article" to page))
@@ -78,6 +80,7 @@ class LinkPreviewServiceTest {
                     title = "記事のタイトル",
                     siteName = "Example",
                     imageUrl = "proxy:https://example.com/ogp.png",
+                    faviconUrl = "proxy:https://example.com/icon.png",
                 ),
             ),
             previews,
@@ -92,6 +95,7 @@ class LinkPreviewServiceTest {
 
         assertEquals("ページ", preview.title)
         assertEquals(null, preview.imageUrl)
+        assertEquals("proxy:https://example.com/favicon.ico", preview.faviconUrl)
     }
 
     @Test
@@ -100,7 +104,7 @@ class LinkPreviewServiceTest {
 
         val preview = service.previews("<a href=\"https://example.com/missing\">link</a>").single()
 
-        assertEquals(LinkPreviewService.LinkPreview(url = "https://example.com/missing", title = null, siteName = null, imageUrl = null), preview)
+        assertEquals(LinkPreviewService.LinkPreview(url = "https://example.com/missing", title = null, siteName = null, imageUrl = null, faviconUrl = null), preview)
     }
 
     @Test
