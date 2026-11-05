@@ -28,8 +28,12 @@ internal class FakeDeliveryQueueRepository(
     override fun enqueueNote(post: NotePost): EnqueueNoteResult {
         val alreadyPosted = posts.firstOrNull { it.username.equals(post.username, ignoreCase = true) && it.requestId == post.requestId }
         if (alreadyPosted != null) return EnqueueNoteResult.AlreadyPosted(alreadyPosted.publicId)
+        val imageIds = post.images.map { it.publicId }
+        if (!imageIds.all { id -> notes.uploadedImages.any { it.image.publicId == id } }) return EnqueueNoteResult.ImageNotFound
+        notes.uploadedImages.removeAll { it.image.publicId in imageIds }
         posts += post
-        notes.notes += Note(publicId = post.publicId, username = post.username, contentHtml = post.contentHtml, publishedAt = post.publishedAt)
+        notes.requestIds[post.username.lowercase() to post.requestId] = post.publicId
+        notes.notes += Note(publicId = post.publicId, username = post.username, contentHtml = post.contentHtml, publishedAt = post.publishedAt, images = post.images)
         return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)
     }
 

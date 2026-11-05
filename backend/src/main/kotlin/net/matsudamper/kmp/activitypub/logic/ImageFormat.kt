@@ -16,6 +16,11 @@ internal enum class ImageFormat(
     ;
 
     companion object {
+        /**
+         * [detect] が見る先頭のバイト数
+         */
+        const val SIGNATURE_BYTES: Int = 12
+
         fun detect(bytes: ByteArray): ImageFormat? =
             when {
                 bytes.startsWith(PNG_SIGNATURE) -> Png
