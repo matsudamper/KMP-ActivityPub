@@ -28,7 +28,15 @@ internal class UserProfileScreenViewModel(
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
-    private val viewModelStateFlow: MutableStateFlow<ViewModelState> = MutableStateFlow(ViewModelState.Loading)
+    private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
+        MutableStateFlow(
+            ViewModelState(
+                profile = ProfileState.Loading,
+                linkPreviewRequestedIds = setOf(),
+                linkPreviews = mapOf(),
+                blurToggledImageUrls = setOf(),
+            ),
+        )
     private var loadJob: Job? = null
     private var followingChangeJob: Job? = null
 
@@ -46,35 +54,29 @@ internal class UserProfileScreenViewModel(
         }
     }
 
-    private val linkPreviewsFlow = MutableStateFlow<Map<String, List<UserLinkPreviewsResult.LinkPreview>>>(mapOf())
-    private var linkPreviewRequestedIds = setOf<String>()
-    private val blurToggledImageUrlsFlow = MutableStateFlow(setOf<String>())
-
-    private val mutableUiStateFlow: MutableStateFlow<UserProfileScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value, linkPreviewsFlow.value, blurToggledImageUrlsFlow.value))
-    val uiStateFlow: StateFlow<UserProfileScreenUiState> = mutableUiStateFlow.asStateFlow()
+    val uiStateFlow: StateFlow<UserProfileScreenUiState> =
+        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
+            viewModelScope.launch {
+                combine(
+                    viewModelStateFlow,
+                    postedAtRefreshTicker.ticks.onStart { emit(Unit) },
+                ) { viewModelState, _ ->
+                    createUiState(viewModelState)
+                }.collect { uiState ->
+                    uiStateFlow.value = uiState
+                }
+            }
+        }.asStateFlow()
 
     init {
         viewModelScope.launch {
-            combine(
-                viewModelStateFlow,
-                linkPreviewsFlow,
-                blurToggledImageUrlsFlow,
-                postedAtRefreshTicker.ticks.onStart { emit(Unit) },
-            ) { viewModelState, linkPreviews, blurToggledImageUrls, _ ->
-                createUiState(viewModelState, linkPreviews, blurToggledImageUrls)
-            }.collect { uiState ->
-                mutableUiStateFlow.value = uiState
-            }
-        }
-        viewModelScope.launch {
             // フォローの変更はこの画面のものも他の画面のものもここで届く
             api.followingChanges.collect { change ->
-                viewModelStateFlow.update { state ->
-                    if (state is ViewModelState.Loaded && state.profile.actorUri == change.actorUri) {
-                        state.copy(profile = state.profile.copy(following = change.following))
+                updateProfile { profile ->
+                    if (profile is ProfileState.Loaded && profile.profile.actorUri == change.actorUri) {
+                        profile.copy(profile = profile.profile.copy(following = change.following))
                     } else {
-                        state
+                        profile
                     }
                 }
             }
@@ -84,20 +86,21 @@ internal class UserProfileScreenViewModel(
 
     private fun load() {
         loadJob?.cancel()
-        viewModelStateFlow.value = ViewModelState.Loading
+        updateProfile { ProfileState.Loading }
         loadJob = viewModelScope.launch {
-            viewModelStateFlow.value =
+            val profile =
                 when (val result = api.userProfile(username = username)) {
-                    is UserProfileResult.Found -> ViewModelState.Loaded(profile = result, followingChangeInProgress = false)
-                    UserProfileResult.NotFound -> ViewModelState.NotFound
-                    is UserProfileResult.Failure -> ViewModelState.Failed(result.message)
+                    is UserProfileResult.Found -> ProfileState.Loaded(profile = result, followingChangeInProgress = false)
+                    UserProfileResult.NotFound -> ProfileState.NotFound
+                    is UserProfileResult.Failure -> ProfileState.Failed(result.message)
                 }
+            updateProfile { profile }
         }
     }
 
     private fun changeFollowing() {
         if (followingChangeJob?.isActive == true) return
-        val loaded = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+        val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
         val actorUri = loaded.profile.actorUri ?: return
         followingChangeJob = viewModelScope.launch {
             updateFollowingChangeInProgress(true)
@@ -113,46 +116,54 @@ internal class UserProfileScreenViewModel(
     }
 
     private fun updateFollowingChangeInProgress(inProgress: Boolean) {
-        viewModelStateFlow.update { state ->
-            if (state is ViewModelState.Loaded) state.copy(followingChangeInProgress = inProgress) else state
+        updateProfile { profile ->
+            if (profile is ProfileState.Loaded) profile.copy(followingChangeInProgress = inProgress) else profile
+        }
+    }
+
+    private fun updateProfile(transform: (ProfileState) -> ProfileState) {
+        viewModelStateFlow.update { it.copy(profile = transform(it.profile)) }
+    }
+
+    private fun toggleImageBlur(url: String) {
+        viewModelStateFlow.update {
+            val urls = it.blurToggledImageUrls
+            it.copy(blurToggledImageUrls = if (url in urls) urls - url else urls + url)
         }
     }
 
     private fun loadLinkPreviews(linkPreviewId: String) {
-        if (linkPreviewId in linkPreviewRequestedIds) return
-        linkPreviewRequestedIds = linkPreviewRequestedIds + linkPreviewId
+        if (linkPreviewId in viewModelStateFlow.value.linkPreviewRequestedIds) return
+        viewModelStateFlow.update { it.copy(linkPreviewRequestedIds = it.linkPreviewRequestedIds + linkPreviewId) }
         viewModelScope.launch {
             when (val result = api.linkPreviews(linkPreviewId)) {
-                is UserLinkPreviewsResult.Success -> linkPreviewsFlow.update { it + (linkPreviewId to result.previews) }
+                is UserLinkPreviewsResult.Success -> {
+                    viewModelStateFlow.update { it.copy(linkPreviews = it.linkPreviews + (linkPreviewId to result.previews)) }
+                }
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
                 UserLinkPreviewsResult.NotLoggedIn,
-                -> linkPreviewRequestedIds = linkPreviewRequestedIds - linkPreviewId
+                -> viewModelStateFlow.update { it.copy(linkPreviewRequestedIds = it.linkPreviewRequestedIds - linkPreviewId) }
             }
         }
     }
 
-    private fun createUiState(
-        viewModelState: ViewModelState,
-        linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
-        blurToggledImageUrls: Set<String>,
-    ): UserProfileScreenUiState {
+    private fun createUiState(viewModelState: ViewModelState): UserProfileScreenUiState {
         return UserProfileScreenUiState(
-            content = when (viewModelState) {
-                ViewModelState.Loading -> UserProfileScreenUiState.Content.Loading
-                is ViewModelState.Loaded -> createLoadedContent(viewModelState, linkPreviews, blurToggledImageUrls)
-                ViewModelState.NotFound -> UserProfileScreenUiState.Content.NotFound
-                is ViewModelState.Failed -> UserProfileScreenUiState.Content.Error(viewModelState.message)
+            content = when (val profile = viewModelState.profile) {
+                ProfileState.Loading -> UserProfileScreenUiState.Content.Loading
+                is ProfileState.Loaded -> createLoadedContent(profile, viewModelState)
+                ProfileState.NotFound -> UserProfileScreenUiState.Content.NotFound
+                is ProfileState.Failed -> UserProfileScreenUiState.Content.Error(profile.message)
             },
             listener = listener,
         )
     }
 
     private fun createLoadedContent(
-        loaded: ViewModelState.Loaded,
-        linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
-        blurToggledImageUrls: Set<String>,
+        loaded: ProfileState.Loaded,
+        viewModelState: ViewModelState,
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
@@ -171,7 +182,7 @@ internal class UserProfileScreenViewModel(
             },
             posts = profile.posts.map { post ->
                 val linkPreviewId = post.linkPreviewId
-                val previews = linkPreviewId?.let { linkPreviews[it] }.orEmpty()
+                val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
                 createPostItemUiState(
                     iconUrl = profile.iconUrl,
                     displayName = profile.displayName,
@@ -179,14 +190,12 @@ internal class UserProfileScreenViewModel(
                     body = post.body,
                     linkPreviews = previews,
                     sensitiveImagesBlurred = true,
-                    blurToggledImageUrls = blurToggledImageUrls,
+                    blurToggledImageUrls = viewModelState.blurToggledImageUrls,
                     // 開いているのがその人の画面なので、押しても移る先が無い
                     authorListener = null,
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
-                    onToggleImageBlur = { url ->
-                        blurToggledImageUrlsFlow.update { urls -> if (url in urls) urls - url else urls + url }
-                    },
+                    onToggleImageBlur = { url -> toggleImageBlur(url) },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)
@@ -208,18 +217,25 @@ internal class UserProfileScreenViewModel(
         fun navigateToImage(url: String)
     }
 
-    private sealed interface ViewModelState {
-        data object Loading : ViewModelState
+    private data class ViewModelState(
+        val profile: ProfileState,
+        val linkPreviewRequestedIds: Set<String>,
+        val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
+        val blurToggledImageUrls: Set<String>,
+    )
+
+    private sealed interface ProfileState {
+        data object Loading : ProfileState
 
         data class Loaded(
             val profile: UserProfileResult.Found,
             val followingChangeInProgress: Boolean,
-        ) : ViewModelState
+        ) : ProfileState
 
-        data object NotFound : ViewModelState
+        data object NotFound : ProfileState
 
         data class Failed(
             val message: String,
-        ) : ViewModelState
+        ) : ProfileState
     }
 }
