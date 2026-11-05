@@ -107,7 +107,7 @@ private fun SeparatedImageViewerContent(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
             horizontalArrangement = Arrangement.End,
         ) {
-            CloseButton(uiState = uiState, modifier = Modifier)
+            CloseButton(uiState = uiState)
         }
         ZoomableImage(
             imageUrl = uiState.imageUrl,
@@ -121,7 +121,7 @@ private fun SeparatedImageViewerContent(
 @Composable
 private fun CloseButton(
     uiState: ImageViewerScreenUiState,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
     IconButton(
         onClick = uiState.listener::onClickClose,
