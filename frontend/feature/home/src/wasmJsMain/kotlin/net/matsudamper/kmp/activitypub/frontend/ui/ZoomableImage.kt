@@ -47,8 +47,6 @@ private fun createZoomableImageElement(imageUrl: String): HTMLDivElement {
         height = "100%"
         setProperty("object-fit", "contain")
         setProperty("transform-origin", "0 0")
-        // 操作は入れ物で受ける。画像が受けると座標の基準が拡大に合わせて動く
-        setProperty("pointer-events", "none")
     }
     container.appendChild(image)
     HtmlImageZoomGesture(container = container, image = image).bind()
