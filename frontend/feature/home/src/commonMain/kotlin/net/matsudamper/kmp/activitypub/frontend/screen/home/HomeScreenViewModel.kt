@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
@@ -49,6 +50,7 @@ internal class HomeScreenViewModel(
     private var linkPreviewRequestedPostIds = setOf<String>()
     private var linkPreviews = mapOf<String, List<UserLinkPreviewsResult.LinkPreview>>()
     private var timelineArrivalsJob: Job? = null
+    private var myProfileWithPosts: UserProfileResult.Found? = null
 
     /**
      * 自分で切ったときは、画面に戻ってきてもつなぎ直さない
@@ -80,6 +82,7 @@ internal class HomeScreenViewModel(
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 listener = object : HomeScreenUiState.Listener {
                     override fun onClickPost() {
@@ -218,8 +221,9 @@ internal class HomeScreenViewModel(
             mutableUiStateFlow.update { it.copy(profile = HomeScreenUiState.Profile.Loading) }
         }
         profileJob = viewModelScope.launch {
+            val result = userApi.myProfile()
             val profile =
-                when (val result = userApi.myProfile()) {
+                when (result) {
                     is UserMyProfileResult.Found -> HomeScreenUiState.Profile.Loaded(
                         iconUrl = result.iconUrl,
                         displayName = result.displayName ?: result.username,
@@ -238,7 +242,54 @@ internal class HomeScreenViewModel(
                     userTabIconUrl = (profile as? HomeScreenUiState.Profile.Loaded)?.iconUrl,
                 )
             }
+            if (result is UserMyProfileResult.Found) loadMyPosts(result.username)
         }
+    }
+
+    private suspend fun loadMyPosts(username: String) {
+        when (val result = userApi.userProfile(username = username)) {
+            is UserProfileResult.Found -> {
+                myProfileWithPosts = result
+                mutableUiStateFlow.update { it.copy(userPosts = createUserPosts(result)) }
+            }
+
+            UserProfileResult.NotFound -> myPostsFailed(MY_POSTS_NOT_FOUND_MESSAGE)
+
+            is UserProfileResult.Failure -> myPostsFailed(result.message)
+        }
+    }
+
+    /**
+     * 出している投稿は読み直しに失敗しても残す
+     */
+    private fun myPostsFailed(message: String) {
+        if (mutableUiStateFlow.value.userPosts is HomeScreenUiState.UserPosts.Loaded) return
+        mutableUiStateFlow.update { it.copy(userPosts = HomeScreenUiState.UserPosts.Error(message)) }
+    }
+
+    private fun createUserPosts(profile: UserProfileResult.Found): HomeScreenUiState.UserPosts.Loaded {
+        return HomeScreenUiState.UserPosts.Loaded(
+            items = profile.posts.map { post ->
+                val linkPreviewId = post.linkPreviewId
+                createPostItemUiState(
+                    iconUrl = profile.iconUrl,
+                    displayName = profile.displayName,
+                    acct = "@${profile.username}",
+                    body = post.body,
+                    linkPreviews = linkPreviewId?.let { linkPreviews[it] }.orEmpty(),
+                    // 自分のタブに居るので、押しても移る先が無い
+                    authorListener = null,
+                    onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                    onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
+                    onVisible = {
+                        if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
+                            loadLinkPreviews(linkPreviewId)
+                        }
+                    },
+                )
+            },
+            emptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
+        )
     }
 
     private fun search(query: String) {
@@ -493,7 +544,13 @@ internal class HomeScreenViewModel(
             when (val result = userApi.linkPreviews(postId)) {
                 is UserLinkPreviewsResult.Success -> {
                     linkPreviews = linkPreviews + (postId to result.previews)
-                    mutableUiStateFlow.update { it.copy(timelineItems = createTimelineItems()) }
+                    val myProfile = myProfileWithPosts
+                    mutableUiStateFlow.update {
+                        it.copy(
+                            timelineItems = createTimelineItems(),
+                            userPosts = if (myProfile == null) it.userPosts else createUserPosts(myProfile),
+                        )
+                    }
                 }
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
@@ -590,6 +647,7 @@ internal class HomeScreenViewModel(
     private companion object {
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
+        const val MY_POSTS_NOT_FOUND_MESSAGE = "投稿を読み込めませんでした"
         const val TIMELINE_STREAM_DISCONNECTED_MESSAGE = "新着投稿の受信が切れました"
     }
 

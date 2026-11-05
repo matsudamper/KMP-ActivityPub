@@ -11,6 +11,7 @@ data class HomeScreenUiState(
     val timelineStreamStatus: TimelineStreamStatus,
     val search: Search,
     val profile: Profile,
+    val userPosts: UserPosts,
     val userTabIconUrl: String?,
     val listener: Listener,
 ) {
@@ -75,6 +76,19 @@ data class HomeScreenUiState(
             val followingCount: String,
             val followersCount: String,
         ) : Profile
+    }
+
+    sealed interface UserPosts {
+        data object Loading : UserPosts
+
+        data class Loaded(
+            val items: List<PostItemUiState>,
+            val emptyMessage: String?,
+        ) : UserPosts
+
+        data class Error(
+            val message: String,
+        ) : UserPosts
     }
 
     @Immutable
