@@ -1,13 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.image
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Icon
@@ -56,7 +51,7 @@ internal fun ImageViewerContent(
     if (ComposeCanDrawOverZoomableImage) {
         OverlayImageViewerContent(uiState = uiState)
     } else {
-        SeparatedImageViewerContent(uiState = uiState)
+        ImageOnlyViewerContent(uiState = uiState)
     }
 }
 
@@ -88,34 +83,21 @@ private fun OverlayImageViewerContent(
     }
 }
 
+/**
+ * 閉じるボタンを画像に重ねられないので出さず、画像の外を押して閉じる
+ */
 @Composable
-private fun SeparatedImageViewerContent(
+private fun ImageOnlyViewerContent(
     uiState: ImageViewerScreenUiState,
 ) {
-    Column(
+    ZoomableImage(
+        imageUrl = uiState.imageUrl,
+        onClickOutsideImage = uiState.listener::onClickOutsideImage,
+        onZoomedChange = {},
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.9f))
-            .clickable(
-                interactionSource = null,
-                indication = null,
-                onClick = uiState.listener::onClickOutsideImage,
-            )
-            .safeDrawingPadding(),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            CloseButton(uiState = uiState)
-        }
-        ZoomableImage(
-            imageUrl = uiState.imageUrl,
-            onClickOutsideImage = uiState.listener::onClickOutsideImage,
-            onZoomedChange = {},
-            modifier = Modifier.fillMaxWidth().weight(1f),
-        )
-    }
+            .background(Color.Black.copy(alpha = 0.9f)),
+    )
 }
 
 @Composable
