@@ -19,7 +19,7 @@ import org.jsoup.nodes.Document
  * 画面（ブラウザ）からは CORS に阻まれて他のサイトの HTML を読めないので、こちらで取る。
  * 取りに行く先は画面から見えている投稿の本文にあるリンクだけで、画面から任意の URL は渡せない。
  *
- * @param imageProxyUrlOf OGP 画像を画面へ渡す URL にする。画面から取得元へ直接取りに行くと、
+ * @param imageProxyUrlOf OGP 画像や favicon を画面へ渡す URL にする。画面から取得元へ直接取りに行くと、
  *   Web では CORS を返さないサイトの画像を読めない。中継できなければ null
  */
 class LinkPreviewService(
@@ -56,6 +56,7 @@ class LinkPreviewService(
             title = ogp?.title,
             siteName = ogp?.siteName,
             imageUrl = ogp?.imageUrl?.let(imageProxyUrlOf),
+            faviconUrl = ogp?.faviconUrl?.let(imageProxyUrlOf),
         )
         store(
             url = url,
@@ -88,6 +89,7 @@ class LinkPreviewService(
         val title: String?,
         val siteName: String?,
         val imageUrl: String?,
+        val faviconUrl: String?,
     )
 
     private data class CacheEntry(

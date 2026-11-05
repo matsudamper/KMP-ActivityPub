@@ -39,6 +39,7 @@ class UserInfoResolverImpl : UserInfoResolver {
                             title = preview.title,
                             siteName = preview.siteName,
                             imageUrl = preview.imageUrl,
+                            faviconUrl = preview.faviconUrl,
                         )
                     }
                 }
