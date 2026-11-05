@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewMo
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.security.SecurityScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.user.UserProfileScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -115,6 +116,10 @@ private fun ScreenContent(
 
         Screen.Settings -> {
             SettingsScreen(navigator = navigator)
+        }
+
+        Screen.Security -> {
+            SecurityScreen(navigator = navigator)
         }
 
         Screen.Following -> {
