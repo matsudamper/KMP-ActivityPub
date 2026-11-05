@@ -20,6 +20,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -124,20 +128,7 @@ internal fun PostItem(
                     }
                     uiState.stamps.forEach { stamp ->
                         ReactionCount(countText = stamp.countText) {
-                            val imageUrl = stamp.imageUrl
-                            if (imageUrl == null) {
-                                Text(
-                                    text = stamp.emoji,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            } else {
-                                AsyncImage(
-                                    model = imageUrl,
-                                    contentDescription = stamp.emoji,
-                                    modifier = Modifier.height(18.dp).widthIn(max = 54.dp),
-                                    contentScale = ContentScale.Fit,
-                                )
-                            }
+                            StampEmoji(stamp = stamp)
                         }
                     }
                 }
@@ -167,6 +158,29 @@ private fun ReactionCount(
             text = countText,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * カスタム絵文字の画像が取れなければ :name: の文字で出す。何も出さないと数だけが残る
+ */
+@Composable
+private fun StampEmoji(stamp: PostItemUiState.Stamp) {
+    val imageUrl = stamp.imageUrl
+    var imageFailed by remember(imageUrl) { mutableStateOf(false) }
+    if (imageUrl == null || imageFailed) {
+        Text(
+            text = stamp.emoji,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    } else {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = stamp.emoji,
+            modifier = Modifier.height(18.dp).widthIn(max = 54.dp),
+            contentScale = ContentScale.Fit,
+            onError = { imageFailed = true },
         )
     }
 }
