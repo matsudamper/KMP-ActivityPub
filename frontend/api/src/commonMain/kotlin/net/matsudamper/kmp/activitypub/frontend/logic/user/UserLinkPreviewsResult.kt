@@ -13,5 +13,6 @@ sealed interface UserLinkPreviewsResult {
         val title: String?,
         val siteName: String?,
         val imageUrl: String?,
+        val faviconUrl: String?,
     )
 }

@@ -93,6 +93,17 @@ class RemoteImageProxyTest {
     }
 
     @Test
+    fun `favicon の ICO は中継する`() {
+        val ico = byteArrayOf(0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x10, 0x10, 0x00, 0x00, 0x01, 0x00)
+        remoteIcons[REMOTE_URL] = ico
+
+        val found = assertIs<RemoteImageProxyResult.Found>(fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
+
+        assertContentEquals(ico, found.bytes)
+        assertEquals("image/x-icon", found.contentType)
+    }
+
+    @Test
     fun `相手から取れなければ Unavailable`() {
         assertEquals(RemoteImageProxyResult.Unavailable, fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
     }
