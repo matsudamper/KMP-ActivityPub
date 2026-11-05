@@ -35,6 +35,12 @@ class HtmlToPlainTextTest {
     }
 
     @Test
+    fun 連続する改行で作った空行を保持する() {
+        assertEquals("first\n\nsecond", htmlToPlainText("<p>first<br><br>second</p>"))
+        assertEquals("first\n\nsecond", htmlToPlainText(Jsoup.clean("<p>first<br><br>second</p>", Safelist.basic())))
+    }
+
+    @Test
     fun プレーンテキストの改行を保持する() {
         assertEquals("first\n\nsecond", htmlToPlainText("first\n\nsecond"))
         assertEquals("", htmlToPlainText(""))
