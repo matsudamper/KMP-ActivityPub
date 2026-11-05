@@ -335,7 +335,8 @@ class UserApi(
         val client = clients.client.value ?: return UserUploadNoteImageResult.Failure("接続先が未設定")
         val upload =
             DefaultUpload.Builder()
-                .content(image.bytes)
+                .content(image.content::writeTo)
+                .contentLength(image.content.byteCount)
                 .contentType("application/octet-stream")
                 .fileName("image")
                 .build()

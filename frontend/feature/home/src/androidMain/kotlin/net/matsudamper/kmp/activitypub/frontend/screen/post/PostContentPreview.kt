@@ -10,6 +10,7 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import coil3.request.ImageRequest
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 @Preview
@@ -31,7 +32,7 @@ private fun PostContentImagesPreview() {
             uiState = previewUiState(
                 images = List(3) {
                     PostScreenUiState.Image(
-                        imageBytes = ByteArray(0),
+                        preview = { context -> ImageRequest.Builder(context).data(ByteArray(0)).build() },
                         removeButtonEnabled = true,
                         listener = AndroidPreviewImageListener,
                     )

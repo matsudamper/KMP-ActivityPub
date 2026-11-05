@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
+import net.matsudamper.kmp.activitypub.frontend.ui.WebpImage
 import org.koin.core.annotation.Singleton
 
 /**
@@ -27,12 +28,12 @@ internal class PostNoteSubmitter(
     suspend fun submit(
         body: String,
         requestId: String,
-        images: List<UserPostNoteImage>,
+        images: List<WebpImage>,
     ): PostNoteSubmitResult =
         scope.async {
             val imageIds =
                 images.map { image ->
-                    when (val uploaded = api.uploadNoteImage(image)) {
+                    when (val uploaded = api.uploadNoteImage(UserPostNoteImage(content = image.openContent(), description = null))) {
                         is UserUploadNoteImageResult.Success -> uploaded.imageId
                         else -> return@async PostNoteSubmitResult.UploadFailed(uploaded)
                     }

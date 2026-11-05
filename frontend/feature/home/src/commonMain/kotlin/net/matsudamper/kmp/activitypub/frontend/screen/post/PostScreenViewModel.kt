@@ -10,12 +10,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.WebpImage
 import net.matsudamper.kmp.activitypub.frontend.ui.WebpResult
-import net.matsudamper.kmp.activitypub.frontend.ui.toWebp
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -100,7 +99,7 @@ internal class PostScreenViewModel(
             if (image == null) return@launch
             renewRequestId()
             viewModelStateFlow.update { state ->
-                state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), bytes = image), error = null)
+                state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), image = image), error = null)
             }
         }
     }
@@ -108,29 +107,17 @@ internal class PostScreenViewModel(
     private fun removeImage(id: String) {
         if (viewModelStateFlow.value.submitting) return
         renewRequestId()
+        val removed = viewModelStateFlow.value.images.filter { it.id == id }
         viewModelStateFlow.update { state -> state.copy(images = state.images.filterNot { it.id == id }, error = null) }
+        removed.forEach { it.image.release() }
     }
 
     /**
      * WebP に描き直して EXIF を落とす。読めないか送れなければメッセージを出して null
      */
-    private suspend fun readImage(file: PickedImageFile): ByteArray? {
-        val source =
-            when (val result = file.read(maxBytes = MAX_SOURCE_IMAGE_BYTES)) {
-                is PickedImageFile.ReadResult.Success -> result.bytes
-
-                PickedImageFile.ReadResult.TooLarge -> {
-                    events.send { it.showMessage("画像ファイルが大きすぎます。50MB までにしてください") }
-                    return null
-                }
-
-                PickedImageFile.ReadResult.Error -> {
-                    events.send { it.showMessage("画像ファイルを読み込めませんでした") }
-                    return null
-                }
-            }
-        return when (val webp = source.toWebp(maxBytes = MAX_IMAGE_BYTES)) {
-            is WebpResult.Success -> webp.bytes
+    private suspend fun readImage(file: PickedImageFile): WebpImage? {
+        return when (val webp = file.toWebp(maxBytes = MAX_IMAGE_BYTES)) {
+            is WebpResult.Success -> webp.image
 
             WebpResult.TooLarge -> {
                 events.send { it.showMessage("画像を WebP にすると 20MB を超えるため送れません") }
@@ -161,7 +148,7 @@ internal class PostScreenViewModel(
                         postNoteSubmitter.submit(
                             body = state.body,
                             requestId = requestId(),
-                            images = state.images.map { UserPostNoteImage(bytes = it.bytes, description = null) },
+                            images = state.images.map { it.image },
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -178,6 +165,7 @@ internal class PostScreenViewModel(
             savedStateHandle[BODY_KEY] = ""
             renewRequestId()
             viewModelStateFlow.update { it.copy(body = "", images = listOf()) }
+            state.images.forEach { it.image.release() }
             events.send { it.navigateBack() }
         }
     }
@@ -238,7 +226,7 @@ internal class PostScreenViewModel(
             images =
             viewModelState.images.map { selected ->
                 PostScreenUiState.Image(
-                    imageBytes = selected.bytes,
+                    preview = selected.preview,
                     removeButtonEnabled = viewModelState.submitting.not(),
                     listener = selected.removeListener,
                 )
@@ -261,10 +249,20 @@ internal class PostScreenViewModel(
         val error: String?,
     )
 
+    /**
+     * 送り終えるまで送信は画面より長く生きるので、送っている途中に閉じられたら画像を消さない
+     */
+    override fun onCleared() {
+        if (viewModelStateFlow.value.submitting) return
+        viewModelStateFlow.value.images.forEach { it.image.release() }
+    }
+
     inner class SelectedImage(
         val id: String,
-        val bytes: ByteArray,
+        val image: WebpImage,
     ) {
+        val preview: PostScreenUiState.ImagePreview = PostScreenUiState.ImagePreview(image::previewRequest)
+
         /**
          * 状態が変わるたびに作り直すと、画像の部品が毎回描き直される
          */
@@ -297,8 +295,3 @@ private const val MAX_IMAGES = 4
  * サーバーの 1 枚あたりの上限
  */
 private const val MAX_IMAGE_BYTES = 20 * 1024 * 1024
-
-/**
- * WebP にする前のファイルの上限。大きなファイルを丸ごと読むとメモリが足りなくなる
- */
-private const val MAX_SOURCE_IMAGE_BYTES = 50 * 1024 * 1024

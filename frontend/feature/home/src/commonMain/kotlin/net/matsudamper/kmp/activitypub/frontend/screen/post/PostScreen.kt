@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -165,7 +166,7 @@ private fun SelectedImage(image: PostScreenUiState.Image) {
         modifier = Modifier.size(SELECTED_IMAGE_SIZE).clip(RoundedCornerShape(8.dp)),
     ) {
         AsyncImage(
-            model = image.imageBytes,
+            model = image.preview.imageRequest(LocalPlatformContext.current),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),

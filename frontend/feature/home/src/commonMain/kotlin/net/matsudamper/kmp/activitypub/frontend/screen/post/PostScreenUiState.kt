@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
 import androidx.compose.runtime.Immutable
+import coil3.PlatformContext
+import coil3.request.ImageRequest
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 data class PostScreenUiState(
@@ -21,13 +23,18 @@ data class PostScreenUiState(
     val listener: Listener,
 ) {
     /**
-     * @param imageBytes 送る画像。表示するときに読む
+     * @param preview 送る画像。表示するときに読む
      */
     data class Image(
-        val imageBytes: ByteArray,
+        val preview: ImagePreview,
         val removeButtonEnabled: Boolean,
         val listener: ImageListener,
     )
+
+    @Immutable
+    fun interface ImagePreview {
+        fun imageRequest(context: PlatformContext): ImageRequest
+    }
 
     @Immutable
     interface ImageListener {
