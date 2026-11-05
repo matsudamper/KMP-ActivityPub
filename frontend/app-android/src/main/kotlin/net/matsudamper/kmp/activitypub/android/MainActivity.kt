@@ -8,9 +8,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,7 +69,13 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
     val darkTheme = themeMode.isDarkTheme()
     SystemBarStyleEffect(darkTheme = darkTheme)
     AppTheme(darkTheme = darkTheme) {
-        Box(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
+        // 各画面が上下のバーの裏まで自分の色で塗り、システムバーの分は画面側で避ける
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .imePadding(),
+        ) {
             HomeNavigationHost(
                 backStack = backStack,
                 serverSettingUiState = { rememberServerSettingUiState() },
