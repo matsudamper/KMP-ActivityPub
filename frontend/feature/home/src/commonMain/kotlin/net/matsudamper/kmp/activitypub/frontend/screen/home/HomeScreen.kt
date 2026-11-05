@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
@@ -31,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -68,12 +70,17 @@ internal fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    val tabListStates = rememberHomeTabListStates()
 
-    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
+    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, tabListStates) {
         viewModel.eventHandler.collect(
             object : HomeScreenViewModel.Event {
                 override fun navigateToTab(tab: HomeScreenUiState.Tab) {
                     navigator.selectHomeTab(tab.toScreenTab())
+                }
+
+                override fun scrollTabToTop(tab: HomeScreenUiState.Tab) {
+                    coroutineScope.launch { tabListStates.scrollToTop(tab) }
                 }
 
                 override fun navigateToPost() {
@@ -107,6 +114,10 @@ internal fun HomeScreen(
                 override fun openUrl(url: String) {
                     uriHandler.openUri(url)
                 }
+
+                override fun navigateToImage(url: String) {
+                    navigator.navigate(Screen.Image(url = url))
+                }
             },
         )
     }
@@ -118,13 +129,38 @@ internal fun HomeScreen(
     LaunchedEffect(uiState.listener) {
         uiState.listener.onScreenShown()
     }
-    HomeContent(uiState = uiState, snackbarHostState = snackbarHostState)
+    HomeContent(uiState = uiState, snackbarHostState = snackbarHostState, tabListStates = tabListStates)
+}
+
+/**
+ * タブを押し直したときに先頭へ戻すため、タブの中身ではなく画面で持つ
+ */
+@Stable
+internal class HomeTabListStates(
+    val timeline: LazyListState,
+    val search: LazyListState,
+) {
+    suspend fun scrollToTop(tab: HomeScreenUiState.Tab) {
+        when (tab) {
+            HomeScreenUiState.Tab.Home -> timeline.animateScrollToItem(0)
+            HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
+            HomeScreenUiState.Tab.User -> Unit
+        }
+    }
+}
+
+@Composable
+internal fun rememberHomeTabListStates(): HomeTabListStates {
+    val timeline = rememberLazyListState()
+    val search = rememberLazyListState()
+    return remember(timeline, search) { HomeTabListStates(timeline = timeline, search = search) }
 }
 
 @Composable
 internal fun HomeContent(
     uiState: HomeScreenUiState,
     snackbarHostState: SnackbarHostState,
+    tabListStates: HomeTabListStates,
 ) {
     val tabStateHolder = rememberSaveableStateHolder()
     Scaffold(
@@ -206,6 +242,7 @@ internal fun HomeContent(
             when (uiState.selectedTab) {
                 HomeScreenUiState.Tab.Home -> {
                     TimelineTabContent(
+                        listState = tabListStates.timeline,
                         timelineItems = uiState.timelineItems,
                         refreshing = uiState.timelineRefreshing,
                         footer = uiState.timelineFooter,
@@ -216,6 +253,7 @@ internal fun HomeContent(
 
                 HomeScreenUiState.Tab.Search -> {
                     SearchTabContent(
+                        listState = tabListStates.search,
                         search = uiState.search,
                         listener = uiState.listener,
                         modifier = contentModifier,
@@ -236,13 +274,13 @@ internal fun HomeContent(
 
 @Composable
 private fun TimelineTabContent(
+    listState: LazyListState,
     timelineItems: List<PostItemUiState>,
     refreshing: Boolean,
     footer: HomeScreenUiState.TimelineFooter,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
     LaunchedEffect(listState, listener, timelineItems.size, footer) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
@@ -316,10 +354,18 @@ private fun TimelineStreamStatusButton(
 
 @Composable
 private fun SearchTabContent(
+    listState: LazyListState,
     search: HomeScreenUiState.Search,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
+    // 一覧の状態は画面で持ち続けるので、検索し直したら前の結果での位置を引き継がない
+    val searching = search.result == HomeScreenUiState.SearchResult.Loading
+    LaunchedEffect(listState, searching) {
+        if (searching) {
+            listState.requestScrollToItem(0)
+        }
+    }
     Column(modifier = modifier) {
         SingleLineTextField(
             value = search.query,
@@ -353,7 +399,7 @@ private fun SearchTabContent(
                 if (result.accounts.isEmpty()) {
                     SearchMessage(text = "検索結果はありません")
                 } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                         items(result.accounts) { account ->
                             SearchAccountItem(account = account)
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

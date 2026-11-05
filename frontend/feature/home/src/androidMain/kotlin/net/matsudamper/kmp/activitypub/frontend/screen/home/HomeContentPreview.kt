@@ -101,6 +101,7 @@ private fun HomeTimelinePreview(
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
         )
     }
 }
@@ -156,6 +157,7 @@ private fun HomeSearchContentPreview() {
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
         )
     }
 }
@@ -183,6 +185,7 @@ private fun HomeSearchEmptyContentPreview() {
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
         )
     }
 }
@@ -213,6 +216,7 @@ private fun HomeUserContentPreview() {
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
         )
     }
 }
