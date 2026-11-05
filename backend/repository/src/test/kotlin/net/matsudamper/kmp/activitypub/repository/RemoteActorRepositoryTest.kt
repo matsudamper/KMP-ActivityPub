@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.nio.file.Path
 import java.time.Instant
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
 import kotlin.test.AfterTest
@@ -62,7 +63,7 @@ class RemoteActorRepositoryTest {
         )
     }
 
-    @OptIn(kotlin.io.path.ExperimentalPathApi::class)
+    @OptIn(ExperimentalPathApi::class)
     @AfterTest
     fun tearDown() {
         tempDir.deleteRecursively()
