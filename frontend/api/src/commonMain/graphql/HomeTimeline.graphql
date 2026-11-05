@@ -17,6 +17,12 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                     url
                     description
                 }
+                favouriteCount
+                stamps {
+                    emoji
+                    imageUrl
+                    count
+                }
             }
             nextCursor
         }

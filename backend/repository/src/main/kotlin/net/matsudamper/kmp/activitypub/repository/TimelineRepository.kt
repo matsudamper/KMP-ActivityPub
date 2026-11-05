@@ -33,6 +33,8 @@ data class TimelinePosition(val score: Long, val member: String)
 /**
  * @param actorIconUrl 他のサーバーの投稿者のプロフィール画像の URL。このサーバーの投稿や、画像の無い相手は null
  * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
+ * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿の数は受け取らないので null
+ * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  * @param localPublicId このサーバーの投稿の公開 id。他のサーバーの投稿は null
  */
 data class TimelinePost(
@@ -47,6 +49,8 @@ data class TimelinePost(
     val actorIconUrl: String?,
     val actorUpdatedAt: Instant?,
     val images: List<TimelinePostImage>,
+    val favouriteCount: Long?,
+    val stamps: List<StampCount>,
     val localPublicId: PublicNoteId?,
 )
 

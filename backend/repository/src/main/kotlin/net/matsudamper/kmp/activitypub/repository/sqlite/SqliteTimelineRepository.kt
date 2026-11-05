@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_FAVOURITES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
@@ -142,17 +143,21 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             val local = dsl.select(
                 NOTES.ID, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME,
                 DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
-                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), NOTES.PUBLIC_ID,
+                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
+                DSL.field(dsl.selectCount().from(NOTE_FAVOURITES).where(NOTE_FAVOURITES.NOTE_ID.eq(NOTES.ID))).cast(Long::class.java),
+                NOTES.PUBLIC_ID,
             ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.ID.`in`(localIds)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
             val remote = dsl.select(
                 REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.PUBLISHED_AT,
                 DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
                 REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
-                REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, String::class.java),
+                REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, Long::class.java),
+                DSL.inline(null, String::class.java),
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
             val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
+            val stampsByMember = if (localIds.isEmpty()) mapOf() else dsl.stampCountsBy(NOTES.ID, NOTES.ID.`in`(localIds)).mapKeys { "l${it.key}" }
             local.unionAll(remote).fetch { record ->
                 val published = StoredInstant.parse(checkNotNull(record.value3()))
                 val actor = record.value6()
@@ -169,7 +174,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value10(),
                     record.value11()?.let { StoredInstant.parse(it) },
                     imagesByMember[member].orEmpty(),
-                    record.value12()?.let { PublicNoteId(it) },
+                    record.value12(),
+                    stampsByMember[member].orEmpty(),
+                    record.value13()?.let { PublicNoteId(it) },
                 )
             }
         }

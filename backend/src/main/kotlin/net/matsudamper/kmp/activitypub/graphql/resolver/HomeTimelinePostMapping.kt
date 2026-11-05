@@ -31,5 +31,7 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         },
         images = body.images,
         deletableNoteId = localPublicId?.value,
+        favouriteCount = favouriteCount?.toInt(),
+        stamps = stamps.toQlPostStamps(diContainer),
     )
 }

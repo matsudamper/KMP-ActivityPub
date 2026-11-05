@@ -29,7 +29,18 @@ class UserProfileServiceTest {
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
             requests.add("posts")
-            return listOf(ProfilePost("<p>最新の投稿</p>", Instant.EPOCH.toString(), summary = null, sensitive = false, linkPreviewId = null, images = listOf()))
+            return listOf(
+                ProfilePost(
+                    contentHtml = "<p>最新の投稿</p>",
+                    publishedAt = Instant.EPOCH.toString(),
+                    summary = null,
+                    sensitive = false,
+                    linkPreviewId = null,
+                    images = listOf(),
+                    favouriteCount = null,
+                    stamps = listOf(),
+                ),
+            )
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -41,6 +52,8 @@ class UserProfileServiceTest {
         accounts = repositories.accountRepository,
         remoteActors = repositories.remoteActorRepository,
         notes = repositories.noteRepository,
+        favourites = repositories.favouriteRepository,
+        stamps = repositories.stampRepository,
         timeline = repositories.timelineRepository,
         following = following,
         remoteProfiles = remoteProfiles,
@@ -127,7 +140,22 @@ class UserProfileServiceTest {
     }
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
-        TimelinePost(TimelinePosition(1, "r1"), contentHtml, Instant.EPOCH, actorUri, "bob", "Bob", summary, sensitive, null, null, listOf(image), null)
+        TimelinePost(
+            position = TimelinePosition(1, "r1"),
+            contentHtml = contentHtml,
+            publishedAt = Instant.EPOCH,
+            actorUri = actorUri,
+            username = "bob",
+            displayName = "Bob",
+            summary = summary,
+            sensitive = sensitive,
+            actorIconUrl = null,
+            actorUpdatedAt = null,
+            images = listOf(image),
+            favouriteCount = null,
+            stamps = listOf(),
+            localPublicId = null,
+        )
 
     private companion object {
         val image = TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null)

@@ -43,6 +43,10 @@ internal fun createPostItemUiState(
                 onToggleBlur = { onToggleImageBlur(image.url) },
             )
         },
+        favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
+        stamps = body.stamps.map { stamp ->
+            PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
+        },
         authorListener = authorListener,
         menuItems = menuItems,
         listener = object : PostItemUiState.Listener {

@@ -12,6 +12,7 @@ data class HomeScreenUiState(
     val sensitiveImagesBlurred: Boolean,
     val search: Search,
     val profile: Profile,
+    val userPosts: UserPosts,
     val userTabIconUrl: String?,
     /**
      * 出していなければ null
@@ -86,6 +87,17 @@ data class HomeScreenUiState(
         ) : Profile
     }
 
+    sealed interface UserPosts {
+        data object Loading : UserPosts
+
+        data class Loaded(
+            val items: List<PostItemUiState>,
+            val emptyMessage: String?,
+        ) : UserPosts
+
+        data object LoadFailed : UserPosts
+    }
+
     @Immutable
     interface SearchAccountListener {
         fun onClick()
@@ -120,6 +132,8 @@ data class HomeScreenUiState(
         fun onClickEditProfile()
 
         fun onClickRetryProfile()
+
+        fun onClickRetryUserPosts()
 
         fun onClickFollowing()
 
