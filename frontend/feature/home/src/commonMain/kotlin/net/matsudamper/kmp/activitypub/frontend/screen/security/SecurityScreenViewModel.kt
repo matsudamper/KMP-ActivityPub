@@ -34,10 +34,8 @@ internal class SecurityScreenViewModel(
                 passkeyName = savedStateHandle.get<String>(PASSKEY_NAME_KEY).orEmpty(),
                 addDialogVisible = false,
                 registering = false,
-                deleteTarget = null,
-                deleting = false,
-                passwordDeleteDialogVisible = false,
-                deletingPassword = false,
+                passkeyDeleteDialog = PasskeyDeleteDialogState.Hidden,
+                passwordDeleteDialog = PasswordDeleteDialogState.Hidden,
             ),
         )
 
@@ -67,8 +65,8 @@ internal class SecurityScreenViewModel(
             }
 
             override fun onDismissDeleteDialog() {
-                if (viewModelStateFlow.value.deleting) return
-                viewModelStateFlow.update { it.copy(deleteTarget = null) }
+                if (viewModelStateFlow.value.passkeyDeleteDialog is PasskeyDeleteDialogState.Deleting) return
+                viewModelStateFlow.update { it.copy(passkeyDeleteDialog = PasskeyDeleteDialogState.Hidden) }
             }
 
             override fun onClickDeletePassword() {
@@ -80,8 +78,8 @@ internal class SecurityScreenViewModel(
             }
 
             override fun onDismissDeletePasswordDialog() {
-                if (viewModelStateFlow.value.deletingPassword) return
-                viewModelStateFlow.update { it.copy(passwordDeleteDialogVisible = false) }
+                if (viewModelStateFlow.value.passwordDeleteDialog == PasswordDeleteDialogState.Deleting) return
+                viewModelStateFlow.update { it.copy(passwordDeleteDialog = PasswordDeleteDialogState.Hidden) }
             }
 
             override fun onClickBack() {
@@ -164,15 +162,15 @@ internal class SecurityScreenViewModel(
     }
 
     private fun requestDelete(passkey: RegisteredPasskey) {
-        if (viewModelStateFlow.value.deleting) return
-        viewModelStateFlow.update { it.copy(deleteTarget = passkey) }
+        if (viewModelStateFlow.value.passkeyDeleteDialog is PasskeyDeleteDialogState.Deleting) return
+        viewModelStateFlow.update { it.copy(passkeyDeleteDialog = PasskeyDeleteDialogState.Confirming(passkey)) }
     }
 
     private fun deletePasskey() {
-        val target = viewModelStateFlow.value.deleteTarget ?: return
-        if (viewModelStateFlow.value.deleting) return
+        val confirming = viewModelStateFlow.value.passkeyDeleteDialog as? PasskeyDeleteDialogState.Confirming ?: return
+        val target = confirming.target
 
-        viewModelStateFlow.update { it.copy(deleting = true) }
+        viewModelStateFlow.update { it.copy(passkeyDeleteDialog = PasskeyDeleteDialogState.Deleting(target)) }
         viewModelScope.launch {
             val outcome =
                 try {
@@ -189,7 +187,7 @@ internal class SecurityScreenViewModel(
                         is PasskeyDeleteResult.Failure -> Outcome.Error(result.message)
                     }
                 } finally {
-                    viewModelStateFlow.update { it.copy(deleting = false, deleteTarget = null) }
+                    viewModelStateFlow.update { it.copy(passkeyDeleteDialog = PasskeyDeleteDialogState.Hidden) }
                 }
             // 失敗でも、別の端末でパスワードやパスキーが変わっていれば表示が古いままになる
             loadPasskeys()
@@ -199,13 +197,13 @@ internal class SecurityScreenViewModel(
 
     private fun requestDeletePassword() {
         if (viewModelStateFlow.value.busy()) return
-        viewModelStateFlow.update { it.copy(passwordDeleteDialogVisible = true) }
+        viewModelStateFlow.update { it.copy(passwordDeleteDialog = PasswordDeleteDialogState.Confirming) }
     }
 
     private fun deletePassword() {
-        if (viewModelStateFlow.value.deletingPassword) return
+        if (viewModelStateFlow.value.passwordDeleteDialog != PasswordDeleteDialogState.Confirming) return
 
-        viewModelStateFlow.update { it.copy(deletingPassword = true) }
+        viewModelStateFlow.update { it.copy(passwordDeleteDialog = PasswordDeleteDialogState.Deleting) }
         viewModelScope.launch {
             val outcome =
                 try {
@@ -216,7 +214,7 @@ internal class SecurityScreenViewModel(
                         is PasswordDeleteResult.Failure -> Outcome.PasswordError(result.message)
                     }
                 } finally {
-                    viewModelStateFlow.update { it.copy(deletingPassword = false, passwordDeleteDialogVisible = false) }
+                    viewModelStateFlow.update { it.copy(passwordDeleteDialog = PasswordDeleteDialogState.Hidden) }
                 }
             loadPasskeys()
             showOutcome(outcome)
@@ -288,10 +286,17 @@ internal class SecurityScreenViewModel(
                 null
             },
             deleteDialog =
-            viewModelState.deleteTarget?.let { target ->
-                SecurityScreenUiState.DeleteDialog(
-                    passkeyName = target.name,
-                    deleteButtonEnabled = viewModelState.deleting.not(),
+            when (val dialog = viewModelState.passkeyDeleteDialog) {
+                PasskeyDeleteDialogState.Hidden -> null
+
+                is PasskeyDeleteDialogState.Confirming -> SecurityScreenUiState.DeleteDialog(
+                    passkeyName = dialog.target.name,
+                    deleteButtonEnabled = true,
+                )
+
+                is PasskeyDeleteDialogState.Deleting -> SecurityScreenUiState.DeleteDialog(
+                    passkeyName = dialog.target.name,
+                    deleteButtonEnabled = false,
                 )
             },
             password =
@@ -314,10 +319,10 @@ internal class SecurityScreenViewModel(
                 }
             },
             passwordDeleteDialog =
-            if (viewModelState.passwordDeleteDialogVisible) {
-                SecurityScreenUiState.PasswordDeleteDialog(deleteButtonEnabled = viewModelState.deletingPassword.not())
-            } else {
-                null
+            when (viewModelState.passwordDeleteDialog) {
+                PasswordDeleteDialogState.Hidden -> null
+                PasswordDeleteDialogState.Confirming -> SecurityScreenUiState.PasswordDeleteDialog(deleteButtonEnabled = true)
+                PasswordDeleteDialogState.Deleting -> SecurityScreenUiState.PasswordDeleteDialog(deleteButtonEnabled = false)
             },
             listener = listener,
         )
@@ -328,18 +333,37 @@ internal class SecurityScreenViewModel(
             busy().not() &&
             passkeyName.isNotBlank()
 
-    private fun ViewModelState.busy(): Boolean = registering || deleting || deletingPassword
+    private fun ViewModelState.busy(): Boolean =
+        registering ||
+            passkeyDeleteDialog is PasskeyDeleteDialogState.Deleting ||
+            passwordDeleteDialog == PasswordDeleteDialogState.Deleting
 
-    data class ViewModelState(
+    private data class ViewModelState(
         val passkeys: PasskeysState,
         val passkeyName: String,
         val addDialogVisible: Boolean,
         val registering: Boolean,
-        val deleteTarget: RegisteredPasskey?,
-        val deleting: Boolean,
-        val passwordDeleteDialogVisible: Boolean,
-        val deletingPassword: Boolean,
+        val passkeyDeleteDialog: PasskeyDeleteDialogState,
+        val passwordDeleteDialog: PasswordDeleteDialogState,
     )
+
+    private sealed interface PasskeyDeleteDialogState {
+        data object Hidden : PasskeyDeleteDialogState
+
+        data class Confirming(
+            val target: RegisteredPasskey,
+        ) : PasskeyDeleteDialogState
+
+        data class Deleting(
+            val target: RegisteredPasskey,
+        ) : PasskeyDeleteDialogState
+    }
+
+    private enum class PasswordDeleteDialogState {
+        Hidden,
+        Confirming,
+        Deleting,
+    }
 
     sealed interface PasskeysState {
         data object Loading : PasskeysState
@@ -370,7 +394,7 @@ internal class SecurityScreenViewModel(
         ) : Outcome
     }
 
-    interface Event {
+    internal interface Event {
         fun navigateBack()
 
         fun showMessage(message: String)

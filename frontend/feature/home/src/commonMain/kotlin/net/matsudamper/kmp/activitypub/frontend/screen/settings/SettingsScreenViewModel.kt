@@ -120,11 +120,11 @@ internal class SettingsScreenViewModel(
         )
     }
 
-    data class ViewModelState(
+    private data class ViewModelState(
         val loggingOut: Boolean,
     )
 
-    interface Event {
+    internal interface Event {
         fun navigateBack()
 
         fun navigateToSecurity()
