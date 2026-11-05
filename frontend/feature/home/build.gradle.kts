@@ -41,6 +41,7 @@ kotlin {
                 implementation(project(":frontend:api"))
                 implementation(project(":frontend:navigation"))
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.datetime)
                 implementation(libs.androidx.lifecycle.viewmodel.compose)
                 implementation(libs.androidx.lifecycle.viewmodel.navigation3)
                 implementation(libs.koin.core)

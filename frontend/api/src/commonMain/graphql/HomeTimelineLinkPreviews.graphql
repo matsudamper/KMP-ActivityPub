@@ -5,6 +5,7 @@ query HomeTimelineLinkPreviews($postId: ID!) {
             title
             siteName
             imageUrl
+            faviconUrl
         }
     }
 }

@@ -38,6 +38,7 @@ import com.apollographql.apollo.network.http.HttpEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import okio.Buffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -126,7 +127,7 @@ class HomeScreenViewModelTest {
         engine.started.first { it == 2 }
         engine.responses.send { page(listOf("fresh"), null) }
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
-        assertTrue(viewModel.uiStateFlow.value.timelineRefreshing)
+        viewModel.uiStateFlow.first { it.timelineRefreshing }
         assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.timelineFooter)
         viewModel.uiStateFlow.first { it.timelineItems.singleOrNull()?.body?.text == "fresh" && !it.timelineRefreshing }
         assertTrue(cancelled.isCompleted)
@@ -166,7 +167,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onScreenShown()
         viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
         viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
-        assertEquals(HomeScreenUiState.TimelineStreamStatus.Disconnected, viewModel.uiStateFlow.value.timelineStreamStatus)
+        viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected }
 
         // 画面に戻ってきても、自分で切った購読はつなぎ直さない
         engine.responses.send { page(listOf("a"), null) }
@@ -234,7 +235,13 @@ class HomeScreenViewModelTest {
             override val client = MutableStateFlow<ApolloClient?>(apolloClient)
             override suspend fun awaitLoadedClient(): ApolloClient? = client.value
         }
-        val viewModel = HomeScreenViewModel(HomeScreenUiState.Tab.Home, UserApi(source))
+        val viewModel = HomeScreenViewModel(
+            HomeScreenUiState.Tab.Home,
+            UserApi(source),
+            object : PostedAtRefreshTicker {
+                override val ticks: Flow<Unit> = emptyFlow()
+            },
+        )
         try {
             block(viewModel, engine)
         } finally {
