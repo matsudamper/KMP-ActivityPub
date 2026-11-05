@@ -48,6 +48,7 @@ internal fun PostImageCard(
                 title = "",
                 siteName = "",
                 imageUrl = null,
+                faviconUrl = null,
                 modifier = Modifier.alpha(0f),
             )
             if (image.blurred) {

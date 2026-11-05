@@ -25,11 +25,13 @@ data class PostItemUiState(
 ) {
     /**
      * @param imageUrl null でも画像の枠は出す
+     * @param faviconUrl imageUrl が null のとき、画像の枠の中央に小さく出す
      */
     data class LinkPreview(
         val title: String,
         val siteName: String,
         val imageUrl: String?,
+        val faviconUrl: String?,
         val listener: LinkPreviewListener,
     )
 

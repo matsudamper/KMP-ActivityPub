@@ -15,6 +15,7 @@ internal fun createPostLinkPreview(
         title = preview?.title ?: url,
         siteName = preview?.siteName ?: url.substringAfter("://").substringBefore('/'),
         imageUrl = preview?.imageUrl,
+        faviconUrl = preview?.faviconUrl,
         listener = object : PostItemUiState.LinkPreviewListener {
             override fun onClick() {
                 onClick()

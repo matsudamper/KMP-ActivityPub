@@ -91,7 +91,7 @@ class UserApi(
         val previews = data.userInfo?.linkPreviews ?: return UserLinkPreviewsResult.NotLoggedIn
         return UserLinkPreviewsResult.Success(
             previews = previews.map {
-                UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl)
+                UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl, faviconUrl = it.faviconUrl)
             },
         )
     }
