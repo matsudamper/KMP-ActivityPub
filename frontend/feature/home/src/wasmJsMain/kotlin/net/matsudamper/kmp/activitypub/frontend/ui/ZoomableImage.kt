@@ -25,6 +25,7 @@ internal actual val ComposeCanDrawOverZoomableImage: Boolean = false
 internal actual fun ZoomableImage(
     imageUrl: String,
     onClickImage: () -> Unit,
+    onLongPressImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
     modifier: Modifier,
