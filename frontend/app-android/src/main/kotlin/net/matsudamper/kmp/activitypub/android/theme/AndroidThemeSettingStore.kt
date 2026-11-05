@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.dataStore
 import java.io.IOException
 import java.io.InputStream
@@ -28,11 +29,15 @@ internal class AndroidThemeSettingStore(
         }
         .map { setting -> setting.themeMode.toThemeMode() }
 
-    override suspend fun save(themeMode: ThemeMode) {
-        dataStore.updateData { setting ->
-            setting.toBuilder().setThemeMode(themeMode.toProto()).build()
+    override suspend fun save(themeMode: ThemeMode): Boolean =
+        try {
+            dataStore.updateData { setting ->
+                setting.toBuilder().setThemeMode(themeMode.toProto()).build()
+            }
+            true
+        } catch (_: IOException) {
+            false
         }
-    }
 }
 
 private fun ThemeModeProto.toThemeMode(): ThemeMode =
@@ -52,6 +57,7 @@ private fun ThemeMode.toProto(): ThemeModeProto =
 private val Context.themeSettingDataStore: DataStore<ThemeSetting> by dataStore(
     fileName = "theme_setting.pb",
     serializer = ThemeSettingSerializer,
+    corruptionHandler = ReplaceFileCorruptionHandler { ThemeSetting.getDefaultInstance() },
 )
 
 private object ThemeSettingSerializer : Serializer<ThemeSetting> {

@@ -12,13 +12,20 @@ internal class WebThemeSettingStore : ThemeSettingStore {
 
     override val themeModeFlow: Flow<ThemeMode> = themeModeStateFlow.asStateFlow()
 
-    override suspend fun save(themeMode: ThemeMode) {
-        localStorage.setItem(THEME_MODE_KEY, themeMode.name)
+    /**
+     * ストレージを拒否されたブラウザでも、開いている間だけはテーマを切り替えられるようにする
+     */
+    override suspend fun save(themeMode: ThemeMode): Boolean {
+        val saved = runCatching { localStorage.setItem(THEME_MODE_KEY, themeMode.name) }.isSuccess
         themeModeStateFlow.value = themeMode
+        return saved
     }
 
+    /**
+     * ストレージを拒否されると getItem が例外を投げ、生成時に読むのでアプリごと起動しなくなる
+     */
     private fun loadThemeMode(): ThemeMode {
-        val saved = localStorage.getItem(THEME_MODE_KEY)
+        val saved = runCatching { localStorage.getItem(THEME_MODE_KEY) }.getOrNull()
         return ThemeMode.entries.firstOrNull { it.name == saved } ?: ThemeMode.System
     }
 }

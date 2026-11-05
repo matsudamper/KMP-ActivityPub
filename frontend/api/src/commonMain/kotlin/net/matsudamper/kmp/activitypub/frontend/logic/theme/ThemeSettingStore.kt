@@ -8,5 +8,8 @@ import kotlinx.coroutines.flow.Flow
 interface ThemeSettingStore {
     val themeModeFlow: Flow<ThemeMode>
 
-    suspend fun save(themeMode: ThemeMode)
+    /**
+     * @return 端末に書き込めなかったときは false
+     */
+    suspend fun save(themeMode: ThemeMode): Boolean
 }

@@ -104,7 +104,10 @@ internal class SettingsScreenViewModel(
             object : SettingsScreenUiState.ThemeOptionListener {
                 override fun onClick() {
                     viewModelScope.launch {
-                        themeSettingStore.save(themeMode)
+                        val saved = themeSettingStore.save(themeMode)
+                        if (saved.not()) {
+                            events.send { it.showMessage("テーマを保存できなかった") }
+                        }
                     }
                 }
             }
