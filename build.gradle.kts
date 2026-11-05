@@ -1,5 +1,7 @@
+import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import dev.detekt.gradle.Detekt
+import dev.detekt.gradle.extensions.DetektExtension
 import org.gradle.api.tasks.testing.AbstractTestTask
 import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import org.w3c.dom.Element
@@ -56,7 +58,7 @@ dependencies {
     add("composeRulesDetekt", libs.compose.rules.detekt)
 }
 
-fun composeRulesDetektConfigFile(): java.io.File {
+fun composeRulesDetektConfigFile(): File {
     val configFile = layout.buildDirectory.file("compose-rules-detekt.yml").get().asFile
     val versionMarker = layout.buildDirectory.file("compose-rules-detekt.version").get().asFile
     val composeRulesVersion = libs.versions.composeRules.get()
@@ -78,31 +80,30 @@ fun composeRulesDetektConfigFile(): java.io.File {
     return configFile
 }
 
-fun parseDetektViolations(xml: java.io.File): List<String> {
+fun parseDetektViolations(xml: File): List<String> {
     if (!xml.exists()) {
         return listOf()
     }
 
     val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xml)
-    val violations = mutableListOf<String>()
     val files = document.getElementsByTagName("file")
 
-    for (fileIndex in 0 until files.length) {
-        val fileElement = files.item(fileIndex) as Element
-        val path = fileElement.getAttribute("name")
-        val errors = fileElement.getElementsByTagName("error")
+    return buildList {
+        for (fileIndex in 0 until files.length) {
+            val fileElement = files.item(fileIndex) as Element
+            val path = fileElement.getAttribute("name")
+            val errors = fileElement.getElementsByTagName("error")
 
-        for (errorIndex in 0 until errors.length) {
-            val error = errors.item(errorIndex) as Element
-            val line = error.getAttribute("line")
-            val column = error.getAttribute("column")
-            val rule = error.getAttribute("source").removePrefix("detekt.")
-            val message = error.getAttribute("message").lineSequence().first().trim()
-            violations.add("$path:$line:$column [$rule] $message")
+            for (errorIndex in 0 until errors.length) {
+                val error = errors.item(errorIndex) as Element
+                val line = error.getAttribute("line")
+                val column = error.getAttribute("column")
+                val rule = error.getAttribute("source").removePrefix("detekt.")
+                val message = error.getAttribute("message").lineSequence().first().trim()
+                add("$path:$line:$column [$rule] $message")
+            }
         }
     }
-
-    return violations
 }
 
 configure(subprojects.filter { it.path in detektTargetProjects }) {
@@ -112,7 +113,7 @@ configure(subprojects.filter { it.path in detektTargetProjects }) {
         add("detektPlugins", rootProject.libs.compose.rules.detekt)
     }
 
-    extensions.configure<dev.detekt.gradle.extensions.DetektExtension> {
+    extensions.configure<DetektExtension> {
         toolVersion = rootProject.libs.versions.detekt.get()
         config.setFrom(composeRulesDetektConfigFile(), rootProject.files("detekt.yml"))
         buildUponDefaultConfig = false
@@ -123,7 +124,7 @@ configure(subprojects.filter { it.path in detektTargetProjects }) {
 
     tasks.withType<Detekt>().configureEach {
         ignoreFailures.set(true)
-        baseline.set(null as java.io.File?)
+        baseline.set(null as File?)
         exclude { fileTreeElement ->
             fileTreeElement.file.invariantSeparatorsPath.contains("/build/generated/")
         }

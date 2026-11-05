@@ -111,7 +111,10 @@ internal class Federation(
             deliveryQueueRepository = deliveryQueueRepository,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
-            onPosted = { publicId -> timelineRepository.localPosition(publicId.value)?.let { timeline.enqueue(it) } },
+            onPosted = { publicId ->
+                val position = timelineRepository.localPosition(publicId.value)
+                if (position != null) timeline.enqueue(position)
+            },
         )
 
     val followDelivery = QueuedFollowDelivery(
