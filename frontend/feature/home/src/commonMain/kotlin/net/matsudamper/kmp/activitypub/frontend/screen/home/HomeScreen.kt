@@ -40,6 +40,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -254,12 +260,18 @@ private fun TimelineTabContent(
             .filter { (nearEnd, _) -> nearEnd }
             .collect { listener.onScrolledToTimelineEnd() }
     }
+    val wheelPullToRefreshBlocker = remember { WheelPullToRefreshBlocker() }
     PullToRefreshBox(
         isRefreshing = refreshing,
         onRefresh = listener::onRefreshTimeline,
         modifier = modifier,
     ) {
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(wheelPullToRefreshBlocker.modifier),
+        ) {
             items(timelineItems) { item ->
                 PostItem(uiState = item)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -561,5 +573,28 @@ private val HomeScreenUiState.Tab.label: String
         HomeScreenUiState.Tab.Search -> "検索"
         HomeScreenUiState.Tab.User -> "ユーザー"
     }
+
+/**
+ * ホイールは押下中のポインタが無いスクロールなので、押下の有無でタッチやドラッグと区別する
+ */
+private class WheelPullToRefreshBlocker : NestedScrollConnection {
+    private var pointerPressed = false
+
+    val modifier: Modifier = Modifier
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    pointerPressed = event.changes.any { it.pressed }
+                }
+            }
+        }
+        .nestedScroll(this)
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        val pullOverscrollByWheel = source == NestedScrollSource.UserInput && !pointerPressed && available.y > 0f
+        return if (pullOverscrollByWheel) Offset(x = 0f, y = available.y) else Offset.Zero
+    }
+}
 
 private const val SEARCH_QUERY_INPUT_ID = "home-search-query"
