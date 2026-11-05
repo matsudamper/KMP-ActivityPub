@@ -34,6 +34,8 @@ internal class KotpubRemoteUserProfiles(
                 // 保存していない投稿なので、後から OGP を取りに行く元が無い
                 linkPreviewId = null,
                 images = listOf(),
+                favouriteCount = null,
+                stamps = listOf(),
             )
         }
 

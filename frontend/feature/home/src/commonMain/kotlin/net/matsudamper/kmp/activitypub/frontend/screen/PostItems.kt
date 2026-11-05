@@ -42,6 +42,10 @@ internal fun createPostItemUiState(
                 onToggleBlur = { onToggleImageBlur(image.url) },
             )
         },
+        favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
+        stamps = body.stamps.map { stamp ->
+            PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
+        },
         authorListener = authorListener,
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {
