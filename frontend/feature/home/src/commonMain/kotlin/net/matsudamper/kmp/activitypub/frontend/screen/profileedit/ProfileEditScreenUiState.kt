@@ -22,7 +22,7 @@ data class ProfileEditScreenUiState(
          */
         data class Loaded(
             val iconPreview: ImageBitmap?,
-            val iconUploading: Boolean,
+            val iconLoadingVisible: Boolean,
             val currentIconUrl: String?,
             val iconSelectButtonEnabled: Boolean,
             val displayName: String,
