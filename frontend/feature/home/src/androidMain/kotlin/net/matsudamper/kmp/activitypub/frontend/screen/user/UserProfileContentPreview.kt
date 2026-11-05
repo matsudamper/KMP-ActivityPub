@@ -24,7 +24,6 @@ private fun UserProfileContentPreview() {
                             iconUrl = null,
                             displayName = "Alice",
                             acct = "@alice@example.social",
-                            contentWarningLabel = null,
                             body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", onOpenUrl = {}),
                             postedAt = "2026-11-01T12:00:00Z",
                             linkPreviews = listOf(
