@@ -417,6 +417,7 @@ private fun HomeColumnsContentPreview() {
                         favouriteCountText = null,
                         stamps = listOf(),
                         postListener = AndroidPreviewPostListener,
+                        shareListener = AndroidPreviewShareListener,
                         menuItems = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
