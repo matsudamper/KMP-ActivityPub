@@ -35,6 +35,11 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNoteImageContent
 import okio.BufferedSink
 import okio.source
 
+/**
+ * 縮めずに展開するので、その大きさを抑える。4 バイト/画素で 256MB 程度。50MP のカメラの写真が入る大きさにする
+ */
+private const val MAX_DECODED_PIXELS = 64_000_000L
+
 @Composable
 internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -> Unit {
     // 読み込みは画面より長く生きるので Activity を持たせない
@@ -47,6 +52,39 @@ internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -
     return remember(launcher) {
         { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
     }
+}
+
+/**
+ * 圧縮後は小さくても画素数の大きい画像があるので、目標の大きさを下回らない範囲で間引いて読む。
+ * 写真は撮った向きを EXIF に持つことが多く、BitmapFactory はそれを見ないので、描き直すときに回す
+ */
+internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(this, 0, size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    val shortestSide = minOf(bounds.outWidth, bounds.outHeight)
+    val sampleSize = generateSequence(1) { it * 2 }.takeWhile { shortestSide / it >= sidePx }.lastOrNull() ?: 1
+    val decoded = BitmapFactory.decodeByteArray(this, 0, size, BitmapFactory.Options().apply { inSampleSize = sampleSize }) ?: return null
+
+    val cropSide = minOf(decoded.width, decoded.height)
+    val targetSide = minOf(cropSide, sidePx)
+    val matrix = orientationMatrix(readExifOrientation()).apply {
+        val scale = targetSide.toFloat() / cropSide
+        postScale(scale, scale)
+    }
+    val icon =
+        Bitmap.createBitmap(
+            decoded,
+            (decoded.width - cropSide) / 2,
+            (decoded.height - cropSide) / 2,
+            cropSide,
+            cropSide,
+            matrix,
+            true,
+        )
+    val png = ByteArrayOutputStream().also { icon.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+    return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
 
 internal class ContentUriImageFile(
@@ -127,39 +165,6 @@ private fun InputStream.readAtMost(limit: Int): ByteArray {
     return output.toByteArray()
 }
 
-/**
- * 圧縮後は小さくても画素数の大きい画像があるので、目標の大きさを下回らない範囲で間引いて読む。
- * 写真は撮った向きを EXIF に持つことが多く、BitmapFactory はそれを見ないので、描き直すときに回す
- */
-internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage? {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(this, 0, size, bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-    val shortestSide = minOf(bounds.outWidth, bounds.outHeight)
-    val sampleSize = generateSequence(1) { it * 2 }.takeWhile { shortestSide / it >= sidePx }.lastOrNull() ?: 1
-    val decoded = BitmapFactory.decodeByteArray(this, 0, size, BitmapFactory.Options().apply { inSampleSize = sampleSize }) ?: return null
-
-    val cropSide = minOf(decoded.width, decoded.height)
-    val targetSide = minOf(cropSide, sidePx)
-    val matrix = orientationMatrix(readExifOrientation()).apply {
-        val scale = targetSide.toFloat() / cropSide
-        postScale(scale, scale)
-    }
-    val icon =
-        Bitmap.createBitmap(
-            decoded,
-            (decoded.width - cropSide) / 2,
-            (decoded.height - cropSide) / 2,
-            cropSide,
-            cropSide,
-            matrix,
-            true,
-        )
-    val png = ByteArrayOutputStream().also { icon.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
-    return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
-}
-
 private class FileWebpImage(
     private val file: File,
 ) : WebpImage {
@@ -227,11 +232,6 @@ private class MaxBytesOutputStream(
         throw IOException("WebP が $maxBytes バイトを超えた")
     }
 }
-
-/**
- * 縮めずに展開するので、その大きさを抑える。4 バイト/画素で 256MB 程度。50MP のカメラの写真が入る大きさにする
- */
-private const val MAX_DECODED_PIXELS = 64_000_000L
 
 private fun ByteArray.readExifOrientation(): Int =
     runCatching { ExifInterface(ByteArrayInputStream(this)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }

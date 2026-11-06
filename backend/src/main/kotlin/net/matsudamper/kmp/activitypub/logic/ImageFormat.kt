@@ -21,6 +21,13 @@ internal enum class ImageFormat(
          */
         const val SIGNATURE_BYTES: Int = 12
 
+        private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        private val JPEG_SIGNATURE = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
+        private val GIF87_SIGNATURE = "GIF87a".encodeToByteArray()
+        private val GIF89_SIGNATURE = "GIF89a".encodeToByteArray()
+        private val RIFF_SIGNATURE = "RIFF".encodeToByteArray()
+        private val WEBP_SIGNATURE = "WEBP".encodeToByteArray()
+
         fun detect(bytes: ByteArray): ImageFormat? =
             when {
                 bytes.startsWith(PNG_SIGNATURE) -> Png
@@ -37,12 +44,5 @@ internal enum class ImageFormat(
             if (size < offset + prefix.size) return false
             return prefix.indices.all { index -> this[offset + index] == prefix[index] }
         }
-
-        private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
-        private val JPEG_SIGNATURE = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
-        private val GIF87_SIGNATURE = "GIF87a".encodeToByteArray()
-        private val GIF89_SIGNATURE = "GIF89a".encodeToByteArray()
-        private val RIFF_SIGNATURE = "RIFF".encodeToByteArray()
-        private val WEBP_SIGNATURE = "WEBP".encodeToByteArray()
     }
 }

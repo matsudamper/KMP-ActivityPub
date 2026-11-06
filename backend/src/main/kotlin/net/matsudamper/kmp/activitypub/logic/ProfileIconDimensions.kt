@@ -11,6 +11,18 @@ internal data class ProfileIconDimensions(
     val height: Int,
 ) {
     companion object {
+        private const val JPEG_START_OF_SCAN = 0xDA
+
+        /**
+         * 長さを持たないマーカー。TEM と RST0〜RST7
+         */
+        private val JPEG_STANDALONE_MARKERS: Set<Int> = setOf(0x01) + (0xD0..0xD7)
+
+        /**
+         * SOF0〜SOF15。0xC4 (DHT)、0xC8 (JPG)、0xCC (DAC) は同じ並びにあるが SOF ではない
+         */
+        private val JPEG_START_OF_FRAME_MARKERS: Set<Int> = (0xC0..0xCF).toSet() - setOf(0xC4, 0xC8, 0xCC)
+
         /**
          * ヘッダーが壊れているか途中で切れていれば null
          */
@@ -152,17 +164,5 @@ internal data class ProfileIconDimensions(
             val low = uint16BigEndianAt(offset + 2) ?: return null
             return ((high shl 16) or low).takeIf { it >= 0 }
         }
-
-        private const val JPEG_START_OF_SCAN = 0xDA
-
-        /**
-         * 長さを持たないマーカー。TEM と RST0〜RST7
-         */
-        private val JPEG_STANDALONE_MARKERS: Set<Int> = setOf(0x01) + (0xD0..0xD7)
-
-        /**
-         * SOF0〜SOF15。0xC4 (DHT)、0xC8 (JPG)、0xCC (DAC) は同じ並びにあるが SOF ではない
-         */
-        private val JPEG_START_OF_FRAME_MARKERS: Set<Int> = (0xC0..0xCF).toSet() - setOf(0xC4, 0xC8, 0xCC)
     }
 }

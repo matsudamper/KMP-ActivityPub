@@ -35,7 +35,7 @@ object GraphQlReflectionTargets {
                     "file" -> classNamesInDirectory(Paths.get(uri), packageName)
 
                     "jar" ->
-                        FileSystems.newFileSystem(uri, emptyMap<String, Any>()).use { fileSystem ->
+                        FileSystems.newFileSystem(uri, mapOf<String, Any>()).use { fileSystem ->
                             classNamesInDirectory(fileSystem.getPath(packagePath), packageName)
                         }
 

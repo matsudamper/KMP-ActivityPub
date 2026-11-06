@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import kotlin.time.Duration.Companion.minutes
-import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
