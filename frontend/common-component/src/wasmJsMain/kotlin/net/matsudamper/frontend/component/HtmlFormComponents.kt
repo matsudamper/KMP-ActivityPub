@@ -171,7 +171,7 @@ object HtmlFormComponents {
     /**
      * 複数行の [PlatformInputField]。HTML の textarea を埋め込む
      *
-     * @param onSubmitShortcut Ctrl+Enter（Mac は Cmd+Enter も）で呼ばれる
+     * @param onSubmitShortcut Ctrl+Enter（Mac は Cmd+Enter も）で呼ばれる。null なら改行のまま
      */
     @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
     @Composable
@@ -183,7 +183,7 @@ object HtmlFormComponents {
         inputName: String,
         enabled: Boolean,
         hasError: Boolean,
-        onSubmitShortcut: () -> Unit,
+        onSubmitShortcut: (() -> Unit)?,
         modifier: Modifier = Modifier,
     ) {
         val currentOnValueChange = rememberUpdatedState(onValueChange)
@@ -224,9 +224,10 @@ object HtmlFormComponents {
                                 onValueChange = { currentOnValueChange.value(it) },
                             )
                             textArea.addEventListener("keydown") { event ->
+                                val onSubmitShortcutValue = currentOnSubmitShortcut.value ?: return@addEventListener
                                 if (keyboardKey(event) == "Enter" && hasCtrlOrMetaModifier(event) && !isComposing(event)) {
                                     event.preventDefault()
-                                    currentOnSubmitShortcut.value()
+                                    onSubmitShortcutValue()
                                 }
                             }
                             textArea

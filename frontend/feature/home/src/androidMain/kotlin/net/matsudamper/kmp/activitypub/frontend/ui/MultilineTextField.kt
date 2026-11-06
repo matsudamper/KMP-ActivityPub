@@ -22,7 +22,7 @@ internal actual fun MultilineTextField(
     inputName: String,
     enabled: Boolean,
     hasError: Boolean,
-    onSubmitShortcut: () -> Unit,
+    onSubmitShortcut: (() -> Unit)?,
     modifier: Modifier,
 ) {
     OutlinedTextField(
@@ -34,9 +34,11 @@ internal actual fun MultilineTextField(
         modifier = modifier
             .heightIn(min = 160.dp)
             .onPreviewKeyEvent { event ->
-                val submitShortcutPressed = event.isCtrlPressed && (event.key == Key.Enter || event.key == Key.NumPadEnter)
+                val submitShortcutPressed = onSubmitShortcut != null &&
+                    event.isCtrlPressed &&
+                    (event.key == Key.Enter || event.key == Key.NumPadEnter)
                 if (submitShortcutPressed && event.type == KeyEventType.KeyDown) {
-                    onSubmitShortcut()
+                    onSubmitShortcut?.invoke()
                 }
                 submitShortcutPressed
             },
