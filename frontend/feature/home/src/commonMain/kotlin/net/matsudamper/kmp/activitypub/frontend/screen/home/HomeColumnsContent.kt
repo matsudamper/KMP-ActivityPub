@@ -189,7 +189,7 @@ private fun ColumnToggleButton(
 private fun HomeColumn(
     title: String,
     onClickClose: (() -> Unit)?,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
 ) {
     Column(modifier = modifier) {
