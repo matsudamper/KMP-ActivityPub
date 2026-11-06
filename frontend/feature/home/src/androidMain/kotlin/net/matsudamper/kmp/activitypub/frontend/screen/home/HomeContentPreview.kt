@@ -319,6 +319,7 @@ private fun HomeColumnsContentPreview() {
                         images = listOf(),
                         favouriteCountText = null,
                         stamps = listOf(),
+                        postListener = AndroidPreviewPostListener,
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
@@ -369,7 +370,7 @@ private fun HomeColumnsContentPreview() {
                             images = listOf(),
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
-                            listener = AndroidPreviewPostListener,
+                            listener = AndroidPreviewPostScreenListener,
                         ),
                         navigationIcon = PostNavigationIcon.Close,
                         snackbarHostState = SnackbarHostState(),
@@ -457,7 +458,7 @@ private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAcc
     override fun onClick() = Unit
 }
 
-private object AndroidPreviewPostListener : PostScreenUiState.Listener {
+private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
 
     override fun onClickAddImage() = Unit
