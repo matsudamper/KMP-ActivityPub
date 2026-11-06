@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
@@ -164,7 +165,7 @@ internal class PostDetailScreenViewModel(
     private fun updateLiked(liked: Boolean) {
         viewModelStateFlow.update { state ->
             val post = state.post as? PostState.Loaded ?: return@update state
-            state.copy(post = PostState.Loaded(post.post.copy(body = post.post.body.copy(likedByMe = liked))))
+            state.copy(post = PostState.Loaded(post.post.copy(body = post.post.body.withLiked(liked))))
         }
     }
 

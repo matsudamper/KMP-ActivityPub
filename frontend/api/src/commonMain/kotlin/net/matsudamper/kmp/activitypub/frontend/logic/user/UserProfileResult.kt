@@ -42,5 +42,5 @@ sealed interface UserProfileResult {
  * いいねを変えた結果を、取得し直さずに反映する
  */
 fun UserProfileResult.Found.withLiked(likePostId: String, liked: Boolean): UserProfileResult.Found {
-    return copy(posts = posts.map { if (it.likePostId == likePostId) it.copy(body = it.body.copy(likedByMe = liked)) else it })
+    return copy(posts = posts.map { if (it.likePostId == likePostId) it.copy(body = it.body.withLiked(liked)) else it })
 }
