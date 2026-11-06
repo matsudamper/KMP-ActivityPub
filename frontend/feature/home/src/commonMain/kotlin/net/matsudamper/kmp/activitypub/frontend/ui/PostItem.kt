@@ -271,6 +271,6 @@ private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { 
         ),
     )
     layout(constraints.maxWidth, placeable.height) {
-        placeable.place(-startPx, 0)
+        placeable.placeRelative(-startPx, 0)
     }
 }
