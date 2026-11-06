@@ -45,5 +45,5 @@ class ValkeyPasskeyChallengeStore(
     private fun valueOf(
         purpose: PasskeyChallengePurpose,
         accountId: AccountId?,
-    ): String = "${purpose.name}:${accountId?.value ?: ""}"
+    ): String = "${purpose.name}:${accountId?.value?.toString().orEmpty()}"
 }

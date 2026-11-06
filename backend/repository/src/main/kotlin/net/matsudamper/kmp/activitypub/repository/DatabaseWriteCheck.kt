@@ -14,7 +14,10 @@ object DatabaseWriteCheck {
      */
     fun verify(databasePath: Path) {
         val path = databasePath.toAbsolutePath().normalize()
-        path.parent?.let { Files.createDirectories(it) }
+        val parentDirectory = path.parent
+        if (parentDirectory != null) {
+            Files.createDirectories(parentDirectory)
+        }
 
         val writtenAt = Instant.now().toString()
         val readBack =

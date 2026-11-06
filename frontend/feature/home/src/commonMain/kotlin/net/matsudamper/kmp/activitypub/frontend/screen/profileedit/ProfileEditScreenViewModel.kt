@@ -230,7 +230,7 @@ internal class ProfileEditScreenViewModel(
 
                 is ViewModelState.Loaded -> ProfileEditScreenUiState.Content.Loaded(
                     iconPreview = viewModelState.iconPreview,
-                    iconUploading = viewModelState.processingIcon,
+                    iconLoadingVisible = viewModelState.processingIcon,
                     currentIconUrl = viewModelState.currentIconUrl,
                     iconSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                     displayName = viewModelState.displayName,

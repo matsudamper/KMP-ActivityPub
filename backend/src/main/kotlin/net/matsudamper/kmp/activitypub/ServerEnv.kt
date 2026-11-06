@@ -82,22 +82,6 @@ class ServerEnv(
     val passkeyRelyingParty: PasskeyRelyingParty? =
         if (enablePasskey) createPasskeyRelyingParty() else null
 
-    private fun createPasskeyRelyingParty(): PasskeyRelyingParty {
-        val rpId = requireNotNull(env["PASSKEY_RP_ID"]?.ifEmpty { null }) { "PASSKEY_RP_ID を設定すること" }
-        val webOrigins =
-            env["PASSKEY_ORIGINS"]
-                ?.ifEmpty { null }
-                ?.split(',')
-                ?.map { it.trim() }
-                ?.filter { it.isNotEmpty() }
-                ?.toSet()
-                ?: setOf("https://$rpId")
-        return PasskeyRelyingParty(
-            id = rpId,
-            origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
-        )
-    }
-
     val enableS3: Boolean = requireNotNull(booleanOf("ENABLE_S3")) { "ENABLE_S3 を true か false で設定すること" }
 
     /**
@@ -125,6 +109,22 @@ class ServerEnv(
         } else {
             null
         }
+
+    private fun createPasskeyRelyingParty(): PasskeyRelyingParty {
+        val rpId = requireNotNull(env["PASSKEY_RP_ID"]?.ifEmpty { null }) { "PASSKEY_RP_ID を設定すること" }
+        val webOrigins =
+            env["PASSKEY_ORIGINS"]
+                ?.ifEmpty { null }
+                ?.split(',')
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() }
+                ?.toSet()
+                ?: setOf("https://$rpId")
+        return PasskeyRelyingParty(
+            id = rpId,
+            origins = webOrigins + passkeyAndroidApp?.origins.orEmpty(),
+        )
+    }
 
     private fun booleanOf(name: String): Boolean? =
         env[name]?.ifEmpty { null }?.let { raw ->

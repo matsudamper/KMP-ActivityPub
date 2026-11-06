@@ -4,6 +4,8 @@ import java.nio.file.Path
 import kotlin.system.exitProcess
 
 object AccountRegistrationCli {
+    private const val DEFAULT_DATABASE_PATH = "data/kmp-activitypub.db"
+
     /**
      * ユーザー名とパスワードはシェルの履歴と `ps` に残らないよう、聞いたあと標準入力から受ける。
      * パスワードの照合は入力そのままなので前後の空白は落とさない
@@ -34,6 +36,4 @@ object AccountRegistrationCli {
 
         println("$username を登録した")
     }
-
-    private const val DEFAULT_DATABASE_PATH = "data/kmp-activitypub.db"
 }

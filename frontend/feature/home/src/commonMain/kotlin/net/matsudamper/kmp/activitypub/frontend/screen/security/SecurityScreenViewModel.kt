@@ -338,6 +338,12 @@ internal class SecurityScreenViewModel(
             passkeyDeleteDialog is PasskeyDeleteDialogState.Deleting ||
             passwordDeleteDialog == PasswordDeleteDialogState.Deleting
 
+    internal interface Event {
+        fun navigateBack()
+
+        fun showMessage(message: String)
+    }
+
     private data class ViewModelState(
         val passkeys: PasskeysState,
         val passkeyName: String,
@@ -365,7 +371,7 @@ internal class SecurityScreenViewModel(
         Deleting,
     }
 
-    sealed interface PasskeysState {
+    private sealed interface PasskeysState {
         data object Loading : PasskeysState
 
         data class Loaded(
@@ -378,7 +384,7 @@ internal class SecurityScreenViewModel(
         ) : PasskeysState
     }
 
-    sealed interface Outcome {
+    private sealed interface Outcome {
         data object Added : Outcome
 
         data object Deleted : Outcome
@@ -392,12 +398,6 @@ internal class SecurityScreenViewModel(
         data class PasswordError(
             val message: String,
         ) : Outcome
-    }
-
-    internal interface Event {
-        fun navigateBack()
-
-        fun showMessage(message: String)
     }
 }
 

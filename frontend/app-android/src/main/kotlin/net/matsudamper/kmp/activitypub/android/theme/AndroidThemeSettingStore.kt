@@ -40,6 +40,12 @@ internal class AndroidThemeSettingStore(
         }
 }
 
+private val Context.themeSettingDataStore: DataStore<ThemeSetting> by dataStore(
+    fileName = "theme_setting.pb",
+    serializer = ThemeSettingSerializer,
+    corruptionHandler = ReplaceFileCorruptionHandler { ThemeSetting.getDefaultInstance() },
+)
+
 private fun ThemeModeProto.toThemeMode(): ThemeMode =
     when (this) {
         ThemeModeProto.THEME_MODE_PROTO_LIGHT -> ThemeMode.Light
@@ -53,12 +59,6 @@ private fun ThemeMode.toProto(): ThemeModeProto =
         ThemeMode.Light -> ThemeModeProto.THEME_MODE_PROTO_LIGHT
         ThemeMode.Dark -> ThemeModeProto.THEME_MODE_PROTO_DARK
     }
-
-private val Context.themeSettingDataStore: DataStore<ThemeSetting> by dataStore(
-    fileName = "theme_setting.pb",
-    serializer = ThemeSettingSerializer,
-    corruptionHandler = ReplaceFileCorruptionHandler { ThemeSetting.getDefaultInstance() },
-)
 
 private object ThemeSettingSerializer : Serializer<ThemeSetting> {
     override val defaultValue: ThemeSetting = ThemeSetting.getDefaultInstance()

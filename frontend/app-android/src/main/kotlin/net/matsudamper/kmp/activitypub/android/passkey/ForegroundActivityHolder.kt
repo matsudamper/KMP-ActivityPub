@@ -9,9 +9,9 @@ import org.koin.core.annotation.Singleton
  */
 @Singleton
 internal class ForegroundActivityHolder {
-    private var reference: WeakReference<Activity>? = null
-
     val current: Activity? get() = reference?.get()
+
+    private var reference: WeakReference<Activity>? = null
 
     fun attach(activity: Activity) {
         reference = WeakReference(activity)
