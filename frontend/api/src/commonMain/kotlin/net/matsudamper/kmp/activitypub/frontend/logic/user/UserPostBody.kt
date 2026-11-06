@@ -7,6 +7,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * @param favouriteCount 他のサーバーの投稿は数を受け取らないので null
  * @param boostCount 他のサーバーの投稿は数を受け取らないので null
  * @param stamps 多く押された順
+ * @param likedByMe ログイン中のアカウントがいいねしているか。いいねできない投稿は null
  */
 data class UserPostBody(
     val content: String,
@@ -18,6 +19,7 @@ data class UserPostBody(
     val favouriteCount: Int?,
     val boostCount: Int?,
     val stamps: List<UserPostStamp>,
+    val likedByMe: Boolean?,
 )
 
 /**

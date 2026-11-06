@@ -24,6 +24,28 @@ private fun ProfileEditContentPreview() {
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
+                    summary = "Kotlin で ActivityPub サーバーを作っています。\nよろしくお願いします。",
+                    summaryInputEnabled = true,
+                    summaryHasError = false,
+                    links = listOf(
+                        ProfileEditScreenUiState.Link(
+                            title = "リンク 1",
+                            name = "GitHub",
+                            url = "https://github.com/user1",
+                            inputEnabled = true,
+                            hasError = false,
+                            removeButtonEnabled = true,
+                        ),
+                        ProfileEditScreenUiState.Link(
+                            title = "リンク 2",
+                            name = "Blog",
+                            url = "ftp://blog.example",
+                            inputEnabled = true,
+                            hasError = true,
+                            removeButtonEnabled = true,
+                        ),
+                    ),
+                    addLinkButtonEnabled = true,
                     saveButtonEnabled = true,
                 ),
                 backButtonEnabled = true,
@@ -65,6 +87,11 @@ private fun ProfileEditContentIconUploadingPreview() {
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
+                    summary = "",
+                    summaryInputEnabled = true,
+                    summaryHasError = false,
+                    links = listOf(),
+                    addLinkButtonEnabled = true,
                     saveButtonEnabled = false,
                 ),
                 backButtonEnabled = false,
@@ -81,6 +108,22 @@ private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.List
     override fun onIconPicked(file: PickedImageFile) = Unit
 
     override fun onDisplayNameChanged(text: String) = Unit
+
+    override fun onSummaryChanged(text: String) = Unit
+
+    override fun onLinkNameChanged(
+        index: Int,
+        text: String,
+    ) = Unit
+
+    override fun onLinkUrlChanged(
+        index: Int,
+        text: String,
+    ) = Unit
+
+    override fun onClickAddLink() = Unit
+
+    override fun onClickRemoveLink(index: Int) = Unit
 
     override fun onClickSave() = Unit
 

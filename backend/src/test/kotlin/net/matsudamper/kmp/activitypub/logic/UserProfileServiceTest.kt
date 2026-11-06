@@ -169,6 +169,7 @@ class UserProfileServiceTest {
             images = listOf(image),
             favouriteCount = null,
             stamps = listOf(),
+            likedByMe = null,
             boostCount = null,
             boostedBy = null,
             localPublicId = null,

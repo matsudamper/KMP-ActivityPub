@@ -7,8 +7,16 @@ type User {
 
 type UserProfile {
     user: SearchedUser!
+    "プロフィールの説明文。プレーンテキスト"
     biography: String
+    "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"
+    links: [ProfileLink!]!
     posts: [ProfilePost!]!
+}
+
+type ProfileLink {
+    name: String!
+    url: String!
 }
 
 type ProfilePost {

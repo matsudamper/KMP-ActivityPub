@@ -28,6 +28,7 @@ query PostDetailScreen($id: ID!) {
                 imageUrl
                 count
             }
+            likedByMe
         }
     }
 }

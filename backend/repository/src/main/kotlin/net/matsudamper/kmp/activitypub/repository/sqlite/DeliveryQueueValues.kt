@@ -10,6 +10,13 @@ internal object DeliveryQueueValues {
     const val KIND_CREATE_NOTE = "create_note"
     const val KIND_UPDATE_ACTOR = "update_actor"
     const val KIND_DELETE_NOTE = "delete_note"
+    const val KIND_LIKE = "like"
+    const val KIND_UNDO_LIKE = "undo_like"
+
+    /**
+     * 送っている途中にいいねを外した Like。送れなかったら送り直さずに消す
+     */
+    const val KIND_CANCELLED_LIKE = "cancelled_like"
 
     const val STATE_PENDING = "pending"
     const val STATE_DELIVERING = "delivering"

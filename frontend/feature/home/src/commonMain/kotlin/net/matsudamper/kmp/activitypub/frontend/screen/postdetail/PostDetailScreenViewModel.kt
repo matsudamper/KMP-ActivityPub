@@ -53,6 +53,11 @@ internal class PostDetailScreenViewModel(
      */
     private var linkPreviewRequested = false
 
+    /**
+     * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var likeChanging = false
+
     private val listener = object : PostDetailScreenUiState.Listener {
         override fun onClickRetry() {
             load()
@@ -112,6 +117,25 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private fun toggleLike() {
+        val loaded = viewModelStateFlow.value.post as? PostState.Loaded ?: return
+        val liked = loaded.post.body.likedByMe ?: return
+        if (likeChanging) return
+        likeChanging = true
+        viewModelScope.launch {
+            try {
+                updateLiked(!liked)
+                val error = api.setLiked(postId = postId, liked = !liked)
+                if (error != null) {
+                    updateLiked(liked)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                likeChanging = false
+            }
+        }
+    }
+
     private fun confirmNoteDeletion(noteId: String) {
         viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
@@ -134,6 +158,13 @@ internal class PostDetailScreenViewModel(
             } finally {
                 viewModelStateFlow.update { it.copy(noteDeletion = NoteDeletionState.None) }
             }
+        }
+    }
+
+    private fun updateLiked(liked: Boolean) {
+        viewModelStateFlow.update { state ->
+            val post = state.post as? PostState.Loaded ?: return@update state
+            state.copy(post = PostState.Loaded(post.post.copy(body = post.post.body.copy(likedByMe = liked))))
         }
     }
 
@@ -197,6 +228,7 @@ internal class PostDetailScreenViewModel(
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
             onToggleImageBlur = { url -> toggleImageBlur(url) },
+            onToggleLike = { toggleLike() },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews()

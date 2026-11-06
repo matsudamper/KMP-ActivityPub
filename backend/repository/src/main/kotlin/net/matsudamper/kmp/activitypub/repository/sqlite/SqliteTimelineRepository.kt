@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_IMAGES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
@@ -177,8 +178,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, Long::class.java), DSL.inline(null, Long::class.java),
                 DSL.inline(null, String::class.java),
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
-                .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(readable(dsl, accountId))
+                .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(dsl.remoteNoteReadableBy(accountId))
             val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
+            val likedRemoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
+                .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(remoteIds))
+                .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
             val stampsByMember = if (localIds.isEmpty()) mapOf() else dsl.stampCountsBy(NOTES.ID, NOTES.ID.`in`(localIds)).mapKeys { "l${it.key}" }
             val boosted = boostedPosts(dsl, accountId, boostIds)
             boosted + local.unionAll(remote).fetch { record ->
@@ -199,6 +203,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     imagesByMember[member].orEmpty(),
                     record.value12(),
                     stampsByMember[member].orEmpty(),
+                    if (actor == null) null else record.value1() in likedRemoteIds,
                     record.value14()?.let { PublicNoteId(it) },
                     record.value13(),
                     null,
@@ -211,7 +216,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val members = jooq.withConnection { dsl ->
             dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
-                .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(readable(dsl, accountId))
+                .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(dsl.remoteNoteReadableBy(accountId))
                 .orderBy(REMOTE_NOTES.SCORE_MS.desc(), REMOTE_NOTES.ID.desc()).limit(limit)
                 .fetch { it.toRemotePosition().member }
         }
@@ -229,7 +234,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).fetch(REMOTE_ACTORS.ID)
         val perActor = actorIds.flatMap { actorId ->
             val notes = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
-                .where(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(actorId)).and(readable(dsl, accountId))
+                .where(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(actorId)).and(dsl.remoteNoteReadableBy(accountId))
                 .and(olderThan(REMOTE_NOTES.SCORE_MS, remoteMember, after))
                 .orderBy(REMOTE_NOTES.SCORE_MS.desc(), remoteMember.desc()).limit(perActorLimit).fetch { it.toRemotePosition() }
             val boosts = dsl.select(REMOTE_BOOSTS.ID, REMOTE_BOOSTS.SCORE_MS).from(REMOTE_BOOSTS)
@@ -396,6 +401,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 images = imagesByNote["r${record.value3()}"].orEmpty(),
                 favouriteCount = null,
                 stamps = listOf(),
+                likedByMe = null,
                 localPublicId = null,
                 boostCount = null,
                 boostedBy = TimelineBooster(
@@ -407,23 +413,6 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 ),
             )
         }
-    }
-
-    private fun readable(dsl: DSLContext, accountId: AccountId): Condition {
-        val explicit = DSL.exists(
-            dsl.selectOne().from(REMOTE_NOTE_RECIPIENTS).where(REMOTE_NOTE_RECIPIENTS.REMOTE_NOTE_ID.eq(REMOTE_NOTES.ID))
-                .and(REMOTE_NOTE_RECIPIENTS.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_RECIPIENTS.KIND.eq("explicit")),
-        )
-        val follows = DSL.exists(
-            dsl.selectOne().from(ACCOUNT_FOLLOWING).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ACTOR_URI.eq(ACCOUNT_FOLLOWING.ACTOR_URI))
-                .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
-                .and(REMOTE_NOTES.VISIBILITY.ne("followers").or(ACCOUNT_FOLLOWING.ACCEPTED_AT.isNotNull)),
-        )
-        val followerRecipient = DSL.exists(
-            dsl.selectOne().from(REMOTE_NOTE_RECIPIENTS).where(REMOTE_NOTE_RECIPIENTS.REMOTE_NOTE_ID.eq(REMOTE_NOTES.ID))
-                .and(REMOTE_NOTE_RECIPIENTS.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_RECIPIENTS.KIND.eq("followers")),
-        )
-        return explicit.or(follows.and(REMOTE_NOTES.VISIBILITY.`in`("public", "unlisted").or(REMOTE_NOTES.VISIBILITY.eq("followers").and(followerRecipient))))
     }
 
     private fun olderThan(score: Field<Long?>, member: Field<String?>, after: TimelinePosition?): Condition =

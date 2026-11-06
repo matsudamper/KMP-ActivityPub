@@ -34,6 +34,7 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         deletableNoteId = localPublicId?.value,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
+        likedByMe = likedByMe,
         boostCount = boostCount?.toInt(),
         boostedBy = boostedBy?.let { booster ->
             QlPostBooster(

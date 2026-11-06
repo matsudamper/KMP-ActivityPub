@@ -26,6 +26,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     favouriteCount = it.favouriteCount,
                     boostCount = it.boostCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                    likedByMe = it.likedByMe,
                 ),
                 boostedBy = it.boostedBy?.let { booster ->
                     UserHomeTimelineResult.Booster(username = booster.username, host = booster.host, displayName = booster.displayName)
@@ -64,9 +65,23 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
                 HomeTimelineQuery.BoostedBy(__typename = "PostBooster", username = booster.username, host = booster.host, displayName = booster.displayName)
             },
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+            likedByMe = it.body.likedByMe,
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))
+}
+
+/**
+ * いいねを変えた結果を、取得し直さずに反映する
+ */
+fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    return copy(
+        userInfo = info.copy(
+            homeTimeline = timeline.copy(posts = timeline.posts.map { if (it.id == postId) it.copy(likedByMe = liked) else it }),
+        ),
+    )
 }
 
 /**

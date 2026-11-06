@@ -27,6 +27,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -238,6 +239,17 @@ internal class UserProfileScreenViewModel(
             iconUrl = profile.iconUrl,
             displayName = profile.displayName,
             biography = profile.biography,
+            links = profile.links.map { link ->
+                ProfileLinkUiState(
+                    name = link.name,
+                    url = link.url,
+                    listener = object : ProfileLinkUiState.Listener {
+                        override fun onClick() {
+                            viewModelScope.launch { events.send { it.openUrl(link.url) } }
+                        }
+                    },
+                )
+            },
             followButton = if (profile.actorUri == null) {
                 null
             } else {
@@ -265,6 +277,8 @@ internal class UserProfileScreenViewModel(
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                     onToggleImageBlur = { url -> toggleImageBlur(url) },
+                    // プロフィールの投稿はいいねの状態を取っていないので押せない
+                    onToggleLike = {},
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)
