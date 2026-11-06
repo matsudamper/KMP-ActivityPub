@@ -28,7 +28,7 @@ data class ProfileLinkUiState(
 @Composable
 internal fun ProfileLinks(
     links: List<ProfileLinkUiState>,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier,
