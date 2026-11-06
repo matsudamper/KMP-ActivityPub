@@ -261,6 +261,7 @@ class UserApi(
             posts = profile.posts.map {
                 UserProfileResult.Post(
                     linkPreviewId = it.linkPreviewId,
+                    postId = it.postId,
                     body = UserPostBody(
                         content = it.content,
                         publishedAt = it.publishedAt,

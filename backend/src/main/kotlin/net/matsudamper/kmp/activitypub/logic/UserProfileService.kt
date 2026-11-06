@@ -35,6 +35,8 @@ class UserProfileService(
             val localNoteIds = localNotes.map { it.publicId }.toSet()
             val favouriteCounts = favourites.counts(localNoteIds)
             val stampCounts = stamps.counts(localNoteIds)
+            // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分のものだけ
+            val ownProfile = account.id == viewer
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, null),
                 following = false,
@@ -46,6 +48,7 @@ class UserProfileService(
                         summary = null,
                         sensitive = false,
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
+                        postId = if (ownProfile) timeline.localPosition(it.publicId.value)?.member else null,
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
@@ -99,6 +102,7 @@ class UserProfileService(
             summary = summary,
             sensitive = sensitive,
             linkPreviewId = position.member,
+            postId = position.member,
             images = images,
             favouriteCount = favouriteCount,
             stamps = stamps,
@@ -147,6 +151,7 @@ data class ProfilePost(
     val summary: String?,
     val sensitive: Boolean,
     val linkPreviewId: String?,
+    val postId: String?,
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,

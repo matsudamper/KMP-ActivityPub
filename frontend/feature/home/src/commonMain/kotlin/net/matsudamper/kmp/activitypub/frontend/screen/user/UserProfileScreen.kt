@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -38,7 +40,11 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -69,6 +75,10 @@ internal fun UserProfileScreen(
 
             override fun navigateToImage(url: String) {
                 navigator.navigate(Screen.Image(url = url))
+            }
+
+            override fun navigateToPostDetail(postId: String) {
+                navigator.navigate(Screen.PostDetail(postId = postId))
             }
         })
     }
@@ -103,37 +113,48 @@ internal fun UserProfileContent(
                 }
 
                 is UserProfileScreenUiState.Content.Loaded -> {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        item {
+                    LazyVerticalGrid(
+                        columns = ProfileGridCells,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        fullLineItem {
                             ProfileHeader(
                                 profile = content,
                                 onClickFollow = uiState.listener::onClickFollow,
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
-                        item {
-                            Text(
-                                text = "投稿",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        fullLineItem {
+                            ProfileContentTabRow(
+                                selectedTab = content.selectedTab,
+                                onClickTab = uiState.listener::onClickTab,
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
-                        val postsEmptyMessage = content.postsEmptyMessage
-                        if (postsEmptyMessage != null) {
-                            item {
-                                Text(
-                                    text = postsEmptyMessage,
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                        when (content.selectedTab) {
+                            ProfileContentTab.Posts -> {
+                                val postsEmptyMessage = content.postsEmptyMessage
+                                if (postsEmptyMessage != null) {
+                                    fullLineItem { EmptyMessage(text = postsEmptyMessage) }
+                                }
+                                items(
+                                    items = content.posts,
+                                    span = { GridItemSpan(maxLineSpan) },
+                                ) { post ->
+                                    Column {
+                                        PostItem(uiState = post)
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
+                                }
                             }
-                        }
-                        items(content.posts) { post ->
-                            PostItem(uiState = post)
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            ProfileContentTab.Media -> {
+                                val mediaEmptyMessage = content.mediaEmptyMessage
+                                if (mediaEmptyMessage != null) {
+                                    fullLineItem { EmptyMessage(text = mediaEmptyMessage) }
+                                }
+                                items(content.media) { media ->
+                                    ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -155,6 +176,20 @@ internal fun UserProfileContent(
             }
         }
     }
+}
+
+private fun LazyGridScope.fullLineItem(content: @Composable () -> Unit) {
+    item(span = { GridItemSpan(maxLineSpan) }) { content() }
+}
+
+@Composable
+private fun EmptyMessage(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

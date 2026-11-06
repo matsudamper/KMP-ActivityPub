@@ -30,7 +30,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -68,6 +70,7 @@ internal class HomeScreenViewModel(
                 ),
                 profile = ProfileState.Loading,
                 myPosts = MyPostsState.Loading,
+                userContentTab = ProfileContentTab.Posts,
             ),
         )
     private val timelinePaging = userApi.homeTimelinePaging()
@@ -174,6 +177,10 @@ internal class HomeScreenViewModel(
 
         override fun onClickRetryUserPosts() {
             retryMyPosts()
+        }
+
+        override fun onClickUserContentTab(tab: ProfileContentTab) {
+            viewModelStateFlow.update { it.copy(userContentTab = tab) }
         }
 
         override fun onClickFollowing() {
@@ -569,6 +576,7 @@ internal class HomeScreenViewModel(
                 result = createSearchResult(viewModelState.search),
             ),
             profile = createProfile(profile),
+            userContentTab = viewModelState.userContentTab,
             userPosts = createUserPosts(viewModelState),
             userTabIconUrl = (profile as? ProfileState.Loaded)?.profile?.iconUrl,
             listener = listener,
@@ -611,6 +619,9 @@ internal class HomeScreenViewModel(
 
             is MyPostsState.Loaded -> {
                 val profile = myPosts.profile
+                val media = createProfileMedia(profile.posts) { postId ->
+                    viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
+                }
                 HomeScreenUiState.UserPosts.Loaded(
                     items = profile.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
@@ -636,6 +647,8 @@ internal class HomeScreenViewModel(
                         )
                     },
                     emptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
+                    media = media,
+                    mediaEmptyMessage = if (media.isEmpty()) "表示できるメディアはありません" else null,
                 )
             }
         }
@@ -787,6 +800,7 @@ internal class HomeScreenViewModel(
         val search: SearchState,
         val profile: ProfileState,
         val myPosts: MyPostsState,
+        val userContentTab: ProfileContentTab,
     )
 
     /**

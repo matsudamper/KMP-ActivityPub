@@ -56,6 +56,7 @@ class QueryResolverImpl : QueryResolver {
                                 summary = body.summary,
                                 sensitive = body.sensitive,
                                 linkPreviewId = post.linkPreviewId,
+                                postId = post.postId,
                                 linkUrls = body.linkUrls,
                                 images = body.images,
                                 favouriteCount = post.favouriteCount?.toInt(),
