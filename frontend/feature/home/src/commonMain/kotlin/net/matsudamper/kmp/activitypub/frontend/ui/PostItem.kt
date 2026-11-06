@@ -192,7 +192,7 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプ・共有はまだ押せないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプはまだ押せないので、押せないアイコンだけを置く
  */
 @Composable
 private fun PostActions(uiState: PostItemUiState) {
@@ -236,11 +236,15 @@ private fun PostActions(uiState: PostItemUiState) {
                 tint = disabledIconColor,
             )
         }
+        val shareListener = uiState.shareListener
         Icon(
             imageVector = AppIcons.Share,
             contentDescription = "共有",
-            modifier = Modifier.size(PostActionIconSize),
-            tint = disabledIconColor,
+            modifier = Modifier
+                .size(PostActionIconSize)
+                .clip(CircleShape)
+                .clickable(enabled = shareListener != null) { shareListener?.onClick() },
+            tint = if (shareListener == null) disabledIconColor else iconColor,
         )
     }
 }

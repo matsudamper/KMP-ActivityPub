@@ -123,6 +123,7 @@ class UserApi(
                     images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                     favouriteCount = post.favouriteCount,
                     stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                    shareUrl = post.url,
                 ),
             ),
         )
@@ -271,6 +272,7 @@ class UserApi(
                         images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                         favouriteCount = it.favouriteCount,
                         stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                        shareUrl = it.url,
                     ),
                 )
             },
@@ -459,6 +461,7 @@ class UserApi(
                                 images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                                 favouriteCount = post.favouriteCount,
                                 stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                                shareUrl = post.url,
                             ),
                         ),
                     ),

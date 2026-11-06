@@ -89,6 +89,7 @@ private fun HomeTimelinePreview(
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         postListener = AndroidPreviewPostListener,
+                        shareListener = AndroidPreviewShareListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
@@ -129,6 +130,7 @@ private fun HomeTimelinePreview(
                         ),
                         authorListener = AndroidPreviewAuthorListener,
                         postListener = AndroidPreviewPostListener,
+                        shareListener = AndroidPreviewShareListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
@@ -280,6 +282,7 @@ private fun HomeUserContentPreview() {
                             stamps = listOf(),
                             authorListener = null,
                             postListener = null,
+                            shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
                         ),
                     ),
@@ -334,6 +337,7 @@ private fun HomeUserMediaContentPreview() {
                             stamps = listOf(),
                             authorListener = null,
                             postListener = null,
+                            shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
                         ),
                     ),
@@ -419,6 +423,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
 }
 
 private object AndroidPreviewPostListener : PostItemUiState.PostListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewShareListener : PostItemUiState.ShareListener {
     override fun onClick() = Unit
 }
 

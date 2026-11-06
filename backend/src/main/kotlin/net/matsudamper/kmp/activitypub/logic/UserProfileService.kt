@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.StampRepository
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -52,6 +53,7 @@ class UserProfileService(
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
+                        noteRef = TimelineNoteRef.Local(it.publicId),
                     )
                 },
             )
@@ -106,6 +108,7 @@ class UserProfileService(
             images = images,
             favouriteCount = favouriteCount,
             stamps = stamps,
+            noteRef = noteRef,
         )
     }
 
@@ -144,6 +147,7 @@ data class UserProfile(
  * @param images URL にはしていない画像
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
+ * @param noteRef 投稿を外から指すための元
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -155,4 +159,5 @@ data class ProfilePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
+    val noteRef: TimelineNoteRef,
 )

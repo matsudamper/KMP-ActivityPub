@@ -34,6 +34,7 @@ private fun PostDetailContentPreview() {
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,
                         postListener = null,
+                        shareListener = null,
                         listener = AndroidPreviewPostItemListener,
                     ),
                 ),

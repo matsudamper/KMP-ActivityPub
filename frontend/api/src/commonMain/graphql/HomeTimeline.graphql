@@ -22,6 +22,7 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                     imageUrl
                     count
                 }
+                url
             }
             nextCursor
         }

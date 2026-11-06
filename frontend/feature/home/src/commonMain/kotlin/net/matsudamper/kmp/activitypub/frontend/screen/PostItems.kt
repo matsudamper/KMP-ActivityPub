@@ -24,8 +24,10 @@ internal fun createPostItemUiState(
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
+    onShare: (url: String) -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
+    val shareUrl = body.shareUrl
     return PostItemUiState(
         iconUrl = iconUrl,
         displayName = displayName,
@@ -55,6 +57,15 @@ internal fun createPostItemUiState(
         },
         authorListener = authorListener,
         postListener = postListener,
+        shareListener = if (shareUrl == null) {
+            null
+        } else {
+            object : PostItemUiState.ShareListener {
+                override fun onClick() {
+                    onShare(shareUrl)
+                }
+            }
+        },
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {
                 onVisible()
