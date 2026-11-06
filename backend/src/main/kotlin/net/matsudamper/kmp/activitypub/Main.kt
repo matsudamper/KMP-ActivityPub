@@ -156,6 +156,7 @@ internal fun Application.module(deps: AppDependencies) {
                 likeService = federation?.likeService,
                 profileIconUrls = federation?.profileIconUrls,
                 noteImageUrls = federation?.noteImageUrls,
+                noteShareUrls = federation?.noteShareUrls,
                 remoteImageProxy = federation?.remoteImageProxy,
                 linkPreviewService = federation?.linkPreviewService,
             ),

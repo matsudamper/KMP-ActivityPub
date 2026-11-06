@@ -32,6 +32,7 @@ query UserProfile($username: String!) {
                 imageUrl
                 count
             }
+            url
         }
     }
 }
