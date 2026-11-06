@@ -5,6 +5,7 @@ import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimeline
+import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
@@ -21,6 +22,13 @@ class UserInfoResolverImpl : UserInfoResolver {
                 nextCursor = page.nextCursor,
             )
             DataFetcherResult.Builder<QlHomeTimeline?>(result).build()
+        }
+
+    override fun post(userInfo: QlUserInfo, id: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlHomeTimelinePost?>> =
+        otelSupplyAsync {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val post = diContainer.homeTimelineService.post(userInfo.id, id)?.toQlHomeTimelinePost(diContainer)
+            DataFetcherResult.Builder<QlHomeTimelinePost?>(post).build()
         }
 
     override fun linkPreviews(userInfo: QlUserInfo, postId: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
