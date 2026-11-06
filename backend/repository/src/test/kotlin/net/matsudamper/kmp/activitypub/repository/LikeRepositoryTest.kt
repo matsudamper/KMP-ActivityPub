@@ -72,6 +72,34 @@ class LikeRepositoryTest {
         assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
     }
 
+    @Test
+    fun likeBeingDeliveredIsNotRetriedAfterUnlike() = withRepository { repositories, alice, bob ->
+        val member = receiveNote(repositories, alice, bob)
+        val likes = repositories.likeRepository
+        val queue = repositories.deliveryQueueRepository
+        likes.likeAndEnqueue(like(alice, member, "like-1"))
+        val delivering = queue.claim(NOW, 10).single()
+
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, "$ACTOR/inbox", NOW) { "undo:$it" })
+        queue.scheduleRetry(delivering.id, NOW, "接続失敗")
+
+        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+    }
+
+    @Test
+    fun likeBeingDeliveredIsNotRecoveredAfterUnlike() = withRepository { repositories, alice, bob ->
+        val member = receiveNote(repositories, alice, bob)
+        val likes = repositories.likeRepository
+        val queue = repositories.deliveryQueueRepository
+        likes.likeAndEnqueue(like(alice, member, "like-1"))
+        queue.claim(NOW, 10)
+
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, "$ACTOR/inbox", NOW) { "undo:$it" })
+        queue.recoverDelivering(NOW)
+
+        assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+    }
+
     private fun receiveNote(repositories: Repositories, vararg followers: AccountId): String {
         followers.forEach { repositories.followingRepository.add(it, ACTOR, NOW) }
         return assertNotNull(repositories.timelineRepository.receive(note("1", "public", setOf()))).member

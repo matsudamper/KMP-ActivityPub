@@ -72,6 +72,12 @@ internal class SqliteLikeRepository(
                 dsl.deleteFrom(DELIVERY_QUEUE).where(matchingLike)
                     .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
                     .execute()
+                // 送っている途中の行は消しても送信が止まらない。失敗したときに送り直して Undo の後に届かないよう、印を付ける
+                dsl.update(DELIVERY_QUEUE)
+                    .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_CANCELLED_LIKE)
+                    .where(matchingLike)
+                    .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
+                    .execute()
                 dsl.enqueue(accountId, inbox, undoBody(likeId), StoredInstant.format(now), DeliveryQueueValues.KIND_UNDO_LIKE)
             }
             true
