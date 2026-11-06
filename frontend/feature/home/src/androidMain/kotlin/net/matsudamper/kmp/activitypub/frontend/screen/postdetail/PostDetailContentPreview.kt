@@ -62,6 +62,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,
                         postListener = null,
+                        shareListener = null,
                         menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
                         listener = AndroidPreviewPostItemListener,
                     ),

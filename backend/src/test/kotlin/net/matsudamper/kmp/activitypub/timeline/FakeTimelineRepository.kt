@@ -4,10 +4,12 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 internal class FakeTimelineRepository : TimelineRepository {
     val positions = mutableListOf<TimelinePosition>()
@@ -45,7 +47,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
-        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), null, listOf(), null, null, null, null)
+        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), null, listOf(), null, TimelineNoteRef.Local(PublicNoteId(it.member)), null, null)
     }
 
     override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> =

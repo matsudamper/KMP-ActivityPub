@@ -53,6 +53,8 @@ internal fun PostItem(
     uiState: PostItemUiState,
     modifier: Modifier = Modifier,
 ) {
+    val authorListener = uiState.authorListener
+    val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
     val postListener = uiState.postListener
     val postInteractionSource = remember { HoverIgnoringInteractionSource() }
     val postClickModifier =
@@ -67,91 +69,56 @@ internal fun PostItem(
         }
     Column(
         modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = PostHorizontalPadding, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         val boostedByText = uiState.boostedByText
         if (boostedByText != null) {
             BoostedByLabel(text = boostedByText)
         }
-        PostItemContent(uiState = uiState)
-    }
-}
-
-/**
- * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
- */
-@Composable
-private fun BoostedByLabel(text: String) {
-    val color = MaterialTheme.colorScheme.onSurfaceVariant
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(PostIconBodySpacing),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(modifier = Modifier.width(PostIconSize), contentAlignment = Alignment.CenterEnd) {
-            Icon(
-                imageVector = AppIcons.Repeat,
-                contentDescription = null,
-                modifier = Modifier.size(PostActionIconSize),
-                tint = color,
-            )
-        }
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun PostItemContent(uiState: PostItemUiState) {
-    val authorListener = uiState.authorListener
-    val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(PostIconBodySpacing),
-    ) {
-        ProfileIcon(
-            iconUrl = uiState.iconUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .size(PostIconSize)
-                .clip(CircleShape)
-                .then(authorClickModifier),
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        Row(
+            modifier = authorClickModifier,
+            horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = authorClickModifier,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = uiState.displayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            ProfileIcon(
+                iconUrl = uiState.iconUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(PostIconSize)
+                    .clip(CircleShape),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = uiState.displayName,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = uiState.postedAt,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
                 Text(
                     text = uiState.acct,
-                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = uiState.postedAt,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
             }
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Text(
                 text = uiState.body,
                 style = MaterialTheme.typography.bodyMedium,
@@ -160,8 +127,8 @@ private fun PostItemContent(uiState: PostItemUiState) {
                 LazyRow(
                     modifier = Modifier
                         .padding(top = 8.dp)
-                        .bleedHorizontally(start = PostBodyStartOffset, end = PostHorizontalPadding),
-                    contentPadding = PaddingValues(start = PostBodyStartOffset, end = PostHorizontalPadding),
+                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding),
+                    contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.images) { image ->
@@ -195,6 +162,34 @@ private fun PostItemContent(uiState: PostItemUiState) {
     }
     LaunchedEffect(uiState.listener) {
         uiState.listener.onVisible()
+    }
+}
+
+/**
+ * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
+ */
+@Composable
+private fun BoostedByLabel(text: String) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.width(PostIconSize), contentAlignment = Alignment.CenterEnd) {
+            Icon(
+                imageVector = AppIcons.Repeat,
+                contentDescription = null,
+                modifier = Modifier.size(PostActionIconSize),
+                tint = color,
+            )
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -245,7 +240,7 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプ・共有はまだ押せないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプはまだ押せないので、押せないアイコンだけを置く
  */
 @Composable
 private fun PostActions(uiState: PostItemUiState) {
@@ -310,11 +305,15 @@ private fun PostActions(uiState: PostItemUiState) {
                 tint = disabledIconColor,
             )
         }
+        val shareListener = uiState.shareListener
         Icon(
             imageVector = AppIcons.Share,
             contentDescription = "共有",
-            modifier = Modifier.size(PostActionIconSize),
-            tint = disabledIconColor,
+            modifier = Modifier
+                .size(PostActionIconSize)
+                .clip(CircleShape)
+                .clickable(enabled = shareListener != null) { shareListener?.onClick() },
+            tint = if (shareListener == null) disabledIconColor else iconColor,
         )
         Spacer(modifier = Modifier.weight(1f))
         if (uiState.menuItems.isNotEmpty()) {
@@ -365,10 +364,9 @@ private val PostMenuButtonSize = 24.dp
 
 private val PostHorizontalPadding = 16.dp
 private val PostIconSize = 40.dp
-private val PostIconBodySpacing = 12.dp
-private val PostBodyStartOffset = PostHorizontalPadding + PostIconSize + PostIconBodySpacing
+private val PostIconHeaderSpacing = 12.dp
 
-// 本文カラムの外まで横スクロールの表示領域を広げ、スクロール中の画像がアイコンの右で切れないようにする
+// 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
 private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
     val startPx = start.roundToPx()
     val endPx = end.roundToPx()

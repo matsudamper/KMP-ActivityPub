@@ -44,7 +44,7 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿の数は受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  * @param likedByMe 読んでいるアカウントがいいねしているか。いいねできるのは他のサーバーの投稿だけなので、このサーバーの投稿は null
- * @param localPublicId このサーバーの投稿の公開 id。他のサーバーの投稿は null
+ * @param noteRef 投稿を外から指すための元。URL はこのサーバーのドメインで決まるので、ここでは作らない
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿の数は受け取らないので null
  * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
@@ -64,10 +64,21 @@ data class TimelinePost(
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
     val likedByMe: Boolean?,
-    val localPublicId: PublicNoteId?,
+    val noteRef: TimelineNoteRef,
     val boostCount: Long?,
     val boostedBy: TimelineBooster?,
-)
+) {
+    /**
+     * このサーバーの投稿の公開 id。他のサーバーの投稿は null
+     */
+    val localPublicId: PublicNoteId? get() = (noteRef as? TimelineNoteRef.Local)?.publicId
+}
+
+sealed interface TimelineNoteRef {
+    data class Local(val publicId: PublicNoteId) : TimelineNoteRef
+
+    data class Remote(val objectUri: String) : TimelineNoteRef
+}
 
 /**
  * @param username 相手の preferredUsername。無ければアクターの URI

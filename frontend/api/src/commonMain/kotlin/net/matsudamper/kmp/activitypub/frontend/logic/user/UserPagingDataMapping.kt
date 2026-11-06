@@ -26,6 +26,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     favouriteCount = it.favouriteCount,
                     boostCount = it.boostCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                    shareUrl = it.url,
                     likedByMe = it.likedByMe,
                 ),
                 boostedBy = it.boostedBy?.let { booster ->
@@ -65,6 +66,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
                 HomeTimelineQuery.BoostedBy(__typename = "PostBooster", username = booster.username, host = booster.host, displayName = booster.displayName)
             },
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+            url = it.body.shareUrl,
             likedByMe = it.body.likedByMe,
         )
     }

@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
@@ -176,7 +177,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
                 REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
                 REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, Long::class.java), DSL.inline(null, Long::class.java),
-                DSL.inline(null, String::class.java),
+                REMOTE_NOTES.OBJECT_URI,
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(dsl.remoteNoteReadableBy(accountId))
             val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -189,6 +190,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 val published = StoredInstant.parse(checkNotNull(record.value3()))
                 val actor = record.value6()
                 val member = "${if (actor == null) "l" else "r"}${record.value1()}"
+                val noteKey = checkNotNull(record.value14())
                 TimelinePost(
                     TimelinePosition(record.value9() ?: published.toEpochMilli(), member),
                     checkNotNull(record.value2()),
@@ -204,7 +206,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value12(),
                     stampsByMember[member].orEmpty(),
                     if (actor == null) null else record.value1() in likedRemoteIds,
-                    record.value14()?.let { PublicNoteId(it) },
+                    if (actor == null) TimelineNoteRef.Local(PublicNoteId(noteKey)) else TimelineNoteRef.Remote(noteKey),
                     record.value13(),
                     null,
                 )
@@ -372,6 +374,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE,
             REMOTE_ACTORS.ACTOR_URI, REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.DISPLAY_NAME, REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT,
             booster.ACTOR_URI, booster.PREFERRED_USERNAME, booster.DISPLAY_NAME, booster.ICON_URL, booster.UPDATED_AT,
+            REMOTE_NOTES.OBJECT_URI,
         ).from(REMOTE_BOOSTS)
             .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
@@ -402,7 +405,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 favouriteCount = null,
                 stamps = listOf(),
                 likedByMe = null,
-                localPublicId = null,
+                noteRef = TimelineNoteRef.Remote(checkNotNull(record.value18())),
                 boostCount = null,
                 boostedBy = TimelineBooster(
                     actorUri = boosterUri,

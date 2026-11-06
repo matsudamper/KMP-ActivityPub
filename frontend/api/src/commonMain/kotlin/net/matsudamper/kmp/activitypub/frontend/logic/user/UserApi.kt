@@ -135,6 +135,7 @@ class UserApi(
                     favouriteCount = post.favouriteCount,
                     boostCount = post.boostCount,
                     stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                    shareUrl = post.url,
                     likedByMe = post.likedByMe,
                 ),
                 boostedBy = post.boostedBy?.let { UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName) },
@@ -311,6 +312,7 @@ class UserApi(
                         favouriteCount = it.favouriteCount,
                         boostCount = it.boostCount,
                         stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                        shareUrl = it.url,
                         // プロフィールの投稿は、いいねの状態を取っていない
                         likedByMe = null,
                     ),
@@ -547,6 +549,7 @@ class UserApi(
                                 favouriteCount = post.favouriteCount,
                                 boostCount = post.boostCount,
                                 stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                                shareUrl = post.url,
                                 likedByMe = post.likedByMe,
                             ),
                             boostedBy = post.boostedBy?.let {

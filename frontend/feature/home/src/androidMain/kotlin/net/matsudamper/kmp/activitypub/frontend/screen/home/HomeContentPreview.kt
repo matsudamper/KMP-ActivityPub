@@ -112,6 +112,7 @@ private fun HomeTimelinePreview(
                         authorListener = AndroidPreviewAuthorListener,
                         menuItems = listOf(),
                         postListener = AndroidPreviewPostListener,
+                        shareListener = AndroidPreviewShareListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
@@ -159,6 +160,7 @@ private fun HomeTimelinePreview(
                         authorListener = AndroidPreviewAuthorListener,
                         menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
                         postListener = AndroidPreviewPostListener,
+                        shareListener = AndroidPreviewShareListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
@@ -327,6 +329,7 @@ private fun HomeUserContentPreview() {
                             authorListener = null,
                             menuItems = listOf(),
                             postListener = null,
+                            shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
                         ),
                     ),
@@ -390,6 +393,7 @@ private fun HomeUserMediaContentPreview() {
                             authorListener = null,
                             menuItems = listOf(),
                             postListener = null,
+                            shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
                         ),
                     ),
@@ -438,6 +442,7 @@ private fun HomeColumnsContentPreview() {
                         favouriteButton = null,
                         stamps = listOf(),
                         postListener = AndroidPreviewPostListener,
+                        shareListener = AndroidPreviewShareListener,
                         menuItems = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         listener = AndroidPreviewTimelineItemListener,
@@ -576,6 +581,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
 }
 
 private object AndroidPreviewPostListener : PostItemUiState.PostListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewShareListener : PostItemUiState.ShareListener {
     override fun onClick() = Unit
 }
 
