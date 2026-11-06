@@ -132,8 +132,10 @@ internal class HomeScreenViewModel(
 
         override fun onPostColumnFinished() {
             onClickCloseColumn(HomeScreenUiState.Column.Post)
-            // 単独の投稿画面から戻るときはホームの再表示で読み直すが、カラムではホームが出たままなので自分の投稿をここで読み直す
+            // 単独の投稿画面から戻るときはホームの再表示で読み直すが、カラムではホームが出たままなので、ここで同じものを読み直す。
+            // 新着受信を止めている間は流れてこないので、タイムラインも読み直さないと自分の投稿が出ない
             loadProfile()
+            loadTimeline(TimelineLoadTrigger.ScreenShown)
         }
 
         override fun onTabChanged(tab: HomeScreenUiState.Tab) {
