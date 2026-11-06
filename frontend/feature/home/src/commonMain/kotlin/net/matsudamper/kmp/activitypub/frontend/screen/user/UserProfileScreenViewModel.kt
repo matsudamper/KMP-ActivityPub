@@ -15,10 +15,16 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.confirm
+import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
+import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import org.koin.core.annotation.InjectedParam
@@ -39,6 +45,7 @@ internal class UserProfileScreenViewModel(
                 linkPreviews = mapOf(),
                 blurToggledImageUrls = setOf(),
                 selectedTab = ProfileContentTab.Posts,
+                noteDeletion = NoteDeletionState.None,
             ),
         )
     private var loadJob: Job? = null
@@ -67,6 +74,16 @@ internal class UserProfileScreenViewModel(
         }
     }
 
+    private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
+        override fun onClickDelete() {
+            deleteNote()
+        }
+
+        override fun onDismiss() {
+            viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.dismiss()) }
+        }
+    }
+
     val uiStateFlow: StateFlow<UserProfileScreenUiState> =
         MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
             viewModelScope.launch {
@@ -82,6 +99,18 @@ internal class UserProfileScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            // ほかの画面で消した投稿もここで外す
+            api.deletedNoteIds.collect { noteId ->
+                updateProfile { profile ->
+                    if (profile is ProfileState.Loaded) {
+                        profile.copy(profile = profile.profile.copy(posts = profile.profile.posts.filterNot { it.deletableNoteId == noteId }))
+                    } else {
+                        profile
+                    }
+                }
+            }
+        }
         viewModelScope.launch {
             // フォローの変更はこの画面のものも他の画面のものもここで届く
             api.followingChanges.collect { change ->
@@ -128,6 +157,24 @@ internal class UserProfileScreenViewModel(
         }
     }
 
+    private fun confirmNoteDeletion(noteId: String) {
+        viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
+    }
+
+    private fun deleteNote() {
+        val confirming = viewModelStateFlow.value.noteDeletion as? NoteDeletionState.Confirming ?: return
+        val noteId = confirming.noteId
+        viewModelStateFlow.update { it.copy(noteDeletion = NoteDeletionState.Deleting(noteId)) }
+        viewModelScope.launch {
+            try {
+                val error = api.deleteNote(noteId)
+                events.send { it.showMessage(error ?: "投稿を削除しました") }
+            } finally {
+                viewModelStateFlow.update { it.copy(noteDeletion = NoteDeletionState.None) }
+            }
+        }
+    }
+
     private fun updateFollowingChangeInProgress(inProgress: Boolean) {
         updateProfile { profile ->
             if (profile is ProfileState.Loaded) profile.copy(followingChangeInProgress = inProgress) else profile
@@ -170,6 +217,7 @@ internal class UserProfileScreenViewModel(
                 ProfileState.NotFound -> UserProfileScreenUiState.Content.NotFound
                 is ProfileState.Failed -> UserProfileScreenUiState.Content.Error(profile.message)
             },
+            deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             listener = listener,
         )
     }
@@ -211,6 +259,7 @@ internal class UserProfileScreenViewModel(
                     sensitiveImagesBlurred = true,
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
                     authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
+                    menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
@@ -248,6 +297,7 @@ internal class UserProfileScreenViewModel(
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         val blurToggledImageUrls: Set<String>,
         val selectedTab: ProfileContentTab,
+        val noteDeletion: NoteDeletionState,
     )
 
     private sealed interface ProfileState {

@@ -26,6 +26,7 @@ import io.opentelemetry.sdk.trace.samplers.Sampler
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
+import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -191,6 +192,7 @@ class DeliveryQueueOpenTelemetryTest {
         override fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant) = error("未使用")
         override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) = error("未使用")
         override fun enqueueNote(post: NotePost): EnqueueNoteResult = error("未使用")
+        override fun enqueueNoteDeletion(deletion: NoteDeletion): Boolean = error("未使用")
         override fun updateProfile(update: ProfileUpdate): Boolean = error("未使用")
     }
 

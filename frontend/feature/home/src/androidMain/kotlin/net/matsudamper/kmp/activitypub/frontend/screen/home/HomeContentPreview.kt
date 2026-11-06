@@ -11,23 +11,25 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 @Preview
 @Composable
-private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving)
+private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving, deleteNoteDialog = null)
 
 @Preview
 @Composable
-private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving)
+private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving, deleteNoteDialog = null)
 
 @Preview
 @Composable
 private fun HomeContentPreviewError() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.Error("続きを読み込めませんでした"),
     streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+    deleteNoteDialog = null,
 )
 
 @Preview
@@ -35,6 +37,15 @@ private fun HomeContentPreviewError() = HomeTimelinePreview(
 private fun HomeContentPreviewStreamDisconnected() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.None,
     streamStatus = HomeScreenUiState.TimelineStreamStatus.Disconnected,
+    deleteNoteDialog = null,
+)
+
+@Preview
+@Composable
+private fun HomeContentPreviewDeleteNoteDialog() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.None,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+    deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
 )
 
 @Preview
@@ -42,12 +53,14 @@ private fun HomeContentPreviewStreamDisconnected() = HomeTimelinePreview(
 private fun HomeContentPreviewStreamWaitingToReconnect() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.None,
     streamStatus = HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect,
+    deleteNoteDialog = null,
 )
 
 @Composable
 private fun HomeTimelinePreview(
     footer: HomeScreenUiState.TimelineFooter,
     streamStatus: HomeScreenUiState.TimelineStreamStatus,
+    deleteNoteDialog: DeleteNoteDialogUiState?,
 ) {
     HomePreviewTheme {
         HomeContent(
@@ -88,6 +101,7 @@ private fun HomeTimelinePreview(
                         favouriteCountText = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
+                        menuItems = listOf(),
                         postListener = AndroidPreviewPostListener,
                         shareListener = AndroidPreviewShareListener,
                         listener = AndroidPreviewTimelineItemListener,
@@ -129,6 +143,7 @@ private fun HomeTimelinePreview(
                             PostItemUiState.Stamp(emoji = ":kotlin:", imageUrl = "https://example.com/kotlin.png", countText = "1"),
                         ),
                         authorListener = AndroidPreviewAuthorListener,
+                        menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
                         postListener = AndroidPreviewPostListener,
                         shareListener = AndroidPreviewShareListener,
                         listener = AndroidPreviewTimelineItemListener,
@@ -146,6 +161,7 @@ private fun HomeTimelinePreview(
                 userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                deleteNoteDialog = deleteNoteDialog,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -205,6 +221,7 @@ private fun HomeSearchContentPreview() {
                 userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -236,6 +253,7 @@ private fun HomeSearchEmptyContentPreview() {
                 userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -281,6 +299,7 @@ private fun HomeUserContentPreview() {
                             favouriteCountText = null,
                             stamps = listOf(),
                             authorListener = null,
+                            menuItems = listOf(),
                             postListener = null,
                             shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
@@ -291,6 +310,7 @@ private fun HomeUserContentPreview() {
                     mediaEmptyMessage = "表示できるメディアはありません",
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
+                deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -336,6 +356,7 @@ private fun HomeUserMediaContentPreview() {
                             favouriteCountText = null,
                             stamps = listOf(),
                             authorListener = null,
+                            menuItems = listOf(),
                             postListener = null,
                             shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
@@ -353,6 +374,7 @@ private fun HomeUserMediaContentPreview() {
                     mediaEmptyMessage = null,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
+                deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -410,6 +432,12 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onScreenShown() = Unit
 }
 
+private object AndroidPreviewDeleteNoteDialogListener : DeleteNoteDialogUiState.Listener {
+    override fun onClickDelete() = Unit
+
+    override fun onDismiss() = Unit
+}
+
 private object AndroidPreviewProfileMediaListener : ProfileMediaUiState.Listener {
     override fun onClick() = Unit
 }
@@ -431,6 +459,10 @@ private object AndroidPreviewShareListener : PostItemUiState.ShareListener {
 }
 
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewMenuItemListener : PostItemUiState.MenuItemListener {
     override fun onClick() = Unit
 }
 

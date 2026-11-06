@@ -10,6 +10,7 @@ subscription HomeTimelinePosts {
         sensitive
         linkUrls
         iconUrl
+        deletableNoteId
         images {
             url
             description

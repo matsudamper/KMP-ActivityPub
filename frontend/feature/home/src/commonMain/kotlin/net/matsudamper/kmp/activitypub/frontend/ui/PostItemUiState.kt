@@ -27,6 +27,10 @@ data class PostItemUiState(
      */
     val authorListener: AuthorListener?,
     /**
+     * 空ならメニューのボタンを出さない
+     */
+    val menuItems: List<MenuItem>,
+    /**
      * 押しても移る先が無いときは null で、投稿を押せなくする
      */
     val postListener: PostListener?,
@@ -36,6 +40,11 @@ data class PostItemUiState(
     val shareListener: ShareListener?,
     val listener: Listener,
 ) {
+    data class MenuItem(
+        val label: String,
+        val listener: MenuItemListener,
+    )
+
     /**
      * @param imageUrl null でも画像の枠は出す
      * @param faviconUrl imageUrl が null のとき、画像の枠の中央に小さく出す
@@ -93,6 +102,11 @@ data class PostItemUiState(
 
     @Immutable
     interface LinkPreviewListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface MenuItemListener {
         fun onClick()
     }
 

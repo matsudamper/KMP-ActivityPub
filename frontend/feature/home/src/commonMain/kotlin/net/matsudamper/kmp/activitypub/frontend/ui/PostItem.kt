@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,7 +20,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,8 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -60,14 +67,14 @@ internal fun PostItem(
             )
         }
     Row(
-        modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = PostHorizontalPadding, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(PostIconBodySpacing),
     ) {
         ProfileIcon(
             iconUrl = uiState.iconUrl,
             contentDescription = null,
             modifier = Modifier
-                .size(40.dp)
+                .size(PostIconSize)
                 .clip(CircleShape)
                 .then(authorClickModifier),
         )
@@ -108,7 +115,10 @@ internal fun PostItem(
             )
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .bleedHorizontally(start = PostBodyStartOffset, end = PostHorizontalPadding),
+                    contentPadding = PaddingValues(start = PostBodyStartOffset, end = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.images) { image ->
@@ -199,7 +209,7 @@ private fun PostActions(uiState: PostItemUiState) {
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
-        modifier = Modifier.padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(modifier = Modifier.width(PostActionSlotWidth)) {
@@ -246,9 +256,67 @@ private fun PostActions(uiState: PostItemUiState) {
                 .clickable(enabled = shareListener != null) { shareListener?.onClick() },
             tint = if (shareListener == null) disabledIconColor else iconColor,
         )
+        Spacer(modifier = Modifier.weight(1f))
+        if (uiState.menuItems.isNotEmpty()) {
+            PostMenu(menuItems = uiState.menuItems)
+        }
     }
 }
 
 private val PostActionIconSize = 18.dp
 
 private val PostActionSlotWidth = 64.dp
+
+@Composable
+private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.size(PostMenuButtonSize),
+        ) {
+            Icon(
+                imageVector = AppIcons.MoreVert,
+                contentDescription = "メニュー",
+                modifier = Modifier.size(PostActionIconSize),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            menuItems.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item.label) },
+                    onClick = {
+                        expanded = false
+                        item.listener.onClick()
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val PostMenuButtonSize = 24.dp
+
+private val PostHorizontalPadding = 16.dp
+private val PostIconSize = 40.dp
+private val PostIconBodySpacing = 12.dp
+private val PostBodyStartOffset = PostHorizontalPadding + PostIconSize + PostIconBodySpacing
+
+// 本文カラムの外まで横スクロールの表示領域を広げ、スクロール中の画像がアイコンの右で切れないようにする
+private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
+    val startPx = start.roundToPx()
+    val endPx = end.roundToPx()
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = constraints.maxWidth + startPx + endPx,
+            maxWidth = constraints.maxWidth + startPx + endPx,
+        ),
+    )
+    layout(constraints.maxWidth, placeable.height) {
+        placeable.placeRelative(-startPx, 0)
+    }
+}

@@ -27,6 +27,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
                     shareUrl = it.url,
                 ),
+                deletableNoteId = it.deletableNoteId,
             )
         },
         nextCursor = timeline.nextCursor,
@@ -53,12 +54,22 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             linkUrls = it.body.linkUrls,
             iconUrl = it.iconUrl,
             images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
+            deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
             url = it.body.shareUrl,
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))
+}
+
+/**
+ * 消した投稿を、取得し直さずに外す
+ */
+fun HomeTimelineQuery.Data.withoutNote(deletableNoteId: String): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = timeline.posts.filterNot { it.deletableNoteId == deletableNoteId })))
 }
 
 fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Success {

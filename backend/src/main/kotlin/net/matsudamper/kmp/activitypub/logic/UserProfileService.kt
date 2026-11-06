@@ -50,6 +50,7 @@ class UserProfileService(
                         sensitive = false,
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
                         postId = if (ownProfile) timeline.localPosition(it.publicId.value)?.member else null,
+                        deletableNoteId = if (ownProfile) it.publicId.value else null,
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
@@ -105,6 +106,7 @@ class UserProfileService(
             sensitive = sensitive,
             linkPreviewId = position.member,
             postId = position.member,
+            deletableNoteId = localPublicId?.value,
             images = images,
             favouriteCount = favouriteCount,
             stamps = stamps,
@@ -144,6 +146,7 @@ data class UserProfile(
 
 /**
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
+ * @param deletableNoteId 見ているアカウントの投稿なら deleteNote に渡す id。消せない投稿は null
  * @param images URL にはしていない画像
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
@@ -156,6 +159,7 @@ data class ProfilePost(
     val sensitive: Boolean,
     val linkPreviewId: String?,
     val postId: String?,
+    val deletableNoteId: String?,
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,

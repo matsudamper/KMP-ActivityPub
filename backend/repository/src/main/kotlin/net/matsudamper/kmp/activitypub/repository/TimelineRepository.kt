@@ -52,7 +52,12 @@ data class TimelinePost(
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
     val noteRef: TimelineNoteRef,
-)
+) {
+    /**
+     * このサーバーの投稿の公開 id。他のサーバーの投稿は null
+     */
+    val localPublicId: PublicNoteId? get() = (noteRef as? TimelineNoteRef.Local)?.publicId
+}
 
 sealed interface TimelineNoteRef {
     data class Local(val publicId: PublicNoteId) : TimelineNoteRef

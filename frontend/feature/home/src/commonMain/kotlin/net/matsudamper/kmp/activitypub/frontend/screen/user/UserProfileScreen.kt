@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
@@ -181,6 +182,10 @@ internal fun UserProfileContent(
                 }
             }
         }
+    }
+    val deleteNoteDialog = uiState.deleteNoteDialog
+    if (deleteNoteDialog != null) {
+        DeleteNoteDialog(uiState = deleteNoteDialog)
     }
 }
 

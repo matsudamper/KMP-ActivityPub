@@ -11,6 +11,7 @@ query PostDetailScreen($id: ID!) {
             sensitive
             linkUrls
             iconUrl
+            deletableNoteId
             images {
                 url
                 description
