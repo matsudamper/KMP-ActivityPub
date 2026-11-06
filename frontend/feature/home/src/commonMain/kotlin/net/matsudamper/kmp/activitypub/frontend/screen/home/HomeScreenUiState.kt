@@ -19,11 +19,27 @@ data class HomeScreenUiState(
     val userPosts: UserPosts,
     val userTabIconUrl: String?,
     /**
+     * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null
+     */
+    val openedColumn: Column?,
+    val railItems: List<RailItem>,
+    /**
      * 出していなければ null
      */
     val deleteNoteDialog: DeleteNoteDialogUiState?,
     val listener: Listener,
 ) {
+    enum class Column {
+        Post,
+        Search,
+        User,
+    }
+
+    data class RailItem(
+        val column: Column,
+        val selected: Boolean,
+    )
+
     sealed interface TimelineFooter {
         data object None : TimelineFooter
         data object Loading : TimelineFooter
@@ -112,6 +128,15 @@ data class HomeScreenUiState(
         fun onClickSettings()
 
         fun onClickTab(tab: Tab)
+
+        fun onClickRailItem(column: Column)
+
+        fun onClickCloseColumn(column: Column)
+
+        /**
+         * 投稿カラムでの投稿や戻る操作が終わったとき。投稿カラムを閉じている間にも呼ばれる
+         */
+        fun onPostColumnFinished()
 
         fun onTabChanged(tab: Tab)
 
