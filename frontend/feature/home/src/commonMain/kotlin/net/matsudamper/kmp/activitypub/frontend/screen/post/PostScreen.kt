@@ -29,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,17 +51,34 @@ internal fun PostScreen(
     navigationIcon: PostNavigationIcon,
     onNavigateBack: () -> Unit,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val uiState = rememberPostScreenUiState(
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    )
+    PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+}
+
+/**
+ * 投稿の結果を受け取り続ける。カラムとして出すときは閉じている間も送信が続くので、
+ * 投稿の中身を出していない間も呼び続けないと、完了の知らせが残って次に開いたカラムを閉じてしまう
+ */
+@Composable
+internal fun rememberPostScreenUiState(
+    onNavigateBack: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+): PostScreenUiState {
     val viewModel = koinViewModel<PostScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
 
-    LaunchedEffect(viewModel.eventHandler, onNavigateBack, pickImage) {
+    LaunchedEffect(viewModel.eventHandler, pickImage, snackbarHostState) {
         viewModel.eventHandler.collect(
             object : PostScreenViewModel.Event {
                 override fun navigateBack() {
-                    onNavigateBack()
+                    currentOnNavigateBack()
                 }
 
                 override fun openImagePicker() {
@@ -73,8 +91,7 @@ internal fun PostScreen(
             },
         )
     }
-
-    PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+    return uiState
 }
 
 /**

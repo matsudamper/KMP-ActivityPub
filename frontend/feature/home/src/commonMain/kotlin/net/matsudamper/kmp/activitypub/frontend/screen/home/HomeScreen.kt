@@ -67,8 +67,9 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
-import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -150,15 +151,22 @@ internal fun HomeScreen(
     }
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         if (maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH) {
+            // 投稿の知らせはホームの下に出す。投稿カラムは閉じていることがある
+            val postUiState = rememberPostScreenUiState(
+                onNavigateBack = { uiState.listener.onClickCloseColumn(HomeScreenUiState.Column.Post) },
+                snackbarHostState = snackbarHostState,
+            )
+            val postColumnSnackbarHostState = remember { SnackbarHostState() }
             HomeColumnsContent(
                 uiState = uiState,
                 snackbarHostState = snackbarHostState,
                 tabListStates = tabListStates,
                 postColumn = { modifier ->
                     Box(modifier = modifier) {
-                        PostScreen(
+                        PostContent(
+                            uiState = postUiState,
                             navigationIcon = PostNavigationIcon.Close,
-                            onNavigateBack = { uiState.listener.onClickCloseColumn(HomeScreenUiState.Column.Post) },
+                            snackbarHostState = postColumnSnackbarHostState,
                         )
                     }
                 },
