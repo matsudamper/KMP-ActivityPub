@@ -34,6 +34,11 @@ type UserMutation {
     icon は画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで
     """
     updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
+    """
+    ログインしているアカウントで、他のサーバーの投稿にいいねを付けるか外し、投稿者への Like か Undo を積む。
+    postId は HomeTimelinePost.id。既に望んだ状態なら何も積まずに成功する
+    """
+    setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
 }
 
 input UserLoginQuery {
@@ -119,6 +124,16 @@ enum UserPostNoteFailure {
 input UpdateProfileQuery {
     "空なら未設定に戻す"
     displayName: String
+    "プロフィールの説明文。プレーンテキスト。空なら未設定に戻す"
+    summary: String
+    "プロフィールのリンク集。並べる順に渡す。名前も URL も空の行は捨てる。空のリストなら消す"
+    links: [ProfileLinkInput!]
+}
+
+input ProfileLinkInput {
+    name: String!
+    "http か https の URL"
+    url: String!
 }
 
 type UpdateProfileResult {
@@ -129,6 +144,14 @@ enum UpdateProfileFailure {
     NOT_LOGGED_IN
     "表示名が長すぎる。上限は 30 文字"
     TOO_LONG
+    "説明文が長すぎる。上限は 500 文字"
+    SUMMARY_TOO_LONG
+    "リンクが多すぎる。上限は 4 件"
+    TOO_MANY_LINKS
+    "リンクの見出しか URL が長すぎる。上限はそれぞれ 255 文字"
+    LINK_TOO_LONG
+    "リンクの見出しが空か、URL が http / https ではない"
+    INVALID_LINK
     "サーバーに DOMAIN が無く、更新を配れない"
     FEDERATION_DISABLED
 }
@@ -173,6 +196,18 @@ enum UploadNoteImageFailure {
     UNSUPPORTED_OPERATION
     "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
+}
+
+type SetLikedResult {
+    failure: SetLikedFailure
+}
+
+enum SetLikedFailure {
+    NOT_LOGGED_IN
+    "読めない投稿か、いいねできないこのサーバーの投稿"
+    POST_NOT_FOUND
+    "サーバーに DOMAIN が無く、いいねを配れない"
+    FEDERATION_DISABLED
 }
 
 type DeleteNoteResult {

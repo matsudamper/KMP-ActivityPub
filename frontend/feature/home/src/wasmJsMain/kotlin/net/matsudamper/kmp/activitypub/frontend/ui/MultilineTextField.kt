@@ -13,6 +13,7 @@ internal actual fun MultilineTextField(
     inputName: String,
     enabled: Boolean,
     hasError: Boolean,
+    onSubmitShortcut: (() -> Unit)?,
     modifier: Modifier,
 ) {
     HtmlFormComponents.PlatformTextArea(
@@ -23,6 +24,7 @@ internal actual fun MultilineTextField(
         inputName = inputName,
         enabled = enabled,
         hasError = hasError,
+        onSubmitShortcut = onSubmitShortcut,
         modifier = modifier,
     )
 }

@@ -2,10 +2,13 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
+import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_KEYS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PASSWORDS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PROFILE_LINKS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.PASSKEYS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import org.jooq.impl.DSL
@@ -98,6 +101,30 @@ internal class SqliteAccountRepository(
                     passwordHashType = checkNotNull(record.get(ACCOUNT_PASSWORDS.PASSWORD_HASH_TYPE)),
                 )
             }
+    }
+
+    override fun findProfileDetail(username: String): AccountProfileDetail? = jooq.withConnection { dsl ->
+        val account =
+            dsl
+                .select(ACCOUNTS.ID, ACCOUNTS.SUMMARY)
+                .from(ACCOUNTS)
+                .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+                .fetchOne()
+                ?: return@withConnection null
+        val links =
+            dsl
+                .select(ACCOUNT_PROFILE_LINKS.NAME, ACCOUNT_PROFILE_LINKS.URL)
+                .from(ACCOUNT_PROFILE_LINKS)
+                .where(ACCOUNT_PROFILE_LINKS.ACCOUNT_ID.eq(account.get(ACCOUNTS.ID)))
+                .orderBy(ACCOUNT_PROFILE_LINKS.POSITION)
+                .fetch()
+                .map { record ->
+                    ProfileLink(
+                        name = checkNotNull(record.get(ACCOUNT_PROFILE_LINKS.NAME)),
+                        url = checkNotNull(record.get(ACCOUNT_PROFILE_LINKS.URL)),
+                    )
+                }
+        AccountProfileDetail(summary = account.get(ACCOUNTS.SUMMARY), links = links)
     }
 
     override fun findPublicKeyPem(username: String): String? = jooq.withConnection { dsl ->

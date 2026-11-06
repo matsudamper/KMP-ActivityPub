@@ -93,6 +93,7 @@ class AppDependencies(
                 timeline = homeTimelineService,
                 remoteActorRepository = repositories.remoteActorRepository,
                 favouriteRepository = repositories.favouriteRepository,
+                likeRepository = repositories.likeRepository,
                 stampRepository = repositories.stampRepository,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),

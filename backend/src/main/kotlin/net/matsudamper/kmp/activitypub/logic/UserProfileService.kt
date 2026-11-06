@@ -4,9 +4,11 @@ import java.net.URI
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.StampRepository
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -37,10 +39,12 @@ class UserProfileService(
             val stampCounts = stamps.counts(localNoteIds)
             // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分のものだけ
             val ownProfile = account.id == viewer
+            val detail = accounts.findProfileDetail(account.username)
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, null),
                 following = false,
-                biography = null,
+                biography = detail?.summary,
+                links = detail?.links.orEmpty(),
                 posts = localNotes.map {
                     ProfilePost(
                         contentHtml = it.contentHtml,
@@ -53,6 +57,7 @@ class UserProfileService(
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
+                        noteRef = TimelineNoteRef.Local(it.publicId),
                     )
                 },
             )
@@ -65,6 +70,7 @@ class UserProfileService(
                 user = SearchedUser(actor.actorUri, actor.preferredUsername, host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.updatedAt),
                 following = true,
                 biography = null,
+                links = listOf(),
                 posts = storedPosts(checkNotNull(viewer), actor.actorUri),
             )
         }
@@ -77,7 +83,8 @@ class UserProfileService(
         return UserProfile(
             user = SearchedUser(remote.user.actorUri, remote.user.username, actorHost, false, remote.user.displayName ?: remote.user.username, remote.user.iconUrl, null),
             following = remoteFollowed,
-            biography = remote.biography,
+            biography = remote.biography?.let { htmlToPlainText(it) },
+            links = listOf(),
             posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else profiles.recentPosts(remote.user.actorUri),
         )
     }
@@ -108,6 +115,7 @@ class UserProfileService(
             images = images,
             favouriteCount = favouriteCount,
             stamps = stamps,
+            noteRef = noteRef,
         )
     }
 
@@ -134,10 +142,15 @@ data class RemoteUserProfile(
     val biography: String?,
 )
 
+/**
+ * @param biography プレーンテキスト
+ * @param links 他のサーバーのユーザーのものは受け取っていないので空
+ */
 data class UserProfile(
     val user: SearchedUser,
     val following: Boolean,
     val biography: String?,
+    val links: List<ProfileLink>,
     val posts: List<ProfilePost>,
 )
 
@@ -147,6 +160,7 @@ data class UserProfile(
  * @param images URL にはしていない画像
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
+ * @param noteRef 投稿を外から指すための元
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -159,4 +173,5 @@ data class ProfilePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
+    val noteRef: TimelineNoteRef,
 )

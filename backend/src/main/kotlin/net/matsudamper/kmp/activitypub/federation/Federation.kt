@@ -9,9 +9,11 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
+import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
@@ -22,6 +24,7 @@ import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
@@ -65,6 +68,7 @@ internal class Federation(
     timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
+    likeRepository: LikeRepository,
     stampRepository: StampRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
@@ -75,6 +79,7 @@ internal class Federation(
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     val noteImageUrls: NoteImageUrls = NoteImageUrls(domain)
+    val noteShareUrls: NoteShareUrls = NoteShareUrls(domain)
     private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
@@ -115,6 +120,15 @@ internal class Federation(
                 val position = timelineRepository.localPosition(publicId.value)
                 if (position != null) timeline.enqueue(position)
             },
+        )
+
+    val likeService: LikeService =
+        LikeService(
+            directory = directory,
+            accountService = accountService,
+            likes = likeRepository,
+            clock = Clock.systemUTC(),
+            onEnqueued = deliveryQueueWorker::wakeUp,
         )
 
     val followDelivery = QueuedFollowDelivery(

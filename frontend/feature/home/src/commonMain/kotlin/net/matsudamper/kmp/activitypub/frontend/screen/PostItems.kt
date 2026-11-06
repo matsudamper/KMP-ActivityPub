@@ -25,8 +25,11 @@ internal fun createPostItemUiState(
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
+    onShare: (url: String) -> Unit,
+    onToggleLike: () -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
+    val shareUrl = body.shareUrl
     return PostItemUiState(
         iconUrl = iconUrl,
         displayName = displayName,
@@ -51,6 +54,16 @@ internal fun createPostItemUiState(
             )
         },
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
+        favouriteButton = body.likedByMe?.let { liked ->
+            PostItemUiState.FavouriteButton(
+                iconHighlighted = liked,
+                listener = object : PostItemUiState.FavouriteButtonListener {
+                    override fun onClick() {
+                        onToggleLike()
+                    }
+                },
+            )
+        },
         stamps = body.stamps.map { stamp ->
             PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
         },
@@ -79,6 +92,15 @@ internal fun createPostItemUiState(
             }
 
             PostTapAction.AlreadyOnPostDetail -> null
+        },
+        shareListener = if (shareUrl == null) {
+            null
+        } else {
+            object : PostItemUiState.ShareListener {
+                override fun onClick() {
+                    onShare(shareUrl)
+                }
+            }
         },
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {

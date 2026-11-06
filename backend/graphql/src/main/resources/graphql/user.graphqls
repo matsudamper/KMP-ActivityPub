@@ -7,8 +7,16 @@ type User {
 
 type UserProfile {
     user: SearchedUser!
+    "プロフィールの説明文。プレーンテキスト"
     biography: String
+    "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"
+    links: [ProfileLink!]!
     posts: [ProfilePost!]!
+}
+
+type ProfileLink {
+    name: String!
+    url: String!
 }
 
 type ProfilePost {
@@ -30,6 +38,8 @@ type ProfilePost {
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
+    "共有するときに渡す投稿の URL。作れなければ null"
+    url: String
 }
 
 type UserSearchResult {

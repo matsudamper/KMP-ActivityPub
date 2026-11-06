@@ -45,6 +45,10 @@ type Profile {
     displayName: String
     "プロフィール画像の URL。未設定なら null"
     iconUrl: String
+    "プロフィールの説明文。プレーンテキスト。未設定なら null"
+    summary: String
+    "プロフィールのリンク集。並べた順"
+    links: [ProfileLink!]!
     followingCount: Int!
     "成立したフォローだけを数える"
     followersCount: Int!
@@ -93,6 +97,10 @@ type HomeTimelinePost {
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
+    "共有するときに渡す投稿の URL。作れなければ null"
+    url: String
+    "ログイン中のアカウントがいいねしているか。いいねできるのは他のサーバーの投稿だけなので、このサーバーの投稿は null"
+    likedByMe: Boolean
 }
 
 type PostStamp {
