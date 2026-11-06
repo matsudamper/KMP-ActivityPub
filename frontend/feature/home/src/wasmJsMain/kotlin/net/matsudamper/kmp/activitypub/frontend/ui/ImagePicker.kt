@@ -52,7 +52,7 @@ internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -
         {
             val input = document.createElement("input") as HTMLInputElement
             input.type = "file"
-            input.accept = "image/png,image/jpeg,image/gif,image/webp"
+            input.accept = PICKABLE_IMAGE_TYPES.joinToString(",")
             input.addEventListener("change", {
                 val file = input.files?.get(0)
                 if (file != null) currentOnPick(BrowserImageFile(file))
@@ -62,7 +62,7 @@ internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -
     }
 }
 
-private class BrowserImageFile(
+internal class BrowserImageFile(
     private val file: File,
 ) : PickedImageFile {
     override suspend fun read(maxBytes: Int): PickedImageFile.ReadResult {
@@ -319,6 +319,8 @@ private fun Image.encodeWebpBytes(): ByteArray? {
  * 縮めずに原寸で展開するので、その大きさを抑える。4 バイト/画素で 256MB 程度。50MP のカメラの写真が入る大きさにする
  */
 private const val MAX_DECODED_PIXELS = 64_000_000L
+
+internal val PICKABLE_IMAGE_TYPES = listOf("image/png", "image/jpeg", "image/gif", "image/webp")
 
 /**
  * JPEG は寸法の前に EXIF などのメタデータが並ぶ。写真のメタデータはふつうこれに収まる

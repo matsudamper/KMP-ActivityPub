@@ -87,7 +87,7 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
 
-private class ContentUriImageFile(
+internal class ContentUriImageFile(
     private val context: Context,
     private val uri: Uri,
 ) : PickedImageFile {

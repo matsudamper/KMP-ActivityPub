@@ -31,8 +31,9 @@ internal class KotpubRemoteUserProfiles(
                 // outbox から取った投稿は閲覧注意かどうかを持っていない
                 summary = null,
                 sensitive = false,
-                // 保存していない投稿なので、後から OGP を取りに行く元が無い
+                // 保存していない投稿なので、後から OGP を取りに行く元も個別投稿画面で開く元も無い
                 linkPreviewId = null,
+                postId = null,
                 images = listOf(),
                 favouriteCount = null,
                 stamps = listOf(),

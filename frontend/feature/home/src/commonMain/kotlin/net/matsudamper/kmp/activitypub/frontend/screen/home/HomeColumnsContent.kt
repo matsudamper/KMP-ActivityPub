@@ -81,6 +81,7 @@ internal fun HomeColumnsContent(
                                 UserTabContent(
                                     listState = tabListStates.user,
                                     profile = uiState.profile,
+                                    userContentTab = uiState.userContentTab,
                                     userPosts = uiState.userPosts,
                                     listener = uiState.listener,
                                     modifier = contentModifier,

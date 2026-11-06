@@ -41,6 +41,8 @@ import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.ImageDropTarget
+import net.matsudamper.kmp.activitypub.frontend.ui.ImagePasteHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberImagePicker
@@ -56,7 +58,7 @@ internal fun PostScreen(
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
     )
-    PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+    PostContentWithImageInput(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
 }
 
 /**
@@ -92,6 +94,25 @@ internal fun rememberPostScreenUiState(
         )
     }
     return uiState
+}
+
+/**
+ * 貼り付けは画面全体で受けるので、投稿の中身を出している間だけ置く
+ */
+@Composable
+internal fun PostContentWithImageInput(
+    uiState: PostScreenUiState,
+    navigationIcon: PostNavigationIcon,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier,
+) {
+    ImagePasteHandler(onPaste = uiState.listener::onImagePicked)
+    ImageDropTarget(
+        onDrop = uiState.listener::onImagePicked,
+        modifier = modifier.fillMaxSize(),
+    ) {
+        PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+    }
 }
 
 /**
