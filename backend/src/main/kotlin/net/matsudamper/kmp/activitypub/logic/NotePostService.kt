@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
@@ -24,7 +25,7 @@ import net.matsudamper.kotpub.note.NoteUrls
 import org.slf4j.LoggerFactory
 
 /**
- * 投稿を記録して、フォロワーへの配信を積む。送るのは配信キューのワーカー。
+ * 投稿を記録して、フォロワーへの配信を積む。消すときも同じく Delete を積む。送るのは配信キューのワーカー。
  * 画像は先に [uploadImage] で置き、[post] には置いた画像の id を渡す
  *
  * @param imageStorage null なら画像を置けないので、画像付きの投稿はできない
@@ -172,6 +173,51 @@ class NotePostService(
         }
     }
 
+    /**
+     * 投稿を消して、フォロワーへの Delete を積む。
+     *
+     * 付けた画像は記録より先に置き場から消す。記録を先に消すと、画像を消せなかったときに
+     * どの投稿にも付いていない画像が置き場に残り、もう辿れない。
+     * 画像を消してから記録を消せずに終わっても、投稿は残るので消し直せる
+     */
+    fun delete(
+        username: String,
+        publicId: PublicNoteId,
+    ): DeleteNoteResult {
+        val sender = directory.resolve(username) ?: return DeleteNoteResult.AccountNotFound
+        val account = accountService.account(sender.username) ?: return DeleteNoteResult.AccountNotFound
+        val prepared =
+            publisher.prepareDelete(sender = sender, publicId = KotpubPublicNoteId(publicId.value))
+                ?: return DeleteNoteResult.NotFound
+        val note = noteRepository.find(publicId) ?: return DeleteNoteResult.NotFound
+
+        if (note.images.isNotEmpty()) {
+            val storage = imageStorage ?: return DeleteNoteResult.ImageStorageDisabled
+            note.images.forEach { image ->
+                val result = storage.delete(ImageStorage.DeleteRequest(ownerAccountId = account.id, path = ImagePath(image.path)))
+                if (result is ImageStorage.DeleteResult.Failure) {
+                    logger.error("投稿の画像を置き場から消せなかった: ${sender.acct} ${publicId.value} ${image.path}", result.cause)
+                    return DeleteNoteResult.ImageDeleteFailed
+                }
+            }
+        }
+
+        val deleted =
+            deliveryQueueRepository.enqueueNoteDeletion(
+                NoteDeletion(
+                    username = sender.username,
+                    publicId = publicId,
+                    deletedAt = clock.instant(),
+                    body = prepared.activityJson,
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username),
+                ),
+            )
+        if (!deleted) return DeleteNoteResult.NotFound
+        logger.info("投稿を消して Delete を積んだ: ${sender.acct} ${publicId.value}")
+        onEnqueued()
+        return DeleteNoteResult.Deleted
+    }
+
     private fun noteUrl(
         domain: String,
         publicId: PublicNoteId,
@@ -266,4 +312,28 @@ sealed interface PostNoteResult {
      * アカウントが無いか、鍵が無くてアクターとして扱えない
      */
     data object AccountNotFound : PostNoteResult
+}
+
+sealed interface DeleteNoteResult {
+    data object Deleted : DeleteNoteResult
+
+    /**
+     * 無いか、別のアカウントの投稿
+     */
+    data object NotFound : DeleteNoteResult
+
+    /**
+     * 画像の置き場が無く、付けた画像を消せない
+     */
+    data object ImageStorageDisabled : DeleteNoteResult
+
+    /**
+     * 付けた画像を置き場から消せなかった。投稿は残っている
+     */
+    data object ImageDeleteFailed : DeleteNoteResult
+
+    /**
+     * アカウントが無いか、鍵が無くてアクターとして扱えない
+     */
+    data object AccountNotFound : DeleteNoteResult
 }

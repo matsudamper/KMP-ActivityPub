@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.Note
+import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -36,6 +37,14 @@ internal class FakeDeliveryQueueRepository(
         notes.requestIds[post.username.lowercase() to post.requestId] = post.publicId
         notes.notes += Note(publicId = post.publicId, username = post.username, contentHtml = post.contentHtml, publishedAt = post.publishedAt, images = post.images)
         return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)
+    }
+
+    val noteDeletions = mutableListOf<NoteDeletion>()
+
+    override fun enqueueNoteDeletion(deletion: NoteDeletion): Boolean {
+        val removed = notes.notes.removeAll { it.publicId == deletion.publicId && it.username.equals(deletion.username, ignoreCase = true) }
+        if (removed) noteDeletions += deletion
+        return removed
     }
 
     override fun updateProfile(update: ProfileUpdate): Boolean {

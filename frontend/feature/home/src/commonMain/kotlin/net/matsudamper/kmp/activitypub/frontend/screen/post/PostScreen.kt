@@ -41,6 +41,8 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.ImageDropTarget
+import net.matsudamper.kmp.activitypub.frontend.ui.ImagePasteHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberImagePicker
@@ -55,6 +57,7 @@ internal fun PostScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
+    ImagePasteHandler(onPaste = uiState.listener::onImagePicked)
 
     LaunchedEffect(viewModel.eventHandler, navigator, pickImage) {
         viewModel.eventHandler.collect(
@@ -74,7 +77,12 @@ internal fun PostScreen(
         )
     }
 
-    PostContent(uiState = uiState, snackbarHostState = snackbarHostState)
+    ImageDropTarget(
+        onDrop = uiState.listener::onImagePicked,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        PostContent(uiState = uiState, snackbarHostState = snackbarHostState)
+    }
 }
 
 @Composable
