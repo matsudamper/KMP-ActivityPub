@@ -764,6 +764,7 @@ internal class HomeScreenViewModel(
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                             onToggleImageBlur = { url -> toggleImageBlur(url) },
+                            onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                             onToggleLike = {
                                 val likePostId = post.likePostId
                                 val likedByMe = post.body.likedByMe
@@ -809,6 +810,7 @@ internal class HomeScreenViewModel(
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onToggleImageBlur = { url -> toggleImageBlur(url) },
+                onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                 onToggleLike = {
                     val likedByMe = post.body.likedByMe
                     if (likedByMe != null) toggleLike(postId = post.id, likedByMe = likedByMe)
@@ -908,6 +910,8 @@ internal class HomeScreenViewModel(
         fun showMessage(message: String)
 
         fun openUrl(url: String)
+
+        fun shareUrl(url: String)
 
         fun navigateToImage(url: String)
 

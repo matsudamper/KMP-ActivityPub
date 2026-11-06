@@ -36,6 +36,7 @@ query UserProfile($username: String!) {
                 postId
                 likedByMe
             }
+            url
         }
     }
 }

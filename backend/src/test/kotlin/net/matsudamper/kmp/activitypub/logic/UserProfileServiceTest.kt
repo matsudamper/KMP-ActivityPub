@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
@@ -42,6 +43,7 @@ class UserProfileServiceTest {
                     favouriteCount = null,
                     stamps = listOf(),
                     like = null,
+                    noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
                 ),
             )
         }
@@ -170,7 +172,7 @@ class UserProfileServiceTest {
             favouriteCount = null,
             stamps = listOf(),
             likedByMe = false,
-            localPublicId = null,
+            noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
         )
 
     private companion object {

@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.StampRepository
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -61,6 +62,7 @@ class UserProfileService(
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
                         like = if (viewer == null || member == null) null else ProfilePostLike(postId = member, likedByMe = it.publicId in likedNoteIds),
+                        noteRef = TimelineNoteRef.Local(it.publicId),
                     )
                 },
             )
@@ -119,6 +121,7 @@ class UserProfileService(
             favouriteCount = favouriteCount,
             stamps = stamps,
             like = ProfilePostLike(postId = position.member, likedByMe = likedByMe),
+            noteRef = noteRef,
         )
     }
 
@@ -164,6 +167,7 @@ data class UserProfile(
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  * @param like いいねできない投稿は null
+ * @param noteRef 投稿を外から指すための元
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -176,6 +180,7 @@ data class ProfilePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
+    val noteRef: TimelineNoteRef,
     val like: ProfilePostLike?,
 )
 

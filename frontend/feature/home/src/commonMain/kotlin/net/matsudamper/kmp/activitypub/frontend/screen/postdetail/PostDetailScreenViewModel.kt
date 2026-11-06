@@ -228,6 +228,7 @@ internal class PostDetailScreenViewModel(
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
             onToggleImageBlur = { url -> toggleImageBlur(url) },
+            onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
             onToggleLike = { toggleLike() },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
@@ -245,6 +246,8 @@ internal class PostDetailScreenViewModel(
         fun navigateToUserProfile(username: String)
 
         fun openUrl(url: String)
+
+        fun shareUrl(url: String)
 
         fun navigateToImage(url: String)
     }

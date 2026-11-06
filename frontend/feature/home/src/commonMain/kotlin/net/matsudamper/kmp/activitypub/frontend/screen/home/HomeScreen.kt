@@ -88,7 +88,9 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
+import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -102,6 +104,9 @@ internal fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    val urlSharer = rememberUrlSharer(
+        onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
+    )
     val tabListStates = rememberHomeTabListStates()
 
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, tabListStates) {
@@ -145,6 +150,10 @@ internal fun HomeScreen(
 
                 override fun openUrl(url: String) {
                     uriHandler.openUri(url)
+                }
+
+                override fun shareUrl(url: String) {
+                    urlSharer(url)
                 }
 
                 override fun navigateToImage(url: String) {

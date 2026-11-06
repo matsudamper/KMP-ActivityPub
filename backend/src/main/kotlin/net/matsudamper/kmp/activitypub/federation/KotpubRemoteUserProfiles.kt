@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUser
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 
@@ -40,6 +41,7 @@ internal class KotpubRemoteUserProfiles(
                 stamps = listOf(),
                 // 保存していない投稿なので、いいねする投稿を指せない
                 like = null,
+                noteRef = TimelineNoteRef.Remote(it.id),
             )
         }
 

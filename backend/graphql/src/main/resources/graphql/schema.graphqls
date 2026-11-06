@@ -97,6 +97,8 @@ type HomeTimelinePost {
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
+    "共有するときに渡す投稿の URL。作れなければ null"
+    url: String
     "ログイン中のアカウントがいいねしているか"
     likedByMe: Boolean!
 }
