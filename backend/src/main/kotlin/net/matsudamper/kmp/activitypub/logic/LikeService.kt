@@ -2,13 +2,12 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Clock
 import java.util.UUID
-import kotlinx.serialization.json.JsonObject
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kotpub.activity.LikeActivities
 import net.matsudamper.kotpub.activity.OutgoingActivity
-import net.matsudamper.kotpub.activitypub.LinkOrObject
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.json.AppJson
 
@@ -49,9 +48,9 @@ class LikeService(
      */
     private fun setRemoteLiked(accountId: AccountId, senderActorId: String, postId: String, target: LikeTarget.Remote, liked: Boolean): Boolean {
         return if (liked) {
-            val like = likeActivity(
+            val like = LikeActivities.like(
                 id = "$senderActorId/likes/${UUID.randomUUID()}",
-                actorId = senderActorId,
+                actor = senderActorId,
                 objectUri = target.objectUri,
             )
             likes.likeAndEnqueue(
@@ -66,24 +65,11 @@ class LikeService(
             )
         } else {
             likes.unlikeAndEnqueueUndo(accountId = accountId, member = postId, inbox = target.inbox, now = clock.instant()) { likeId ->
-                val like = likeActivity(id = likeId, actorId = senderActorId, objectUri = target.objectUri)
-                val undo = OutgoingActivity(
-                    id = "$senderActorId/undo/${UUID.randomUUID()}",
-                    type = UNDO_TYPE,
-                    actor = senderActorId,
-                    target = LinkOrObject.Embedded(AppJson.encodeToJsonElement(OutgoingActivity.serializer(), like) as JsonObject),
-                )
+                val like = LikeActivities.like(id = likeId, actor = senderActorId, objectUri = target.objectUri)
+                val undo = LikeActivities.undo(id = "$senderActorId/undo/${UUID.randomUUID()}", like = like)
                 AppJson.encodeToString(OutgoingActivity.serializer(), undo)
             }
         }
-    }
-
-    private fun likeActivity(id: String, actorId: String, objectUri: String): OutgoingActivity =
-        OutgoingActivity(id = id, type = LIKE_TYPE, actor = actorId, target = LinkOrObject.Link(objectUri))
-
-    private companion object {
-        const val LIKE_TYPE = "Like"
-        const val UNDO_TYPE = "Undo"
     }
 }
 
