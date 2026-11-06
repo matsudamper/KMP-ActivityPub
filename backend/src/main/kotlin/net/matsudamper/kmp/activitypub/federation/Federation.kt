@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
+import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
@@ -34,6 +35,7 @@ import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
+import net.matsudamper.kotpub.inbox.AnnounceHandler
 import net.matsudamper.kotpub.inbox.CreateNoteHandler
 import net.matsudamper.kotpub.inbox.DeleteActorHandler
 import net.matsudamper.kotpub.inbox.DeleteHandler
@@ -43,10 +45,12 @@ import net.matsudamper.kotpub.inbox.InboxEndpoint
 import net.matsudamper.kotpub.inbox.InboxService
 import net.matsudamper.kotpub.inbox.ReactionHandler
 import net.matsudamper.kotpub.inbox.RecordedFallbackPublicKeys
+import net.matsudamper.kotpub.inbox.UndoBoostHandler
 import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.note.HttpRemoteNotes
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
 import net.matsudamper.kotpub.note.NotePublisher
@@ -66,6 +70,7 @@ internal class Federation(
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
     stampRepository: StampRepository,
+    boostRepository: BoostRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
@@ -83,6 +88,7 @@ internal class Federation(
     private val favourites = RecordedFavourites(favouriteRepository)
     private val stamps = RecordedStamps(stampRepository)
     private val receivedNotes = ReceivedRemoteNotes(timelineRepository, remoteActors, remoteActorRepository, directory, timeline, Clock.systemUTC())
+    private val boosts = RecordedBoosts(boostRepository, receivedNotes)
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -219,6 +225,7 @@ internal class Federation(
                         followers = followers,
                         favourites = favourites,
                         stamps = stamps,
+                        boosts = boosts,
                     ),
                 ),
                 domainBlocks = NoInboxDomainBlocks,
@@ -240,6 +247,12 @@ internal class Federation(
                         stamps = stamps,
                         earlyUndoneLikes = favourites,
                     ),
+                    AnnounceHandler(
+                        domain = domain,
+                        remoteActors = remoteActors,
+                        remoteNotes = HttpRemoteNotes(httpClient),
+                        boosts = boosts,
+                    ),
                     UndoHandler(
                         reactions = UndoReactionHandler(
                             domain = domain,
@@ -247,6 +260,7 @@ internal class Federation(
                             stamps = stamps,
                             earlyUndoneLikes = favourites,
                         ),
+                        boosts = UndoBoostHandler(boosts),
                         follows = UndoFollowHandler(directory = directory, followers = followers),
                     ),
                     UpdateActorHandler(followers),
@@ -254,7 +268,7 @@ internal class Federation(
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(
-                        actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = stamps),
+                        actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = stamps, boosts = boosts),
                         notes = receivedNotes,
                     ),
                 ),

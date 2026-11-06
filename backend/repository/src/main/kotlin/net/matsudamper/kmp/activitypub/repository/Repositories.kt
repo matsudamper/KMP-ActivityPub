@@ -15,6 +15,7 @@ interface Repositories : AutoCloseable {
     val remoteActorRepository: RemoteActorRepository
     val favouriteRepository: FavouriteRepository
     val stampRepository: StampRepository
+    val boostRepository: BoostRepository
 
     val passkeyRepository: PasskeyRepository
 

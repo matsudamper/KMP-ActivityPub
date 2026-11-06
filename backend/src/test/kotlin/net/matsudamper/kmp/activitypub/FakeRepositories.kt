@@ -60,6 +60,7 @@ internal class FakeRepositories : Repositories {
     override val remoteActorRepository: FakeRemoteActorRepository = FakeRemoteActorRepository()
     override val favouriteRepository: FakeFavouriteRepository = FakeFavouriteRepository()
     override val stampRepository: FakeStampRepository = FakeStampRepository()
+    override val boostRepository: FakeBoostRepository = FakeBoostRepository()
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })

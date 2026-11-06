@@ -40,6 +40,7 @@ class UserProfileServiceTest {
                     images = listOf(),
                     favouriteCount = null,
                     stamps = listOf(),
+                    boostCount = null,
                 ),
             )
         }
@@ -55,6 +56,7 @@ class UserProfileServiceTest {
         notes = repositories.noteRepository,
         favourites = repositories.favouriteRepository,
         stamps = repositories.stampRepository,
+        boosts = repositories.boostRepository,
         timeline = repositories.timelineRepository,
         following = following,
         remoteProfiles = remoteProfiles,
@@ -156,6 +158,8 @@ class UserProfileServiceTest {
             images = listOf(image),
             favouriteCount = null,
             stamps = listOf(),
+            boostCount = null,
+            boostedBy = null,
         )
 
     private companion object {

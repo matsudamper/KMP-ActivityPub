@@ -28,6 +28,8 @@ type ProfilePost {
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
+    "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
+    boostCount: Int
 }
 
 type UserSearchResult {

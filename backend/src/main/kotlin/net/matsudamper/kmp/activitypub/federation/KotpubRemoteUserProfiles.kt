@@ -37,6 +37,7 @@ internal class KotpubRemoteUserProfiles(
                 images = listOf(),
                 favouriteCount = null,
                 stamps = listOf(),
+                boostCount = null,
             )
         }
 

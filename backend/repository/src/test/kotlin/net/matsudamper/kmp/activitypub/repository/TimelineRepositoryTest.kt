@@ -326,6 +326,59 @@ class TimelineRepositoryTest {
         assertEquals(newer + older, repository.page(account, null, 100))
     }
 
+    @Test
+    fun boostsOfFollowedActorAreShownOnlyToItsFollowersWithTheBoostedNote() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null)),
+            NOW,
+        )
+        assertNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        val position = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+        assertNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+        assertNull(repository.receiveBoost(boost("2", note("private", "followers", setOf()))))
+
+        assertEquals(listOf(position), repository.page(alice, null, 10))
+        repository.touch(alice, NOW, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
+        assertEquals(listOf(alice), repository.recipients(position.member, NOW.minusSeconds(1), null, 10))
+        val post = repository.hydrate(alice, listOf(position.member)).single()
+        assertEquals(ACTOR, post.actorUri)
+        assertEquals("<p>本文</p>", post.contentHtml)
+        assertEquals(BOOSTER, post.boostedBy?.actorUri)
+        assertEquals("booster", post.boostedBy?.username)
+        assertTrue(repository.hydrate(accounts.getValue("bob"), listOf(position.member)).isEmpty())
+        // 投稿者をフォローしていなくても、ブーストされた投稿だけがタイムラインに載ることはない
+        assertTrue(repository.page(accounts.getValue("bob"), null, 10).isEmpty())
+
+        assertTrue(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1"))
+        assertTrue(repository.hydrate(alice, listOf(position.member)).isEmpty())
+    }
+
+    @Test
+    fun boostIsRemovedWithTheBoostedNote() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null)),
+            NOW,
+        )
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        val position = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+        repository.deleteRemote(ACTOR, "$ACTOR/notes/boosted")
+        assertTrue(repository.hydrate(alice, listOf(position.member)).isEmpty())
+        assertTrue(repository.page(alice, null, 10).isEmpty())
+    }
+
+    private fun boost(id: String, note: RemoteNoteInput): RemoteBoostInput = RemoteBoostInput(
+        activityUri = "$BOOSTER/announces/$id",
+        boosterUri = BOOSTER,
+        boostedAt = NOW,
+        receivedAt = NOW,
+        note = note,
+    )
+
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = visibility,
         localRecipients = recipients, inReplyTo = null, summary = null, sensitive = false, publishedAt = NOW.plusSeconds(3600), receivedAt = NOW,
@@ -354,6 +407,7 @@ class TimelineRepositoryTest {
 
     private companion object {
         const val ACTOR = "https://remote.example/actor"
+        const val BOOSTER = "https://booster.example/actor"
         val NOW: Instant = Instant.parse("2026-11-01T12:00:00Z")
     }
 }

@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -19,6 +20,7 @@ class UserProfileService(
     private val notes: NoteRepository,
     private val favourites: FavouriteRepository,
     private val stamps: StampRepository,
+    private val boosts: BoostRepository,
     private val timeline: TimelineRepository,
     private val following: FollowingService,
     private val remoteProfiles: RemoteUserProfiles?,
@@ -35,6 +37,7 @@ class UserProfileService(
             val localNoteIds = localNotes.map { it.publicId }.toSet()
             val favouriteCounts = favourites.counts(localNoteIds)
             val stampCounts = stamps.counts(localNoteIds)
+            val boostCounts = boosts.counts(localNoteIds)
             // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分のものだけ
             val ownProfile = account.id == viewer
             return UserProfile(
@@ -52,6 +55,7 @@ class UserProfileService(
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
+                        boostCount = boostCounts[it.publicId],
                     )
                 },
             )
@@ -106,6 +110,7 @@ class UserProfileService(
             images = images,
             favouriteCount = favouriteCount,
             stamps = stamps,
+            boostCount = boostCount,
         )
     }
 
@@ -144,6 +149,7 @@ data class UserProfile(
  * @param images URL にはしていない画像
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
+ * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -155,4 +161,5 @@ data class ProfilePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
+    val boostCount: Long?,
 )

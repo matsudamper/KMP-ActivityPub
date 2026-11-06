@@ -233,3 +233,29 @@ CREATE TABLE note_stamps (
 );
 
 CREATE INDEX note_stamps_remote_actor_id ON note_stamps (remote_actor_id);
+
+-- 他のサーバーから届いた、こちらの投稿のブースト。Undo は Announce の id で取り消すので覚えておく
+CREATE TABLE note_boosts (
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    activity_uri TEXT NOT NULL,
+    received_at TEXT NOT NULL,
+    PRIMARY KEY (note_id, remote_actor_id)
+);
+
+CREATE INDEX note_boosts_remote_actor_id_activity_uri ON note_boosts (remote_actor_id, activity_uri);
+
+-- フォローしている相手が他のサーバーの投稿をブーストしたもの。タイムラインには remote_actor_id の相手のフォロワーに出す
+CREATE TABLE remote_boosts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_uri TEXT NOT NULL UNIQUE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    score_ms INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX remote_boosts_actor_note ON remote_boosts (remote_actor_id, remote_note_id);
+
+CREATE INDEX remote_boosts_actor_score ON remote_boosts (remote_actor_id, score_ms DESC, id DESC);
+
+CREATE INDEX remote_boosts_remote_note_id ON remote_boosts (remote_note_id);

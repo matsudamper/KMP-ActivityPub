@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 import java.net.URI
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostBooster
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 
 internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHomeTimelinePost {
@@ -32,5 +33,14 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         images = body.images,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
+        boostCount = boostCount?.toInt(),
+        boostedBy = boostedBy?.let { booster ->
+            QlPostBooster(
+                username = booster.username,
+                host = URI(booster.actorUri).host,
+                displayName = booster.displayName ?: booster.username,
+                iconUrl = booster.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = booster.updatedAt) },
+            )
+        },
     )
 }

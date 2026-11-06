@@ -31,6 +31,7 @@ import net.matsudamper.kotpub.actor.RemoteActor
 import net.matsudamper.kotpub.actor.RemoteActorProfile
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.actor.StoredActorNames
+import net.matsudamper.kotpub.boost.BoostStore.ReceivedRemoteBoost
 import net.matsudamper.kotpub.httpsignature.PublicKeyLookup
 import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
@@ -282,6 +283,38 @@ class RemoteNoteReceptionTest {
         assertTrue(fixture.repositories.deliveryQueueRepository.followBodies.isEmpty())
     }
 
+    @Test
+    fun boostsOfFollowedActorStoreBoosterAndAuthorAndSanitizeTheNote() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        fixture.receiver.saveBoost(boost())
+        assertEquals(listOf(BOOSTER, ACTOR), fixture.repositories.remoteActorRepository.savedActors.keys.toList())
+        val received = fixture.repositories.timelineRepository.receivedBoosts.single()
+        assertEquals("$BOOSTER/announces/1", received.activityUri)
+        assertEquals(BOOSTER, received.boosterUri)
+        assertEquals(Instant.EPOCH, received.boostedAt)
+        assertEquals("<p>本文</p>", received.note.contentHtml)
+        assertEquals("public", received.note.visibility)
+    }
+
+    @Test
+    fun boostsOfUnfollowedActorDoNotFetchActors() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        fixture.repositories.timelineRepository.interested = false
+        fixture.receiver.saveBoost(boost())
+        assertEquals(0, fixture.remote.requests)
+        assertTrue(fixture.repositories.timelineRepository.receivedBoosts.isEmpty())
+    }
+
+    private fun boost(): ReceivedRemoteBoost = ReceivedRemoteBoost(
+        activityUri = "$BOOSTER/announces/1",
+        actorUri = BOOSTER,
+        visibility = NoteVisibility.Public,
+        to = listOf(),
+        cc = listOf(),
+        published = Instant.EPOCH,
+        note = note(listOf()),
+    )
+
     private fun note(to: List<String>): ReceivedNote = ReceivedNote(
         "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", Instant.EPOCH, to, listOf(), null, null, false, NoteVisibility.Public, listOf(),
     )
@@ -329,7 +362,8 @@ class RemoteNoteReceptionTest {
             requests++
             onFindActor()
             check(available) { "相手サーバーに接続できない" }
-            return RemoteActor(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfile("remote", null, null, null))
+            val id = if (actorId == BOOSTER) BOOSTER else ACTOR
+            return RemoteActor(id, "$id/inbox", null, "key", RemoteActorProfile("remote", null, null, null))
         }
         override suspend fun find(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable
         override suspend fun refresh(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable
@@ -338,5 +372,6 @@ class RemoteNoteReceptionTest {
 
     private companion object {
         const val ACTOR = "https://remote.example/actor"
+        const val BOOSTER = "https://booster.example/actor"
     }
 }
