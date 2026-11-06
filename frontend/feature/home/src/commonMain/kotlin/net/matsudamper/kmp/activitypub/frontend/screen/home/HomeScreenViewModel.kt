@@ -117,6 +117,12 @@ internal class HomeScreenViewModel(
             viewModelStateFlow.update { if (it.openedColumn == column) it.copy(openedColumn = null) else it }
         }
 
+        override fun onPostColumnFinished() {
+            onClickCloseColumn(HomeScreenUiState.Column.Post)
+            // 単独の投稿画面から戻るときはホームの再表示で読み直すが、カラムではホームが出たままなので自分の投稿をここで読み直す
+            loadProfile()
+        }
+
         override fun onTabChanged(tab: HomeScreenUiState.Tab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }

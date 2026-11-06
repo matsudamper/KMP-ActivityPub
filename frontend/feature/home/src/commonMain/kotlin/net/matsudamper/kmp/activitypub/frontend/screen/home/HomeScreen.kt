@@ -157,7 +157,7 @@ internal fun HomeScreen(
         if (maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH) {
             // 投稿の知らせはホームの下に出す。投稿カラムは閉じていることがある
             val postUiState = rememberPostScreenUiState(
-                onNavigateBack = { uiState.listener.onClickCloseColumn(HomeScreenUiState.Column.Post) },
+                onNavigateBack = uiState.listener::onPostColumnFinished,
                 snackbarHostState = snackbarHostState,
             )
             val postColumnSnackbarHostState = remember { SnackbarHostState() }
