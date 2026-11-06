@@ -61,6 +61,10 @@ internal class PostScreenViewModel(
                         post()
                     }
 
+                    override fun onPressPostShortcut() {
+                        post()
+                    }
+
                     override fun onClickBack() {
                         // 送信中に閉じると、投稿できたかどうかを画面に出せない
                         if (viewModelStateFlow.value.submitting) return

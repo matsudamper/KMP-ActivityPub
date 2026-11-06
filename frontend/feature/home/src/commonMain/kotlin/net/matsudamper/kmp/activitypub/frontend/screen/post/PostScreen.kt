@@ -128,6 +128,7 @@ internal fun PostContent(
                 inputName = "body",
                 enabled = uiState.inputEnabled,
                 hasError = uiState.inputHasError,
+                onSubmitShortcut = uiState.listener::onPressPostShortcut,
                 modifier = Modifier.fillMaxWidth(),
             )
             if (uiState.images.isNotEmpty()) {
