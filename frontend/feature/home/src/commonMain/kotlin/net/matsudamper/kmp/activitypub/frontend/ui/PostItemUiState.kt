@@ -26,6 +26,10 @@ data class PostItemUiState(
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
      */
     val authorListener: AuthorListener?,
+    /**
+     * 押しても移る先が無いときは null で、投稿を押せなくする
+     */
+    val postListener: PostListener?,
     val listener: Listener,
 ) {
     /**
@@ -70,6 +74,11 @@ data class PostItemUiState(
 
     @Immutable
     interface AuthorListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface PostListener {
         fun onClick()
     }
 
