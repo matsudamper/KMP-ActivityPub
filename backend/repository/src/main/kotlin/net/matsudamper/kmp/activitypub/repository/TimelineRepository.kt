@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.repository
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 interface TimelineRepository {
     fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest
@@ -35,6 +36,7 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿の数は受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  * @param likedByMe 読んでいるアカウントがいいねしているか。いいねできるのは他のサーバーの投稿だけなので、このサーバーの投稿は null
+ * @param localPublicId このサーバーの投稿の公開 id。他のサーバーの投稿は null
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -51,6 +53,7 @@ data class TimelinePost(
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
     val likedByMe: Boolean?,
+    val localPublicId: PublicNoteId?,
 )
 
 sealed interface TimelinePostImage {

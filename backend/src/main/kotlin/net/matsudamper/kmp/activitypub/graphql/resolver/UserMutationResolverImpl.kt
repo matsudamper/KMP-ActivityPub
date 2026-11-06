@@ -9,6 +9,8 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.GraphQlUpload
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
@@ -36,6 +38,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.DeleteNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
@@ -46,6 +49,7 @@ import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
 class UserMutationResolverImpl : UserMutationResolver {
@@ -239,6 +243,15 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun deleteNote(
+        userMutation: QlUserMutation,
+        noteId: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeleteNoteResult>> {
+        val result = QlDeleteNoteResult(failure = deleteNote(noteId = noteId, env = env))
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     override fun updateProfile(
         userMutation: QlUserMutation,
         query: QlUpdateProfileQuery,
@@ -308,6 +321,24 @@ class UserMutationResolverImpl : UserMutationResolver {
                 PostNoteResult.AccountNotFound -> QlUserPostNoteFailure.NOT_LOGGED_IN
             }
         return QlUserPostNoteResult(url = null, failure = failure)
+    }
+
+    private fun deleteNote(
+        noteId: String,
+        env: DataFetchingEnvironment,
+    ): QlDeleteNoteFailure? {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId() ?: return QlDeleteNoteFailure.NOT_LOGGED_IN
+        // セッションが残っていてもアカウントが消えていることがある
+        val account = diContainer.accountService.account(accountId) ?: return QlDeleteNoteFailure.NOT_LOGGED_IN
+        val notePostService = diContainer.notePostService ?: return QlDeleteNoteFailure.FEDERATION_DISABLED
+        return when (notePostService.delete(username = account.username, publicId = PublicNoteId(noteId))) {
+            DeleteNoteResult.Deleted -> null
+            DeleteNoteResult.NotFound -> QlDeleteNoteFailure.NOT_FOUND
+            DeleteNoteResult.ImageStorageDisabled -> QlDeleteNoteFailure.INTERNAL_SERVER_ERROR
+            DeleteNoteResult.ImageDeleteFailed -> QlDeleteNoteFailure.INTERNAL_SERVER_ERROR
+            DeleteNoteResult.AccountNotFound -> QlDeleteNoteFailure.NOT_LOGGED_IN
+        }
     }
 
     private fun uploadNoteImage(

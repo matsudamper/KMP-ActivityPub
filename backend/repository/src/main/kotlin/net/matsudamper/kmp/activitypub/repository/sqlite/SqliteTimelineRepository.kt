@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
@@ -145,6 +146,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
                 DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
                 DSL.field(dsl.selectCount().from(NOTE_FAVOURITES).where(NOTE_FAVOURITES.NOTE_ID.eq(NOTES.ID))).cast(Long::class.java),
+                NOTES.PUBLIC_ID,
             ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.ID.`in`(localIds)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
             val remote = dsl.select(
@@ -152,6 +154,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
                 REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
                 REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, Long::class.java),
+                DSL.inline(null, String::class.java),
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(dsl.remoteNoteReadableBy(accountId))
             val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -178,6 +181,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value12(),
                     stampsByMember[member].orEmpty(),
                     if (actor == null) null else record.value1() in likedRemoteIds,
+                    record.value13()?.let { PublicNoteId(it) },
                 )
             }
         }

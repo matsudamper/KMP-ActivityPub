@@ -9,6 +9,7 @@ internal object DeliveryQueueValues {
     const val KIND_UNDO_FOLLOW = "undo_follow"
     const val KIND_CREATE_NOTE = "create_note"
     const val KIND_UPDATE_ACTOR = "update_actor"
+    const val KIND_DELETE_NOTE = "delete_note"
     const val KIND_LIKE = "like"
     const val KIND_UNDO_LIKE = "undo_like"
 

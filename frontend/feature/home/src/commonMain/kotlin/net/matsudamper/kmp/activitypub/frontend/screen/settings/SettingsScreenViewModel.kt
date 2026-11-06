@@ -41,6 +41,12 @@ internal class SettingsScreenViewModel(
                 }
             }
 
+            override fun onClickGitHubRelease() {
+                viewModelScope.launch {
+                    events.send { it.openUrl(GITHUB_RELEASES_URL) }
+                }
+            }
+
             override fun onClickBack() {
                 viewModelScope.launch {
                     events.send { it.navigateBack() }
@@ -128,9 +134,15 @@ internal class SettingsScreenViewModel(
         fun loggedOut()
 
         fun showMessage(message: String)
+
+        fun openUrl(url: String)
     }
 
     private data class ViewModelState(
         val loggingOut: Boolean,
     )
+
+    private companion object {
+        const val GITHUB_RELEASES_URL = "https://github.com/matsudamper/KMP-ActivityPub/releases"
+    }
 }

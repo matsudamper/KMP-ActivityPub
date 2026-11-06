@@ -37,6 +37,7 @@ class UserProfileServiceTest {
                     sensitive = false,
                     linkPreviewId = null,
                     postId = null,
+                    deletableNoteId = null,
                     images = listOf(),
                     favouriteCount = null,
                     stamps = listOf(),
@@ -119,6 +120,16 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun ownLocalPostsHaveDeletableNoteIdButOthersDoNot() = runBlocking {
+        repositories.accountRepository.add("carol", "hash", "type")
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.EPOCH, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf()))
+
+        assertEquals("note-alice", assertNotNull(service.profile("alice", viewer)).posts.single().deletableNoteId)
+        assertNull(assertNotNull(service.profile("carol", viewer)).posts.single().deletableNoteId)
+    }
+
+    @Test
     fun emptyUsernameDoesNotFetchRemoteProfile() = runBlocking {
         for (acct in listOf("", "@", "@@remote.example")) {
             assertNull(service.profile(acct, viewer))
@@ -157,6 +168,7 @@ class UserProfileServiceTest {
             favouriteCount = null,
             stamps = listOf(),
             likedByMe = null,
+            localPublicId = null,
         )
 
     private companion object {

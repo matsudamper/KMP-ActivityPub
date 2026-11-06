@@ -1,10 +1,15 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 data class PostDetailScreenUiState(
     val content: Content,
+    /**
+     * 出していなければ null
+     */
+    val deleteNoteDialog: DeleteNoteDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {

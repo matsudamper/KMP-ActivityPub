@@ -27,6 +27,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
                     likedByMe = it.likedByMe,
                 ),
+                deletableNoteId = it.deletableNoteId,
             )
         },
         nextCursor = timeline.nextCursor,
@@ -53,6 +54,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             linkUrls = it.body.linkUrls,
             iconUrl = it.iconUrl,
             images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
+            deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
             likedByMe = it.body.likedByMe,
@@ -72,6 +74,15 @@ fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimeli
             homeTimeline = timeline.copy(posts = timeline.posts.map { if (it.id == postId) it.copy(likedByMe = liked) else it }),
         ),
     )
+}
+
+/**
+ * 消した投稿を、取得し直さずに外す
+ */
+fun HomeTimelineQuery.Data.withoutNote(deletableNoteId: String): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = timeline.posts.filterNot { it.deletableNoteId == deletableNoteId })))
 }
 
 fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Success {

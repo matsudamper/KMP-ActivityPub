@@ -19,6 +19,7 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
+import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
@@ -39,6 +40,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
@@ -57,6 +59,12 @@ class UserApi(
 ) {
     private val followingChangesFlow = MutableSharedFlow<FollowingChange>()
     val followingChanges = followingChangesFlow.asSharedFlow()
+    private val deletedNoteIdsFlow = MutableSharedFlow<String>()
+
+    /**
+     * [deleteNote] で消せた投稿の id。どの画面で消しても、投稿を出している画面がここで外す
+     */
+    val deletedNoteIds = deletedNoteIdsFlow.asSharedFlow()
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
@@ -127,6 +135,7 @@ class UserApi(
                     stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
                     likedByMe = post.likedByMe,
                 ),
+                deletableNoteId = post.deletableNoteId,
             ),
         )
     }
@@ -287,6 +296,7 @@ class UserApi(
                 UserProfileResult.Post(
                     linkPreviewId = it.linkPreviewId,
                     postId = it.postId,
+                    deletableNoteId = it.deletableNoteId,
                     body = UserPostBody(
                         content = it.content,
                         publishedAt = it.publishedAt,
@@ -360,6 +370,33 @@ class UserApi(
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
+        }
+    }
+
+    /**
+     * @param noteId [UserHomeTimelineResult.Post.deletableNoteId]
+     * @return 消せなければ、その理由
+     */
+    suspend fun deleteNote(noteId: String): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(DeleteNoteMutation(noteId = noteId)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val deleteNote = response.data?.user?.deleteNote ?: return response.failureMessage()
+        return when (deleteNote.failure) {
+            null -> {
+                deletedNoteIdsFlow.emit(noteId)
+                null
+            }
+
+            DeleteNoteFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            DeleteNoteFailure.NOT_FOUND -> "投稿が見つかりません"
+
+            DeleteNoteFailure.FEDERATION_DISABLED -> "このサーバーでは投稿を削除できません"
+
+            DeleteNoteFailure.INTERNAL_SERVER_ERROR -> "投稿を削除できませんでした。時間をおいて試してください"
+
+            DeleteNoteFailure.UNKNOWN__ -> "Unknown"
         }
     }
 
@@ -488,6 +525,7 @@ class UserApi(
                                 stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
                                 likedByMe = post.likedByMe,
                             ),
+                            deletableNoteId = post.deletableNoteId,
                         ),
                     ),
                 )
