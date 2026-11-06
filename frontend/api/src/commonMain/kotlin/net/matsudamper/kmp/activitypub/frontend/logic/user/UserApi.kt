@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelinePostsSubscri
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
@@ -93,6 +94,37 @@ class UserApi(
             previews = previews.map {
                 UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl, faviconUrl = it.faviconUrl)
             },
+        )
+    }
+
+    /**
+     * @param postId [UserHomeTimelineResult.Post.id]
+     */
+    suspend fun postDetail(postId: String): UserPostDetailResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostDetailResult.Failure("接続先が未設定")
+        val response = client.query(PostDetailScreenQuery(id = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
+        val post = userInfo.post ?: return UserPostDetailResult.NotFound
+        return UserPostDetailResult.Found(
+            UserHomeTimelineResult.Post(
+                id = post.id,
+                username = post.username,
+                host = post.host,
+                displayName = post.displayName,
+                iconUrl = post.iconUrl,
+                body = UserPostBody(
+                    content = post.content,
+                    publishedAt = post.publishedAt,
+                    summary = post.summary,
+                    sensitive = post.sensitive,
+                    linkUrls = post.linkUrls,
+                    images = post.images.map { UserPostImage(url = it.url, description = it.description) },
+                    favouriteCount = post.favouriteCount,
+                    stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                ),
+            ),
         )
     }
 

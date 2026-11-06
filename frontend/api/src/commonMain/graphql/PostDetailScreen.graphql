@@ -1,0 +1,26 @@
+query PostDetailScreen($id: ID!) {
+    userInfo {
+        post(id: $id) {
+            id
+            content
+            publishedAt
+            username
+            host
+            displayName
+            summary
+            sensitive
+            linkUrls
+            iconUrl
+            images {
+                url
+                description
+            }
+            favouriteCount
+            stamps {
+                emoji
+                imageUrl
+                count
+            }
+        }
+    }
+}

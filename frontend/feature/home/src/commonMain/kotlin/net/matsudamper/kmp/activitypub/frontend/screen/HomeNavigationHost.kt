@@ -28,7 +28,9 @@ import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewMo
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.security.SecurityScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.user.UserProfileScreen
 import org.koin.compose.viewmodel.koinViewModel
@@ -118,6 +120,10 @@ private fun ScreenContent(
             SettingsScreen(navigator = navigator)
         }
 
+        Screen.Security -> {
+            SecurityScreen(navigator = navigator)
+        }
+
         Screen.Following -> {
             FollowListScreen(navigator = navigator, kind = FollowListKind.Following)
         }
@@ -132,6 +138,10 @@ private fun ScreenContent(
 
         is Screen.UserProfile -> {
             UserProfileScreen(username = screen.username, navigator = navigator)
+        }
+
+        is Screen.PostDetail -> {
+            PostDetailScreen(postId = screen.postId, navigator = navigator)
         }
 
         is Screen.Image -> {

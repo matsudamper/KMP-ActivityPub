@@ -637,6 +637,7 @@ internal class HomeScreenViewModel(
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             // 自分のタブに居るので、押しても移る先が無い
                             authorListener = null,
+                            postListener = null,
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                             onToggleImageBlur = { url -> toggleImageBlur(url) },
@@ -669,6 +670,11 @@ internal class HomeScreenViewModel(
                         viewModelScope.launch {
                             events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
                         }
+                    }
+                },
+                postListener = object : PostItemUiState.PostListener {
+                    override fun onClick() {
+                        viewModelScope.launch { events.send { it.navigateToPostDetail(post.id) } }
                     }
                 },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
@@ -767,6 +773,8 @@ internal class HomeScreenViewModel(
         fun openUrl(url: String)
 
         fun navigateToImage(url: String)
+
+        fun navigateToPostDetail(postId: String)
     }
 
     private companion object {
