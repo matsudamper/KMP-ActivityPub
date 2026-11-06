@@ -300,7 +300,6 @@ internal class ProfileEditScreenViewModel(
                             removeButtonEnabled = viewModelState.saving.not(),
                         )
                     },
-                    linksSupportingText = "名前と http / https の URL を ${MAX_LINK_COUNT} 件まで登録できます（${viewModelState.links.size} / $MAX_LINK_COUNT）",
                     addLinkButtonEnabled = viewModelState.saving.not() && viewModelState.links.size < MAX_LINK_COUNT,
                     saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                 )

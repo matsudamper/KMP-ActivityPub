@@ -32,7 +32,6 @@ data class ProfileEditScreenUiState(
             val summaryInputEnabled: Boolean,
             val summaryHasError: Boolean,
             val links: List<Link>,
-            val linksSupportingText: String,
             val addLinkButtonEnabled: Boolean,
             val saveButtonEnabled: Boolean,
         ) : Content

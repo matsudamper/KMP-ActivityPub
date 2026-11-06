@@ -160,7 +160,7 @@ private fun LoadedContent(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        Section(title = "基本情報", supportingText = null) {
+        Section(title = "基本情報") {
             IconRow(content = content, listener = listener)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SingleLineTextField(
@@ -192,7 +192,7 @@ private fun LoadedContent(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        Section(title = "リンク", supportingText = content.linksSupportingText) {
+        Section(title = "リンク") {
             content.links.forEachIndexed { index, link ->
                 LinkCard(
                     index = index,
@@ -228,23 +228,17 @@ private fun LoadedContent(
 @Composable
 private fun Section(
     title: String,
-    supportingText: String?,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            if (supportingText != null) {
-                SupportingText(text = supportingText)
-            }
-        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
         content()
     }
 }
