@@ -146,6 +146,24 @@ object AppIcons {
             ).build()
     }
 
+    val OpenInNew: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "OpenInNew",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+                autoMirror = true,
+            ).addPath(
+                pathData = addPathNodes(
+                    "M19,19H5V5h7V3H5c-1.11,0 -2,0.9 -2,2v14c0,1.1 0.89,2 2,2h14c1.1,0 2,-0.9 2,-2v-7h-2v7z" +
+                        "M14,3v2h3.59l-9.83,9.83 1.41,1.41L19,6.41V10h2V3h-7z",
+                ),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val Person: ImageVector by lazy {
         ImageVector
             .Builder(

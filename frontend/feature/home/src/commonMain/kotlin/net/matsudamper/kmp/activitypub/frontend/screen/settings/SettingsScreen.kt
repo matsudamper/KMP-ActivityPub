@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,8 +50,9 @@ internal fun SettingsScreen(
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
 
-    LaunchedEffect(viewModel.eventHandler, navigator) {
+    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(
             object : SettingsScreenViewModel.Event {
                 override fun navigateBack() {
@@ -67,6 +69,10 @@ internal fun SettingsScreen(
 
                 override fun showMessage(message: String) {
                     coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
+
+                override fun openUrl(url: String) {
+                    uriHandler.openUri(url)
                 }
             },
         )
@@ -110,6 +116,8 @@ internal fun SettingsContent(
             ThemeSection(themeOptions = uiState.themeOptions)
             HorizontalDivider()
             SecurityItem(listener = uiState.listener)
+            HorizontalDivider()
+            GitHubReleaseItem(listener = uiState.listener)
             HorizontalDivider()
             OutlinedButton(
                 onClick = uiState.listener::onClickLogout,
@@ -181,6 +189,40 @@ private fun SecurityItem(
             text = "パスキー・パスワード",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun GitHubReleaseItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickGitHubRelease)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "リリース",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "GitHub で最新のリリースを見る",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            imageVector = AppIcons.OpenInNew,
+            contentDescription = "外部リンク",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
