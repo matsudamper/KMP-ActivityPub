@@ -16,7 +16,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -34,6 +36,7 @@ internal class UserProfileScreenViewModel(
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 blurToggledImageUrls = setOf(),
+                selectedTab = ProfileContentTab.Posts,
             ),
         )
     private var loadJob: Job? = null
@@ -55,6 +58,10 @@ internal class UserProfileScreenViewModel(
 
         override fun onClickFollow() {
             changeFollowing()
+        }
+
+        override fun onClickTab(tab: ProfileContentTab) {
+            viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }
     }
 
@@ -171,6 +178,9 @@ internal class UserProfileScreenViewModel(
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
+        val media = createProfileMedia(profile.posts) { postId ->
+            viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
+        }
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
             iconUrl = profile.iconUrl,
@@ -184,6 +194,7 @@ internal class UserProfileScreenViewModel(
                     enabled = !loaded.followingChangeInProgress,
                 )
             },
+            selectedTab = viewModelState.selectedTab,
             posts = profile.posts.map { post ->
                 val linkPreviewId = post.linkPreviewId
                 val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
@@ -210,6 +221,8 @@ internal class UserProfileScreenViewModel(
                 )
             },
             postsEmptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
+            media = media,
+            mediaEmptyMessage = if (media.isEmpty()) "表示できるメディアはありません" else null,
         )
     }
 
@@ -221,12 +234,15 @@ internal class UserProfileScreenViewModel(
         fun openUrl(url: String)
 
         fun navigateToImage(url: String)
+
+        fun navigateToPostDetail(postId: String)
     }
 
     private data class ViewModelState(
         val profile: ProfileState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         val blurToggledImageUrls: Set<String>,
+        val selectedTab: ProfileContentTab,
     )
 
     private sealed interface ProfileState {

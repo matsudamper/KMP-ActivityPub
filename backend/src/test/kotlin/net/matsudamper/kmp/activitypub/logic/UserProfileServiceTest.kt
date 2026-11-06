@@ -36,6 +36,7 @@ class UserProfileServiceTest {
                     summary = null,
                     sensitive = false,
                     linkPreviewId = null,
+                    postId = null,
                     images = listOf(),
                     favouriteCount = null,
                     stamps = listOf(),
@@ -93,6 +94,7 @@ class UserProfileServiceTest {
         assertEquals(listOf(null, "注意書き"), profile.posts.map { it.summary })
         assertEquals(listOf(false, true), profile.posts.map { it.sensitive })
         assertEquals(listOf("r1", "r1"), profile.posts.map { it.linkPreviewId })
+        assertEquals(listOf("r1", "r1"), profile.posts.map { it.postId })
         assertEquals(listOf(listOf(image), listOf(image)), profile.posts.map { it.images })
     }
 
