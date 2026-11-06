@@ -34,6 +34,11 @@ type UserMutation {
     icon は画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、縦横 400px まで
     """
     updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
+    """
+    ログインしているアカウントで、他のサーバーの投稿にいいねを付けるか外し、投稿者への Like か Undo を積む。
+    postId は HomeTimelinePost.id。既に望んだ状態なら何も積まずに成功する
+    """
+    setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
 }
 
 input UserLoginQuery {
@@ -191,6 +196,18 @@ enum UploadNoteImageFailure {
     UNSUPPORTED_OPERATION
     "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
+}
+
+type SetLikedResult {
+    failure: SetLikedFailure
+}
+
+enum SetLikedFailure {
+    NOT_LOGGED_IN
+    "読めない投稿か、いいねできないこのサーバーの投稿"
+    POST_NOT_FOUND
+    "サーバーに DOMAIN が無く、いいねを配れない"
+    FEDERATION_DISABLED
 }
 
 type DeleteNoteResult {

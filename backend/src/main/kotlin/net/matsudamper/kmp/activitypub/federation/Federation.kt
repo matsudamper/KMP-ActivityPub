@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
@@ -22,6 +23,7 @@ import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
@@ -65,6 +67,7 @@ internal class Federation(
     timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
+    likeRepository: LikeRepository,
     stampRepository: StampRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
@@ -115,6 +118,15 @@ internal class Federation(
                 val position = timelineRepository.localPosition(publicId.value)
                 if (position != null) timeline.enqueue(position)
             },
+        )
+
+    val likeService: LikeService =
+        LikeService(
+            directory = directory,
+            accountService = accountService,
+            likes = likeRepository,
+            clock = Clock.systemUTC(),
+            onEnqueued = deliveryQueueWorker::wakeUp,
         )
 
     val followDelivery = QueuedFollowDelivery(

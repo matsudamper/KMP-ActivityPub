@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
@@ -220,8 +221,19 @@ private fun PostActions(uiState: PostItemUiState) {
                 tint = disabledIconColor,
             )
         }
+        val favouriteButton = uiState.favouriteButton
         Row(
-            modifier = Modifier.width(PostActionSlotWidth),
+            modifier = Modifier
+                .width(PostActionSlotWidth)
+                .then(
+                    if (favouriteButton == null) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { favouriteButton.listener.onClick() }
+                    },
+                ),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -229,7 +241,7 @@ private fun PostActions(uiState: PostItemUiState) {
                 imageVector = AppIcons.Star,
                 contentDescription = "お気に入り",
                 modifier = Modifier.size(PostActionIconSize),
-                tint = iconColor,
+                tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
             )
             Text(
                 text = uiState.favouriteCountText.orEmpty(),
@@ -260,6 +272,8 @@ private fun PostActions(uiState: PostItemUiState) {
 }
 
 private val PostActionIconSize = 18.dp
+
+private val FavouriteHighlightedColor = Color(0xFFF5B400)
 
 private val PostActionSlotWidth = 64.dp
 
