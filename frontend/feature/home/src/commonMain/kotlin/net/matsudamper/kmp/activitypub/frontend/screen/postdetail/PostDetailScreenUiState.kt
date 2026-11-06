@@ -16,9 +16,7 @@ data class PostDetailScreenUiState(
 
         data object NotFound : Content
 
-        data class Error(
-            val message: String,
-        ) : Content
+        data object Error : Content
     }
 
     @Immutable

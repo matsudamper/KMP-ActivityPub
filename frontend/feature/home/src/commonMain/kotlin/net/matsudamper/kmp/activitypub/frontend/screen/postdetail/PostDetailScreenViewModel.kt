@@ -84,7 +84,10 @@ internal class PostDetailScreenViewModel(
                     UserPostDetailResult.NotLoggedIn,
                     -> PostState.NotFound
 
-                    is UserPostDetailResult.Failure -> PostState.Failed(result.message)
+                    is UserPostDetailResult.Failure -> {
+                        events.send { it.showMessage(result.message) }
+                        PostState.Failed
+                    }
                 }
             viewModelStateFlow.update { it.copy(post = post) }
         }
@@ -120,7 +123,7 @@ internal class PostDetailScreenViewModel(
                 PostState.Loading -> PostDetailScreenUiState.Content.Loading
                 is PostState.Loaded -> PostDetailScreenUiState.Content.Loaded(post = createPostItem(post.post, viewModelState))
                 PostState.NotFound -> PostDetailScreenUiState.Content.NotFound
-                is PostState.Failed -> PostDetailScreenUiState.Content.Error(post.message)
+                PostState.Failed -> PostDetailScreenUiState.Content.Error
             },
             listener = listener,
         )
@@ -161,6 +164,8 @@ internal class PostDetailScreenViewModel(
     internal interface Event {
         fun navigateBack()
 
+        fun showMessage(message: String)
+
         fun navigateToUserProfile(username: String)
 
         fun openUrl(url: String)
@@ -183,8 +188,6 @@ internal class PostDetailScreenViewModel(
 
         data object NotFound : PostState
 
-        data class Failed(
-            val message: String,
-        ) : PostState
+        data object Failed : PostState
     }
 }

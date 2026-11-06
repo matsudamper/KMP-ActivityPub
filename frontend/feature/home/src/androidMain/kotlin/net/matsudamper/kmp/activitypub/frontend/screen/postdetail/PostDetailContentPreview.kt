@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
@@ -38,6 +39,7 @@ private fun PostDetailContentPreview() {
                 ),
                 listener = AndroidPreviewPostDetailListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -51,6 +53,7 @@ private fun PostDetailContentNotFoundPreview() {
                 content = PostDetailScreenUiState.Content.NotFound,
                 listener = AndroidPreviewPostDetailListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
