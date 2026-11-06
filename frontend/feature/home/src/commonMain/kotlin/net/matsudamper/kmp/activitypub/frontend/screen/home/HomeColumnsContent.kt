@@ -160,17 +160,17 @@ private fun ColumnToggleButton(
             when (item.column) {
                 HomeScreenUiState.Column.Post -> Icon(
                     imageVector = AppIcons.Edit,
-                    contentDescription = null,
+                    contentDescription = item.column.label,
                 )
 
                 HomeScreenUiState.Column.Search -> Icon(
                     imageVector = AppIcons.Search,
-                    contentDescription = null,
+                    contentDescription = item.column.label,
                 )
 
                 HomeScreenUiState.Column.User -> ProfileIcon(
                     iconUrl = userIconUrl,
-                    contentDescription = null,
+                    contentDescription = item.column.label,
                     modifier = Modifier.size(24.dp),
                 )
             }
