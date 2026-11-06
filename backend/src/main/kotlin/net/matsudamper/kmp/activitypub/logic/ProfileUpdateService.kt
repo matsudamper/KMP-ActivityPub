@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.logic
 import java.net.URI
 import java.net.URISyntaxException
 import java.time.Clock
+import java.time.Instant
 import java.util.UUID
 import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
@@ -243,7 +244,7 @@ class ProfileUpdateService(
             storage.put(
                 ImageStorage.PutRequest(
                     ownerAccountId = accountId,
-                    path = ProfileIconPaths.create(accountId),
+                    path = ProfileIconPaths.create(accountId = accountId, uploadedAt = clock.instant()),
                     contentType = format.contentType,
                     maxBytes = MAX_ICON_BYTES.toLong(),
                     inputStream = icon.inputStream(),
@@ -350,9 +351,10 @@ class ProfileUpdateService(
 internal object ProfileIconPaths {
     /**
      * 差し替えるたびに別の場所に置く。相手は画像を URL で覚えるので、同じ場所に上書きすると前の画像が出続ける。
-     * 置き場の権限をアカウント単位に絞れるよう、`users/{アカウントの id}/` の下に置く
+     * 置き場の権限をアカウント単位に絞れるよう、`{yyyy}/{MM}/users/{アカウントの id}/` の下に置く
      */
-    fun create(accountId: AccountId): ImagePath = ImagePath("users/${accountId.value}/profile-icon/${UUID.randomUUID()}")
+    fun create(accountId: AccountId, uploadedAt: Instant): ImagePath =
+        ImagePath("${ImageUploadMonth.prefix(uploadedAt)}/users/${accountId.value}/profile-icon/${UUID.randomUUID()}")
 
     /**
      * [ActorAppearance.iconVersion] に使う値。場所ごとに違う

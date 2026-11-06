@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.logic
 import java.io.InputStream
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
@@ -63,7 +64,7 @@ class NotePostService(
         val account = accountService.account(username) ?: return UploadNoteImageResult.AccountNotFound
         val storage = imageStorage ?: return UploadNoteImageResult.ImageStorageDisabled
 
-        val path = NoteImagePaths.create(account.id)
+        val path = NoteImagePaths.create(accountId = account.id, uploadedAt = clock.instant())
         val result =
             image.openStream().use { inputStream ->
                 storage.put(
@@ -262,9 +263,10 @@ class NoteImageUpload(
  */
 internal object NoteImagePaths {
     /**
-     * 置き場の権限をアカウント単位に絞れるよう、`users/{アカウントの id}/` の下に置く
+     * 置き場の権限をアカウント単位に絞れるよう、`{yyyy}/{MM}/users/{アカウントの id}/` の下に置く
      */
-    fun create(accountId: AccountId): ImagePath = ImagePath("users/${accountId.value}/note-images/${UUID.randomUUID()}")
+    fun create(accountId: AccountId, uploadedAt: Instant): ImagePath =
+        ImagePath("${ImageUploadMonth.prefix(uploadedAt)}/users/${accountId.value}/note-images/${UUID.randomUUID()}")
 }
 
 sealed interface UploadNoteImageResult {
