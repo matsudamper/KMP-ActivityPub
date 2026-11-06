@@ -57,6 +57,7 @@ internal class HomeScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 selectedTab = selectedTab,
+                openedColumn = null,
                 timeline = TimelineState(
                     posts = listOf(),
                     nextCursor = null,
@@ -119,6 +120,22 @@ internal class HomeScreenViewModel(
                     events.send { it.navigateToTab(tab) }
                 }
             }
+        }
+
+        override fun onClickRailItem(column: HomeScreenUiState.Column) {
+            viewModelStateFlow.update { it.copy(openedColumn = if (it.openedColumn == column) null else column) }
+        }
+
+        override fun onClickCloseColumn(column: HomeScreenUiState.Column) {
+            viewModelStateFlow.update { if (it.openedColumn == column) it.copy(openedColumn = null) else it }
+        }
+
+        override fun onPostColumnFinished() {
+            onClickCloseColumn(HomeScreenUiState.Column.Post)
+            // 単独の投稿画面から戻るときはホームの再表示で読み直すが、カラムではホームが出たままなので、ここで同じものを読み直す。
+            // 新着受信を止めている間は流れてこないので、タイムラインも読み直さないと自分の投稿が出ない
+            loadProfile()
+            loadTimeline(TimelineLoadTrigger.ScreenShown)
         }
 
         override fun onTabChanged(tab: HomeScreenUiState.Tab) {
@@ -635,6 +652,10 @@ internal class HomeScreenViewModel(
             userContentTab = viewModelState.userContentTab,
             userPosts = createUserPosts(viewModelState),
             userTabIconUrl = (profile as? ProfileState.Loaded)?.profile?.iconUrl,
+            openedColumn = viewModelState.openedColumn,
+            railItems = HomeScreenUiState.Column.entries.map { column ->
+                HomeScreenUiState.RailItem(column = column, selected = column == viewModelState.openedColumn)
+            },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             listener = listener,
         )
@@ -855,6 +876,10 @@ internal class HomeScreenViewModel(
 
     private data class ViewModelState(
         val selectedTab: HomeScreenUiState.Tab,
+        /**
+         * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null
+         */
+        val openedColumn: HomeScreenUiState.Column?,
         val timeline: TimelineState,
         val timelineStream: TimelineStreamState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
