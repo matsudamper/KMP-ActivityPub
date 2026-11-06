@@ -4,6 +4,7 @@ import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconPaths
 import net.matsudamper.kotpub.actor.ActorAppearance
+import net.matsudamper.kotpub.actor.ActorLink
 import net.matsudamper.kotpub.actor.StoredActorAppearances
 
 /**
@@ -16,7 +17,7 @@ internal class AccountActorAppearances(
     override fun find(username: String): ActorAppearance {
         val iconPath = accountService.account(username)?.iconPath?.takeIf { iconAvailable }
         return ActorAppearance(
-            links = listOf(),
+            links = accountService.profileDetail(username)?.links.orEmpty().map { ActorLink(name = it.name, url = it.url) },
             iconVersion = iconPath?.let { ProfileIconPaths.version(ImagePath(it)) },
             headerVersion = null,
         )

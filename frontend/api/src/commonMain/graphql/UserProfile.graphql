@@ -9,6 +9,10 @@ query UserProfile($username: String!) {
             following
         }
         biography
+        links {
+            name
+            url
+        }
         posts {
             content
             publishedAt
