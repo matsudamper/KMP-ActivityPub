@@ -171,7 +171,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id]
+     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.likePostId]
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun setLiked(postId: String, liked: Boolean): String? {
@@ -299,6 +299,7 @@ class UserApi(
                     linkPreviewId = it.linkPreviewId,
                     postId = it.postId,
                     deletableNoteId = it.deletableNoteId,
+                    likePostId = it.like?.postId,
                     body = UserPostBody(
                         content = it.content,
                         publishedAt = it.publishedAt,
@@ -308,8 +309,7 @@ class UserApi(
                         images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                         favouriteCount = it.favouriteCount,
                         stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
-                        // プロフィールの投稿は、いいねの状態を取っていない
-                        likedByMe = null,
+                        likedByMe = it.like?.likedByMe,
                     ),
                 )
             },

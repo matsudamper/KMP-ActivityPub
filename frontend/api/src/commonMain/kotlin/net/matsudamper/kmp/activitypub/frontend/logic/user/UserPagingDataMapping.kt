@@ -57,7 +57,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
-            likedByMe = it.body.likedByMe,
+            likedByMe = it.body.likedByMe == true,
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))

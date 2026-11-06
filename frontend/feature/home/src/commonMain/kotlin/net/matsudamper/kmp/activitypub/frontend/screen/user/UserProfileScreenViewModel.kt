@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
@@ -51,6 +52,11 @@ internal class UserProfileScreenViewModel(
         )
     private var loadJob: Job? = null
     private var followingChangeJob: Job? = null
+
+    /**
+     * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var likeChangingPostIds = setOf<String>()
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -155,6 +161,32 @@ internal class UserProfileScreenViewModel(
             } finally {
                 updateFollowingChangeInProgress(false)
             }
+        }
+    }
+
+    /**
+     * @param likedByMe 押す前の状態
+     */
+    private fun toggleLike(likePostId: String, likedByMe: Boolean) {
+        if (likePostId in likeChangingPostIds) return
+        likeChangingPostIds = likeChangingPostIds + likePostId
+        viewModelScope.launch {
+            try {
+                applyLiked(likePostId = likePostId, liked = !likedByMe)
+                val error = api.setLiked(postId = likePostId, liked = !likedByMe)
+                if (error != null) {
+                    applyLiked(likePostId = likePostId, liked = likedByMe)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                likeChangingPostIds = likeChangingPostIds - likePostId
+            }
+        }
+    }
+
+    private fun applyLiked(likePostId: String, liked: Boolean) {
+        updateProfile { profile ->
+            if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withLiked(likePostId = likePostId, liked = liked)) else profile
         }
     }
 
@@ -276,8 +308,11 @@ internal class UserProfileScreenViewModel(
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                     onToggleImageBlur = { url -> toggleImageBlur(url) },
-                    // プロフィールの投稿はいいねの状態を取っていないので押せない
-                    onToggleLike = {},
+                    onToggleLike = {
+                        val likePostId = post.likePostId
+                        val likedByMe = post.body.likedByMe
+                        if (likePostId != null && likedByMe != null) toggleLike(likePostId = likePostId, likedByMe = likedByMe)
+                    },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)

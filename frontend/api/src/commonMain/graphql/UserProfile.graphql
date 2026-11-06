@@ -32,6 +32,10 @@ query UserProfile($username: String!) {
                 imageUrl
                 count
             }
+            like {
+                postId
+                likedByMe
+            }
         }
     }
 }

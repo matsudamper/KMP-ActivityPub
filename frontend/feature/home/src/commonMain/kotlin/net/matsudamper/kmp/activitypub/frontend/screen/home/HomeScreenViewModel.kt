@@ -583,21 +583,33 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun toggleLike(post: UserHomeTimelineResult.Post) {
-        val liked = post.body.likedByMe ?: return
-        if (post.id in likeChangingPostIds) return
-        likeChangingPostIds = likeChangingPostIds + post.id
+    /**
+     * 自分の投稿はタイムラインと自分のタブの両方に出るので、両方を切り替える
+     *
+     * @param likedByMe 押す前の状態
+     */
+    private fun toggleLike(postId: String, likedByMe: Boolean) {
+        if (postId in likeChangingPostIds) return
+        likeChangingPostIds = likeChangingPostIds + postId
         viewModelScope.launch {
             try {
-                timelinePaging.updateCache { it.withLiked(postId = post.id, liked = !liked) }
-                val error = userApi.setLiked(postId = post.id, liked = !liked)
+                applyLiked(postId = postId, liked = !likedByMe)
+                val error = userApi.setLiked(postId = postId, liked = !likedByMe)
                 if (error != null) {
-                    timelinePaging.updateCache { it.withLiked(postId = post.id, liked = liked) }
+                    applyLiked(postId = postId, liked = likedByMe)
                     events.send { it.showMessage(error) }
                 }
             } finally {
-                likeChangingPostIds = likeChangingPostIds - post.id
+                likeChangingPostIds = likeChangingPostIds - postId
             }
+        }
+    }
+
+    private suspend fun applyLiked(postId: String, liked: Boolean) {
+        timelinePaging.updateCache { it.withLiked(postId = postId, liked = liked) }
+        viewModelStateFlow.update {
+            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withLiked(likePostId = postId, liked = liked)))
         }
     }
 
@@ -752,8 +764,11 @@ internal class HomeScreenViewModel(
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                             onToggleImageBlur = { url -> toggleImageBlur(url) },
-                            // プロフィールの投稿はいいねの状態を取っていないので押せない
-                            onToggleLike = {},
+                            onToggleLike = {
+                                val likePostId = post.likePostId
+                                val likedByMe = post.body.likedByMe
+                                if (likePostId != null && likedByMe != null) toggleLike(postId = likePostId, likedByMe = likedByMe)
+                            },
                             onVisible = {
                                 if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                                     loadLinkPreviews(linkPreviewId)
@@ -794,7 +809,10 @@ internal class HomeScreenViewModel(
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onToggleImageBlur = { url -> toggleImageBlur(url) },
-                onToggleLike = { toggleLike(post) },
+                onToggleLike = {
+                    val likedByMe = post.body.likedByMe
+                    if (likedByMe != null) toggleLike(postId = post.id, likedByMe = likedByMe)
+                },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)
