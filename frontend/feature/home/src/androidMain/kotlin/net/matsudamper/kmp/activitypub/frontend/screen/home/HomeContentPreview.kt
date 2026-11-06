@@ -581,5 +581,7 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
     override fun onClickPost() = Unit
 
+    override fun onPressPostShortcut() = Unit
+
     override fun onClickBack() = Unit
 }
