@@ -51,6 +51,7 @@ private fun UserProfileContentPreview() {
                     media = listOf(),
                     mediaEmptyMessage = "表示できるメディアはありません",
                 ),
+                deleteNoteDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -76,6 +77,7 @@ private fun UserProfileContentLocalUserPreview() {
                     media = listOf(),
                     mediaEmptyMessage = "表示できるメディアはありません",
                 ),
+                deleteNoteDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -108,6 +110,7 @@ private fun UserProfileContentMediaPreview() {
                     },
                     mediaEmptyMessage = null,
                 ),
+                deleteNoteDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -122,6 +125,7 @@ private fun UserProfileContentNotFoundPreview() {
         UserProfileContent(
             uiState = UserProfileScreenUiState(
                 content = UserProfileScreenUiState.Content.NotFound,
+                deleteNoteDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),

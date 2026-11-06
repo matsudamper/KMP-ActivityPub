@@ -15,8 +15,14 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.confirm
+import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
@@ -35,6 +41,7 @@ internal class PostDetailScreenViewModel(
                 post = PostState.Loading,
                 linkPreviews = listOf(),
                 blurToggledImageUrls = setOf(),
+                noteDeletion = NoteDeletionState.None,
             ),
         )
     private var loadJob: Job? = null
@@ -51,6 +58,16 @@ internal class PostDetailScreenViewModel(
 
         override fun onClickBack() {
             viewModelScope.launch { events.send { it.navigateBack() } }
+        }
+    }
+
+    private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
+        override fun onClickDelete() {
+            deleteNote()
+        }
+
+        override fun onDismiss() {
+            viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.dismiss()) }
         }
     }
 
@@ -93,6 +110,31 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private fun confirmNoteDeletion(noteId: String) {
+        viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
+    }
+
+    /**
+     * 消せたら開いている投稿が無くなるので、前の画面に戻る
+     */
+    private fun deleteNote() {
+        val confirming = viewModelStateFlow.value.noteDeletion as? NoteDeletionState.Confirming ?: return
+        val noteId = confirming.noteId
+        viewModelStateFlow.update { it.copy(noteDeletion = NoteDeletionState.Deleting(noteId)) }
+        viewModelScope.launch {
+            try {
+                val error = api.deleteNote(noteId)
+                if (error == null) {
+                    events.send { it.navigateBack() }
+                } else {
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                viewModelStateFlow.update { it.copy(noteDeletion = NoteDeletionState.None) }
+            }
+        }
+    }
+
     private fun toggleImageBlur(url: String) {
         viewModelStateFlow.update {
             val urls = it.blurToggledImageUrls
@@ -125,6 +167,7 @@ internal class PostDetailScreenViewModel(
                 PostState.NotFound -> PostDetailScreenUiState.Content.NotFound
                 PostState.Failed -> PostDetailScreenUiState.Content.Error
             },
+            deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             listener = listener,
         )
     }
@@ -150,7 +193,7 @@ internal class PostDetailScreenViewModel(
             },
             // 開いているのがこの投稿の画面なので、押しても移る先が無い
             postListener = null,
-            menuItems = listOf(),
+            menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
             onToggleImageBlur = { url -> toggleImageBlur(url) },
@@ -178,6 +221,7 @@ internal class PostDetailScreenViewModel(
         val post: PostState,
         val linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
         val blurToggledImageUrls: Set<String>,
+        val noteDeletion: NoteDeletionState,
     )
 
     private sealed interface PostState {

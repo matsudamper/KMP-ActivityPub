@@ -29,9 +29,15 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.confirm
+import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
+import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import org.koin.core.annotation.InjectedParam
@@ -197,17 +203,6 @@ internal class HomeScreenViewModel(
             }
         }
 
-        override fun onClickConfirmDeleteNote() {
-            deleteNote()
-        }
-
-        override fun onDismissDeleteNoteDialog() {
-            // 消している途中で閉じると、結果が出る前に別の投稿を選べてしまう
-            viewModelStateFlow.update {
-                if (it.noteDeletion is NoteDeletionState.Confirming) it.copy(noteDeletion = NoteDeletionState.None) else it
-            }
-        }
-
         override fun onScreenShown() {
             loadProfile()
             // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
@@ -215,6 +210,16 @@ internal class HomeScreenViewModel(
                 collectTimelineArrivals()
             }
             loadTimeline(TimelineLoadTrigger.ScreenShown)
+        }
+    }
+
+    private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
+        override fun onClickDelete() {
+            deleteNote()
+        }
+
+        override fun onDismiss() {
+            viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.dismiss()) }
         }
     }
 
@@ -233,6 +238,9 @@ internal class HomeScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
+        }
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
                 searchPaging?.updateCache { it.withFollowing(change) }
@@ -565,11 +573,6 @@ internal class HomeScreenViewModel(
             try {
                 val error = userApi.deleteNote(noteId)
                 if (error == null) {
-                    timelinePaging.updateCache { it.withoutNote(noteId) }
-                    updateTimeline { timeline ->
-                        timeline.copy(postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.filterNot { it.deletableNoteId == noteId })
-                    }
-                    reloadMyPostsIfLoaded()
                     events.send { it.showMessage("投稿を削除しました") }
                 } else {
                     events.send { it.showMessage(error) }
@@ -581,12 +584,18 @@ internal class HomeScreenViewModel(
     }
 
     /**
-     * ユーザータブの自分の投稿は削除に使う id を持たず外せないので、読み直して消した投稿を除く
+     * 個別投稿画面など、ほかの画面で消した投稿もここで外す
      */
-    private fun reloadMyPostsIfLoaded() {
-        val loaded = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded ?: return
-        myPostsRetryJob?.cancel()
-        myPostsRetryJob = viewModelScope.launch { loadMyPosts(loaded.profile.username) }
+    private suspend fun removeDeletedNote(noteId: String) {
+        timelinePaging.updateCache { it.withoutNote(noteId) }
+        updateTimeline { timeline ->
+            timeline.copy(postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.filterNot { it.deletableNoteId == noteId })
+        }
+        viewModelStateFlow.update {
+            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            val profile = myPosts.profile
+            it.copy(myPosts = MyPostsState.Loaded(profile.copy(posts = profile.posts.filterNot { post -> post.deletableNoteId == noteId })))
+        }
     }
 
     private fun changeFollowing(user: UserSearchResult.User) {
@@ -624,17 +633,9 @@ internal class HomeScreenViewModel(
             userContentTab = viewModelState.userContentTab,
             userPosts = createUserPosts(viewModelState),
             userTabIconUrl = (profile as? ProfileState.Loaded)?.profile?.iconUrl,
-            deleteNoteDialog = createDeleteNoteDialog(viewModelState.noteDeletion),
+            deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             listener = listener,
         )
-    }
-
-    private fun createDeleteNoteDialog(noteDeletion: NoteDeletionState): HomeScreenUiState.DeleteNoteDialog? {
-        return when (noteDeletion) {
-            NoteDeletionState.None -> null
-            is NoteDeletionState.Confirming -> HomeScreenUiState.DeleteNoteDialog(deleteButtonEnabled = true)
-            is NoteDeletionState.Deleting -> HomeScreenUiState.DeleteNoteDialog(deleteButtonEnabled = false)
-        }
     }
 
     private fun createTimelineFooter(loading: TimelineLoading): HomeScreenUiState.TimelineFooter {
@@ -689,7 +690,7 @@ internal class HomeScreenViewModel(
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             // 自分のタブに居るので、押しても移る先が無い
                             authorListener = null,
-                            menuItems = listOf(),
+                            menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                             postListener = null,
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
@@ -727,7 +728,7 @@ internal class HomeScreenViewModel(
                         }
                     }
                 },
-                menuItems = createTimelineMenuItems(post),
+                menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                 postListener = object : PostItemUiState.PostListener {
                     override fun onClick() {
                         viewModelScope.launch { events.send { it.navigateToPostDetail(post.id) } }
@@ -745,24 +746,8 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun createTimelineMenuItems(post: UserHomeTimelineResult.Post): List<PostItemUiState.MenuItem> {
-        val deletableNoteId = post.deletableNoteId ?: return listOf()
-        return listOf(
-            PostItemUiState.MenuItem(
-                label = "削除",
-                listener = object : PostItemUiState.MenuItemListener {
-                    override fun onClick() {
-                        viewModelStateFlow.update {
-                            if (it.noteDeletion is NoteDeletionState.Deleting) {
-                                it
-                            } else {
-                                it.copy(noteDeletion = NoteDeletionState.Confirming(deletableNoteId))
-                            }
-                        }
-                    }
-                },
-            ),
-        )
+    private fun confirmNoteDeletion(noteId: String) {
+        viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
 
     private fun createSearchResult(search: SearchState): HomeScreenUiState.SearchResult {
@@ -975,20 +960,5 @@ internal class HomeScreenViewModel(
         data class LoadFailed(
             val username: String,
         ) : MyPostsState
-    }
-
-    private sealed interface NoteDeletionState {
-        data object None : NoteDeletionState
-
-        /**
-         * 確かめのダイアログを出している
-         */
-        data class Confirming(
-            val noteId: String,
-        ) : NoteDeletionState
-
-        data class Deleting(
-            val noteId: String,
-        ) : NoteDeletionState
     }
 }

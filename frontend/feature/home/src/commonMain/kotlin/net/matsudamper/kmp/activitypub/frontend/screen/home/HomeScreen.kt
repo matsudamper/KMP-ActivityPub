@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -74,6 +73,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
@@ -321,36 +321,8 @@ internal fun HomeContent(
     }
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
-        DeleteNoteDialog(dialog = deleteNoteDialog, listener = uiState.listener)
+        DeleteNoteDialog(uiState = deleteNoteDialog)
     }
-}
-
-@Composable
-private fun DeleteNoteDialog(
-    dialog: HomeScreenUiState.DeleteNoteDialog,
-    listener: HomeScreenUiState.Listener,
-) {
-    AlertDialog(
-        onDismissRequest = listener::onDismissDeleteNoteDialog,
-        title = { Text("投稿を削除") },
-        text = { Text("投稿と付けた画像を削除する。フォロワーのサーバーにも削除を伝える") },
-        confirmButton = {
-            TextButton(
-                onClick = listener::onClickConfirmDeleteNote,
-                enabled = dialog.deleteButtonEnabled,
-            ) {
-                Text("削除")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = listener::onDismissDeleteNoteDialog,
-                enabled = dialog.deleteButtonEnabled,
-            ) {
-                Text("キャンセル")
-            }
-        },
-    )
 }
 
 @Composable

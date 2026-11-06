@@ -57,6 +57,12 @@ class UserApi(
 ) {
     private val followingChangesFlow = MutableSharedFlow<FollowingChange>()
     val followingChanges = followingChangesFlow.asSharedFlow()
+    private val deletedNoteIdsFlow = MutableSharedFlow<String>()
+
+    /**
+     * [deleteNote] で消せた投稿の id。どの画面で消しても、投稿を出している画面がここで外す
+     */
+    val deletedNoteIds = deletedNoteIdsFlow.asSharedFlow()
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
@@ -265,6 +271,7 @@ class UserApi(
                 UserProfileResult.Post(
                     linkPreviewId = it.linkPreviewId,
                     postId = it.postId,
+                    deletableNoteId = it.deletableNoteId,
                     body = UserPostBody(
                         content = it.content,
                         publishedAt = it.publishedAt,
@@ -349,11 +356,19 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
         val deleteNote = response.data?.user?.deleteNote ?: return response.failureMessage()
         return when (deleteNote.failure) {
-            null -> null
+            null -> {
+                deletedNoteIdsFlow.emit(noteId)
+                null
+            }
+
             DeleteNoteFailure.NOT_LOGGED_IN -> "ログインしていません"
+
             DeleteNoteFailure.NOT_FOUND -> "投稿が見つかりません"
+
             DeleteNoteFailure.FEDERATION_DISABLED -> "このサーバーでは投稿を削除できません"
+
             DeleteNoteFailure.INTERNAL_SERVER_ERROR -> "投稿を削除できませんでした。時間をおいて試してください"
+
             DeleteNoteFailure.UNKNOWN__ -> "Unknown"
         }
     }

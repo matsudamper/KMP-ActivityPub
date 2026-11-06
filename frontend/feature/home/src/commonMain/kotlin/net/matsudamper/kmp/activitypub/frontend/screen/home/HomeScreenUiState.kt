@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
@@ -20,13 +21,9 @@ data class HomeScreenUiState(
     /**
      * 出していなければ null
      */
-    val deleteNoteDialog: DeleteNoteDialog?,
+    val deleteNoteDialog: DeleteNoteDialogUiState?,
     val listener: Listener,
 ) {
-    data class DeleteNoteDialog(
-        val deleteButtonEnabled: Boolean,
-    )
-
     sealed interface TimelineFooter {
         data object None : TimelineFooter
         data object Loading : TimelineFooter
@@ -145,10 +142,6 @@ data class HomeScreenUiState(
         fun onClickFollowing()
 
         fun onClickFollowers()
-
-        fun onClickConfirmDeleteNote()
-
-        fun onDismissDeleteNoteDialog()
 
         fun onScreenShown()
     }

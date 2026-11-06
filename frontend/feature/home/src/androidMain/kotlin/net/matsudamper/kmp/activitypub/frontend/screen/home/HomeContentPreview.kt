@@ -11,6 +11,7 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
@@ -44,7 +45,7 @@ private fun HomeContentPreviewStreamDisconnected() = HomeTimelinePreview(
 private fun HomeContentPreviewDeleteNoteDialog() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.None,
     streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
-    deleteNoteDialog = HomeScreenUiState.DeleteNoteDialog(deleteButtonEnabled = true),
+    deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
 )
 
 @Preview
@@ -59,7 +60,7 @@ private fun HomeContentPreviewStreamWaitingToReconnect() = HomeTimelinePreview(
 private fun HomeTimelinePreview(
     footer: HomeScreenUiState.TimelineFooter,
     streamStatus: HomeScreenUiState.TimelineStreamStatus,
-    deleteNoteDialog: HomeScreenUiState.DeleteNoteDialog?,
+    deleteNoteDialog: DeleteNoteDialogUiState?,
 ) {
     HomePreviewTheme {
         HomeContent(
@@ -424,11 +425,13 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onClickFollowers() = Unit
 
-    override fun onClickConfirmDeleteNote() = Unit
-
-    override fun onDismissDeleteNoteDialog() = Unit
-
     override fun onScreenShown() = Unit
+}
+
+private object AndroidPreviewDeleteNoteDialogListener : DeleteNoteDialogUiState.Listener {
+    override fun onClickDelete() = Unit
+
+    override fun onDismiss() = Unit
 }
 
 private object AndroidPreviewProfileMediaListener : ProfileMediaUiState.Listener {
