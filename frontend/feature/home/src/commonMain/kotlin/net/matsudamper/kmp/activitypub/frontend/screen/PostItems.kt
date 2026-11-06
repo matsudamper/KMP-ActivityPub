@@ -19,8 +19,8 @@ internal fun createPostItemUiState(
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
     sensitiveImagesBlurred: Boolean,
     blurToggledImageUrls: Set<String>,
-    authorListener: PostItemUiState.AuthorListener?,
-    postListener: PostItemUiState.PostListener?,
+    authorTapAction: AuthorTapAction,
+    postTapAction: PostTapAction,
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
@@ -53,12 +53,63 @@ internal fun createPostItemUiState(
         stamps = body.stamps.map { stamp ->
             PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
         },
-        authorListener = authorListener,
-        postListener = postListener,
+        authorListener = when (authorTapAction) {
+            is AuthorTapAction.OpenProfile -> object : PostItemUiState.AuthorListener {
+                override fun onClick() {
+                    authorTapAction.navigate()
+                }
+            }
+
+            AuthorTapAction.AlreadyOnAuthorProfile -> null
+        },
+        postListener = when (postTapAction) {
+            is PostTapAction.OpenPostDetail -> {
+                val postId = postTapAction.postId
+                if (postId == null) {
+                    null
+                } else {
+                    object : PostItemUiState.PostListener {
+                        override fun onClick() {
+                            postTapAction.navigate(postId)
+                        }
+                    }
+                }
+            }
+
+            PostTapAction.AlreadyOnPostDetail -> null
+        },
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {
                 onVisible()
             }
         },
     )
+}
+
+/**
+ * 投稿を押したときの動き。押せなくするのは「今その投稿の詳細を開いている」ときだけに絞るため、null ではなく型で選ばせる
+ */
+internal sealed interface PostTapAction {
+    /**
+     * 投稿を並べる画面（タイムライン・自分やほかの人のプロフィールなど）はすべてこれ
+     *
+     * @param postId サーバーから id が返らなかった投稿は詳細を開けないので null
+     */
+    class OpenPostDetail(
+        val postId: String?,
+        val navigate: (postId: String) -> Unit,
+    ) : PostTapAction
+
+    data object AlreadyOnPostDetail : PostTapAction
+}
+
+/**
+ * アイコンや名前を押したときの動き。押せなくするのは「今その人のプロフィールを開いている」ときだけ
+ */
+internal sealed interface AuthorTapAction {
+    class OpenProfile(
+        val navigate: () -> Unit,
+    ) : AuthorTapAction
+
+    data object AlreadyOnAuthorProfile : AuthorTapAction
 }
