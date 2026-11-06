@@ -3,12 +3,13 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
-import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
+import net.matsudamper.kmp.activitypub.repository.ProfileValueChange
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PROFILE_LINKS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
@@ -128,13 +129,35 @@ internal class SqliteDeliveryQueueRepository(
             .set(
                 ACCOUNTS.DISPLAY_NAME,
                 when (val displayName = update.displayName) {
-                    DisplayNameChange.Keep -> ACCOUNTS.DISPLAY_NAME
-                    is DisplayNameChange.Set -> DSL.value(displayName.value)
+                    ProfileValueChange.Keep -> ACCOUNTS.DISPLAY_NAME
+                    is ProfileValueChange.Set -> DSL.value(displayName.value)
+                },
+            )
+            .set(
+                ACCOUNTS.SUMMARY,
+                when (val summary = update.summary) {
+                    ProfileValueChange.Keep -> ACCOUNTS.SUMMARY
+                    is ProfileValueChange.Set -> DSL.value(summary.value)
                 },
             )
             .set(ACCOUNTS.ICON_PATH, update.newIconPath?.let { DSL.value(it) } ?: ACCOUNTS.ICON_PATH)
             .where(ACCOUNTS.ID.eq(accountId))
             .execute()
+
+        val links = update.links
+        if (links is ProfileValueChange.Set) {
+            dsl.deleteFrom(ACCOUNT_PROFILE_LINKS)
+                .where(ACCOUNT_PROFILE_LINKS.ACCOUNT_ID.eq(accountId))
+                .execute()
+            links.value.forEachIndexed { index, link ->
+                dsl.insertInto(ACCOUNT_PROFILE_LINKS)
+                    .set(ACCOUNT_PROFILE_LINKS.ACCOUNT_ID, accountId)
+                    .set(ACCOUNT_PROFILE_LINKS.POSITION, index.toLong())
+                    .set(ACCOUNT_PROFILE_LINKS.NAME, link.name)
+                    .set(ACCOUNT_PROFILE_LINKS.URL, link.url)
+                    .execute()
+            }
+        }
 
         // 送っている途中の行は消しても送信が止まらないので、待っている行だけ消す
         dsl.deleteFrom(DELIVERY_QUEUE)

@@ -10,6 +10,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import net.matsudamper.kmp.activitypub.FakeAccountRepository
@@ -21,7 +22,8 @@ import net.matsudamper.kmp.activitypub.delivery.DeliverySenders
 import net.matsudamper.kmp.activitypub.federation.FrontendWebPageUrls
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
-import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.repository.ProfileValueChange
 import net.matsudamper.kotpub.actor.ActorAppearance
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorPrivateKey
@@ -47,11 +49,11 @@ class ProfileUpdateServiceTest {
     fun `表示名を書き換えてフォロワーの inbox ごとにプロフィール全体の Update を積む`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
 
-        assertEquals(UpdateDisplayNameResult.Updated, service.updateDisplayName(username = "user1", displayName = " 新しい名前 "))
+        assertEquals(UpdateProfileResult.Updated, service.updateDisplayName(username = "user1", displayName = " 新しい名前 "))
 
         val update = deliveryQueueRepository.profileUpdates.single()
         assertEquals("user1", update.username)
-        assertEquals(DisplayNameChange.Set("新しい名前"), update.displayName)
+        assertEquals(ProfileValueChange.Set("新しい名前"), update.displayName)
         assertEquals(listOf(INBOX_A, INBOX_B), update.inboxes)
         val activity = Json.parseToJsonElement(update.body).jsonObject
         assertEquals("Update", activity.getValue("type").jsonPrimitive.content)
@@ -63,10 +65,84 @@ class ProfileUpdateServiceTest {
     }
 
     @Test
-    fun `空の表示名は未設定に戻す`() {
-        assertEquals(UpdateDisplayNameResult.Updated, service.updateDisplayName(username = "user1", displayName = "  "))
+    fun `説明文とリンク集を書き換えて Update の summary と attachment に載せる`() {
+        val links = listOf(ProfileLink(name = " Blog ", url = " https://blog.example/ "), ProfileLink(name = "", url = ""))
 
-        assertEquals(DisplayNameChange.Set(null), deliveryQueueRepository.profileUpdates.single().displayName)
+        assertEquals(
+            UpdateProfileResult.Updated,
+            service.updateProfile(username = "user1", displayName = null, summary = "1行目\r\n2行目", links = links),
+        )
+
+        val update = deliveryQueueRepository.profileUpdates.single()
+        assertEquals(ProfileValueChange.Keep, update.displayName)
+        assertEquals(ProfileValueChange.Set("1行目\n2行目"), update.summary)
+        assertEquals(ProfileValueChange.Set(listOf(ProfileLink(name = "Blog", url = "https://blog.example/"))), update.links)
+        val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
+        assertEquals("古い名前", actor.getValue("name").jsonPrimitive.content)
+        assertEquals("<p>1行目<br>2行目</p>", actor.getValue("summary").jsonPrimitive.content)
+        val attachment = actor.getValue("attachment").jsonArray.single().jsonObject
+        assertEquals("Blog", attachment.getValue("name").jsonPrimitive.content)
+        assertTrue(attachment.getValue("value").jsonPrimitive.content.contains("https://blog.example/"))
+    }
+
+    @Test
+    fun `空の説明文は未設定に戻す`() {
+        assertEquals(UpdateProfileResult.Updated, service.updateProfile(username = "user1", displayName = null, summary = " ", links = null))
+
+        val update = deliveryQueueRepository.profileUpdates.single()
+        assertEquals(ProfileValueChange.Set(null), update.summary)
+        assertEquals(ProfileValueChange.Keep, update.links)
+    }
+
+    @Test
+    fun `長すぎる説明文は積まない`() {
+        assertEquals(
+            UpdateProfileResult.SummaryTooLong,
+            service.updateProfile(username = "user1", displayName = null, summary = "あ".repeat(ProfileUpdateService.MAX_SUMMARY_LENGTH + 1), links = null),
+        )
+
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `リンクが多すぎれば積まない`() {
+        val links = (0..ProfileUpdateService.MAX_LINK_COUNT).map { ProfileLink(name = "link$it", url = "https://example.com/$it") }
+
+        assertEquals(UpdateProfileResult.TooManyLinks, service.updateProfile(username = "user1", displayName = null, summary = null, links = links))
+
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `長すぎるリンクは積まない`() {
+        val links = listOf(ProfileLink(name = "Blog", url = "https://example.com/" + "a".repeat(ProfileUpdateService.MAX_LINK_PART_LENGTH)))
+
+        assertEquals(UpdateProfileResult.LinkTooLong, service.updateProfile(username = "user1", displayName = null, summary = null, links = links))
+
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `http と https 以外の URL や見出しの無いリンクは積まない`() {
+        listOf(
+            ProfileLink(name = "Script", url = "javascript:alert(1)"),
+            ProfileLink(name = "Relative", url = "/users/user1"),
+            ProfileLink(name = "", url = "https://example.com/"),
+        ).forEach { link ->
+            assertEquals(
+                UpdateProfileResult.InvalidLink,
+                service.updateProfile(username = "user1", displayName = null, summary = null, links = listOf(link)),
+            )
+        }
+
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `空の表示名は未設定に戻す`() {
+        assertEquals(UpdateProfileResult.Updated, service.updateDisplayName(username = "user1", displayName = "  "))
+
+        assertEquals(ProfileValueChange.Set(null), deliveryQueueRepository.profileUpdates.single().displayName)
     }
 
     @Test
@@ -74,7 +150,7 @@ class ProfileUpdateServiceTest {
         assertEquals(UpdateIconResult.Updated, service.updateIcon(username = "user1", icon = PNG))
 
         val update = deliveryQueueRepository.profileUpdates.single()
-        assertEquals(DisplayNameChange.Keep, update.displayName)
+        assertEquals(ProfileValueChange.Keep, update.displayName)
         val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
         assertEquals("古い名前", actor.getValue("name").jsonPrimitive.content)
     }
@@ -82,7 +158,7 @@ class ProfileUpdateServiceTest {
     @Test
     fun `長すぎる表示名は積まない`() {
         assertEquals(
-            UpdateDisplayNameResult.TooLong,
+            UpdateProfileResult.DisplayNameTooLong,
             service.updateDisplayName(username = "user1", displayName = "あ".repeat(ProfileUpdateService.MAX_DISPLAY_NAME_LENGTH + 1)),
         )
 
@@ -92,7 +168,7 @@ class ProfileUpdateServiceTest {
 
     @Test
     fun `アクターとして扱えないアカウントでは積まない`() {
-        assertEquals(UpdateDisplayNameResult.AccountNotFound, service.updateDisplayName(username = "other", displayName = "名前"))
+        assertEquals(UpdateProfileResult.AccountNotFound, service.updateDisplayName(username = "other", displayName = "名前"))
         assertEquals(UpdateIconResult.AccountNotFound, service.updateIcon(username = "other", icon = PNG))
 
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
@@ -121,7 +197,7 @@ class ProfileUpdateServiceTest {
     fun `表示名だけを変えるときは今の画像のまま`() {
         accountRepository.setIconPath(user1Id, "users/${user1Id.value}/profile-icon/current")
 
-        assertEquals(UpdateDisplayNameResult.Updated, service.updateDisplayName(username = "user1", displayName = "名前"))
+        assertEquals(UpdateProfileResult.Updated, service.updateDisplayName(username = "user1", displayName = "名前"))
 
         assertNull(deliveryQueueRepository.profileUpdates.single().newIconPath)
     }
@@ -178,6 +254,11 @@ class ProfileUpdateServiceTest {
 
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
     }
+
+    private fun ProfileUpdateService.updateDisplayName(
+        username: String,
+        displayName: String,
+    ): UpdateProfileResult = updateProfile(username = username, displayName = displayName, summary = null, links = null)
 
     private fun createService(imageStorage: ImageStorage?): ProfileUpdateService =
         ProfileUpdateService(

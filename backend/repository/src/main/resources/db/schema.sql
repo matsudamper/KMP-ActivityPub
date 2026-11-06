@@ -7,7 +7,18 @@ CREATE TABLE accounts (
     display_name TEXT,
     -- 画像の置き場の中でのプロフィール画像の場所。未設定なら NULL
     icon_path TEXT,
-    last_active_at TEXT
+    last_active_at TEXT,
+    -- プロフィールの説明文。プレーンテキスト。未設定なら NULL
+    summary TEXT
+);
+
+-- プロフィールのリンク集。position の小さい順に並べる
+CREATE TABLE account_profile_links (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    PRIMARY KEY (account_id, position)
 );
 
 -- 行が無ければパスワードは無い
