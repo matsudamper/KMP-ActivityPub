@@ -55,6 +55,7 @@ private fun HomeTimelinePreview(
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
                     PostItemUiState(
+                        boostedByText = null,
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
@@ -86,12 +87,14 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = null,
+                        boostCountText = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         postListener = AndroidPreviewPostListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
+                        boostedByText = "Alice がブースト",
                         iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
@@ -122,6 +125,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = "3",
+                        boostCountText = null,
                         stamps = listOf(
                             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
                             PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
@@ -269,6 +273,7 @@ private fun HomeUserContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            boostedByText = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -277,6 +282,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            boostCountText = null,
                             stamps = listOf(),
                             authorListener = null,
                             postListener = null,
@@ -323,6 +329,7 @@ private fun HomeUserMediaContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            boostedByText = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -331,6 +338,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            boostCountText = null,
                             stamps = listOf(),
                             authorListener = null,
                             postListener = null,

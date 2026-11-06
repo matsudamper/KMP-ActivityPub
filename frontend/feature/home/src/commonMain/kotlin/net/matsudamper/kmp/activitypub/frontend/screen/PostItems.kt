@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen
 
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -10,8 +11,10 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
+ * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手
  */
 internal fun createPostItemUiState(
+    boostedBy: UserHomeTimelineResult.Booster?,
     iconUrl: String?,
     displayName: String,
     acct: String,
@@ -27,6 +30,7 @@ internal fun createPostItemUiState(
     onVisible: () -> Unit,
 ): PostItemUiState {
     return PostItemUiState(
+        boostedByText = boostedBy?.let { "${it.displayName} がブースト" },
         iconUrl = iconUrl,
         displayName = displayName,
         acct = acct,
@@ -50,6 +54,7 @@ internal fun createPostItemUiState(
             )
         },
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
+        boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
         stamps = body.stamps.map { stamp ->
             PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
         },

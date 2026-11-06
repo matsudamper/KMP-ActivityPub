@@ -122,8 +122,10 @@ class UserApi(
                     linkUrls = post.linkUrls,
                     images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                     favouriteCount = post.favouriteCount,
+                    boostCount = post.boostCount,
                     stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
                 ),
+                boostedBy = post.boostedBy?.let { UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName) },
             ),
         )
     }
@@ -270,6 +272,7 @@ class UserApi(
                         linkUrls = it.linkUrls,
                         images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                         favouriteCount = it.favouriteCount,
+                        boostCount = it.boostCount,
                         stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
                     ),
                 )
@@ -458,8 +461,12 @@ class UserApi(
                                 linkUrls = post.linkUrls,
                                 images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                                 favouriteCount = post.favouriteCount,
+                                boostCount = post.boostCount,
                                 stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
                             ),
+                            boostedBy = post.boostedBy?.let {
+                                UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName)
+                            },
                         ),
                     ),
                 )

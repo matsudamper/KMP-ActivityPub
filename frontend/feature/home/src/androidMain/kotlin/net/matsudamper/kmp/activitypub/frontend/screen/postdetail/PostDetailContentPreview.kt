@@ -15,6 +15,7 @@ private fun PostDetailContentPreview() {
             uiState = PostDetailScreenUiState(
                 content = PostDetailScreenUiState.Content.Loaded(
                     post = PostItemUiState(
+                        boostedByText = null,
                         iconUrl = null,
                         displayName = "Alice",
                         acct = "@alice@example.social",
@@ -31,6 +32,7 @@ private fun PostDetailContentPreview() {
                         ),
                         images = listOf(),
                         favouriteCountText = "12",
+                        boostCountText = "4",
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,
                         postListener = null,

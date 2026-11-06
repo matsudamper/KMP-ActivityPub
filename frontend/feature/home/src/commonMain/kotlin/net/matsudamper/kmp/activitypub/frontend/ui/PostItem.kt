@@ -45,8 +45,6 @@ internal fun PostItem(
     uiState: PostItemUiState,
     modifier: Modifier = Modifier,
 ) {
-    val authorListener = uiState.authorListener
-    val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
     val postListener = uiState.postListener
     val postInteractionSource = remember { HoverIgnoringInteractionSource() }
     val postClickModifier =
@@ -59,8 +57,52 @@ internal fun PostItem(
                 onClick = postListener::onClick,
             )
         }
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        val boostedByText = uiState.boostedByText
+        if (boostedByText != null) {
+            BoostedByLabel(text = boostedByText)
+        }
+        PostItemContent(uiState = uiState)
+    }
+}
+
+/**
+ * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
+ */
+@Composable
+private fun BoostedByLabel(text: String) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.width(40.dp), contentAlignment = Alignment.CenterEnd) {
+            Icon(
+                imageVector = AppIcons.Repeat,
+                contentDescription = null,
+                modifier = Modifier.size(PostActionIconSize),
+                tint = color,
+            )
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun PostItemContent(uiState: PostItemUiState) {
+    val authorListener = uiState.authorListener
+    val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ProfileIcon(
@@ -202,12 +244,22 @@ private fun PostActions(uiState: PostItemUiState) {
         modifier = Modifier.padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(PostActionSlotWidth)) {
+        Row(
+            modifier = Modifier.width(PostActionSlotWidth),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 imageVector = AppIcons.Repeat,
                 contentDescription = "ブースト",
                 modifier = Modifier.size(PostActionIconSize),
                 tint = disabledIconColor,
+            )
+            Text(
+                text = uiState.boostCountText.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = iconColor,
+                maxLines = 1,
             )
         }
         Row(

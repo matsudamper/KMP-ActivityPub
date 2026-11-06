@@ -24,6 +24,7 @@ private fun UserProfileContentPreview() {
                     selectedTab = ProfileContentTab.Posts,
                     posts = listOf(
                         PostItemUiState(
+                            boostedByText = null,
                             iconUrl = null,
                             displayName = "Alice",
                             acct = "@alice@example.social",
@@ -40,6 +41,7 @@ private fun UserProfileContentPreview() {
                             ),
                             images = listOf(),
                             favouriteCountText = "12",
+                            boostCountText = "4",
                             stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                             authorListener = null,
                             postListener = null,
