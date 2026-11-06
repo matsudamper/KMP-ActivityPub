@@ -50,8 +50,10 @@ internal fun PostItem(
 ) {
     val authorListener = uiState.authorListener
     val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
+    val postListener = uiState.postListener
+    val postClickModifier = if (postListener == null) Modifier else Modifier.clickable(onClick = postListener::onClick)
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ProfileIcon(

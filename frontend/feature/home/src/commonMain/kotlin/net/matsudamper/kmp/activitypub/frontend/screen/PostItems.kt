@@ -21,6 +21,7 @@ internal fun createPostItemUiState(
     blurToggledImageUrls: Set<String>,
     authorListener: PostItemUiState.AuthorListener?,
     menuItems: List<PostItemUiState.MenuItem>,
+    postListener: PostItemUiState.PostListener?,
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
@@ -55,6 +56,7 @@ internal fun createPostItemUiState(
         },
         authorListener = authorListener,
         menuItems = menuItems,
+        postListener = postListener,
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {
                 onVisible()

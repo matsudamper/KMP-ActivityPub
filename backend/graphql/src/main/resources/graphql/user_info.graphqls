@@ -7,5 +7,7 @@ type UserInfo {
     リンク先へ取りに行くので遅い。読めない投稿か、サーバーに DOMAIN が無ければ空
     """
     linkPreviews(postId: ID!): [LinkPreview!]! @lazy
+    "ホームタイムラインの投稿を 1 件。id には HomeTimelinePost.id を渡す。読めない投稿なら null"
+    post(id: ID!): HomeTimelinePost @lazy
     id: UserId!
 }

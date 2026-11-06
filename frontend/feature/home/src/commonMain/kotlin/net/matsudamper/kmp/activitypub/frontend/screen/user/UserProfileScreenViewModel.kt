@@ -198,6 +198,7 @@ internal class UserProfileScreenViewModel(
                     // 開いているのがその人の画面なので、押しても移る先が無い
                     authorListener = null,
                     menuItems = listOf(),
+                    postListener = null,
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                     onToggleImageBlur = { url -> toggleImageBlur(url) },

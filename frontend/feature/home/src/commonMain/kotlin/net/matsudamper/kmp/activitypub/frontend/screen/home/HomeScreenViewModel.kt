@@ -679,6 +679,7 @@ internal class HomeScreenViewModel(
                             // 自分のタブに居るので、押しても移る先が無い
                             authorListener = null,
                             menuItems = listOf(),
+                            postListener = null,
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                             onToggleImageBlur = { url -> toggleImageBlur(url) },
@@ -714,6 +715,11 @@ internal class HomeScreenViewModel(
                     }
                 },
                 menuItems = createTimelineMenuItems(post),
+                postListener = object : PostItemUiState.PostListener {
+                    override fun onClick() {
+                        viewModelScope.launch { events.send { it.navigateToPostDetail(post.id) } }
+                    }
+                },
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onToggleImageBlur = { url -> toggleImageBlur(url) },
@@ -830,6 +836,8 @@ internal class HomeScreenViewModel(
         fun openUrl(url: String)
 
         fun navigateToImage(url: String)
+
+        fun navigateToPostDetail(postId: String)
     }
 
     private companion object {

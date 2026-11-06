@@ -30,6 +30,10 @@ data class PostItemUiState(
      * 空ならメニューのボタンを出さない
      */
     val menuItems: List<MenuItem>,
+    /**
+     * 押しても移る先が無いときは null で、投稿を押せなくする
+     */
+    val postListener: PostListener?,
     val listener: Listener,
 ) {
     data class MenuItem(
@@ -79,6 +83,11 @@ data class PostItemUiState(
 
     @Immutable
     interface AuthorListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface PostListener {
         fun onClick()
     }
 

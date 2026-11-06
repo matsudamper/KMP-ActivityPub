@@ -99,6 +99,7 @@ private fun HomeTimelinePreview(
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         menuItems = listOf(),
+                        postListener = AndroidPreviewPostListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
@@ -139,6 +140,7 @@ private fun HomeTimelinePreview(
                         ),
                         authorListener = AndroidPreviewAuthorListener,
                         menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
+                        postListener = AndroidPreviewPostListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
@@ -289,6 +291,7 @@ private fun HomeUserContentPreview() {
                             stamps = listOf(),
                             authorListener = null,
                             menuItems = listOf(),
+                            postListener = null,
                             listener = AndroidPreviewTimelineItemListener,
                         ),
                     ),
@@ -360,6 +363,10 @@ private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
 }
 
 private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewPostListener : PostItemUiState.PostListener {
     override fun onClick() = Unit
 }
 

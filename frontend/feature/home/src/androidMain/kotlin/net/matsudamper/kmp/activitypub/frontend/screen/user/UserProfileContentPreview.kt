@@ -40,6 +40,7 @@ private fun UserProfileContentPreview() {
                             stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                             authorListener = null,
                             menuItems = listOf(),
+                            postListener = null,
                             listener = AndroidPreviewPostItemListener,
                         ),
                     ),
