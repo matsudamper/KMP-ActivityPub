@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.nio.file.Path
 import java.sql.Connection
+import java.sql.SQLException
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.copyTo
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
@@ -16,16 +18,13 @@ import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class SqliteConnectionManagerTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-connection-test")
+    private val dbPath: Path = tempDir.resolve("test.db")
 
-    @OptIn(kotlin.io.path.ExperimentalPathApi::class)
+    @OptIn(ExperimentalPathApi::class)
     @AfterTest
     fun tearDown() {
         tempDir.deleteRecursively()
     }
-
-    private val dbPath: Path = tempDir.resolve("test.db")
-
-    private fun createManager(): SqliteConnectionManager = SqliteConnectionManager(DatabaseConfig(path = dbPath))
 
     @Test
     fun `接続時にPRAGMAが適用されている`() {
@@ -75,7 +74,7 @@ class SqliteConnectionManagerTest {
                 }
             }
 
-            assertFailsWith<java.sql.SQLException> {
+            assertFailsWith<SQLException> {
                 manager.withConnection { connection ->
                     connection.createStatement().use { statement ->
                         statement.execute("INSERT INTO child (id, parent_id) VALUES (1, 999)")
@@ -149,6 +148,8 @@ class SqliteConnectionManagerTest {
 
         assertEquals("テスト", name)
     }
+
+    private fun createManager(): SqliteConnectionManager = SqliteConnectionManager(DatabaseConfig(path = dbPath))
 
     private fun SqliteConnectionManager.queryString(sql: String): String =
         withConnection { connection ->

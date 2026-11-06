@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.federation
 
-import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders

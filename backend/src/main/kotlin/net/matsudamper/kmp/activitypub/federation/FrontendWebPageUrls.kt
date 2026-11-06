@@ -4,9 +4,6 @@ import net.matsudamper.kotpub.entity.PublicNoteId
 import net.matsudamper.kotpub.note.NoteUrls
 import net.matsudamper.kotpub.url.WebPageUrls
 
-/**
- * フロントエンドの画面の URL
- */
 internal class FrontendWebPageUrls(
     private val domain: String,
 ) : WebPageUrls {
