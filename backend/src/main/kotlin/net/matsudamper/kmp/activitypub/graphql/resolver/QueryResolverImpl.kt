@@ -34,33 +34,36 @@ class QueryResolverImpl : QueryResolver {
             val profile = runBlocking {
                 diContainer.userProfileService.profile(acct, accountId)
             }
-            val result = profile?.let {
-                QlUserProfile(
-                    user = it.user.toQlSearchedUser(env, accountId).copy(following = it.following),
-                    biography = it.biography?.let { html -> htmlToPlainText(html) },
-                    posts = it.posts.map { post ->
-                        val body = createQlPostBody(
-                            contentHtml = post.contentHtml,
-                            summary = post.summary,
-                            sensitive = post.sensitive,
-                            images = post.images,
-                            linkUrlsEnabled = post.linkPreviewId != null,
-                            diContainer = diContainer,
-                        )
-                        QlProfilePost(
-                            content = body.content,
-                            publishedAt = post.publishedAt,
-                            summary = body.summary,
-                            sensitive = body.sensitive,
-                            linkPreviewId = post.linkPreviewId,
-                            linkUrls = body.linkUrls,
-                            images = body.images,
-                            favouriteCount = post.favouriteCount?.toInt(),
-                            stamps = post.stamps.toQlPostStamps(diContainer),
-                        )
-                    },
-                )
-            }
+            val result =
+                if (profile == null) {
+                    null
+                } else {
+                    QlUserProfile(
+                        user = profile.user.toQlSearchedUser(env, accountId).copy(following = profile.following),
+                        biography = profile.biography?.let { html -> htmlToPlainText(html) },
+                        posts = profile.posts.map { post ->
+                            val body = createQlPostBody(
+                                contentHtml = post.contentHtml,
+                                summary = post.summary,
+                                sensitive = post.sensitive,
+                                images = post.images,
+                                linkUrlsEnabled = post.linkPreviewId != null,
+                                diContainer = diContainer,
+                            )
+                            QlProfilePost(
+                                content = body.content,
+                                publishedAt = post.publishedAt,
+                                summary = body.summary,
+                                sensitive = body.sensitive,
+                                linkPreviewId = post.linkPreviewId,
+                                linkUrls = body.linkUrls,
+                                images = body.images,
+                                favouriteCount = post.favouriteCount?.toInt(),
+                                stamps = post.stamps.toQlPostStamps(diContainer),
+                            )
+                        },
+                    )
+                }
             DataFetcherResult.Builder<QlUserProfile?>(result).build()
         }
     }

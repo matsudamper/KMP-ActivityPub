@@ -64,6 +64,27 @@ internal fun ImageViewerContent(
     }
 }
 
+@Composable
+internal fun DownloadConfirmDialog(
+    onClickDownload: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = { Text("画像をダウンロードしますか？") },
+        confirmButton = {
+            TextButton(onClick = onClickDownload) {
+                Text("ダウンロード")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル")
+            }
+        },
+    )
+}
+
 /**
  * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる
  */
@@ -105,27 +126,6 @@ private fun OverlayImageViewerContent(
             onDismiss = { downloadDialogVisible = false },
         )
     }
-}
-
-@Composable
-internal fun DownloadConfirmDialog(
-    onClickDownload: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        text = { Text("画像をダウンロードしますか？") },
-        confirmButton = {
-            TextButton(onClick = onClickDownload) {
-                Text("ダウンロード")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("キャンセル")
-            }
-        },
-    )
 }
 
 /**

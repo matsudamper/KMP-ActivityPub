@@ -17,13 +17,14 @@ internal class FakeDeliveryQueueRepository(
 ) : DeliveryQueueRepository {
     val posts = mutableListOf<NotePost>()
     val followBodies = mutableListOf<String>()
+    val profileUpdates = mutableListOf<ProfileUpdate>()
+
     override fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant) {
         followBodies.add(body)
     }
     override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) {
         followBodies.add(body)
     }
-    val profileUpdates = mutableListOf<ProfileUpdate>()
 
     override fun enqueueNote(post: NotePost): EnqueueNoteResult {
         val alreadyPosted = posts.firstOrNull { it.username.equals(post.username, ignoreCase = true) && it.requestId == post.requestId }

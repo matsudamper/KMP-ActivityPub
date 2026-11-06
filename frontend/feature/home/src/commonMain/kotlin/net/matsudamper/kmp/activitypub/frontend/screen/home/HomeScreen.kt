@@ -729,8 +729,6 @@ private val HomeScreenUiState.Tab.label: String
  * 次にホイールが回るか押下されるまで、直前の入力の種類を保つ
  */
 private class WheelPullToRefreshBlocker : NestedScrollConnection {
-    private var lastScrollInputIsWheel = false
-
     val modifier: Modifier = Modifier
         .pointerInput(Unit) {
             awaitPointerEventScope {
@@ -745,6 +743,8 @@ private class WheelPullToRefreshBlocker : NestedScrollConnection {
             }
         }
         .nestedScroll(this)
+
+    private var lastScrollInputIsWheel = false
 
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
         val pullOverscrollByWheel = source == NestedScrollSource.UserInput && lastScrollInputIsWheel && available.y > 0f
