@@ -12,6 +12,8 @@ import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 @Preview
 @Composable
@@ -139,6 +141,7 @@ private fun HomeTimelinePreview(
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
@@ -197,6 +200,7 @@ private fun HomeSearchContentPreview() {
                     ),
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
@@ -227,6 +231,7 @@ private fun HomeSearchEmptyContentPreview() {
                     ),
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
+                userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 listener = AndroidPreviewHomeListener,
@@ -260,6 +265,7 @@ private fun HomeUserContentPreview() {
                     followingCount = "12",
                     followersCount = "3",
                 ),
+                userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
@@ -278,6 +284,69 @@ private fun HomeUserContentPreview() {
                         ),
                     ),
                     emptyMessage = null,
+                    media = listOf(),
+                    mediaEmptyMessage = "表示できるメディアはありません",
+                ),
+                userTabIconUrl = "https://example.com/icon.png",
+                listener = AndroidPreviewHomeListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun HomeUserMediaContentPreview() {
+    HomePreviewTheme {
+        HomeContent(
+            uiState = HomeScreenUiState(
+                selectedTab = HomeScreenUiState.Tab.User,
+                timelineItems = listOf(),
+                timelineRefreshing = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
+                search = HomeScreenUiState.Search(
+                    query = "",
+                    result = HomeScreenUiState.SearchResult.NotSearched,
+                ),
+                profile = HomeScreenUiState.Profile.Loaded(
+                    iconUrl = "https://example.com/icon.png",
+                    displayName = "ユーザー1",
+                    acct = "@user1",
+                    followingCount = "12",
+                    followersCount = "3",
+                ),
+                userContentTab = ProfileContentTab.Media,
+                userPosts = HomeScreenUiState.UserPosts.Loaded(
+                    items = listOf(
+                        PostItemUiState(
+                            iconUrl = "https://example.com/icon.png",
+                            displayName = "ユーザー1",
+                            acct = "@user1",
+                            body = createPostBodyText(content = "はじめての投稿", onOpenUrl = {}),
+                            postedAt = "3分前",
+                            linkPreviews = listOf(),
+                            images = listOf(),
+                            favouriteCountText = null,
+                            stamps = listOf(),
+                            authorListener = null,
+                            postListener = null,
+                            listener = AndroidPreviewTimelineItemListener,
+                        ),
+                    ),
+                    emptyMessage = null,
+                    media = List(5) { index ->
+                        ProfileMediaUiState(
+                            url = "https://example.com/media/$index.png",
+                            description = null,
+                            blurred = index == 2,
+                            listener = AndroidPreviewProfileMediaListener,
+                        )
+                    },
+                    mediaEmptyMessage = null,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 listener = AndroidPreviewHomeListener,
@@ -328,11 +397,17 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onClickRetryUserPosts() = Unit
 
+    override fun onClickUserContentTab(tab: ProfileContentTab) = Unit
+
     override fun onClickFollowing() = Unit
 
     override fun onClickFollowers() = Unit
 
     override fun onScreenShown() = Unit
+}
+
+private object AndroidPreviewProfileMediaListener : ProfileMediaUiState.Listener {
+    override fun onClick() = Unit
 }
 
 private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
