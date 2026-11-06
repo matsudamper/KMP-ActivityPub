@@ -225,6 +225,8 @@ class HomeScreenViewModelTest {
         override fun openUrl(url: String) = Unit
 
         override fun navigateToImage(url: String) = Unit
+
+        override fun navigateToPostDetail(postId: String) = Unit
     }
 
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {

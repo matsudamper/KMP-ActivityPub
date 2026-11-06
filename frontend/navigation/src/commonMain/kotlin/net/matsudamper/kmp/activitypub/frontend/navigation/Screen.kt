@@ -67,6 +67,14 @@ sealed interface Screen : NavKey {
     }
 
     @Serializable
+    data object Security : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/settings/security")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Settings
+        override val loginRequired: Boolean get() = true
+    }
+
+    @Serializable
     data object ProfileEdit : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/settings/profile")
         override val pathParameters: Map<String, String> get() = mapOf()
@@ -109,6 +117,24 @@ sealed interface Screen : NavKey {
     }
 
     /**
+     * @param postId ホームタイムラインの投稿の id
+     */
+    @Serializable
+    data class PostDetail(
+        val postId: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(POST_ID_PARAMETER to postId)
+        override val parentScreen: Screen get() = Home.Timeline
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val POST_ID_PARAMETER: String = "postId"
+            val PATH_PATTERN: PathPattern = PathPattern("/posts/{$POST_ID_PARAMETER}")
+        }
+    }
+
+    /**
      * 開いていた画面に重ねて出す。画像の URL は `/` などを含むので、パスの 1 階層に収まるよう Base64 にする
      */
     @Serializable
@@ -138,11 +164,15 @@ sealed interface Screen : NavKey {
                 Login.pathPattern to { _ -> Login },
                 Post.pathPattern to { _ -> Post },
                 Settings.pathPattern to { _ -> Settings },
+                Security.pathPattern to { _ -> Security },
                 ProfileEdit.pathPattern to { _ -> ProfileEdit },
                 Following.pathPattern to { _ -> Following },
                 Followers.pathPattern to { _ -> Followers },
                 UserProfile.PATH_PATTERN to { parameters ->
                     UserProfile(username = parameters.getValue(UserProfile.USERNAME_PARAMETER))
+                },
+                PostDetail.PATH_PATTERN to { parameters ->
+                    PostDetail(postId = parameters.getValue(PostDetail.POST_ID_PARAMETER))
                 },
                 Image.PATH_PATTERN to { parameters ->
                     Image.fromEncodedUrl(parameters.getValue(Image.ENCODED_URL_PARAMETER))

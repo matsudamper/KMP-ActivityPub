@@ -20,6 +20,7 @@ internal fun createPostItemUiState(
     sensitiveImagesBlurred: Boolean,
     blurToggledImageUrls: Set<String>,
     authorListener: PostItemUiState.AuthorListener?,
+    postListener: PostItemUiState.PostListener?,
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
@@ -53,6 +54,7 @@ internal fun createPostItemUiState(
             PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
         },
         authorListener = authorListener,
+        postListener = postListener,
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {
                 onVisible()
