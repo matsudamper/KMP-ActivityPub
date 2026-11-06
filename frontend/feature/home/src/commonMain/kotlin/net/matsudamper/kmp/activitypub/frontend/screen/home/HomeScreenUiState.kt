@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 
 data class HomeScreenUiState(
     val selectedTab: Tab,
@@ -74,6 +75,8 @@ data class HomeScreenUiState(
             val iconUrl: String?,
             val displayName: String,
             val acct: String,
+            val summary: String?,
+            val links: List<ProfileLinkUiState>,
             val followingCount: String,
             val followersCount: String,
         ) : Profile

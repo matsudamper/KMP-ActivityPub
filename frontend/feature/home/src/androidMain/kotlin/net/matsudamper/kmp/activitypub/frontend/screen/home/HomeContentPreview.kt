@@ -12,6 +12,7 @@ import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 
 @Preview
 @Composable
@@ -257,6 +258,10 @@ private fun HomeUserContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
+                    summary = "Kotlin で ActivityPub サーバーを作っています。",
+                    links = listOf(
+                        ProfileLinkUiState(name = "GitHub", url = "https://github.com/user1", listener = AndroidPreviewProfileLinkListener),
+                    ),
                     followingCount = "12",
                     followersCount = "3",
                 ),
@@ -358,5 +363,9 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 }
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
     override fun onClick() = Unit
 }

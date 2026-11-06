@@ -28,9 +28,22 @@ data class ProfileEditScreenUiState(
             val displayName: String,
             val displayNameInputEnabled: Boolean,
             val displayNameHasError: Boolean,
+            val summary: String,
+            val summaryInputEnabled: Boolean,
+            val summaryHasError: Boolean,
+            val links: List<Link>,
+            val addLinkButtonEnabled: Boolean,
             val saveButtonEnabled: Boolean,
         ) : Content
     }
+
+    data class Link(
+        val name: String,
+        val url: String,
+        val inputEnabled: Boolean,
+        val hasError: Boolean,
+        val removeButtonEnabled: Boolean,
+    )
 
     @Immutable
     interface Listener {
@@ -39,6 +52,22 @@ data class ProfileEditScreenUiState(
         fun onIconPicked(file: PickedImageFile)
 
         fun onDisplayNameChanged(text: String)
+
+        fun onSummaryChanged(text: String)
+
+        fun onLinkNameChanged(
+            index: Int,
+            text: String,
+        )
+
+        fun onLinkUrlChanged(
+            index: Int,
+            text: String,
+        )
+
+        fun onClickAddLink()
+
+        fun onClickRemoveLink(index: Int)
 
         fun onClickSave()
 

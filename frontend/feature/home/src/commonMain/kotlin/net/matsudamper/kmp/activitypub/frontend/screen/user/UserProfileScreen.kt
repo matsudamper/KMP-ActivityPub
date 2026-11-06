@@ -39,6 +39,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -186,6 +187,9 @@ private fun ProfileHeader(
         }
         if (profile.biography != null) {
             Text(text = profile.biography, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (profile.links.isNotEmpty()) {
+            ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
         }
     }
 }

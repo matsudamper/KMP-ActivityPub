@@ -70,6 +70,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -596,6 +597,13 @@ private fun UserProfileHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        val summary = profile.summary
+        if (summary != null) {
+            Text(text = summary, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (profile.links.isNotEmpty()) {
+            ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

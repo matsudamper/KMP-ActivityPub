@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -176,6 +177,17 @@ internal class UserProfileScreenViewModel(
             iconUrl = profile.iconUrl,
             displayName = profile.displayName,
             biography = profile.biography,
+            links = profile.links.map { link ->
+                ProfileLinkUiState(
+                    name = link.name,
+                    url = link.url,
+                    listener = object : ProfileLinkUiState.Listener {
+                        override fun onClick() {
+                            viewModelScope.launch { events.send { it.openUrl(link.url) } }
+                        }
+                    },
+                )
+            },
             followButton = if (profile.actorUri == null) {
                 null
             } else {

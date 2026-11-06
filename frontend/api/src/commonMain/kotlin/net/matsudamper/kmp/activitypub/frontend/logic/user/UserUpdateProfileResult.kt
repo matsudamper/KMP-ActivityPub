@@ -5,7 +5,18 @@ sealed interface UserUpdateProfileResult {
 
     data object NotLoggedIn : UserUpdateProfileResult
 
-    data object TooLong : UserUpdateProfileResult
+    data object DisplayNameTooLong : UserUpdateProfileResult
+
+    data object SummaryTooLong : UserUpdateProfileResult
+
+    data object TooManyLinks : UserUpdateProfileResult
+
+    data object LinkTooLong : UserUpdateProfileResult
+
+    /**
+     * 見出しが空か、URL が http / https ではない
+     */
+    data object InvalidLink : UserUpdateProfileResult
 
     data object FederationDisabled : UserUpdateProfileResult
 

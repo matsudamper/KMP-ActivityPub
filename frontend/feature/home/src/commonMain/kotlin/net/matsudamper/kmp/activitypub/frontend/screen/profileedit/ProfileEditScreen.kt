@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -21,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
@@ -145,7 +149,7 @@ private fun LoadedContent(
     listener: ProfileEditScreenUiState.Listener,
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(
@@ -203,6 +207,34 @@ private fun LoadedContent(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        MultilineTextField(
+            value = content.summary,
+            onValueChange = listener::onSummaryChanged,
+            label = "自己紹介",
+            inputId = SUMMARY_INPUT_ID,
+            inputName = "summary",
+            enabled = content.summaryInputEnabled,
+            hasError = content.summaryHasError,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = "リンク",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        content.links.forEachIndexed { index, link ->
+            LinkInputRow(
+                index = index,
+                link = link,
+                listener = listener,
+            )
+        }
+        OutlinedButton(
+            onClick = listener::onClickAddLink,
+            enabled = content.addLinkButtonEnabled,
+        ) {
+            Text("リンクを追加")
+        }
         Button(
             onClick = listener::onClickSave,
             enabled = content.saveButtonEnabled,
@@ -213,4 +245,64 @@ private fun LoadedContent(
     }
 }
 
+@Composable
+private fun LinkInputRow(
+    index: Int,
+    link: ProfileEditScreenUiState.Link,
+    listener: ProfileEditScreenUiState.Listener,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            SingleLineTextField(
+                value = link.name,
+                onValueChange = { listener.onLinkNameChanged(index = index, text = it) },
+                onImeAction = {},
+                label = "名前",
+                kind = SingleLineTextFieldKind.Plain,
+                autofill = null,
+                formId = null,
+                required = false,
+                imeAction = ImeAction.Next,
+                inputId = "$LINK_NAME_INPUT_ID_PREFIX$index",
+                inputName = "linkName$index",
+                enabled = link.inputEnabled,
+                hasError = link.hasError,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            SingleLineTextField(
+                value = link.url,
+                onValueChange = { listener.onLinkUrlChanged(index = index, text = it) },
+                onImeAction = {},
+                label = "URL",
+                kind = SingleLineTextFieldKind.Plain,
+                autofill = null,
+                formId = null,
+                required = false,
+                imeAction = ImeAction.Next,
+                inputId = "$LINK_URL_INPUT_ID_PREFIX$index",
+                inputName = "linkUrl$index",
+                enabled = link.inputEnabled,
+                hasError = link.hasError,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        TextButton(
+            onClick = { listener.onClickRemoveLink(index) },
+            enabled = link.removeButtonEnabled,
+        ) {
+            Text("削除")
+        }
+    }
+}
+
 private const val DISPLAY_NAME_INPUT_ID = "profile-edit-display-name"
+private const val SUMMARY_INPUT_ID = "profile-edit-summary"
+private const val LINK_NAME_INPUT_ID_PREFIX = "profile-edit-link-name-"
+private const val LINK_URL_INPUT_ID_PREFIX = "profile-edit-link-url-"
