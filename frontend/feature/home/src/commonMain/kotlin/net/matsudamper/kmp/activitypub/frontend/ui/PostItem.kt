@@ -322,11 +322,11 @@ private fun PostActions(uiState: PostItemUiState) {
     }
 }
 
-private val PostActionIconSize = 18.dp
+private val PostActionIconSize = 22.dp
 
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
 
-private val PostActionSlotWidth = 64.dp
+private val PostActionSlotWidth = 76.dp
 
 @Composable
 private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
@@ -360,7 +360,7 @@ private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
     }
 }
 
-private val PostMenuButtonSize = 24.dp
+private val PostMenuButtonSize = 32.dp
 
 private val PostHorizontalPadding = 16.dp
 private val PostIconSize = 40.dp
