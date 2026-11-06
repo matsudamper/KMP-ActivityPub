@@ -86,6 +86,7 @@ private fun HomeTimelinePreview(
                         favouriteCountText = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
+                        postListener = AndroidPreviewPostListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
@@ -125,6 +126,7 @@ private fun HomeTimelinePreview(
                             PostItemUiState.Stamp(emoji = ":kotlin:", imageUrl = "https://example.com/kotlin.png", countText = "1"),
                         ),
                         authorListener = AndroidPreviewAuthorListener,
+                        postListener = AndroidPreviewPostListener,
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                 ),
@@ -271,6 +273,7 @@ private fun HomeUserContentPreview() {
                             favouriteCountText = null,
                             stamps = listOf(),
                             authorListener = null,
+                            postListener = null,
                             listener = AndroidPreviewTimelineItemListener,
                         ),
                     ),
@@ -337,6 +340,10 @@ private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
 }
 
 private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewPostListener : PostItemUiState.PostListener {
     override fun onClick() = Unit
 }
 
