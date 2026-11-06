@@ -14,12 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -147,7 +147,7 @@ private fun HomeRail(uiState: HomeScreenUiState) {
 }
 
 /**
- * 押すたびにカラムを開け閉めするので、開いているかを塗りで見せる
+ * 押すたびにカラムを開け閉めするので、開いているかを選択状態で見せる
  */
 @Composable
 private fun ColumnToggleButton(
@@ -155,37 +155,30 @@ private fun ColumnToggleButton(
     userIconUrl: String?,
     onClick: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier.padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        FilledIconToggleButton(
-            checked = item.selected,
-            onCheckedChange = { onClick() },
-        ) {
+    NavigationRailItem(
+        selected = item.selected,
+        onClick = onClick,
+        icon = {
             when (item.column) {
                 HomeScreenUiState.Column.Post -> Icon(
                     imageVector = AppIcons.Edit,
-                    contentDescription = item.column.label,
+                    contentDescription = null,
                 )
 
                 HomeScreenUiState.Column.Search -> Icon(
                     imageVector = AppIcons.Search,
-                    contentDescription = item.column.label,
+                    contentDescription = null,
                 )
 
                 HomeScreenUiState.Column.User -> ProfileIcon(
                     iconUrl = userIconUrl,
-                    contentDescription = item.column.label,
+                    contentDescription = null,
                     modifier = Modifier.size(24.dp),
                 )
             }
-        }
-        Text(
-            text = item.column.label,
-            style = MaterialTheme.typography.labelMedium,
-        )
-    }
+        },
+        label = { Text(item.column.label) },
+    )
 }
 
 /**
