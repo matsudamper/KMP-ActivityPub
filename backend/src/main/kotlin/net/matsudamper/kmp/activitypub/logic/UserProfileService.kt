@@ -124,7 +124,7 @@ class UserProfileService(
             images = images,
             favouriteCount = favouriteCount,
             stamps = stamps,
-            like = likedByMe?.let { ProfilePostLike(postId = position.member, likedByMe = it) },
+            like = ProfilePostLike(postId = position.member, likedByMe = likedByMe),
             noteRef = noteRef,
             boostCount = boostCount,
         )

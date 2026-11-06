@@ -43,7 +43,7 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
  * @param favouriteCount 他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿の数は受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
- * @param likedByMe 読んでいるアカウントがいいねしているか。ブーストで載った投稿はいいねできないので null
+ * @param likedByMe 読んでいるアカウントがいいねしているか。ブーストで載った投稿は、ブーストされた元の投稿へのいいね
  * @param noteRef 投稿を外から指すための元。URL はこのサーバーのドメインで決まるので、ここでは作らない
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿の数は受け取らないので null
  * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
@@ -63,7 +63,7 @@ data class TimelinePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
-    val likedByMe: Boolean?,
+    val likedByMe: Boolean,
     val noteRef: TimelineNoteRef,
     val boostCount: Long?,
     val boostedBy: TimelineBooster?,

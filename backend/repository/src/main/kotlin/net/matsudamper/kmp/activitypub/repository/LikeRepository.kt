@@ -6,7 +6,8 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
  * こちらのアカウントが付けるいいね。
- * 投稿はタイムラインの member（他のサーバーの投稿は `r` + REMOTE_NOTES の id、このサーバーの投稿は `l` + NOTES の id）で指す
+ * 投稿はタイムラインの member（他のサーバーの投稿は `r` + REMOTE_NOTES の id、このサーバーの投稿は `l` + NOTES の id、
+ * ブーストで載った投稿は `b` + REMOTE_BOOSTS の id）で指す。ブーストで載った投稿へのいいねは、ブーストされた元の投稿に付ける
  */
 interface LikeRepository {
     /**

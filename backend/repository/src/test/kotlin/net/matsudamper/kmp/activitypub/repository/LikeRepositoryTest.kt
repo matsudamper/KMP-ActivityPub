@@ -134,6 +134,36 @@ class LikeRepositoryTest {
         assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
     }
 
+    @Test
+    fun boostedPostIsLikedAsTheBoostedNoteOnlyWhileTheBoosterIsFollowed() = withRepository { repositories, alice, bob ->
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null)),
+            NOW,
+        )
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        val boostMember = assertNotNull(
+            repositories.timelineRepository.receiveBoost(
+                RemoteBoostInput(
+                    activityUri = "$BOOSTER/announces/1",
+                    boosterUri = BOOSTER,
+                    boostedAt = NOW,
+                    receivedAt = NOW,
+                    note = note("boosted", "public", setOf()),
+                ),
+            ),
+        ).member
+        val likes = repositories.likeRepository
+
+        assertEquals(LikeTarget.Remote(objectUri = "$ACTOR/notes/boosted", inbox = "$ACTOR/inbox"), likes.target(alice, boostMember))
+        assertNull(likes.target(bob, boostMember))
+        assertTrue(likes.likeAndEnqueue(like(alice, boostMember, "like-1")))
+        assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
+        assertEquals(listOf(likeBody("like-1")), repositories.deliveryQueueRepository.claim(NOW, 10).map { it.body })
+
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, boostMember, "$ACTOR/inbox", NOW) { "undo:$it" })
+        assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
+    }
+
     private fun postLocalNote(repositories: Repositories, username: String, publicId: String): String {
         repositories.deliveryQueueRepository.enqueueNote(
             NotePost(
@@ -196,6 +226,7 @@ class LikeRepositoryTest {
 
     private companion object {
         const val ACTOR = "https://remote.example/actor"
+        const val BOOSTER = "https://booster.example/actor"
         val NOW: Instant = Instant.parse("2026-11-01T12:00:00Z")
     }
 }
