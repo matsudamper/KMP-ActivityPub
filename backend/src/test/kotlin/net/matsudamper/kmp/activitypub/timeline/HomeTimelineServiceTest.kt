@@ -13,6 +13,12 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class HomeTimelineServiceTest {
     @Test
+    fun boostMemberCanBeUsedAsCursor() {
+        val position = TimelinePosition(100, "b12")
+        assertEquals(position, TimelineCursor.decode(TimelineCursor.encode(position)))
+    }
+
+    @Test
     fun deletedCachedPositionsAreReplacedWithOlderPostsIncludingSqlContinuation() {
         listOf(10, 400).forEach { deletedCount ->
             val account = AccountId(1)
