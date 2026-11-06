@@ -33,6 +33,7 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         deletableNoteId = localPublicId?.value,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
+        url = diContainer.noteShareUrls?.url(noteRef),
         likedByMe = likedByMe,
     )
 }

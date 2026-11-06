@@ -25,9 +25,11 @@ internal fun createPostItemUiState(
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
+    onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
+    val shareUrl = body.shareUrl
     return PostItemUiState(
         iconUrl = iconUrl,
         displayName = displayName,
@@ -90,6 +92,15 @@ internal fun createPostItemUiState(
             }
 
             PostTapAction.AlreadyOnPostDetail -> null
+        },
+        shareListener = if (shareUrl == null) {
+            null
+        } else {
+            object : PostItemUiState.ShareListener {
+                override fun onClick() {
+                    onShare(shareUrl)
+                }
+            }
         },
         listener = object : PostItemUiState.Listener {
             override fun onVisible() {

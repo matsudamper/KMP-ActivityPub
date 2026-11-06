@@ -25,6 +25,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                     favouriteCount = it.favouriteCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                    shareUrl = it.url,
                     likedByMe = it.likedByMe,
                 ),
                 deletableNoteId = it.deletableNoteId,
@@ -57,6 +58,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+            url = it.body.shareUrl,
             likedByMe = it.body.likedByMe,
         )
     }

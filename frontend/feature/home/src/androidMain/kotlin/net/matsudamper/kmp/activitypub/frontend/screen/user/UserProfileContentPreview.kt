@@ -47,6 +47,7 @@ private fun UserProfileContentPreview() {
                             authorListener = null,
                             menuItems = listOf(),
                             postListener = null,
+                            shareListener = null,
                             listener = AndroidPreviewPostItemListener,
                         ),
                     ),

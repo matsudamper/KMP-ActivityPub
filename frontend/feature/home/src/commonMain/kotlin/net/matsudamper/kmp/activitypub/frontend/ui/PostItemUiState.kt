@@ -38,6 +38,10 @@ data class PostItemUiState(
      * 押しても移る先が無いときは null で、投稿を押せなくする
      */
     val postListener: PostListener?,
+    /**
+     * 共有する URL が無いときは null で、共有のアイコンを押せなくする
+     */
+    val shareListener: ShareListener?,
     val listener: Listener,
 ) {
     data class MenuItem(
@@ -102,6 +106,11 @@ data class PostItemUiState(
 
     @Immutable
     interface PostListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface ShareListener {
         fun onClick()
     }
 
