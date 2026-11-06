@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLink
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileIconResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
@@ -47,13 +48,43 @@ internal class ProfileEditScreenViewModel(
                     }
 
                     override fun onDisplayNameChanged(text: String) {
-                        viewModelStateFlow.update { state ->
-                            if (state is ViewModelState.Loaded && state.saving.not()) {
-                                state.copy(displayName = text, hasError = false)
-                            } else {
+                        updateEditing { it.copy(displayName = text) }
+                    }
+
+                    override fun onSummaryChanged(text: String) {
+                        updateEditing { it.copy(summary = text) }
+                    }
+
+                    override fun onLinkNameChanged(
+                        index: Int,
+                        text: String,
+                    ) {
+                        updateEditing { state ->
+                            state.copy(links = state.links.mapIndexed { i, link -> if (i == index) link.copy(name = text) else link })
+                        }
+                    }
+
+                    override fun onLinkUrlChanged(
+                        index: Int,
+                        text: String,
+                    ) {
+                        updateEditing { state ->
+                            state.copy(links = state.links.mapIndexed { i, link -> if (i == index) link.copy(url = text) else link })
+                        }
+                    }
+
+                    override fun onClickAddLink() {
+                        updateEditing { state ->
+                            if (state.links.size >= MAX_LINK_COUNT) {
                                 state
+                            } else {
+                                state.copy(links = state.links + UserProfileLink(name = "", url = ""))
                             }
                         }
+                    }
+
+                    override fun onClickRemoveLink(index: Int) {
+                        updateEditing { state -> state.copy(links = state.links.filterIndexed { i, _ -> i != index }) }
                     }
 
                     override fun onClickSave() {
@@ -101,14 +132,29 @@ internal class ProfileEditScreenViewModel(
                         processingIcon = false,
                         currentIconUrl = result.iconUrl,
                         displayName = result.displayName.orEmpty(),
+                        summary = result.summary.orEmpty(),
+                        links = result.links,
                         saving = false,
-                        hasError = false,
+                        errorField = null,
                     )
 
                     UserMyProfileResult.NotLoggedIn -> ViewModelState.Failed("ログインしていません")
 
                     is UserMyProfileResult.Failure -> ViewModelState.Failed(result.message)
                 }
+        }
+    }
+
+    /**
+     * 保存中は送っている値と画面がずれないよう、書き換えを受け付けない
+     */
+    private fun updateEditing(transform: (ViewModelState.Loaded) -> ViewModelState.Loaded) {
+        viewModelStateFlow.update { state ->
+            if (state is ViewModelState.Loaded && state.saving.not()) {
+                transform(state).copy(errorField = null)
+            } else {
+                state
+            }
         }
     }
 
@@ -191,16 +237,21 @@ internal class ProfileEditScreenViewModel(
         // 保存できたら画面を閉じるので、画像を送っている途中だと送信が止まる
         if (state.saving || state.processingIcon) return
 
-        viewModelStateFlow.value = state.copy(saving = true, hasError = false)
+        viewModelStateFlow.value = state.copy(saving = true, errorField = null)
         viewModelScope.launch {
             val error =
                 try {
-                    when (val result = api.updateProfile(displayName = state.displayName)) {
+                    val result = api.updateProfile(displayName = state.displayName, summary = state.summary, links = state.links)
+                    when (result) {
                         UserUpdateProfileResult.Success -> null
-                        UserUpdateProfileResult.NotLoggedIn -> "ログインしていません"
-                        UserUpdateProfileResult.TooLong -> "表示名が長すぎます"
-                        UserUpdateProfileResult.FederationDisabled -> "サーバーがプロフィールの更新を配れる設定になっていません"
-                        is UserUpdateProfileResult.Failure -> result.message
+                        UserUpdateProfileResult.NotLoggedIn -> SaveError(message = "ログインしていません", field = null)
+                        UserUpdateProfileResult.DisplayNameTooLong -> SaveError(message = "表示名が長すぎます", field = ErrorField.DisplayName)
+                        UserUpdateProfileResult.SummaryTooLong -> SaveError(message = "自己紹介が長すぎます。500 文字までにしてください", field = ErrorField.Summary)
+                        UserUpdateProfileResult.TooManyLinks -> SaveError(message = "リンクは ${MAX_LINK_COUNT} 件までにしてください", field = ErrorField.Links)
+                        UserUpdateProfileResult.LinkTooLong -> SaveError(message = "リンクの名前と URL は 255 文字までにしてください", field = ErrorField.Links)
+                        UserUpdateProfileResult.InvalidLink -> SaveError(message = "リンクには名前と http / https の URL を入れてください", field = ErrorField.Links)
+                        UserUpdateProfileResult.FederationDisabled -> SaveError(message = "サーバーがプロフィールの更新を配れる設定になっていません", field = null)
+                        is UserUpdateProfileResult.Failure -> SaveError(message = result.message, field = null)
                     }
                 } finally {
                     viewModelStateFlow.update { current ->
@@ -209,9 +260,9 @@ internal class ProfileEditScreenViewModel(
                 }
             if (error != null) {
                 viewModelStateFlow.update { current ->
-                    if (current is ViewModelState.Loaded) current.copy(hasError = true) else current
+                    if (current is ViewModelState.Loaded) current.copy(errorField = error.field) else current
                 }
-                events.send { it.showMessage(error) }
+                events.send { it.showMessage(error.message) }
                 return@launch
             }
             events.send { it.navigateBack() }
@@ -235,7 +286,21 @@ internal class ProfileEditScreenViewModel(
                     iconSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                     displayName = viewModelState.displayName,
                     displayNameInputEnabled = viewModelState.saving.not(),
-                    displayNameHasError = viewModelState.hasError,
+                    displayNameHasError = viewModelState.errorField == ErrorField.DisplayName,
+                    summary = viewModelState.summary,
+                    summaryInputEnabled = viewModelState.saving.not(),
+                    summaryHasError = viewModelState.errorField == ErrorField.Summary,
+                    links = viewModelState.links.mapIndexed { index, link ->
+                        ProfileEditScreenUiState.Link(
+                            title = "リンク ${index + 1}",
+                            name = link.name,
+                            url = link.url,
+                            inputEnabled = viewModelState.saving.not(),
+                            hasError = viewModelState.errorField == ErrorField.Links,
+                            removeButtonEnabled = viewModelState.saving.not(),
+                        )
+                    },
+                    addLinkButtonEnabled = viewModelState.saving.not() && viewModelState.links.size < MAX_LINK_COUNT,
                     saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                 )
             },
@@ -264,10 +329,26 @@ internal class ProfileEditScreenViewModel(
             val processingIcon: Boolean,
             val currentIconUrl: String?,
             val displayName: String,
+            val summary: String,
+            val links: List<UserProfileLink>,
             val saving: Boolean,
-            val hasError: Boolean,
+            val errorField: ErrorField?,
         ) : ViewModelState
     }
+
+    enum class ErrorField {
+        DisplayName,
+        Summary,
+        Links,
+    }
+
+    /**
+     * @param field 入力のせいではない失敗なら null
+     */
+    private class SaveError(
+        val message: String,
+        val field: ErrorField?,
+    )
 
     internal interface Event {
         fun openImagePicker()
@@ -287,5 +368,10 @@ internal class ProfileEditScreenViewModel(
          * 送る前に縮める大きさ。サーバーはこれを超える縦横を受け付けない
          */
         private const val ICON_SIDE_PX = 400
+
+        /**
+         * サーバーが受け付けるリンクの数
+         */
+        private const val MAX_LINK_COUNT = 4
     }
 }

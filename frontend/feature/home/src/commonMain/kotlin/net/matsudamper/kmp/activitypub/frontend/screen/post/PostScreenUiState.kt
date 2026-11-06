@@ -51,6 +51,8 @@ data class PostScreenUiState(
 
         fun onClickPost()
 
+        fun onPressPostShortcut()
+
         fun onClickBack()
     }
 }

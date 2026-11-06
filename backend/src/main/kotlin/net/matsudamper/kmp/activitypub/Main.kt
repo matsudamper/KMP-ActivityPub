@@ -153,6 +153,7 @@ internal fun Application.module(deps: AppDependencies) {
                 loginThrottle = deps.loginThrottle,
                 notePostService = federation?.notePostService,
                 profileUpdateService = federation?.profileUpdateService,
+                likeService = federation?.likeService,
                 profileIconUrls = federation?.profileIconUrls,
                 noteImageUrls = federation?.noteImageUrls,
                 remoteImageProxy = federation?.remoteImageProxy,

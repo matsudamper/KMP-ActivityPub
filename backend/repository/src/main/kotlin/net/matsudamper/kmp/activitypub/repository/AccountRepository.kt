@@ -22,6 +22,11 @@ interface AccountRepository {
 
     fun findCredential(username: String): AccountCredential?
 
+    /**
+     * プロフィールの説明文とリンク集。アカウントが無ければ null
+     */
+    fun findProfileDetail(username: String): AccountProfileDetail?
+
     fun findPublicKeyPem(username: String): String?
 
     fun findPrivateKeyPem(username: String): String?
@@ -46,6 +51,22 @@ data class Account(
     val createdAt: Instant,
     val displayName: String?,
     val iconPath: String?,
+)
+
+/**
+ * [Account] とは別に読む。検索や一覧では使わないので、そちらで毎回読まないようにする
+ *
+ * @param summary プレーンテキスト。未設定なら null
+ * @param links 並べた順
+ */
+data class AccountProfileDetail(
+    val summary: String?,
+    val links: List<ProfileLink>,
+)
+
+data class ProfileLink(
+    val name: String,
+    val url: String,
 )
 
 /**

@@ -13,6 +13,7 @@ sealed interface UserProfileResult {
         val iconUrl: String?,
         val following: Boolean,
         val biography: String?,
+        val links: List<UserProfileLink>,
         val posts: List<Post>,
     ) : UserProfileResult
 

@@ -56,6 +56,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
                             ),
                         ),
                         favouriteCountText = "12",
+                        favouriteButton = null,
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,
                         postListener = null,

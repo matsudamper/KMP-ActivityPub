@@ -3,6 +3,11 @@ query MyProfile {
         username
         displayName
         iconUrl
+        summary
+        links {
+            name
+            url
+        }
         followingCount
         followersCount
     }
