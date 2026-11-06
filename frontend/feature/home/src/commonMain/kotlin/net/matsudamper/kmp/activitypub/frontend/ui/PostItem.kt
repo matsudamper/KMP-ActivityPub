@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,11 +48,16 @@ internal fun PostItem(
     val authorListener = uiState.authorListener
     val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
     val postListener = uiState.postListener
+    val postInteractionSource = remember { HoverIgnoringInteractionSource() }
     val postClickModifier =
         if (postListener == null) {
             Modifier
         } else {
-            Modifier.clickable(interactionSource = null, indication = null, onClick = postListener::onClick)
+            Modifier.clickable(
+                interactionSource = postInteractionSource,
+                indication = LocalIndication.current,
+                onClick = postListener::onClick,
+            )
         }
     Row(
         modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = 16.dp, vertical = 12.dp),
