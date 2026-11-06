@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVER
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_LIKES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -24,6 +25,18 @@ internal class SqliteLikeRepository(
             // このサーバーの投稿は outbox で公開しているので、誰でも読める
             val exists = jooq.withConnection { dsl -> dsl.fetchExists(NOTES, NOTES.ID.eq(localNoteId)) }
             return if (exists) LikeTarget.Local else null
+        }
+        val boostId = boostIdOf(member)
+        if (boostId != null) {
+            return jooq.withConnection { dsl ->
+                dsl.select(REMOTE_NOTES.OBJECT_URI, REMOTE_ACTORS.INBOX)
+                    .from(REMOTE_BOOSTS)
+                    .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
+                    .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+                    .where(REMOTE_BOOSTS.ID.eq(boostId))
+                    .and(dsl.remoteBoostReadableBy(accountId))
+                    .fetchOne { LikeTarget.Remote(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
+            }
         }
         val remoteNoteId = remoteNoteIdOf(member) ?: return null
         return jooq.withConnection { dsl ->
@@ -71,8 +84,8 @@ internal class SqliteLikeRepository(
     }
 
     override fun likeAndEnqueue(like: OutgoingLike): Boolean {
-        val remoteNoteId = remoteNoteIdOf(like.member) ?: return false
         return jooq.transaction { dsl ->
+            val remoteNoteId = dsl.likedRemoteNoteIdOf(like.member) ?: return@transaction false
             val now = StoredInstant.format(like.likedAt)
             val inserted = dsl.insertInto(REMOTE_NOTE_LIKES)
                 .set(REMOTE_NOTE_LIKES.ACCOUNT_ID, like.accountId.value)
@@ -95,8 +108,8 @@ internal class SqliteLikeRepository(
         now: Instant,
         undoBody: (likeId: String) -> String,
     ): Boolean {
-        val remoteNoteId = remoteNoteIdOf(member) ?: return false
         return jooq.transaction { dsl ->
+            val remoteNoteId = dsl.likedRemoteNoteIdOf(member) ?: return@transaction false
             val likeId = dsl.deleteFrom(REMOTE_NOTE_LIKES)
                 .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
                 .and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.eq(remoteNoteId))
@@ -142,6 +155,17 @@ internal class SqliteLikeRepository(
 
     private fun localNoteIdOf(member: String): Long? =
         if (member.startsWith("l")) member.drop(1).toLongOrNull() else null
+
+    /**
+     * ブーストで載った投稿へのいいねは、ブーストされた元の投稿に付ける
+     */
+    private fun DSLContext.likedRemoteNoteIdOf(member: String): Long? {
+        val boostId = boostIdOf(member) ?: return remoteNoteIdOf(member)
+        return select(REMOTE_BOOSTS.REMOTE_NOTE_ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.ID.eq(boostId)).fetchOne(REMOTE_BOOSTS.REMOTE_NOTE_ID)
+    }
+
+    private fun boostIdOf(member: String): Long? =
+        if (member.startsWith("b")) member.drop(1).toLongOrNull() else null
 
     private fun remoteNoteIdOf(member: String): Long? =
         if (member.startsWith("r")) member.drop(1).toLongOrNull() else null

@@ -70,7 +70,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         if (!dsl.fetchExists(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACTOR_URI.eq(boost.boosterUri))) return@transaction null
         val note = boost.note
         // ブーストの相手のフォロワーには投稿者をフォローしていない人も居るので、宛先を限った投稿を載せない
-        if (note.visibility !in PUBLISHED_VISIBILITIES) return@transaction null
+        if (note.visibility !in PUBLISHED_REMOTE_NOTE_VISIBILITIES) return@transaction null
         val noteId = existingPublishedNoteId(dsl, note.objectUri) ?: insertBoostedNote(dsl, note) ?: return@transaction null
         val score = minOf(boost.boostedAt, boost.receivedAt).toEpochMilli()
         val inserted = dsl.insertInto(REMOTE_BOOSTS)
@@ -363,7 +363,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     private fun existingPublishedNoteId(dsl: DSLContext, objectUri: String): Long? =
         dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
-            .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_VISIBILITIES))
+            .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
             .fetchOne(REMOTE_NOTES.ID)
 
     /**
@@ -383,12 +383,15 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .join(booster).on(booster.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
             .where(REMOTE_BOOSTS.ID.`in`(boostIds))
-            .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_VISIBILITIES))
+            .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
             .andExists(
                 dsl.selectOne().from(ACCOUNT_FOLLOWING)
                     .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(booster.ACTOR_URI)),
             )
             .fetch()
+        val likedNoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
+            .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(rows.map { checkNotNull(it.value3()) }))
+            .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
         return rows.map { record ->
             val authorUri = checkNotNull(record.value8())
@@ -407,7 +410,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 images = imagesByNote["r${record.value3()}"].orEmpty(),
                 favouriteCount = null,
                 stamps = listOf(),
-                likedByMe = null,
+                likedByMe = record.value3() in likedNoteIds,
                 noteRef = TimelineNoteRef.Remote(checkNotNull(record.value18())),
                 boostCount = null,
                 boostedBy = TimelineBooster(
@@ -438,8 +441,4 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     )
 
     private fun Record.toRemotePosition(): TimelinePosition = TimelinePosition(checkNotNull(get(REMOTE_NOTES.SCORE_MS)), "r${get(REMOTE_NOTES.ID)}")
-
-    private companion object {
-        val PUBLISHED_VISIBILITIES = listOf("public", "unlisted")
-    }
 }
