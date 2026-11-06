@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.runtime.Immutable
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 data class UserProfileScreenUiState(
     val content: Content,
@@ -20,10 +22,10 @@ data class UserProfileScreenUiState(
             val displayName: String,
             val biography: String?,
             val followButton: FollowButton?,
-            val selectedTab: Tab,
+            val selectedTab: ProfileContentTab,
             val posts: List<PostItemUiState>,
             val postsEmptyMessage: String?,
-            val media: List<Media>,
+            val media: List<ProfileMediaUiState>,
             val mediaEmptyMessage: String?,
         ) : Content
 
@@ -32,27 +34,6 @@ data class UserProfileScreenUiState(
         data class Error(
             val message: String,
         ) : Content
-    }
-
-    enum class Tab {
-        Posts,
-        Media,
-    }
-
-    /**
-     * @param description 画像の説明文。無ければ null
-     * @param listener 個別投稿画面で開けない投稿の画像は押せないので null
-     */
-    data class Media(
-        val url: String,
-        val description: String?,
-        val blurred: Boolean,
-        val listener: MediaListener?,
-    )
-
-    @Immutable
-    interface MediaListener {
-        fun onClick()
     }
 
     data class FollowButton(
@@ -68,6 +49,6 @@ data class UserProfileScreenUiState(
 
         fun onClickFollow()
 
-        fun onClickTab(tab: Tab)
+        fun onClickTab(tab: ProfileContentTab)
     }
 }

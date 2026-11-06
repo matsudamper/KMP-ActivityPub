@@ -16,7 +16,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -34,7 +36,7 @@ internal class UserProfileScreenViewModel(
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 blurToggledImageUrls = setOf(),
-                selectedTab = UserProfileScreenUiState.Tab.Posts,
+                selectedTab = ProfileContentTab.Posts,
             ),
         )
     private var loadJob: Job? = null
@@ -58,7 +60,7 @@ internal class UserProfileScreenViewModel(
             changeFollowing()
         }
 
-        override fun onClickTab(tab: UserProfileScreenUiState.Tab) {
+        override fun onClickTab(tab: ProfileContentTab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }
     }
@@ -176,16 +178,8 @@ internal class UserProfileScreenViewModel(
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
-        val media = profile.posts.flatMap { post ->
-            val mediaListener = post.postId?.let { postId -> createMediaListener(postId) }
-            post.body.images.map { image ->
-                UserProfileScreenUiState.Media(
-                    url = image.url,
-                    description = image.description,
-                    blurred = post.body.sensitive,
-                    listener = mediaListener,
-                )
-            }
+        val media = createProfileMedia(profile.posts) { postId ->
+            viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
         }
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
@@ -231,14 +225,6 @@ internal class UserProfileScreenViewModel(
         )
     }
 
-    private fun createMediaListener(postId: String): UserProfileScreenUiState.MediaListener {
-        return object : UserProfileScreenUiState.MediaListener {
-            override fun onClick() {
-                viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
-            }
-        }
-    }
-
     internal interface Event {
         fun navigateBack()
 
@@ -255,7 +241,7 @@ internal class UserProfileScreenViewModel(
         val profile: ProfileState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         val blurToggledImageUrls: Set<String>,
-        val selectedTab: UserProfileScreenUiState.Tab,
+        val selectedTab: ProfileContentTab,
     )
 
     private sealed interface ProfileState {

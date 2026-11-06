@@ -6,6 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 @Preview
 @Composable
@@ -19,7 +21,7 @@ private fun UserProfileContentPreview() {
                     displayName = "Alice",
                     biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                     followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
-                    selectedTab = UserProfileScreenUiState.Tab.Posts,
+                    selectedTab = ProfileContentTab.Posts,
                     posts = listOf(
                         PostItemUiState(
                             iconUrl = null,
@@ -67,7 +69,7 @@ private fun UserProfileContentLocalUserPreview() {
                     displayName = "Bob",
                     biography = null,
                     followButton = null,
-                    selectedTab = UserProfileScreenUiState.Tab.Posts,
+                    selectedTab = ProfileContentTab.Posts,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
                     media = listOf(),
@@ -92,11 +94,11 @@ private fun UserProfileContentMediaPreview() {
                     displayName = "Alice",
                     biography = null,
                     followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
-                    selectedTab = UserProfileScreenUiState.Tab.Media,
+                    selectedTab = ProfileContentTab.Media,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
                     media = List(7) { index ->
-                        UserProfileScreenUiState.Media(
+                        ProfileMediaUiState(
                             url = "https://example.social/media/$index.png",
                             description = null,
                             blurred = index == 1,
@@ -133,10 +135,10 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
 
     override fun onClickFollow() = Unit
 
-    override fun onClickTab(tab: UserProfileScreenUiState.Tab) = Unit
+    override fun onClickTab(tab: ProfileContentTab) = Unit
 }
 
-private object AndroidPreviewMediaListener : UserProfileScreenUiState.MediaListener {
+private object AndroidPreviewMediaListener : ProfileMediaUiState.Listener {
     override fun onClick() = Unit
 }
 
