@@ -10,6 +10,20 @@ import androidx.compose.ui.unit.dp
  * パスは Material Icons（Apache License 2.0）の Filled から写したもの
  */
 object AppIcons {
+    val Add: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Add",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val ArrowBack: ImageVector by lazy {
         ImageVector
             .Builder(
@@ -73,6 +87,20 @@ object AppIcons {
                         "M3,5.27l2.75,2.74C2.56,8.15 0,10.77 0,14c0,3.31 2.69,6 6,6h11.73l2,2L21,20.73 4.27,4 3,5.27z" +
                         "M7.73,10l8,8H6c-2.21,0 -4,-1.79 -4,-4s1.79,-4 4,-4h1.73z",
                 ),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
+    val Delete: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Delete",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M6,19c0,1.1 0.9,2 2,2h8c1.1,0 2,-0.9 2,-2V7H6v12zM19,4h-3.5l-1,-1h-5l-1,1H5v2h14V4z"),
                 fill = SolidColor(Color.Black),
             ).build()
     }

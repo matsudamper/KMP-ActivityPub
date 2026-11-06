@@ -290,8 +290,9 @@ internal class ProfileEditScreenViewModel(
                     summary = viewModelState.summary,
                     summaryInputEnabled = viewModelState.saving.not(),
                     summaryHasError = viewModelState.errorField == ErrorField.Summary,
-                    links = viewModelState.links.map { link ->
+                    links = viewModelState.links.mapIndexed { index, link ->
                         ProfileEditScreenUiState.Link(
+                            title = "リンク ${index + 1}",
                             name = link.name,
                             url = link.url,
                             inputEnabled = viewModelState.saving.not(),
@@ -299,6 +300,7 @@ internal class ProfileEditScreenViewModel(
                             removeButtonEnabled = viewModelState.saving.not(),
                         )
                     },
+                    linksSupportingText = "名前と http / https の URL を ${MAX_LINK_COUNT} 件まで登録できます（${viewModelState.links.size} / $MAX_LINK_COUNT）",
                     addLinkButtonEnabled = viewModelState.saving.not() && viewModelState.links.size < MAX_LINK_COUNT,
                     saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                 )

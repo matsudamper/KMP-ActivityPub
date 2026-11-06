@@ -29,6 +29,7 @@ private fun ProfileEditContentPreview() {
                     summaryHasError = false,
                     links = listOf(
                         ProfileEditScreenUiState.Link(
+                            title = "リンク 1",
                             name = "GitHub",
                             url = "https://github.com/user1",
                             inputEnabled = true,
@@ -36,6 +37,7 @@ private fun ProfileEditContentPreview() {
                             removeButtonEnabled = true,
                         ),
                         ProfileEditScreenUiState.Link(
+                            title = "リンク 2",
                             name = "Blog",
                             url = "ftp://blog.example",
                             inputEnabled = true,
@@ -43,6 +45,7 @@ private fun ProfileEditContentPreview() {
                             removeButtonEnabled = true,
                         ),
                     ),
+                    linksSupportingText = "名前と http / https の URL を 4 件まで登録できます（2 / 4）",
                     addLinkButtonEnabled = true,
                     saveButtonEnabled = true,
                 ),
@@ -89,6 +92,7 @@ private fun ProfileEditContentIconUploadingPreview() {
                     summaryInputEnabled = true,
                     summaryHasError = false,
                     links = listOf(),
+                    linksSupportingText = "名前と http / https の URL を 4 件まで登録できます（0 / 4）",
                     addLinkButtonEnabled = true,
                     saveButtonEnabled = false,
                 ),

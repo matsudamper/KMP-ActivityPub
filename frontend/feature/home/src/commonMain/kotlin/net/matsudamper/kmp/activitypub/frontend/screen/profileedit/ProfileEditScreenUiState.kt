@@ -32,12 +32,17 @@ data class ProfileEditScreenUiState(
             val summaryInputEnabled: Boolean,
             val summaryHasError: Boolean,
             val links: List<Link>,
+            val linksSupportingText: String,
             val addLinkButtonEnabled: Boolean,
             val saveButtonEnabled: Boolean,
         ) : Content
     }
 
+    /**
+     * @param title カードの見出し。何件目かを出す
+     */
     data class Link(
+        val title: String,
         val name: String,
         val url: String,
         val inputEnabled: Boolean,
