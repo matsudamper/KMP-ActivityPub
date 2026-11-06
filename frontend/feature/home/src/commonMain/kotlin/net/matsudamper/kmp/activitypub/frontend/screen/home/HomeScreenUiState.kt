@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 data class HomeScreenUiState(
     val selectedTab: Tab,
@@ -12,6 +14,7 @@ data class HomeScreenUiState(
     val sensitiveImagesBlurred: Boolean,
     val search: Search,
     val profile: Profile,
+    val userContentTab: ProfileContentTab,
     val userPosts: UserPosts,
     val userTabIconUrl: String?,
     val listener: Listener,
@@ -85,6 +88,8 @@ data class HomeScreenUiState(
         data class Loaded(
             val items: List<PostItemUiState>,
             val emptyMessage: String?,
+            val media: List<ProfileMediaUiState>,
+            val mediaEmptyMessage: String?,
         ) : UserPosts
 
         data object LoadFailed : UserPosts
@@ -126,6 +131,8 @@ data class HomeScreenUiState(
         fun onClickRetryProfile()
 
         fun onClickRetryUserPosts()
+
+        fun onClickUserContentTab(tab: ProfileContentTab)
 
         fun onClickFollowing()
 
