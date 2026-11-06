@@ -22,6 +22,8 @@ data class SettingsScreenUiState(
     interface Listener {
         fun onClickSecurity()
 
+        fun onClickGitHubRelease()
+
         fun onClickBack()
 
         fun onClickLogout()
