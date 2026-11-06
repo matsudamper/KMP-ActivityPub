@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLink
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
+import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostLike
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
@@ -64,6 +65,7 @@ class QueryResolverImpl : QueryResolver {
                                 images = body.images,
                                 favouriteCount = post.favouriteCount?.toInt(),
                                 stamps = post.stamps.toQlPostStamps(diContainer),
+                                like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
                             )
                         },
                     )

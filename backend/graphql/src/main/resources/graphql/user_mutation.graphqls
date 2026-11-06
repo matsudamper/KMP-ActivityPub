@@ -35,8 +35,8 @@ type UserMutation {
     """
     updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
     """
-    ログインしているアカウントで、他のサーバーの投稿にいいねを付けるか外し、投稿者への Like か Undo を積む。
-    postId は HomeTimelinePost.id。既に望んだ状態なら何も積まずに成功する
+    ログインしているアカウントで、投稿にいいねを付けるか外す。他のサーバーの投稿なら投稿者への Like か Undo を積む。
+    postId は HomeTimelinePost.id か ProfilePostLike.postId。既に望んだ状態なら何も積まずに成功する
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
 }
@@ -204,7 +204,7 @@ type SetLikedResult {
 
 enum SetLikedFailure {
     NOT_LOGGED_IN
-    "読めない投稿か、いいねできないこのサーバーの投稿"
+    "無いか、読めない投稿"
     POST_NOT_FOUND
     "サーバーに DOMAIN が無く、いいねを配れない"
     FEDERATION_DISABLED

@@ -124,6 +124,7 @@ class AppDependencies(
         notes = repositories.noteRepository,
         favourites = repositories.favouriteRepository,
         stamps = repositories.stampRepository,
+        likes = repositories.likeRepository,
         timeline = repositories.timelineRepository,
         following = followingService,
         remoteProfiles = federation?.remoteUserProfiles,

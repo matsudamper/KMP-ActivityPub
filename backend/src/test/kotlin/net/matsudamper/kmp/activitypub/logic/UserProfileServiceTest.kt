@@ -41,6 +41,7 @@ class UserProfileServiceTest {
                     images = listOf(),
                     favouriteCount = null,
                     stamps = listOf(),
+                    like = null,
                 ),
             )
         }
@@ -56,6 +57,7 @@ class UserProfileServiceTest {
         notes = repositories.noteRepository,
         favourites = repositories.favouriteRepository,
         stamps = repositories.stampRepository,
+        likes = repositories.likeRepository,
         timeline = repositories.timelineRepository,
         following = following,
         remoteProfiles = remoteProfiles,
@@ -167,7 +169,7 @@ class UserProfileServiceTest {
             images = listOf(image),
             favouriteCount = null,
             stamps = listOf(),
-            likedByMe = null,
+            likedByMe = false,
             localPublicId = null,
         )
 

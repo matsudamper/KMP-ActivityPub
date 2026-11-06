@@ -34,10 +34,19 @@ type ProfilePost {
     linkUrls: [String!]!
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
-    "他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null"
+    "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
+    "ログインしていないか、いいねできない投稿は null"
+    like: ProfilePostLike
+}
+
+type ProfilePostLike {
+    "UserMutation.setLiked の postId に渡す id"
+    postId: ID!
+    "ログイン中のアカウントがいいねしているか"
+    likedByMe: Boolean!
 }
 
 type UserSearchResult {

@@ -4,6 +4,8 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_FAVOURITES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_LIKES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_STAMPS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -48,6 +50,13 @@ internal fun DSLContext.upsertRemoteActor(
         select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actor.actorUri)).fetchOne(REMOTE_ACTORS.ID),
     ) { "記録したアクターを引けない: ${actor.actorUri}" }
 }
+
+/**
+ * 他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数
+ */
+internal fun DSLContext.favouriteCountOf(noteId: Field<Long?>): Field<Long?> =
+    DSL.field(selectCount().from(NOTE_FAVOURITES).where(NOTE_FAVOURITES.NOTE_ID.eq(noteId))).cast(Long::class.java)
+        .plus(DSL.field(selectCount().from(NOTE_LIKES).where(NOTE_LIKES.NOTE_ID.eq(noteId))).cast(Long::class.java))
 
 internal fun DSLContext.findNoteId(publicId: PublicNoteId): Long? =
     select(NOTES.ID)

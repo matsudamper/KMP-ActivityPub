@@ -38,6 +38,8 @@ internal class KotpubRemoteUserProfiles(
                 images = listOf(),
                 favouriteCount = null,
                 stamps = listOf(),
+                // 保存していない投稿なので、いいねする投稿を指せない
+                like = null,
             )
         }
 

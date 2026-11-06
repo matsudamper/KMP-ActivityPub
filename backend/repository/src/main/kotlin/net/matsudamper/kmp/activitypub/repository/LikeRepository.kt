@@ -2,16 +2,34 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
- * こちらのアカウントが他のサーバーの投稿に付けるいいね。
- * 投稿はタイムラインの member（`r` + REMOTE_NOTES の id）で指す
+ * こちらのアカウントが付けるいいね。
+ * 投稿はタイムラインの member（他のサーバーの投稿は `r` + REMOTE_NOTES の id、このサーバーの投稿は `l` + NOTES の id）で指す
  */
 interface LikeRepository {
     /**
-     * @return [accountId] が読めない投稿や、他のサーバーの投稿でなければ null
+     * @return [accountId] が読めない投稿や、無い投稿なら null
      */
     fun target(accountId: AccountId, member: String): LikeTarget?
+
+    /**
+     * このサーバーの投稿へのいいね。配らないので記録だけする
+     *
+     * @return 既にいいねしているか、このサーバーの投稿でなければ false
+     */
+    fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean
+
+    /**
+     * @return いいねしていないか、このサーバーの投稿でなければ false
+     */
+    fun unlikeLocal(accountId: AccountId, member: String): Boolean
+
+    /**
+     * @return [notePublicIds] のうち [accountId] がいいねしている投稿
+     */
+    fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId>
 
     /**
      * いいねを記録して、投稿者への Like を積む。記録と投函を分けると、いいねしたのに相手に届かない状態が残る
@@ -35,14 +53,18 @@ interface LikeRepository {
     ): Boolean
 }
 
-/**
- * @param objectUri いいねする投稿の id
- * @param inbox 投稿者の inbox
- */
-data class LikeTarget(
-    val objectUri: String,
-    val inbox: String,
-)
+sealed interface LikeTarget {
+    /**
+     * @param objectUri いいねする投稿の id
+     * @param inbox 投稿者の inbox
+     */
+    data class Remote(
+        val objectUri: String,
+        val inbox: String,
+    ) : LikeTarget
+
+    data object Local : LikeTarget
+}
 
 /**
  * @param likeId 送る Like の id。Undo で指すので記録する

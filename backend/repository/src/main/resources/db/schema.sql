@@ -256,3 +256,13 @@ CREATE TABLE remote_note_likes (
 );
 
 CREATE INDEX remote_note_likes_remote_note_id ON remote_note_likes (remote_note_id);
+
+-- このサーバーのアカウントが、このサーバーの投稿に付けたいいね。配らないので Like の id は持たない
+CREATE TABLE note_likes (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, note_id)
+);
+
+CREATE INDEX note_likes_note_id ON note_likes (note_id);

@@ -9,6 +9,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 class LikeRepositoryTest {
     @Test
@@ -16,7 +17,7 @@ class LikeRepositoryTest {
         val member = receiveNote(repositories, alice, bob)
         val likes = repositories.likeRepository
         val target = assertNotNull(likes.target(alice, member))
-        assertEquals(LikeTarget(objectUri = "$ACTOR/notes/1", inbox = "$ACTOR/inbox"), target)
+        assertEquals(LikeTarget.Remote(objectUri = "$ACTOR/notes/1", inbox = "$ACTOR/inbox"), target)
 
         assertTrue(likes.likeAndEnqueue(like(alice, member, "like-1")))
         assertFalse(likes.likeAndEnqueue(like(alice, member, "like-2")))
@@ -27,10 +28,43 @@ class LikeRepositoryTest {
     }
 
     @Test
-    fun unreadableOrLocalPostCannotBeLiked() = withRepository { repositories, alice, _ ->
+    fun unreadableOrMissingPostCannotBeLiked() = withRepository { repositories, alice, _ ->
         val directOnly = assertNotNull(repositories.timelineRepository.receive(note("direct", "direct", setOf("bob")))).member
         assertNull(repositories.likeRepository.target(alice, directOnly))
-        assertNull(repositories.likeRepository.target(alice, "l1"))
+        assertNull(repositories.likeRepository.target(alice, "l999"))
+    }
+
+    @Test
+    fun localPostOfAnotherAccountAndOwnPostCanBeLikedWithoutDelivery() = withRepository { repositories, alice, bob ->
+        val member = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val likes = repositories.likeRepository
+        assertEquals(LikeTarget.Local, likes.target(alice, member))
+
+        assertTrue(likes.likeLocal(alice, member, NOW))
+        assertFalse(likes.likeLocal(alice, member, NOW))
+        assertTrue(likes.likeLocal(bob, member, NOW))
+
+        assertEquals(true, repositories.timelineRepository.hydrate(bob, listOf(member)).single().likedByMe)
+        assertEquals(2L, repositories.timelineRepository.hydrate(bob, listOf(member)).single().favouriteCount)
+        assertEquals(mapOf(PublicNoteId("bob-note") to 2L), repositories.favouriteRepository.counts(setOf(PublicNoteId("bob-note"))))
+        assertEquals(setOf(PublicNoteId("bob-note")), likes.likedLocalNotes(alice, setOf(PublicNoteId("bob-note"))))
+        assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10).isEmpty())
+    }
+
+    @Test
+    fun unlikeLocalPostRemovesOnlyThatAccountsLike() = withRepository { repositories, alice, bob ->
+        val member = postLocalNote(repositories, username = "alice", publicId = "alice-note")
+        val likes = repositories.likeRepository
+        likes.likeLocal(alice, member, NOW)
+        likes.likeLocal(bob, member, NOW)
+
+        assertTrue(likes.unlikeLocal(alice, member))
+        assertFalse(likes.unlikeLocal(alice, member))
+
+        val post = repositories.timelineRepository.hydrate(alice, listOf(member)).single()
+        assertEquals(false, post.likedByMe)
+        assertEquals(1L, post.favouriteCount)
+        assertEquals(setOf(), likes.likedLocalNotes(alice, setOf(PublicNoteId("alice-note"))))
     }
 
     @Test
@@ -98,6 +132,22 @@ class LikeRepositoryTest {
         queue.recoverDelivering(NOW)
 
         assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+    }
+
+    private fun postLocalNote(repositories: Repositories, username: String, publicId: String): String {
+        repositories.deliveryQueueRepository.enqueueNote(
+            NotePost(
+                username = username,
+                requestId = "request-$publicId",
+                publicId = PublicNoteId(publicId),
+                contentHtml = "<p>本文</p>",
+                publishedAt = NOW,
+                images = listOf(),
+                body = "create",
+                inboxes = listOf(),
+            ),
+        )
+        return checkNotNull(repositories.timelineRepository.localPosition(publicId)).member
     }
 
     private fun receiveNote(repositories: Repositories, vararg followers: AccountId): String {
