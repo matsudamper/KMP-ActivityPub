@@ -25,6 +25,14 @@ interface DeliveryQueueRepository {
     fun enqueueNote(post: NotePost): EnqueueNoteResult
 
     /**
+     * 投稿の記録を消して、宛先ごとに Delete を積む。付けた画像の記録と、まだ送っていない Create も一緒に消える。
+     * 消すのと投函を分けると、こちらでは消えたのに相手のタイムラインには残る
+     *
+     * @return [NoteDeletion.username] の投稿が無ければ false
+     */
+    fun enqueueNoteDeletion(deletion: NoteDeletion): Boolean
+
+    /**
      * プロフィールを書き換えて、宛先ごとに Update を積む。
      * 書き換えと投函を分けると、こちらでは変わったのに相手には古いまま残る
      *
@@ -110,6 +118,17 @@ data class NotePost(
     val contentHtml: String,
     val publishedAt: Instant,
     val images: List<NoteImage>,
+    val body: String,
+    val inboxes: List<String>,
+)
+
+/**
+ * @param body 宛先すべてに同じものを送る Delete のアクティビティ
+ */
+data class NoteDeletion(
+    val username: String,
+    val publicId: PublicNoteId,
+    val deletedAt: Instant,
     val body: String,
     val inboxes: List<String>,
 )

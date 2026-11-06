@@ -193,6 +193,42 @@ class NotePostServiceTest {
         assertEquals(1, deliveryQueueRepository.posts.size)
     }
 
+    @Test
+    fun `投稿を消すと画像を置き場から消し、フォロワーの inbox ごとに Delete を積む`() {
+        followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
+        val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
+        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image)))
+        enqueuedCount = 0
+
+        assertEquals(DeleteNoteResult.Deleted, service.delete(username = "user1", publicId = posted.publicId))
+
+        assertTrue(imageStorage.images.isEmpty())
+        assertEquals(null, noteRepository.find(posted.publicId))
+        val deletion = deliveryQueueRepository.noteDeletions.single()
+        assertEquals(listOf(INBOX_A, INBOX_B), deletion.inboxes)
+        assertEquals("Delete", AppJson.parseToJsonElement(deletion.body).jsonObject.getValue("type").jsonPrimitive.content)
+        assertEquals(1, enqueuedCount)
+    }
+
+    @Test
+    fun `画像を置き場から消せなければ投稿を残し、Delete も積まない`() {
+        val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
+        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image)))
+        imageStorage.deleteFails = true
+
+        assertEquals(DeleteNoteResult.ImageDeleteFailed, service.delete(username = "user1", publicId = posted.publicId))
+
+        assertEquals(posted.publicId, noteRepository.find(posted.publicId)?.publicId)
+        assertEquals(listOf(), deliveryQueueRepository.noteDeletions)
+    }
+
+    @Test
+    fun `無い投稿は消せない`() {
+        assertEquals(DeleteNoteResult.NotFound, service.delete(username = "user1", publicId = PublicNoteId("missing")))
+
+        assertEquals(listOf(), deliveryQueueRepository.noteDeletions)
+    }
+
     private fun uploaded(result: UploadNoteImageResult): NoteImagePublicId = assertIs<UploadNoteImageResult.Uploaded>(result).publicId
 
     private object OnlyUser1 : StoredActorNames {

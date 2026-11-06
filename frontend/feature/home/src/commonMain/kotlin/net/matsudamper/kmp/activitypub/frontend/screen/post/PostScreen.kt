@@ -29,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
-import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.ImageDropTarget
 import net.matsudamper.kmp.activitypub.frontend.ui.ImagePasteHandler
@@ -50,20 +50,37 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun PostScreen(
-    navigator: Navigator,
+    navigationIcon: PostNavigationIcon,
+    onNavigateBack: () -> Unit,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val uiState = rememberPostScreenUiState(
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+    )
+    PostContentWithImageInput(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+}
+
+/**
+ * 投稿の結果を受け取り続ける。カラムとして出すときは閉じている間も送信が続くので、
+ * 投稿の中身を出していない間も呼び続けないと、完了の知らせが残って次に開いたカラムを閉じてしまう
+ */
+@Composable
+internal fun rememberPostScreenUiState(
+    onNavigateBack: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+): PostScreenUiState {
     val viewModel = koinViewModel<PostScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
-    ImagePasteHandler(onPaste = uiState.listener::onImagePicked)
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
 
-    LaunchedEffect(viewModel.eventHandler, navigator, pickImage) {
+    LaunchedEffect(viewModel.eventHandler, pickImage, snackbarHostState) {
         viewModel.eventHandler.collect(
             object : PostScreenViewModel.Event {
                 override fun navigateBack() {
-                    navigator.back()
+                    currentOnNavigateBack()
                 }
 
                 override fun openImagePicker() {
@@ -76,18 +93,40 @@ internal fun PostScreen(
             },
         )
     }
+    return uiState
+}
 
+/**
+ * 貼り付けは画面全体で受けるので、投稿の中身を出している間だけ置く
+ */
+@Composable
+internal fun PostContentWithImageInput(
+    uiState: PostScreenUiState,
+    navigationIcon: PostNavigationIcon,
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier,
+) {
+    ImagePasteHandler(onPaste = uiState.listener::onImagePicked)
     ImageDropTarget(
         onDrop = uiState.listener::onImagePicked,
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
     ) {
-        PostContent(uiState = uiState, snackbarHostState = snackbarHostState)
+        PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
     }
+}
+
+/**
+ * 画面として開いたときは戻る、カラムとして開いたときは閉じる
+ */
+internal enum class PostNavigationIcon {
+    Back,
+    Close,
 }
 
 @Composable
 internal fun PostContent(
     uiState: PostScreenUiState,
+    navigationIcon: PostNavigationIcon,
     snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
@@ -103,10 +142,17 @@ internal fun PostContent(
                     onClick = uiState.listener::onClickBack,
                     enabled = uiState.backButtonEnabled,
                 ) {
-                    Icon(
-                        imageVector = AppIcons.ArrowBack,
-                        contentDescription = "戻る",
-                    )
+                    when (navigationIcon) {
+                        PostNavigationIcon.Back -> Icon(
+                            imageVector = AppIcons.ArrowBack,
+                            contentDescription = "戻る",
+                        )
+
+                        PostNavigationIcon.Close -> Icon(
+                            imageVector = AppIcons.Close,
+                            contentDescription = "投稿を閉じる",
+                        )
+                    }
                 }
                 Text(
                     text = "投稿",

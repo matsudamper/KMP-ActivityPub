@@ -26,6 +26,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateStatus
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewModel
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditScreen
@@ -112,7 +113,7 @@ private fun ScreenContent(
         }
 
         Screen.Post -> {
-            PostScreen(navigator = navigator)
+            PostScreen(navigationIcon = PostNavigationIcon.Back, onNavigateBack = navigator::back)
         }
 
         Screen.Settings -> {

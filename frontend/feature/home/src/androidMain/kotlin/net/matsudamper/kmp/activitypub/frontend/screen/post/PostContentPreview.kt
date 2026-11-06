@@ -19,6 +19,7 @@ private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
             uiState = previewUiState(images = listOf(), addImageLoadingVisible = false),
+            navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -39,6 +40,7 @@ private fun PostContentImagesPreview() {
                 },
                 addImageLoadingVisible = true,
             ),
+            navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
     }
