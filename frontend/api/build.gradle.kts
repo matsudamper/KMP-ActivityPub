@@ -30,7 +30,6 @@ kotlin {
     }
 }
 
-// スキーマは :backend:graphql のファイルを直接読む
 apollo {
     service("app") {
         packageName.set("net.matsudamper.kmp.activitypub.frontend.graphql")

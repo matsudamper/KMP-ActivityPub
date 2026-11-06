@@ -26,9 +26,6 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLogoutResult
 import org.koin.core.annotation.KoinViewModel
 
-/**
- * ログアウトはまだサーバーと繋いでいない。ボタンを押しても何も起きない
- */
 @KoinViewModel
 internal class SettingsScreenViewModel(
     private val passkeyApi: PasskeyApi,
@@ -389,6 +386,14 @@ internal class SettingsScreenViewModel(
             passkeyDeleteDialog is PasskeyDeleteDialogState.Deleting ||
             passwordDeleteDialog == PasswordDeleteDialogState.Deleting
 
+    internal interface Event {
+        fun navigateBack()
+
+        fun loggedOut()
+
+        fun showMessage(message: String)
+    }
+
     private data class ViewModelState(
         val passkeys: PasskeysState,
         val passkeyName: String,
@@ -416,7 +421,7 @@ internal class SettingsScreenViewModel(
         Deleting,
     }
 
-    sealed interface PasskeysState {
+    private sealed interface PasskeysState {
         data object Loading : PasskeysState
 
         data class Loaded(
@@ -429,7 +434,7 @@ internal class SettingsScreenViewModel(
         ) : PasskeysState
     }
 
-    sealed interface Outcome {
+    private sealed interface Outcome {
         data object Added : Outcome
 
         data object Deleted : Outcome
@@ -443,14 +448,6 @@ internal class SettingsScreenViewModel(
         data class PasswordError(
             val message: String,
         ) : Outcome
-    }
-
-    internal interface Event {
-        fun navigateBack()
-
-        fun loggedOut()
-
-        fun showMessage(message: String)
     }
 }
 

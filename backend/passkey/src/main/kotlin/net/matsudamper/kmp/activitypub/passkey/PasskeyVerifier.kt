@@ -29,15 +29,15 @@ import tools.jackson.core.JacksonException
 class PasskeyVerifier(
     private val relyingParty: PasskeyRelyingParty,
 ) {
-    private val objectConverter = ObjectConverter()
-    private val webAuthnManager = WebAuthnManager.createNonStrictWebAuthnManager(objectConverter)
-    private val origins = relyingParty.origins.map(Origin::create).toSet()
-    private val attestedCredentialDataConverter = AttestedCredentialDataConverter(objectConverter)
-
     /**
      * 登録で受け付ける署名方式の COSE の値。登録の要求に載せて、認証器にこの中から選ばせる
      */
     val supportedAlgorithms: List<Long> = SUPPORTED_ALGORITHMS.map { it.value }
+
+    private val objectConverter = ObjectConverter()
+    private val webAuthnManager = WebAuthnManager.createNonStrictWebAuthnManager(objectConverter)
+    private val origins = relyingParty.origins.map(Origin::create).toSet()
+    private val attestedCredentialDataConverter = AttestedCredentialDataConverter(objectConverter)
 
     /**
      * @param credentialJson RegistrationResponseJSON
@@ -57,8 +57,8 @@ class PasskeyVerifier(
                 true,
             )
         val verified = convert { webAuthnManager.verify(registration.data, parameters) }
-        val authenticatorData = verified.attestationObject!!.authenticatorData
-        val credential = authenticatorData.attestedCredentialData!!
+        val authenticatorData = checkNotNull(verified.attestationObject).authenticatorData
+        val credential = checkNotNull(authenticatorData.attestedCredentialData)
 
         val attestedCredentialData = attestedCredentialDataConverter.convert(credential)
         if (attestedCredentialData.size > MAX_ATTESTED_CREDENTIAL_DATA_BYTES) throw PasskeyVerificationException("公開鍵が大きすぎる")
@@ -108,7 +108,7 @@ class PasskeyVerifier(
                 true,
             )
         val verified = convert { webAuthnManager.verify(authentication.data, parameters) }
-        return verified.authenticatorData!!.signCount
+        return checkNotNull(verified.authenticatorData).signCount
     }
 
     private fun serverProperty(challenge: Challenge): ServerProperty = ServerProperty(origins, relyingParty.id, challenge)

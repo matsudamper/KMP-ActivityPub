@@ -59,7 +59,6 @@ tasks.test {
 }
 
 graalvmNative {
-    // ライブラリ向けの設定
     metadataRepository {
         enabled.set(false)
     }

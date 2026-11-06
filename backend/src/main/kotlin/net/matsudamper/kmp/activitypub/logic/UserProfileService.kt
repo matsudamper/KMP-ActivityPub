@@ -79,6 +79,14 @@ class UserProfileService(
     }
 
     /**
+     * [linkPreviewId] がこのサーバーの投稿を指すなら、その本文。指さないか、投稿が無ければ null
+     */
+    fun localNoteContentHtml(linkPreviewId: String): String? {
+        if (!linkPreviewId.startsWith(LOCAL_NOTE_ID_PREFIX)) return null
+        return notes.find(PublicNoteId(linkPreviewId.removePrefix(LOCAL_NOTE_ID_PREFIX)))?.contentHtml
+    }
+
+    /**
      * フォロー中の相手の投稿は受け取って保存しているので、相手のサーバーには取りに行かない
      */
     private fun storedPosts(viewer: AccountId, actorUri: String): List<ProfilePost> =
@@ -95,14 +103,6 @@ class UserProfileService(
             favouriteCount = favouriteCount,
             stamps = stamps,
         )
-    }
-
-    /**
-     * [linkPreviewId] がこのサーバーの投稿を指すなら、その本文。指さないか、投稿が無ければ null
-     */
-    fun localNoteContentHtml(linkPreviewId: String): String? {
-        if (!linkPreviewId.startsWith(LOCAL_NOTE_ID_PREFIX)) return null
-        return notes.find(PublicNoteId(linkPreviewId.removePrefix(LOCAL_NOTE_ID_PREFIX)))?.contentHtml
     }
 
     private companion object {
