@@ -71,6 +71,10 @@ internal fun PostItem(
         modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = PostHorizontalPadding, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val boostedByText = uiState.boostedByText
+        if (boostedByText != null) {
+            BoostedByLabel(text = boostedByText)
+        }
         Row(
             modifier = authorClickModifier,
             horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
@@ -161,6 +165,34 @@ internal fun PostItem(
     }
 }
 
+/**
+ * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
+ */
+@Composable
+private fun BoostedByLabel(text: String) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.width(PostIconSize), contentAlignment = Alignment.CenterEnd) {
+            Icon(
+                imageVector = AppIcons.Repeat,
+                contentDescription = null,
+                modifier = Modifier.size(PostActionIconSize),
+                tint = color,
+            )
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 private fun ReactionCount(
     countText: String,
@@ -218,12 +250,22 @@ private fun PostActions(uiState: PostItemUiState) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(PostActionSlotWidth)) {
+        Row(
+            modifier = Modifier.width(PostActionSlotWidth),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 imageVector = AppIcons.Repeat,
                 contentDescription = "ブースト",
                 modifier = Modifier.size(PostActionIconSize),
                 tint = disabledIconColor,
+            )
+            Text(
+                text = uiState.boostCountText.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = iconColor,
+                maxLines = 1,
             )
         }
         val favouriteButton = uiState.favouriteButton

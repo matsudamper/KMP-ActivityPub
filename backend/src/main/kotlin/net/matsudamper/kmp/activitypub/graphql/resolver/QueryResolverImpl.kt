@@ -67,6 +67,7 @@ class QueryResolverImpl : QueryResolver {
                                 stamps = post.stamps.toQlPostStamps(diContainer),
                                 like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
                                 url = diContainer.noteShareUrls?.url(post.noteRef),
+                                boostCount = post.boostCount?.toInt(),
                             )
                         },
                     )

@@ -18,5 +18,15 @@ sealed interface UserHomeTimelineResult {
          * ログイン中のアカウントの投稿なら [UserApi.deleteNote] に渡す id。消せない投稿は null
          */
         val deletableNoteId: String?,
+        /**
+         * フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null
+         */
+        val boostedBy: Booster?,
+    )
+
+    data class Booster(
+        val username: String,
+        val host: String,
+        val displayName: String,
     )
 }

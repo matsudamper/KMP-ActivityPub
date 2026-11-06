@@ -7,6 +7,10 @@ import androidx.compose.ui.text.AnnotatedString
  * @param iconUrl 投稿者のプロフィール画像が無ければ null
  */
 data class PostItemUiState(
+    /**
+     * フォローしている相手のブーストとして載った投稿なら、投稿の上に出す「〜がブースト」の文。それ以外は null
+     */
+    val boostedByText: String?,
     val iconUrl: String?,
     val displayName: String,
     val acct: String,
@@ -21,6 +25,10 @@ data class PostItemUiState(
      * 1 件も無ければ null で、お気に入りのアイコンだけを出す
      */
     val favouriteCountText: String?,
+    /**
+     * 1 件も無ければ null で、ブーストのアイコンだけを出す
+     */
+    val boostCountText: String?,
     /**
      * いいねできない投稿は null で、お気に入りのアイコンを押せなくする
      */

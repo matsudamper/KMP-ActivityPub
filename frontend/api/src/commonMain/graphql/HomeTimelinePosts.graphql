@@ -16,6 +16,12 @@ subscription HomeTimelinePosts {
             description
         }
         favouriteCount
+        boostCount
+        boostedBy {
+            username
+            host
+            displayName
+        }
         stamps {
             emoji
             imageUrl

@@ -44,6 +44,7 @@ class UserProfileServiceTest {
                     stamps = listOf(),
                     like = null,
                     noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
+                    boostCount = null,
                 ),
             )
         }
@@ -60,6 +61,7 @@ class UserProfileServiceTest {
         favourites = repositories.favouriteRepository,
         stamps = repositories.stampRepository,
         likes = repositories.likeRepository,
+        boosts = repositories.boostRepository,
         timeline = repositories.timelineRepository,
         following = following,
         remoteProfiles = remoteProfiles,
@@ -173,6 +175,8 @@ class UserProfileServiceTest {
             stamps = listOf(),
             likedByMe = false,
             noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
+            boostCount = null,
+            boostedBy = null,
         )
 
     private companion object {

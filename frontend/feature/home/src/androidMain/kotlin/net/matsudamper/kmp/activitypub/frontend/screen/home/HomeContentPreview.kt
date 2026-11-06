@@ -74,6 +74,7 @@ private fun HomeTimelinePreview(
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
                     PostItemUiState(
+                        boostedByText = null,
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
@@ -105,6 +106,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = null,
+                        boostCountText = null,
                         favouriteButton = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
@@ -114,6 +116,7 @@ private fun HomeTimelinePreview(
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
+                        boostedByText = "Alice がブースト",
                         iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
@@ -144,6 +147,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = "3",
+                        boostCountText = null,
                         favouriteButton = PostItemUiState.FavouriteButton(
                             iconHighlighted = true,
                             listener = AndroidPreviewFavouriteButtonListener,
@@ -310,6 +314,7 @@ private fun HomeUserContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            boostedByText = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -318,6 +323,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            boostCountText = null,
                             favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
@@ -328,6 +334,52 @@ private fun HomeUserContentPreview() {
                         ),
                     ),
                     emptyMessage = null,
+                    media = listOf(),
+                    mediaEmptyMessage = "表示できるメディアはありません",
+                ),
+                userTabIconUrl = "https://example.com/icon.png",
+                openedColumn = null,
+                railItems = listOf(),
+                deleteNoteDialog = null,
+                listener = AndroidPreviewHomeListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun HomeUserMediaEmptyContentPreview() {
+    HomePreviewTheme {
+        HomeContent(
+            uiState = HomeScreenUiState(
+                selectedTab = HomeScreenUiState.Tab.User,
+                timelineItems = listOf(),
+                timelineRefreshing = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
+                search = HomeScreenUiState.Search(
+                    query = "",
+                    result = HomeScreenUiState.SearchResult.NotSearched,
+                ),
+                profile = HomeScreenUiState.Profile.Loaded(
+                    iconUrl = "https://example.com/icon.png",
+                    displayName = "ユーザー1",
+                    acct = "@user1",
+                    summary = "Kotlin で ActivityPub サーバーを作っています。",
+                    links = listOf(
+                        ProfileLinkUiState(name = "GitHub", url = "https://github.com/user1", listener = AndroidPreviewProfileLinkListener),
+                    ),
+                    followingCount = "12",
+                    followersCount = "3",
+                ),
+                userContentTab = ProfileContentTab.Media,
+                userPosts = HomeScreenUiState.UserPosts.Loaded(
+                    items = listOf(),
+                    emptyMessage = "表示できる投稿はありません",
                     media = listOf(),
                     mediaEmptyMessage = "表示できるメディアはありません",
                 ),
@@ -372,6 +424,7 @@ private fun HomeUserMediaContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            boostedByText = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -380,6 +433,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            boostCountText = null,
                             favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
@@ -421,6 +475,7 @@ private fun HomeColumnsContentPreview() {
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
                     PostItemUiState(
+                        boostedByText = null,
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
@@ -429,6 +484,7 @@ private fun HomeColumnsContentPreview() {
                         linkPreviews = listOf(),
                         images = listOf(),
                         favouriteCountText = null,
+                        boostCountText = null,
                         favouriteButton = null,
                         stamps = listOf(),
                         postListener = AndroidPreviewPostListener,

@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.timeline
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
@@ -15,6 +16,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     val pageRequests = mutableListOf<TimelinePosition?>()
     val events = mutableListOf<String>()
     val received = mutableListOf<RemoteNoteInput>()
+    val receivedBoosts = mutableListOf<RemoteBoostInput>()
     val actorPosts = mutableListOf<TimelinePost>()
 
     var interested = true
@@ -25,6 +27,11 @@ internal class FakeTimelineRepository : TimelineRepository {
         received.add(note)
         return TimelinePosition(1, "r1")
     }
+    override fun receiveBoost(boost: RemoteBoostInput): TimelinePosition? {
+        receivedBoosts.add(boost)
+        return TimelinePosition(1, "b1")
+    }
+
     override fun deleteRemote(actorUri: String, objectUri: String) = Unit
     override fun hasRemoteNote(objectUri: String): Boolean = received.any { it.objectUri == objectUri }
     override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = listOf()
@@ -40,7 +47,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
-        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), null, listOf(), false, TimelineNoteRef.Local(PublicNoteId(it.member)))
+        TimelinePost(it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), null, listOf(), false, TimelineNoteRef.Local(PublicNoteId(it.member)), null, null)
     }
 
     override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> =

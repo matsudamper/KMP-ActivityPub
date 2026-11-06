@@ -751,6 +751,7 @@ internal class HomeScreenViewModel(
                     items = profile.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
                         createPostItemUiState(
+                            boostedBy = null,
                             iconUrl = profile.iconUrl,
                             displayName = profile.displayName,
                             acct = "@${profile.username}",
@@ -792,6 +793,7 @@ internal class HomeScreenViewModel(
     private fun createTimelineItems(viewModelState: ViewModelState): List<PostItemUiState> {
         return viewModelState.timeline.posts.map { post ->
             createPostItemUiState(
+                boostedBy = post.boostedBy,
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
