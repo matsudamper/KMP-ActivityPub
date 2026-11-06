@@ -14,5 +14,9 @@ sealed interface UserHomeTimelineResult {
          */
         val iconUrl: String?,
         val body: UserPostBody,
+        /**
+         * ログイン中のアカウントの投稿なら [UserApi.deleteNote] に渡す id。消せない投稿は null
+         */
+        val deletableNoteId: String?,
     )
 }

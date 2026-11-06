@@ -22,6 +22,11 @@ type UserMutation {
     description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える
     """
     uploadNoteImage(image: Upload!, description: String): UploadNoteImageResult! @lazy
+    """
+    ログインしているアカウントの投稿を消し、フォロワーへの Delete を積む。付けた画像も消す。
+    noteId には HomeTimelinePost.deletableNoteId を渡す
+    """
+    deleteNote(noteId: ID!): DeleteNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -185,5 +190,19 @@ enum UploadNoteImageFailure {
     "このサーバーでは画像を置けない"
     UNSUPPORTED_OPERATION
     "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
+    INTERNAL_SERVER_ERROR
+}
+
+type DeleteNoteResult {
+    failure: DeleteNoteFailure
+}
+
+enum DeleteNoteFailure {
+    NOT_LOGGED_IN
+    "無いか、ログイン中のアカウントの投稿ではない"
+    NOT_FOUND
+    "サーバーに DOMAIN が無く、削除を配れない"
+    FEDERATION_DISABLED
+    "サーバー内部の失敗。投稿は残っているので、時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
 }

@@ -20,6 +20,7 @@ query UserProfile($username: String!) {
             sensitive
             linkPreviewId
             postId
+            deletableNoteId
             linkUrls
             images {
                 url

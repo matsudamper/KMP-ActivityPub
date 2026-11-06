@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
@@ -18,6 +19,10 @@ data class HomeScreenUiState(
     val userContentTab: ProfileContentTab,
     val userPosts: UserPosts,
     val userTabIconUrl: String?,
+    /**
+     * 出していなければ null
+     */
+    val deleteNoteDialog: DeleteNoteDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface TimelineFooter {
