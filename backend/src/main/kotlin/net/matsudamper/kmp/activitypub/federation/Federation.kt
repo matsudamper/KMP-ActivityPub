@@ -252,6 +252,7 @@ internal class Federation(
                         remoteActors = remoteActors,
                         remoteNotes = HttpRemoteNotes(httpClient),
                         boosts = boosts,
+                        earlyUndone = favourites,
                     ),
                     UndoHandler(
                         reactions = UndoReactionHandler(
@@ -260,7 +261,7 @@ internal class Federation(
                             stamps = stamps,
                             earlyUndoneLikes = favourites,
                         ),
-                        boosts = UndoBoostHandler(boosts),
+                        boosts = UndoBoostHandler(boosts = boosts, earlyUndone = favourites),
                         follows = UndoFollowHandler(directory = directory, followers = followers),
                     ),
                     UpdateActorHandler(followers),
