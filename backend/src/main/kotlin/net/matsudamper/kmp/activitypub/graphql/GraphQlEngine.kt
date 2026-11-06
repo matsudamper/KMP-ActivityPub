@@ -143,6 +143,8 @@ class GraphQlEngine private constructor(
          */
         private const val MAX_QUERY_COMPLEXITY = 100
 
+        private const val SCHEMA_DIRECTORY = "graphql"
+
         fun create(
             resolvers: List<GraphQLResolver<*>>,
             createContext: (ApplicationCall) -> GraphQlContext,
@@ -195,8 +197,6 @@ class GraphQlEngine private constructor(
                 .lines()
                 .filter { it.isNotBlank() }
                 .joinToString(separator = "\n") { readResource("$SCHEMA_DIRECTORY/$it") }
-
-        private const val SCHEMA_DIRECTORY = "graphql"
 
         private fun readResource(resource: String): String {
             val stream =

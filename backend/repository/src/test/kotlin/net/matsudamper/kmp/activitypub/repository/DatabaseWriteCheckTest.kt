@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.deleteRecursively
 import kotlin.test.AfterTest
@@ -13,7 +14,7 @@ import kotlin.test.assertTrue
 class DatabaseWriteCheckTest {
     private val tempDir: Path = createTempDirectory("kmp-activitypub-write-check")
 
-    @OptIn(kotlin.io.path.ExperimentalPathApi::class)
+    @OptIn(ExperimentalPathApi::class)
     @AfterTest
     fun tearDown() {
         tempDir.deleteRecursively()
@@ -58,7 +59,10 @@ class DatabaseWriteCheckTest {
                 "schema.sql がクラスパスに無い"
             }.use { it.readBytes().toString(Charsets.UTF_8) }
 
-        dbPath.toAbsolutePath().normalize().parent?.let { Files.createDirectories(it) }
+        val parentDirectory = dbPath.toAbsolutePath().normalize().parent
+        if (parentDirectory != null) {
+            Files.createDirectories(parentDirectory)
+        }
         SqliteConnections.connect(dbPath) { connection ->
             connection.createStatement().use { statement ->
                 statement.executeUpdate(schema)

@@ -13,18 +13,18 @@ class GraphQlContext(
     cookieSecure: Boolean,
     trustCfConnectingIp: Boolean,
 ) {
-    private val userCookie = SessionCookieManager(
-        call = call,
-        secure = cookieSecure,
-        cookieName = SessionCookieManager.USER_COOKIE_NAME,
-    )
-
     /**
      * trustCfConnectingIp が無いままリバースプロキシの後ろに置くとプロキシの IP になり、全員がまとめて締め出される
      */
     val clientIp: String =
         call.request.headers["CF-Connecting-IP"]?.takeIf { trustCfConnectingIp }
             ?: call.request.origin.remoteAddress
+
+    private val userCookie = SessionCookieManager(
+        call = call,
+        secure = cookieSecure,
+        cookieName = SessionCookieManager.USER_COOKIE_NAME,
+    )
 
     private val loginAttempted = AtomicBoolean(false)
     private val passkeyChallengeIssued = AtomicBoolean(false)

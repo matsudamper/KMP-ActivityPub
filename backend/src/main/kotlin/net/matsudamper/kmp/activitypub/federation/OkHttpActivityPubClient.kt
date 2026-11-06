@@ -16,6 +16,7 @@ import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 
 internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     private val getClient: OkHttpClient =
@@ -83,7 +84,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     private suspend fun <T> execute(
         client: OkHttpClient,
         request: Request,
-        block: (okhttp3.Response) -> T,
+        block: (Response) -> T,
     ): T = withOpenTelemetryContext {
         runInterruptible {
             client.newCall(request).execute().use(block)

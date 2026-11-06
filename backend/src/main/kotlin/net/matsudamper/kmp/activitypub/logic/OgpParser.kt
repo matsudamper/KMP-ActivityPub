@@ -12,6 +12,10 @@ import org.jsoup.nodes.TextNode
 internal object OgpParser {
     private val plainTextUrl = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
 
+    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '。', '、', '」', '）')
+
+    private val FAVICON_RELS = setOf("icon", "apple-touch-icon")
+
     /**
      * 本文のリンクを出てくる順に、重複を除いて返す。http と https のものだけ。
      *
@@ -109,10 +113,6 @@ internal object OgpParser {
         }
         return url.take(end)
     }
-
-    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '。', '、', '」', '）')
-
-    private val FAVICON_RELS = setOf("icon", "apple-touch-icon")
 
     data class Ogp(
         val title: String?,

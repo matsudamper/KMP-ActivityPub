@@ -118,39 +118,6 @@ class UserApi(
         emit(HomeTimelineStreamEvent.GaveUp)
     }
 
-    private suspend fun FlowCollector<HomeTimelineStreamEvent>.collectHomeTimelinePosts(client: ApolloClient): Int {
-        val receivedPostCount = client.subscription(HomeTimelinePostsSubscription()).toFlow()
-            .mapNotNull { response -> response.data?.homeTimelinePosts }
-            .onEach { post ->
-                emit(
-                    HomeTimelineStreamEvent.Arrived(
-                        UserHomeTimelineResult.Post(
-                            id = post.id,
-                            username = post.username,
-                            host = post.host,
-                            displayName = post.displayName,
-                            iconUrl = post.iconUrl,
-                            body = UserPostBody(
-                                content = post.content,
-                                publishedAt = post.publishedAt,
-                                summary = post.summary,
-                                sensitive = post.sensitive,
-                                linkUrls = post.linkUrls,
-                                images = post.images.map { UserPostImage(url = it.url, description = it.description) },
-                                favouriteCount = post.favouriteCount,
-                                stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
-                            ),
-                            deletableNoteId = post.deletableNoteId,
-                        ),
-                    ),
-                )
-            }
-            .count()
-        // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
-        client.closeSubscriptionConnection()
-        return receivedPostCount
-    }
-
     suspend fun setFollowing(actorUri: String, followed: Boolean): String? {
         val client = clients.client.value ?: return "接続先が未設定"
         val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
@@ -373,13 +340,27 @@ class UserApi(
         val uploadNoteImage = response.data?.user?.uploadNoteImage ?: return UserUploadNoteImageResult.Failure(response.failureMessage())
 
         return when (uploadNoteImage.failure) {
-            null -> uploadNoteImage.imageId?.let { UserUploadNoteImageResult.Success(imageId = it) } ?: UserUploadNoteImageResult.Failure(response.failureMessage())
+            null -> {
+                val imageId = uploadNoteImage.imageId
+                if (imageId == null) {
+                    UserUploadNoteImageResult.Failure(response.failureMessage())
+                } else {
+                    UserUploadNoteImageResult.Success(imageId = imageId)
+                }
+            }
+
             UploadNoteImageFailure.NOT_LOGGED_IN -> UserUploadNoteImageResult.NotLoggedIn
+
             UploadNoteImageFailure.TOO_LARGE -> UserUploadNoteImageResult.TooLarge
+
             UploadNoteImageFailure.UNSUPPORTED_IMAGE -> UserUploadNoteImageResult.UnsupportedImage
+
             UploadNoteImageFailure.DESCRIPTION_TOO_LONG -> UserUploadNoteImageResult.DescriptionTooLong
+
             UploadNoteImageFailure.UNSUPPORTED_OPERATION -> UserUploadNoteImageResult.UnsupportedOperation
+
             UploadNoteImageFailure.INTERNAL_SERVER_ERROR -> UserUploadNoteImageResult.InternalServerError
+
             UploadNoteImageFailure.UNKNOWN__ -> UserUploadNoteImageResult.Failure("Unknown")
         }
     }
@@ -444,6 +425,39 @@ class UserApi(
         val actorUri: String,
         val following: Boolean,
     )
+
+    private suspend fun FlowCollector<HomeTimelineStreamEvent>.collectHomeTimelinePosts(client: ApolloClient): Int {
+        val receivedPostCount = client.subscription(HomeTimelinePostsSubscription()).toFlow()
+            .mapNotNull { response -> response.data?.homeTimelinePosts }
+            .onEach { post ->
+                emit(
+                    HomeTimelineStreamEvent.Arrived(
+                        UserHomeTimelineResult.Post(
+                            id = post.id,
+                            username = post.username,
+                            host = post.host,
+                            displayName = post.displayName,
+                            iconUrl = post.iconUrl,
+                            body = UserPostBody(
+                                content = post.content,
+                                publishedAt = post.publishedAt,
+                                summary = post.summary,
+                                sensitive = post.sensitive,
+                                linkUrls = post.linkUrls,
+                                images = post.images.map { UserPostImage(url = it.url, description = it.description) },
+                                favouriteCount = post.favouriteCount,
+                                stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                            ),
+                            deletableNoteId = post.deletableNoteId,
+                        ),
+                    ),
+                )
+            }
+            .count()
+        // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
+        client.closeSubscriptionConnection()
+        return receivedPostCount
+    }
 
     private fun ActorListFields.append(page: ActorListFields): ActorListFields =
         copy(users = users + page.users, nextCursor = page.nextCursor)

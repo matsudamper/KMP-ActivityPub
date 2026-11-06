@@ -282,18 +282,7 @@ object HtmlFormComponents {
         val currentOnSubmit = rememberUpdatedState(onSubmit)
         DisposableEffect(formId, enabled) {
             val form = document.getElementById(formId) as HTMLFormElement?
-                ?: run {
-                    val created = document.createElement("form") as HTMLFormElement
-                    created.id = formId
-                    created.setAttribute("autocomplete", "on")
-                    created.style.display = "none"
-                    // 入力欄が 2 つ以上ある form は、送信ボタンが無いと Enter で送信されない
-                    val submitButton = document.createElement("button")
-                    submitButton.setAttribute("type", "submit")
-                    created.appendChild(submitButton)
-                    document.body?.appendChild(created)
-                    created
-                }
+                ?: createHiddenForm(formId = formId)
             form.onsubmit = { event ->
                 event.preventDefault()
                 if (enabled) {
@@ -309,6 +298,19 @@ object HtmlFormComponents {
 
 private class FocusInteractionHolder {
     var focus: FocusInteraction.Focus? = null
+}
+
+private fun createHiddenForm(formId: String): HTMLFormElement {
+    val form = document.createElement("form") as HTMLFormElement
+    form.id = formId
+    form.setAttribute("autocomplete", "on")
+    form.style.display = "none"
+    // 入力欄が 2 つ以上ある form は、送信ボタンが無いと Enter で送信されない
+    val submitButton = document.createElement("button")
+    submitButton.setAttribute("type", "submit")
+    form.appendChild(submitButton)
+    document.body?.appendChild(form)
+    return form
 }
 
 private fun bindDomListeners(

@@ -324,7 +324,8 @@ internal class HomeScreenViewModel(
         searchJob = viewModelScope.launch {
             when (val result = paging.refresh()) {
                 is UpdateOperationResponseResult.Success -> {
-                    result.result.data?.let { applySearchResult(trimmedQuery, it.toUserSearchResult()) }
+                    val data = result.result.data
+                    if (data != null) applySearchResult(trimmedQuery, data.toUserSearchResult())
                 }
 
                 is UpdateOperationResponseResult.Error -> {
@@ -434,7 +435,8 @@ internal class HomeScreenViewModel(
         searchJob = viewModelScope.launch {
             when (val result = paging.fetchNext()) {
                 is UpdateOperationResponseResult.Success -> {
-                    result.result.data?.let { applySearchResult(loaded.query, it.toUserSearchResult()) }
+                    val data = result.result.data
+                    if (data != null) applySearchResult(loaded.query, data.toUserSearchResult())
                 }
 
                 is UpdateOperationResponseResult.Error -> {

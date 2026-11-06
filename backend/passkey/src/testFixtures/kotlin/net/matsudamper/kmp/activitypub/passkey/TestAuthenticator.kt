@@ -19,14 +19,14 @@ class TestAuthenticator(
     private val algorithm: TestPasskeyAlgorithm,
     private val rpId: String = RP_ID,
 ) {
+    val credentialId: ByteArray = ByteArray(16).also(SecureRandom()::nextBytes)
+
     private val keyPair: KeyPair =
         when (algorithm) {
             TestPasskeyAlgorithm.ES256 -> KeyPairGenerator.getInstance("EC").apply { initialize(ECGenParameterSpec("secp256r1")) }.generateKeyPair()
             TestPasskeyAlgorithm.ED25519 -> KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
             TestPasskeyAlgorithm.RS256 -> KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair()
         }
-
-    val credentialId: ByteArray = ByteArray(16).also(SecureRandom()::nextBytes)
 
     fun coseKey(): ByteArray =
         when (algorithm) {

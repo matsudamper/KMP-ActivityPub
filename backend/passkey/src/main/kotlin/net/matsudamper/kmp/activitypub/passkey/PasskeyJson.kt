@@ -63,7 +63,7 @@ object PasskeyJson {
                 DefaultChallenge(challenge),
                 timeout.inWholeMilliseconds,
                 relyingParty.id,
-                emptyList(),
+                listOf(),
                 UserVerificationRequirement.REQUIRED,
                 null,
             ),

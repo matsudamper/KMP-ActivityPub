@@ -34,8 +34,8 @@ internal fun ServerSettingContent(
                 Text("変更")
             }
         }
-        uiState.dialog?.let { dialog ->
-            ServerSettingDialog(dialog = dialog, listener = uiState.listener)
+        if (uiState.dialog != null) {
+            ServerSettingDialog(dialog = uiState.dialog, listener = uiState.listener)
         }
     }
 }

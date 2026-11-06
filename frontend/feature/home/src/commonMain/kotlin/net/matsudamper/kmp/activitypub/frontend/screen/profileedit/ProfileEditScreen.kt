@@ -171,7 +171,7 @@ private fun LoadedContent(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-                if (content.iconUploading) {
+                if (content.iconLoadingVisible) {
                     CircularProgressIndicator(modifier = Modifier.fillMaxSize())
                 }
             }
