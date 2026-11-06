@@ -75,6 +75,7 @@ internal class FakeRepositories : Repositories {
             undoBody: (likeId: String) -> String,
         ): Boolean = false
     }
+    override val boostRepository: FakeBoostRepository = FakeBoostRepository()
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })

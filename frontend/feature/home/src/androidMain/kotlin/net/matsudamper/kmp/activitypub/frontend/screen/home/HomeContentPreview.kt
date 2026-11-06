@@ -74,6 +74,7 @@ private fun HomeTimelinePreview(
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
                     PostItemUiState(
+                        boostedByText = null,
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
@@ -105,6 +106,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = null,
+                        boostCountText = null,
                         favouriteButton = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
@@ -114,6 +116,7 @@ private fun HomeTimelinePreview(
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
+                        boostedByText = "Alice がブースト",
                         iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
@@ -144,6 +147,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = "3",
+                        boostCountText = null,
                         favouriteButton = PostItemUiState.FavouriteButton(
                             iconHighlighted = true,
                             listener = AndroidPreviewFavouriteButtonListener,
@@ -310,6 +314,7 @@ private fun HomeUserContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            boostedByText = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -318,6 +323,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            boostCountText = null,
                             favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
@@ -418,6 +424,7 @@ private fun HomeUserMediaContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            boostedByText = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -426,6 +433,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            boostCountText = null,
                             favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
@@ -467,6 +475,7 @@ private fun HomeColumnsContentPreview() {
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
                     PostItemUiState(
+                        boostedByText = null,
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
@@ -475,6 +484,7 @@ private fun HomeColumnsContentPreview() {
                         linkPreviews = listOf(),
                         images = listOf(),
                         favouriteCountText = null,
+                        boostCountText = null,
                         favouriteButton = null,
                         stamps = listOf(),
                         postListener = AndroidPreviewPostListener,

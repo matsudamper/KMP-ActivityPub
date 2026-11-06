@@ -102,7 +102,7 @@ internal class LoginTestServer : Closeable {
                     "HomeTimeline" -> {
                         check(loggedIn)
                         MockResponse.Builder().body(
-                            """{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[{"__typename":"HomeTimelinePost","id":"post-a","content":"ログイン後のテスト投稿 https://example.com/","publishedAt":"2026-11-03T10:00:00Z","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"favouriteCount":null,"stamps":[],"url":null}],"nextCursor":null}}}}""",
+                            """{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[{"__typename":"HomeTimelinePost","id":"post-a","content":"ログイン後のテスト投稿 https://example.com/","publishedAt":"2026-11-03T10:00:00Z","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null}],"nextCursor":null}}}}""",
                         )
                     }
 
@@ -121,7 +121,7 @@ internal class LoginTestServer : Closeable {
             val subscriptionId = JSONObject.quote(id)
             check(
                 webSocket.send(
-                    """{"type":"next","id":$subscriptionId,"payload":{"data":{"homeTimelinePosts":{"__typename":"HomeTimelinePost","id":"post-after-recreation","content":"Activity 再生成後の新着投稿","publishedAt":"2026-11-03T10:01:00Z","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"favouriteCount":null,"stamps":[],"url":null}}}}""",
+                    """{"type":"next","id":$subscriptionId,"payload":{"data":{"homeTimelinePosts":{"__typename":"HomeTimelinePost","id":"post-after-recreation","content":"Activity 再生成後の新着投稿","publishedAt":"2026-11-03T10:01:00Z","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null}}}}""",
                 ),
             ) { "新着投稿を送信できない: $connectionEvents" }
         }

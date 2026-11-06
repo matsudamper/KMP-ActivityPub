@@ -263,6 +263,7 @@ internal class UserProfileScreenViewModel(
                 val linkPreviewId = post.linkPreviewId
                 val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
                 createPostItemUiState(
+                    boostedBy = null,
                     iconUrl = profile.iconUrl,
                     displayName = profile.displayName,
                     acct = acct,

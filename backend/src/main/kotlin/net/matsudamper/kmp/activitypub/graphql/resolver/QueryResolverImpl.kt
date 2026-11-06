@@ -65,6 +65,7 @@ class QueryResolverImpl : QueryResolver {
                                 favouriteCount = post.favouriteCount?.toInt(),
                                 stamps = post.stamps.toQlPostStamps(diContainer),
                                 url = diContainer.noteShareUrls?.url(post.noteRef),
+                                boostCount = post.boostCount?.toInt(),
                             )
                         },
                     )

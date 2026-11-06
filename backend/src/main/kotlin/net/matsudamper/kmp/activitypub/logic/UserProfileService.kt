@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
@@ -21,6 +22,7 @@ class UserProfileService(
     private val notes: NoteRepository,
     private val favourites: FavouriteRepository,
     private val stamps: StampRepository,
+    private val boosts: BoostRepository,
     private val timeline: TimelineRepository,
     private val following: FollowingService,
     private val remoteProfiles: RemoteUserProfiles?,
@@ -37,6 +39,7 @@ class UserProfileService(
             val localNoteIds = localNotes.map { it.publicId }.toSet()
             val favouriteCounts = favourites.counts(localNoteIds)
             val stampCounts = stamps.counts(localNoteIds)
+            val boostCounts = boosts.counts(localNoteIds)
             // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分のものだけ
             val ownProfile = account.id == viewer
             val detail = accounts.findProfileDetail(account.username)
@@ -58,6 +61,7 @@ class UserProfileService(
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
                         noteRef = TimelineNoteRef.Local(it.publicId),
+                        boostCount = boostCounts[it.publicId],
                     )
                 },
             )
@@ -116,6 +120,7 @@ class UserProfileService(
             favouriteCount = favouriteCount,
             stamps = stamps,
             noteRef = noteRef,
+            boostCount = boostCount,
         )
     }
 
@@ -161,6 +166,7 @@ data class UserProfile(
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  * @param noteRef 投稿を外から指すための元
+ * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -174,4 +180,5 @@ data class ProfilePost(
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
     val noteRef: TimelineNoteRef,
+    val boostCount: Long?,
 )

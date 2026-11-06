@@ -25,6 +25,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
             uiState = PostDetailScreenUiState(
                 content = PostDetailScreenUiState.Content.Loaded(
                     post = PostItemUiState(
+                        boostedByText = null,
                         iconUrl = null,
                         displayName = "Alice",
                         acct = "@alice@example.social",
@@ -56,6 +57,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
                             ),
                         ),
                         favouriteCountText = "12",
+                        boostCountText = "4",
                         favouriteButton = null,
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,

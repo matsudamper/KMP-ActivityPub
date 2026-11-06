@@ -40,6 +40,8 @@ type ProfilePost {
     stamps: [PostStamp!]!
     "共有するときに渡す投稿の URL。作れなければ null"
     url: String
+    "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
+    boostCount: Int
 }
 
 type UserSearchResult {

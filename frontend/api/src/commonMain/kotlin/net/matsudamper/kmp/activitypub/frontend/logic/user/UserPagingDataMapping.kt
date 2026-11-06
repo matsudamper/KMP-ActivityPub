@@ -24,10 +24,14 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     linkUrls = it.linkUrls,
                     images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                     favouriteCount = it.favouriteCount,
+                    boostCount = it.boostCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
                     shareUrl = it.url,
                     likedByMe = it.likedByMe,
                 ),
+                boostedBy = it.boostedBy?.let { booster ->
+                    UserHomeTimelineResult.Booster(username = booster.username, host = booster.host, displayName = booster.displayName)
+                },
                 deletableNoteId = it.deletableNoteId,
             )
         },
@@ -57,6 +61,10 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
             deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
+            boostCount = it.body.boostCount,
+            boostedBy = it.boostedBy?.let { booster ->
+                HomeTimelineQuery.BoostedBy(__typename = "PostBooster", username = booster.username, host = booster.host, displayName = booster.displayName)
+            },
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
             url = it.body.shareUrl,
             likedByMe = it.body.likedByMe,

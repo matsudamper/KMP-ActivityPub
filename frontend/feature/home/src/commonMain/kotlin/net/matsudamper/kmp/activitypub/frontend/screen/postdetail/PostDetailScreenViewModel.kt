@@ -211,6 +211,7 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
+            boostedBy = post.boostedBy,
             iconUrl = post.iconUrl,
             displayName = post.displayName,
             acct = if (host == null) "@${post.username}" else "@${post.username}@$host",

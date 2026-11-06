@@ -40,6 +40,7 @@ internal class KotpubRemoteUserProfiles(
                 favouriteCount = null,
                 stamps = listOf(),
                 noteRef = TimelineNoteRef.Remote(it.id),
+                boostCount = null,
             )
         }
 

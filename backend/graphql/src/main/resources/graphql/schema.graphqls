@@ -101,6 +101,18 @@ type HomeTimelinePost {
     url: String
     "ログイン中のアカウントがいいねしているか。いいねできるのは他のサーバーの投稿だけなので、このサーバーの投稿は null"
     likedByMe: Boolean
+    "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
+    boostCount: Int
+    "フォローしている相手のブーストとして載った投稿なら、ブーストした相手。投稿者などほかの項目はブーストされた投稿のもの"
+    boostedBy: PostBooster
+}
+
+type PostBooster {
+    username: String!
+    host: String!
+    displayName: String!
+    "プロフィール画像の URL。無ければ null"
+    iconUrl: String
 }
 
 type PostStamp {
