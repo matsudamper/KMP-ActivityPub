@@ -24,6 +24,7 @@ internal fun createPostItemUiState(
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
+    onToggleLike: () -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     return PostItemUiState(
@@ -50,6 +51,16 @@ internal fun createPostItemUiState(
             )
         },
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
+        favouriteButton = body.likedByMe?.let { liked ->
+            PostItemUiState.FavouriteButton(
+                iconHighlighted = liked,
+                listener = object : PostItemUiState.FavouriteButtonListener {
+                    override fun onClick() {
+                        onToggleLike()
+                    }
+                },
+            )
+        },
         stamps = body.stamps.map { stamp ->
             PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
         },

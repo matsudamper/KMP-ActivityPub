@@ -25,6 +25,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                     favouriteCount = it.favouriteCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                    likedByMe = it.likedByMe,
                 ),
             )
         },
@@ -54,9 +55,23 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
             favouriteCount = it.body.favouriteCount,
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+            likedByMe = it.body.likedByMe,
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))
+}
+
+/**
+ * いいねを変えた結果を、取得し直さずに反映する
+ */
+fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    return copy(
+        userInfo = info.copy(
+            homeTimeline = timeline.copy(posts = timeline.posts.map { if (it.id == postId) it.copy(likedByMe = liked) else it }),
+        ),
+    )
 }
 
 fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Success {

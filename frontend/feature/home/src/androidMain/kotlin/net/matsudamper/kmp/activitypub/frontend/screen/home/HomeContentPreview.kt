@@ -86,6 +86,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = null,
+                        favouriteButton = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         postListener = AndroidPreviewPostListener,
@@ -122,6 +123,10 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = "3",
+                        favouriteButton = PostItemUiState.FavouriteButton(
+                            iconHighlighted = true,
+                            listener = AndroidPreviewFavouriteButtonListener,
+                        ),
                         stamps = listOf(
                             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
                             PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
@@ -277,6 +282,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             postListener = null,
@@ -331,6 +337,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             postListener = null,
@@ -419,6 +426,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
 }
 
 private object AndroidPreviewPostListener : PostItemUiState.PostListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
     override fun onClick() = Unit
 }
 

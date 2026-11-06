@@ -20,5 +20,6 @@ subscription HomeTimelinePosts {
             imageUrl
             count
         }
+        likedByMe
     }
 }

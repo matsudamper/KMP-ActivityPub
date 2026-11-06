@@ -30,6 +30,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -38,6 +39,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -123,6 +125,7 @@ class UserApi(
                     images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                     favouriteCount = post.favouriteCount,
                     stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                    likedByMe = post.likedByMe,
                 ),
             ),
         )
@@ -155,6 +158,28 @@ class UserApi(
         if (response.data?.user?.setFollowing != true) return "フォロー状態を変更できませんでした"
         followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
         return null
+    }
+
+    /**
+     * @param postId [UserHomeTimelineResult.Post.id]
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun setLiked(postId: String, liked: Boolean): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(SetLikedMutation(postId = postId, liked = liked)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.setLiked ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+
+            SetLikedFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            SetLikedFailure.POST_NOT_FOUND -> "この投稿にはいいねできません"
+
+            SetLikedFailure.FEDERATION_DISABLED,
+            SetLikedFailure.UNKNOWN__,
+            -> "いいねを変更できませんでした"
+        }
     }
 
     fun followingUsersPaging(): CursorPagingModel<FollowingUsersQuery.Data> {
@@ -271,6 +296,8 @@ class UserApi(
                         images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                         favouriteCount = it.favouriteCount,
                         stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                        // プロフィールの投稿は、いいねの状態を取っていない
+                        likedByMe = null,
                     ),
                 )
             },
@@ -459,6 +486,7 @@ class UserApi(
                                 images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                                 favouriteCount = post.favouriteCount,
                                 stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                                likedByMe = post.likedByMe,
                             ),
                         ),
                     ),
