@@ -21,6 +21,10 @@ data class PostItemUiState(
      * 1 件も無ければ null で、お気に入りのアイコンだけを出す
      */
     val favouriteCountText: String?,
+    /**
+     * いいねできない投稿は null で、お気に入りのアイコンを押せなくする
+     */
+    val favouriteButton: FavouriteButton?,
     val stamps: List<Stamp>,
     /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
@@ -57,6 +61,11 @@ data class PostItemUiState(
         val listener: LinkPreviewListener,
     )
 
+    data class FavouriteButton(
+        val iconHighlighted: Boolean,
+        val listener: FavouriteButtonListener,
+    )
+
     /**
      * @param imageUrl カスタム絵文字の画像。null なら [emoji] の文字で見せる
      */
@@ -83,6 +92,11 @@ data class PostItemUiState(
          * 投稿が画面に入ったとき。OGP はここで初めて取りに行く
          */
         fun onVisible()
+    }
+
+    @Immutable
+    interface FavouriteButtonListener {
+        fun onClick()
     }
 
     @Immutable

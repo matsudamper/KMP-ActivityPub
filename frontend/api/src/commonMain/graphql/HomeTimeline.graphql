@@ -24,6 +24,7 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                     count
                 }
                 url
+                likedByMe
             }
             nextCursor
         }

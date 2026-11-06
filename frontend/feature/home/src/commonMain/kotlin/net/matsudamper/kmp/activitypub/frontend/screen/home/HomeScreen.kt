@@ -84,6 +84,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
@@ -682,6 +683,13 @@ private fun UserProfileHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        val summary = profile.summary
+        if (summary != null) {
+            Text(text = summary, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (profile.links.isNotEmpty()) {
+            ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

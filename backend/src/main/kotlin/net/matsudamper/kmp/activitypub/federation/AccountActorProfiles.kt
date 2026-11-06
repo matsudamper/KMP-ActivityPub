@@ -8,5 +8,8 @@ internal class AccountActorProfiles(
     private val accountService: AccountService,
 ) : StoredActorProfiles {
     override fun find(username: String): ActorProfile =
-        ActorProfile(displayName = accountService.account(username)?.displayName, summary = null)
+        ActorProfile(
+            displayName = accountService.account(username)?.displayName,
+            summary = accountService.profileDetail(username)?.summary,
+        )
 }

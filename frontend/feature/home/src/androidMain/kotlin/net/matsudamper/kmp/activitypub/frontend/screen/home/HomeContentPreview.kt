@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 @Preview
@@ -104,6 +105,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = null,
+                        favouriteButton = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         menuItems = listOf(),
@@ -142,6 +144,10 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = "3",
+                        favouriteButton = PostItemUiState.FavouriteButton(
+                            iconHighlighted = true,
+                            listener = AndroidPreviewFavouriteButtonListener,
+                        ),
                         stamps = listOf(
                             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
                             PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
@@ -293,6 +299,10 @@ private fun HomeUserContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
+                    summary = "Kotlin で ActivityPub サーバーを作っています。",
+                    links = listOf(
+                        ProfileLinkUiState(name = "GitHub", url = "https://github.com/user1", listener = AndroidPreviewProfileLinkListener),
+                    ),
                     followingCount = "12",
                     followersCount = "3",
                 ),
@@ -308,6 +318,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             menuItems = listOf(),
@@ -352,6 +363,8 @@ private fun HomeUserMediaContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
+                    summary = null,
+                    links = listOf(),
                     followingCount = "12",
                     followersCount = "3",
                 ),
@@ -367,6 +380,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             menuItems = listOf(),
@@ -415,6 +429,7 @@ private fun HomeColumnsContentPreview() {
                         linkPreviews = listOf(),
                         images = listOf(),
                         favouriteCountText = null,
+                        favouriteButton = null,
                         stamps = listOf(),
                         postListener = AndroidPreviewPostListener,
                         shareListener = AndroidPreviewShareListener,
@@ -563,6 +578,10 @@ private object AndroidPreviewShareListener : PostItemUiState.ShareListener {
     override fun onClick() = Unit
 }
 
+private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
+    override fun onClick() = Unit
+}
+
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
     override fun onClick() = Unit
 }
@@ -581,6 +600,10 @@ private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAcc
     override fun onClick() = Unit
 }
 
+private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
+    override fun onClick() = Unit
+}
+
 private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
 
@@ -589,6 +612,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onImagePicked(file: PickedImageFile) = Unit
 
     override fun onClickPost() = Unit
+
+    override fun onPressPostShortcut() = Unit
 
     override fun onClickBack() = Unit
 }

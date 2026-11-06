@@ -169,6 +169,7 @@ class UserProfileServiceTest {
             images = listOf(image),
             favouriteCount = null,
             stamps = listOf(),
+            likedByMe = null,
             noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
         )
 

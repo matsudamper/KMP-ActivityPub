@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 data class HomeScreenUiState(
@@ -98,6 +99,8 @@ data class HomeScreenUiState(
             val iconUrl: String?,
             val displayName: String,
             val acct: String,
+            val summary: String?,
+            val links: List<ProfileLinkUiState>,
             val followingCount: String,
             val followersCount: String,
         ) : Profile

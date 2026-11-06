@@ -96,7 +96,7 @@ internal class LoginTestServer : Closeable {
                     )
 
                     "MyProfile" -> MockResponse.Builder().body(
-                        """{"data":{"profile":{"__typename":"Profile","username":"alice","displayName":null,"iconUrl":null,"followingCount":0,"followersCount":0}}}""",
+                        """{"data":{"profile":{"__typename":"Profile","username":"alice","displayName":null,"iconUrl":null,"summary":null,"links":[],"followingCount":0,"followersCount":0}}}""",
                     )
 
                     "HomeTimeline" -> {

@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import net.matsudamper.kmp.activitypub.crypto.PasswordHashType
 import net.matsudamper.kmp.activitypub.repository.Account
+import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
@@ -17,6 +18,8 @@ class AccountService(
     fun account(id: AccountId): Account? = accountRepository.findById(id)
 
     fun account(username: String): Account? = accountRepository.findByUsername(username)
+
+    fun profileDetail(username: String): AccountProfileDetail? = accountRepository.findProfileDetail(username)
 
     fun publicKeyPem(username: String): String? = accountRepository.findPublicKeyPem(username)
 

@@ -7,6 +7,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * @param favouriteCount 他のサーバーの投稿は数を受け取らないので null
  * @param stamps 多く押された順
  * @param shareUrl 共有するときに渡す投稿の URL。作れなければ null
+ * @param likedByMe ログイン中のアカウントがいいねしているか。いいねできない投稿は null
  */
 data class UserPostBody(
     val content: String,
@@ -18,6 +19,7 @@ data class UserPostBody(
     val favouriteCount: Int?,
     val stamps: List<UserPostStamp>,
     val shareUrl: String?,
+    val likedByMe: Boolean?,
 )
 
 /**

@@ -22,5 +22,6 @@ subscription HomeTimelinePosts {
             count
         }
         url
+        likedByMe
     }
 }

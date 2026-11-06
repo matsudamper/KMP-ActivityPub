@@ -34,5 +34,6 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
         url = diContainer.noteShareUrls?.url(noteRef),
+        likedByMe = likedByMe,
     )
 }

@@ -23,6 +23,7 @@ query PostDetailScreen($id: ID!) {
                 count
             }
             url
+            likedByMe
         }
     }
 }
