@@ -128,7 +128,8 @@ CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update / delete_note: 投稿の Delete。
+    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update / delete_note: 投稿の Delete /
+    -- like / undo_like: 他のサーバーの投稿へのいいねとその取り消し。
     -- 行の形は種別に依らないので、種別を足しても作り直さずに済む。取りうる値は DeliveryQueueValues が持つ
     kind TEXT NOT NULL,
     -- 署名するこちらのアカウント
@@ -244,3 +245,14 @@ CREATE TABLE note_stamps (
 );
 
 CREATE INDEX note_stamps_remote_actor_id ON note_stamps (remote_actor_id);
+
+-- こちらのアカウントが他のサーバーの投稿に付けたいいね。Undo に元の Like の id が要るので残す
+CREATE TABLE remote_note_likes (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    like_activity_uri TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, remote_note_id)
+);
+
+CREATE INDEX remote_note_likes_remote_note_id ON remote_note_likes (remote_note_id);

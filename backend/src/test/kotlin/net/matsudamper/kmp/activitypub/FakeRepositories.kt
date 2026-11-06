@@ -7,7 +7,10 @@ import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.ListedActor
+import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
@@ -61,6 +64,17 @@ internal class FakeRepositories : Repositories {
     override val remoteActorRepository: FakeRemoteActorRepository = FakeRemoteActorRepository()
     override val favouriteRepository: FakeFavouriteRepository = FakeFavouriteRepository()
     override val stampRepository: FakeStampRepository = FakeStampRepository()
+    override val likeRepository: LikeRepository = object : LikeRepository {
+        override fun target(accountId: AccountId, member: String): LikeTarget? = null
+        override fun likeAndEnqueue(like: OutgoingLike): Boolean = false
+        override fun unlikeAndEnqueueUndo(
+            accountId: AccountId,
+            member: String,
+            inbox: String,
+            now: Instant,
+            undoBody: (likeId: String) -> String,
+        ): Boolean = false
+    }
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })

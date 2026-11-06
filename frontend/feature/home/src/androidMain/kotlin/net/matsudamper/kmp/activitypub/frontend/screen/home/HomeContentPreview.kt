@@ -105,6 +105,7 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = null,
+                        favouriteButton = null,
                         stamps = listOf(),
                         authorListener = AndroidPreviewAuthorListener,
                         menuItems = listOf(),
@@ -142,6 +143,10 @@ private fun HomeTimelinePreview(
                             ),
                         ),
                         favouriteCountText = "3",
+                        favouriteButton = PostItemUiState.FavouriteButton(
+                            iconHighlighted = true,
+                            listener = AndroidPreviewFavouriteButtonListener,
+                        ),
                         stamps = listOf(
                             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
                             PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
@@ -311,6 +316,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             menuItems = listOf(),
@@ -417,6 +423,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
+                            favouriteButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             menuItems = listOf(),
@@ -464,6 +471,7 @@ private fun HomeColumnsContentPreview() {
                         linkPreviews = listOf(),
                         images = listOf(),
                         favouriteCountText = null,
+                        favouriteButton = null,
                         stamps = listOf(),
                         postListener = AndroidPreviewPostListener,
                         menuItems = listOf(),
@@ -604,6 +612,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
 }
 
 private object AndroidPreviewPostListener : PostItemUiState.PostListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
     override fun onClick() = Unit
 }
 

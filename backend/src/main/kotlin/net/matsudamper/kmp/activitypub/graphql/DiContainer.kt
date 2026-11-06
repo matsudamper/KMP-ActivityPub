@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.graphql
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
+import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
@@ -37,6 +38,10 @@ class DiContainer(
      * DOMAIN が無いと配れないので null
      */
     val profileUpdateService: ProfileUpdateService?,
+    /**
+     * DOMAIN が無いと配れないので null
+     */
+    val likeService: LikeService?,
     /**
      * DOMAIN が無いと Actor の URL を作れないので null
      */

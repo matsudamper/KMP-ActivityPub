@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
@@ -98,6 +99,11 @@ internal class HomeScreenViewModel(
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
      */
     private var linkPreviewRequestedPostIds = setOf<String>()
+
+    /**
+     * 返事を待たずに表示を切り替えるので、押している間かどうかは表示に使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var likeChangingPostIds = setOf<String>()
 
     private val listener = object : HomeScreenUiState.Listener {
         override fun onClickPost() {
@@ -577,6 +583,24 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private fun toggleLike(post: UserHomeTimelineResult.Post) {
+        val liked = post.body.likedByMe ?: return
+        if (post.id in likeChangingPostIds) return
+        likeChangingPostIds = likeChangingPostIds + post.id
+        viewModelScope.launch {
+            try {
+                timelinePaging.updateCache { it.withLiked(postId = post.id, liked = !liked) }
+                val error = userApi.setLiked(postId = post.id, liked = !liked)
+                if (error != null) {
+                    timelinePaging.updateCache { it.withLiked(postId = post.id, liked = liked) }
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                likeChangingPostIds = likeChangingPostIds - post.id
+            }
+        }
+    }
+
     private suspend fun timelineFailed(append: Boolean, message: String) {
         if (append) {
             updateTimeline { it.copy(loading = TimelineLoading.AppendFailed(message)) }
@@ -728,6 +752,8 @@ internal class HomeScreenViewModel(
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                             onToggleImageBlur = { url -> toggleImageBlur(url) },
+                            // プロフィールの投稿はいいねの状態を取っていないので押せない
+                            onToggleLike = {},
                             onVisible = {
                                 if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                                     loadLinkPreviews(linkPreviewId)
@@ -768,6 +794,7 @@ internal class HomeScreenViewModel(
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onToggleImageBlur = { url -> toggleImageBlur(url) },
+                onToggleLike = { toggleLike(post) },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)

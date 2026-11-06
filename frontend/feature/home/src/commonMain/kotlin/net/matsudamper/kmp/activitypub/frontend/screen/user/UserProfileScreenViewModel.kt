@@ -276,6 +276,8 @@ internal class UserProfileScreenViewModel(
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                     onToggleImageBlur = { url -> toggleImageBlur(url) },
+                    // プロフィールの投稿はいいねの状態を取っていないので押せない
+                    onToggleLike = {},
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)

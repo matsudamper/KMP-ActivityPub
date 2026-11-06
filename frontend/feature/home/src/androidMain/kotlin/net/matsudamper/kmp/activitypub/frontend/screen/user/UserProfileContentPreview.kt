@@ -42,6 +42,7 @@ private fun UserProfileContentPreview() {
                             ),
                             images = listOf(),
                             favouriteCountText = "12",
+                            favouriteButton = null,
                             stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                             authorListener = null,
                             menuItems = listOf(),

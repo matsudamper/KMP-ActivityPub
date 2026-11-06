@@ -279,7 +279,11 @@ internal class SqliteDeliveryQueueRepository(
         nextAttemptAt: Instant,
         error: String,
     ) {
-        jooq.withConnection { dsl ->
+        jooq.transaction { dsl ->
+            dsl.deleteFrom(DELIVERY_QUEUE)
+                .where(DELIVERY_QUEUE.ID.eq(id))
+                .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_CANCELLED_LIKE))
+                .execute()
             dsl.update(DELIVERY_QUEUE)
                 .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
                 .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(nextAttemptAt))
@@ -317,7 +321,11 @@ internal class SqliteDeliveryQueueRepository(
         }
     }
 
-    override fun recoverDelivering(now: Instant): Int = jooq.withConnection { dsl ->
+    override fun recoverDelivering(now: Instant): Int = jooq.transaction { dsl ->
+        dsl.deleteFrom(DELIVERY_QUEUE)
+            .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
+            .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_CANCELLED_LIKE))
+            .execute()
         dsl.update(DELIVERY_QUEUE)
             .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
             .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
