@@ -102,14 +102,14 @@ internal fun PostItem(
                     )
                     Text(
                         text = uiState.postedAt,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                     )
                 }
                 Text(
                     text = uiState.acct,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -185,7 +185,7 @@ private fun BoostedByLabel(text: String) {
         }
         Text(
             text = text,
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodyMedium,
             color = color,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -322,7 +322,7 @@ private fun PostActions(uiState: PostItemUiState) {
     }
 }
 
-private val PostActionIconSize = 22.dp
+private val PostActionIconSize = 24.dp
 
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
 
@@ -363,7 +363,7 @@ private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
 private val PostMenuButtonSize = 32.dp
 
 private val PostHorizontalPadding = 16.dp
-private val PostIconSize = 40.dp
+private val PostIconSize = 46.dp
 private val PostIconHeaderSpacing = 12.dp
 
 // 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
