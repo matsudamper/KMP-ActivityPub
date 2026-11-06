@@ -41,6 +41,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
@@ -292,6 +293,7 @@ class UserApi(
             iconUrl = user.iconUrl,
             following = user.following,
             biography = profile.biography,
+            links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             posts = profile.posts.map {
                 UserProfileResult.Post(
                     linkPreviewId = it.linkPreviewId,
@@ -452,6 +454,8 @@ class UserApi(
             username = profile.username,
             displayName = profile.displayName,
             iconUrl = profile.iconUrl,
+            summary = profile.summary,
+            links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             followingCount = profile.followingCount,
             followersCount = profile.followersCount,
         )
@@ -459,17 +463,33 @@ class UserApi(
 
     /**
      * @param displayName 空なら未設定に戻す
+     * @param summary 空なら未設定に戻す
+     * @param links 並べる順。名前も URL も空の行はサーバーが捨てる
      */
-    suspend fun updateProfile(displayName: String): UserUpdateProfileResult {
+    suspend fun updateProfile(
+        displayName: String,
+        summary: String,
+        links: List<UserProfileLink>,
+    ): UserUpdateProfileResult {
         val client = clients.client.value ?: return UserUpdateProfileResult.Failure("接続先が未設定")
-        val response = client.mutation(UpdateProfileMutation(UpdateProfileQuery(displayName = Optional.present(displayName)))).execute()
+        val query =
+            UpdateProfileQuery(
+                displayName = Optional.present(displayName),
+                summary = Optional.present(summary),
+                links = Optional.present(links.map { ProfileLinkInput(name = it.name, url = it.url) }),
+            )
+        val response = client.mutation(UpdateProfileMutation(query)).execute()
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())
         val updateProfile = response.data?.user?.updateProfile ?: return UserUpdateProfileResult.Failure(response.failureMessage())
 
         return when (updateProfile.failure) {
             null -> UserUpdateProfileResult.Success
             UpdateProfileFailure.NOT_LOGGED_IN -> UserUpdateProfileResult.NotLoggedIn
-            UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.TooLong
+            UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.DisplayNameTooLong
+            UpdateProfileFailure.SUMMARY_TOO_LONG -> UserUpdateProfileResult.SummaryTooLong
+            UpdateProfileFailure.TOO_MANY_LINKS -> UserUpdateProfileResult.TooManyLinks
+            UpdateProfileFailure.LINK_TOO_LONG -> UserUpdateProfileResult.LinkTooLong
+            UpdateProfileFailure.INVALID_LINK -> UserUpdateProfileResult.InvalidLink
             UpdateProfileFailure.FEDERATION_DISABLED -> UserUpdateProfileResult.FederationDisabled
             UpdateProfileFailure.UNKNOWN__ -> UserUpdateProfileResult.Failure("Unknown")
         }

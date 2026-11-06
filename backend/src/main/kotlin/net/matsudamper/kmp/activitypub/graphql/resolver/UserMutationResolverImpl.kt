@@ -43,10 +43,11 @@ import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
-import net.matsudamper.kmp.activitypub.logic.UpdateDisplayNameResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
+import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -379,12 +380,23 @@ class UserMutationResolverImpl : UserMutationResolver {
         // セッションが残っていてもアカウントが消えていることがある
         val account = diContainer.accountService.account(accountId) ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
         val profileUpdateService = diContainer.profileUpdateService ?: return QlUpdateProfileFailure.FEDERATION_DISABLED
-        val displayName = query.displayName ?: return null
+        if (query.displayName == null && query.summary == null && query.links == null) return null
 
-        return when (profileUpdateService.updateDisplayName(username = account.username, displayName = displayName)) {
-            UpdateDisplayNameResult.Updated -> null
-            UpdateDisplayNameResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
-            UpdateDisplayNameResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
+        val result =
+            profileUpdateService.updateProfile(
+                username = account.username,
+                displayName = query.displayName,
+                summary = query.summary,
+                links = query.links?.map { ProfileLink(name = it.name, url = it.url) },
+            )
+        return when (result) {
+            UpdateProfileResult.Updated -> null
+            UpdateProfileResult.DisplayNameTooLong -> QlUpdateProfileFailure.TOO_LONG
+            UpdateProfileResult.SummaryTooLong -> QlUpdateProfileFailure.SUMMARY_TOO_LONG
+            UpdateProfileResult.TooManyLinks -> QlUpdateProfileFailure.TOO_MANY_LINKS
+            UpdateProfileResult.LinkTooLong -> QlUpdateProfileFailure.LINK_TOO_LONG
+            UpdateProfileResult.InvalidLink -> QlUpdateProfileFailure.INVALID_LINK
+            UpdateProfileResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
         }
     }
 

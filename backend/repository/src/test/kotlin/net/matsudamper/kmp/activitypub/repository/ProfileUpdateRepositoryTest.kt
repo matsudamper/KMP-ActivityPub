@@ -91,9 +91,45 @@ class ProfileUpdateRepositoryTest {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
             queue.updateProfile(profileUpdate(displayName = "ユーザー1", body = "update-1"))
-            queue.updateProfile(profileUpdate(displayName = null, body = "update-2").copy(displayName = DisplayNameChange.Keep))
+            queue.updateProfile(profileUpdate(displayName = null, body = "update-2").copy(displayName = ProfileValueChange.Keep))
 
             assertEquals("ユーザー1", repositories.accountRepository.findByUsername("user1")?.displayName)
+        }
+    }
+
+    @Test
+    fun `説明文とリンク集を書き、Keep なら今のまま`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            val links = listOf(ProfileLink(name = "Blog", url = "https://blog.example"), ProfileLink(name = "GitHub", url = "https://github.com/user1"))
+            queue.updateProfile(
+                profileUpdate(displayName = null, body = "update-1").copy(
+                    summary = ProfileValueChange.Set("自己紹介"),
+                    links = ProfileValueChange.Set(links),
+                ),
+            )
+            assertEquals(AccountProfileDetail(summary = "自己紹介", links = links), repositories.accountRepository.findProfileDetail("user1"))
+
+            queue.updateProfile(profileUpdate(displayName = "名前", body = "update-2"))
+            assertEquals(AccountProfileDetail(summary = "自己紹介", links = links), repositories.accountRepository.findProfileDetail("user1"))
+        }
+    }
+
+    @Test
+    fun `リンク集は渡したものに置き換える`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            val oldLinks = listOf(ProfileLink(name = "A", url = "https://a.example"), ProfileLink(name = "B", url = "https://b.example"))
+            val newLinks = listOf(ProfileLink(name = "C", url = "https://c.example"))
+            queue.updateProfile(profileUpdate(displayName = null, body = "update-1").copy(links = ProfileValueChange.Set(oldLinks)))
+            queue.updateProfile(
+                profileUpdate(displayName = null, body = "update-2").copy(
+                    summary = ProfileValueChange.Set(null),
+                    links = ProfileValueChange.Set(newLinks),
+                ),
+            )
+
+            assertEquals(AccountProfileDetail(summary = null, links = newLinks), repositories.accountRepository.findProfileDetail("user1"))
         }
     }
 
@@ -113,7 +149,9 @@ class ProfileUpdateRepositoryTest {
     ): ProfileUpdate =
         ProfileUpdate(
             username = "user1",
-            displayName = DisplayNameChange.Set(displayName),
+            displayName = ProfileValueChange.Set(displayName),
+            summary = ProfileValueChange.Keep,
+            links = ProfileValueChange.Keep,
             newIconPath = null,
             updatedAt = NOW,
             body = body,

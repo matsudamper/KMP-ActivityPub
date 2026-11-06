@@ -45,6 +45,10 @@ type Profile {
     displayName: String
     "プロフィール画像の URL。未設定なら null"
     iconUrl: String
+    "プロフィールの説明文。プレーンテキスト。未設定なら null"
+    summary: String
+    "プロフィールのリンク集。並べた順"
+    links: [ProfileLink!]!
     followingCount: Int!
     "成立したフォローだけを数える"
     followersCount: Int!

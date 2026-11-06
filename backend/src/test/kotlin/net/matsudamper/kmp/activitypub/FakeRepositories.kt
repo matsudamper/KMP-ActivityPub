@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
+import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
@@ -133,6 +134,9 @@ internal class FakeAccountRepository(
 
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.takeIf { it.id !in passwordDeletedIds }
+
+    override fun findProfileDetail(username: String): AccountProfileDetail? =
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { AccountProfileDetail(summary = null, links = listOf()) }
 
     override fun findPublicKeyPem(username: String): String? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { publicKeyPems[it.id] }

@@ -134,14 +134,18 @@ data class NoteDeletion(
 )
 
 /**
- * @param displayName 書き換えないなら [DisplayNameChange.Keep]
+ * @param displayName 書き換えないなら [ProfileValueChange.Keep]。未設定に戻すなら null を Set する
+ * @param summary 書き換えないなら [ProfileValueChange.Keep]。未設定に戻すなら null を Set する
+ * @param links 書き換えないなら [ProfileValueChange.Keep]。並べた順に保存する
  * @param newIconPath 新しく置いたプロフィール画像の場所。null なら今の場所のまま。
  *   読んだ値を書き戻すと、間に別の更新が差し替えて消した画像を指してしまう
  * @param body 宛先すべてに同じものを送る Update のアクティビティ。プロフィールの全体を載せる
  */
 data class ProfileUpdate(
     val username: String,
-    val displayName: DisplayNameChange,
+    val displayName: ProfileValueChange<String?>,
+    val summary: ProfileValueChange<String?>,
+    val links: ProfileValueChange<List<ProfileLink>>,
     val newIconPath: String?,
     val updatedAt: Instant,
     val body: String,
@@ -151,15 +155,12 @@ data class ProfileUpdate(
 /**
  * 読んだ値を書き戻さずに済むよう、書き換えないことを値で表す。書き戻すと間に入った別の更新を消す
  */
-sealed interface DisplayNameChange {
-    data object Keep : DisplayNameChange
+sealed interface ProfileValueChange<out T> {
+    data object Keep : ProfileValueChange<Nothing>
 
-    /**
-     * @param value 未設定に戻すなら null
-     */
-    data class Set(
-        val value: String?,
-    ) : DisplayNameChange
+    data class Set<T>(
+        val value: T,
+    ) : ProfileValueChange<T>
 }
 
 /**
