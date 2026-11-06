@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,11 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
@@ -138,12 +137,17 @@ private fun HomeRail(uiState: HomeScreenUiState) {
         SensitiveImagesVisibilityButton(
             sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
             onClick = uiState.listener::onClickSensitiveImagesVisibility,
+            modifier = Modifier.size(width = RAIL_BUTTON_WIDTH, height = 48.dp),
         )
         TimelineStreamStatusButton(
             status = uiState.timelineStreamStatus,
             onClick = uiState.listener::onClickTimelineStreamStatus,
+            modifier = Modifier.size(width = RAIL_BUTTON_WIDTH, height = 48.dp),
         )
-        IconButton(onClick = uiState.listener::onClickSettings) {
+        IconButton(
+            onClick = uiState.listener::onClickSettings,
+            modifier = Modifier.size(width = RAIL_BUTTON_WIDTH, height = 48.dp),
+        ) {
             Icon(
                 imageVector = AppIcons.Settings,
                 contentDescription = "設定",
@@ -155,7 +159,7 @@ private fun HomeRail(uiState: HomeScreenUiState) {
 
 /**
  * 押すたびにカラムを開け閉めするので、開いているかを塗りで見せる。
- * 丸の部分だけでなくラベルを含めたレールの幅いっぱいを押せるようにする
+ * 塗りを押せる範囲と同じ大きさにして、どこまで押せるかを見せる
  */
 @Composable
 private fun ColumnToggleButton(
@@ -163,54 +167,45 @@ private fun ColumnToggleButton(
     userIconUrl: String?,
     onClick: () -> Unit,
 ) {
-    val colors = IconButtonDefaults.filledIconToggleButtonColors()
+    val containerColor = if (item.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
+    val contentColor = if (item.selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Column(
         modifier = Modifier
-            .width(RAIL_ITEM_WIDTH)
-            .clip(MaterialTheme.shapes.medium)
+            .padding(vertical = 4.dp)
+            .size(width = RAIL_BUTTON_WIDTH, height = 64.dp)
+            .clip(MaterialTheme.shapes.large)
+            .background(containerColor)
             .toggleable(
                 value = item.selected,
                 role = Role.Checkbox,
                 onValueChange = { onClick() },
-            )
-            .padding(vertical = 8.dp),
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = if (item.selected) colors.checkedContainerColor else colors.containerColor,
-                    shape = CircleShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            CompositionLocalProvider(
-                LocalContentColor provides if (item.selected) colors.checkedContentColor else colors.contentColor,
-            ) {
-                when (item.column) {
-                    HomeScreenUiState.Column.Post -> Icon(
-                        imageVector = AppIcons.Edit,
-                        contentDescription = null,
-                    )
+        CompositionLocalProvider(LocalContentColor provides contentColor) {
+            when (item.column) {
+                HomeScreenUiState.Column.Post -> Icon(
+                    imageVector = AppIcons.Edit,
+                    contentDescription = null,
+                )
 
-                    HomeScreenUiState.Column.Search -> Icon(
-                        imageVector = AppIcons.Search,
-                        contentDescription = null,
-                    )
+                HomeScreenUiState.Column.Search -> Icon(
+                    imageVector = AppIcons.Search,
+                    contentDescription = null,
+                )
 
-                    HomeScreenUiState.Column.User -> ProfileIcon(
-                        iconUrl = userIconUrl,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
+                HomeScreenUiState.Column.User -> ProfileIcon(
+                    iconUrl = userIconUrl,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
             }
+            Text(
+                text = item.column.label,
+                style = MaterialTheme.typography.labelMedium,
+            )
         }
-        Text(
-            text = item.column.label,
-            style = MaterialTheme.typography.labelMedium,
-        )
     }
 }
 
@@ -261,4 +256,4 @@ private val HomeScreenUiState.Column.label: String
     }
 
 private val COLUMN_WIDTH = 400.dp
-private val RAIL_ITEM_WIDTH = 80.dp
+private val RAIL_BUTTON_WIDTH = 72.dp
