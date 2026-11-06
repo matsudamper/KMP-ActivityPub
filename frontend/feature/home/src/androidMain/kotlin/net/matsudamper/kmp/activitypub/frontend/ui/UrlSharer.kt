@@ -5,8 +5,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
+/**
+ * Android はいつも共有の画面を出せるので、[onCopiedToClipboard] は呼ばない
+ */
 @Composable
-internal actual fun rememberUrlSharer(): (url: String) -> Unit {
+internal actual fun rememberUrlSharer(onCopiedToClipboard: () -> Unit): (url: String) -> Unit {
     val context = LocalContext.current
     return remember(context) {
         { url ->

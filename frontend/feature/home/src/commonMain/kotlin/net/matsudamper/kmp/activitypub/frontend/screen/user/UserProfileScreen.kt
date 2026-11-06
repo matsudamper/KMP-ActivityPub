@@ -46,6 +46,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
+import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
@@ -61,7 +62,9 @@ internal fun UserProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
-    val urlSharer = rememberUrlSharer()
+    val urlSharer = rememberUrlSharer(
+        onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
+    )
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(object : UserProfileScreenViewModel.Event {
             override fun navigateBack() {
