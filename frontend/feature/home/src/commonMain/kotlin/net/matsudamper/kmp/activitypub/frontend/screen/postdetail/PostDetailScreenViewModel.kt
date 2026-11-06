@@ -15,6 +15,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
+import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -143,14 +145,11 @@ internal class PostDetailScreenViewModel(
             linkPreviews = viewModelState.linkPreviews,
             sensitiveImagesBlurred = true,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
-            authorListener = object : PostItemUiState.AuthorListener {
-                override fun onClick() {
-                    val username = if (host == null) post.username else "${post.username}@$host"
-                    viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
-                }
+            authorTapAction = AuthorTapAction.OpenProfile {
+                val username = if (host == null) post.username else "${post.username}@$host"
+                viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
             },
-            // 開いているのがこの投稿の画面なので、押しても移る先が無い
-            postListener = null,
+            postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
             onToggleImageBlur = { url -> toggleImageBlur(url) },

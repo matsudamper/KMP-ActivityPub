@@ -30,7 +30,22 @@ private fun PostDetailContentPreview() {
                                 listener = AndroidPreviewLinkPreviewListener,
                             ),
                         ),
-                        images = listOf(),
+                        images = listOf(
+                            PostItemUiState.Image(
+                                url = "https://example.social/image1.png",
+                                description = null,
+                                blurToggleButtonVisible = false,
+                                blurred = false,
+                                listener = AndroidPreviewImageListener,
+                            ),
+                            PostItemUiState.Image(
+                                url = "https://example.social/image2.png",
+                                description = null,
+                                blurToggleButtonVisible = false,
+                                blurred = false,
+                                listener = AndroidPreviewImageListener,
+                            ),
+                        ),
                         favouriteCountText = "12",
                         boostCountText = "4",
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
@@ -72,4 +87,10 @@ private object AndroidPreviewPostItemListener : PostItemUiState.Listener {
 
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
     override fun onClick() = Unit
+}
+
+private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
+    override fun onClick() = Unit
+
+    override fun onClickBlurToggle() = Unit
 }
