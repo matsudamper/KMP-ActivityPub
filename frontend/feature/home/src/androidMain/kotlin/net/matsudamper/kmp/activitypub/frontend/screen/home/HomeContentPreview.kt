@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -11,7 +12,11 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
@@ -159,6 +164,8 @@ private fun HomeTimelinePreview(
                 userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                openedColumn = null,
+                railItems = listOf(),
                 deleteNoteDialog = deleteNoteDialog,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -219,6 +226,8 @@ private fun HomeSearchContentPreview() {
                 userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                openedColumn = null,
+                railItems = listOf(),
                 deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -251,6 +260,8 @@ private fun HomeSearchEmptyContentPreview() {
                 userContentTab = ProfileContentTab.Posts,
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
+                openedColumn = null,
+                railItems = listOf(),
                 deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -307,6 +318,8 @@ private fun HomeUserContentPreview() {
                     mediaEmptyMessage = "表示できるメディアはありません",
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
+                openedColumn = null,
+                railItems = listOf(),
                 deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
@@ -370,11 +383,96 @@ private fun HomeUserMediaContentPreview() {
                     mediaEmptyMessage = null,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
+                openedColumn = null,
+                railItems = listOf(),
                 deleteNoteDialog = null,
                 listener = AndroidPreviewHomeListener,
             ),
             snackbarHostState = SnackbarHostState(),
             tabListStates = rememberHomeTabListStates(),
+        )
+    }
+}
+
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun HomeColumnsContentPreview() {
+    HomePreviewTheme {
+        HomeColumnsContent(
+            uiState = HomeScreenUiState(
+                selectedTab = HomeScreenUiState.Tab.Home,
+                timelineItems = listOf(
+                    PostItemUiState(
+                        iconUrl = "https://example.com/kotlin.png",
+                        displayName = "Kotlin",
+                        acct = "@kotlin@example.com",
+                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", onOpenUrl = {}),
+                        postedAt = "1分前",
+                        linkPreviews = listOf(),
+                        images = listOf(),
+                        favouriteCountText = null,
+                        stamps = listOf(),
+                        postListener = AndroidPreviewPostListener,
+                        menuItems = listOf(),
+                        authorListener = AndroidPreviewAuthorListener,
+                        listener = AndroidPreviewTimelineItemListener,
+                    ),
+                ),
+                timelineRefreshing = false,
+                timelineFooter = HomeScreenUiState.TimelineFooter.None,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
+                search = HomeScreenUiState.Search(
+                    query = "kotlin",
+                    result = HomeScreenUiState.SearchResult.Loaded(
+                        accounts = listOf(
+                            HomeScreenUiState.SearchAccount(
+                                iconUrl = "https://example.com/icon.png",
+                                displayName = "kotlin",
+                                acct = "@kotlin",
+                                followButtonText = null,
+                                followButtonEnabled = false,
+                                onClickFollow = {},
+                                listener = AndroidPreviewSearchAccountListener,
+                            ),
+                        ),
+                        loadMoreButtonVisible = false,
+                    ),
+                ),
+                profile = HomeScreenUiState.Profile.Loading,
+                userContentTab = ProfileContentTab.Posts,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
+                userTabIconUrl = null,
+                deleteNoteDialog = null,
+                openedColumn = HomeScreenUiState.Column.Post,
+                railItems = listOf(
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Post, selected = true),
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Search, selected = false),
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.User, selected = false),
+                ),
+                listener = AndroidPreviewHomeListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
+            postColumn = { modifier ->
+                Box(modifier = modifier) {
+                    PostContent(
+                        uiState = PostScreenUiState(
+                            body = "",
+                            inputHasError = false,
+                            inputEnabled = true,
+                            backButtonEnabled = true,
+                            postButtonEnabled = false,
+                            images = listOf(),
+                            addImageButtonEnabled = true,
+                            addImageLoadingVisible = false,
+                            listener = AndroidPreviewPostScreenListener,
+                        ),
+                        navigationIcon = PostNavigationIcon.Close,
+                        snackbarHostState = SnackbarHostState(),
+                    )
+                }
+            },
         )
     }
 }
@@ -396,6 +494,12 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickSettings() = Unit
 
     override fun onClickTab(tab: HomeScreenUiState.Tab) = Unit
+
+    override fun onClickRailItem(column: HomeScreenUiState.Column) = Unit
+
+    override fun onClickCloseColumn(column: HomeScreenUiState.Column) = Unit
+
+    override fun onPostColumnFinished() = Unit
 
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 
@@ -466,4 +570,16 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
     override fun onClick() = Unit
+}
+
+private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
+    override fun onBodyChanged(text: String) = Unit
+
+    override fun onClickAddImage() = Unit
+
+    override fun onImagePicked(file: PickedImageFile) = Unit
+
+    override fun onClickPost() = Unit
+
+    override fun onClickBack() = Unit
 }
