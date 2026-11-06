@@ -109,7 +109,7 @@ class ProfileUpdateServiceTest {
 
         val update = deliveryQueueRepository.profileUpdates.single()
         val newPath = ImagePath(assertNotNull(update.newIconPath))
-        assertTrue(newPath.value.startsWith("users/${user1Id.value}/"))
+        assertTrue(newPath.value.startsWith("2026/10/users/${user1Id.value}/profile-icon/"))
         assertEquals("image/png", imageStorage.images.getValue(newPath).contentType)
         assertFalse(oldPath in imageStorage.images)
         val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
