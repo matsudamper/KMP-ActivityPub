@@ -29,7 +29,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
+import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
@@ -674,9 +676,7 @@ internal class HomeScreenViewModel(
 
             is MyPostsState.Loaded -> {
                 val profile = myPosts.profile
-                val media = createProfileMedia(profile.posts) { postId ->
-                    viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
-                }
+                val media = createProfileMedia(profile.posts, ::navigateToPostDetail)
                 HomeScreenUiState.UserPosts.Loaded(
                     items = profile.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
@@ -688,10 +688,9 @@ internal class HomeScreenViewModel(
                             linkPreviews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty(),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
-                            // 自分のタブに居るので、押しても移る先が無い
-                            authorListener = null,
+                            authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
                             menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
-                            postListener = null,
+                            postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                             onToggleImageBlur = { url -> toggleImageBlur(url) },
@@ -710,6 +709,10 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private fun navigateToPostDetail(postId: String) {
+        viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
+    }
+
     private fun createTimelineItems(viewModelState: ViewModelState): List<PostItemUiState> {
         return viewModelState.timeline.posts.map { post ->
             createPostItemUiState(
@@ -720,20 +723,14 @@ internal class HomeScreenViewModel(
                 linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
                 sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                 blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
-                authorListener = object : PostItemUiState.AuthorListener {
-                    override fun onClick() {
-                        val host = post.host
-                        viewModelScope.launch {
-                            events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
-                        }
+                authorTapAction = AuthorTapAction.OpenProfile {
+                    val host = post.host
+                    viewModelScope.launch {
+                        events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
                     }
                 },
                 menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
-                postListener = object : PostItemUiState.PostListener {
-                    override fun onClick() {
-                        viewModelScope.launch { events.send { it.navigateToPostDetail(post.id) } }
-                    }
-                },
+                postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onToggleImageBlur = { url -> toggleImageBlur(url) },

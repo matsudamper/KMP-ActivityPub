@@ -14,7 +14,9 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
@@ -220,15 +222,17 @@ internal class UserProfileScreenViewModel(
         )
     }
 
+    private fun navigateToPostDetail(postId: String) {
+        viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
+    }
+
     private fun createLoadedContent(
         loaded: ProfileState.Loaded,
         viewModelState: ViewModelState,
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
-        val media = createProfileMedia(profile.posts) { postId ->
-            viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
-        }
+        val media = createProfileMedia(profile.posts, ::navigateToPostDetail)
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
             iconUrl = profile.iconUrl,
@@ -254,10 +258,9 @@ internal class UserProfileScreenViewModel(
                     linkPreviews = previews,
                     sensitiveImagesBlurred = true,
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
-                    // 開いているのがその人の画面なので、押しても移る先が無い
-                    authorListener = null,
+                    authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
                     menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
-                    postListener = null,
+                    postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                     onToggleImageBlur = { url -> toggleImageBlur(url) },
