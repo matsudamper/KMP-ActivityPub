@@ -16,6 +16,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
@@ -37,6 +39,7 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
+import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.UpdateDisplayNameResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
@@ -254,6 +257,16 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun setLiked(
+        userMutation: QlUserMutation,
+        postId: String,
+        liked: Boolean,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlSetLikedResult>> {
+        val result = setLiked(postId = postId, liked = liked, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
         GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
 
@@ -342,6 +355,24 @@ class UserMutationResolverImpl : UserMutationResolver {
             UpdateDisplayNameResult.TooLong -> QlUpdateProfileFailure.TOO_LONG
             UpdateDisplayNameResult.AccountNotFound -> QlUpdateProfileFailure.NOT_LOGGED_IN
         }
+    }
+
+    private fun setLiked(
+        postId: String,
+        liked: Boolean,
+        env: DataFetchingEnvironment,
+    ): QlSetLikedResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val likeService =
+            diContainer.likeService
+                ?: return QlSetLikedResult(failure = QlSetLikedFailure.FEDERATION_DISABLED)
+        val failure =
+            when (likeService.setLiked(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), postId = postId, liked = liked)) {
+                SetLikedResult.Updated -> null
+                SetLikedResult.NotLoggedIn -> QlSetLikedFailure.NOT_LOGGED_IN
+                SetLikedResult.PostNotFound -> QlSetLikedFailure.POST_NOT_FOUND
+            }
+        return QlSetLikedResult(failure = failure)
     }
 
     private fun updateProfileIcon(

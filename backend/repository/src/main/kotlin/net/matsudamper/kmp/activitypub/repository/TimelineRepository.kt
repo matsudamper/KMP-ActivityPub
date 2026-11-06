@@ -34,6 +34,7 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿の数は受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
+ * @param likedByMe 読んでいるアカウントがいいねしているか。いいねできるのは他のサーバーの投稿だけなので、このサーバーの投稿は null
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -49,6 +50,7 @@ data class TimelinePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
+    val likedByMe: Boolean?,
 )
 
 sealed interface TimelinePostImage {

@@ -156,6 +156,7 @@ class UserProfileServiceTest {
             images = listOf(image),
             favouriteCount = null,
             stamps = listOf(),
+            likedByMe = null,
         )
 
     private companion object {

@@ -1,0 +1,96 @@
+package net.matsudamper.kmp.activitypub.repository.sqlite
+
+import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.LikeTarget
+import net.matsudamper.kmp.activitypub.repository.OutgoingLike
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
+import net.matsudamper.kmp.activitypub.shared.AccountId
+import org.jooq.DSLContext
+import org.jooq.impl.DSL
+
+internal class SqliteLikeRepository(
+    private val jooq: SqliteJooq,
+) : LikeRepository {
+    override fun target(accountId: AccountId, member: String): LikeTarget? {
+        val remoteNoteId = remoteNoteIdOf(member) ?: return null
+        return jooq.withConnection { dsl ->
+            dsl.select(REMOTE_NOTES.OBJECT_URI, REMOTE_ACTORS.INBOX)
+                .from(REMOTE_NOTES)
+                .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+                .where(REMOTE_NOTES.ID.eq(remoteNoteId))
+                .and(dsl.remoteNoteReadableBy(accountId))
+                .fetchOne { LikeTarget(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
+        }
+    }
+
+    override fun likeAndEnqueue(like: OutgoingLike): Boolean {
+        val remoteNoteId = remoteNoteIdOf(like.member) ?: return false
+        return jooq.transaction { dsl ->
+            val now = StoredInstant.format(like.likedAt)
+            val inserted = dsl.insertInto(REMOTE_NOTE_LIKES)
+                .set(REMOTE_NOTE_LIKES.ACCOUNT_ID, like.accountId.value)
+                .set(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID, remoteNoteId)
+                .set(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI, like.likeId)
+                .set(REMOTE_NOTE_LIKES.CREATED_AT, now)
+                .onConflictDoNothing()
+                .execute() > 0
+            if (inserted) {
+                dsl.enqueue(like.accountId, like.inbox, like.body, now, DeliveryQueueValues.KIND_LIKE)
+            }
+            inserted
+        }
+    }
+
+    override fun unlikeAndEnqueueUndo(
+        accountId: AccountId,
+        member: String,
+        inbox: String,
+        now: Instant,
+        undoBody: (likeId: String) -> String,
+    ): Boolean {
+        val remoteNoteId = remoteNoteIdOf(member) ?: return false
+        return jooq.transaction { dsl ->
+            val likeId = dsl.deleteFrom(REMOTE_NOTE_LIKES)
+                .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
+                .and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.eq(remoteNoteId))
+                .returning(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI)
+                .fetchOne(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI)
+                ?: return@transaction false
+            val matchingLike = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
+                .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_LIKE))
+                .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(likeId))
+            val cancelledUnsent = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingLike)
+                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+                .and(DELIVERY_QUEUE.ATTEMPTS.eq(0L))
+                .execute() > 0
+            if (!cancelledUnsent) {
+                // 送り直し待ちの Like は相手に届いているかもしれないので、取り消した上で Undo も送る
+                dsl.deleteFrom(DELIVERY_QUEUE).where(matchingLike)
+                    .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+                    .execute()
+                dsl.enqueue(accountId, inbox, undoBody(likeId), StoredInstant.format(now), DeliveryQueueValues.KIND_UNDO_LIKE)
+            }
+            true
+        }
+    }
+
+    private fun DSLContext.enqueue(accountId: AccountId, inbox: String, body: String, now: String, kind: String) {
+        insertInto(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.KIND, kind)
+            .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId.value)
+            .set(DELIVERY_QUEUE.INBOX, inbox)
+            .set(DELIVERY_QUEUE.BODY, body)
+            .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+            .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, now)
+            .set(DELIVERY_QUEUE.ENQUEUED_AT, now)
+            .execute()
+    }
+
+    private fun remoteNoteIdOf(member: String): Long? =
+        if (member.startsWith("r")) member.drop(1).toLongOrNull() else null
+}
