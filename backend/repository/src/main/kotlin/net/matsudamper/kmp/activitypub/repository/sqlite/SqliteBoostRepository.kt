@@ -58,7 +58,10 @@ internal class SqliteBoostRepository(
         dsl.select(REMOTE_ACTORS.PUBLIC_KEY_PEM)
             .from(REMOTE_ACTORS)
             .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
-            .andExists(dsl.selectOne().from(NOTE_BOOSTS).where(NOTE_BOOSTS.REMOTE_ACTOR_ID.eq(REMOTE_ACTORS.ID)))
+            .and(
+                DSL.exists(dsl.selectOne().from(NOTE_BOOSTS).where(NOTE_BOOSTS.REMOTE_ACTOR_ID.eq(REMOTE_ACTORS.ID)))
+                    .or(DSL.exists(dsl.selectOne().from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_ACTOR_ID.eq(REMOTE_ACTORS.ID)))),
+            )
             .fetchOne(REMOTE_ACTORS.PUBLIC_KEY_PEM)
     }
 
