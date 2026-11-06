@@ -137,6 +137,56 @@ internal class FakeAccountRepository(
         Account(id = id, username = username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[id])
 }
 
+internal class FakeRemoteActorRepository : RemoteActorRepository {
+    val savedActors = mutableMapOf<String, RemoteActorRecord>()
+    private val rows = mutableListOf<RemoteActorSearchRecord>()
+
+    override fun findByUri(actorUri: String): RemoteActorRecord? = savedActors[actorUri]
+
+    override fun remove(actorUri: String) {
+        savedActors.remove(actorUri)
+        rows.removeAll { it.actorUri == actorUri }
+    }
+
+    override fun save(actor: RemoteActorRecord, updatedAt: Instant) {
+        savedActors[actor.actorUri] = actor
+        val username = actor.profile.preferredUsername ?: return
+        rows.removeAll { it.actorUri == actor.actorUri }
+        rows.add(RemoteActorSearchRecord(actor.actorUri, username, actor.profile.displayName, actor.profile.iconUrl, updatedAt))
+    }
+
+    override fun findByAcct(username: String, host: String): RemoteActorSearchRecord? =
+        rows.firstOrNull { it.preferredUsername == username && it.actorUri.substringAfter("://").substringBefore('/') == host }
+
+    fun add(record: RemoteActorSearchRecord) {
+        rows += record
+    }
+
+    override fun searchByName(
+        keyword: String,
+        after: RemoteActorSearchCursor?,
+        limit: Int,
+    ): List<RemoteActorSearchRecord> =
+        rows
+            .filter { it.preferredUsername.contains(keyword, ignoreCase = true) || it.displayName?.contains(keyword, ignoreCase = true) == true }
+            .sortedWith(compareBy<RemoteActorSearchRecord> { it.preferredUsername.sqliteLower() }.thenBy { it.actorUri })
+            .filter { record ->
+                after == null ||
+                    compareValuesBy(
+                        record,
+                        RemoteActorSearchRecord(
+                            actorUri = after.actorUri,
+                            preferredUsername = after.preferredUsername,
+                            displayName = null,
+                            iconUrl = null,
+                            updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                        ),
+                        { it.preferredUsername.sqliteLower() },
+                        { it.actorUri },
+                    ) > 0
+            }.take(limit)
+}
+
 private class FakePasskeyRepository(
     private val hasPassword: (AccountId) -> Boolean,
 ) : PasskeyRepository {
@@ -190,56 +240,6 @@ private class FakePasskeyRepository(
         val passkey = passkeys[credentialId] ?: return
         passkeys[credentialId] = StoredPasskey(passkey.accountId, passkey.userHandle, passkey.attestedCredentialData, maxOf(passkey.signCount, signCount))
     }
-}
-
-internal class FakeRemoteActorRepository : RemoteActorRepository {
-    val savedActors = mutableMapOf<String, RemoteActorRecord>()
-    private val rows = mutableListOf<RemoteActorSearchRecord>()
-
-    override fun findByUri(actorUri: String): RemoteActorRecord? = savedActors[actorUri]
-
-    override fun remove(actorUri: String) {
-        savedActors.remove(actorUri)
-        rows.removeAll { it.actorUri == actorUri }
-    }
-
-    override fun save(actor: RemoteActorRecord, updatedAt: Instant) {
-        savedActors[actor.actorUri] = actor
-        val username = actor.profile.preferredUsername ?: return
-        rows.removeAll { it.actorUri == actor.actorUri }
-        rows.add(RemoteActorSearchRecord(actor.actorUri, username, actor.profile.displayName, actor.profile.iconUrl, updatedAt))
-    }
-
-    override fun findByAcct(username: String, host: String): RemoteActorSearchRecord? =
-        rows.firstOrNull { it.preferredUsername == username && it.actorUri.substringAfter("://").substringBefore('/') == host }
-
-    fun add(record: RemoteActorSearchRecord) {
-        rows += record
-    }
-
-    override fun searchByName(
-        keyword: String,
-        after: RemoteActorSearchCursor?,
-        limit: Int,
-    ): List<RemoteActorSearchRecord> =
-        rows
-            .filter { it.preferredUsername.contains(keyword, ignoreCase = true) || it.displayName?.contains(keyword, ignoreCase = true) == true }
-            .sortedWith(compareBy<RemoteActorSearchRecord> { it.preferredUsername.sqliteLower() }.thenBy { it.actorUri })
-            .filter { record ->
-                after == null ||
-                    compareValuesBy(
-                        record,
-                        RemoteActorSearchRecord(
-                            actorUri = after.actorUri,
-                            preferredUsername = after.preferredUsername,
-                            displayName = null,
-                            iconUrl = null,
-                            updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
-                        ),
-                        { it.preferredUsername.sqliteLower() },
-                        { it.actorUri },
-                    ) > 0
-            }.take(limit)
 }
 
 /**

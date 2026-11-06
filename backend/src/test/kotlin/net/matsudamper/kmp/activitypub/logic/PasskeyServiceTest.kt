@@ -42,14 +42,14 @@ class PasskeyServiceTest {
 
     @Test
     fun `登録したパスキーでログインできる`() {
-        val userHandle = register(account)
+        val userHandle = registerAndGetUserHandle(account)
 
         assertEquals(account.id, login(userHandle = userHandle))
     }
 
     @Test
     fun `同じ challenge では二度ログインできない`() {
-        val userHandle = register(account)
+        val userHandle = registerAndGetUserHandle(account)
         val challenge = loginChallenge()
 
         assertEquals(account.id, login(userHandle = userHandle, challenge = challenge, signCount = 1))
@@ -58,14 +58,14 @@ class PasskeyServiceTest {
 
     @Test
     fun `発行していない challenge ではログインできない`() {
-        val userHandle = register(account)
+        val userHandle = registerAndGetUserHandle(account)
 
         assertNull(login(userHandle = userHandle, challenge = TestAuthenticator.challenge()))
     }
 
     @Test
     fun `別のアカウントの user handle を名乗るとログインできない`() {
-        register(account)
+        registerAndGetUserHandle(account)
         val otherOptions = parse(service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH, displayName = null, iconPath = null)))
 
         assertNull(login(userHandle = otherOptions.userHandle()))
@@ -80,14 +80,14 @@ class PasskeyServiceTest {
 
     @Test
     fun `同じパスキーは二度登録できない`() {
-        register(account)
+        registerAndGetUserHandle(account)
 
         assertEquals(PasskeyService.RegistrationResult.AlreadyRegistered, register(account, challenge = parse(service.registrationOptions(account)).challenge()))
     }
 
     @Test
     fun `登録済みのパスキーを除外の対象に返す`() {
-        register(account)
+        registerAndGetUserHandle(account)
 
         val excludeCredentialIds =
             parse(service.registrationOptions(account))
@@ -106,7 +106,7 @@ class PasskeyServiceTest {
 
     @Test
     fun `JSON として読めない応答ではログインできない`() {
-        register(account)
+        registerAndGetUserHandle(account)
         loginChallenge()
 
         assertNull(service.login(credentialJson = "{"))
@@ -114,17 +114,14 @@ class PasskeyServiceTest {
 
     @Test
     fun `消したパスキーではログインできない`() {
-        val userHandle = register(account)
+        val userHandle = registerAndGetUserHandle(account)
 
         service.delete(accountId = account.id, credentialId = PasskeyCredentialId(TestAuthenticator.base64Url(authenticator.credentialId)))
 
         assertNull(login(userHandle = userHandle))
     }
 
-    /**
-     * @return user handle
-     */
-    private fun register(account: Account): String {
+    private fun registerAndGetUserHandle(account: Account): String {
         val options = parse(service.registrationOptions(account))
         assertEquals(PasskeyService.RegistrationResult.Success, register(account, challenge = options.challenge()))
         return options.userHandle()

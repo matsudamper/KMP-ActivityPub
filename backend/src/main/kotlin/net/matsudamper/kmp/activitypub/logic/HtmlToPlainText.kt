@@ -3,6 +3,9 @@ package net.matsudamper.kmp.activitypub.logic
 import org.jsoup.Jsoup
 import org.jsoup.nodes.TextNode
 
+private val PrettyPrintLeadingBreak = Regex("""^\n[ \t]*""")
+private val PrettyPrintTrailingBreak = Regex("""\n[ \t]*$""")
+
 internal fun htmlToPlainText(html: String): String {
     val document = Jsoup.parse(html)
     document.select("p").forEach { paragraph ->
@@ -27,6 +30,3 @@ internal fun htmlToPlainText(html: String): String {
     }
     return document.wholeText().replace(Regex("\n{3,}"), "\n\n").trim()
 }
-
-private val PrettyPrintLeadingBreak = Regex("""^\n[ \t]*""")
-private val PrettyPrintTrailingBreak = Regex("""\n[ \t]*$""")

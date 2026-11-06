@@ -8,8 +8,6 @@ import net.matsudamper.kmp.activitypub.FakeLoginFailureStore
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class LoginThrottleTest {
-    private fun throttle() = LoginThrottle(failureStore = FakeLoginFailureStore(), maxFailures = 5, lockDuration = 30.days)
-
     @Test
     fun `5 回までは照合できる`() {
         val throttle = throttle()
@@ -34,4 +32,6 @@ class LoginThrottleTest {
         assertTrue(throttle.tryReserve(clientIp = "192.0.2.1", username = "carol"))
         assertFalse(throttle.tryReserve(clientIp = "192.0.2.1", username = "carol"))
     }
+
+    private fun throttle() = LoginThrottle(failureStore = FakeLoginFailureStore(), maxFailures = 5, lockDuration = 30.days)
 }

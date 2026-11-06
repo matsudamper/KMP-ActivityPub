@@ -37,7 +37,7 @@ class GraphQlReflectionTargetsTest {
         assertTrue(implementations.isNotEmpty(), "リゾルバの実装が 1 つも見つからない")
 
         assertEquals(
-            emptyList(),
+            listOf<String>(),
             implementations.filterNot { it in scanned },
             "リゾルバの実装が ${GraphQlReflectionTargets.RESOLVER_PACKAGE} の外にある。走査の対象から外れる",
         )
