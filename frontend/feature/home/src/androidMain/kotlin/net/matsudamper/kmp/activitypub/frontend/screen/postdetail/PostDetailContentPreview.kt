@@ -39,7 +39,22 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
                                 listener = AndroidPreviewLinkPreviewListener,
                             ),
                         ),
-                        images = listOf(),
+                        images = listOf(
+                            PostItemUiState.Image(
+                                url = "https://example.social/image1.png",
+                                description = null,
+                                blurToggleButtonVisible = false,
+                                blurred = false,
+                                listener = AndroidPreviewImageListener,
+                            ),
+                            PostItemUiState.Image(
+                                url = "https://example.social/image2.png",
+                                description = null,
+                                blurToggleButtonVisible = false,
+                                blurred = false,
+                                listener = AndroidPreviewImageListener,
+                            ),
+                        ),
                         favouriteCountText = "12",
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,
@@ -93,4 +108,10 @@ private object AndroidPreviewDeleteNoteDialogListener : DeleteNoteDialogUiState.
     override fun onClickDelete() = Unit
 
     override fun onDismiss() = Unit
+}
+
+private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
+    override fun onClick() = Unit
+
+    override fun onClickBlurToggle() = Unit
 }
