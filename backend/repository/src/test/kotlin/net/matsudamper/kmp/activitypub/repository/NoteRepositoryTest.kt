@@ -193,6 +193,48 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `投稿の削除を積むと、記録と画像とまだ送っていない Create が消えて宛先ごとに Delete が積まれる`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            val image = NoteImage(NoteImagePublicId("image-a"), path = "users/1/note-images/a", contentType = "image/png", description = null)
+            val accountId = checkNotNull(repositories.accountRepository.findByUsername("user1")).id
+            repositories.noteRepository.addUploadedImage(UploadedNoteImage(accountId, image, expiresAt = NOW.plusSeconds(60)))
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)).copy(images = listOf(image)))
+
+            assertEquals(true, queue.enqueueNoteDeletion(noteDeletion(publicId = "note-1", inboxes = listOf(INBOX_A, INBOX_B, INBOX_A))))
+
+            assertNull(repositories.noteRepository.find(PublicNoteId("note-1")))
+            assertNull(repositories.noteRepository.findImage(NoteImagePublicId("image-a")))
+            val claimed = queue.claim(now = NOW, limit = 10)
+            assertEquals(setOf(INBOX_A, INBOX_B), claimed.map { it.inbox }.toSet())
+            assertEquals(listOf("delete-note-1", "delete-note-1"), claimed.map { it.body })
+        }
+    }
+
+    @Test
+    fun `他のアカウントの投稿や無い投稿の削除は何も積まない`() {
+        Accounts.insert(
+            databasePath = dbPath,
+            username = "user2",
+            passwordHash = "hash",
+            passwordHashType = "hash-type",
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
+            createdAt = NOW.toString(),
+        )
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()))
+
+            assertEquals(false, queue.enqueueNoteDeletion(noteDeletion(publicId = "note-1", inboxes = listOf(INBOX_A)).copy(username = "user2")))
+            assertEquals(false, queue.enqueueNoteDeletion(noteDeletion(publicId = "missing", inboxes = listOf(INBOX_A))))
+
+            assertNotNull(repositories.noteRepository.find(PublicNoteId("note-1")))
+            assertEquals(listOf(), queue.claim(now = NOW, limit = 10))
+        }
+    }
+
+    @Test
     fun `投稿は新しい順に並び、位置の続きから返す`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
@@ -240,6 +282,18 @@ class NoteRepositoryTest {
             publishedAt = NOW,
             images = listOf(),
             body = "create-$publicId",
+            inboxes = inboxes,
+        )
+
+    private fun noteDeletion(
+        publicId: String,
+        inboxes: List<String>,
+    ): NoteDeletion =
+        NoteDeletion(
+            username = "user1",
+            publicId = PublicNoteId(publicId),
+            deletedAt = NOW,
+            body = "delete-$publicId",
             inboxes = inboxes,
         )
 

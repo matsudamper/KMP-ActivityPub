@@ -30,6 +30,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                 boostedBy = it.boostedBy?.let { booster ->
                     UserHomeTimelineResult.Booster(username = booster.username, host = booster.host, displayName = booster.displayName)
                 },
+                deletableNoteId = it.deletableNoteId,
             )
         },
         nextCursor = timeline.nextCursor,
@@ -56,6 +57,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             linkUrls = it.body.linkUrls,
             iconUrl = it.iconUrl,
             images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
+            deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
             boostCount = it.body.boostCount,
             boostedBy = it.boostedBy?.let { booster ->
@@ -65,6 +67,15 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))
+}
+
+/**
+ * 消した投稿を、取得し直さずに外す
+ */
+fun HomeTimelineQuery.Data.withoutNote(deletableNoteId: String): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = timeline.posts.filterNot { it.deletableNoteId == deletableNoteId })))
 }
 
 fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Success {

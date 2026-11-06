@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.repository
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 interface TimelineRepository {
     fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest
@@ -42,6 +43,7 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿の数は受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
+ * @param localPublicId このサーバーの投稿の公開 id。他のサーバーの投稿は null
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿の数は受け取らないので null
  * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
@@ -60,6 +62,7 @@ data class TimelinePost(
     val images: List<TimelinePostImage>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
+    val localPublicId: PublicNoteId?,
     val boostCount: Long?,
     val boostedBy: TimelineBooster?,
 )

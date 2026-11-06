@@ -5,11 +5,21 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
-private fun PostDetailContentPreview() {
+private fun PostDetailContentPreview() = PostDetailLoadedPreview(deleteNoteDialog = null)
+
+@Preview
+@Composable
+private fun PostDetailContentDeleteNoteDialogPreview() = PostDetailLoadedPreview(
+    deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
+)
+
+@Composable
+private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) {
     MaterialTheme {
         PostDetailContent(
             uiState = PostDetailScreenUiState(
@@ -51,9 +61,11 @@ private fun PostDetailContentPreview() {
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,
                         postListener = null,
+                        menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
                         listener = AndroidPreviewPostItemListener,
                     ),
                 ),
+                deleteNoteDialog = deleteNoteDialog,
                 listener = AndroidPreviewPostDetailListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -68,6 +80,7 @@ private fun PostDetailContentNotFoundPreview() {
         PostDetailContent(
             uiState = PostDetailScreenUiState(
                 content = PostDetailScreenUiState.Content.NotFound,
+                deleteNoteDialog = null,
                 listener = AndroidPreviewPostDetailListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -87,6 +100,16 @@ private object AndroidPreviewPostItemListener : PostItemUiState.Listener {
 
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
     override fun onClick() = Unit
+}
+
+private object AndroidPreviewMenuItemListener : PostItemUiState.MenuItemListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewDeleteNoteDialogListener : DeleteNoteDialogUiState.Listener {
+    override fun onClickDelete() = Unit
+
+    override fun onDismiss() = Unit
 }
 
 private object AndroidPreviewImageListener : PostItemUiState.ImageListener {

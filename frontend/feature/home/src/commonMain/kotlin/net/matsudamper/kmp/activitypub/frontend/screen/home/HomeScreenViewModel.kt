@@ -28,11 +28,18 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.confirm
+import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
+import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import org.koin.core.annotation.InjectedParam
@@ -50,6 +57,7 @@ internal class HomeScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 selectedTab = selectedTab,
+                openedColumn = null,
                 timeline = TimelineState(
                     posts = listOf(),
                     nextCursor = null,
@@ -72,6 +80,7 @@ internal class HomeScreenViewModel(
                 ),
                 profile = ProfileState.Loading,
                 myPosts = MyPostsState.Loading,
+                noteDeletion = NoteDeletionState.None,
                 userContentTab = ProfileContentTab.Posts,
             ),
         )
@@ -111,6 +120,22 @@ internal class HomeScreenViewModel(
                     events.send { it.navigateToTab(tab) }
                 }
             }
+        }
+
+        override fun onClickRailItem(column: HomeScreenUiState.Column) {
+            viewModelStateFlow.update { it.copy(openedColumn = if (it.openedColumn == column) null else column) }
+        }
+
+        override fun onClickCloseColumn(column: HomeScreenUiState.Column) {
+            viewModelStateFlow.update { if (it.openedColumn == column) it.copy(openedColumn = null) else it }
+        }
+
+        override fun onPostColumnFinished() {
+            onClickCloseColumn(HomeScreenUiState.Column.Post)
+            // 単独の投稿画面から戻るときはホームの再表示で読み直すが、カラムではホームが出たままなので、ここで同じものを読み直す。
+            // 新着受信を止めている間は流れてこないので、タイムラインも読み直さないと自分の投稿が出ない
+            loadProfile()
+            loadTimeline(TimelineLoadTrigger.ScreenShown)
         }
 
         override fun onTabChanged(tab: HomeScreenUiState.Tab) {
@@ -207,6 +232,16 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
+        override fun onClickDelete() {
+            deleteNote()
+        }
+
+        override fun onDismiss() {
+            viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.dismiss()) }
+        }
+    }
+
     val uiStateFlow: StateFlow<HomeScreenUiState> =
         MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
             viewModelScope.launch {
@@ -222,6 +257,9 @@ internal class HomeScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
+        }
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
                 searchPaging?.updateCache { it.withFollowing(change) }
@@ -546,6 +584,39 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private fun deleteNote() {
+        val confirming = viewModelStateFlow.value.noteDeletion as? NoteDeletionState.Confirming ?: return
+        val noteId = confirming.noteId
+        viewModelStateFlow.update { it.copy(noteDeletion = NoteDeletionState.Deleting(noteId)) }
+        viewModelScope.launch {
+            try {
+                val error = userApi.deleteNote(noteId)
+                if (error == null) {
+                    events.send { it.showMessage("投稿を削除しました") }
+                } else {
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                viewModelStateFlow.update { it.copy(noteDeletion = NoteDeletionState.None) }
+            }
+        }
+    }
+
+    /**
+     * 個別投稿画面など、ほかの画面で消した投稿もここで外す
+     */
+    private suspend fun removeDeletedNote(noteId: String) {
+        timelinePaging.updateCache { it.withoutNote(noteId) }
+        updateTimeline { timeline ->
+            timeline.copy(postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.filterNot { it.deletableNoteId == noteId })
+        }
+        viewModelStateFlow.update {
+            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            val profile = myPosts.profile
+            it.copy(myPosts = MyPostsState.Loaded(profile.copy(posts = profile.posts.filterNot { post -> post.deletableNoteId == noteId })))
+        }
+    }
+
     private fun changeFollowing(user: UserSearchResult.User) {
         val actorUri = user.actorUri ?: return
         if (viewModelStateFlow.value.search.followingChangeInProgress) return
@@ -581,6 +652,11 @@ internal class HomeScreenViewModel(
             userContentTab = viewModelState.userContentTab,
             userPosts = createUserPosts(viewModelState),
             userTabIconUrl = (profile as? ProfileState.Loaded)?.profile?.iconUrl,
+            openedColumn = viewModelState.openedColumn,
+            railItems = HomeScreenUiState.Column.entries.map { column ->
+                HomeScreenUiState.RailItem(column = column, selected = column == viewModelState.openedColumn)
+            },
+            deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             listener = listener,
         )
     }
@@ -635,6 +711,7 @@ internal class HomeScreenViewModel(
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
+                            menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
@@ -675,6 +752,7 @@ internal class HomeScreenViewModel(
                         events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
                     }
                 },
+                menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                 postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
@@ -686,6 +764,10 @@ internal class HomeScreenViewModel(
                 },
             )
         }
+    }
+
+    private fun confirmNoteDeletion(noteId: String) {
+        viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
 
     private fun createSearchResult(search: SearchState): HomeScreenUiState.SearchResult {
@@ -792,6 +874,10 @@ internal class HomeScreenViewModel(
 
     private data class ViewModelState(
         val selectedTab: HomeScreenUiState.Tab,
+        /**
+         * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null
+         */
+        val openedColumn: HomeScreenUiState.Column?,
         val timeline: TimelineState,
         val timelineStream: TimelineStreamState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
@@ -799,6 +885,7 @@ internal class HomeScreenViewModel(
         val search: SearchState,
         val profile: ProfileState,
         val myPosts: MyPostsState,
+        val noteDeletion: NoteDeletionState,
         val userContentTab: ProfileContentTab,
     )
 

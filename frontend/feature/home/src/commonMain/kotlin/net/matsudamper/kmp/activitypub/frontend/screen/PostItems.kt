@@ -23,6 +23,7 @@ internal fun createPostItemUiState(
     sensitiveImagesBlurred: Boolean,
     blurToggledImageUrls: Set<String>,
     authorTapAction: AuthorTapAction,
+    menuItems: List<PostItemUiState.MenuItem>,
     postTapAction: PostTapAction,
     onOpenUrl: (url: String) -> Unit,
     onOpenImage: (url: String) -> Unit,
@@ -67,6 +68,7 @@ internal fun createPostItemUiState(
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
         },
+        menuItems = menuItems,
         postListener = when (postTapAction) {
             is PostTapAction.OpenPostDetail -> {
                 val postId = postTapAction.postId

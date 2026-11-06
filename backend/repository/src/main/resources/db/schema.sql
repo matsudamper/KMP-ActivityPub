@@ -117,7 +117,7 @@ CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update。
+    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update / delete_note: 投稿の Delete。
     -- 行の形は種別に依らないので、種別を足しても作り直さずに済む。取りうる値は DeliveryQueueValues が持つ
     kind TEXT NOT NULL,
     -- 署名するこちらのアカウント
