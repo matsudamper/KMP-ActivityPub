@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 @Preview
@@ -291,6 +292,10 @@ private fun HomeUserContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
+                    summary = "Kotlin で ActivityPub サーバーを作っています。",
+                    links = listOf(
+                        ProfileLinkUiState(name = "GitHub", url = "https://github.com/user1", listener = AndroidPreviewProfileLinkListener),
+                    ),
                     followingCount = "12",
                     followersCount = "3",
                 ),
@@ -349,6 +354,8 @@ private fun HomeUserMediaContentPreview() {
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
+                    summary = null,
+                    links = listOf(),
                     followingCount = "12",
                     followersCount = "3",
                 ),
@@ -569,6 +576,10 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 }
 
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
     override fun onClick() = Unit
 }
 
