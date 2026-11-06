@@ -74,16 +74,19 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
 }
 
 /**
- * いいねを変えた結果を、取得し直さずに反映する
+ * いいねを変えた結果を、取得し直さずに反映する。
+ * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、いいねは元の投稿に付くので、投稿の URL が同じものもまとめて切り替える
  */
 fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimelineQuery.Data {
     val info = userInfo ?: return this
     val timeline = info.homeTimeline ?: return this
+    val likedUrl = timeline.posts.firstOrNull { it.id == postId }?.url
     return copy(
         userInfo = info.copy(
             homeTimeline = timeline.copy(
                 posts = timeline.posts.map { post ->
-                    if (post.id != postId || post.likedByMe == liked) {
+                    val samePost = post.id == postId || (likedUrl != null && post.url == likedUrl)
+                    if (!samePost || post.likedByMe == liked) {
                         post
                     } else {
                         // 数は自分のいいねの分だけ増減させる。他の人のいいねは取り直すまで分からない
