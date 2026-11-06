@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,6 +84,10 @@ internal fun UserProfileScreen(
 
             override fun navigateToImage(url: String) {
                 navigator.navigate(Screen.Image(url = url))
+            }
+
+            override fun navigateToPostDetail(postId: String) {
+                navigator.navigate(Screen.PostDetail(postId = postId))
             }
         })
     }
@@ -227,10 +232,12 @@ private fun MediaGridItem(
     media: UserProfileScreenUiState.Media,
     modifier: Modifier = Modifier,
 ) {
+    val listener = media.listener
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .then(if (listener == null) Modifier else Modifier.clickable(onClick = listener::onClick)),
     ) {
         if (media.blurred) {
             // Modifier.blur は Android 11 以下で効かないので、小さく読み込んで引き伸ばしたぼやけでも隠す。

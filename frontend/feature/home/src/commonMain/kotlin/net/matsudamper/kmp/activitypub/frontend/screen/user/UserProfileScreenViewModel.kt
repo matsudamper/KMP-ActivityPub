@@ -177,11 +177,13 @@ internal class UserProfileScreenViewModel(
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
         val media = profile.posts.flatMap { post ->
+            val mediaListener = post.postId?.let { postId -> createMediaListener(postId) }
             post.body.images.map { image ->
                 UserProfileScreenUiState.Media(
                     url = image.url,
                     description = image.description,
                     blurred = post.body.sensitive,
+                    listener = mediaListener,
                 )
             }
         }
@@ -229,6 +231,14 @@ internal class UserProfileScreenViewModel(
         )
     }
 
+    private fun createMediaListener(postId: String): UserProfileScreenUiState.MediaListener {
+        return object : UserProfileScreenUiState.MediaListener {
+            override fun onClick() {
+                viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
+            }
+        }
+    }
+
     internal interface Event {
         fun navigateBack()
 
@@ -237,6 +247,8 @@ internal class UserProfileScreenViewModel(
         fun openUrl(url: String)
 
         fun navigateToImage(url: String)
+
+        fun navigateToPostDetail(postId: String)
     }
 
     private data class ViewModelState(

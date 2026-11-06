@@ -41,12 +41,19 @@ data class UserProfileScreenUiState(
 
     /**
      * @param description 画像の説明文。無ければ null
+     * @param listener 個別投稿画面で開けない投稿の画像は押せないので null
      */
     data class Media(
         val url: String,
         val description: String?,
         val blurred: Boolean,
+        val listener: MediaListener?,
     )
+
+    @Immutable
+    interface MediaListener {
+        fun onClick()
+    }
 
     data class FollowButton(
         val text: String,

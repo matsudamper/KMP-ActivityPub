@@ -100,6 +100,7 @@ private fun UserProfileContentMediaPreview() {
                             url = "https://example.social/media/$index.png",
                             description = null,
                             blurred = index == 1,
+                            listener = AndroidPreviewMediaListener,
                         )
                     },
                     mediaEmptyMessage = null,
@@ -133,6 +134,10 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickFollow() = Unit
 
     override fun onClickTab(tab: UserProfileScreenUiState.Tab) = Unit
+}
+
+private object AndroidPreviewMediaListener : UserProfileScreenUiState.MediaListener {
+    override fun onClick() = Unit
 }
 
 private object AndroidPreviewPostItemListener : PostItemUiState.Listener {
