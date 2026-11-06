@@ -4,6 +4,7 @@ import java.net.URI
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.StampRepository
@@ -37,10 +38,12 @@ class UserProfileService(
             val stampCounts = stamps.counts(localNoteIds)
             // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分のものだけ
             val ownProfile = account.id == viewer
+            val detail = accounts.findProfileDetail(account.username)
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, null),
                 following = false,
-                biography = null,
+                biography = detail?.summary,
+                links = detail?.links.orEmpty(),
                 posts = localNotes.map {
                     ProfilePost(
                         contentHtml = it.contentHtml,
@@ -65,6 +68,7 @@ class UserProfileService(
                 user = SearchedUser(actor.actorUri, actor.preferredUsername, host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.updatedAt),
                 following = true,
                 biography = null,
+                links = listOf(),
                 posts = storedPosts(checkNotNull(viewer), actor.actorUri),
             )
         }
@@ -77,7 +81,8 @@ class UserProfileService(
         return UserProfile(
             user = SearchedUser(remote.user.actorUri, remote.user.username, actorHost, false, remote.user.displayName ?: remote.user.username, remote.user.iconUrl, null),
             following = remoteFollowed,
-            biography = remote.biography,
+            biography = remote.biography?.let { htmlToPlainText(it) },
+            links = listOf(),
             posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else profiles.recentPosts(remote.user.actorUri),
         )
     }
@@ -134,10 +139,15 @@ data class RemoteUserProfile(
     val biography: String?,
 )
 
+/**
+ * @param biography プレーンテキスト
+ * @param links 他のサーバーのユーザーのものは受け取っていないので空
+ */
 data class UserProfile(
     val user: SearchedUser,
     val following: Boolean,
     val biography: String?,
+    val links: List<ProfileLink>,
     val posts: List<ProfilePost>,
 )
 
