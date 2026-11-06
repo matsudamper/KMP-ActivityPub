@@ -5,10 +5,13 @@ import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_LIKES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
@@ -16,6 +19,12 @@ internal class SqliteLikeRepository(
     private val jooq: SqliteJooq,
 ) : LikeRepository {
     override fun target(accountId: AccountId, member: String): LikeTarget? {
+        val localNoteId = localNoteIdOf(member)
+        if (localNoteId != null) {
+            // このサーバーの投稿は outbox で公開しているので、誰でも読める
+            val exists = jooq.withConnection { dsl -> dsl.fetchExists(NOTES, NOTES.ID.eq(localNoteId)) }
+            return if (exists) LikeTarget.Local else null
+        }
         val remoteNoteId = remoteNoteIdOf(member) ?: return null
         return jooq.withConnection { dsl ->
             dsl.select(REMOTE_NOTES.OBJECT_URI, REMOTE_ACTORS.INBOX)
@@ -23,7 +32,41 @@ internal class SqliteLikeRepository(
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.eq(remoteNoteId))
                 .and(dsl.remoteNoteReadableBy(accountId))
-                .fetchOne { LikeTarget(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
+                .fetchOne { LikeTarget.Remote(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
+        }
+    }
+
+    override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean {
+        val localNoteId = localNoteIdOf(member) ?: return false
+        return jooq.withConnection { dsl ->
+            dsl.insertInto(NOTE_LIKES)
+                .set(NOTE_LIKES.ACCOUNT_ID, accountId.value)
+                .set(NOTE_LIKES.NOTE_ID, localNoteId)
+                .set(NOTE_LIKES.CREATED_AT, StoredInstant.format(likedAt))
+                .onConflictDoNothing()
+                .execute() > 0
+        }
+    }
+
+    override fun unlikeLocal(accountId: AccountId, member: String): Boolean {
+        val localNoteId = localNoteIdOf(member) ?: return false
+        return jooq.withConnection { dsl ->
+            dsl.deleteFrom(NOTE_LIKES)
+                .where(NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
+                .and(NOTE_LIKES.NOTE_ID.eq(localNoteId))
+                .execute() > 0
+        }
+    }
+
+    override fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId> {
+        if (notePublicIds.isEmpty()) return setOf()
+        return jooq.withConnection { dsl ->
+            dsl.select(NOTES.PUBLIC_ID)
+                .from(NOTE_LIKES)
+                .join(NOTES).on(NOTES.ID.eq(NOTE_LIKES.NOTE_ID))
+                .where(NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
+                .and(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
+                .fetchSet { PublicNoteId(checkNotNull(it.value1())) }
         }
     }
 
@@ -96,6 +139,9 @@ internal class SqliteLikeRepository(
             .set(DELIVERY_QUEUE.ENQUEUED_AT, now)
             .execute()
     }
+
+    private fun localNoteIdOf(member: String): Long? =
+        if (member.startsWith("l")) member.drop(1).toLongOrNull() else null
 
     private fun remoteNoteIdOf(member: String): Long? =
         if (member.startsWith("r")) member.drop(1).toLongOrNull() else null

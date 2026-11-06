@@ -81,7 +81,19 @@ fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimeli
     val timeline = info.homeTimeline ?: return this
     return copy(
         userInfo = info.copy(
-            homeTimeline = timeline.copy(posts = timeline.posts.map { if (it.id == postId) it.copy(likedByMe = liked) else it }),
+            homeTimeline = timeline.copy(
+                posts = timeline.posts.map { post ->
+                    if (post.id != postId || post.likedByMe == liked) {
+                        post
+                    } else {
+                        // 数は自分のいいねの分だけ増減させる。他の人のいいねは取り直すまで分からない
+                        post.copy(
+                            likedByMe = liked,
+                            favouriteCount = post.favouriteCount?.let { count -> if (liked) count + 1 else (count - 1).coerceAtLeast(0) },
+                        )
+                    }
+                },
+            ),
         ),
     )
 }

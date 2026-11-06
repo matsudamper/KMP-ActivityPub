@@ -93,13 +93,13 @@ type HomeTimelinePost {
     images: [PostImage!]!
     "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
     deletableNoteId: ID
-    "他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null"
+    "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
     "共有するときに渡す投稿の URL。作れなければ null"
     url: String
-    "ログイン中のアカウントがいいねしているか。いいねできるのは他のサーバーの投稿だけなので、このサーバーの投稿は null"
+    "ログイン中のアカウントがいいねしているか。ブーストで載った投稿はいいねできないので null"
     likedByMe: Boolean
     "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
     boostCount: Int

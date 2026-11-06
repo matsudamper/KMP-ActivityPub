@@ -4,6 +4,7 @@ import java.net.URI
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -22,6 +23,7 @@ class UserProfileService(
     private val notes: NoteRepository,
     private val favourites: FavouriteRepository,
     private val stamps: StampRepository,
+    private val likes: LikeRepository,
     private val boosts: BoostRepository,
     private val timeline: TimelineRepository,
     private val following: FollowingService,
@@ -39,6 +41,7 @@ class UserProfileService(
             val localNoteIds = localNotes.map { it.publicId }.toSet()
             val favouriteCounts = favourites.counts(localNoteIds)
             val stampCounts = stamps.counts(localNoteIds)
+            val likedNoteIds = if (viewer == null) setOf() else likes.likedLocalNotes(viewer, localNoteIds)
             val boostCounts = boosts.counts(localNoteIds)
             // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分のものだけ
             val ownProfile = account.id == viewer
@@ -49,17 +52,19 @@ class UserProfileService(
                 biography = detail?.summary,
                 links = detail?.links.orEmpty(),
                 posts = localNotes.map {
+                    val member = timeline.localPosition(it.publicId.value)?.member
                     ProfilePost(
                         contentHtml = it.contentHtml,
                         publishedAt = it.publishedAt.toString(),
                         summary = null,
                         sensitive = false,
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
-                        postId = if (ownProfile) timeline.localPosition(it.publicId.value)?.member else null,
+                        postId = if (ownProfile) member else null,
                         deletableNoteId = if (ownProfile) it.publicId.value else null,
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
+                        like = if (viewer == null || member == null) null else ProfilePostLike(postId = member, likedByMe = it.publicId in likedNoteIds),
                         noteRef = TimelineNoteRef.Local(it.publicId),
                         boostCount = boostCounts[it.publicId],
                     )
@@ -119,6 +124,7 @@ class UserProfileService(
             images = images,
             favouriteCount = favouriteCount,
             stamps = stamps,
+            like = likedByMe?.let { ProfilePostLike(postId = position.member, likedByMe = it) },
             noteRef = noteRef,
             boostCount = boostCount,
         )
@@ -165,6 +171,7 @@ data class UserProfile(
  * @param images URL にはしていない画像
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
+ * @param like いいねできない投稿は null
  * @param noteRef 投稿を外から指すための元
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null
  */
@@ -181,4 +188,13 @@ data class ProfilePost(
     val stamps: List<StampCount>,
     val noteRef: TimelineNoteRef,
     val boostCount: Long?,
+    val like: ProfilePostLike?,
+)
+
+/**
+ * @param postId いいねを付け外しするときに渡す、タイムラインの投稿の id
+ */
+data class ProfilePostLike(
+    val postId: String,
+    val likedByMe: Boolean,
 )

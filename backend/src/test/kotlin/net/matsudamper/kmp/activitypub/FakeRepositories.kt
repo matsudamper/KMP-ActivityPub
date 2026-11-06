@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.timeline.FakeTimelineRepository
 
 internal class FakeRepositories : Repositories {
@@ -66,6 +67,9 @@ internal class FakeRepositories : Repositories {
     override val stampRepository: FakeStampRepository = FakeStampRepository()
     override val likeRepository: LikeRepository = object : LikeRepository {
         override fun target(accountId: AccountId, member: String): LikeTarget? = null
+        override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean = false
+        override fun unlikeLocal(accountId: AccountId, member: String): Boolean = false
+        override fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId> = setOf()
         override fun likeAndEnqueue(like: OutgoingLike): Boolean = false
         override fun unlikeAndEnqueueUndo(
             accountId: AccountId,

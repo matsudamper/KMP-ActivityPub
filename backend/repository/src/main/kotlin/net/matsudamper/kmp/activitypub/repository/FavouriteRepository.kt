@@ -31,7 +31,7 @@ interface FavouriteRepository {
     fun findPublicKeyPem(actorUri: String): String?
 
     /**
-     * 1 件も無い投稿も 0 で返す
+     * このサーバーのアカウントのいいねも合わせて数える。1 件も無い投稿も 0 で返す
      */
     fun counts(notePublicIds: Set<PublicNoteId>): Map<PublicNoteId, Long>
 
