@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -45,8 +46,11 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
+import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -60,6 +64,9 @@ internal fun UserProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    val urlSharer = rememberUrlSharer(
+        onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
+    )
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(object : UserProfileScreenViewModel.Event {
             override fun navigateBack() {
@@ -72,6 +79,10 @@ internal fun UserProfileScreen(
 
             override fun openUrl(url: String) {
                 uriHandler.openUri(url)
+            }
+
+            override fun shareUrl(url: String) {
+                urlSharer(url)
             }
 
             override fun navigateToImage(url: String) {
@@ -194,6 +205,7 @@ private fun EmptyMessage(text: String) {
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
     )
 }
 
@@ -226,6 +238,9 @@ private fun ProfileHeader(
         }
         if (profile.biography != null) {
             Text(text = profile.biography, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (profile.links.isNotEmpty()) {
+            ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
         }
     }
 }

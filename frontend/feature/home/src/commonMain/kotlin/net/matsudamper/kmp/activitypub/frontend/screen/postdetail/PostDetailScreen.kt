@@ -36,7 +36,9 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
+import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -50,6 +52,9 @@ internal fun PostDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    val urlSharer = rememberUrlSharer(
+        onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
+    )
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(object : PostDetailScreenViewModel.Event {
             override fun navigateBack() {
@@ -66,6 +71,10 @@ internal fun PostDetailScreen(
 
             override fun openUrl(url: String) {
                 uriHandler.openUri(url)
+            }
+
+            override fun shareUrl(url: String) {
+                urlSharer(url)
             }
 
             override fun navigateToImage(url: String) {

@@ -8,7 +8,6 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_FAVOURITES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
-import org.jooq.impl.DSL
 
 internal class SqliteFavouriteRepository(
     private val jooq: SqliteJooq,
@@ -57,12 +56,10 @@ internal class SqliteFavouriteRepository(
         if (notePublicIds.isEmpty()) return mapOf()
 
         val counted = jooq.withConnection { dsl ->
-            dsl.select(NOTES.PUBLIC_ID, DSL.count())
-                .from(NOTE_FAVOURITES)
-                .join(NOTES).on(NOTES.ID.eq(NOTE_FAVOURITES.NOTE_ID))
+            dsl.select(NOTES.PUBLIC_ID, dsl.favouriteCountOf(NOTES.ID))
+                .from(NOTES)
                 .where(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
-                .groupBy(NOTES.PUBLIC_ID)
-                .fetch { PublicNoteId(checkNotNull(it.value1())) to it.value2().toLong() }
+                .fetch { PublicNoteId(checkNotNull(it.value1())) to checkNotNull(it.value2()) }
                 .toMap()
         }
         return notePublicIds.associateWith { counted[it] ?: 0L }

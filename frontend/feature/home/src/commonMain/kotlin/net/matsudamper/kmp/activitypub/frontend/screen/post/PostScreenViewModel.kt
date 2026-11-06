@@ -41,6 +41,8 @@ internal class PostScreenViewModel(
                 viewModelState = viewModelStateFlow.value,
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
+                        // Web の入力欄は blur でも同じ本文を通知する。送信直後の blur で再送用の ID を変えないため
+                        if (text == viewModelStateFlow.value.body) return
                         savedStateHandle[BODY_KEY] = text
                         renewRequestId()
                         viewModelStateFlow.update { it.copy(body = text, error = null) }
@@ -58,6 +60,10 @@ internal class PostScreenViewModel(
                     }
 
                     override fun onClickPost() {
+                        post()
+                    }
+
+                    override fun onPressPostShortcut() {
                         post()
                     }
 

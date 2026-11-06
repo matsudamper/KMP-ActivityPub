@@ -124,7 +124,7 @@ class NotePostServiceTest {
         assertEquals(listOf("image/png", "image/jpeg"), images.map { it.contentType })
         assertEquals(listOf("猫", null), images.map { it.description })
         assertEquals(listOf(PNG.toList(), JPEG.toList()), images.map { imageStorage.images.getValue(ImagePath(it.path)).bytes.toList() })
-        assertTrue(images.all { it.path.startsWith("users/1/note-images/") })
+        assertTrue(images.all { it.path.startsWith("2026/11/users/1/note-images/") })
         assertEquals(listOf(), noteRepository.uploadedImages)
 
         val attachment = (AppJson.parseToJsonElement(deliveryQueueRepository.posts.single().body) as JsonObject)

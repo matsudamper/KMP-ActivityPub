@@ -31,6 +31,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -40,6 +41,8 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -130,8 +133,12 @@ class UserApi(
                     linkUrls = post.linkUrls,
                     images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                     favouriteCount = post.favouriteCount,
+                    boostCount = post.boostCount,
                     stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                    shareUrl = post.url,
+                    likedByMe = post.likedByMe,
                 ),
+                boostedBy = post.boostedBy?.let { UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName) },
                 deletableNoteId = post.deletableNoteId,
             ),
         )
@@ -164,6 +171,28 @@ class UserApi(
         if (response.data?.user?.setFollowing != true) return "フォロー状態を変更できませんでした"
         followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
         return null
+    }
+
+    /**
+     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.likePostId]
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun setLiked(postId: String, liked: Boolean): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(SetLikedMutation(postId = postId, liked = liked)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.setLiked ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+
+            SetLikedFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            SetLikedFailure.POST_NOT_FOUND -> "この投稿にはいいねできません"
+
+            SetLikedFailure.FEDERATION_DISABLED,
+            SetLikedFailure.UNKNOWN__,
+            -> "いいねを変更できませんでした"
+        }
     }
 
     fun followingUsersPaging(): CursorPagingModel<FollowingUsersQuery.Data> {
@@ -267,11 +296,13 @@ class UserApi(
             iconUrl = user.iconUrl,
             following = user.following,
             biography = profile.biography,
+            links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             posts = profile.posts.map {
                 UserProfileResult.Post(
                     linkPreviewId = it.linkPreviewId,
                     postId = it.postId,
                     deletableNoteId = it.deletableNoteId,
+                    likePostId = it.like?.postId,
                     body = UserPostBody(
                         content = it.content,
                         publishedAt = it.publishedAt,
@@ -280,7 +311,10 @@ class UserApi(
                         linkUrls = it.linkUrls,
                         images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                         favouriteCount = it.favouriteCount,
+                        boostCount = it.boostCount,
                         stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                        shareUrl = it.url,
+                        likedByMe = it.like?.likedByMe,
                     ),
                 )
             },
@@ -425,6 +459,8 @@ class UserApi(
             username = profile.username,
             displayName = profile.displayName,
             iconUrl = profile.iconUrl,
+            summary = profile.summary,
+            links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             followingCount = profile.followingCount,
             followersCount = profile.followersCount,
         )
@@ -432,17 +468,33 @@ class UserApi(
 
     /**
      * @param displayName 空なら未設定に戻す
+     * @param summary 空なら未設定に戻す
+     * @param links 並べる順。名前も URL も空の行はサーバーが捨てる
      */
-    suspend fun updateProfile(displayName: String): UserUpdateProfileResult {
+    suspend fun updateProfile(
+        displayName: String,
+        summary: String,
+        links: List<UserProfileLink>,
+    ): UserUpdateProfileResult {
         val client = clients.client.value ?: return UserUpdateProfileResult.Failure("接続先が未設定")
-        val response = client.mutation(UpdateProfileMutation(UpdateProfileQuery(displayName = Optional.present(displayName)))).execute()
+        val query =
+            UpdateProfileQuery(
+                displayName = Optional.present(displayName),
+                summary = Optional.present(summary),
+                links = Optional.present(links.map { ProfileLinkInput(name = it.name, url = it.url) }),
+            )
+        val response = client.mutation(UpdateProfileMutation(query)).execute()
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())
         val updateProfile = response.data?.user?.updateProfile ?: return UserUpdateProfileResult.Failure(response.failureMessage())
 
         return when (updateProfile.failure) {
             null -> UserUpdateProfileResult.Success
             UpdateProfileFailure.NOT_LOGGED_IN -> UserUpdateProfileResult.NotLoggedIn
-            UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.TooLong
+            UpdateProfileFailure.TOO_LONG -> UserUpdateProfileResult.DisplayNameTooLong
+            UpdateProfileFailure.SUMMARY_TOO_LONG -> UserUpdateProfileResult.SummaryTooLong
+            UpdateProfileFailure.TOO_MANY_LINKS -> UserUpdateProfileResult.TooManyLinks
+            UpdateProfileFailure.LINK_TOO_LONG -> UserUpdateProfileResult.LinkTooLong
+            UpdateProfileFailure.INVALID_LINK -> UserUpdateProfileResult.InvalidLink
             UpdateProfileFailure.FEDERATION_DISABLED -> UserUpdateProfileResult.FederationDisabled
             UpdateProfileFailure.UNKNOWN__ -> UserUpdateProfileResult.Failure("Unknown")
         }
@@ -495,8 +547,14 @@ class UserApi(
                                 linkUrls = post.linkUrls,
                                 images = post.images.map { UserPostImage(url = it.url, description = it.description) },
                                 favouriteCount = post.favouriteCount,
+                                boostCount = post.boostCount,
                                 stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                                shareUrl = post.url,
+                                likedByMe = post.likedByMe,
                             ),
+                            boostedBy = post.boostedBy?.let {
+                                UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName)
+                            },
                             deletableNoteId = post.deletableNoteId,
                         ),
                     ),

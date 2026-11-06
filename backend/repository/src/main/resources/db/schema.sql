@@ -7,7 +7,18 @@ CREATE TABLE accounts (
     display_name TEXT,
     -- 画像の置き場の中でのプロフィール画像の場所。未設定なら NULL
     icon_path TEXT,
-    last_active_at TEXT
+    last_active_at TEXT,
+    -- プロフィールの説明文。プレーンテキスト。未設定なら NULL
+    summary TEXT
+);
+
+-- プロフィールのリンク集。position の小さい順に並べる
+CREATE TABLE account_profile_links (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    PRIMARY KEY (account_id, position)
 );
 
 -- 行が無ければパスワードは無い
@@ -117,7 +128,8 @@ CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update / delete_note: 投稿の Delete。
+    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update / delete_note: 投稿の Delete /
+    -- like / undo_like: 他のサーバーの投稿へのいいねとその取り消し。
     -- 行の形は種別に依らないので、種別を足しても作り直さずに済む。取りうる値は DeliveryQueueValues が持つ
     kind TEXT NOT NULL,
     -- 署名するこちらのアカウント
@@ -174,7 +186,9 @@ CREATE TABLE remote_notes (
     "sensitive" INTEGER NOT NULL,
     published_at TEXT NOT NULL,
     received_at TEXT NOT NULL,
-    score_ms INTEGER NOT NULL
+    score_ms INTEGER NOT NULL,
+    -- ブーストで知っただけの投稿は 1。後から Create が届いたら宛先を登録して 0 にする
+    via_boost INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);
@@ -233,3 +247,50 @@ CREATE TABLE note_stamps (
 );
 
 CREATE INDEX note_stamps_remote_actor_id ON note_stamps (remote_actor_id);
+
+-- こちらのアカウントが他のサーバーの投稿に付けたいいね。Undo に元の Like の id が要るので残す
+CREATE TABLE remote_note_likes (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    like_activity_uri TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, remote_note_id)
+);
+
+CREATE INDEX remote_note_likes_remote_note_id ON remote_note_likes (remote_note_id);
+
+-- このサーバーのアカウントが、このサーバーの投稿に付けたいいね。配らないので Like の id は持たない
+CREATE TABLE note_likes (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, note_id)
+);
+
+CREATE INDEX note_likes_note_id ON note_likes (note_id);
+
+-- 他のサーバーから届いた、こちらの投稿のブースト。Undo は Announce の id で取り消すので覚えておく
+CREATE TABLE note_boosts (
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    activity_uri TEXT NOT NULL,
+    received_at TEXT NOT NULL,
+    PRIMARY KEY (note_id, remote_actor_id)
+);
+
+CREATE INDEX note_boosts_remote_actor_id_activity_uri ON note_boosts (remote_actor_id, activity_uri);
+
+-- フォローしている相手が他のサーバーの投稿をブーストしたもの。タイムラインには remote_actor_id の相手のフォロワーに出す
+CREATE TABLE remote_boosts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_uri TEXT NOT NULL UNIQUE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    score_ms INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX remote_boosts_actor_note ON remote_boosts (remote_actor_id, remote_note_id);
+
+CREATE INDEX remote_boosts_actor_score ON remote_boosts (remote_actor_id, score_ms DESC, id DESC);
+
+CREATE INDEX remote_boosts_remote_note_id ON remote_boosts (remote_note_id);

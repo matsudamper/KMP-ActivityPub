@@ -1,11 +1,13 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -27,7 +29,9 @@ internal class SqliteRepositories(
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
     override val remoteActorRepository: RemoteActorRepository = SqliteRemoteActorRepository(jooq)
     override val favouriteRepository: FavouriteRepository = SqliteFavouriteRepository(jooq)
+    override val boostRepository: BoostRepository = SqliteBoostRepository(jooq)
     override val stampRepository: StampRepository = SqliteStampRepository(jooq)
+    override val likeRepository: LikeRepository = SqliteLikeRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

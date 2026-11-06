@@ -3,10 +3,14 @@ package net.matsudamper.kmp.activitypub
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
+import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.ListedActor
+import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
@@ -19,6 +23,7 @@ import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.timeline.FakeTimelineRepository
 
 internal class FakeRepositories : Repositories {
@@ -60,6 +65,21 @@ internal class FakeRepositories : Repositories {
     override val remoteActorRepository: FakeRemoteActorRepository = FakeRemoteActorRepository()
     override val favouriteRepository: FakeFavouriteRepository = FakeFavouriteRepository()
     override val stampRepository: FakeStampRepository = FakeStampRepository()
+    override val likeRepository: LikeRepository = object : LikeRepository {
+        override fun target(accountId: AccountId, member: String): LikeTarget? = null
+        override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean = false
+        override fun unlikeLocal(accountId: AccountId, member: String): Boolean = false
+        override fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId> = setOf()
+        override fun likeAndEnqueue(like: OutgoingLike): Boolean = false
+        override fun unlikeAndEnqueueUndo(
+            accountId: AccountId,
+            member: String,
+            inbox: String,
+            now: Instant,
+            undoBody: (likeId: String) -> String,
+        ): Boolean = false
+    }
+    override val boostRepository: FakeBoostRepository = FakeBoostRepository()
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })
@@ -119,6 +139,9 @@ internal class FakeAccountRepository(
 
     override fun findCredential(username: String): AccountCredential? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.takeIf { it.id !in passwordDeletedIds }
+
+    override fun findProfileDetail(username: String): AccountProfileDetail? =
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { AccountProfileDetail(summary = null, links = listOf()) }
 
     override fun findPublicKeyPem(username: String): String? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { publicKeyPems[it.id] }

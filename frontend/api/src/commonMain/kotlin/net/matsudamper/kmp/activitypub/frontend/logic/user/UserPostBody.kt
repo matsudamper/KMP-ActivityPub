@@ -5,7 +5,10 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  *
  * @param linkUrls カードにするリンク。OGP は [UserApi.linkPreviews] で別に取る
  * @param favouriteCount 他のサーバーの投稿は数を受け取らないので null
+ * @param boostCount 他のサーバーの投稿は数を受け取らないので null
  * @param stamps 多く押された順
+ * @param shareUrl 共有するときに渡す投稿の URL。作れなければ null
+ * @param likedByMe ログイン中のアカウントがいいねしているか。いいねできない投稿は null
  */
 data class UserPostBody(
     val content: String,
@@ -15,7 +18,10 @@ data class UserPostBody(
     val linkUrls: List<String>,
     val images: List<UserPostImage>,
     val favouriteCount: Int?,
+    val boostCount: Int?,
     val stamps: List<UserPostStamp>,
+    val shareUrl: String?,
+    val likedByMe: Boolean?,
 )
 
 /**
@@ -26,3 +32,14 @@ data class UserPostStamp(
     val imageUrl: String?,
     val count: Int,
 )
+
+/**
+ * 数は自分のいいねの分だけ増減させる。他の人のいいねは取り直すまで分からない
+ */
+fun UserPostBody.withLiked(liked: Boolean): UserPostBody {
+    if (likedByMe == liked) return this
+    return copy(
+        likedByMe = liked,
+        favouriteCount = favouriteCount?.let { count -> if (liked) count + 1 else (count - 1).coerceAtLeast(0) },
+    )
+}

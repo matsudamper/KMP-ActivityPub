@@ -103,7 +103,7 @@ class HomeTimelineService(
 data class TimelinePage(val posts: List<TimelinePost>, val nextCursor: String?)
 
 object TimelineCursor {
-    internal val MEMBER_PATTERN = Regex("[lr][1-9][0-9]*")
+    internal val MEMBER_PATTERN = Regex("[lrb][1-9][0-9]*")
 
     fun encode(position: TimelinePosition): String =
         Base64.getUrlEncoder().withoutPadding().encodeToString("${position.score}:${position.member}".toByteArray())

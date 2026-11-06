@@ -10,7 +10,9 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
 import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
+import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLink
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
+import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostLike
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
@@ -23,7 +25,7 @@ import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
-import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class QueryResolverImpl : QueryResolver {
@@ -40,7 +42,8 @@ class QueryResolverImpl : QueryResolver {
                 } else {
                     QlUserProfile(
                         user = profile.user.toQlSearchedUser(env, accountId).copy(following = profile.following),
-                        biography = profile.biography?.let { html -> htmlToPlainText(html) },
+                        biography = profile.biography,
+                        links = profile.links.map { it.toQlProfileLink() },
                         posts = profile.posts.map { post ->
                             val body = createQlPostBody(
                                 contentHtml = post.contentHtml,
@@ -62,6 +65,9 @@ class QueryResolverImpl : QueryResolver {
                                 images = body.images,
                                 favouriteCount = post.favouriteCount?.toInt(),
                                 stamps = post.stamps.toQlPostStamps(diContainer),
+                                like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
+                                url = diContainer.noteShareUrls?.url(post.noteRef),
+                                boostCount = post.boostCount?.toInt(),
                             )
                         },
                     )
@@ -106,15 +112,18 @@ class QueryResolverImpl : QueryResolver {
         val diContainer = GraphQlEngine.diContainer(env)
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         val account = accountId?.let { diContainer.accountService.account(it) }
+        val profileDetail = account?.let { diContainer.accountService.profileDetail(it.username) }
         val followCounts = accountId?.let { diContainer.followListService.counts(it) }
         val profile =
-            if (account == null || followCounts == null) {
+            if (account == null || profileDetail == null || followCounts == null) {
                 null
             } else {
                 QlProfile(
                     username = account.username,
                     displayName = account.displayName,
                     iconUrl = diContainer.profileIconUrls?.find(account.username),
+                    summary = profileDetail.summary,
+                    links = profileDetail.links.map { it.toQlProfileLink() },
                     followingCount = followCounts.following.toInt(),
                     followersCount = followCounts.followers.toInt(),
                 )
@@ -239,4 +248,6 @@ class QueryResolverImpl : QueryResolver {
             },
         )
     }
+
+    private fun ProfileLink.toQlProfileLink(): QlProfileLink = QlProfileLink(name = name, url = url)
 }

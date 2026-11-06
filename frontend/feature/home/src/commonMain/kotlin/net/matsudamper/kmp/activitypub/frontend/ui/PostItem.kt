@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
@@ -66,49 +67,58 @@ internal fun PostItem(
                 onClick = postListener::onClick,
             )
         }
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = PostHorizontalPadding, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(PostIconBodySpacing),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ProfileIcon(
-            iconUrl = uiState.iconUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .size(PostIconSize)
-                .clip(CircleShape)
-                .then(authorClickModifier),
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        val boostedByText = uiState.boostedByText
+        if (boostedByText != null) {
+            BoostedByLabel(text = boostedByText)
+        }
+        Row(
+            modifier = authorClickModifier,
+            horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = authorClickModifier,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = uiState.displayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            ProfileIcon(
+                iconUrl = uiState.iconUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(PostIconSize)
+                    .clip(CircleShape),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = uiState.displayName,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = uiState.postedAt,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
                 Text(
                     text = uiState.acct,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = uiState.postedAt,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
             }
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Text(
                 text = uiState.body,
                 style = MaterialTheme.typography.bodyMedium,
@@ -117,8 +127,8 @@ internal fun PostItem(
                 LazyRow(
                     modifier = Modifier
                         .padding(top = 8.dp)
-                        .bleedHorizontally(start = PostBodyStartOffset, end = PostHorizontalPadding),
-                    contentPadding = PaddingValues(start = PostBodyStartOffset, end = PostHorizontalPadding),
+                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding),
+                    contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.images) { image ->
@@ -152,6 +162,34 @@ internal fun PostItem(
     }
     LaunchedEffect(uiState.listener) {
         uiState.listener.onVisible()
+    }
+}
+
+/**
+ * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
+ */
+@Composable
+private fun BoostedByLabel(text: String) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.width(PostIconSize), contentAlignment = Alignment.CenterEnd) {
+            Icon(
+                imageVector = AppIcons.Repeat,
+                contentDescription = null,
+                modifier = Modifier.size(PostActionIconSize),
+                tint = color,
+            )
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -202,7 +240,7 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプ・共有はまだ押せないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプはまだ押せないので、押せないアイコンだけを置く
  */
 @Composable
 private fun PostActions(uiState: PostItemUiState) {
@@ -212,16 +250,37 @@ private fun PostActions(uiState: PostItemUiState) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(PostActionSlotWidth)) {
+        Row(
+            modifier = Modifier.width(PostActionSlotWidth),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 imageVector = AppIcons.Repeat,
                 contentDescription = "ブースト",
                 modifier = Modifier.size(PostActionIconSize),
                 tint = disabledIconColor,
             )
+            Text(
+                text = uiState.boostCountText.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = iconColor,
+                maxLines = 1,
+            )
         }
+        val favouriteButton = uiState.favouriteButton
         Row(
-            modifier = Modifier.width(PostActionSlotWidth),
+            modifier = Modifier
+                .width(PostActionSlotWidth)
+                .then(
+                    if (favouriteButton == null) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { favouriteButton.listener.onClick() }
+                    },
+                ),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -229,7 +288,7 @@ private fun PostActions(uiState: PostItemUiState) {
                 imageVector = AppIcons.Star,
                 contentDescription = "お気に入り",
                 modifier = Modifier.size(PostActionIconSize),
-                tint = iconColor,
+                tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
             )
             Text(
                 text = uiState.favouriteCountText.orEmpty(),
@@ -246,11 +305,15 @@ private fun PostActions(uiState: PostItemUiState) {
                 tint = disabledIconColor,
             )
         }
+        val shareListener = uiState.shareListener
         Icon(
             imageVector = AppIcons.Share,
             contentDescription = "共有",
-            modifier = Modifier.size(PostActionIconSize),
-            tint = disabledIconColor,
+            modifier = Modifier
+                .size(PostActionIconSize)
+                .clip(CircleShape)
+                .clickable(enabled = shareListener != null) { shareListener?.onClick() },
+            tint = if (shareListener == null) disabledIconColor else iconColor,
         )
         Spacer(modifier = Modifier.weight(1f))
         if (uiState.menuItems.isNotEmpty()) {
@@ -259,9 +322,11 @@ private fun PostActions(uiState: PostItemUiState) {
     }
 }
 
-private val PostActionIconSize = 18.dp
+private val PostActionIconSize = 24.dp
 
-private val PostActionSlotWidth = 64.dp
+private val FavouriteHighlightedColor = Color(0xFFF5B400)
+
+private val PostActionSlotWidth = 76.dp
 
 @Composable
 private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
@@ -295,14 +360,13 @@ private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
     }
 }
 
-private val PostMenuButtonSize = 24.dp
+private val PostMenuButtonSize = 32.dp
 
 private val PostHorizontalPadding = 16.dp
-private val PostIconSize = 40.dp
-private val PostIconBodySpacing = 12.dp
-private val PostBodyStartOffset = PostHorizontalPadding + PostIconSize + PostIconBodySpacing
+private val PostIconSize = 46.dp
+private val PostIconHeaderSpacing = 12.dp
 
-// 本文カラムの外まで横スクロールの表示領域を広げ、スクロール中の画像がアイコンの右で切れないようにする
+// 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
 private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
     val startPx = start.roundToPx()
     val endPx = end.roundToPx()

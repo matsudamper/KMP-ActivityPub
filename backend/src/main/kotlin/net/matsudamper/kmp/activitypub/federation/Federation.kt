@@ -9,19 +9,23 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
+import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
+import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
@@ -34,6 +38,7 @@ import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
+import net.matsudamper.kotpub.inbox.AnnounceHandler
 import net.matsudamper.kotpub.inbox.CreateNoteHandler
 import net.matsudamper.kotpub.inbox.DeleteActorHandler
 import net.matsudamper.kotpub.inbox.DeleteHandler
@@ -43,10 +48,12 @@ import net.matsudamper.kotpub.inbox.InboxEndpoint
 import net.matsudamper.kotpub.inbox.InboxService
 import net.matsudamper.kotpub.inbox.ReactionHandler
 import net.matsudamper.kotpub.inbox.RecordedFallbackPublicKeys
+import net.matsudamper.kotpub.inbox.UndoBoostHandler
 import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.note.HttpRemoteNotes
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
 import net.matsudamper.kotpub.note.NotePublisher
@@ -65,7 +72,9 @@ internal class Federation(
     timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
+    likeRepository: LikeRepository,
     stampRepository: StampRepository,
+    boostRepository: BoostRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
@@ -75,6 +84,7 @@ internal class Federation(
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     val noteImageUrls: NoteImageUrls = NoteImageUrls(domain)
+    val noteShareUrls: NoteShareUrls = NoteShareUrls(domain)
     private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
@@ -83,6 +93,7 @@ internal class Federation(
     private val favourites = RecordedFavourites(favouriteRepository)
     private val stamps = RecordedStamps(stampRepository)
     private val receivedNotes = ReceivedRemoteNotes(timelineRepository, remoteActors, remoteActorRepository, directory, timeline, Clock.systemUTC())
+    private val boosts = RecordedBoosts(boostRepository, receivedNotes)
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -115,6 +126,15 @@ internal class Federation(
                 val position = timelineRepository.localPosition(publicId.value)
                 if (position != null) timeline.enqueue(position)
             },
+        )
+
+    val likeService: LikeService =
+        LikeService(
+            directory = directory,
+            accountService = accountService,
+            likes = likeRepository,
+            clock = Clock.systemUTC(),
+            onEnqueued = deliveryQueueWorker::wakeUp,
         )
 
     val followDelivery = QueuedFollowDelivery(
@@ -219,6 +239,7 @@ internal class Federation(
                         followers = followers,
                         favourites = favourites,
                         stamps = stamps,
+                        boosts = boosts,
                     ),
                 ),
                 domainBlocks = NoInboxDomainBlocks,
@@ -240,6 +261,13 @@ internal class Federation(
                         stamps = stamps,
                         earlyUndoneLikes = favourites,
                     ),
+                    AnnounceHandler(
+                        domain = domain,
+                        remoteActors = remoteActors,
+                        remoteNotes = HttpRemoteNotes(httpClient),
+                        boosts = boosts,
+                        earlyUndone = favourites,
+                    ),
                     UndoHandler(
                         reactions = UndoReactionHandler(
                             domain = domain,
@@ -247,6 +275,7 @@ internal class Federation(
                             stamps = stamps,
                             earlyUndoneLikes = favourites,
                         ),
+                        boosts = UndoBoostHandler(boosts = boosts, earlyUndone = favourites),
                         follows = UndoFollowHandler(directory = directory, followers = followers),
                     ),
                     UpdateActorHandler(followers),
@@ -254,7 +283,7 @@ internal class Federation(
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(
-                        actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = stamps),
+                        actors = DeleteActorHandler(followers = followers, favourites = favourites, stamps = stamps, boosts = boosts),
                         notes = receivedNotes,
                     ),
                 ),

@@ -67,6 +67,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -84,10 +85,13 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
+import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -101,6 +105,9 @@ internal fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    val urlSharer = rememberUrlSharer(
+        onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
+    )
     val tabListStates = rememberHomeTabListStates()
 
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, tabListStates) {
@@ -144,6 +151,10 @@ internal fun HomeScreen(
 
                 override fun openUrl(url: String) {
                     uriHandler.openUri(url)
+                }
+
+                override fun shareUrl(url: String) {
+                    urlSharer(url)
                 }
 
                 override fun navigateToImage(url: String) {
@@ -640,6 +651,7 @@ private fun UserTabEmptyMessage(text: String) {
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
     )
 }
 
@@ -675,6 +687,13 @@ private fun UserProfileHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        val summary = profile.summary
+        if (summary != null) {
+            Text(text = summary, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (profile.links.isNotEmpty()) {
+            ProfileLinks(links = profile.links, modifier = Modifier.fillMaxWidth())
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

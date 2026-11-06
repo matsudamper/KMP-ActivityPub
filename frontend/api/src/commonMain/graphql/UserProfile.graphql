@@ -9,6 +9,10 @@ query UserProfile($username: String!) {
             following
         }
         biography
+        links {
+            name
+            url
+        }
         posts {
             content
             publishedAt
@@ -23,11 +27,17 @@ query UserProfile($username: String!) {
                 description
             }
             favouriteCount
+            boostCount
             stamps {
                 emoji
                 imageUrl
                 count
             }
+            like {
+                postId
+                likedByMe
+            }
+            url
         }
     }
 }

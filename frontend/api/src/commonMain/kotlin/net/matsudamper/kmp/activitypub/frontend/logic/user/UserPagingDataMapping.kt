@@ -24,8 +24,14 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     linkUrls = it.linkUrls,
                     images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
                     favouriteCount = it.favouriteCount,
+                    boostCount = it.boostCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                    shareUrl = it.url,
+                    likedByMe = it.likedByMe,
                 ),
+                boostedBy = it.boostedBy?.let { booster ->
+                    UserHomeTimelineResult.Booster(username = booster.username, host = booster.host, displayName = booster.displayName)
+                },
                 deletableNoteId = it.deletableNoteId,
             )
         },
@@ -55,10 +61,44 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
             deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
+            boostCount = it.body.boostCount,
+            boostedBy = it.boostedBy?.let { booster ->
+                HomeTimelineQuery.BoostedBy(__typename = "PostBooster", username = booster.username, host = booster.host, displayName = booster.displayName)
+            },
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+            url = it.body.shareUrl,
+            likedByMe = it.body.likedByMe == true,
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))
+}
+
+/**
+ * いいねを変えた結果を、取得し直さずに反映する。
+ * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、いいねは元の投稿に付くので、投稿の URL が同じものもまとめて切り替える
+ */
+fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    val likedUrl = timeline.posts.firstOrNull { it.id == postId }?.url
+    return copy(
+        userInfo = info.copy(
+            homeTimeline = timeline.copy(
+                posts = timeline.posts.map { post ->
+                    val samePost = post.id == postId || (likedUrl != null && post.url == likedUrl)
+                    if (!samePost || post.likedByMe == liked) {
+                        post
+                    } else {
+                        // 数は自分のいいねの分だけ増減させる。他の人のいいねは取り直すまで分からない
+                        post.copy(
+                            likedByMe = liked,
+                            favouriteCount = post.favouriteCount?.let { count -> if (liked) count + 1 else (count - 1).coerceAtLeast(0) },
+                        )
+                    }
+                },
+            ),
+        ),
+    )
 }
 
 /**

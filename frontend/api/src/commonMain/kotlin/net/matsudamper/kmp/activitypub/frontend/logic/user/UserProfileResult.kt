@@ -13,6 +13,7 @@ sealed interface UserProfileResult {
         val iconUrl: String?,
         val following: Boolean,
         val biography: String?,
+        val links: List<UserProfileLink>,
         val posts: List<Post>,
     ) : UserProfileResult
 
@@ -22,15 +23,24 @@ sealed interface UserProfileResult {
      * @param linkPreviewId OGP を [UserApi.linkPreviews] で取るときの id。取れない投稿は null
      * @param postId [UserApi.postDetail] で個別投稿画面を開くときの id。開けない投稿は null
      * @param deletableNoteId ログイン中のアカウントの投稿なら [UserApi.deleteNote] に渡す id。消せない投稿は null
+     * @param likePostId [UserApi.setLiked] に渡す id。いいねできない投稿は null
      */
     data class Post(
         val linkPreviewId: String?,
         val postId: String?,
         val deletableNoteId: String?,
+        val likePostId: String?,
         val body: UserPostBody,
     )
 
     data class Failure(
         val message: String,
     ) : UserProfileResult
+}
+
+/**
+ * いいねを変えた結果を、取得し直さずに反映する
+ */
+fun UserProfileResult.Found.withLiked(likePostId: String, liked: Boolean): UserProfileResult.Found {
+    return copy(posts = posts.map { if (it.likePostId == likePostId) it.copy(body = it.body.withLiked(liked)) else it })
 }

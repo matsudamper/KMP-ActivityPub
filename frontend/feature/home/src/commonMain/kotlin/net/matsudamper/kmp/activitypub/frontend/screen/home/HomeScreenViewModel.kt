@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
@@ -42,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -97,6 +99,11 @@ internal class HomeScreenViewModel(
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
      */
     private var linkPreviewRequestedPostIds = setOf<String>()
+
+    /**
+     * 返事を待たずに表示を切り替えるので、押している間かどうかは表示に使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var likeChangingPostIds = setOf<String>()
 
     private val listener = object : HomeScreenUiState.Listener {
         override fun onClickPost() {
@@ -576,6 +583,36 @@ internal class HomeScreenViewModel(
         }
     }
 
+    /**
+     * 自分の投稿はタイムラインと自分のタブの両方に出るので、両方を切り替える
+     *
+     * @param likedByMe 押す前の状態
+     */
+    private fun toggleLike(postId: String, likedByMe: Boolean) {
+        if (postId in likeChangingPostIds) return
+        likeChangingPostIds = likeChangingPostIds + postId
+        viewModelScope.launch {
+            try {
+                applyLiked(postId = postId, liked = !likedByMe)
+                val error = userApi.setLiked(postId = postId, liked = !likedByMe)
+                if (error != null) {
+                    applyLiked(postId = postId, liked = likedByMe)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                likeChangingPostIds = likeChangingPostIds - postId
+            }
+        }
+    }
+
+    private suspend fun applyLiked(postId: String, liked: Boolean) {
+        timelinePaging.updateCache { it.withLiked(postId = postId, liked = liked) }
+        viewModelStateFlow.update {
+            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withLiked(likePostId = postId, liked = liked)))
+        }
+    }
+
     private suspend fun timelineFailed(append: Boolean, message: String) {
         if (append) {
             updateTimeline { it.copy(loading = TimelineLoading.AppendFailed(message)) }
@@ -681,6 +718,18 @@ internal class HomeScreenViewModel(
                 iconUrl = profile.profile.iconUrl,
                 displayName = profile.profile.displayName ?: profile.profile.username,
                 acct = "@${profile.profile.username}",
+                summary = profile.profile.summary,
+                links = profile.profile.links.map { link ->
+                    ProfileLinkUiState(
+                        name = link.name,
+                        url = link.url,
+                        listener = object : ProfileLinkUiState.Listener {
+                            override fun onClick() {
+                                viewModelScope.launch { events.send { it.openUrl(link.url) } }
+                            }
+                        },
+                    )
+                },
                 followingCount = profile.profile.followingCount.toString(),
                 followersCount = profile.profile.followersCount.toString(),
             )
@@ -702,6 +751,7 @@ internal class HomeScreenViewModel(
                     items = profile.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
                         createPostItemUiState(
+                            boostedBy = null,
                             iconUrl = profile.iconUrl,
                             displayName = profile.displayName,
                             acct = "@${profile.username}",
@@ -715,6 +765,12 @@ internal class HomeScreenViewModel(
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                             onToggleImageBlur = { url -> toggleImageBlur(url) },
+                            onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
+                            onToggleLike = {
+                                val likePostId = post.likePostId
+                                val likedByMe = post.body.likedByMe
+                                if (likePostId != null && likedByMe != null) toggleLike(postId = likePostId, likedByMe = likedByMe)
+                            },
                             onVisible = {
                                 if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                                     loadLinkPreviews(linkPreviewId)
@@ -737,6 +793,7 @@ internal class HomeScreenViewModel(
     private fun createTimelineItems(viewModelState: ViewModelState): List<PostItemUiState> {
         return viewModelState.timeline.posts.map { post ->
             createPostItemUiState(
+                boostedBy = post.boostedBy,
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
@@ -755,6 +812,11 @@ internal class HomeScreenViewModel(
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                 onToggleImageBlur = { url -> toggleImageBlur(url) },
+                onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
+                onToggleLike = {
+                    val likedByMe = post.body.likedByMe
+                    if (likedByMe != null) toggleLike(postId = post.id, likedByMe = likedByMe)
+                },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
                         loadLinkPreviews(post.id)
@@ -850,6 +912,8 @@ internal class HomeScreenViewModel(
         fun showMessage(message: String)
 
         fun openUrl(url: String)
+
+        fun shareUrl(url: String)
 
         fun navigateToImage(url: String)
 

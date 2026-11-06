@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
@@ -27,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -50,6 +52,11 @@ internal class UserProfileScreenViewModel(
         )
     private var loadJob: Job? = null
     private var followingChangeJob: Job? = null
+
+    /**
+     * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var likeChangingPostIds = setOf<String>()
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -157,6 +164,32 @@ internal class UserProfileScreenViewModel(
         }
     }
 
+    /**
+     * @param likedByMe 押す前の状態
+     */
+    private fun toggleLike(likePostId: String, likedByMe: Boolean) {
+        if (likePostId in likeChangingPostIds) return
+        likeChangingPostIds = likeChangingPostIds + likePostId
+        viewModelScope.launch {
+            try {
+                applyLiked(likePostId = likePostId, liked = !likedByMe)
+                val error = api.setLiked(postId = likePostId, liked = !likedByMe)
+                if (error != null) {
+                    applyLiked(likePostId = likePostId, liked = likedByMe)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                likeChangingPostIds = likeChangingPostIds - likePostId
+            }
+        }
+    }
+
+    private fun applyLiked(likePostId: String, liked: Boolean) {
+        updateProfile { profile ->
+            if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withLiked(likePostId = likePostId, liked = liked)) else profile
+        }
+    }
+
     private fun confirmNoteDeletion(noteId: String) {
         viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
@@ -238,6 +271,17 @@ internal class UserProfileScreenViewModel(
             iconUrl = profile.iconUrl,
             displayName = profile.displayName,
             biography = profile.biography,
+            links = profile.links.map { link ->
+                ProfileLinkUiState(
+                    name = link.name,
+                    url = link.url,
+                    listener = object : ProfileLinkUiState.Listener {
+                        override fun onClick() {
+                            viewModelScope.launch { events.send { it.openUrl(link.url) } }
+                        }
+                    },
+                )
+            },
             followButton = if (profile.actorUri == null) {
                 null
             } else {
@@ -251,6 +295,7 @@ internal class UserProfileScreenViewModel(
                 val linkPreviewId = post.linkPreviewId
                 val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
                 createPostItemUiState(
+                    boostedBy = null,
                     iconUrl = profile.iconUrl,
                     displayName = profile.displayName,
                     acct = acct,
@@ -264,6 +309,12 @@ internal class UserProfileScreenViewModel(
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
                     onToggleImageBlur = { url -> toggleImageBlur(url) },
+                    onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
+                    onToggleLike = {
+                        val likePostId = post.likePostId
+                        val likedByMe = post.body.likedByMe
+                        if (likePostId != null && likedByMe != null) toggleLike(likePostId = likePostId, likedByMe = likedByMe)
+                    },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(linkPreviewId)
@@ -283,6 +334,8 @@ internal class UserProfileScreenViewModel(
         fun showMessage(message: String)
 
         fun openUrl(url: String)
+
+        fun shareUrl(url: String)
 
         fun navigateToImage(url: String)
 
