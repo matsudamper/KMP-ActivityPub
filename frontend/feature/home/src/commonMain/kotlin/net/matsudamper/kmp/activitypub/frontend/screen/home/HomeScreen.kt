@@ -18,6 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
@@ -69,8 +75,12 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -160,7 +170,7 @@ internal fun HomeScreen(
 internal class HomeTabListStates(
     val timeline: LazyListState,
     val search: LazyListState,
-    val user: LazyListState,
+    val user: LazyGridState,
 ) {
     suspend fun scrollToTop(tab: HomeScreenUiState.Tab) {
         when (tab) {
@@ -175,7 +185,7 @@ internal class HomeTabListStates(
 internal fun rememberHomeTabListStates(): HomeTabListStates {
     val timeline = rememberLazyListState()
     val search = rememberLazyListState()
-    val user = rememberLazyListState()
+    val user = rememberLazyGridState()
     return remember(timeline, search, user) { HomeTabListStates(timeline = timeline, search = search, user = user) }
 }
 
@@ -300,6 +310,7 @@ internal fun HomeContent(
                     UserTabContent(
                         listState = tabListStates.user,
                         profile = uiState.profile,
+                        userContentTab = uiState.userContentTab,
                         userPosts = uiState.userPosts,
                         listener = uiState.listener,
                         modifier = contentModifier,
@@ -485,8 +496,9 @@ private fun SearchTabContent(
 
 @Composable
 private fun UserTabContent(
-    listState: LazyListState,
+    listState: LazyGridState,
     profile: HomeScreenUiState.Profile,
+    userContentTab: ProfileContentTab,
     userPosts: HomeScreenUiState.UserPosts,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
@@ -514,48 +526,54 @@ private fun UserTabContent(
             }
 
             is HomeScreenUiState.Profile.Loaded -> {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    item {
+                LazyVerticalGrid(columns = ProfileGridCells, state = listState, modifier = Modifier.fillMaxSize()) {
+                    fullLineItem {
                         UserProfileHeader(profile = profile, listener = listener)
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
-                    item {
-                        Text(
-                            text = "投稿",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    fullLineItem {
+                        ProfileContentTabRow(
+                            selectedTab = userContentTab,
+                            onClickTab = listener::onClickUserContentTab,
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                     when (userPosts) {
-                        HomeScreenUiState.UserPosts.Loading -> item {
+                        HomeScreenUiState.UserPosts.Loading -> fullLineItem {
                             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator()
                             }
                         }
 
-                        HomeScreenUiState.UserPosts.LoadFailed -> item {
+                        HomeScreenUiState.UserPosts.LoadFailed -> fullLineItem {
                             Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                 Button(onClick = listener::onClickRetryUserPosts) { Text("再読み込み") }
                             }
                         }
 
-                        is HomeScreenUiState.UserPosts.Loaded -> {
-                            val emptyMessage = userPosts.emptyMessage
-                            if (emptyMessage != null) {
-                                item {
-                                    Text(
-                                        text = emptyMessage,
-                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+                        is HomeScreenUiState.UserPosts.Loaded -> when (userContentTab) {
+                            ProfileContentTab.Posts -> {
+                                val emptyMessage = userPosts.emptyMessage
+                                if (emptyMessage != null) {
+                                    fullLineItem { UserTabEmptyMessage(text = emptyMessage) }
+                                }
+                                items(
+                                    items = userPosts.items,
+                                    span = { GridItemSpan(maxLineSpan) },
+                                ) { post ->
+                                    Column {
+                                        PostItem(uiState = post)
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
                                 }
                             }
-                            items(userPosts.items) { post ->
-                                PostItem(uiState = post)
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            ProfileContentTab.Media -> {
+                                val mediaEmptyMessage = userPosts.mediaEmptyMessage
+                                if (mediaEmptyMessage != null) {
+                                    fullLineItem { UserTabEmptyMessage(text = mediaEmptyMessage) }
+                                }
+                                items(userPosts.media) { media ->
+                                    ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
+                                }
                             }
                         }
                     }
@@ -563,6 +581,20 @@ private fun UserTabContent(
             }
         }
     }
+}
+
+private fun LazyGridScope.fullLineItem(content: @Composable () -> Unit) {
+    item(span = { GridItemSpan(maxLineSpan) }) { content() }
+}
+
+@Composable
+private fun UserTabEmptyMessage(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

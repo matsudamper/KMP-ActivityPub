@@ -19,6 +19,7 @@ query UserProfile($username: String!) {
             summary
             sensitive
             linkPreviewId
+            postId
             linkUrls
             images {
                 url

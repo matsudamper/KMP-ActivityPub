@@ -21,9 +21,11 @@ sealed interface UserProfileResult {
 
     /**
      * @param linkPreviewId OGP を [UserApi.linkPreviews] で取るときの id。取れない投稿は null
+     * @param postId [UserApi.postDetail] で個別投稿画面を開くときの id。開けない投稿は null
      */
     data class Post(
         val linkPreviewId: String?,
+        val postId: String?,
         val body: UserPostBody,
     )
 

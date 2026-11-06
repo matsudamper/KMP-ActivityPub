@@ -26,6 +26,8 @@ type ProfilePost {
     sensitive: Boolean!
     "OGP を UserInfo.linkPreviews で取るときに postId に渡す id。取れない投稿は null"
     linkPreviewId: ID
+    "UserInfo.post で個別投稿画面を開くときの id。開けない投稿は null"
+    postId: ID
     "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び"
     linkUrls: [String!]!
     "投稿に付いた画像。付いた順"
