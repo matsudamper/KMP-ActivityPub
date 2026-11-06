@@ -174,7 +174,9 @@ CREATE TABLE remote_notes (
     "sensitive" INTEGER NOT NULL,
     published_at TEXT NOT NULL,
     received_at TEXT NOT NULL,
-    score_ms INTEGER NOT NULL
+    score_ms INTEGER NOT NULL,
+    -- ブーストで知っただけの投稿は 1。後から Create が届いたら宛先を登録して 0 にする
+    via_boost INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);

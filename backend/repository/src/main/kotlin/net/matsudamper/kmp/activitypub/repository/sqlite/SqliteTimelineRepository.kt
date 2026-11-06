@@ -47,8 +47,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .where(ACCOUNT_FOLLOWING.ACTOR_URI.eq(note.actorUri)).fetch()
         val addressed = dsl.select(ACCOUNTS.ID).from(ACCOUNTS).where(ACCOUNTS.USERNAME.`in`(note.localRecipients)).fetch(ACCOUNTS.ID)
         if (followers.isEmpty() && addressed.isEmpty()) return@transaction null
-        val score = minOf(note.publishedAt, note.receivedAt).toEpochMilli()
-        val id = insertRemoteNote(dsl, note, actorId, score) ?: return@transaction null
+        val id = insertRemoteNote(dsl, note, actorId, minOf(note.publishedAt, note.receivedAt).toEpochMilli(), viaBoost = false)
+            ?: takeOverBoostedNote(dsl, note.objectUri)
+            ?: return@transaction null
+        // ブーストで先に保存していた投稿は、そのときの位置に揃える
+        val score = checkNotNull(dsl.select(REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(id)).fetchOne(REMOTE_NOTES.SCORE_MS))
         addressed.forEach { accountId -> addRecipient(dsl, id, checkNotNull(accountId), "explicit", score) }
         if (note.visibility == "followers") {
             followers.filter { it.get(ACCOUNT_FOLLOWING.ACCEPTED_AT) != null }.forEach { follower ->
@@ -294,7 +297,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     /**
      * @return 入れた投稿の id。同じ投稿が既にあれば null
      */
-    private fun insertRemoteNote(dsl: DSLContext, note: RemoteNoteInput, actorId: Long, score: Long): Long? {
+    private fun insertRemoteNote(dsl: DSLContext, note: RemoteNoteInput, actorId: Long, score: Long, viaBoost: Boolean): Long? {
         val inserted = dsl.insertInto(REMOTE_NOTES)
             .set(REMOTE_NOTES.OBJECT_URI, note.objectUri)
             .set(REMOTE_NOTES.REMOTE_ACTOR_ID, actorId)
@@ -306,6 +309,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.PUBLISHED_AT, StoredInstant.format(note.publishedAt))
             .set(REMOTE_NOTES.RECEIVED_AT, StoredInstant.format(note.receivedAt))
             .set(REMOTE_NOTES.SCORE_MS, score)
+            .set(REMOTE_NOTES.VIA_BOOST, if (viaBoost) 1L else 0L)
             .onConflict(REMOTE_NOTES.OBJECT_URI).doNothing()
             .execute()
         if (inserted == 0) return null
@@ -327,7 +331,20 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     private fun insertBoostedNote(dsl: DSLContext, note: RemoteNoteInput): Long? {
         val authorId = dsl.select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri))
             .fetchOne(REMOTE_ACTORS.ID) ?: return null
-        return insertRemoteNote(dsl, note, authorId, minOf(note.publishedAt, note.receivedAt).toEpochMilli())
+        return insertRemoteNote(dsl, note, authorId, minOf(note.publishedAt, note.receivedAt).toEpochMilli(), viaBoost = true)
+    }
+
+    /**
+     * ブーストで先に保存した投稿に Create が届いたら、通常の受信として宛先を登録できるようにする
+     *
+     * @return ブーストで保存しただけの投稿だったらその id。通常の受信で保存済みなら null
+     */
+    private fun takeOverBoostedNote(dsl: DSLContext, objectUri: String): Long? {
+        val updated = dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.VIA_BOOST, 0L)
+            .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).and(REMOTE_NOTES.VIA_BOOST.eq(1L))
+            .execute()
+        if (updated == 0) return null
+        return dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).fetchOne(REMOTE_NOTES.ID)
     }
 
     private fun existingPublishedNoteId(dsl: DSLContext, objectUri: String): Long? =

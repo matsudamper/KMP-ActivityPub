@@ -371,6 +371,32 @@ class TimelineRepositoryTest {
         assertTrue(repository.page(alice, null, 10).isEmpty())
     }
 
+    @Test
+    fun createAfterBoostStillRegistersExplicitRecipients() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null)),
+            NOW,
+        )
+        repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
+        assertNotNull(repository.receiveBoost(boost("1", note("mention", "public", setOf()))))
+        val position = assertNotNull(repository.receive(note("mention", "public", setOf("dave"))))
+        assertEquals(listOf(position), repository.page(accounts.getValue("dave"), null, 10))
+        assertNull(repository.receive(note("mention", "public", setOf("dave"))))
+    }
+
+    @Test
+    fun boosterKeyIsFoundFromRemoteBoosts() = withRepository { repositories, accounts ->
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null)),
+            NOW,
+        )
+        assertNull(repositories.boostRepository.findPublicKeyPem(BOOSTER))
+        repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
+        assertNotNull(repositories.timelineRepository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+        assertEquals("booster-key", repositories.boostRepository.findPublicKeyPem(BOOSTER))
+    }
+
     private fun boost(id: String, note: RemoteNoteInput): RemoteBoostInput = RemoteBoostInput(
         activityUri = "$BOOSTER/announces/$id",
         boosterUri = BOOSTER,
