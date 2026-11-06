@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,7 +20,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -205,7 +209,7 @@ private fun PostActions(uiState: PostItemUiState) {
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
-        modifier = Modifier.padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(modifier = Modifier.width(PostActionSlotWidth)) {
@@ -248,12 +252,50 @@ private fun PostActions(uiState: PostItemUiState) {
             modifier = Modifier.size(PostActionIconSize),
             tint = disabledIconColor,
         )
+        Spacer(modifier = Modifier.weight(1f))
+        if (uiState.menuItems.isNotEmpty()) {
+            PostMenu(menuItems = uiState.menuItems)
+        }
     }
 }
 
 private val PostActionIconSize = 18.dp
 
 private val PostActionSlotWidth = 64.dp
+
+@Composable
+private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier.size(PostMenuButtonSize),
+        ) {
+            Icon(
+                imageVector = AppIcons.MoreVert,
+                contentDescription = "メニュー",
+                modifier = Modifier.size(PostActionIconSize),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            menuItems.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item.label) },
+                    onClick = {
+                        expanded = false
+                        item.listener.onClick()
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val PostMenuButtonSize = 24.dp
 
 private val PostHorizontalPadding = 16.dp
 private val PostIconSize = 40.dp

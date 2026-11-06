@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.ClaimedDelivery
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.DisplayNameChange
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
+import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
@@ -115,6 +116,36 @@ internal class SqliteDeliveryQueueRepository(
                 .execute()
         }
         EnqueueNoteResult.Enqueued(deliveries = inboxes.size)
+    }
+
+    override fun enqueueNoteDeletion(deletion: NoteDeletion): Boolean = jooq.transaction { dsl ->
+        val accountId =
+            dsl.select(ACCOUNTS.ID)
+                .from(ACCOUNTS)
+                .where(ACCOUNTS.USERNAME.eq(deletion.username.lowercase()))
+                .fetchOne(ACCOUNTS.ID)
+                ?: return@transaction false
+        val deletedCount =
+            dsl.deleteFrom(NOTES)
+                .where(NOTES.ACCOUNT_ID.eq(accountId))
+                .and(NOTES.PUBLIC_ID.eq(deletion.publicId.value))
+                .execute()
+        if (deletedCount == 0) return@transaction false
+
+        val enqueuedAt = StoredInstant.format(deletion.deletedAt)
+        deletion.inboxes.distinct().forEach { inbox ->
+            dsl.insertInto(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_DELETE_NOTE)
+                .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+                .set(DELIVERY_QUEUE.INBOX, inbox)
+                .set(DELIVERY_QUEUE.BODY, deletion.body)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+                .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+                .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, enqueuedAt)
+                .set(DELIVERY_QUEUE.ENQUEUED_AT, enqueuedAt)
+                .execute()
+        }
+        true
     }
 
     override fun updateProfile(update: ProfileUpdate): Boolean = jooq.transaction { dsl ->

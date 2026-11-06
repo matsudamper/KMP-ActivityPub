@@ -1,12 +1,17 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 data class UserProfileScreenUiState(
     val content: Content,
+    /**
+     * 出していなければ null
+     */
+    val deleteNoteDialog: DeleteNoteDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {
