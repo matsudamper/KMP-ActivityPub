@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,8 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -60,14 +63,14 @@ internal fun PostItem(
             )
         }
     Row(
-        modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = PostHorizontalPadding, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(PostIconBodySpacing),
     ) {
         ProfileIcon(
             iconUrl = uiState.iconUrl,
             contentDescription = null,
             modifier = Modifier
-                .size(40.dp)
+                .size(PostIconSize)
                 .clip(CircleShape)
                 .then(authorClickModifier),
         )
@@ -108,7 +111,10 @@ internal fun PostItem(
             )
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .bleedHorizontally(start = PostBodyStartOffset, end = PostHorizontalPadding),
+                    contentPadding = PaddingValues(start = PostBodyStartOffset, end = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.images) { image ->
@@ -248,3 +254,23 @@ private fun PostActions(uiState: PostItemUiState) {
 private val PostActionIconSize = 18.dp
 
 private val PostActionSlotWidth = 64.dp
+
+private val PostHorizontalPadding = 16.dp
+private val PostIconSize = 40.dp
+private val PostIconBodySpacing = 12.dp
+private val PostBodyStartOffset = PostHorizontalPadding + PostIconSize + PostIconBodySpacing
+
+// 本文カラムの外まで横スクロールの表示領域を広げ、スクロール中の画像がアイコンの右で切れないようにする
+private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
+    val startPx = start.roundToPx()
+    val endPx = end.roundToPx()
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = constraints.maxWidth + startPx + endPx,
+            maxWidth = constraints.maxWidth + startPx + endPx,
+        ),
+    )
+    layout(constraints.maxWidth, placeable.height) {
+        placeable.place(-startPx, 0)
+    }
+}
