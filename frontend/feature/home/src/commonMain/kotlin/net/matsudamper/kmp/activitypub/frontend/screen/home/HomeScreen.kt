@@ -77,6 +77,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImage
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
@@ -337,6 +338,10 @@ internal fun HomeContent(
                 }
             }
         }
+    }
+    val deleteNoteDialog = uiState.deleteNoteDialog
+    if (deleteNoteDialog != null) {
+        DeleteNoteDialog(uiState = deleteNoteDialog)
     }
 }
 

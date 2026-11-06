@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
@@ -109,6 +110,10 @@ internal fun HomeColumnsContent(
             }
             SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
         }
+    }
+    val deleteNoteDialog = uiState.deleteNoteDialog
+    if (deleteNoteDialog != null) {
+        DeleteNoteDialog(uiState = deleteNoteDialog)
     }
 }
 

@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 
 internal class FakeImageStorage : ImageStorage {
     val images: MutableMap<ImagePath, ImageStorage.GetResult.Success> = mutableMapOf()
+    var deleteFails: Boolean = false
 
     override fun put(request: ImageStorage.PutRequest): ImageStorage.PutResult {
         val bytes = request.inputStream.readBytes()
@@ -17,6 +18,7 @@ internal class FakeImageStorage : ImageStorage {
     override fun get(request: ImageStorage.GetRequest): ImageStorage.GetResult = images[request.path] ?: ImageStorage.GetResult.NotFound
 
     override fun delete(request: ImageStorage.DeleteRequest): ImageStorage.DeleteResult {
+        if (deleteFails) return ImageStorage.DeleteResult.Failure(IllegalStateException("消せない"))
         images.remove(request.path)
         return ImageStorage.DeleteResult.Success
     }
