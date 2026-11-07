@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  *
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手
+ * @param onOpenImage urls は左右に送って見られる画像。ぼかしたままの画像を送った先で見せないよう、ぼかしていないものだけ
  */
 internal fun createPostItemUiState(
     boostedBy: Boost?,
@@ -26,13 +27,16 @@ internal fun createPostItemUiState(
     menuItems: List<PostItemUiState.MenuItem>,
     postTapAction: PostTapAction,
     onOpenUrl: (url: String) -> Unit,
-    onOpenImage: (url: String) -> Unit,
+    onOpenImage: (urls: List<String>, index: Int) -> Unit,
     onToggleImageBlur: (url: String) -> Unit,
     onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     val shareUrl = body.shareUrl
+    val viewableImageUrls = body.images
+        .filterNot { image -> isPostImageBlurred(body.sensitive, sensitiveImagesBlurred, image.url in blurToggledImageUrls) }
+        .map { it.url }
     return PostItemUiState(
         boostedBy = boostedBy?.let { boosted ->
             val booster = boosted.booster
@@ -64,7 +68,12 @@ internal fun createPostItemUiState(
                 sensitive = body.sensitive,
                 sensitiveImagesBlurred = sensitiveImagesBlurred,
                 blurToggled = image.url in blurToggledImageUrls,
-                onOpen = { onOpenImage(image.url) },
+                onOpen = {
+                    val index = viewableImageUrls.indexOf(image.url).takeIf { it >= 0 }
+                    if (index != null) {
+                        onOpenImage(viewableImageUrls, index)
+                    }
+                },
                 onToggleBlur = { onToggleImageBlur(image.url) },
             )
         },

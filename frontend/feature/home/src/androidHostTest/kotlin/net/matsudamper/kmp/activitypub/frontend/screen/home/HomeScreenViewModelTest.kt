@@ -226,7 +226,7 @@ class HomeScreenViewModelTest {
 
         override fun shareUrl(url: String) = Unit
 
-        override fun navigateToImage(url: String) = Unit
+        override fun navigateToImage(urls: List<String>, index: Int) = Unit
 
         override fun navigateToPostDetail(postId: String) = Unit
     }

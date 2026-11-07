@@ -145,7 +145,7 @@ private fun ScreenContent(
         }
 
         is Screen.Image -> {
-            ImageViewerScreen(imageUrl = screen.url, navigator = navigator)
+            ImageViewerScreen(imageUrls = screen.urls, initialIndex = screen.initialIndex, navigator = navigator)
         }
     }
 }

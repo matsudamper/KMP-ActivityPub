@@ -30,6 +30,8 @@ internal actual fun ZoomableImage(
     onLongPressImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
+    onSwipeToPrevious: () -> Unit,
+    onSwipeToNext: () -> Unit,
     modifier: Modifier,
 ) {
     val zoomState = rememberZoomState()

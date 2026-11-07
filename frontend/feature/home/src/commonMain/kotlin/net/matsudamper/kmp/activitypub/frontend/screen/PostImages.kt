@@ -14,7 +14,7 @@ internal fun createPostImage(
     onOpen: () -> Unit,
     onToggleBlur: () -> Unit,
 ): PostItemUiState.Image {
-    val blurred = sensitive && sensitiveImagesBlurred != blurToggled
+    val blurred = isPostImageBlurred(sensitive, sensitiveImagesBlurred, blurToggled)
     return PostItemUiState.Image(
         url = image.thumbnailUrl,
         description = image.description,
@@ -35,3 +35,9 @@ internal fun createPostImage(
         },
     )
 }
+
+internal fun isPostImageBlurred(
+    sensitive: Boolean,
+    sensitiveImagesBlurred: Boolean,
+    blurToggled: Boolean,
+): Boolean = sensitive && sensitiveImagesBlurred != blurToggled

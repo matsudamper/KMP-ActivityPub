@@ -135,25 +135,44 @@ sealed interface Screen : NavKey {
     }
 
     /**
-     * 開いていた画面に重ねて出す。画像の URL は `/` などを含むので、パスの 1 階層に収まるよう Base64 にする
+     * 開いていた画面に重ねて出す。画像の URL は `/` などを含むので、まとめてパスの 1 階層に収まるよう Base64 にする
+     *
+     * @param urls 左右に送って見られる画像。URL は改行を含まないので改行でつないで 1 つにする
+     * @param initialIndex 最初に見せる [urls] の位置
      */
     @Serializable
     data class Image(
-        val url: String,
+        val urls: List<String>,
+        val initialIndex: Int,
     ) : Screen {
         override val pathPattern: PathPattern get() = PATH_PATTERN
-        override val pathParameters: Map<String, String> get() = mapOf(ENCODED_URL_PARAMETER to UrlBase64.encode(url.encodeToByteArray()))
+        override val pathParameters: Map<String, String>
+            get() = mapOf(
+                INITIAL_INDEX_PARAMETER to initialIndex.toString(),
+                ENCODED_URLS_PARAMETER to UrlBase64.encode(urls.joinToString(URL_SEPARATOR).encodeToByteArray()),
+            )
         override val parentScreen: Screen get() = Home.Timeline
         override val loginRequired: Boolean get() = false
 
         companion object {
-            const val ENCODED_URL_PARAMETER: String = "encodedUrl"
-            val PATH_PATTERN: PathPattern = PathPattern("/image/{$ENCODED_URL_PARAMETER}")
+            const val INITIAL_INDEX_PARAMETER: String = "initialIndex"
+            const val ENCODED_URLS_PARAMETER: String = "encodedUrls"
+            val PATH_PATTERN: PathPattern = PathPattern("/image/{$INITIAL_INDEX_PARAMETER}/{$ENCODED_URLS_PARAMETER}")
+            private const val URL_SEPARATOR = "\n"
             private val UrlBase64: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
 
-            fun fromEncodedUrl(encodedUrl: String): Image? {
-                val url = runCatching { UrlBase64.decode(encodedUrl).decodeToString() }.getOrNull()
-                return if (url == null) null else Image(url = url)
+            fun fromPathParameters(
+                initialIndex: String,
+                encodedUrls: String,
+            ): Image? {
+                val urls = runCatching { UrlBase64.decode(encodedUrls).decodeToString() }.getOrNull()
+                    ?.split(URL_SEPARATOR)
+                val index = initialIndex.toIntOrNull()
+                return if (urls == null || index == null || index !in urls.indices) {
+                    null
+                } else {
+                    Image(urls = urls, initialIndex = index)
+                }
             }
         }
     }
@@ -175,7 +194,10 @@ sealed interface Screen : NavKey {
                     PostDetail(postId = parameters.getValue(PostDetail.POST_ID_PARAMETER))
                 },
                 Image.PATH_PATTERN to { parameters ->
-                    Image.fromEncodedUrl(parameters.getValue(Image.ENCODED_URL_PARAMETER))
+                    Image.fromPathParameters(
+                        initialIndex = parameters.getValue(Image.INITIAL_INDEX_PARAMETER),
+                        encodedUrls = parameters.getValue(Image.ENCODED_URLS_PARAMETER),
+                    )
                 },
             ) + Home.Tab.entries.map { tab -> tab.pathPattern to { _ -> Home(tab = tab) } }
         }

@@ -10,6 +10,9 @@ internal expect val ComposeCanDrawOverZoomableImage: Boolean
 
 /**
  * 画面いっぱいに収めて表示し、拡大縮小と拡大中の移動ができる画像
+ *
+ * @param onSwipeToPrevious [ComposeCanDrawOverZoomableImage] が false の環境は Compose の部品で左右に送れないので、
+ * 拡大していないときの左右のスワイプをここで知らせる。true の環境では呼ばない
  */
 @Composable
 internal expect fun ZoomableImage(
@@ -18,5 +21,7 @@ internal expect fun ZoomableImage(
     onLongPressImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
+    onSwipeToPrevious: () -> Unit,
+    onSwipeToNext: () -> Unit,
     modifier: Modifier = Modifier,
 )

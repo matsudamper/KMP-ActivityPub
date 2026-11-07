@@ -307,7 +307,7 @@ internal class UserProfileScreenViewModel(
                     menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
-                    onOpenImage = { url -> viewModelScope.launch { events.send { it.navigateToImage(url) } } },
+                    onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
                     onToggleImageBlur = { url -> toggleImageBlur(url) },
                     onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                     onToggleLike = {
@@ -337,7 +337,7 @@ internal class UserProfileScreenViewModel(
 
         fun shareUrl(url: String)
 
-        fun navigateToImage(url: String)
+        fun navigateToImage(urls: List<String>, index: Int)
 
         fun navigateToPostDetail(postId: String)
     }

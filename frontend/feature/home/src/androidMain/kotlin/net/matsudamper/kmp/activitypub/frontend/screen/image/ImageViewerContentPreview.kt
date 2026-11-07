@@ -28,7 +28,13 @@ private fun ImageViewerContentPreview() {
             Box(modifier = Modifier.size(width = 360.dp, height = 640.dp)) {
                 ImageViewerContent(
                     uiState = ImageViewerScreenUiState(
-                        imageUrl = "https://example.com/image.png",
+                        images = listOf("a", "b", "c").map { name ->
+                            ImageViewerScreenUiState.Image(
+                                url = "https://example.com/$name.png",
+                                listener = AndroidPreviewImageListener,
+                            )
+                        },
+                        initialIndex = 1,
                         listener = AndroidPreviewImageViewerListener,
                     ),
                 )
@@ -41,6 +47,8 @@ private object AndroidPreviewImageViewerListener : ImageViewerScreenUiState.List
     override fun onClickClose() = Unit
 
     override fun onClickOutsideImage() = Unit
+}
 
+private object AndroidPreviewImageListener : ImageViewerScreenUiState.ImageListener {
     override fun onClickConfirmDownload() = Unit
 }
