@@ -138,6 +138,12 @@ internal class HomeScreenViewModel(
             viewModelStateFlow.update { if (it.openedColumn == column) it.copy(openedColumn = null) else it }
         }
 
+        override fun onClickColumnHeader(tab: HomeScreenUiState.Tab) {
+            viewModelScope.launch {
+                events.send { it.scrollTabToTop(tab) }
+            }
+        }
+
         override fun onPostColumnFinished() {
             onClickCloseColumn(HomeScreenUiState.Column.Post)
             // 単独の投稿画面から戻るときはホームの再表示で読み直すが、カラムではホームが出たままなので、ここで同じものを読み直す。
