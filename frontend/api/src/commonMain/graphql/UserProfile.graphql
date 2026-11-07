@@ -24,6 +24,7 @@ query UserProfile($username: String!) {
             linkUrls
             images {
                 url
+                thumbnailUrl
                 description
             }
             favouriteCount

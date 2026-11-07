@@ -5,5 +5,6 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  */
 data class UserPostImage(
     val url: String,
+    val thumbnailUrl: String,
     val description: String?,
 )
