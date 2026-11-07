@@ -22,6 +22,7 @@ subscription HomeTimelinePosts {
             username
             host
             displayName
+            iconUrl
         }
         stamps {
             emoji

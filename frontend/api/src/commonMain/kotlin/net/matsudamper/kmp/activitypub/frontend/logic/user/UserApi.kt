@@ -138,7 +138,7 @@ class UserApi(
                     shareUrl = post.url,
                     likedByMe = post.likedByMe,
                 ),
-                boostedBy = post.boostedBy?.let { UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName) },
+                boostedBy = post.boostedBy?.let { UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName, iconUrl = it.iconUrl) },
                 deletableNoteId = post.deletableNoteId,
             ),
         )
@@ -553,7 +553,7 @@ class UserApi(
                                 likedByMe = post.likedByMe,
                             ),
                             boostedBy = post.boostedBy?.let {
-                                UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName)
+                                UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName, iconUrl = it.iconUrl)
                             },
                             deletableNoteId = post.deletableNoteId,
                         ),

@@ -23,6 +23,7 @@ query PostDetailScreen($id: ID!) {
                 username
                 host
                 displayName
+                iconUrl
             }
             stamps {
                 emoji

@@ -25,7 +25,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
             uiState = PostDetailScreenUiState(
                 content = PostDetailScreenUiState.Content.Loaded(
                     post = PostItemUiState(
-                        boostedByText = null,
+                        boostedBy = null,
                         iconUrl = null,
                         displayName = "Alice",
                         acct = "@alice@example.social",

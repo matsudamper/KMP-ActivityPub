@@ -31,6 +31,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.Boost
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
@@ -793,7 +794,11 @@ internal class HomeScreenViewModel(
     private fun createTimelineItems(viewModelState: ViewModelState): List<PostItemUiState> {
         return viewModelState.timeline.posts.map { post ->
             createPostItemUiState(
-                boostedBy = post.boostedBy,
+                boostedBy = post.boostedBy?.let { booster ->
+                    Boost(booster = booster) { username ->
+                        viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
+                    }
+                },
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",

@@ -26,7 +26,7 @@ private fun UserProfileContentPreview() {
                     selectedTab = ProfileContentTab.Posts,
                     posts = listOf(
                         PostItemUiState(
-                            boostedByText = null,
+                            boostedBy = null,
                             iconUrl = null,
                             displayName = "Alice",
                             acct = "@alice@example.social",
