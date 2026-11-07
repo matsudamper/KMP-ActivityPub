@@ -15,6 +15,7 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                 deletableNoteId
                 images {
                     url
+                    thumbnailUrl
                     description
                 }
                 favouriteCount

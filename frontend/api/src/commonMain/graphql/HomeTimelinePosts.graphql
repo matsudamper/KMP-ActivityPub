@@ -13,6 +13,7 @@ subscription HomeTimelinePosts {
         deletableNoteId
         images {
             url
+            thumbnailUrl
             description
         }
         favouriteCount

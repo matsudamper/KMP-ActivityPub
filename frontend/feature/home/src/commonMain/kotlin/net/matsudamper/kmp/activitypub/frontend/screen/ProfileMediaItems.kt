@@ -23,7 +23,7 @@ internal fun createProfileMedia(
         }
         post.body.images.map { image ->
             ProfileMediaUiState(
-                url = image.url,
+                url = image.thumbnailUrl,
                 description = image.description,
                 blurred = post.body.sensitive,
                 listener = listener,

@@ -22,7 +22,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     summary = it.summary,
                     sensitive = it.sensitive,
                     linkUrls = it.linkUrls,
-                    images = it.images.map { image -> UserPostImage(url = image.url, description = image.description) },
+                    images = it.images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
                     favouriteCount = it.favouriteCount,
                     boostCount = it.boostCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
@@ -58,7 +58,9 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             sensitive = it.body.sensitive,
             linkUrls = it.body.linkUrls,
             iconUrl = it.iconUrl,
-            images = it.body.images.map { image -> HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, description = image.description) },
+            images = it.body.images.map { image ->
+                HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description)
+            },
             deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
             boostCount = it.body.boostCount,
