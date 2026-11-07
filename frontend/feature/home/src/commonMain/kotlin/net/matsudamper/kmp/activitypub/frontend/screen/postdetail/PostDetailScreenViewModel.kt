@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.Boost
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
@@ -212,7 +213,11 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
-            boostedBy = post.boostedBy,
+            boostedBy = post.boostedBy?.let { booster ->
+                Boost(booster = booster) { username ->
+                    viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
+                }
+            },
             iconUrl = post.iconUrl,
             displayName = post.displayName,
             acct = if (host == null) "@${post.username}" else "@${post.username}@$host",

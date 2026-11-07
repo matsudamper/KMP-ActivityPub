@@ -14,7 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手
  */
 internal fun createPostItemUiState(
-    boostedBy: UserHomeTimelineResult.Booster?,
+    boostedBy: Boost?,
     iconUrl: String?,
     displayName: String,
     acct: String,
@@ -34,7 +34,18 @@ internal fun createPostItemUiState(
 ): PostItemUiState {
     val shareUrl = body.shareUrl
     return PostItemUiState(
-        boostedByText = boostedBy?.let { "${it.displayName} がブースト" },
+        boostedBy = boostedBy?.let { boosted ->
+            val booster = boosted.booster
+            PostItemUiState.BoostedBy(
+                text = "${booster.displayName} がブースト",
+                iconUrl = booster.iconUrl,
+                listener = object : PostItemUiState.BoostedByListener {
+                    override fun onClick() {
+                        boosted.navigateToProfile("${booster.username}@${booster.host}")
+                    }
+                },
+            )
+        },
         iconUrl = iconUrl,
         displayName = displayName,
         acct = acct,
@@ -142,3 +153,11 @@ internal sealed interface AuthorTapAction {
 
     data object AlreadyOnAuthorProfile : AuthorTapAction
 }
+
+/**
+ * @param navigateToProfile username はブーストした相手の user@host
+ */
+internal class Boost(
+    val booster: UserHomeTimelineResult.Booster,
+    val navigateToProfile: (username: String) -> Unit,
+)

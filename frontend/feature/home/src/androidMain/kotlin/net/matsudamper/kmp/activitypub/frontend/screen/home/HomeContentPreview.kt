@@ -74,7 +74,7 @@ private fun HomeTimelinePreview(
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
                     PostItemUiState(
-                        boostedByText = null,
+                        boostedBy = null,
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
@@ -116,7 +116,11 @@ private fun HomeTimelinePreview(
                         listener = AndroidPreviewTimelineItemListener,
                     ),
                     PostItemUiState(
-                        boostedByText = "Alice がブースト",
+                        boostedBy = PostItemUiState.BoostedBy(
+                            text = "Alice がブースト",
+                            iconUrl = null,
+                            listener = AndroidPreviewBoostedByListener,
+                        ),
                         iconUrl = null,
                         displayName = "Compose",
                         acct = "@compose@example.com",
@@ -314,7 +318,7 @@ private fun HomeUserContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
-                            boostedByText = null,
+                            boostedBy = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -424,7 +428,7 @@ private fun HomeUserMediaContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
-                            boostedByText = null,
+                            boostedBy = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = "ユーザー1",
                             acct = "@user1",
@@ -475,7 +479,7 @@ private fun HomeColumnsContentPreview() {
                 selectedTab = HomeScreenUiState.Tab.Home,
                 timelineItems = listOf(
                     PostItemUiState(
-                        boostedByText = null,
+                        boostedBy = null,
                         iconUrl = "https://example.com/kotlin.png",
                         displayName = "Kotlin",
                         acct = "@kotlin@example.com",
@@ -623,6 +627,10 @@ private object AndroidPreviewTimelineItemListener : PostItemUiState.Listener {
 }
 
 private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewBoostedByListener : PostItemUiState.BoostedByListener {
     override fun onClick() = Unit
 }
 
