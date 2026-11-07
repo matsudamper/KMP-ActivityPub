@@ -65,7 +65,7 @@ services:
       # - ./public:/public:ro
 
   valkey:
-    image: valkey/valkey:8
+    image: valkey/valkey:9
     # Append Only File が無いと再起動で全員ログアウトになる
     command: ["valkey-server", "--appendonly", "yes"]
     healthcheck:
