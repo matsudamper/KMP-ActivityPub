@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlPostStamp
 import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
  * HomeTimelinePost と ProfilePost で投稿の中身の返し方を揃えるため、両方ここを通す。
@@ -48,6 +49,12 @@ internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlP
     )
 }
 
+internal fun createQlPostImage(url: String, description: String?): QlPostImage = QlPostImage(
+    url = url,
+    thumbnailUrl = url.toHttpUrl().newBuilder().addQueryParameter("type", "thumbnail").build().toString(),
+    description = description,
+)
+
 // Web では CORS を返さないサーバーの画像を読めないので、中継できない画像は返さない
 private fun List<TimelinePostImage>.toQlPostImages(diContainer: DiContainer): List<QlPostImage> = mapNotNull { image ->
     val url =
@@ -55,5 +62,5 @@ private fun List<TimelinePostImage>.toQlPostImages(diContainer: DiContainer): Li
             is TimelinePostImage.Remote -> diContainer.remoteImageProxy?.proxyUrlOf(image.url)
             is TimelinePostImage.Local -> diContainer.noteImageUrls?.url(image.publicId)
         }
-    url?.let { QlPostImage(url = it, description = image.description) }
+    url?.let { createQlPostImage(url = it, description = image.description) }
 }

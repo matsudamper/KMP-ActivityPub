@@ -125,6 +125,8 @@ type PostStamp {
 
 type PostImage {
     url: String!
+    "元の画像 URL に type=thumbnail を付けたサムネイル用 URL"
+    thumbnailUrl: String!
     "画像の説明文。無ければ null"
     description: String
 }
