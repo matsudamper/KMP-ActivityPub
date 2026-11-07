@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,6 +71,7 @@ internal fun HomeColumnsContent(
 
                             HomeScreenUiState.Column.Search -> HomeColumn(
                                 title = "検索",
+                                onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Search) },
                                 onClickClose = { uiState.listener.onClickCloseColumn(column) },
                                 modifier = columnModifier,
                             ) { contentModifier ->
@@ -83,6 +85,7 @@ internal fun HomeColumnsContent(
 
                             HomeScreenUiState.Column.User -> HomeColumn(
                                 title = "ユーザー",
+                                onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.User) },
                                 onClickClose = { uiState.listener.onClickCloseColumn(column) },
                                 modifier = columnModifier,
                             ) { contentModifier ->
@@ -100,6 +103,7 @@ internal fun HomeColumnsContent(
                     }
                     HomeColumn(
                         title = "タイムライン",
+                        onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Home) },
                         onClickClose = null,
                         modifier = Modifier.width(COLUMN_WIDTH).fillMaxHeight(),
                     ) { contentModifier ->
@@ -216,6 +220,7 @@ private fun ColumnToggleButton(
 @Composable
 private fun HomeColumn(
     title: String,
+    onClickHeader: () -> Unit,
     onClickClose: (() -> Unit)?,
     modifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
@@ -224,6 +229,7 @@ private fun HomeColumn(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = onClickHeader)
                 .windowInsetsPadding(topBarWindowInsets)
                 .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
                 .heightIn(min = 48.dp),

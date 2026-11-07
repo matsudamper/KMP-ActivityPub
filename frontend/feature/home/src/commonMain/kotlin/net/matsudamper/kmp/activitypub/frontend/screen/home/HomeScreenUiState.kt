@@ -136,6 +136,8 @@ data class HomeScreenUiState(
 
         fun onClickCloseColumn(column: Column)
 
+        fun onClickColumnHeader(tab: Tab)
+
         /**
          * 投稿カラムでの投稿や戻る操作が終わったとき。投稿カラムを閉じている間にも呼ばれる
          */

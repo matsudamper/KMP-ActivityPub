@@ -575,6 +575,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onClickCloseColumn(column: HomeScreenUiState.Column) = Unit
 
+    override fun onClickColumnHeader(tab: HomeScreenUiState.Tab) = Unit
+
     override fun onPostColumnFinished() = Unit
 
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
