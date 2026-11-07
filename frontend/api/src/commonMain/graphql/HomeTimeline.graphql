@@ -24,6 +24,7 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                     username
                     host
                     displayName
+                    iconUrl
                 }
                 stamps {
                     emoji

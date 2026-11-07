@@ -71,9 +71,9 @@ internal fun PostItem(
         modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = PostHorizontalPadding, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        val boostedByText = uiState.boostedByText
-        if (boostedByText != null) {
-            BoostedByLabel(text = boostedByText)
+        val boostedBy = uiState.boostedBy
+        if (boostedBy != null) {
+            BoostedByLabel(boostedBy = boostedBy)
         }
         Row(
             modifier = authorClickModifier,
@@ -169,9 +169,10 @@ internal fun PostItem(
  * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
  */
 @Composable
-private fun BoostedByLabel(text: String) {
+private fun BoostedByLabel(boostedBy: PostItemUiState.BoostedBy) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
+        modifier = Modifier.clickable(onClick = boostedBy.listener::onClick),
         horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -183,15 +184,29 @@ private fun BoostedByLabel(text: String) {
                 tint = color,
             )
         }
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ProfileIcon(
+                iconUrl = boostedBy.iconUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(BoostedByIconSize)
+                    .clip(CircleShape),
+            )
+            Text(
+                text = boostedBy.text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
+
+private val BoostedByIconSize = 20.dp
 
 @Composable
 private fun ReactionCount(

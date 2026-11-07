@@ -28,5 +28,9 @@ sealed interface UserHomeTimelineResult {
         val username: String,
         val host: String,
         val displayName: String,
+        /**
+         * ブーストした相手のプロフィール画像が無ければ null
+         */
+        val iconUrl: String?,
     )
 }

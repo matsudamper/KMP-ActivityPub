@@ -8,9 +8,9 @@ import androidx.compose.ui.text.AnnotatedString
  */
 data class PostItemUiState(
     /**
-     * フォローしている相手のブーストとして載った投稿なら、投稿の上に出す「〜がブースト」の文。それ以外は null
+     * フォローしている相手のブーストとして載った投稿なら、投稿の上に出す「〜がブースト」の行。それ以外は null
      */
-    val boostedByText: String?,
+    val boostedBy: BoostedBy?,
     val iconUrl: String?,
     val displayName: String,
     val acct: String,
@@ -52,6 +52,15 @@ data class PostItemUiState(
     val shareListener: ShareListener?,
     val listener: Listener,
 ) {
+    /**
+     * @param iconUrl ブーストした相手のプロフィール画像が無ければ null
+     */
+    data class BoostedBy(
+        val text: String,
+        val iconUrl: String?,
+        val listener: BoostedByListener,
+    )
+
     data class MenuItem(
         val label: String,
         val listener: MenuItemListener,
@@ -104,6 +113,11 @@ data class PostItemUiState(
 
     @Immutable
     interface FavouriteButtonListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface BoostedByListener {
         fun onClick()
     }
 
