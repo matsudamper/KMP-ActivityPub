@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.4.21"
-androidGradlePlugin = "9.2.1"
+androidGradlePlugin = "9.5.1"
 androidCompileSdk = "37"
 compose = "1.12.1"
 androidxActivity = "1.13.0"
