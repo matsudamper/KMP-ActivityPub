@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,10 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.SnackbarHost
@@ -26,8 +29,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
@@ -131,12 +138,17 @@ private fun HomeRail(uiState: HomeScreenUiState) {
         SensitiveImagesVisibilityButton(
             sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
             onClick = uiState.listener::onClickSensitiveImagesVisibility,
+            modifier = Modifier.size(width = RAIL_BUTTON_WIDTH, height = 48.dp),
         )
         TimelineStreamStatusButton(
             status = uiState.timelineStreamStatus,
             onClick = uiState.listener::onClickTimelineStreamStatus,
+            modifier = Modifier.size(width = RAIL_BUTTON_WIDTH, height = 48.dp),
         )
-        IconButton(onClick = uiState.listener::onClickSettings) {
+        IconButton(
+            onClick = uiState.listener::onClickSettings,
+            modifier = Modifier.size(width = RAIL_BUTTON_WIDTH, height = 48.dp),
+        ) {
             Icon(
                 imageVector = AppIcons.Settings,
                 contentDescription = "設定",
@@ -147,7 +159,8 @@ private fun HomeRail(uiState: HomeScreenUiState) {
 }
 
 /**
- * 押すたびにカラムを開け閉めするので、開いているかを塗りで見せる
+ * 押すたびにカラムを開け閉めするので、開いているかを塗りで見せる。
+ * 塗りを押せる範囲と同じ大きさにして、どこまで押せるかを見せる
  */
 @Composable
 private fun ColumnToggleButton(
@@ -155,36 +168,45 @@ private fun ColumnToggleButton(
     userIconUrl: String?,
     onClick: () -> Unit,
 ) {
+    val containerColor = if (item.selected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val contentColor = if (item.selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
     Column(
-        modifier = Modifier.padding(vertical = 4.dp),
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .size(width = RAIL_BUTTON_WIDTH, height = 64.dp)
+            .clip(MaterialTheme.shapes.large)
+            .background(containerColor)
+            .toggleable(
+                value = item.selected,
+                role = Role.Checkbox,
+                onValueChange = { onClick() },
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        FilledIconToggleButton(
-            checked = item.selected,
-            onCheckedChange = { onClick() },
-        ) {
+        CompositionLocalProvider(LocalContentColor provides contentColor) {
             when (item.column) {
                 HomeScreenUiState.Column.Post -> Icon(
                     imageVector = AppIcons.Edit,
-                    contentDescription = item.column.label,
+                    contentDescription = null,
                 )
 
                 HomeScreenUiState.Column.Search -> Icon(
                     imageVector = AppIcons.Search,
-                    contentDescription = item.column.label,
+                    contentDescription = null,
                 )
 
                 HomeScreenUiState.Column.User -> ProfileIcon(
                     iconUrl = userIconUrl,
-                    contentDescription = item.column.label,
+                    contentDescription = null,
                     modifier = Modifier.size(24.dp),
                 )
             }
+            Text(
+                text = item.column.label,
+                style = MaterialTheme.typography.labelMedium,
+            )
         }
-        Text(
-            text = item.column.label,
-            style = MaterialTheme.typography.labelMedium,
-        )
     }
 }
 
@@ -235,3 +257,4 @@ private val HomeScreenUiState.Column.label: String
     }
 
 private val COLUMN_WIDTH = 400.dp
+private val RAIL_BUTTON_WIDTH = 72.dp

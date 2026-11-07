@@ -360,8 +360,9 @@ internal fun HomeContent(
 internal fun SensitiveImagesVisibilityButton(
     sensitiveImagesBlurred: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    IconButton(onClick = onClick) {
+    IconButton(onClick = onClick, modifier = modifier) {
         if (sensitiveImagesBlurred) {
             Icon(
                 imageVector = AppIcons.VisibilityOff,
@@ -440,8 +441,9 @@ internal fun TimelineTabContent(
 internal fun TimelineStreamStatusButton(
     status: HomeScreenUiState.TimelineStreamStatus,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    IconButton(onClick = onClick) {
+    IconButton(onClick = onClick, modifier = modifier) {
         when (status) {
             HomeScreenUiState.TimelineStreamStatus.Receiving -> Icon(
                 imageVector = AppIcons.CloudDone,
