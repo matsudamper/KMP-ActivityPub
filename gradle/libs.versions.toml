@@ -2,7 +2,7 @@
 kotlin = "2.4.21"
 androidGradlePlugin = "9.2.1"
 androidCompileSdk = "37"
-compose = "1.12.1"
+compose = "1.12.2"
 androidxActivity = "1.13.0"
 androidxExifinterface = "1.4.2"
 kotlinxCoroutines = "1.11.0"
