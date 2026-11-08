@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.HtmlElementView
+import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.min
@@ -28,11 +29,15 @@ internal actual fun ZoomableImage(
     onLongPressImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
+    onSwipeToPrevious: () -> Unit,
+    onSwipeToNext: () -> Unit,
     modifier: Modifier,
 ) {
     val currentOnClickImage by rememberUpdatedState(onClickImage)
     val currentOnClickOutsideImage by rememberUpdatedState(onClickOutsideImage)
     val currentOnZoomedChange by rememberUpdatedState(onZoomedChange)
+    val currentOnSwipeToPrevious by rememberUpdatedState(onSwipeToPrevious)
+    val currentOnSwipeToNext by rememberUpdatedState(onSwipeToNext)
     key(imageUrl) {
         HtmlElementView(
             modifier = modifier,
@@ -42,6 +47,8 @@ internal actual fun ZoomableImage(
                     onClickImage = { currentOnClickImage() },
                     onClickOutsideImage = { currentOnClickOutsideImage() },
                     onZoomedChange = { currentOnZoomedChange(it) },
+                    onSwipeToPrevious = { currentOnSwipeToPrevious() },
+                    onSwipeToNext = { currentOnSwipeToNext() },
                 )
             },
         )
@@ -53,6 +60,8 @@ private fun createZoomableImageElement(
     onClickImage: () -> Unit,
     onClickOutsideImage: () -> Unit,
     onZoomedChange: (zoomed: Boolean) -> Unit,
+    onSwipeToPrevious: () -> Unit,
+    onSwipeToNext: () -> Unit,
 ): HTMLDivElement {
     val container = document.createElement("div") as HTMLDivElement
     container.style.apply {
@@ -79,13 +88,15 @@ private fun createZoomableImageElement(
         onClickImage = onClickImage,
         onClickOutsideImage = onClickOutsideImage,
         onZoomedChange = onZoomedChange,
+        onSwipeToPrevious = onSwipeToPrevious,
+        onSwipeToNext = onSwipeToNext,
     ).bind()
     return container
 }
 
 /**
  * ホイールとピンチで拡大縮小し、拡大中はドラッグで動かす。ダブルクリックで拡大と等倍を切り替える。
- * 画像の上か外かを分けてクリックを知らせる
+ * 画像の上か外かを分けてクリックを知らせる。拡大していないときの 1 本指の左右のスワイプを知らせる
  */
 private class HtmlImageZoomGesture(
     private val container: HTMLDivElement,
@@ -93,10 +104,14 @@ private class HtmlImageZoomGesture(
     private val onClickImage: () -> Unit,
     private val onClickOutsideImage: () -> Unit,
     private val onZoomedChange: (zoomed: Boolean) -> Unit,
+    private val onSwipeToPrevious: () -> Unit,
+    private val onSwipeToNext: () -> Unit,
 ) {
     private var scale = 1.0
     private var zoomed = false
     private var gestureStartedSincePointerDown = false
+    private var multiPointerSincePointerDown = false
+    private var swipeStartPosition: Position? = null
     private var translateX = 0.0
     private var translateY = 0.0
     private val pointerPositions = mutableMapOf<Int, Position>()
@@ -106,7 +121,7 @@ private class HtmlImageZoomGesture(
         container.addEventListener("wheel", ::onWheel)
         container.addEventListener("pointerdown", ::onPointerDown)
         container.addEventListener("pointermove", ::onPointerMove)
-        container.addEventListener("pointerup", ::onPointerEnd)
+        container.addEventListener("pointerup", ::onPointerUp)
         container.addEventListener("pointercancel", ::onPointerEnd)
         container.addEventListener("dblclick", ::onDoubleClick)
         container.addEventListener("click", ::onClick)
@@ -127,6 +142,10 @@ private class HtmlImageZoomGesture(
         val position = positionInContainer(pointerEvent)
         if (pointerPositions.isEmpty()) {
             gestureStartedSincePointerDown = false
+            multiPointerSincePointerDown = false
+            swipeStartPosition = position
+        } else {
+            multiPointerSincePointerDown = true
         }
         pointerPositions[pointerEvent.pointerId] = position
         uncapturedPointerDownPositions[pointerEvent.pointerId] = position
@@ -159,6 +178,25 @@ private class HtmlImageZoomGesture(
                 )
             }
         }
+    }
+
+    private fun onPointerUp(event: Event) {
+        val pointerEvent = event as PointerEvent
+        val start = swipeStartPosition
+        val swipeable = start != null &&
+            pointerPositions.size == 1 &&
+            pointerPositions.containsKey(pointerEvent.pointerId) &&
+            !multiPointerSincePointerDown &&
+            scale <= MIN_SCALE
+        if (swipeable) {
+            val end = positionInContainer(pointerEvent)
+            val deltaX = end.x - start.x
+            val deltaY = end.y - start.y
+            if (abs(deltaX) >= SWIPE_DISTANCE && abs(deltaX) > abs(deltaY)) {
+                if (deltaX < 0) onSwipeToNext() else onSwipeToPrevious()
+            }
+        }
+        onPointerEnd(event)
     }
 
     private fun onPointerEnd(event: Event) {
@@ -269,5 +307,6 @@ private class HtmlImageZoomGesture(
         const val MAIN_BUTTON: Short = 0
         const val NO_BUTTONS: Short = 0
         const val GESTURE_START_DISTANCE = 8.0
+        const val SWIPE_DISTANCE = 48.0
     }
 }

@@ -76,11 +76,14 @@ class HomeNavigationTest {
     }
 
     @Test
-    fun imagePathRestoresUrlAndBackClosesOnlyTheImage() {
+    fun imagePathRestoresUrlsAndBackClosesOnlyTheImage() {
         val profile = Screen.UserProfile("bob@remote.example")
         val backStack = NavBackStack<NavKey>(Screen.Home.Timeline, profile)
         val navigator = Navigator(backStack)
-        val image = Screen.Image("https://remote.example/media/a b.png?size=large")
+        val image = Screen.Image(
+            urls = listOf("https://remote.example/media/a b.png?size=large", "https://remote.example/media/c.png"),
+            initialIndex = 1,
+        )
 
         assertEquals(image, Screen.fromPath(image.path))
         navigator.navigate(image)

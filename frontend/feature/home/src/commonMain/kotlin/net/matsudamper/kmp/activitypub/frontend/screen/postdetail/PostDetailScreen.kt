@@ -77,8 +77,8 @@ internal fun PostDetailScreen(
                 urlSharer(url)
             }
 
-            override fun navigateToImage(url: String) {
-                navigator.navigate(Screen.Image(url = url))
+            override fun navigateToImage(urls: List<String>, index: Int) {
+                navigator.navigate(Screen.Image(urls = urls, initialIndex = index))
             }
         })
     }

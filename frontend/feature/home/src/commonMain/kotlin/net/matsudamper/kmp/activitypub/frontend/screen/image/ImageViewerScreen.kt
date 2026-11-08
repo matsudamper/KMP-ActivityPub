@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -12,29 +15,47 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.ComposeCanDrawOverZoomableImage
+import net.matsudamper.kmp.activitypub.frontend.ui.HorizontalArrowKeyHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.ZoomableImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberImageDownloader
 
 @Composable
 internal fun ImageViewerScreen(
-    imageUrl: String,
+    imageUrls: List<String>,
+    initialIndex: Int,
     navigator: Navigator,
 ) {
     val downloadImage = rememberImageDownloader()
-    val uiState = remember(imageUrl, navigator, downloadImage) {
+    val uiState = remember(imageUrls, initialIndex, navigator, downloadImage) {
         ImageViewerScreenUiState(
-            imageUrl = imageUrl,
+            images = imageUrls.map { imageUrl ->
+                ImageViewerScreenUiState.Image(
+                    url = imageUrl,
+                    listener = object : ImageViewerScreenUiState.ImageListener {
+                        override fun onClickConfirmDownload() {
+                            downloadImage(imageUrl)
+                        }
+                    },
+                )
+            },
+            initialIndex = initialIndex,
             listener = object : ImageViewerScreenUiState.Listener {
                 override fun onClickClose() {
                     navigator.back()
@@ -42,10 +63,6 @@ internal fun ImageViewerScreen(
 
                 override fun onClickOutsideImage() {
                     navigator.back()
-                }
-
-                override fun onClickConfirmDownload() {
-                    downloadImage(imageUrl)
                 }
             },
         )
@@ -86,28 +103,66 @@ internal fun DownloadConfirmDialog(
 }
 
 /**
- * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる
+ * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる。
+ * 左右のスワイプと矢印キーで画像を送る
  */
 @Composable
 private fun OverlayImageViewerContent(
     uiState: ImageViewerScreenUiState,
 ) {
+    val pagerState = rememberPagerState(initialPage = uiState.initialIndex) { uiState.images.size }
+    val coroutineScope = rememberCoroutineScope()
     var closeButtonVisible by remember { mutableStateOf(true) }
-    var downloadDialogVisible by remember { mutableStateOf(false) }
+    var zoomedPages by remember { mutableStateOf(setOf<Int>()) }
+    LaunchedEffect(pagerState.currentPage) {
+        closeButtonVisible = pagerState.currentPage !in zoomedPages
+    }
+    var downloadDialogImage by remember { mutableStateOf<ImageViewerScreenUiState.Image?>(null) }
+    HorizontalArrowKeyHandler(
+        onPressLeft = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
+        onPressRight = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
+    )
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.9f)),
     ) {
-        ZoomableImage(
-            imageUrl = uiState.imageUrl,
-            onClickImage = { closeButtonVisible = !closeButtonVisible },
-            onLongPressImage = { downloadDialogVisible = true },
-            onClickOutsideImage = uiState.listener::onClickOutsideImage,
-            onZoomedChange = { zoomed -> closeButtonVisible = !zoomed },
+        HorizontalPager(
+            state = pagerState,
+            key = { page -> page },
             modifier = Modifier.fillMaxSize(),
-        )
+        ) { page ->
+            val image = uiState.images[page]
+            DisposableEffect(page) {
+                onDispose { zoomedPages = zoomedPages - page }
+            }
+            ZoomableImage(
+                imageUrl = image.url,
+                onClickImage = { closeButtonVisible = !closeButtonVisible },
+                onLongPressImage = { downloadDialogImage = image },
+                onClickOutsideImage = uiState.listener::onClickOutsideImage,
+                onZoomedChange = { zoomed ->
+                    zoomedPages = if (zoomed) zoomedPages + page else zoomedPages - page
+                    // 隣のページも先に組み立てられるので、見ているページの拡大だけで出し入れする
+                    if (page == pagerState.currentPage) {
+                        closeButtonVisible = !zoomed
+                    }
+                },
+                onSwipeToPrevious = {},
+                onSwipeToNext = {},
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         if (closeButtonVisible) {
+            if (uiState.images.size > 1) {
+                PageNumber(
+                    text = "${pagerState.currentPage + 1} / ${uiState.images.size}",
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .safeDrawingPadding()
+                        .padding(16.dp),
+                )
+            }
             CloseButton(
                 uiState = uiState,
                 modifier = Modifier
@@ -117,33 +172,58 @@ private fun OverlayImageViewerContent(
             )
         }
     }
-    if (downloadDialogVisible) {
+    val dialogImage = downloadDialogImage
+    if (dialogImage != null) {
         DownloadConfirmDialog(
             onClickDownload = {
-                downloadDialogVisible = false
-                uiState.listener.onClickConfirmDownload()
+                downloadDialogImage = null
+                dialogImage.listener.onClickConfirmDownload()
             },
-            onDismiss = { downloadDialogVisible = false },
+            onDismiss = { downloadDialogImage = null },
         )
     }
 }
 
 /**
- * 閉じるボタンを画像に重ねられないので出さず、画像の外を押して閉じる
+ * 閉じるボタンを画像に重ねられないので出さず、画像の外を押して閉じる。
+ * 画像を Compose の部品で左右に送れないので、画像自身のスワイプと矢印キーで差し替える
  */
 @Composable
 private fun ImageOnlyViewerContent(
     uiState: ImageViewerScreenUiState,
 ) {
+    var currentIndex by rememberSaveable(uiState) { mutableIntStateOf(uiState.initialIndex) }
+    val showPrevious = { currentIndex = (currentIndex - 1).coerceAtLeast(0) }
+    val showNext = { currentIndex = (currentIndex + 1).coerceAtMost(uiState.images.lastIndex) }
+    HorizontalArrowKeyHandler(
+        onPressLeft = showPrevious,
+        onPressRight = showNext,
+    )
     ZoomableImage(
-        imageUrl = uiState.imageUrl,
+        imageUrl = uiState.images[currentIndex].url,
         onClickImage = {},
         onLongPressImage = {},
         onClickOutsideImage = uiState.listener::onClickOutsideImage,
         onZoomedChange = {},
+        onSwipeToPrevious = showPrevious,
+        onSwipeToNext = showNext,
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.9f)),
+    )
+}
+
+@Composable
+private fun PageNumber(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        color = Color.White,
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp),
     )
 }
 
