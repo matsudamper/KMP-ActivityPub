@@ -191,13 +191,12 @@ class UserApi(
     }
 
     /**
-     * 読めなかったときは前の内容のまま
+     * 読めなかったときは空にする。パスキーでのログインなど、ここを通らずにアカウントが変わることがあり、前の内容が別のアカウントのものかもしれない
      */
     suspend fun loadFollowingGroups() {
-        val client = clients.awaitLoadedClient() ?: return
-        val response = client.query(FollowingGroupsQuery()).execute()
-        val groups = response.data?.userInfo?.followingGroups ?: return
-        followingGroupsFlow.value = groups.map { UserFollowingGroup(id = it.id, name = it.name) }
+        val client = clients.awaitLoadedClient()
+        val groups = client?.query(FollowingGroupsQuery())?.execute()?.data?.userInfo?.followingGroups
+        followingGroupsFlow.value = groups.orEmpty().map { UserFollowingGroup(id = it.id, name = it.name) }
     }
 
     suspend fun createFollowingGroup(name: String): UserCreateFollowingGroupResult {
@@ -293,6 +292,7 @@ class UserApi(
                 // 別のアカウントで取得した内容を出さない
                 client.apolloStore.clearAll()
                 client.closeSubscriptionConnection()
+                followingGroupsFlow.value = listOf()
                 UserLoginResult.Success
             }
 
@@ -309,6 +309,7 @@ class UserApi(
         if (response.data?.user?.logout != true) return UserLogoutResult.Failure(response.failureMessage())
         client.apolloStore.clearAll()
         client.closeSubscriptionConnection()
+        followingGroupsFlow.value = listOf()
 
         return UserLogoutResult.Success
     }
