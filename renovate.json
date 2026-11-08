@@ -5,6 +5,12 @@
   ],
   "packageRules": [
     {
+      "description": "AndroidX Testライブラリを自動マージする",
+      "matchManagers": ["gradle"],
+      "matchPackageNames": ["/^androidx\\.test(?:[.:]|$)/"],
+      "automerge": true
+    },
+    {
       "description": "OpenTelemetry SDK・incubator・instrumentation を同一 PR で更新する",
       "groupName": "opentelemetry",
       "matchManagers": ["gradle"],
