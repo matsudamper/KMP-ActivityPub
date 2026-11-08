@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.ComposeCanDrawOverZoomableImage
+import net.matsudamper.kmp.activitypub.frontend.ui.EscapeKeyHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.HorizontalArrowKeyHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.ZoomableImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -199,6 +200,7 @@ private fun ImageOnlyViewerContent(
         onPressLeft = showPrevious,
         onPressRight = showNext,
     )
+    EscapeKeyHandler(onPressEscape = uiState.listener::onClickClose)
     ZoomableImage(
         imageUrl = uiState.images[currentIndex].url,
         onClickImage = {},
