@@ -1,5 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +54,8 @@ fun HomeNavigationHost(
             rememberViewModelStoreNavEntryDecorator(),
         ),
         sceneStrategies = listOf(DialogSceneStrategy()),
+        popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+        predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
         entryProvider = { key ->
             NavEntry(
                 key,
