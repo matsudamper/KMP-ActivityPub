@@ -41,6 +41,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
@@ -566,10 +567,10 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun toggleImageBlur(url: String) {
+    private fun toggleImageBlur(imageUrls: List<String>, toggled: Boolean) {
         viewModelStateFlow.update {
-            val urls = it.imageBlur.toggledImageUrls
-            it.copy(imageBlur = it.imageBlur.copy(toggledImageUrls = if (url in urls) urls - url else urls + url))
+            val urls = it.imageBlur.toggledImageUrls.withBlurToggled(imageUrls, toggled)
+            it.copy(imageBlur = it.imageBlur.copy(toggledImageUrls = urls))
         }
     }
 
@@ -771,7 +772,7 @@ internal class HomeScreenViewModel(
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
-                            onToggleImageBlur = { url -> toggleImageBlur(url) },
+                            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
                             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                             onToggleLike = {
                                 val likePostId = post.likePostId
@@ -822,7 +823,7 @@ internal class HomeScreenViewModel(
                 postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
-                onToggleImageBlur = { url -> toggleImageBlur(url) },
+                onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
                 onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                 onToggleLike = {
                     val likedByMe = post.body.likedByMe
