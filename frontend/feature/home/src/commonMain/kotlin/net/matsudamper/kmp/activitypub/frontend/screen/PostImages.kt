@@ -35,3 +35,10 @@ internal fun createPostImage(
         },
     )
 }
+
+internal fun Set<String>.withBlurToggled(
+    imageUrls: List<String>,
+    toggled: Boolean,
+): Set<String> {
+    return if (toggled) this + imageUrls else this - imageUrls.toSet()
+}

@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
@@ -218,10 +219,9 @@ internal class UserProfileScreenViewModel(
         viewModelStateFlow.update { it.copy(profile = transform(it.profile)) }
     }
 
-    private fun toggleImageBlur(url: String) {
+    private fun toggleImageBlur(imageUrls: List<String>, toggled: Boolean) {
         viewModelStateFlow.update {
-            val urls = it.blurToggledImageUrls
-            it.copy(blurToggledImageUrls = if (url in urls) urls - url else urls + url)
+            it.copy(blurToggledImageUrls = it.blurToggledImageUrls.withBlurToggled(imageUrls, toggled))
         }
     }
 
@@ -308,7 +308,7 @@ internal class UserProfileScreenViewModel(
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
-                    onToggleImageBlur = { url -> toggleImageBlur(url) },
+                    onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
                     onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                     onToggleLike = {
                         val likePostId = post.likePostId
