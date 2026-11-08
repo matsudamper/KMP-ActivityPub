@@ -76,45 +76,44 @@ internal fun PostItem(
             BoostedByLabel(boostedBy = boostedBy)
         }
         Row(
-            modifier = authorClickModifier,
-            horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top,
         ) {
-            ProfileIcon(
-                iconUrl = uiState.iconUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(PostIconSize)
-                    .clip(CircleShape),
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            Row(
+                modifier = Modifier.weight(1f).then(authorClickModifier),
+                horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ProfileIcon(
+                    iconUrl = uiState.iconUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(PostIconSize)
+                        .clip(CircleShape),
+                )
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = uiState.displayName,
-                        modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = uiState.postedAt,
+                        text = uiState.acct,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Text(
-                    text = uiState.acct,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
+            Text(
+                text = uiState.postedAt,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
         }
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -172,7 +171,10 @@ internal fun PostItem(
 private fun BoostedByLabel(boostedBy: PostItemUiState.BoostedBy) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
-        modifier = Modifier.clickable(onClick = boostedBy.listener::onClick),
+        modifier = Modifier
+            .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
+            .clickable(onClick = boostedBy.listener::onClick)
+            .padding(horizontal = PostHorizontalPadding),
         horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
