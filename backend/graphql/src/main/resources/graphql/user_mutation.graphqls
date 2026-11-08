@@ -1,6 +1,12 @@
 type UserMutation {
-    "内部のフォロー状態を設定する。未ログインや不正な相手なら false"
-    setFollowing(actorUri: String!, followed: Boolean!): Boolean! @lazy
+    """
+    内部のフォロー状態を設定する。未ログインや不正な相手なら false。
+    フォローするときは groupId のグループに入れる。null ならホーム。既にフォローしていればグループだけ入れ直す。
+    groupId がログイン中のアカウントのグループでなければ false
+    """
+    setFollowing(actorUri: String!, followed: Boolean!, groupId: ID): Boolean! @lazy
+    "フォローを仕分けるグループを作る。同じ名前のグループが既にあればそれを返す"
+    createFollowingGroup(name: String!): CreateFollowingGroupResult! @lazy
     login(query: UserLoginQuery!): UserLoginResult! @lazy
     passkeyLoginOptions: String! @lazy
     passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
@@ -39,6 +45,18 @@ type UserMutation {
     postId は HomeTimelinePost.id か ProfilePostLike.postId。既に望んだ状態なら何も積まずに成功する
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
+}
+
+type CreateFollowingGroupResult {
+    "作れなければ null"
+    group: FollowingGroup
+    failure: CreateFollowingGroupFailure
+}
+
+enum CreateFollowingGroupFailure {
+    NOT_LOGGED_IN
+    "名前が空か長すぎる。上限は 30 文字"
+    INVALID_NAME
 }
 
 input UserLoginQuery {

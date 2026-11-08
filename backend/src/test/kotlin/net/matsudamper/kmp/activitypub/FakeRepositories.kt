@@ -6,6 +6,9 @@ import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
+import net.matsudamper.kmp.activitypub.repository.FollowingGroup
+import net.matsudamper.kmp.activitypub.repository.FollowingGroupId
+import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
@@ -55,9 +58,31 @@ internal class FakeRepositories : Repositories {
         }
         override fun contains(accountId: AccountId, actorUri: String): Boolean = (accountId to actorUri) in entries
         override fun add(accountId: AccountId, actorUri: String, createdAt: Instant): Boolean = entries.add(accountId to actorUri)
-        override fun remove(accountId: AccountId, actorUri: String): Boolean = entries.remove(accountId to actorUri)
+        private val groups = mutableMapOf<Pair<AccountId, String>, FollowingGroupId>()
+        override fun remove(accountId: AccountId, actorUri: String): Boolean {
+            groups.remove(accountId to actorUri)
+            return entries.remove(accountId to actorUri)
+        }
+        override fun groupIdOf(accountId: AccountId, actorUri: String): FollowingGroupId? = groups[accountId to actorUri]
+        override fun setGroup(accountId: AccountId, actorUri: String, groupId: FollowingGroupId?): Boolean {
+            if (!contains(accountId, actorUri)) return false
+            if (groupId == null) groups.remove(accountId to actorUri) else groups[accountId to actorUri] = groupId
+            return true
+        }
         override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = throw NotImplementedError()
         override fun count(accountId: AccountId): Long = entries.count { it.first == accountId }.toLong()
+    }
+    override val followingGroupRepository: FollowingGroupRepository = object : FollowingGroupRepository {
+        private val rows = mutableListOf<Pair<AccountId, FollowingGroup>>()
+        override fun list(accountId: AccountId): List<FollowingGroup> = rows.filter { it.first == accountId }.map { it.second }
+        override fun create(accountId: AccountId, name: String, createdAt: Instant): FollowingGroup {
+            val existing = list(accountId).firstOrNull { it.name == name }
+            if (existing != null) return existing
+            val group = FollowingGroup(id = FollowingGroupId(rows.size + 1L), name = name)
+            rows += accountId to group
+            return group
+        }
+        override fun exists(accountId: AccountId, groupId: FollowingGroupId): Boolean = list(accountId).any { it.id == groupId }
     }
     override val accountRepository: FakeAccountRepository = FakeAccountRepository(hasPasskey = { passkeyRepository.passkeys(it).isNotEmpty() })
     override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()

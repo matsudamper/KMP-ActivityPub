@@ -13,6 +13,17 @@ interface FollowingRepository {
     fun remove(accountId: AccountId, actorUri: String): Boolean
 
     /**
+     * 購読していないか、ホームに入っていれば null
+     */
+    fun groupIdOf(accountId: AccountId, actorUri: String): FollowingGroupId?
+
+    /**
+     * @param groupId null ならホームに戻す
+     * @return 購読していなければ false
+     */
+    fun setGroup(accountId: AccountId, actorUri: String, groupId: FollowingGroupId?): Boolean
+
+    /**
      * フォローした新しい順に、[after] より後ろから [limit] 件まで返す
      */
     fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor>

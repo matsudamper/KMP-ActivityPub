@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorage
 import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
+import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
@@ -108,6 +109,14 @@ class AppDependencies(
         delivery = checkNotNull(federation).followDelivery,
         invalidator = homeTimelineService,
         localDomain = checkNotNull(env.domain),
+        clock = Clock.systemUTC(),
+    )
+
+    val followingGroupService: FollowingGroupService = FollowingGroupService(
+        accounts = repositories.accountRepository,
+        groups = repositories.followingGroupRepository,
+        following = repositories.followingRepository,
+        followingService = followingService,
         clock = Clock.systemUTC(),
     )
 

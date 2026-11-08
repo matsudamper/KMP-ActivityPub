@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
@@ -21,6 +22,7 @@ internal class SqliteRepositories(
     private val connectionManager = SqliteConnectionManager(config)
     private val jooq = SqliteJooq(connectionManager)
     override val followingRepository: FollowingRepository = SqliteFollowingRepository(jooq)
+    override val followingGroupRepository: FollowingGroupRepository = SqliteFollowingGroupRepository(jooq)
     override val timelineRepository: TimelineRepository = SqliteTimelineRepository(jooq)
 
     override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
