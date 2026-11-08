@@ -78,7 +78,7 @@ private fun createZoomableImageElement(
     image.style.apply {
         width = "100%"
         height = "100%"
-        setProperty("object-fit", "contain")
+        setProperty("object-fit", "scale-down")
         setProperty("transform-origin", "0 0")
     }
     container.appendChild(image)
@@ -230,7 +230,8 @@ private class HtmlImageZoomGesture(
     }
 
     /**
-     * 画像は object-fit: contain で入れ物の中央に収まり、左上を起点に拡大してから移動して描かれる
+     * 画像は object-fit: scale-down で入れ物の中央に原寸で置かれ、入りきらないときだけ縮めて収まる。
+     * その上で左上を起点に拡大してから移動して描かれる
      */
     private fun isOnDisplayedImage(position: Position): Boolean {
         val naturalWidth = image.naturalWidth.toDouble()
@@ -238,7 +239,7 @@ private class HtmlImageZoomGesture(
         if (naturalWidth <= 0.0 || naturalHeight <= 0.0) return false
         val width = container.clientWidth.toDouble()
         val height = container.clientHeight.toDouble()
-        val fitScale = min(width / naturalWidth, height / naturalHeight)
+        val fitScale = min(ORIGINAL_SCALE, min(width / naturalWidth, height / naturalHeight))
         val fittedWidth = naturalWidth * fitScale
         val fittedHeight = naturalHeight * fitScale
         val left = (width - fittedWidth) / 2
@@ -301,6 +302,7 @@ private class HtmlImageZoomGesture(
 
     private companion object {
         const val MIN_SCALE = 1.0
+        const val ORIGINAL_SCALE = 1.0
         const val MAX_SCALE = 5.0
         const val DOUBLE_CLICK_SCALE = 2.5
         const val WHEEL_ZOOM_SENSITIVITY = 0.002
