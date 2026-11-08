@@ -1,10 +1,16 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.followlist
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuUiState
 
 data class FollowListScreenUiState(
     val title: String,
     val content: Content,
+    /**
+     * 出していなければ null
+     */
+    val addFollowingGroupDialog: AddFollowingGroupDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -41,16 +47,13 @@ data class FollowListScreenUiState(
         val iconUrl: String?,
         val displayName: String,
         val acct: String,
-        val followButtonText: String,
-        val followButtonEnabled: Boolean,
+        val followMenu: FollowMenuUiState,
         val clickable: Boolean,
         val listener: AccountListener,
     )
 
     @Immutable
     interface AccountListener {
-        fun onClickFollow()
-
         fun onClick()
     }
 

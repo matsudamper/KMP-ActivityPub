@@ -8,19 +8,25 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
+import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
@@ -40,6 +46,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
@@ -60,6 +67,12 @@ class UserApi(
 ) {
     private val followingChangesFlow = MutableSharedFlow<FollowingChange>()
     val followingChanges = followingChangesFlow.asSharedFlow()
+    private val followingGroupsFlow = MutableStateFlow<List<UserFollowingGroup>>(listOf())
+
+    /**
+     * 購読を仕分けるグループ。作った順。[loadFollowingGroups] で読み直す
+     */
+    val followingGroups: StateFlow<List<UserFollowingGroup>> = followingGroupsFlow.asStateFlow()
     private val deletedNoteIdsFlow = MutableSharedFlow<String>()
 
     /**
@@ -164,13 +177,47 @@ class UserApi(
         emit(HomeTimelineStreamEvent.GaveUp)
     }
 
-    suspend fun setFollowing(actorUri: String, followed: Boolean): String? {
+    /**
+     * @param groupId 購読するときに入れるグループ。null ならホーム。購読済みならグループだけ入れ直す
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun setFollowing(actorUri: String, followed: Boolean, groupId: String?): String? {
         val client = clients.client.value ?: return "接続先が未設定"
-        val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
+        val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed, groupId = Optional.present(groupId))).execute()
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
         if (response.data?.user?.setFollowing != true) return "購読状態を変更できませんでした"
-        followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
+        followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed, groupId = if (followed) groupId else null))
         return null
+    }
+
+    /**
+     * 読めなかったときは前の内容のまま
+     */
+    suspend fun loadFollowingGroups() {
+        val client = clients.awaitLoadedClient() ?: return
+        val response = client.query(FollowingGroupsQuery()).execute()
+        val groups = response.data?.userInfo?.followingGroups ?: return
+        followingGroupsFlow.value = groups.map { UserFollowingGroup(id = it.id, name = it.name) }
+    }
+
+    suspend fun createFollowingGroup(name: String): UserCreateFollowingGroupResult {
+        val client = clients.client.value ?: return UserCreateFollowingGroupResult.Failure("接続先が未設定")
+        val response = client.mutation(CreateFollowingGroupMutation(name = name)).execute()
+        if (response.exception != null || response.hasErrors()) return UserCreateFollowingGroupResult.Failure(response.failureMessage())
+        val result = response.data?.user?.createFollowingGroup ?: return UserCreateFollowingGroupResult.Failure(response.failureMessage())
+        val group = result.group
+        if (group != null) {
+            val created = UserFollowingGroup(id = group.id, name = group.name)
+            followingGroupsFlow.update { groups -> if (groups.any { it.id == created.id }) groups else groups + created }
+            return UserCreateFollowingGroupResult.Created(created)
+        }
+        return UserCreateFollowingGroupResult.Failure(
+            when (result.failure) {
+                CreateFollowingGroupFailure.NOT_LOGGED_IN -> "ログインしていません"
+                CreateFollowingGroupFailure.INVALID_NAME -> "名前は 1〜30 文字にしてください"
+                CreateFollowingGroupFailure.UNKNOWN__, null -> "グループを作れませんでした"
+            },
+        )
     }
 
     /**
@@ -295,6 +342,7 @@ class UserApi(
             displayName = user.displayName,
             iconUrl = user.iconUrl,
             following = user.following,
+            followingGroupId = user.followingGroupId,
             biography = profile.biography,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             posts = profile.posts.map {
@@ -349,6 +397,7 @@ class UserApi(
             UserSearchResult.User(
                 actorUri = user.actorUri,
                 following = user.following,
+                followingGroupId = user.followingGroupId,
                 username = user.username,
                 host = user.host,
                 isLocal = user.isLocal,
@@ -522,9 +571,13 @@ class UserApi(
         }
     }
 
+    /**
+     * @param groupId 購読を入れたグループ。購読をやめたか、ホームに入れたなら null
+     */
     data class FollowingChange(
         val actorUri: String,
         val following: Boolean,
+        val groupId: String?,
     )
 
     private suspend fun FlowCollector<HomeTimelineStreamEvent>.collectHomeTimelinePosts(client: ApolloClient): Int {

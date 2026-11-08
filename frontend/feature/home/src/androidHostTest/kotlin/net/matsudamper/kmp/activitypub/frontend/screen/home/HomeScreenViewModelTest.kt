@@ -277,6 +277,9 @@ class HomeScreenViewModelTest {
             if (body.contains("\"operationName\":\"MyProfile\"")) {
                 return HttpResponse.Builder(200).body(Buffer().writeUtf8("""{"errors":[{"message":"プロフィールは見ない"}]}""")).build()
             }
+            if (body.contains("\"operationName\":\"FollowingGroups\"")) {
+                return HttpResponse.Builder(200).body(Buffer().writeUtf8("""{"errors":[{"message":"購読の仕分け先は見ない"}]}""")).build()
+            }
             started.value++
             return responses.receive().invoke()
         }

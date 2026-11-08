@@ -40,6 +40,8 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
@@ -177,6 +179,10 @@ internal fun FollowListContent(
             }
         }
     }
+    val addFollowingGroupDialog = uiState.addFollowingGroupDialog
+    if (addFollowingGroupDialog != null) {
+        AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
+    }
 }
 
 @Composable
@@ -231,8 +237,10 @@ private fun AccountItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
-            Button(onClick = account.listener::onClickFollow, enabled = account.followButtonEnabled) {
-                Text(account.followButtonText)
+            FollowMenu(uiState = account.followMenu) { openMenu ->
+                Button(onClick = openMenu, enabled = account.followMenu.buttonEnabled) {
+                    Text(account.followMenu.buttonText)
+                }
             }
         }
     }

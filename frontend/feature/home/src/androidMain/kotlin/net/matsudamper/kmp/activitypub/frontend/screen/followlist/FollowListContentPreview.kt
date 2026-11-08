@@ -10,6 +10,7 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
 @Preview
 @Composable
@@ -24,8 +25,7 @@ private fun FollowListContentPreview() {
                             iconUrl = "https://example.com/icon.png",
                             displayName = "Kotlin Weekly",
                             acct = "@kotlinweekly@remote.example",
-                            followButtonText = "購読中・解除",
-                            followButtonEnabled = true,
+                            followMenu = previewFollowMenu(buttonText = "ホーム ▾"),
                             clickable = true,
                             listener = AndroidPreviewAccountListener,
                         ),
@@ -33,8 +33,7 @@ private fun FollowListContentPreview() {
                             iconUrl = null,
                             displayName = "https://other.example/users/compose",
                             acct = "other.example",
-                            followButtonText = "購読",
-                            followButtonEnabled = true,
+                            followMenu = previewFollowMenu(buttonText = "購読 ▾"),
                             clickable = false,
                             listener = AndroidPreviewAccountListener,
                         ),
@@ -42,6 +41,7 @@ private fun FollowListContentPreview() {
                     emptyMessage = null,
                     footer = FollowListScreenUiState.Footer.Error("ネットワークエラー"),
                 ),
+                addFollowingGroupDialog = null,
                 listener = AndroidPreviewFollowListListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -61,6 +61,7 @@ private fun FollowListEmptyContentPreview() {
                     emptyMessage = "フォロワーはいません",
                     footer = FollowListScreenUiState.Footer.None,
                 ),
+                addFollowingGroupDialog = null,
                 listener = AndroidPreviewFollowListListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -76,6 +77,7 @@ private fun FollowListErrorContentPreview() {
             uiState = FollowListScreenUiState(
                 title = "購読",
                 content = FollowListScreenUiState.Content.Error("ネットワークエラー"),
+                addFollowingGroupDialog = null,
                 listener = AndroidPreviewFollowListListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -105,7 +107,5 @@ private object AndroidPreviewFollowListListener : FollowListScreenUiState.Listen
 }
 
 private object AndroidPreviewAccountListener : FollowListScreenUiState.AccountListener {
-    override fun onClickFollow() = Unit
-
     override fun onClick() = Unit
 }

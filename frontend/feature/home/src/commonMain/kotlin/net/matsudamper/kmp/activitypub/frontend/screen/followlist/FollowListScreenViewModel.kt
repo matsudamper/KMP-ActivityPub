@@ -7,11 +7,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.apollographql.apollo.api.Query
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
@@ -32,10 +34,14 @@ internal class FollowListScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 list = ListState.Loading,
-                followingChangeInProgress = false,
             ),
         )
     private var loadJob: Job? = null
+    private val followMenuController = FollowMenuController(
+        scope = viewModelScope,
+        userApi = userApi,
+        showMessage = { message -> events.send { it.showMessage(message) } },
+    )
     private val paging: FollowListPaging<*> =
         when (kind) {
             FollowListKind.Following -> FollowListPaging(
@@ -75,10 +81,12 @@ internal class FollowListScreenViewModel(
     }
 
     val uiStateFlow: StateFlow<FollowListScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
+        MutableStateFlow(createUiState(viewModelStateFlow.value, followMenuController.initialSnapshot)).also { uiStateFlow ->
             viewModelScope.launch {
-                viewModelStateFlow.collect { viewModelState ->
-                    uiStateFlow.value = createUiState(viewModelState)
+                combine(viewModelStateFlow, followMenuController.snapshots) { viewModelState, followMenu ->
+                    createUiState(viewModelState, followMenu)
+                }.collect { uiState ->
+                    uiStateFlow.value = uiState
                 }
             }
         }.asStateFlow()
@@ -144,25 +152,7 @@ internal class FollowListScreenViewModel(
         viewModelStateFlow.update { it.copy(list = transform(it.list)) }
     }
 
-    /**
-     * 解除しても行は残し、押し間違えたときにその場でフォローし直せるようにする
-     */
-    private fun changeFollowing(user: UserFollowListResult.User) {
-        if (viewModelStateFlow.value.followingChangeInProgress) return
-        viewModelStateFlow.update { it.copy(followingChangeInProgress = true) }
-        viewModelScope.launch {
-            try {
-                val error = userApi.setFollowing(user.actorUri, followed = !user.following)
-                if (error != null) {
-                    events.send { it.showMessage(error) }
-                }
-            } finally {
-                viewModelStateFlow.update { it.copy(followingChangeInProgress = false) }
-            }
-        }
-    }
-
-    private fun createUiState(viewModelState: ViewModelState): FollowListScreenUiState {
+    private fun createUiState(viewModelState: ViewModelState, followMenu: FollowMenuController.Snapshot): FollowListScreenUiState {
         return FollowListScreenUiState(
             title = when (kind) {
                 FollowListKind.Following -> "購読"
@@ -175,7 +165,7 @@ internal class FollowListScreenViewModel(
 
                 is ListState.Loaded -> FollowListScreenUiState.Content.Loaded(
                     accounts = list.users.map { user ->
-                        createAccount(user, followButtonEnabled = !viewModelState.followingChangeInProgress)
+                        createAccount(user, followMenu)
                     },
                     emptyMessage = if (list.users.isEmpty()) {
                         when (kind) {
@@ -188,6 +178,7 @@ internal class FollowListScreenViewModel(
                     footer = createFooter(list),
                 )
             },
+            addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
             listener = listener,
         )
     }
@@ -203,22 +194,23 @@ internal class FollowListScreenViewModel(
 
     private fun createAccount(
         user: UserFollowListResult.User,
-        followButtonEnabled: Boolean,
+        followMenu: FollowMenuController.Snapshot,
     ): FollowListScreenUiState.Account {
         val username = user.username
         return FollowListScreenUiState.Account(
             iconUrl = user.iconUrl,
             displayName = user.displayName ?: username ?: user.actorUri,
             acct = if (username == null) user.host else "@$username@${user.host}",
-            followButtonText = if (user.following) "購読中・解除" else "購読",
-            followButtonEnabled = followButtonEnabled,
+            // 解除しても行は残し、押し間違えたときにその場で購読し直せるようにする
+            followMenu = followMenuController.menu(
+                snapshot = followMenu,
+                actorUri = user.actorUri,
+                following = user.following,
+                groupId = user.followingGroupId,
+            ),
             // プロフィールは acct で引くので、ユーザー名を受け取っていない相手は開けない
             clickable = username != null,
             listener = object : FollowListScreenUiState.AccountListener {
-                override fun onClickFollow() {
-                    changeFollowing(user)
-                }
-
                 override fun onClick() {
                     if (username == null) return
                     viewModelScope.launch {
@@ -288,7 +280,6 @@ internal class FollowListScreenViewModel(
 
     private data class ViewModelState(
         val list: ListState,
-        val followingChangeInProgress: Boolean,
     )
 
     private sealed interface ListState {
