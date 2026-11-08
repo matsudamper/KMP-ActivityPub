@@ -168,7 +168,7 @@ class UserApi(
         val client = clients.client.value ?: return "接続先が未設定"
         val response = client.mutation(SetFollowingMutation(actorUri = actorUri, followed = followed)).execute()
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
-        if (response.data?.user?.setFollowing != true) return "フォロー状態を変更できませんでした"
+        if (response.data?.user?.setFollowing != true) return "購読状態を変更できませんでした"
         followingChangesFlow.emit(FollowingChange(actorUri = actorUri, following = followed))
         return null
     }

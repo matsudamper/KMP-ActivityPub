@@ -17,14 +17,14 @@ private fun FollowListContentPreview() {
     FollowListPreviewTheme {
         FollowListContent(
             uiState = FollowListScreenUiState(
-                title = "フォロー",
+                title = "購読",
                 content = FollowListScreenUiState.Content.Loaded(
                     accounts = listOf(
                         FollowListScreenUiState.Account(
                             iconUrl = "https://example.com/icon.png",
                             displayName = "Kotlin Weekly",
                             acct = "@kotlinweekly@remote.example",
-                            followButtonText = "フォロー中・解除",
+                            followButtonText = "購読中・解除",
                             followButtonEnabled = true,
                             clickable = true,
                             listener = AndroidPreviewAccountListener,
@@ -33,7 +33,7 @@ private fun FollowListContentPreview() {
                             iconUrl = null,
                             displayName = "https://other.example/users/compose",
                             acct = "other.example",
-                            followButtonText = "フォロー",
+                            followButtonText = "購読",
                             followButtonEnabled = true,
                             clickable = false,
                             listener = AndroidPreviewAccountListener,
@@ -74,7 +74,7 @@ private fun FollowListErrorContentPreview() {
     FollowListPreviewTheme {
         FollowListContent(
             uiState = FollowListScreenUiState(
-                title = "フォロー",
+                title = "購読",
                 content = FollowListScreenUiState.Content.Error("ネットワークエラー"),
                 listener = AndroidPreviewFollowListListener,
             ),

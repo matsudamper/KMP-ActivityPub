@@ -865,9 +865,9 @@ internal class HomeScreenViewModel(
             followButtonText = if (user.actorUri == null) {
                 null
             } else if (user.following) {
-                "フォロー中・解除"
+                "購読中・解除"
             } else {
-                "フォロー"
+                "購読"
             },
             followButtonEnabled = followButtonEnabled,
             onClickFollow = { changeFollowing(user) },

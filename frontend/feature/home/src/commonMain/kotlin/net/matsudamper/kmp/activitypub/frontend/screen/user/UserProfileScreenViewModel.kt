@@ -286,7 +286,7 @@ internal class UserProfileScreenViewModel(
                 null
             } else {
                 UserProfileScreenUiState.FollowButton(
-                    text = if (profile.following) "フォロー中・解除" else "フォロー",
+                    text = if (profile.following) "購読中・解除" else "購読",
                     enabled = !loaded.followingChangeInProgress,
                 )
             },

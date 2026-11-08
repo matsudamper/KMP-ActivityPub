@@ -700,7 +700,7 @@ private fun UserProfileHeader(
         ) {
             FollowCount(
                 count = profile.followingCount,
-                label = "フォロー",
+                label = "購読",
                 onClick = listener::onClickFollowing,
             )
             FollowCount(

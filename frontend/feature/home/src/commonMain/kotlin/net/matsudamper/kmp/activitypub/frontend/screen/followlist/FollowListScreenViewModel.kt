@@ -165,7 +165,7 @@ internal class FollowListScreenViewModel(
     private fun createUiState(viewModelState: ViewModelState): FollowListScreenUiState {
         return FollowListScreenUiState(
             title = when (kind) {
-                FollowListKind.Following -> "フォロー"
+                FollowListKind.Following -> "購読"
                 FollowListKind.Followers -> "フォロワー"
             },
             content = when (val list = viewModelState.list) {
@@ -179,7 +179,7 @@ internal class FollowListScreenViewModel(
                     },
                     emptyMessage = if (list.users.isEmpty()) {
                         when (kind) {
-                            FollowListKind.Following -> "フォローしているユーザーはいません"
+                            FollowListKind.Following -> "購読しているユーザーはいません"
                             FollowListKind.Followers -> "フォロワーはいません"
                         }
                     } else {
@@ -210,7 +210,7 @@ internal class FollowListScreenViewModel(
             iconUrl = user.iconUrl,
             displayName = user.displayName ?: username ?: user.actorUri,
             acct = if (username == null) user.host else "@$username@${user.host}",
-            followButtonText = if (user.following) "フォロー中・解除" else "フォロー",
+            followButtonText = if (user.following) "購読中・解除" else "購読",
             followButtonEnabled = followButtonEnabled,
             // プロフィールは acct で引くので、ユーザー名を受け取っていない相手は開けない
             clickable = username != null,

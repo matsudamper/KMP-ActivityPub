@@ -22,7 +22,7 @@ private fun UserProfileContentPreview() {
                     displayName = "Alice",
                     biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                     links = listOf(),
-                    followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
+                    followButton = UserProfileScreenUiState.FollowButton(text = "購読", enabled = true),
                     selectedTab = ProfileContentTab.Posts,
                     posts = listOf(
                         PostItemUiState(
@@ -107,7 +107,7 @@ private fun UserProfileContentMediaPreview() {
                     displayName = "Alice",
                     biography = null,
                     links = listOf(),
-                    followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
+                    followButton = UserProfileScreenUiState.FollowButton(text = "購読", enabled = true),
                     selectedTab = ProfileContentTab.Media,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
