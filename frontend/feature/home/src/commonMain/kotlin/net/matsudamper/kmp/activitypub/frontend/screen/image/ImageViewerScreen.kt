@@ -15,6 +15,8 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -111,6 +113,10 @@ private fun OverlayImageViewerContent(
     val pagerState = rememberPagerState(initialPage = uiState.initialIndex) { uiState.images.size }
     val coroutineScope = rememberCoroutineScope()
     var closeButtonVisible by remember { mutableStateOf(true) }
+    var zoomedPages by remember { mutableStateOf(setOf<Int>()) }
+    LaunchedEffect(pagerState.currentPage) {
+        closeButtonVisible = pagerState.currentPage !in zoomedPages
+    }
     var downloadDialogImage by remember { mutableStateOf<ImageViewerScreenUiState.Image?>(null) }
     HorizontalArrowKeyHandler(
         onPressLeft = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
@@ -127,12 +133,16 @@ private fun OverlayImageViewerContent(
             modifier = Modifier.fillMaxSize(),
         ) { page ->
             val image = uiState.images[page]
+            DisposableEffect(page) {
+                onDispose { zoomedPages = zoomedPages - page }
+            }
             ZoomableImage(
                 imageUrl = image.url,
                 onClickImage = { closeButtonVisible = !closeButtonVisible },
                 onLongPressImage = { downloadDialogImage = image },
                 onClickOutsideImage = uiState.listener::onClickOutsideImage,
                 onZoomedChange = { zoomed ->
+                    zoomedPages = if (zoomed) zoomedPages + page else zoomedPages - page
                     // 隣のページも先に組み立てられるので、見ているページの拡大だけで出し入れする
                     if (page == pagerState.currentPage) {
                         closeButtonVisible = !zoomed
