@@ -35,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.ComposeCanDrawOverZoomableImage
@@ -130,8 +131,9 @@ private fun OverlayImageViewerContent(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val backgroundAlpha = 0.9f * (1f - (abs(dragOffsetY) / (dismissThresholdPx * 3)).coerceIn(0f, 1f))
     val currentPageZoomed = pagerState.currentPage in zoomedPages
+    var returnAnimationJob by remember { mutableStateOf<Job?>(null) }
     val animateDragOffsetToZero = {
-        coroutineScope.launch {
+        returnAnimationJob = coroutineScope.launch {
             animate(initialValue = dragOffsetY, targetValue = 0f) { value, _ -> dragOffsetY = value }
         }
     }
@@ -146,6 +148,7 @@ private fun OverlayImageViewerContent(
             .pointerInput(uiState, currentPageZoomed) {
                 if (currentPageZoomed) return@pointerInput
                 detectVerticalDragGestures(
+                    onDragStart = { returnAnimationJob?.cancel() },
                     onVerticalDrag = { change, dragAmount ->
                         change.consume()
                         dragOffsetY += dragAmount
