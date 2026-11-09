@@ -38,6 +38,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.time.Duration.Companion.milliseconds
@@ -121,6 +122,8 @@ internal fun DownloadConfirmDialog(
 
 private const val INERTIA_PROJECTION_SECONDS = 0.25f
 
+private class AnimationStopRequested : CancellationException("目標より手前で止める")
+
 /** これ以上止まってから離した場合は、それまでの速度を慣性として使わない */
 private val StoppedBeforeReleaseDuration = 100.milliseconds
 
@@ -145,14 +148,21 @@ private fun OverlayImageViewerContent(
     val backgroundAlpha = 0.9f * (1f - (abs(dragOffsetY) / (dismissThresholdPx * 3)).coerceIn(0f, 1f))
     val currentPageZoomed = pagerState.currentPage in zoomedPages
     var releaseAnimationJob by remember { mutableStateOf<Job?>(null) }
-    val animateDragOffsetTo = { targetValue: Float, velocity: Float, onFinished: () -> Unit ->
+    val animateDragOffsetTo = { targetValue: Float, velocity: Float, stopWhen: (Float) -> Boolean, onFinished: () -> Unit ->
         releaseAnimationJob = coroutineScope.launch {
-            animate(
-                initialValue = dragOffsetY,
-                targetValue = targetValue,
-                initialVelocity = velocity,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-            ) { value, _ -> dragOffsetY = value }
+            try {
+                animate(
+                    initialValue = dragOffsetY,
+                    targetValue = targetValue,
+                    initialVelocity = velocity,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+                ) { value, _ ->
+                    dragOffsetY = value
+                    if (stopWhen(value)) throw AnimationStopRequested()
+                }
+            } catch (stopRequested: AnimationStopRequested) {
+                // 目標より手前で止めるための例外なので、そのまま終了処理へ進む
+            }
             onFinished()
         }
     }
@@ -186,14 +196,19 @@ private fun OverlayImageViewerContent(
                         val velocity = if (stoppedBeforeRelease) 0f else velocityTracker.calculateVelocity().y
                         val projectedOffset = dragOffsetY + velocity * INERTIA_PROJECTION_SECONDS
                         if (abs(projectedOffset) > dismissThresholdPx) {
-                            animateDragOffsetTo(offScreenOffset * sign(projectedOffset), velocity) {
+                            // ばねの収束を待つと画面外に出たあとも閉じるのが遅れるので、画面外に出た時点で閉じる
+                            animateDragOffsetTo(
+                                offScreenOffset * 2 * sign(projectedOffset),
+                                velocity,
+                                { value -> abs(value) >= offScreenOffset },
+                            ) {
                                 uiState.listener.onClickClose()
                             }
                         } else {
-                            animateDragOffsetTo(0f, velocity) {}
+                            animateDragOffsetTo(0f, velocity, { false }) {}
                         }
                     },
-                    onDragCancel = { animateDragOffsetTo(0f, 0f) {} },
+                    onDragCancel = { animateDragOffsetTo(0f, 0f, { false }) {} },
                 )
             },
     ) {
