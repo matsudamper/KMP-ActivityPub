@@ -1,6 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -65,7 +69,7 @@ internal fun FollowMenu(
             onDismissRequest = { expanded = false },
             shape = FollowMenuShape,
         ) {
-            FollowMenuItems(items = uiState.items, onItemClicked = { expanded = false })
+            FollowMenuItems(items = uiState.items, onItemClick = { expanded = false })
         }
     }
 }
@@ -73,26 +77,29 @@ internal fun FollowMenu(
 internal val FollowMenuShape = RoundedCornerShape(16.dp)
 
 /**
- * @param onItemClicked 項目の listener を呼んだ後に呼ぶ
+ * @param onItemClick 項目の listener を呼んだ後に呼ぶ
  */
 @Composable
 internal fun FollowMenuItems(
     items: List<FollowMenuUiState.Item>,
-    onItemClicked: () -> Unit,
+    onItemClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    items.forEach { item ->
-        if (item is FollowMenuUiState.Item.AddDestination) {
-            HorizontalDivider()
-        }
-        FollowMenuItem(
-            item = item,
-            onClick = {
-                item.listener.onClick()
-                onItemClicked()
-            },
-        )
-        if (item is FollowMenuUiState.Item.Unfollow) {
-            HorizontalDivider()
+    Column(modifier = modifier.width(IntrinsicSize.Max)) {
+        items.forEach { item ->
+            if (item is FollowMenuUiState.Item.AddDestination) {
+                HorizontalDivider()
+            }
+            FollowMenuItem(
+                item = item,
+                onClick = {
+                    item.listener.onClick()
+                    onItemClick()
+                },
+            )
+            if (item is FollowMenuUiState.Item.Unfollow) {
+                HorizontalDivider()
+            }
         }
     }
 }
@@ -101,11 +108,14 @@ internal fun FollowMenuItems(
 private fun FollowButtonContent(
     leadingIcon: ImageVector,
     text: String,
+    modifier: Modifier = Modifier,
 ) {
-    Icon(imageVector = leadingIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
-    Text(text = text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    Icon(imageVector = AppIcons.ArrowDropDown, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(imageVector = leadingIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+        Text(text = text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Icon(imageVector = AppIcons.ArrowDropDown, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+    }
 }
 
 @Composable

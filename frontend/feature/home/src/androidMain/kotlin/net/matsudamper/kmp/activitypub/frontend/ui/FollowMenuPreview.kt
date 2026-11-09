@@ -2,9 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -36,10 +34,8 @@ private fun FollowMenuPreview() {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             FollowMenu(uiState = previewFollowMenu(destinationName = null))
             FollowMenu(uiState = previewFollowMenu(destinationName = "ニュース"))
-            Surface(shape = FollowMenuShape, tonalElevation = 3.dp, shadowElevation = 3.dp, modifier = Modifier.width(IntrinsicSize.Max)) {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    FollowMenuItems(items = previewFollowMenu(destinationName = "ニュース").items, onItemClicked = {})
-                }
+            Surface(shape = FollowMenuShape, tonalElevation = 3.dp, shadowElevation = 3.dp) {
+                FollowMenuItems(items = previewFollowMenu(destinationName = "ニュース").items, onItemClick = {}, modifier = Modifier.padding(vertical = 8.dp))
             }
         }
     }
