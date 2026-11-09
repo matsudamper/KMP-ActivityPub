@@ -229,7 +229,7 @@ private fun ProfileHeader(
         }
         val followMenu = profile.followMenu
         if (followMenu != null) {
-            FollowMenu(uiState = followMenu, modifier = Modifier.fillMaxWidth())
+            FollowMenu(uiState = followMenu)
         }
         if (profile.biography != null) {
             Text(text = profile.biography, style = MaterialTheme.typography.bodyMedium)

@@ -54,21 +54,21 @@ internal class FollowMenuController(
      */
     fun menu(snapshot: Snapshot, actorUri: String, following: Boolean, groupId: String?): FollowMenuUiState {
         return FollowMenuUiState(
-            selectedText = when {
-                !following -> "未購読"
-                groupId == null -> HOME_NAME
-                else -> snapshot.groups.firstOrNull { it.id == groupId }?.name ?: "購読中"
+            button = when {
+                !following -> FollowMenuUiState.Button.Follow(text = "購読")
+                groupId == null -> FollowMenuUiState.Button.Following(destinationName = HOME_NAME)
+                else -> FollowMenuUiState.Button.Following(destinationName = snapshot.groups.firstOrNull { it.id == groupId }?.name ?: "購読中")
             },
             enabled = !snapshot.state.changeInProgress,
             items = buildList {
                 if (following) {
-                    add(item(text = "購読解除", checked = false) { change(actorUri = actorUri, followed = false, groupId = null) })
+                    add(FollowMenuUiState.Item.Unfollow(text = "購読解除", listener = itemListener { change(actorUri = actorUri, followed = false, groupId = null) }))
                 }
-                add(item(text = HOME_NAME, checked = following && groupId == null) { change(actorUri = actorUri, followed = true, groupId = null) })
+                add(destination(text = HOME_NAME, selected = following && groupId == null) { change(actorUri = actorUri, followed = true, groupId = null) })
                 snapshot.groups.forEach { group ->
-                    add(item(text = group.name, checked = following && groupId == group.id) { change(actorUri = actorUri, followed = true, groupId = group.id) })
+                    add(destination(text = group.name, selected = following && groupId == group.id) { change(actorUri = actorUri, followed = true, groupId = group.id) })
                 }
-                add(item(text = "+ 追加", checked = false) { stateFlow.update { it.copy(addGroupTargetActorUri = actorUri) } })
+                add(FollowMenuUiState.Item.AddDestination(text = "購読先を追加", listener = itemListener { stateFlow.update { it.copy(addGroupTargetActorUri = actorUri) } }))
             },
         )
     }
@@ -84,16 +84,16 @@ internal class FollowMenuController(
         )
     }
 
-    private fun item(text: String, checked: Boolean, onClick: () -> Unit): FollowMenuUiState.Item {
-        return FollowMenuUiState.Item(
-            text = text,
-            checkMarkVisible = checked,
-            listener = object : FollowMenuUiState.ItemListener {
-                override fun onClick() {
-                    onClick()
-                }
-            },
-        )
+    private fun destination(text: String, selected: Boolean, onClick: () -> Unit): FollowMenuUiState.Item {
+        return FollowMenuUiState.Item.Destination(text = text, selected = selected, listener = itemListener(onClick))
+    }
+
+    private fun itemListener(onClick: () -> Unit): FollowMenuUiState.ItemListener {
+        return object : FollowMenuUiState.ItemListener {
+            override fun onClick() {
+                onClick()
+            }
+        }
     }
 
     private fun change(actorUri: String, followed: Boolean, groupId: String?) {

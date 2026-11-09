@@ -20,7 +20,7 @@ internal fun AddFollowingGroupDialog(uiState: AddFollowingGroupDialogUiState) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = uiState.listener::onDismiss,
-        title = { Text("仕分け先を追加") },
+        title = { Text("購読先を追加") },
         text = {
             SingleLineTextField(
                 value = name,

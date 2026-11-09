@@ -53,6 +53,20 @@ object AppIcons {
             ).build()
     }
 
+    val Check: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Check",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val Close: ImageVector by lazy {
         ImageVector
             .Builder(

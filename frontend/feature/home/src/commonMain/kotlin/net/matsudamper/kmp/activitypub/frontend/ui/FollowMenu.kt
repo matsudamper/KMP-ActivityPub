@@ -1,12 +1,19 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -14,59 +21,133 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
- * 一覧の行に置くときの幅
+ * 購読ボタン。押すと購読先を選ぶメニューを開く
  */
-internal val FollowMenuWidth = 200.dp
-
-/**
- * 購読先を選ぶプルダウン
- */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun FollowMenu(
     uiState: FollowMenuUiState,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it && uiState.enabled },
-        modifier = modifier,
-    ) {
-        OutlinedTextField(
-            value = uiState.selectedText,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            enabled = uiState.enabled,
-            label = { Text("購読先") },
-            trailingIcon = {
-                Icon(
-                    imageVector = AppIcons.ArrowDropDown,
-                    contentDescription = null,
-                    modifier = Modifier.rotate(if (expanded) 180f else 0f),
-                )
-            },
-            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = uiState.enabled),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            uiState.items.forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(item.text) },
-                    onClick = {
-                        expanded = false
-                        item.listener.onClick()
-                    },
-                    trailingIcon = {
-                        if (item.checkMarkVisible) Text("✓")
-                    },
-                )
+    Box(modifier = modifier) {
+        when (val button = uiState.button) {
+            is FollowMenuUiState.Button.Follow -> {
+                Button(
+                    onClick = { expanded = true },
+                    enabled = uiState.enabled,
+                    shape = CircleShape,
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                ) {
+                    FollowButtonContent(leadingIcon = AppIcons.Add, text = button.text)
+                }
             }
+
+            is FollowMenuUiState.Button.Following -> {
+                FilledTonalButton(
+                    onClick = { expanded = true },
+                    enabled = uiState.enabled,
+                    shape = CircleShape,
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                ) {
+                    FollowButtonContent(leadingIcon = AppIcons.Check, text = button.destinationName)
+                }
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = FollowMenuShape,
+        ) {
+            FollowMenuItems(items = uiState.items, onItemClicked = { expanded = false })
+        }
+    }
+}
+
+internal val FollowMenuShape = RoundedCornerShape(16.dp)
+
+/**
+ * @param onItemClicked 項目の listener を呼んだ後に呼ぶ
+ */
+@Composable
+internal fun FollowMenuItems(
+    items: List<FollowMenuUiState.Item>,
+    onItemClicked: () -> Unit,
+) {
+    items.forEach { item ->
+        if (item is FollowMenuUiState.Item.AddDestination) {
+            HorizontalDivider()
+        }
+        FollowMenuItem(
+            item = item,
+            onClick = {
+                item.listener.onClick()
+                onItemClicked()
+            },
+        )
+        if (item is FollowMenuUiState.Item.Unfollow) {
+            HorizontalDivider()
+        }
+    }
+}
+
+@Composable
+private fun FollowButtonContent(
+    leadingIcon: ImageVector,
+    text: String,
+) {
+    Icon(imageVector = leadingIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+    Spacer(modifier = Modifier.width(ButtonDefaults.IconSpacing))
+    Text(text = text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Icon(imageVector = AppIcons.ArrowDropDown, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+}
+
+@Composable
+private fun FollowMenuItem(
+    item: FollowMenuUiState.Item,
+    onClick: () -> Unit,
+) {
+    when (item) {
+        is FollowMenuUiState.Item.Destination -> {
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = item.text,
+                        fontWeight = if (item.selected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (item.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                },
+                onClick = onClick,
+                leadingIcon = {
+                    if (item.selected) {
+                        Icon(imageVector = AppIcons.Check, contentDescription = "選択中", tint = MaterialTheme.colorScheme.primary)
+                    } else {
+                        Spacer(modifier = Modifier.size(24.dp))
+                    }
+                },
+            )
+        }
+
+        is FollowMenuUiState.Item.Unfollow -> {
+            DropdownMenuItem(
+                text = { Text(text = item.text, color = MaterialTheme.colorScheme.error) },
+                onClick = onClick,
+                leadingIcon = { Icon(imageVector = AppIcons.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            )
+        }
+
+        is FollowMenuUiState.Item.AddDestination -> {
+            DropdownMenuItem(
+                text = { Text(text = item.text, color = MaterialTheme.colorScheme.primary) },
+                onClick = onClick,
+                leadingIcon = { Icon(imageVector = AppIcons.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            )
         }
     }
 }
