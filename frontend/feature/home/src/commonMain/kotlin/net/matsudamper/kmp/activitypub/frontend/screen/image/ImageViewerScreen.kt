@@ -40,6 +40,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlin.math.sign
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -118,6 +121,9 @@ internal fun DownloadConfirmDialog(
 
 private const val INERTIA_PROJECTION_SECONDS = 0.25f
 
+/** これ以上止まってから離した場合は、それまでの速度を慣性として使わない */
+private val StoppedBeforeReleaseDuration = 100.milliseconds
+
 /**
  * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる。
  * 左右のスワイプと矢印キーで画像を送り、拡大していないときの上下スワイプで閉じる
@@ -161,19 +167,23 @@ private fun OverlayImageViewerContent(
             .pointerInput(uiState, currentPageZoomed) {
                 if (currentPageZoomed) return@pointerInput
                 val velocityTracker = VelocityTracker()
+                var lastDragMark: TimeMark = TimeSource.Monotonic.markNow()
                 val offScreenOffset = size.height.toFloat()
                 detectVerticalDragGestures(
                     onDragStart = {
                         releaseAnimationJob?.cancel()
                         velocityTracker.resetTracking()
+                        lastDragMark = TimeSource.Monotonic.markNow()
                     },
                     onVerticalDrag = { change, dragAmount ->
                         change.consume()
                         dragOffsetY += dragAmount
                         velocityTracker.addPosition(change.uptimeMillis, Offset(0f, dragOffsetY))
+                        lastDragMark = TimeSource.Monotonic.markNow()
                     },
                     onDragEnd = {
-                        val velocity = velocityTracker.calculateVelocity().y
+                        val stoppedBeforeRelease = lastDragMark.elapsedNow() > StoppedBeforeReleaseDuration
+                        val velocity = if (stoppedBeforeRelease) 0f else velocityTracker.calculateVelocity().y
                         val projectedOffset = dragOffsetY + velocity * INERTIA_PROJECTION_SECONDS
                         if (abs(projectedOffset) > dismissThresholdPx) {
                             animateDragOffsetTo(offScreenOffset * sign(projectedOffset), velocity) {
