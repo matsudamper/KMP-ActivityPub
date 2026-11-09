@@ -32,7 +32,7 @@ internal class FollowMenuController(
         Snapshot(state = state, groups = groups)
     }
 
-    val initialSnapshot: Snapshot get() = Snapshot(state = stateFlow.value, groups = userApi.followingGroups.value)
+    val initialSnapshot: Snapshot get() = Snapshot(state = stateFlow.value, groups = userApi.currentFollowingGroups())
 
     private val addGroupDialogListener = object : AddFollowingGroupDialogUiState.Listener {
         override fun onClickAdd(name: String) {

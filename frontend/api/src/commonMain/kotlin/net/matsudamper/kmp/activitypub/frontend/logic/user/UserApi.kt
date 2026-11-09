@@ -9,9 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
@@ -67,12 +65,12 @@ class UserApi(
 ) {
     private val followingChangesFlow = MutableSharedFlow<FollowingChange>()
     val followingChanges = followingChangesFlow.asSharedFlow()
-    private val followingGroupsFlow = MutableStateFlow<List<UserFollowingGroup>>(listOf())
+    private val followingGroupsStateFlow = MutableStateFlow(FollowingGroupsState(groups = listOf(), version = 0))
 
     /**
      * 購読を仕分けるグループ。作った順。[loadFollowingGroups] で読み直す
      */
-    val followingGroups: StateFlow<List<UserFollowingGroup>> = followingGroupsFlow.asStateFlow()
+    val followingGroups: Flow<List<UserFollowingGroup>> = followingGroupsStateFlow.map { it.groups }.distinctUntilChanged()
     private val deletedNoteIdsFlow = MutableSharedFlow<String>()
 
     /**
@@ -190,13 +188,28 @@ class UserApi(
         return null
     }
 
+    fun currentFollowingGroups(): List<UserFollowingGroup> = followingGroupsStateFlow.value.groups
+
     /**
-     * 読めなかったときは空にする。パスキーでのログインなど、ここを通らずにアカウントが変わることがあり、前の内容が別のアカウントのものかもしれない
+     * 読めなかったときは空にする。ここを通らずにアカウントが変わることもあり、前の内容が別のアカウントのものかもしれない。
+     * 読んでいる間にアカウントが変わるか、グループを作ったら、読んだ内容は古いので捨てる
      */
     suspend fun loadFollowingGroups() {
+        val startedVersion = followingGroupsStateFlow.value.version
         val client = clients.awaitLoadedClient()
         val groups = client?.query(FollowingGroupsQuery())?.execute()?.data?.userInfo?.followingGroups
-        followingGroupsFlow.value = groups.orEmpty().map { UserFollowingGroup(id = it.id, name = it.name) }
+            .orEmpty()
+            .map { UserFollowingGroup(id = it.id, name = it.name) }
+        followingGroupsStateFlow.update { state ->
+            if (state.version == startedVersion) FollowingGroupsState(groups = groups, version = state.version + 1) else state
+        }
+    }
+
+    /**
+     * ログインしているアカウントが変わったときに、前のアカウントのグループを出さないよう呼ぶ
+     */
+    fun forgetFollowingGroups() {
+        followingGroupsStateFlow.update { FollowingGroupsState(groups = listOf(), version = it.version + 1) }
     }
 
     suspend fun createFollowingGroup(name: String): UserCreateFollowingGroupResult {
@@ -207,7 +220,10 @@ class UserApi(
         val group = result.group
         if (group != null) {
             val created = UserFollowingGroup(id = group.id, name = group.name)
-            followingGroupsFlow.update { groups -> if (groups.any { it.id == created.id }) groups else groups + created }
+            followingGroupsStateFlow.update { state ->
+                val groups = if (state.groups.any { it.id == created.id }) state.groups else state.groups + created
+                FollowingGroupsState(groups = groups, version = state.version + 1)
+            }
             return UserCreateFollowingGroupResult.Created(created)
         }
         return UserCreateFollowingGroupResult.Failure(
@@ -292,7 +308,7 @@ class UserApi(
                 // 別のアカウントで取得した内容を出さない
                 client.apolloStore.clearAll()
                 client.closeSubscriptionConnection()
-                followingGroupsFlow.value = listOf()
+                forgetFollowingGroups()
                 UserLoginResult.Success
             }
 
@@ -309,7 +325,7 @@ class UserApi(
         if (response.data?.user?.logout != true) return UserLogoutResult.Failure(response.failureMessage())
         client.apolloStore.clearAll()
         client.closeSubscriptionConnection()
-        followingGroupsFlow.value = listOf()
+        forgetFollowingGroups()
 
         return UserLogoutResult.Success
     }
@@ -571,6 +587,14 @@ class UserApi(
             UpdateProfileIconFailure.UNKNOWN__ -> UserUpdateProfileIconResult.Failure("Unknown")
         }
     }
+
+    /**
+     * @param version 読み込みを始めてから変わったかを見分けるため、書き換えるたびに増やす
+     */
+    private data class FollowingGroupsState(
+        val groups: List<UserFollowingGroup>,
+        val version: Long,
+    )
 
     /**
      * @param groupId 購読を入れたグループ。購読をやめたか、ホームに入れたなら null
