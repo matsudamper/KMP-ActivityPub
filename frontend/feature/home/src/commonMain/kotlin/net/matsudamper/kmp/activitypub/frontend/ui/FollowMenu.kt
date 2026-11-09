@@ -45,7 +45,6 @@ internal fun FollowMenu(
             is FollowMenuUiState.Button.Follow -> {
                 Button(
                     onClick = { expanded = true },
-                    enabled = uiState.enabled,
                     shape = CircleShape,
                     contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
@@ -56,7 +55,6 @@ internal fun FollowMenu(
             is FollowMenuUiState.Button.Following -> {
                 FilledTonalButton(
                     onClick = { expanded = true },
-                    enabled = uiState.enabled,
                     shape = CircleShape,
                     contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {

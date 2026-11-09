@@ -23,7 +23,9 @@ internal class FollowMenuController(
 ) {
     private val stateFlow = MutableStateFlow(
         State(
-            changeInProgress = false,
+            knownStates = mapOf(),
+            sendingActorUris = setOf(),
+            groupCreating = false,
             addGroupTargetActorUri = null,
         ),
     )
@@ -40,26 +42,37 @@ internal class FollowMenuController(
         }
 
         override fun onDismiss() {
-            if (stateFlow.value.changeInProgress) return
+            if (stateFlow.value.groupCreating) return
             stateFlow.update { it.copy(addGroupTargetActorUri = null) }
         }
     }
 
     init {
         scope.launch { userApi.loadFollowingGroups() }
+        scope.launch {
+            // 画面のデータは受け取ってから書き換わるまで間があるので、届いた変更をここでも覚えて先に出す
+            userApi.followingChanges.collect { change ->
+                rememberState(actorUri = change.actorUri, state = KnownState(following = change.following, groupId = change.groupId))
+            }
+        }
     }
 
     /**
-     * @param groupId 購読を入れているグループ。購読していないか、ホームなら null
+     * 送った変更は返事や画面のデータの書き換えを待たずに出す。待つ間にボタンが一度戻ったり押せなくなったりしてちらつかないようにする
+     *
+     * @param receivedFollowing 画面が受け取っている購読状態
+     * @param receivedGroupId 画面が受け取っている購読先のグループ。購読していないか、ホームなら null
      */
-    fun menu(snapshot: Snapshot, actorUri: String, following: Boolean, groupId: String?): FollowMenuUiState {
+    fun menu(snapshot: Snapshot, actorUri: String, receivedFollowing: Boolean, receivedGroupId: String?): FollowMenuUiState {
+        val known = snapshot.state.knownStates[actorUri]
+        val following = known?.following ?: receivedFollowing
+        val groupId = if (known == null) receivedGroupId else known.groupId
         return FollowMenuUiState(
             button = when {
                 !following -> FollowMenuUiState.Button.Follow(text = "購読")
                 groupId == null -> FollowMenuUiState.Button.Following(destinationName = HOME_NAME)
                 else -> FollowMenuUiState.Button.Following(destinationName = snapshot.groups.firstOrNull { it.id == groupId }?.name ?: "購読中")
             },
-            enabled = !snapshot.state.changeInProgress,
             items = buildList {
                 if (following) {
                     add(FollowMenuUiState.Item.Unfollow(text = "購読解除", listener = itemListener { change(actorUri = actorUri, followed = false, groupId = null) }))
@@ -79,7 +92,7 @@ internal class FollowMenuController(
     fun addGroupDialog(snapshot: Snapshot): AddFollowingGroupDialogUiState? {
         if (snapshot.state.addGroupTargetActorUri == null) return null
         return AddFollowingGroupDialogUiState(
-            inputEnabled = !snapshot.state.changeInProgress,
+            inputEnabled = !snapshot.state.groupCreating,
             listener = addGroupDialogListener,
         )
     }
@@ -97,36 +110,55 @@ internal class FollowMenuController(
     }
 
     private fun change(actorUri: String, followed: Boolean, groupId: String?) {
-        if (stateFlow.value.changeInProgress) return
-        stateFlow.update { it.copy(changeInProgress = true) }
-        scope.launch {
-            try {
-                val error = userApi.setFollowing(actorUri = actorUri, followed = followed, groupId = groupId)
-                if (error != null) showMessage(error)
-            } finally {
-                stateFlow.update { it.copy(changeInProgress = false) }
+        // 送っている途中に重ねて送ると、返事の順で状態が入れ替わることがあるので受け付けない
+        if (actorUri in stateFlow.value.sendingActorUris) return
+        scope.launch { send(actorUri = actorUri, followed = followed, groupId = groupId) }
+    }
+
+    /**
+     * 失敗したら、送る前に覚えていた状態に戻す
+     */
+    private suspend fun send(actorUri: String, followed: Boolean, groupId: String?) {
+        val before = stateFlow.value.knownStates[actorUri]
+        stateFlow.update { it.copy(sendingActorUris = it.sendingActorUris + actorUri) }
+        rememberState(actorUri = actorUri, state = KnownState(following = followed, groupId = groupId))
+        try {
+            val error = userApi.setFollowing(actorUri = actorUri, followed = followed, groupId = groupId)
+            if (error != null) {
+                stateFlow.update { state ->
+                    val knownStates = if (before == null) state.knownStates - actorUri else state.knownStates + (actorUri to before)
+                    state.copy(knownStates = knownStates)
+                }
+                showMessage(error)
             }
+        } finally {
+            stateFlow.update { it.copy(sendingActorUris = it.sendingActorUris - actorUri) }
         }
+    }
+
+    private fun rememberState(actorUri: String, state: KnownState) {
+        stateFlow.update { it.copy(knownStates = it.knownStates + (actorUri to state)) }
     }
 
     private fun createGroupAndFollow(name: String) {
         val state = stateFlow.value
         val actorUri = state.addGroupTargetActorUri ?: return
-        if (state.changeInProgress) return
-        stateFlow.update { it.copy(changeInProgress = true) }
+        if (state.groupCreating) return
+        stateFlow.update { it.copy(groupCreating = true) }
         scope.launch {
             try {
                 when (val result = userApi.createFollowingGroup(name)) {
                     is UserCreateFollowingGroupResult.Failure -> showMessage(result.message)
 
                     is UserCreateFollowingGroupResult.Created -> {
-                        stateFlow.update { it.copy(addGroupTargetActorUri = null) }
-                        val error = userApi.setFollowing(actorUri = actorUri, followed = true, groupId = result.group.id)
-                        if (error != null) showMessage(error)
+                        stateFlow.update { it.copy(addGroupTargetActorUri = null, groupCreating = false) }
+                        if (actorUri !in stateFlow.value.sendingActorUris) {
+                            send(actorUri = actorUri, followed = true, groupId = result.group.id)
+                        }
                     }
                 }
             } finally {
-                stateFlow.update { it.copy(changeInProgress = false) }
+                stateFlow.update { it.copy(groupCreating = false) }
             }
         }
     }
@@ -137,11 +169,23 @@ internal class FollowMenuController(
     )
 
     /**
-     * @param addGroupTargetActorUri 仕分け先の追加ダイアログを出している相手。出していなければ null
+     * @param knownStates この画面を開いてから送ったか届いた購読状態。相手の actor URI ごと。画面のデータより新しい
+     * @param sendingActorUris 変更を送っている途中の相手
+     * @param addGroupTargetActorUri 購読先の追加ダイアログを出している相手。出していなければ null
      */
     data class State(
-        val changeInProgress: Boolean,
+        val knownStates: Map<String, KnownState>,
+        val sendingActorUris: Set<String>,
+        val groupCreating: Boolean,
         val addGroupTargetActorUri: String?,
+    )
+
+    /**
+     * @param groupId 購読先のグループ。購読していないか、ホームなら null
+     */
+    data class KnownState(
+        val following: Boolean,
+        val groupId: String?,
     )
 
     private companion object {

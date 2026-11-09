@@ -205,8 +205,8 @@ internal class FollowListScreenViewModel(
             followMenu = followMenuController.menu(
                 snapshot = followMenu,
                 actorUri = user.actorUri,
-                following = user.following,
-                groupId = user.followingGroupId,
+                receivedFollowing = user.following,
+                receivedGroupId = user.followingGroupId,
             ),
             // プロフィールは acct で引くので、ユーザー名を受け取っていない相手は開けない
             clickable = username != null,

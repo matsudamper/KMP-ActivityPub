@@ -857,8 +857,8 @@ internal class HomeScreenViewModel(
                 followMenuController.menu(
                     snapshot = followMenu,
                     actorUri = actorUri,
-                    following = user.following,
-                    groupId = user.followingGroupId,
+                    receivedFollowing = user.following,
+                    receivedGroupId = user.followingGroupId,
                 )
             },
             iconUrl = user.iconUrl,

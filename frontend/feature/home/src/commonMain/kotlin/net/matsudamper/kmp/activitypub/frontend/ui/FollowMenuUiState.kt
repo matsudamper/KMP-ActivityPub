@@ -7,7 +7,6 @@ import androidx.compose.runtime.Immutable
  */
 data class FollowMenuUiState(
     val button: Button,
-    val enabled: Boolean,
     val items: List<Item>,
 ) {
     sealed interface Button {

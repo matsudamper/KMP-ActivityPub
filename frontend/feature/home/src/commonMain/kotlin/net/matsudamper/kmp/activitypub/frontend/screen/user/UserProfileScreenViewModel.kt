@@ -267,8 +267,8 @@ internal class UserProfileScreenViewModel(
                 followMenuController.menu(
                     snapshot = followMenu,
                     actorUri = actorUri,
-                    following = profile.following,
-                    groupId = profile.followingGroupId,
+                    receivedFollowing = profile.following,
+                    receivedGroupId = profile.followingGroupId,
                 )
             },
             selectedTab = viewModelState.selectedTab,

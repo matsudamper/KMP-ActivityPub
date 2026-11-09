@@ -17,7 +17,6 @@ internal fun previewFollowMenu(destinationName: String?): FollowMenuUiState {
         } else {
             FollowMenuUiState.Button.Following(destinationName = destinationName)
         },
-        enabled = true,
         items = listOf(
             FollowMenuUiState.Item.Unfollow(text = "購読解除", listener = AndroidPreviewFollowMenuItemListener),
             FollowMenuUiState.Item.Destination(text = "ホーム", selected = destinationName == "ホーム", listener = AndroidPreviewFollowMenuItemListener),
