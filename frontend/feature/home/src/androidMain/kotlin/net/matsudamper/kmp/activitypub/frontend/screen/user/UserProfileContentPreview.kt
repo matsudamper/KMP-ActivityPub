@@ -23,7 +23,7 @@ private fun UserProfileContentPreview() {
                     displayName = "Alice",
                     biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                     links = listOf(),
-                    followMenu = previewFollowMenu(buttonText = "購読 ▾"),
+                    followMenu = previewFollowMenu(selectedText = "未購読"),
                     selectedTab = ProfileContentTab.Posts,
                     posts = listOf(
                         PostItemUiState(
@@ -110,7 +110,7 @@ private fun UserProfileContentMediaPreview() {
                     displayName = "Alice",
                     biography = null,
                     links = listOf(),
-                    followMenu = previewFollowMenu(buttonText = "購読 ▾"),
+                    followMenu = previewFollowMenu(selectedText = "未購読"),
                     selectedTab = ProfileContentTab.Media,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",

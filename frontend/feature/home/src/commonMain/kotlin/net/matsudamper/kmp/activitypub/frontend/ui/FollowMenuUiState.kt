@@ -3,11 +3,13 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import androidx.compose.runtime.Immutable
 
 /**
- * 購読ボタンと、押すと開く仕分け先のメニュー
+ * 購読先を選ぶプルダウン
+ *
+ * @param selectedText 今の購読先。購読していなければ未購読と出す
  */
 data class FollowMenuUiState(
-    val buttonText: String,
-    val buttonEnabled: Boolean,
+    val selectedText: String,
+    val enabled: Boolean,
     val items: List<Item>,
 ) {
     data class Item(

@@ -4,10 +4,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
-internal fun previewFollowMenu(buttonText: String): FollowMenuUiState {
+internal fun previewFollowMenu(selectedText: String): FollowMenuUiState {
     return FollowMenuUiState(
-        buttonText = buttonText,
-        buttonEnabled = true,
+        selectedText = selectedText,
+        enabled = true,
         items = listOf("購読解除", "ホーム", "ニュース", "+ 追加").map { text ->
             FollowMenuUiState.Item(text = text, checkMarkVisible = text == "ホーム", listener = AndroidPreviewFollowMenuItemListener)
         },

@@ -19,7 +19,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -230,15 +229,7 @@ private fun ProfileHeader(
         }
         val followMenu = profile.followMenu
         if (followMenu != null) {
-            FollowMenu(uiState = followMenu, modifier = Modifier.fillMaxWidth()) { openMenu ->
-                OutlinedButton(
-                    onClick = openMenu,
-                    enabled = followMenu.buttonEnabled,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(followMenu.buttonText)
-                }
-            }
+            FollowMenu(uiState = followMenu, modifier = Modifier.fillMaxWidth())
         }
         if (profile.biography != null) {
             Text(text = profile.biography, style = MaterialTheme.typography.bodyMedium)

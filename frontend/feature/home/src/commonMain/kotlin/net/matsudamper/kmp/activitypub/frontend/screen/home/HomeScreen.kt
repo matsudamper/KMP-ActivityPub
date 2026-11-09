@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -81,6 +82,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuWidth
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
@@ -797,11 +799,7 @@ private fun SearchAccountItem(
             )
             val followMenu = account.followMenu
             if (followMenu != null) {
-                FollowMenu(uiState = followMenu) { openMenu ->
-                    Button(onClick = openMenu, enabled = followMenu.buttonEnabled) {
-                        Text(followMenu.buttonText)
-                    }
-                }
+                FollowMenu(uiState = followMenu, modifier = Modifier.width(FollowMenuWidth))
             }
         }
     }

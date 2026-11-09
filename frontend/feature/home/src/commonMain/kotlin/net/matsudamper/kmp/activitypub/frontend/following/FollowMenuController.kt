@@ -54,12 +54,12 @@ internal class FollowMenuController(
      */
     fun menu(snapshot: Snapshot, actorUri: String, following: Boolean, groupId: String?): FollowMenuUiState {
         return FollowMenuUiState(
-            buttonText = when {
-                !following -> "購読"
+            selectedText = when {
+                !following -> "未購読"
                 groupId == null -> HOME_NAME
                 else -> snapshot.groups.firstOrNull { it.id == groupId }?.name ?: "購読中"
-            } + " ▾",
-            buttonEnabled = !snapshot.state.changeInProgress,
+            },
+            enabled = !snapshot.state.changeInProgress,
             items = buildList {
                 if (following) {
                     add(item(text = "購読解除", checked = false) { change(actorUri = actorUri, followed = false, groupId = null) })

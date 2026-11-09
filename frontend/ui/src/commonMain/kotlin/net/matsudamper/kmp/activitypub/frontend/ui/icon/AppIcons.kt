@@ -24,6 +24,20 @@ object AppIcons {
             ).build()
     }
 
+    val ArrowDropDown: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "ArrowDropDown",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M7,10l5,5 5,-5z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val ArrowBack: ImageVector by lazy {
         ImageVector
             .Builder(

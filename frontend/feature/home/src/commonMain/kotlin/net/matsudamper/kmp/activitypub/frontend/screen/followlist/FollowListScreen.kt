@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuWidth
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
@@ -237,11 +239,7 @@ private fun AccountItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
-            FollowMenu(uiState = account.followMenu) { openMenu ->
-                Button(onClick = openMenu, enabled = account.followMenu.buttonEnabled) {
-                    Text(account.followMenu.buttonText)
-                }
-            }
+            FollowMenu(uiState = account.followMenu, modifier = Modifier.width(FollowMenuWidth))
         }
     }
 }
