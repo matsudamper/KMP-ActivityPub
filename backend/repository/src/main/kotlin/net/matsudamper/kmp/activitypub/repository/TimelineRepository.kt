@@ -26,7 +26,7 @@ interface TimelineRepository {
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
 
     /**
-     * [accountId] が読める、[actorUri] の保存済みの投稿を新しい順に返す
+     * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す
      */
     fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?

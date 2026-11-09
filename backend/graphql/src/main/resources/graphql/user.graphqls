@@ -44,6 +44,16 @@ type ProfilePost {
     boostCount: Int
     "ログインしていないか、いいねできない投稿は null"
     like: ProfilePostLike
+    "プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null"
+    boostedNoteAuthor: PostAuthor
+}
+
+type PostAuthor {
+    username: String!
+    host: String!
+    displayName: String!
+    "プロフィール画像の URL。無ければ null"
+    iconUrl: String
 }
 
 type ProfilePostLike {

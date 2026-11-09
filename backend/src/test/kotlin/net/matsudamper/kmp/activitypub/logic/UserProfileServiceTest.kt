@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
+import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
@@ -45,6 +46,7 @@ class UserProfileServiceTest {
                     like = null,
                     noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
                     boostCount = null,
+                    boostedNoteAuthor = null,
                 ),
             )
         }
@@ -103,6 +105,33 @@ class UserProfileServiceTest {
         assertEquals(listOf("r1", "r1"), profile.posts.map { it.linkPreviewId })
         assertEquals(listOf("r1", "r1"), profile.posts.map { it.postId })
         assertEquals(listOf(listOf(image), listOf(image)), profile.posts.map { it.images })
+    }
+
+    @Test
+    fun followedUserBoostsHaveBoostedNoteAuthor() = runBlocking {
+        val authorUri = "https://other.example/users/carol"
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>ブーストされた投稿</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(2, "b1"),
+                actorUri = authorUri,
+                username = "carol",
+                displayName = "Carol",
+                actorIconUrl = "https://other.example/carol.png",
+                boostedBy = TimelineBooster(actorUri = actorUri, username = "bob", displayName = "Bob", iconUrl = null, updatedAt = Instant.EPOCH),
+            ),
+        )
+        repositories.timelineRepository.actorPosts.add(storedPost("<p>本人の投稿</p>", summary = null, sensitive = false))
+        following.setFollowing(viewer, actorUri, true)
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, Instant.EPOCH))
+
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+        assertEquals(listOf("b1", "r1"), posts.map { it.postId })
+        val author = assertNotNull(posts.first().boostedNoteAuthor)
+        assertEquals(authorUri, author.actorUri)
+        assertEquals("carol", author.username)
+        assertEquals("Carol", author.displayName)
+        assertEquals("https://other.example/carol.png", author.iconUrl)
+        assertNull(posts.last().boostedNoteAuthor)
     }
 
     @Test

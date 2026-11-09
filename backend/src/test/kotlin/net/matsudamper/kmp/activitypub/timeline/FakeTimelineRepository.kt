@@ -51,7 +51,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
 
     override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> =
-        actorPosts.filter { it.actorUri == actorUri }.take(limit)
+        actorPosts.filter { (it.boostedBy?.actorUri ?: it.actorUri) == actorUri }.take(limit)
 
     override fun localPosition(publicId: String): TimelinePosition? = null
 

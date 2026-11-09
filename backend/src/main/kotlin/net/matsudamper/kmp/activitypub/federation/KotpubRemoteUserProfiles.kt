@@ -43,6 +43,7 @@ internal class KotpubRemoteUserProfiles(
                 like = null,
                 noteRef = TimelineNoteRef.Remote(it.id),
                 boostCount = null,
+                boostedNoteAuthor = null,
             )
         }
 

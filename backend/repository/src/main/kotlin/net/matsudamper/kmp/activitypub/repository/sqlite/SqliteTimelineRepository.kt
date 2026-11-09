@@ -219,11 +219,18 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> {
         val members = jooq.withConnection { dsl ->
-            dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
+            val notes = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(dsl.remoteNoteReadableBy(accountId))
                 .orderBy(REMOTE_NOTES.SCORE_MS.desc(), REMOTE_NOTES.ID.desc()).limit(limit)
-                .fetch { it.toRemotePosition().member }
+                .fetch { it.toRemotePosition() }
+            val boosts = dsl.select(REMOTE_BOOSTS.ID, REMOTE_BOOSTS.SCORE_MS).from(REMOTE_BOOSTS)
+                .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
+                .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
+                .orderBy(REMOTE_BOOSTS.SCORE_MS.desc(), boostMember.desc()).limit(limit)
+                .fetch { TimelinePosition(checkNotNull(it.value2()), "b${it.value1()}") }
+            (notes + boosts).sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })
+                .take(limit).map { it.member }
         }
         val hydrated = hydrate(accountId, members).associateBy { it.position.member }
         return members.mapNotNull { hydrated[it] }
