@@ -1,6 +1,10 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.image
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,8 +31,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.abs
+import kotlin.math.sign
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.ComposeCanDrawOverZoomableImage
@@ -103,9 +120,16 @@ internal fun DownloadConfirmDialog(
     )
 }
 
+private const val INERTIA_PROJECTION_SECONDS = 0.25f
+
+private class AnimationStopRequested : CancellationException("目標より手前で止める")
+
+/** これ以上止まってから離した場合は、それまでの速度を慣性として使わない */
+private val StoppedBeforeReleaseDuration = 100.milliseconds
+
 /**
  * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる。
- * 左右のスワイプと矢印キーで画像を送る
+ * 左右のスワイプと矢印キーで画像を送り、拡大していないときの上下スワイプで閉じる
  */
 @Composable
 private fun OverlayImageViewerContent(
@@ -119,6 +143,29 @@ private fun OverlayImageViewerContent(
         closeButtonVisible = pagerState.currentPage !in zoomedPages
     }
     var downloadDialogImage by remember { mutableStateOf<ImageViewerScreenUiState.Image?>(null) }
+    val dismissThresholdPx = with(LocalDensity.current) { 120.dp.toPx() }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val backgroundAlpha = 0.9f * (1f - (abs(dragOffsetY) / (dismissThresholdPx * 3)).coerceIn(0f, 1f))
+    val currentPageZoomed = pagerState.currentPage in zoomedPages
+    var releaseAnimationJob by remember { mutableStateOf<Job?>(null) }
+    val animateDragOffsetTo = { targetValue: Float, velocity: Float, stopWhen: (Float) -> Boolean, onFinished: () -> Unit ->
+        releaseAnimationJob = coroutineScope.launch {
+            try {
+                animate(
+                    initialValue = dragOffsetY,
+                    targetValue = targetValue,
+                    initialVelocity = velocity,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+                ) { value, _ ->
+                    dragOffsetY = value
+                    if (stopWhen(value)) throw AnimationStopRequested()
+                }
+            } catch (stopRequested: AnimationStopRequested) {
+                // 目標より手前で止めるための例外なので、そのまま終了処理へ進む
+            }
+            onFinished()
+        }
+    }
     HorizontalArrowKeyHandler(
         onPressLeft = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
         onPressRight = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
@@ -126,12 +173,51 @@ private fun OverlayImageViewerContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.9f)),
+            .background(Color.Black.copy(alpha = backgroundAlpha))
+            .pointerInput(uiState, currentPageZoomed) {
+                if (currentPageZoomed) return@pointerInput
+                val velocityTracker = VelocityTracker()
+                var lastDragMark: TimeMark = TimeSource.Monotonic.markNow()
+                val offScreenOffset = size.height.toFloat()
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        releaseAnimationJob?.cancel()
+                        velocityTracker.resetTracking()
+                        lastDragMark = TimeSource.Monotonic.markNow()
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        dragOffsetY += dragAmount
+                        velocityTracker.addPosition(change.uptimeMillis, Offset(0f, dragOffsetY))
+                        lastDragMark = TimeSource.Monotonic.markNow()
+                    },
+                    onDragEnd = {
+                        val stoppedBeforeRelease = lastDragMark.elapsedNow() > StoppedBeforeReleaseDuration
+                        val velocity = if (stoppedBeforeRelease) 0f else velocityTracker.calculateVelocity().y
+                        val projectedOffset = dragOffsetY + velocity * INERTIA_PROJECTION_SECONDS
+                        if (abs(projectedOffset) > dismissThresholdPx) {
+                            // ばねの収束を待つと画面外に出たあとも閉じるのが遅れるので、画面外に出た時点で閉じる
+                            animateDragOffsetTo(
+                                offScreenOffset * 2 * sign(projectedOffset),
+                                velocity,
+                                { value -> abs(value) >= offScreenOffset },
+                            ) {
+                                uiState.listener.onClickClose()
+                            }
+                        } else {
+                            animateDragOffsetTo(0f, velocity, { false }) {}
+                        }
+                    },
+                    onDragCancel = { animateDragOffsetTo(0f, 0f, { false }) {} },
+                )
+            },
     ) {
         HorizontalPager(
             state = pagerState,
             key = { page -> page },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { translationY = dragOffsetY },
         ) { page ->
             val image = uiState.images[page]
             DisposableEffect(page) {
