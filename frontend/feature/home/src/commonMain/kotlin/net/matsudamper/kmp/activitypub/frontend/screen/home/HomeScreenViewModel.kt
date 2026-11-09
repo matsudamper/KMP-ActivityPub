@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
@@ -80,7 +81,6 @@ internal class HomeScreenViewModel(
                 search = SearchState(
                     query = "",
                     result = SearchResultState.NotSearched,
-                    followingChangeInProgress = false,
                 ),
                 profile = ProfileState.Loading,
                 myPosts = MyPostsState.Loading,
@@ -96,6 +96,11 @@ internal class HomeScreenViewModel(
     private var myPostsRetryJob: Job? = null
     private var timelineJob: Job? = null
     private var timelineArrivalsJob: Job? = null
+    private val followMenuController = FollowMenuController(
+        scope = viewModelScope,
+        userApi = userApi,
+        showMessage = { message -> events.send { it.showMessage(message) } },
+    )
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -258,13 +263,14 @@ internal class HomeScreenViewModel(
     }
 
     val uiStateFlow: StateFlow<HomeScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
+        MutableStateFlow(createUiState(viewModelStateFlow.value, followMenuController.initialSnapshot)).also { uiStateFlow ->
             viewModelScope.launch {
                 combine(
                     viewModelStateFlow,
+                    followMenuController.snapshots,
                     postedAtRefreshTicker.ticks.onStart { emit(Unit) },
-                ) { viewModelState, _ ->
-                    createUiState(viewModelState)
+                ) { viewModelState, followMenu, _ ->
+                    createUiState(viewModelState, followMenu)
                 }.collect { uiState ->
                     uiStateFlow.value = uiState
                 }
@@ -277,12 +283,14 @@ internal class HomeScreenViewModel(
         }
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
+                // 購読の数が変わる
+                loadProfile()
                 searchPaging?.updateCache { it.withFollowing(change) }
                 updateSearchResult { result ->
                     if (result is SearchResultState.Loaded) {
                         result.copy(
                             users = result.users.map { user ->
-                                if (user.actorUri == change.actorUri) user.copy(following = change.following) else user
+                                if (user.actorUri == change.actorUri) user.copy(following = change.following, followingGroupId = change.groupId) else user
                             },
                         )
                     } else {
@@ -662,25 +670,7 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun changeFollowing(user: UserSearchResult.User) {
-        val actorUri = user.actorUri ?: return
-        if (viewModelStateFlow.value.search.followingChangeInProgress) return
-        updateSearch { it.copy(followingChangeInProgress = true) }
-        viewModelScope.launch {
-            try {
-                val error = userApi.setFollowing(actorUri, followed = !user.following)
-                if (error == null) {
-                    loadProfile()
-                } else {
-                    events.send { it.showMessage(error) }
-                }
-            } finally {
-                updateSearch { it.copy(followingChangeInProgress = false) }
-            }
-        }
-    }
-
-    private fun createUiState(viewModelState: ViewModelState): HomeScreenUiState {
+    private fun createUiState(viewModelState: ViewModelState, followMenu: FollowMenuController.Snapshot): HomeScreenUiState {
         val profile = viewModelState.profile
         return HomeScreenUiState(
             selectedTab = viewModelState.selectedTab,
@@ -691,7 +681,7 @@ internal class HomeScreenViewModel(
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
             search = HomeScreenUiState.Search(
                 query = viewModelState.search.query,
-                result = createSearchResult(viewModelState.search),
+                result = createSearchResult(viewModelState.search, followMenu),
             ),
             profile = createProfile(profile),
             userContentTab = viewModelState.userContentTab,
@@ -702,6 +692,7 @@ internal class HomeScreenViewModel(
                 HomeScreenUiState.RailItem(column = column, selected = column == viewModelState.openedColumn)
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
+            addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
             listener = listener,
         )
     }
@@ -842,7 +833,7 @@ internal class HomeScreenViewModel(
         viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
 
-    private fun createSearchResult(search: SearchState): HomeScreenUiState.SearchResult {
+    private fun createSearchResult(search: SearchState, followMenu: FollowMenuController.Snapshot): HomeScreenUiState.SearchResult {
         return when (val result = search.result) {
             SearchResultState.NotSearched -> HomeScreenUiState.SearchResult.NotSearched
 
@@ -850,7 +841,7 @@ internal class HomeScreenViewModel(
 
             is SearchResultState.Loaded -> HomeScreenUiState.SearchResult.Loaded(
                 accounts = result.users.map { user ->
-                    createSearchAccount(user, followButtonEnabled = !search.followingChangeInProgress)
+                    createSearchAccount(user, followMenu)
                 },
                 loadMoreButtonVisible = result.nextCursor != null,
             )
@@ -859,18 +850,17 @@ internal class HomeScreenViewModel(
 
     private fun createSearchAccount(
         user: UserSearchResult.User,
-        followButtonEnabled: Boolean,
+        followMenu: FollowMenuController.Snapshot,
     ): HomeScreenUiState.SearchAccount {
         return HomeScreenUiState.SearchAccount(
-            followButtonText = if (user.actorUri == null) {
-                null
-            } else if (user.following) {
-                "フォロー中・解除"
-            } else {
-                "フォロー"
+            followMenu = user.actorUri?.let { actorUri ->
+                followMenuController.menu(
+                    snapshot = followMenu,
+                    actorUri = actorUri,
+                    receivedFollowing = user.following,
+                    receivedGroupId = user.followingGroupId,
+                )
             },
-            followButtonEnabled = followButtonEnabled,
-            onClickFollow = { changeFollowing(user) },
             iconUrl = user.iconUrl,
             displayName = user.displayName,
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
@@ -1018,7 +1008,6 @@ internal class HomeScreenViewModel(
     private data class SearchState(
         val query: String,
         val result: SearchResultState,
-        val followingChangeInProgress: Boolean,
     )
 
     private sealed interface SearchResultState {

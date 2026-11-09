@@ -24,6 +24,20 @@ object AppIcons {
             ).build()
     }
 
+    val ArrowDropDown: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "ArrowDropDown",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M7,10l5,5 5,-5z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val ArrowBack: ImageVector by lazy {
         ImageVector
             .Builder(
@@ -35,6 +49,20 @@ object AppIcons {
                 autoMirror = true,
             ).addPath(
                 pathData = addPathNodes("M20,11H7.83l5.59,-5.59L12,4l-8,8 8,8 1.41,-1.41L7.83,13H20v-2z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
+    val Check: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Check",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z"),
                 fill = SolidColor(Color.Black),
             ).build()
     }

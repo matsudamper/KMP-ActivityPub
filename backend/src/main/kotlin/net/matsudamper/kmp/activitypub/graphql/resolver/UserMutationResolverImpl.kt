@@ -9,6 +9,8 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.GraphQlUpload
+import net.matsudamper.kmp.activitypub.graphql.model.QlCreateFollowingGroupFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlCreateFollowingGroupResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
@@ -38,6 +40,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.CreateFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.DeleteNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
@@ -48,6 +51,7 @@ import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -58,16 +62,35 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         actorUri: String,
         followed: Boolean,
+        groupId: FollowingGroupId?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<Boolean>> {
         return otelFuture {
-            val result = GraphQlEngine.diContainer(env).followingService.setFollowing(
+            val result = GraphQlEngine.diContainer(env).followingGroupService.setFollowing(
                 accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
                 actorUri = actorUri,
                 followed = followed,
+                groupId = groupId,
             )
             DataFetcherResult.Builder(result).build()
         }
+    }
+
+    override fun createFollowingGroup(
+        userMutation: QlUserMutation,
+        name: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlCreateFollowingGroupResult>> {
+        val result = GraphQlEngine.diContainer(env).followingGroupService.createGroup(
+            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
+            name = name,
+        )
+        val qlResult = when (result) {
+            is CreateFollowingGroupResult.Created -> QlCreateFollowingGroupResult(group = result.group.toQlFollowingGroup(), failure = null)
+            CreateFollowingGroupResult.NotLoggedIn -> QlCreateFollowingGroupResult(group = null, failure = QlCreateFollowingGroupFailure.NOT_LOGGED_IN)
+            CreateFollowingGroupResult.InvalidName -> QlCreateFollowingGroupResult(group = null, failure = QlCreateFollowingGroupFailure.INVALID_NAME)
+        }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(qlResult).build())
     }
 
     /**

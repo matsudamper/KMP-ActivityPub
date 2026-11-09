@@ -11,6 +11,7 @@ import graphql.schema.CoercingParseValueException
 import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 
@@ -37,6 +38,16 @@ object GraphQlScalars {
             .newScalar()
             .name("NoteImageId")
             .coercing(StringIdCoercing(name = "NoteImageId", type = NoteImagePublicId::class.java, wrap = ::NoteImagePublicId, unwrap = NoteImagePublicId::value))
+            .build()
+
+    /**
+     * JavaScript の数値に収まらない桁でも崩れないよう、文字列でやり取りする
+     */
+    val followingGroupId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("FollowingGroupId")
+            .coercing(LongIdCoercing(name = "FollowingGroupId", type = FollowingGroupId::class.java, wrap = ::FollowingGroupId, unwrap = FollowingGroupId::value))
             .build()
 
     /**
@@ -97,6 +108,41 @@ object GraphQlScalars {
         ): AccountId {
             val value = (input as? StringValue)?.value?.toLongOrNull() ?: throw CoercingParseLiteralException("UserId ではない: $input")
             return AccountId(value)
+        }
+    }
+
+    private class LongIdCoercing<T : Any>(
+        private val name: String,
+        private val type: Class<T>,
+        private val wrap: (Long) -> T,
+        private val unwrap: (T) -> Long,
+    ) : Coercing<T, String> {
+        override fun serialize(
+            dataFetcherResult: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): String {
+            if (!type.isInstance(dataFetcherResult)) throw CoercingSerializeException("$name ではない: $dataFetcherResult")
+            return unwrap(type.cast(dataFetcherResult)).toString()
+        }
+
+        override fun parseValue(
+            input: Any,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): T {
+            val value = (input as? String)?.toLongOrNull() ?: throw CoercingParseValueException("$name ではない: $input")
+            return wrap(value)
+        }
+
+        override fun parseLiteral(
+            input: Value<*>,
+            variables: CoercedVariables,
+            graphQLContext: GraphQLContext,
+            locale: Locale,
+        ): T {
+            val value = (input as? StringValue)?.value?.toLongOrNull() ?: throw CoercingParseLiteralException("$name ではない: $input")
+            return wrap(value)
         }
     }
 

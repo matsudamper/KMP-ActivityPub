@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
@@ -28,6 +30,10 @@ data class HomeScreenUiState(
      * 出していなければ null
      */
     val deleteNoteDialog: DeleteNoteDialogUiState?,
+    /**
+     * 出していなければ null
+     */
+    val addFollowingGroupDialog: AddFollowingGroupDialogUiState?,
     val listener: Listener,
 ) {
     enum class Column {
@@ -75,10 +81,11 @@ data class HomeScreenUiState(
         ) : SearchResult
     }
 
+    /**
+     * @param followMenu 購読できない相手（このサーバーのユーザー）には出さないので null
+     */
     data class SearchAccount(
-        val followButtonText: String?,
-        val followButtonEnabled: Boolean,
-        val onClickFollow: () -> Unit,
+        val followMenu: FollowMenuUiState?,
         val iconUrl: String?,
         val displayName: String,
         val acct: String,

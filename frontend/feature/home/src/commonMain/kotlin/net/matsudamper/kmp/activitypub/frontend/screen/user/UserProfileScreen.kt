@@ -19,7 +19,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -40,7 +39,9 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
@@ -130,10 +131,7 @@ internal fun UserProfileContent(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         fullLineItem {
-                            ProfileHeader(
-                                profile = content,
-                                onClickFollow = uiState.listener::onClickFollow,
-                            )
+                            ProfileHeader(profile = content)
                         }
                         fullLineItem {
                             ProfileContentTabRow(
@@ -192,6 +190,10 @@ internal fun UserProfileContent(
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
     }
+    val addFollowingGroupDialog = uiState.addFollowingGroupDialog
+    if (addFollowingGroupDialog != null) {
+        AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
+    }
 }
 
 private fun LazyGridScope.fullLineItem(content: @Composable () -> Unit) {
@@ -212,7 +214,6 @@ private fun EmptyMessage(text: String) {
 @Composable
 private fun ProfileHeader(
     profile: UserProfileScreenUiState.Content.Loaded,
-    onClickFollow: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -226,15 +227,9 @@ private fun ProfileHeader(
                 )
             }
         }
-        val followButton = profile.followButton
-        if (followButton != null) {
-            OutlinedButton(
-                onClick = onClickFollow,
-                enabled = followButton.enabled,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(followButton.text)
-            }
+        val followMenu = profile.followMenu
+        if (followMenu != null) {
+            FollowMenu(uiState = followMenu)
         }
         if (profile.biography != null) {
             Text(text = profile.biography, style = MaterialTheme.typography.bodyMedium)

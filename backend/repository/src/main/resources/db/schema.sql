@@ -164,12 +164,22 @@ CREATE TABLE health_check (
     checked_at TEXT NOT NULL
 );
 
+CREATE TABLE following_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX following_groups_account_id_name ON following_groups (account_id, name);
+
 CREATE TABLE account_following (
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     actor_uri TEXT NOT NULL,
     created_at TEXT NOT NULL,
     follow_activity_uri TEXT,
     accepted_at TEXT,
+    group_id INTEGER REFERENCES following_groups (id) ON DELETE SET NULL,
     PRIMARY KEY (account_id, actor_uri)
 );
 
