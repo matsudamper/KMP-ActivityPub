@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.image
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -29,12 +31,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
+import kotlin.math.sign
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -111,6 +116,8 @@ internal fun DownloadConfirmDialog(
     )
 }
 
+private const val INERTIA_PROJECTION_SECONDS = 0.25f
+
 /**
  * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる。
  * 左右のスワイプと矢印キーで画像を送り、拡大していないときの上下スワイプで閉じる
@@ -131,10 +138,16 @@ private fun OverlayImageViewerContent(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val backgroundAlpha = 0.9f * (1f - (abs(dragOffsetY) / (dismissThresholdPx * 3)).coerceIn(0f, 1f))
     val currentPageZoomed = pagerState.currentPage in zoomedPages
-    var returnAnimationJob by remember { mutableStateOf<Job?>(null) }
-    val animateDragOffsetToZero = {
-        returnAnimationJob = coroutineScope.launch {
-            animate(initialValue = dragOffsetY, targetValue = 0f) { value, _ -> dragOffsetY = value }
+    var releaseAnimationJob by remember { mutableStateOf<Job?>(null) }
+    val animateDragOffsetTo = { targetValue: Float, velocity: Float, onFinished: () -> Unit ->
+        releaseAnimationJob = coroutineScope.launch {
+            animate(
+                initialValue = dragOffsetY,
+                targetValue = targetValue,
+                initialVelocity = velocity,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+            ) { value, _ -> dragOffsetY = value }
+            onFinished()
         }
     }
     HorizontalArrowKeyHandler(
@@ -147,20 +160,30 @@ private fun OverlayImageViewerContent(
             .background(Color.Black.copy(alpha = backgroundAlpha))
             .pointerInput(uiState, currentPageZoomed) {
                 if (currentPageZoomed) return@pointerInput
+                val velocityTracker = VelocityTracker()
+                val offScreenOffset = size.height.toFloat()
                 detectVerticalDragGestures(
-                    onDragStart = { returnAnimationJob?.cancel() },
+                    onDragStart = {
+                        releaseAnimationJob?.cancel()
+                        velocityTracker.resetTracking()
+                    },
                     onVerticalDrag = { change, dragAmount ->
                         change.consume()
                         dragOffsetY += dragAmount
+                        velocityTracker.addPosition(change.uptimeMillis, Offset(0f, dragOffsetY))
                     },
                     onDragEnd = {
-                        if (abs(dragOffsetY) > dismissThresholdPx) {
-                            uiState.listener.onClickClose()
+                        val velocity = velocityTracker.calculateVelocity().y
+                        val projectedOffset = dragOffsetY + velocity * INERTIA_PROJECTION_SECONDS
+                        if (abs(projectedOffset) > dismissThresholdPx) {
+                            animateDragOffsetTo(offScreenOffset * sign(projectedOffset), velocity) {
+                                uiState.listener.onClickClose()
+                            }
                         } else {
-                            animateDragOffsetToZero()
+                            animateDragOffsetTo(0f, velocity) {}
                         }
                     },
-                    onDragCancel = { animateDragOffsetToZero() },
+                    onDragCancel = { animateDragOffsetTo(0f, 0f) {} },
                 )
             },
     ) {
