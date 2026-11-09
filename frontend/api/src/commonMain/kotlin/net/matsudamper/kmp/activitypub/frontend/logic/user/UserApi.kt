@@ -316,6 +316,9 @@ class UserApi(
                         shareUrl = it.url,
                         likedByMe = it.like?.likedByMe,
                     ),
+                    boostedNoteAuthor = it.boostedNoteAuthor?.let { author ->
+                        UserProfileResult.Author(username = author.username, host = author.host, displayName = author.displayName, iconUrl = author.iconUrl)
+                    },
                 )
             },
         )

@@ -54,11 +54,12 @@ data class PostItemUiState(
 ) {
     /**
      * @param iconUrl ブーストした相手のプロフィール画像が無ければ null
+     * @param listener ブーストした相手のプロフィールを見ているときは押せないので null
      */
     data class BoostedBy(
         val text: String,
         val iconUrl: String?,
-        val listener: BoostedByListener,
+        val listener: BoostedByListener?,
     )
 
     data class MenuItem(

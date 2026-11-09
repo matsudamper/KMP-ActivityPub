@@ -24,6 +24,7 @@ sealed interface UserProfileResult {
      * @param postId [UserApi.postDetail] で個別投稿画面を開くときの id。開けない投稿は null
      * @param deletableNoteId ログイン中のアカウントの投稿なら [UserApi.deleteNote] に渡す id。消せない投稿は null
      * @param likePostId [UserApi.setLiked] に渡す id。いいねできない投稿は null
+     * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
      */
     data class Post(
         val linkPreviewId: String?,
@@ -31,6 +32,17 @@ sealed interface UserProfileResult {
         val deletableNoteId: String?,
         val likePostId: String?,
         val body: UserPostBody,
+        val boostedNoteAuthor: Author?,
+    )
+
+    /**
+     * @param iconUrl プロフィール画像が無ければ null
+     */
+    data class Author(
+        val username: String,
+        val host: String,
+        val displayName: String,
+        val iconUrl: String?,
     )
 
     data class Failure(
