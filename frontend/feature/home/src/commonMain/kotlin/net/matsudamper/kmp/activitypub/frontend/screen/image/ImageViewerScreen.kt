@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.image
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -27,7 +29,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.ui.ComposeCanDrawOverZoomableImage
@@ -105,7 +111,7 @@ internal fun DownloadConfirmDialog(
 
 /**
  * 拡大したら閉じるボタンを隠し、画像のタップで出し入れする。画像の長押しで保存するか尋ねる。
- * 左右のスワイプと矢印キーで画像を送る
+ * 左右のスワイプと矢印キーで画像を送り、拡大していないときの上下スワイプで閉じる
  */
 @Composable
 private fun OverlayImageViewerContent(
@@ -119,6 +125,9 @@ private fun OverlayImageViewerContent(
         closeButtonVisible = pagerState.currentPage !in zoomedPages
     }
     var downloadDialogImage by remember { mutableStateOf<ImageViewerScreenUiState.Image?>(null) }
+    val dismissThresholdPx = with(LocalDensity.current) { 120.dp.toPx() }
+    val dragOffsetY = remember { Animatable(0f) }
+    val backgroundAlpha = 0.9f * (1f - (abs(dragOffsetY.value) / (dismissThresholdPx * 3)).coerceIn(0f, 1f))
     HorizontalArrowKeyHandler(
         onPressLeft = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
         onPressRight = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
@@ -126,12 +135,33 @@ private fun OverlayImageViewerContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.9f)),
+            .background(Color.Black.copy(alpha = backgroundAlpha))
+            .pointerInput(uiState) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        if (pagerState.currentPage in zoomedPages) return@detectVerticalDragGestures
+                        change.consume()
+                        coroutineScope.launch { dragOffsetY.snapTo(dragOffsetY.value + dragAmount) }
+                    },
+                    onDragEnd = {
+                        if (abs(dragOffsetY.value) > dismissThresholdPx) {
+                            uiState.listener.onClickClose()
+                        } else {
+                            coroutineScope.launch { dragOffsetY.animateTo(0f) }
+                        }
+                    },
+                    onDragCancel = {
+                        coroutineScope.launch { dragOffsetY.animateTo(0f) }
+                    },
+                )
+            },
     ) {
         HorizontalPager(
             state = pagerState,
             key = { page -> page },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { translationY = dragOffsetY.value },
         ) { page ->
             val image = uiState.images[page]
             DisposableEffect(page) {
