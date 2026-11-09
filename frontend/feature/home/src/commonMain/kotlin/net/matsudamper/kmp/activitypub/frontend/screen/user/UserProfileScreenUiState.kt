@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
@@ -13,6 +15,10 @@ data class UserProfileScreenUiState(
      * 出していなければ null
      */
     val deleteNoteDialog: DeleteNoteDialogUiState?,
+    /**
+     * 出していなければ null
+     */
+    val addFollowingGroupDialog: AddFollowingGroupDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -20,7 +26,7 @@ data class UserProfileScreenUiState(
 
         /**
          * @param iconUrl プロフィール画像が無ければ null
-         * @param followButton フォローできない相手には出さないので null
+         * @param followMenu 購読できない相手には出さないので null
          */
         data class Loaded(
             val acct: String,
@@ -28,7 +34,7 @@ data class UserProfileScreenUiState(
             val displayName: String,
             val biography: String?,
             val links: List<ProfileLinkUiState>,
-            val followButton: FollowButton?,
+            val followMenu: FollowMenuUiState?,
             val selectedTab: ProfileContentTab,
             val posts: List<PostItemUiState>,
             val postsEmptyMessage: String?,
@@ -43,18 +49,11 @@ data class UserProfileScreenUiState(
         ) : Content
     }
 
-    data class FollowButton(
-        val text: String,
-        val enabled: Boolean,
-    )
-
     @Immutable
     interface Listener {
         fun onClickRetry()
 
         fun onClickBack()
-
-        fun onClickFollow()
 
         fun onClickTab(tab: ProfileContentTab)
     }

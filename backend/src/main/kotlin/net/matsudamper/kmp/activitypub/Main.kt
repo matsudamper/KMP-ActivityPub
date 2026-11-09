@@ -148,6 +148,7 @@ internal fun Application.module(deps: AppDependencies) {
                 userSearchService = deps.userSearchService,
                 userProfileService = deps.userProfileService,
                 followingService = deps.followingService,
+                followingGroupService = deps.followingGroupService,
                 followListService = deps.followListService,
                 passkeyService = deps.passkeyService,
                 loginThrottle = deps.loginThrottle,

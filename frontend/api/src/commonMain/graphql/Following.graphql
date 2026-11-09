@@ -1,6 +1,28 @@
-mutation SetFollowing($actorUri: String!, $followed: Boolean!) {
+mutation SetFollowing($actorUri: String!, $followed: Boolean!, $groupId: FollowingGroupId) {
     user {
-        setFollowing(actorUri: $actorUri, followed: $followed)
+        setFollowing(actorUri: $actorUri, followed: $followed, groupId: $groupId)
+    }
+}
+
+query FollowingGroups {
+    userInfo {
+        id
+        followingGroups {
+            id
+            name
+        }
+    }
+}
+
+mutation CreateFollowingGroup($name: String!) {
+    user {
+        createFollowingGroup(name: $name) {
+            group {
+                id
+                name
+            }
+            failure
+        }
     }
 }
 
@@ -20,6 +42,7 @@ fragment ActorListFields on ActorList {
     users {
         actorUri
         following
+        followingGroupId
         username
         host
         displayName

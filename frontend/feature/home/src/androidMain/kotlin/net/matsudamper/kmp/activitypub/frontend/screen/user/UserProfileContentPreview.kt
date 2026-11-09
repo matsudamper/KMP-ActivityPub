@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
 @Preview
 @Composable
@@ -22,7 +23,7 @@ private fun UserProfileContentPreview() {
                     displayName = "Alice",
                     biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                     links = listOf(),
-                    followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
+                    followMenu = previewFollowMenu(destinationName = null),
                     selectedTab = ProfileContentTab.Posts,
                     posts = listOf(
                         PostItemUiState(
@@ -58,6 +59,7 @@ private fun UserProfileContentPreview() {
                     mediaEmptyMessage = "表示できるメディアはありません",
                 ),
                 deleteNoteDialog = null,
+                addFollowingGroupDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -80,7 +82,7 @@ private fun UserProfileContentLocalUserPreview() {
                         ProfileLinkUiState(name = "GitHub", url = "https://github.com/bob", listener = AndroidPreviewProfileLinkListener),
                         ProfileLinkUiState(name = "Blog", url = "https://blog.example/bob/very/long/path/to/the/article", listener = AndroidPreviewProfileLinkListener),
                     ),
-                    followButton = null,
+                    followMenu = null,
                     selectedTab = ProfileContentTab.Posts,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
@@ -88,6 +90,7 @@ private fun UserProfileContentLocalUserPreview() {
                     mediaEmptyMessage = "表示できるメディアはありません",
                 ),
                 deleteNoteDialog = null,
+                addFollowingGroupDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -107,7 +110,7 @@ private fun UserProfileContentMediaPreview() {
                     displayName = "Alice",
                     biography = null,
                     links = listOf(),
-                    followButton = UserProfileScreenUiState.FollowButton(text = "フォロー", enabled = true),
+                    followMenu = previewFollowMenu(destinationName = null),
                     selectedTab = ProfileContentTab.Media,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
@@ -122,6 +125,7 @@ private fun UserProfileContentMediaPreview() {
                     mediaEmptyMessage = null,
                 ),
                 deleteNoteDialog = null,
+                addFollowingGroupDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -137,6 +141,7 @@ private fun UserProfileContentNotFoundPreview() {
             uiState = UserProfileScreenUiState(
                 content = UserProfileScreenUiState.Content.NotFound,
                 deleteNoteDialog = null,
+                addFollowingGroupDialog = null,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -148,8 +153,6 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickRetry() = Unit
 
     override fun onClickBack() = Unit
-
-    override fun onClickFollow() = Unit
 
     override fun onClickTab(tab: ProfileContentTab) = Unit
 }

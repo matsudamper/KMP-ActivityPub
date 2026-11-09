@@ -39,6 +39,7 @@ apollo {
         mapScalarToKotlinString("UserId")
         mapScalarToKotlinString("PasskeyCredentialId")
         mapScalarToKotlinString("NoteImageId")
+        mapScalarToKotlinString("FollowingGroupId")
         mapScalarToUpload("Upload")
         plugin(libs.apollo.normalized.cache.compiler.plugin)
         pluginArgument("com.apollographql.cache.packageName", packageName.get())

@@ -1,9 +1,11 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimeline
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
@@ -30,6 +32,11 @@ class UserInfoResolverImpl : UserInfoResolver {
             val post = diContainer.homeTimelineService.post(userInfo.id, id)?.toQlHomeTimelinePost(diContainer)
             DataFetcherResult.Builder<QlHomeTimelinePost?>(post).build()
         }
+
+    override fun followingGroups(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlFollowingGroup>>> {
+        val groups = GraphQlEngine.diContainer(env).followingGroupService.groups(userInfo.id).map { it.toQlFollowingGroup() }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(groups).build())
+    }
 
     override fun linkPreviews(userInfo: QlUserInfo, postId: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
         val diContainer = GraphQlEngine.diContainer(env)

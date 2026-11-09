@@ -8,6 +8,7 @@ query HomeScreenSearchUsers($query: String!, $after: String) {
             iconUrl
             actorUri
             following
+            followingGroupId
         }
         nextCursor
     }
@@ -22,5 +23,6 @@ query HomeScreenResolveUser($query: String!) {
         iconUrl
         actorUri
         following
+        followingGroupId
     }
 }
