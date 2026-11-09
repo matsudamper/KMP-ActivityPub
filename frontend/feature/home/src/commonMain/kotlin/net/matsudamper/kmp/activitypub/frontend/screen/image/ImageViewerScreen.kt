@@ -1,6 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.image
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -126,8 +127,14 @@ private fun OverlayImageViewerContent(
     }
     var downloadDialogImage by remember { mutableStateOf<ImageViewerScreenUiState.Image?>(null) }
     val dismissThresholdPx = with(LocalDensity.current) { 120.dp.toPx() }
-    val dragOffsetY = remember { Animatable(0f) }
-    val backgroundAlpha = 0.9f * (1f - (abs(dragOffsetY.value) / (dismissThresholdPx * 3)).coerceIn(0f, 1f))
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val backgroundAlpha = 0.9f * (1f - (abs(dragOffsetY) / (dismissThresholdPx * 3)).coerceIn(0f, 1f))
+    val currentPageZoomed = pagerState.currentPage in zoomedPages
+    val animateDragOffsetToZero = {
+        coroutineScope.launch {
+            animate(initialValue = dragOffsetY, targetValue = 0f) { value, _ -> dragOffsetY = value }
+        }
+    }
     HorizontalArrowKeyHandler(
         onPressLeft = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
         onPressRight = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) } },
@@ -136,23 +143,21 @@ private fun OverlayImageViewerContent(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = backgroundAlpha))
-            .pointerInput(uiState) {
+            .pointerInput(uiState, currentPageZoomed) {
+                if (currentPageZoomed) return@pointerInput
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
-                        if (pagerState.currentPage in zoomedPages) return@detectVerticalDragGestures
                         change.consume()
-                        coroutineScope.launch { dragOffsetY.snapTo(dragOffsetY.value + dragAmount) }
+                        dragOffsetY += dragAmount
                     },
                     onDragEnd = {
-                        if (abs(dragOffsetY.value) > dismissThresholdPx) {
+                        if (abs(dragOffsetY) > dismissThresholdPx) {
                             uiState.listener.onClickClose()
                         } else {
-                            coroutineScope.launch { dragOffsetY.animateTo(0f) }
+                            animateDragOffsetToZero()
                         }
                     },
-                    onDragCancel = {
-                        coroutineScope.launch { dragOffsetY.animateTo(0f) }
-                    },
+                    onDragCancel = { animateDragOffsetToZero() },
                 )
             },
     ) {
@@ -161,7 +166,7 @@ private fun OverlayImageViewerContent(
             key = { page -> page },
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { translationY = dragOffsetY.value },
+                .graphicsLayer { translationY = dragOffsetY },
         ) { page ->
             val image = uiState.images[page]
             DisposableEffect(page) {
