@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 interface FollowingRepository {
     fun followId(accountId: AccountId, actorUri: String): String?

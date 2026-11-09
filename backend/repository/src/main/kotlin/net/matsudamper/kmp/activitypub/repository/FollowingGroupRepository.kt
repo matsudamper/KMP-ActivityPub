@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 /**
  * 購読した相手を仕分けるグループ。どのグループにも入っていない購読はホームに入る
@@ -19,10 +20,6 @@ interface FollowingGroupRepository {
 
     fun exists(accountId: AccountId, groupId: FollowingGroupId): Boolean
 }
-
-data class FollowingGroupId(
-    val value: Long,
-)
 
 data class FollowingGroup(
     val id: FollowingGroupId,

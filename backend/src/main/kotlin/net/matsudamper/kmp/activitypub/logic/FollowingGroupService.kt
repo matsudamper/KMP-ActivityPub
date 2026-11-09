@@ -3,10 +3,10 @@ package net.matsudamper.kmp.activitypub.logic
 import java.time.Clock
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
-import net.matsudamper.kmp.activitypub.repository.FollowingGroupId
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 /**
  * 購読した相手をグループに仕分ける。グループに入れていない購読はホームに入る

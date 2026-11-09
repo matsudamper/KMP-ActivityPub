@@ -14,8 +14,11 @@ type UserInfo {
     followingGroups: [FollowingGroup!]! @lazy
 }
 
+"フォローを仕分けるグループの識別子"
+scalar FollowingGroupId
+
 "フォローを仕分けるグループ。どのグループにも入れていないフォローはホームに入る"
 type FollowingGroup {
-    id: ID!
+    id: FollowingGroupId!
     name: String!
 }

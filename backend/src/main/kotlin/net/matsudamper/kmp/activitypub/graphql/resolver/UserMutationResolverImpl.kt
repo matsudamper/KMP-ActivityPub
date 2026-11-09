@@ -49,9 +49,9 @@ import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
-import net.matsudamper.kmp.activitypub.repository.FollowingGroupId
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -62,23 +62,15 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         actorUri: String,
         followed: Boolean,
-        groupId: String?,
+        groupId: FollowingGroupId?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<Boolean>> {
-        val followingGroupId =
-            if (groupId == null) {
-                null
-            } else {
-                val parsed = groupId.toLongOrNull()
-                    ?: return CompletableFuture.completedFuture(DataFetcherResult.Builder(false).build())
-                FollowingGroupId(parsed)
-            }
         return otelFuture {
             val result = GraphQlEngine.diContainer(env).followingGroupService.setFollowing(
                 accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
                 actorUri = actorUri,
                 followed = followed,
-                groupId = followingGroupId,
+                groupId = groupId,
             )
             DataFetcherResult.Builder(result).build()
         }

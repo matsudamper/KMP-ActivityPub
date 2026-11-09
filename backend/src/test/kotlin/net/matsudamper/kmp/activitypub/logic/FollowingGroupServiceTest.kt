@@ -9,7 +9,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
-import net.matsudamper.kmp.activitypub.repository.FollowingGroupId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 class FollowingGroupServiceTest {
     private val repositories = FakeRepositories()

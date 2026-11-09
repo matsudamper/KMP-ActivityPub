@@ -4,7 +4,7 @@ type UserMutation {
     フォローするときは groupId のグループに入れる。null ならホーム。既にフォローしていればグループだけ入れ直す。
     groupId がログイン中のアカウントのグループでなければ false
     """
-    setFollowing(actorUri: String!, followed: Boolean!, groupId: ID): Boolean! @lazy
+    setFollowing(actorUri: String!, followed: Boolean!, groupId: FollowingGroupId): Boolean! @lazy
     "フォローを仕分けるグループを作る。同じ名前のグループが既にあればそれを返す"
     createFollowingGroup(name: String!): CreateFollowingGroupResult! @lazy
     login(query: UserLoginQuery!): UserLoginResult! @lazy
