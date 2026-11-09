@@ -18,7 +18,7 @@ internal object BrowserHistory {
      */
     fun initialScreens(unknownPathScreen: Screen): List<Screen> {
         val screen = screenOf(path = window.location.pathname, unknownPathScreen = unknownPathScreen)
-        return generateSequence(screen) { it.parentScreen }.toList().asReversed()
+        return screensWithParents(screen)
     }
 
     /**
@@ -131,10 +131,9 @@ internal object BrowserHistory {
                     resetBackStack(screen)
                 }
 
-                // 再読み込みより前の履歴に戻った
+                // 再読み込みより前の履歴に戻った。親画面も積まないと、ブラウザでは戻れるのにアプリの中で戻れなくなる
                 stackIndex < 0 -> {
-                    stackBottomHistoryIndex = historyIndex
-                    resetBackStack(screen)
+                    resetBackStackWithParents(screen = screen, historyIndex = historyIndex)
                 }
 
                 stackIndex <= backStack.lastIndex -> {
@@ -156,6 +155,17 @@ internal object BrowserHistory {
             syncedStack = backStack.toList()
         }
 
+        /**
+         * 親画面を履歴の 0 番より下には積まない。そこへ戻る履歴が無く、アプリの中で戻ったときに URL と食い違う
+         */
+        private fun resetBackStackWithParents(screen: Screen, historyIndex: Int) {
+            val screens = screensWithParents(screen).takeLast(historyIndex + 1)
+            stackBottomHistoryIndex = historyIndex - screens.lastIndex
+            backStack.clear()
+            backStack.addAll(screens)
+            syncedStack = backStack.toList()
+        }
+
         private fun pathOf(key: NavKey): String = ((key as? Screen) ?: unknownPathScreen).path
 
         private fun resetBackStack(screen: Screen) {
@@ -167,6 +177,10 @@ internal object BrowserHistory {
         private fun historyIndexOf(state: JsAny?): Int? {
             return (state as? JsNumber)?.toInt()
         }
+    }
+
+    private fun screensWithParents(screen: Screen): List<Screen> {
+        return generateSequence(screen) { it.parentScreen }.toList().asReversed()
     }
 
     private fun screenOf(
