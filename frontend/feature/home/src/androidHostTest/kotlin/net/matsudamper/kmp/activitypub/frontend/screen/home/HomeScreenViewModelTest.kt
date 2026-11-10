@@ -53,7 +53,7 @@ class HomeScreenViewModelTest {
 
     @Test
     fun postsAreSplitIntoColumnsByFollowingGroup() = withViewModel { viewModel, engine ->
-        columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"))
+        columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.All)
         followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}]}}}"""
         viewModel.uiStateFlow.value.listener.onClickAddTimelineColumn()
         engine.responses.send {
@@ -61,10 +61,11 @@ class HomeScreenViewModelTest {
         }
         viewModel.uiStateFlow.value.listener.onScreenShown()
 
-        val uiState = viewModel.uiStateFlow.first { it.timelineColumns.size == 2 && it.homeColumnItems().isNotEmpty() }
-        assertEquals(listOf("ホーム", "ニュース"), uiState.timelineColumns.map { it.title })
+        val uiState = viewModel.uiStateFlow.first { it.timelineColumns.size == 3 && it.homeColumnItems().isNotEmpty() }
+        assertEquals(listOf("ホーム", "ニュース", "全て"), uiState.timelineColumns.map { it.title })
         assertEquals(listOf("a"), uiState.timelineColumns[0].items.map { it.body.text.text })
         assertEquals(listOf("b"), uiState.timelineColumns[1].items.map { it.body.text.text })
+        assertEquals(listOf("a", "b"), uiState.timelineColumns[2].items.map { it.body.text.text })
     }
 
     @Test
@@ -78,14 +79,15 @@ class HomeScreenViewModelTest {
 
         emptied.listener.onClickAddTimelineColumn()
         val dialog = viewModel.uiStateFlow.first { it.addTimelineColumnDialog != null }.addTimelineColumnDialog
-        assertEquals(listOf("ホーム"), dialog?.items?.map { it.name })
-        dialog?.items?.single()?.listener?.onClick()
+        assertEquals(listOf("全て", "ホーム"), dialog?.items?.map { it.name })
+        dialog?.items?.first { it.name == "ホーム" }?.listener?.onClick()
 
         val restored = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }
         assertEquals(listOf("ホーム"), restored.timelineColumns.map { it.title })
         assertEquals(null, restored.timelineColumnsEmptyMessage)
         assertEquals(null, restored.addTimelineColumnDialog)
-        assertFalse(restored.addTimelineColumnButtonEnabled)
+        // 全てが残っているので、まだ足せる
+        assertTrue(restored.addTimelineColumnButtonEnabled)
     }
 
     @Test

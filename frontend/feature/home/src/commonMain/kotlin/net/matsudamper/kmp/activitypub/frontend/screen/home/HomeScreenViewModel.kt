@@ -1061,6 +1061,7 @@ internal class HomeScreenViewModel(
         const val ADDABLE_TIMELINE_COLUMNS_EMPTY_MESSAGE = "追加できる購読先がありません"
         const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "表示する購読先を端末に保存できませんでした"
         const val HOME_COLUMN_TITLE = "ホーム"
+        const val ALL_COLUMN_TITLE = "全て"
     }
 
     private enum class TimelineLoadTrigger {
@@ -1102,7 +1103,10 @@ internal class HomeScreenViewModel(
         fun visibleColumns(): List<TimelineColumnSetting> =
             settings.orEmpty().filter { column ->
                 when (column) {
-                    TimelineColumnSetting.Home -> true
+                    TimelineColumnSetting.All,
+                    TimelineColumnSetting.Home,
+                    -> true
+
                     is TimelineColumnSetting.FollowingGroup -> followingGroups.any { it.id == column.groupId }
                 }
             }
@@ -1117,12 +1121,13 @@ internal class HomeScreenViewModel(
          */
         fun addableColumns(): List<TimelineColumnSetting> {
             val currentSettings = settings ?: return listOf()
-            val candidates = listOf(TimelineColumnSetting.Home) + followingGroups.map { TimelineColumnSetting.FollowingGroup(it.id) }
+            val candidates = listOf(TimelineColumnSetting.All, TimelineColumnSetting.Home) + followingGroups.map { TimelineColumnSetting.FollowingGroup(it.id) }
             return candidates - currentSettings.toSet()
         }
 
         fun titleOf(column: TimelineColumnSetting): String =
             when (column) {
+                TimelineColumnSetting.All -> ALL_COLUMN_TITLE
                 TimelineColumnSetting.Home -> HOME_COLUMN_TITLE
                 is TimelineColumnSetting.FollowingGroup -> followingGroups.firstOrNull { it.id == column.groupId }?.name.orEmpty()
             }
@@ -1227,12 +1232,14 @@ internal class HomeScreenViewModel(
 
 private fun TimelineColumnSetting.contains(post: UserHomeTimelineResult.Post): Boolean =
     when (this) {
+        TimelineColumnSetting.All -> true
         TimelineColumnSetting.Home -> post.followingGroupId == null
         is TimelineColumnSetting.FollowingGroup -> post.followingGroupId == groupId
     }
 
 private val TimelineColumnSetting.listStateKey: String
     get() = when (this) {
+        TimelineColumnSetting.All -> "all"
         TimelineColumnSetting.Home -> "home"
         is TimelineColumnSetting.FollowingGroup -> "group:$groupId"
     }
