@@ -39,7 +39,18 @@ class LinkPreviewServiceTest {
     }
 
     @Test
-    fun このサーバーで書いた投稿の文字のままのURLもカードにする() {
+    fun 以前このサーバーで書いた投稿の文字のままのURLもカードにする() {
+        val service = service(pages = mapOf())
+        val storedBeforeLinkify = "<p>記事 https://example.com/article.</p><p>（https://example.com/other）</p>"
+
+        assertEquals(
+            listOf("https://example.com/article", "https://example.com/other"),
+            service.links(storedBeforeLinkify),
+        )
+    }
+
+    @Test
+    fun このサーバーで書いた投稿のURLをカードにする() {
         val service = service(pages = mapOf())
         val composed = NoteComposer.compose(
             "記事 https://example.com/article.\n\n（https://example.com/other）\n\n" +
