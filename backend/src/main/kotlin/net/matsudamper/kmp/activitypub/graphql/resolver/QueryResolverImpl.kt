@@ -46,7 +46,16 @@ class QueryResolverImpl : QueryResolver {
                         user = profile.user.toQlSearchedUser(env, accountId).copy(following = profile.following),
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
-                        posts = profile.posts.map { post ->
+                        posts = profile.posts.mapNotNull { post ->
+                            // 投稿者のホストを出せないブーストは、誰の投稿か示せないので一覧から外す
+                            val boostedNoteAuthor = post.boostedNoteAuthor?.let { author ->
+                                QlPostAuthor(
+                                    username = author.username,
+                                    host = URI(author.actorUri).host ?: return@mapNotNull null,
+                                    displayName = author.displayName ?: author.username,
+                                    iconUrl = author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) },
+                                )
+                            }
                             val body = createQlPostBody(
                                 contentHtml = post.contentHtml,
                                 summary = post.summary,
@@ -70,14 +79,7 @@ class QueryResolverImpl : QueryResolver {
                                 like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
                                 url = diContainer.noteShareUrls?.url(post.noteRef),
                                 boostCount = post.boostCount?.toInt(),
-                                boostedNoteAuthor = post.boostedNoteAuthor?.let { author ->
-                                    QlPostAuthor(
-                                        username = author.username,
-                                        host = URI(author.actorUri).host,
-                                        displayName = author.displayName ?: author.username,
-                                        iconUrl = author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) },
-                                    )
-                                },
+                                boostedNoteAuthor = boostedNoteAuthor,
                             )
                         },
                     )
