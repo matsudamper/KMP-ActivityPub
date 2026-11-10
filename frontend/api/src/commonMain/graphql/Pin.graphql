@@ -1,0 +1,7 @@
+mutation SetPinned($noteId: ID!, $pinned: Boolean!) {
+    user {
+        setPinned(noteId: $noteId, pinned: $pinned) {
+            failure
+        }
+    }
+}

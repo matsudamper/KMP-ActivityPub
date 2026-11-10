@@ -10,6 +10,7 @@ data class PostItemUiState(
      * フォローしている相手のブーストとして載った投稿なら、投稿の上に出す「〜がブースト」の行。それ以外は null
      */
     val boostedBy: BoostedBy?,
+    val pinnedLabelVisible: Boolean,
     val iconUrl: String?,
     val displayName: TextWithEmojis,
     val acct: String,

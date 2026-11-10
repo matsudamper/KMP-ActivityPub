@@ -213,6 +213,7 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
+            pinned = false,
             boostedBy = post.boostedBy?.let { booster ->
                 Boost(booster = booster) { username ->
                     viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }

@@ -287,6 +287,7 @@ private fun HomeUserContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            pinnedLabelVisible = false,
                             boostedBy = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
@@ -405,6 +406,7 @@ private fun HomeUserMediaContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            pinnedLabelVisible = false,
                             boostedBy = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
@@ -670,6 +672,7 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
 private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
+        pinnedLabelVisible = false,
         boostedBy = null,
         iconUrl = "https://example.com/kotlin.png",
         displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
@@ -712,6 +715,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         listener = AndroidPreviewTimelineItemListener,
     ),
     PostItemUiState(
+        pinnedLabelVisible = false,
         boostedBy = PostItemUiState.BoostedBy(
             text = createTextWithEmojis(text = "Alice :kotlin: がブースト", emojis = PreviewEmojis),
             iconUrl = null,
@@ -767,6 +771,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
 
 private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
+        pinnedLabelVisible = false,
         boostedBy = null,
         iconUrl = "https://example.com/kotlin.png",
         displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
