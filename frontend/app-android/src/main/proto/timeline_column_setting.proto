@@ -13,5 +13,6 @@ message TimelineColumnProto {
   oneof kind {
     bool home = 1;
     string following_group_id = 2;
+    bool all = 3;
   }
 }
