@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Clock
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -9,6 +10,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.repository.TimelineBooster
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
+import net.matsudamper.kmp.activitypub.repository.TimelinePosition
+import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 class FollowingGroupServiceTest {
@@ -67,4 +72,38 @@ class FollowingGroupServiceTest {
         assertFalse(service.setFollowing(alice, actorUri, true, FollowingGroupId(999)))
         assertFalse(followingService.isFollowing(alice, actorUri))
     }
+
+    @Test
+    fun postGoesToBoosterGroupOrAuthorGroupOrHome() = runBlocking {
+        val alice = repositories.accountRepository.add("alice", "hash", "type")
+        val news = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "ニュース")).group
+        val homeActorUri = "https://remote.example/users/dave"
+        assertTrue(service.setFollowing(alice, actorUri, true, news.id))
+        assertTrue(service.setFollowing(alice, homeActorUri, true, null))
+
+        assertEquals(news.id, service.groupIdOfPost(alice, timelinePost(actorUri = actorUri, boosterActorUri = null)))
+        assertEquals(news.id, service.groupIdOfPost(alice, timelinePost(actorUri = homeActorUri, boosterActorUri = actorUri)))
+        assertNull(service.groupIdOfPost(alice, timelinePost(actorUri = actorUri, boosterActorUri = homeActorUri)))
+        assertNull(service.groupIdOfPost(alice, timelinePost(actorUri = null, boosterActorUri = null)))
+    }
+
+    private fun timelinePost(actorUri: String?, boosterActorUri: String?) = TimelinePost(
+        position = TimelinePosition(0, "1"),
+        contentHtml = "本文",
+        publishedAt = Instant.EPOCH,
+        actorUri = actorUri,
+        username = "bob",
+        displayName = null,
+        summary = null,
+        sensitive = false,
+        actorIconUrl = null,
+        actorUpdatedAt = null,
+        images = listOf(),
+        favouriteCount = null,
+        stamps = listOf(),
+        likedByMe = false,
+        noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
+        boostCount = null,
+        boostedBy = boosterActorUri?.let { TimelineBooster(it, "booster", null, null, Instant.EPOCH) },
+    )
 }
