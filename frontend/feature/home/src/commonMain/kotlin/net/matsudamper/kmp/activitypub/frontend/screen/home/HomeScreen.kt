@@ -55,6 +55,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -223,17 +226,13 @@ internal fun HomeScreen(
 internal class HomeTabListStates(
     val search: LazyListState,
     val user: LazyGridState,
+    private val timelineListStates: TimelineListStates,
 ) {
-    /**
-     * カラムは足し引きされるので、カラムごとに初めて出したときに作る
-     */
-    private val timelineListStates = mutableMapOf<String, LazyListState>()
-
-    fun timeline(listStateKey: String): LazyListState = timelineListStates.getOrPut(listStateKey) { LazyListState() }
+    fun timeline(listStateKey: String): LazyListState = timelineListStates.get(listStateKey)
 
     suspend fun scrollToTop(tab: HomeScreenUiState.Tab) {
         when (tab) {
-            HomeScreenUiState.Tab.Home -> timelineListStates.values.forEach { it.animateScrollToItem(0) }
+            HomeScreenUiState.Tab.Home -> timelineListStates.all().forEach { it.animateScrollToItem(0) }
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
             HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
         }
@@ -244,8 +243,46 @@ internal class HomeTabListStates(
 internal fun rememberHomeTabListStates(): HomeTabListStates {
     val search = rememberLazyListState()
     val user = rememberLazyGridState()
-    return remember(search, user) { HomeTabListStates(search = search, user = user) }
+    val timeline = rememberSaveable(saver = TimelineListStates.Saver) { TimelineListStates(initialPositions = mapOf()) }
+    return remember(search, user, timeline) { HomeTabListStates(search = search, user = user, timelineListStates = timeline) }
 }
+
+/**
+ * カラムは足し引きされるので、カラムごとに初めて出したときに作る。
+ * 投稿詳細などから戻ったときに位置を戻せるよう、カラムごとの位置を保存する
+ */
+@Stable
+internal class TimelineListStates(initialPositions: Map<String, TimelineListPosition>) {
+    private val states = initialPositions.mapValuesTo(mutableMapOf()) { (_, position) ->
+        LazyListState(firstVisibleItemIndex = position.index, firstVisibleItemScrollOffset = position.offset)
+    }
+
+    fun get(listStateKey: String): LazyListState = states.getOrPut(listStateKey) { LazyListState() }
+
+    fun all(): List<LazyListState> = states.values.toList()
+
+    companion object {
+        val Saver: Saver<TimelineListStates, Any> = listSaver(
+            save = { timelineListStates ->
+                timelineListStates.states.flatMap { (listStateKey, state) ->
+                    listOf(listStateKey, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset)
+                }
+            },
+            restore = { saved ->
+                TimelineListStates(
+                    initialPositions = saved.chunked(3).associate { (listStateKey, index, offset) ->
+                        listStateKey as String to TimelineListPosition(index = index as Int, offset = offset as Int)
+                    },
+                )
+            },
+        )
+    }
+}
+
+internal data class TimelineListPosition(
+    val index: Int,
+    val offset: Int,
+)
 
 @Composable
 internal fun HomeContent(
