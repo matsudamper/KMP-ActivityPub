@@ -285,9 +285,13 @@ class UserApi(
             }
 
             RenameFollowingGroupFailure.NOT_LOGGED_IN -> "ログインしていません"
+
             RenameFollowingGroupFailure.INVALID_NAME -> "名前は 1〜30 文字にしてください"
+
             RenameFollowingGroupFailure.NOT_FOUND -> "購読先が見つかりませんでした"
+
             RenameFollowingGroupFailure.DUPLICATE_NAME -> "同じ名前の購読先があります"
+
             RenameFollowingGroupFailure.UNKNOWN__ -> "名前を変えられませんでした"
         }
     }
