@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
+import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import kotlinx.coroutines.runBlocking
@@ -9,6 +10,7 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
 import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLink
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
@@ -44,7 +46,16 @@ class QueryResolverImpl : QueryResolver {
                         user = profile.user.toQlSearchedUser(env, accountId).copy(following = profile.following),
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
-                        posts = profile.posts.map { post ->
+                        posts = profile.posts.mapNotNull { post ->
+                            // 投稿者のホストを出せないブーストは、誰の投稿か示せないので一覧から外す
+                            val boostedNoteAuthor = post.boostedNoteAuthor?.let { author ->
+                                QlPostAuthor(
+                                    username = author.username,
+                                    host = URI(author.actorUri).host ?: return@mapNotNull null,
+                                    displayName = author.displayName ?: author.username,
+                                    iconUrl = author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) },
+                                )
+                            }
                             val body = createQlPostBody(
                                 contentHtml = post.contentHtml,
                                 summary = post.summary,
@@ -68,6 +79,7 @@ class QueryResolverImpl : QueryResolver {
                                 like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
                                 url = diContainer.noteShareUrls?.url(post.noteRef),
                                 boostCount = post.boostCount?.toInt(),
+                                boostedNoteAuthor = boostedNoteAuthor,
                             )
                         },
                     )

@@ -170,10 +170,11 @@ internal fun PostItem(
 @Composable
 private fun BoostedByLabel(boostedBy: PostItemUiState.BoostedBy) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
+    val listener = boostedBy.listener
     Row(
         modifier = Modifier
             .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
-            .clickable(onClick = boostedBy.listener::onClick)
+            .then(if (listener == null) Modifier else Modifier.clickable(onClick = listener::onClick))
             .padding(horizontal = PostHorizontalPadding),
         horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
         verticalAlignment = Alignment.CenterVertically,

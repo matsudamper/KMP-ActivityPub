@@ -357,6 +357,25 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun actorPostsIncludeBoostsOfThatActorNewestFirst() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null)),
+            NOW,
+        )
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        val boost = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+
+        val post = repository.actorPosts(alice, BOOSTER, 10).single()
+        assertEquals(boost, post.position)
+        assertEquals(ACTOR, post.actorUri)
+        assertEquals(BOOSTER, post.boostedBy?.actorUri)
+        assertTrue(repository.actorPosts(alice, ACTOR, 10).isEmpty())
+        assertTrue(repository.actorPosts(accounts.getValue("bob"), BOOSTER, 10).isEmpty())
+    }
+
+    @Test
     fun boostIsRemovedWithTheBoostedNote() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")

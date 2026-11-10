@@ -13,10 +13,12 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.Boost
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
@@ -246,7 +248,7 @@ internal class UserProfileScreenViewModel(
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
-        val media = createProfileMedia(profile.posts, ::navigateToPostDetail)
+        val media = createProfileMedia(profile.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
             iconUrl = profile.iconUrl,
@@ -275,16 +277,37 @@ internal class UserProfileScreenViewModel(
             posts = profile.posts.map { post ->
                 val linkPreviewId = post.linkPreviewId
                 val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
+                val boostedNoteAuthor = post.boostedNoteAuthor
                 createPostItemUiState(
-                    boostedBy = null,
-                    iconUrl = profile.iconUrl,
-                    displayName = profile.displayName,
-                    acct = acct,
+                    boostedBy = if (boostedNoteAuthor == null) {
+                        null
+                    } else {
+                        Boost(
+                            booster = UserHomeTimelineResult.Booster(
+                                username = profile.username,
+                                host = profile.host,
+                                displayName = profile.displayName,
+                                iconUrl = profile.iconUrl,
+                            ),
+                            navigateToProfile = null,
+                        )
+                    },
+                    iconUrl = if (boostedNoteAuthor == null) profile.iconUrl else boostedNoteAuthor.iconUrl,
+                    displayName = boostedNoteAuthor?.displayName ?: profile.displayName,
+                    acct = if (boostedNoteAuthor == null) acct else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                     body = post.body,
                     linkPreviews = previews,
                     sensitiveImagesBlurred = true,
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
-                    authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
+                    authorTapAction = if (boostedNoteAuthor == null) {
+                        AuthorTapAction.AlreadyOnAuthorProfile
+                    } else {
+                        AuthorTapAction.OpenProfile {
+                            viewModelScope.launch {
+                                events.send { it.navigateToUserProfile("${boostedNoteAuthor.username}@${boostedNoteAuthor.host}") }
+                            }
+                        }
+                    },
                     menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
@@ -321,6 +344,8 @@ internal class UserProfileScreenViewModel(
         fun navigateToImage(urls: List<String>, index: Int)
 
         fun navigateToPostDetail(postId: String)
+
+        fun navigateToUserProfile(username: String)
     }
 
     private data class ViewModelState(

@@ -93,6 +93,10 @@ internal fun UserProfileScreen(
             override fun navigateToPostDetail(postId: String) {
                 navigator.navigate(Screen.PostDetail(postId = postId))
             }
+
+            override fun navigateToUserProfile(username: String) {
+                navigator.navigate(Screen.UserProfile(username = username))
+            }
         })
     }
     UserProfileContent(uiState = uiState, snackbarHostState = snackbarHostState)
