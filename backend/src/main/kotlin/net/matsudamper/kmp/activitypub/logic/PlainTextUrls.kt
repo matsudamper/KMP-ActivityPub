@@ -4,9 +4,9 @@ package net.matsudamper.kmp.activitypub.logic
  * 文字のまま書かれた http / https の URL を見つける
  */
 internal object PlainTextUrls {
-    private val candidate = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
+    private val candidate = Regex("""https?://[^\s<>"]+""", RegexOption.IGNORE_CASE)
 
-    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '。', '、', '」', '）')
+    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '\'', '。', '、', '」', '）')
 
     fun find(text: String): Sequence<IntRange> =
         candidate.findAll(text).map { match ->
@@ -15,7 +15,7 @@ internal object PlainTextUrls {
         }
 
     /**
-     * 文末の句読点や閉じ括弧が URL に続けて書かれることが多いので、末尾からは外す。
+     * 文末の句読点や閉じ括弧、URL を囲む `'` が URL に続けて書かれることが多いので、末尾からは外す。
      * `https://en.wikipedia.org/wiki/Kotlin_(programming_language)` のように URL の中で開いた括弧を
      * 閉じているものは URL の一部なので残す
      */

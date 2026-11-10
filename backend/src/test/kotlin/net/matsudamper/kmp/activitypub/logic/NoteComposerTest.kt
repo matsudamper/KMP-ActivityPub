@@ -29,4 +29,17 @@ class NoteComposerTest {
             composed.contentHtml,
         )
     }
+
+    @Test
+    fun URLの途中のアポストロフィはリンクに含め囲みの引用符は外す() {
+        val composed = assertIs<NoteComposer.ComposeResult.Composed>(
+            NoteComposer.compose("https://en.wikipedia.org/wiki/I'm_Feeling_Lucky 'https://example.com'"),
+        )
+
+        assertEquals(
+            "<p><a href=\"https://en.wikipedia.org/wiki/I'm_Feeling_Lucky\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">https://en.wikipedia.org/wiki/I'm_Feeling_Lucky</a> " +
+                "'<a href=\"https://example.com\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">https://example.com</a>'</p>",
+            composed.contentHtml,
+        )
+    }
 }
