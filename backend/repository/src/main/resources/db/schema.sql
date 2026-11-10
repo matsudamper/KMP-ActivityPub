@@ -334,3 +334,12 @@ CREATE TABLE account_remote_note_boosts (
 );
 
 CREATE INDEX account_remote_note_boosts_remote_note_id ON account_remote_note_boosts (remote_note_id);
+
+-- ブーストの Announce を積んだ宛先。外すときはここへ Undo を送る。後でフォローを外した相手にも取り消しを届けるため残す
+CREATE TABLE account_remote_note_boost_inboxes (
+    account_id INTEGER NOT NULL,
+    remote_note_id INTEGER NOT NULL,
+    inbox TEXT NOT NULL,
+    PRIMARY KEY (account_id, remote_note_id, inbox),
+    FOREIGN KEY (account_id, remote_note_id) REFERENCES account_remote_note_boosts (account_id, remote_note_id) ON DELETE CASCADE
+);

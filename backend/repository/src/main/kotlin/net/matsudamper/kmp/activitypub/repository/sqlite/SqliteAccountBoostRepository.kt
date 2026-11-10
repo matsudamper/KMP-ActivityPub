@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_REMOTE_NOTE_BOOSTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_REMOTE_NOTE_BOOST_INBOXES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_BOOSTS
@@ -56,6 +57,11 @@ internal class SqliteAccountBoostRepository(
                 .execute() > 0
             if (inserted) {
                 boost.inboxes.distinct().forEach { inbox ->
+                    dsl.insertInto(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES)
+                        .set(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.ACCOUNT_ID, boost.accountId.value)
+                        .set(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.REMOTE_NOTE_ID, remoteNoteId)
+                        .set(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.INBOX, inbox)
+                        .execute()
                     dsl.enqueue(boost.accountId, inbox, boost.body, now, DeliveryQueueValues.KIND_ANNOUNCE)
                 }
             }
@@ -66,12 +72,16 @@ internal class SqliteAccountBoostRepository(
     override fun unboostAndEnqueueUndo(
         accountId: AccountId,
         member: String,
-        inboxes: List<String>,
         now: Instant,
         undoBody: (announceBody: String) -> String,
     ): Boolean {
         return jooq.transaction { dsl ->
             val remoteNoteId = dsl.remoteNoteIdOfMember(member) ?: return@transaction false
+            val announcedInboxes = dsl.select(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.INBOX).from(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES)
+                .where(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.ACCOUNT_ID.eq(accountId.value))
+                .and(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.REMOTE_NOTE_ID.eq(remoteNoteId))
+                .fetch(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.INBOX)
+                .filterNotNull()
             val removed = dsl.deleteFrom(ACCOUNT_REMOTE_NOTE_BOOSTS)
                 .where(ACCOUNT_REMOTE_NOTE_BOOSTS.ACCOUNT_ID.eq(accountId.value))
                 .and(ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID.eq(remoteNoteId))
@@ -100,7 +110,7 @@ internal class SqliteAccountBoostRepository(
                 .where(matchingAnnounce)
                 .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
                 .execute()
-            val undoInboxes = inboxes.distinct().filterNot { it in unsentInboxes }
+            val undoInboxes = announcedInboxes.filterNot { it in unsentInboxes }
             if (undoInboxes.isNotEmpty()) {
                 val body = undoBody(announceBody)
                 val enqueuedAt = StoredInstant.format(now)

@@ -46,11 +46,11 @@ class AccountBoostRepositoryTest {
         val boosts = repositories.accountBoostRepository
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
 
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, INBOXES, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
 
         assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10).isEmpty())
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
-        assertFalse(boosts.unboostAndEnqueueUndo(alice, member, INBOXES, NOW) { "undo:$it" })
+        assertFalse(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
     }
 
     @Test
@@ -62,7 +62,7 @@ class AccountBoostRepositoryTest {
         val sent = queue.claim(NOW, 1).single()
         queue.markDelivered(sent.id, NOW)
 
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, INBOXES, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
 
         assertEquals(listOf(sent.inbox to "undo:${announceBody("announce-1")}"), queue.claim(NOW, 10).map { it.inbox to it.body })
     }
@@ -75,7 +75,7 @@ class AccountBoostRepositoryTest {
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
         val delivering = queue.claim(NOW, 10)
 
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, INBOXES, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
         delivering.forEach { queue.scheduleRetry(it.id, NOW, "接続失敗") }
 
         assertEquals(

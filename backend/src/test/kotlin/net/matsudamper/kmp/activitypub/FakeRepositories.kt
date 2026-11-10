@@ -113,7 +113,6 @@ internal class FakeRepositories : Repositories {
         override fun unboostAndEnqueueUndo(
             accountId: AccountId,
             member: String,
-            inboxes: List<String>,
             now: Instant,
             undoBody: (announceBody: String) -> String,
         ): Boolean = false

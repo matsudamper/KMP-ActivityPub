@@ -33,8 +33,6 @@ class BoostService(
         val account = accountService.account(accountId) ?: return SetBoostedResult.NotLoggedIn
         val sender = directory.resolve(account.username) ?: return SetBoostedResult.NotLoggedIn
         val target = boosts.target(accountId, postId) ?: return SetBoostedResult.PostNotFound
-        // 投稿者がフォロワーでなくても、ブーストされたことが届くように投稿者にも送る
-        val inboxes = (followerRepository.findDeliveryInboxes(sender.username) + target.authorInbox).distinct()
         val enqueued = if (boosted) {
             val announce = BoostActivities.announce(
                 id = "${sender.actorId}/announces/${UUID.randomUUID()}",
@@ -49,13 +47,14 @@ class BoostService(
                     accountId = accountId,
                     member = postId,
                     announceId = announce.id,
-                    inboxes = inboxes,
+                    // 投稿者がフォロワーでなくても、ブーストされたことが届くように投稿者にも送る
+                    inboxes = (followerRepository.findDeliveryInboxes(sender.username) + target.authorInbox).distinct(),
                     body = AppJson.encodeToString(AnnounceActivity.serializer(), announce),
                     boostedAt = clock.instant(),
                 ),
             )
         } else {
-            boosts.unboostAndEnqueueUndo(accountId = accountId, member = postId, inboxes = inboxes, now = clock.instant()) { announceBody ->
+            boosts.unboostAndEnqueueUndo(accountId = accountId, member = postId, now = clock.instant()) { announceBody ->
                 val announce = AppJson.decodeFromString(AnnounceActivity.serializer(), announceBody)
                 val undo = BoostActivities.undo(id = "${sender.actorId}/undo/${UUID.randomUUID()}", announce = announce)
                 AppJson.encodeToString(OutgoingActivity.serializer(), undo)

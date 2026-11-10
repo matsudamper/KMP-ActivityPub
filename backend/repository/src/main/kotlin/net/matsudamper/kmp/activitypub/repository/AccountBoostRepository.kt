@@ -22,7 +22,7 @@ interface AccountBoostRepository {
     fun boostAndEnqueue(boost: OutgoingBoost): Boolean
 
     /**
-     * ブーストを消して、[inboxes] への Undo を積む。まだ一度も送っていない Announce の宛先には、取り消すだけで Undo は積まない
+     * ブーストを消して、Announce を積んだ宛先への Undo を積む。まだ一度も送っていない Announce の宛先には、取り消すだけで Undo は積まない
      *
      * @param undoBody 消したブーストの Announce のアクティビティから Undo のアクティビティを作る
      * @return ブーストしていなければ false
@@ -30,7 +30,6 @@ interface AccountBoostRepository {
     fun unboostAndEnqueueUndo(
         accountId: AccountId,
         member: String,
-        inboxes: List<String>,
         now: Instant,
         undoBody: (announceBody: String) -> String,
     ): Boolean
