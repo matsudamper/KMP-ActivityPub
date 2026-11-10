@@ -388,6 +388,8 @@ internal class HomeScreenViewModel(
         val withoutMoved = settings - movedColumn
         val targetIndex = withoutMoved.indexOf(targetColumn)
         val insertIndex = if (fromIndex < toIndex) targetIndex + 1 else targetIndex
+        // 選んでいないときは先頭を選んでいる扱いなので、並びが変わっても見ているタブが変わらないよう選んだことにする
+        updateTimelineColumns { it.copy(selected = state.selectedColumn()) }
         saveTimelineColumns(withoutMoved.take(insertIndex) + movedColumn + withoutMoved.drop(insertIndex))
     }
 

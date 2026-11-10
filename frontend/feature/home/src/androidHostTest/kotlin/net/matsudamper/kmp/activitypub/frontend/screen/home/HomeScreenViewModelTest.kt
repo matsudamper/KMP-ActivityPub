@@ -78,6 +78,8 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onMoveTimelineColumn(fromIndex = 0, toIndex = 2)
         val movedRight = viewModel.uiStateFlow.first { it.timelineColumns.firstOrNull()?.title == "ニュース" }
         assertEquals(listOf("ニュース", "全て", "ホーム"), movedRight.timelineColumns.map { it.title })
+        // 動かす前に見ていた先頭のホームを見続ける
+        assertEquals("ホーム", movedRight.timelineColumns.single { it.selected }.title)
 
         viewModel.uiStateFlow.value.listener.onMoveTimelineColumn(fromIndex = 2, toIndex = 1)
         val movedLeft = viewModel.uiStateFlow.first { it.timelineColumns.getOrNull(1)?.title == "ホーム" }
