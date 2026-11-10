@@ -54,7 +54,7 @@ class HomeScreenViewModelTest {
     @Test
     fun postsAreSplitIntoColumnsByFollowingGroup() = withViewModel { viewModel, engine ->
         columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.All)
-        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}]}}}"""
+        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}],"homeGroupName":"ホーム"}}}"""
         viewModel.uiStateFlow.value.listener.onClickAddTimelineColumn()
         engine.responses.send {
             response("""{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[${post("a")},${postInGroup("b", "1")}],"nextCursor":null}}}}""")
@@ -71,7 +71,7 @@ class HomeScreenViewModelTest {
     @Test
     fun movingColumnSavesNewOrder() = withViewModel { viewModel, _ ->
         columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.All)
-        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}]}}}"""
+        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}],"homeGroupName":"ホーム"}}}"""
         viewModel.uiStateFlow.value.listener.onClickAddTimelineColumn()
         viewModel.uiStateFlow.first { it.timelineColumns.size == 3 }
 
