@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +27,7 @@ internal fun AddTimelineColumnDialog(uiState: HomeScreenUiState.AddTimelineColum
         onDismissRequest = uiState.listener::onDismiss,
         title = { Text("表示する購読先を追加") },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 val emptyMessage = uiState.emptyMessage
                 if (emptyMessage != null) {
                     Text(emptyMessage)
