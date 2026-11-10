@@ -293,7 +293,7 @@ class HomeScreenViewModelTest {
                 emptyFlow()
             } else {
                 arrivals.receiveAsFlow().map { id ->
-                    request.operation.parseResponse(Buffer().writeUtf8("""{"data":{"homeTimelinePosts":${post(id)}}}""").jsonReader())
+                    request.operation.parseResponse(Buffer().writeUtf8("""{"data":{"timelinePosts":${post(id)}}}""").jsonReader())
                 }
             }
 

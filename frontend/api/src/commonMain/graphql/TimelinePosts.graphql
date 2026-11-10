@@ -1,5 +1,5 @@
-subscription HomeTimelinePosts {
-    homeTimelinePosts {
+subscription TimelinePosts {
+    timelinePosts {
         id
         content
         publishedAt
