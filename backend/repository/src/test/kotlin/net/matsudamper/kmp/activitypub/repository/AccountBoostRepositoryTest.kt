@@ -68,6 +68,21 @@ class AccountBoostRepositoryTest {
     }
 
     @Test
+    fun unboostAfterUnfollowingTheAuthorStillSendsUndo() = withRepository { repositories, alice, _ ->
+        val member = receiveNote(repositories, "public", alice)
+        val boosts = repositories.accountBoostRepository
+        val queue = repositories.deliveryQueueRepository
+        boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
+        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+        repositories.followingRepository.remove(alice, ACTOR)
+
+        assertNull(boosts.target(alice, member))
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
+
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
+    }
+
+    @Test
     fun announceBeingDeliveredIsNotRetriedAfterUnboost() = withRepository { repositories, alice, _ ->
         val member = receiveNote(repositories, "public", alice)
         val boosts = repositories.accountBoostRepository

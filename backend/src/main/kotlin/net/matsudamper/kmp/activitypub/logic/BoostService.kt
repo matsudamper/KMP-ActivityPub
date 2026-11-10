@@ -27,13 +27,14 @@ class BoostService(
 ) {
     /**
      * @param postId タイムラインの投稿の id
+     * @return 外すときは、ブーストしていない投稿でも [SetBoostedResult.Updated]
      */
     fun setBoosted(accountId: AccountId?, postId: String, boosted: Boolean): SetBoostedResult {
         if (accountId == null) return SetBoostedResult.NotLoggedIn
         val account = accountService.account(accountId) ?: return SetBoostedResult.NotLoggedIn
         val sender = directory.resolve(account.username) ?: return SetBoostedResult.NotLoggedIn
-        val target = boosts.target(accountId, postId) ?: return SetBoostedResult.PostNotFound
         val enqueued = if (boosted) {
+            val target = boosts.target(accountId, postId) ?: return SetBoostedResult.PostNotFound
             val announce = BoostActivities.announce(
                 id = "${sender.actorId}/announces/${UUID.randomUUID()}",
                 actor = sender.actorId,
@@ -54,6 +55,7 @@ class BoostService(
                 ),
             )
         } else {
+            // 外すときは今読めるかを問わない。投稿者のフォローを外した後でも、記録したブーストの宛先へ Undo を届ける
             boosts.unboostAndEnqueueUndo(accountId = accountId, member = postId, now = clock.instant()) { announceBody ->
                 val announce = AppJson.decodeFromString(AnnounceActivity.serializer(), announceBody)
                 val undo = BoostActivities.undo(id = "${sender.actorId}/undo/${UUID.randomUUID()}", announce = announce)
