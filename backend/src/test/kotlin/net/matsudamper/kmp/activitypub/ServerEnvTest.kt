@@ -9,6 +9,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import net.matsudamper.kmp.activitypub.shared.AccountId
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class ServerEnvTest {
@@ -196,6 +197,25 @@ class ServerEnvTest {
         assertEquals(URI("https://sts.example.com"), config.stsEndpoint)
         assertEquals("kmp-activitypub-image-upload", config.roleSessionName)
         assertTrue(config.pathStyleAccess)
+    }
+
+    @Test
+    fun `ADMIN_USER_IDS が無ければ管理者はいない`() {
+        assertEquals(setOf(), ServerEnv(FEATURES_DISABLED).adminAccountIds)
+    }
+
+    @Test
+    fun `ADMIN_USER_IDS はカンマ区切りで読む`() {
+        val env = ServerEnv(FEATURES_DISABLED + mapOf("ADMIN_USER_IDS" to "1, 23,,"))
+
+        assertEquals(setOf(AccountId(1), AccountId(23)), env.adminAccountIds)
+    }
+
+    @Test
+    fun `ADMIN_USER_IDS に数字以外があれば起動しない`() {
+        assertFailsWith<IllegalArgumentException> {
+            ServerEnv(FEATURES_DISABLED + mapOf("ADMIN_USER_IDS" to "1,alice"))
+        }
     }
 
     private companion object {

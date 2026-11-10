@@ -28,6 +28,8 @@ services:
       # PASSKEY_ANDROID_CERT_SHA256: "AA:BB:..."
       # 他のサーバーから @user@example.com で見つけてもらうためのドメイン
       DOMAIN: example.com
+      # 管理画面に入れるユーザーの id。カンマ区切り
+      # ADMIN_USER_IDS: "1"
       # Cloudflare の後ろに置くとき。CF-Connecting-IP を接続元として使う。Cloudflare を通らずに届く経路があってはいけない
       # TRUST_CF_CONNECTING_IP: "true"
       # 必須。他のサーバーのプロフィール画像を中継する URL の署名鍵。署名の無い URL は中継しない。
