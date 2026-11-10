@@ -164,8 +164,13 @@ internal class LoginScreenViewModel(
                 is PasskeyAuthenticator.Result.Failure -> return PasskeyLoginOutcome.Error(result.message)
             }
         return when (val result = passkeyApi.login(assertion)) {
-            PasskeyLoginResult.Success -> PasskeyLoginOutcome.Success
+            PasskeyLoginResult.Success -> {
+                api.forgetFollowingGroups()
+                PasskeyLoginOutcome.Success
+            }
+
             PasskeyLoginResult.NotAccepted -> PasskeyLoginOutcome.Error("このパスキーではログインできない")
+
             is PasskeyLoginResult.Failure -> PasskeyLoginOutcome.Error(result.message)
         }
     }

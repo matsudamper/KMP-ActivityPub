@@ -14,11 +14,16 @@ import org.w3c.dom.events.Event
 
 internal object BrowserHistory {
     /**
-     * URL で直接開いた画面の下に、アプリの中で戻ったときに出す画面も積む
+     * 再読み込みなら履歴に残した積み上げを戻す。
+     * URL で直接開いたときは、その画面の下にアプリの中で戻ったときに出す画面も積む
      */
     fun initialScreens(unknownPathScreen: Screen): List<Screen> {
+        val savedScreens = historyEntryOf(window.history.state)?.paths
+            ?.takeIf { it.lastOrNull() == window.location.pathname }
+            ?.map { screenOf(path = it, unknownPathScreen = unknownPathScreen) }
+        if (savedScreens != null) return savedScreens
         val screen = screenOf(path = window.location.pathname, unknownPathScreen = unknownPathScreen)
-        return generateSequence(screen) { it.parentScreen }.toList().asReversed()
+        return screensWithParents(screen)
     }
 
     /**
@@ -42,7 +47,8 @@ internal object BrowserHistory {
     }
 
     /**
-     * 履歴の各エントリの state に、履歴上の位置を持たせて積み上げとの対応を取る
+     * 履歴の各エントリの state に、履歴上の位置とその時点の積み上げを持たせて積み上げとの対応を取る。
+     * 積み上げを持たせないと、再読み込みのあとに親画面の無い画面からアプリの中で戻れなくなる
      */
     internal class BackStackHistorySync(
         private val backStack: NavBackStack<NavKey>,
@@ -52,23 +58,24 @@ internal object BrowserHistory {
         private var stackBottomHistoryIndex = 0
         private var currentHistoryIndex = 0
         private val popStateListener: (Event) -> Unit = { event ->
-            onPopState(historyIndexOf((event as PopStateEvent).state))
+            onPopState(historyEntryOf((event as PopStateEvent).state))
         }
 
         fun start() {
-            val reloadedHistoryIndex = historyIndexOf(window.history.state)
+            val reloadedHistoryIndex = historyEntryOf(window.history.state)?.index
             if (reloadedHistoryIndex != null && reloadedHistoryIndex >= backStack.lastIndex) {
                 // 再読み込み。下に積んだ画面の履歴は前回の起動で載せてあるので、そのまま使う
                 stackBottomHistoryIndex = reloadedHistoryIndex - backStack.lastIndex
-                window.history.replaceState(reloadedHistoryIndex.toJsNumber(), "", pathOf(backStack.last()))
+                window.history.replaceState(historyStateOf(reloadedHistoryIndex, backStack), "", pathOf(backStack.last()))
             } else {
                 stackBottomHistoryIndex = reloadedHistoryIndex ?: 0
-                backStack.forEachIndexed { stackIndex, key ->
+                backStack.indices.forEach { stackIndex ->
                     val historyIndex = stackBottomHistoryIndex + stackIndex
+                    val stack = backStack.take(stackIndex + 1)
                     if (stackIndex == 0) {
-                        window.history.replaceState(historyIndex.toJsNumber(), "", pathOf(key))
+                        window.history.replaceState(historyStateOf(historyIndex, stack), "", pathOf(stack.last()))
                     } else {
-                        window.history.pushState(historyIndex.toJsNumber(), "", pathOf(key))
+                        window.history.pushState(historyStateOf(historyIndex, stack), "", pathOf(stack.last()))
                     }
                 }
             }
@@ -92,8 +99,8 @@ internal object BrowserHistory {
             when {
                 targetHistoryIndex > currentHistoryIndex -> {
                     for (historyIndex in currentHistoryIndex + 1..targetHistoryIndex) {
-                        val key = stack[historyIndex - stackBottomHistoryIndex]
-                        window.history.pushState(historyIndex.toJsNumber(), "", pathOf(key))
+                        val pushedStack = stack.take(historyIndex - stackBottomHistoryIndex + 1)
+                        window.history.pushState(historyStateOf(historyIndex, pushedStack), "", pathOf(pushedStack.last()))
                     }
                     currentHistoryIndex = targetHistoryIndex
                 }
@@ -107,34 +114,40 @@ internal object BrowserHistory {
                 else -> {
                     val path = pathOf(stack.last())
                     if (window.location.pathname != path) {
-                        window.history.replaceState(currentHistoryIndex.toJsNumber(), "", path)
+                        window.history.replaceState(historyStateOf(currentHistoryIndex, stack), "", path)
                     }
                 }
             }
             syncedStack = stack
         }
 
-        private fun onPopState(historyIndex: Int?) {
+        private fun onPopState(historyEntry: HistoryEntry?) {
             val screen = screenOf(path = window.location.pathname, unknownPathScreen = unknownPathScreen)
-            if (historyIndex == null) {
+            if (historyEntry == null) {
                 // このアプリが積んでいない履歴。位置が分からないので、そこを起点に積み直す
                 stackBottomHistoryIndex = 0
                 currentHistoryIndex = 0
-                window.history.replaceState(0.toJsNumber(), "", window.location.pathname)
                 resetBackStack(screen)
+                window.history.replaceState(historyStateOf(0, backStack), "", window.location.pathname)
                 return
             }
+            val historyIndex = historyEntry.index
             val stackIndex = historyIndex - stackBottomHistoryIndex
+            val savedScreens = savedScreensOf(historyEntry)
             when {
                 screen is Screen.Home -> {
                     stackBottomHistoryIndex = historyIndex
                     resetBackStack(screen)
                 }
 
-                // 再読み込みより前の履歴に戻った
+                // 再読み込みより前の履歴に戻ったときなど。その時点の積み上げを戻さないと、ブラウザでは戻れるのにアプリの中で戻れなくなる
+                savedScreens != null && (stackIndex !in backStack.indices || backStack.take(stackIndex + 1) != savedScreens) -> {
+                    restoreBackStack(screens = savedScreens, historyIndex = historyIndex)
+                }
+
+                // 積み上げを持たない古い履歴。親画面を積む。履歴の 0 番より下には積まない。そこへ戻る履歴が無く、アプリの中で戻ったときに URL と食い違う
                 stackIndex < 0 -> {
-                    stackBottomHistoryIndex = historyIndex
-                    resetBackStack(screen)
+                    restoreBackStack(screens = screensWithParents(screen).takeLast(historyIndex + 1), historyIndex = historyIndex)
                 }
 
                 stackIndex <= backStack.lastIndex -> {
@@ -156,6 +169,19 @@ internal object BrowserHistory {
             syncedStack = backStack.toList()
         }
 
+        private fun savedScreensOf(historyEntry: HistoryEntry): List<Screen>? {
+            return historyEntry.paths
+                .takeIf { it.lastOrNull() == window.location.pathname }
+                ?.map { screenOf(path = it, unknownPathScreen = unknownPathScreen) }
+        }
+
+        private fun restoreBackStack(screens: List<Screen>, historyIndex: Int) {
+            stackBottomHistoryIndex = historyIndex - screens.lastIndex
+            backStack.clear()
+            backStack.addAll(screens)
+            syncedStack = backStack.toList()
+        }
+
         private fun pathOf(key: NavKey): String = ((key as? Screen) ?: unknownPathScreen).path
 
         private fun resetBackStack(screen: Screen) {
@@ -164,9 +190,33 @@ internal object BrowserHistory {
             syncedStack = backStack.toList()
         }
 
-        private fun historyIndexOf(state: JsAny?): Int? {
-            return (state as? JsNumber)?.toInt()
+        private fun historyStateOf(historyIndex: Int, stack: List<NavKey>): JsString {
+            return (listOf(historyIndex.toString()) + stack.map(::pathOf)).joinToString(HISTORY_STATE_SEPARATOR).toJsString()
         }
+    }
+
+    /**
+     * @param paths このエントリを積んだ時点の積み上げ。下から順に並ぶ
+     */
+    private class HistoryEntry(
+        val index: Int,
+        val paths: List<String>,
+    )
+
+    /**
+     * パスは改行を含まないので、位置と積み上げのパスを改行でつないで 1 つの文字列にする
+     */
+    private const val HISTORY_STATE_SEPARATOR = "\n"
+
+    private fun historyEntryOf(state: JsAny?): HistoryEntry? {
+        if (state is JsNumber) return HistoryEntry(index = state.toInt(), paths = listOf())
+        val lines = (state as? JsString)?.toString()?.split(HISTORY_STATE_SEPARATOR) ?: return null
+        val index = lines.first().toIntOrNull() ?: return null
+        return HistoryEntry(index = index, paths = lines.drop(1))
+    }
+
+    private fun screensWithParents(screen: Screen): List<Screen> {
+        return generateSequence(screen) { it.parentScreen }.toList().asReversed()
     }
 
     private fun screenOf(

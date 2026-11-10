@@ -12,6 +12,7 @@ sealed interface UserSearchResult {
     data class User(
         val actorUri: String?,
         val following: Boolean,
+        val followingGroupId: String?,
         val username: String,
         val host: String,
         val isLocal: Boolean,

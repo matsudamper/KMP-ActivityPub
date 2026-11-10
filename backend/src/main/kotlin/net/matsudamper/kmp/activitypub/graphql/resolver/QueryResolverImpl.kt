@@ -228,6 +228,7 @@ class QueryResolverImpl : QueryResolver {
                 QlListedActor(
                     actorUri = user.actorUri,
                     following = diContainer.followingService.isFollowing(accountId, user.actorUri),
+                    followingGroupId = diContainer.followingGroupService.groupIdOf(accountId, user.actorUri),
                     username = user.username,
                     host = user.host,
                     displayName = user.displayName,
@@ -246,6 +247,7 @@ class QueryResolverImpl : QueryResolver {
                 accountId,
                 actorUri,
             ),
+            followingGroupId = diContainer.followingGroupService.groupIdOf(accountId, actorUri),
             username = username,
             host = host,
             isLocal = isLocal,

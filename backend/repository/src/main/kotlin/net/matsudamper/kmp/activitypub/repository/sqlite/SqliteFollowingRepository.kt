@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import org.jooq.Condition
 import org.jooq.impl.DSL
 
@@ -80,6 +81,19 @@ internal class SqliteFollowingRepository(
         dsl.deleteFrom(ACCOUNT_FOLLOWING)
             .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value))
             .and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))
+            .execute() > 0
+    }
+
+    override fun groupIdOf(accountId: AccountId, actorUri: String): FollowingGroupId? = jooq.withConnection { dsl ->
+        dsl.select(ACCOUNT_FOLLOWING.GROUP_ID).from(ACCOUNT_FOLLOWING)
+            .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))
+            .fetchOne(ACCOUNT_FOLLOWING.GROUP_ID)
+            ?.let { FollowingGroupId(it) }
+    }
+
+    override fun setGroup(accountId: AccountId, actorUri: String, groupId: FollowingGroupId?): Boolean = jooq.withConnection { dsl ->
+        dsl.update(ACCOUNT_FOLLOWING).set(ACCOUNT_FOLLOWING.GROUP_ID, groupId?.value)
+            .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))
             .execute() > 0
     }
 

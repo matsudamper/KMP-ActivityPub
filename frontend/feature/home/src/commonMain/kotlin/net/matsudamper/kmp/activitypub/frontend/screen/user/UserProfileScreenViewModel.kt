@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
@@ -54,7 +55,11 @@ internal class UserProfileScreenViewModel(
             ),
         )
     private var loadJob: Job? = null
-    private var followingChangeJob: Job? = null
+    private val followMenuController = FollowMenuController(
+        scope = viewModelScope,
+        userApi = api,
+        showMessage = { message -> events.send { it.showMessage(message) } },
+    )
 
     /**
      * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
@@ -75,10 +80,6 @@ internal class UserProfileScreenViewModel(
             viewModelScope.launch { events.send { it.navigateBack() } }
         }
 
-        override fun onClickFollow() {
-            changeFollowing()
-        }
-
         override fun onClickTab(tab: ProfileContentTab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }
@@ -95,13 +96,14 @@ internal class UserProfileScreenViewModel(
     }
 
     val uiStateFlow: StateFlow<UserProfileScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value)).also { uiStateFlow ->
+        MutableStateFlow(createUiState(viewModelStateFlow.value, followMenuController.initialSnapshot)).also { uiStateFlow ->
             viewModelScope.launch {
                 combine(
                     viewModelStateFlow,
+                    followMenuController.snapshots,
                     postedAtRefreshTicker.ticks.onStart { emit(Unit) },
-                ) { viewModelState, _ ->
-                    createUiState(viewModelState)
+                ) { viewModelState, followMenu, _ ->
+                    createUiState(viewModelState, followMenu)
                 }.collect { uiState ->
                     uiStateFlow.value = uiState
                 }
@@ -126,7 +128,7 @@ internal class UserProfileScreenViewModel(
             api.followingChanges.collect { change ->
                 updateProfile { profile ->
                     if (profile is ProfileState.Loaded && profile.profile.actorUri == change.actorUri) {
-                        profile.copy(profile = profile.profile.copy(following = change.following))
+                        profile.copy(profile = profile.profile.copy(following = change.following, followingGroupId = change.groupId))
                     } else {
                         profile
                     }
@@ -142,28 +144,11 @@ internal class UserProfileScreenViewModel(
         loadJob = viewModelScope.launch {
             val profile =
                 when (val result = api.userProfile(username = username)) {
-                    is UserProfileResult.Found -> ProfileState.Loaded(profile = result, followingChangeInProgress = false)
+                    is UserProfileResult.Found -> ProfileState.Loaded(profile = result)
                     UserProfileResult.NotFound -> ProfileState.NotFound
                     is UserProfileResult.Failure -> ProfileState.Failed(result.message)
                 }
             updateProfile { profile }
-        }
-    }
-
-    private fun changeFollowing() {
-        if (followingChangeJob?.isActive == true) return
-        val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
-        val actorUri = loaded.profile.actorUri ?: return
-        followingChangeJob = viewModelScope.launch {
-            updateFollowingChangeInProgress(true)
-            try {
-                val error = api.setFollowing(actorUri = actorUri, followed = !loaded.profile.following)
-                if (error != null) {
-                    events.send { it.showMessage(error) }
-                }
-            } finally {
-                updateFollowingChangeInProgress(false)
-            }
         }
     }
 
@@ -211,12 +196,6 @@ internal class UserProfileScreenViewModel(
         }
     }
 
-    private fun updateFollowingChangeInProgress(inProgress: Boolean) {
-        updateProfile { profile ->
-            if (profile is ProfileState.Loaded) profile.copy(followingChangeInProgress = inProgress) else profile
-        }
-    }
-
     private fun updateProfile(transform: (ProfileState) -> ProfileState) {
         viewModelStateFlow.update { it.copy(profile = transform(it.profile)) }
     }
@@ -244,15 +223,16 @@ internal class UserProfileScreenViewModel(
         }
     }
 
-    private fun createUiState(viewModelState: ViewModelState): UserProfileScreenUiState {
+    private fun createUiState(viewModelState: ViewModelState, followMenu: FollowMenuController.Snapshot): UserProfileScreenUiState {
         return UserProfileScreenUiState(
             content = when (val profile = viewModelState.profile) {
                 ProfileState.Loading -> UserProfileScreenUiState.Content.Loading
-                is ProfileState.Loaded -> createLoadedContent(profile, viewModelState)
+                is ProfileState.Loaded -> createLoadedContent(profile, viewModelState, followMenu)
                 ProfileState.NotFound -> UserProfileScreenUiState.Content.NotFound
                 is ProfileState.Failed -> UserProfileScreenUiState.Content.Error(profile.message)
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
+            addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
             listener = listener,
         )
     }
@@ -264,6 +244,7 @@ internal class UserProfileScreenViewModel(
     private fun createLoadedContent(
         loaded: ProfileState.Loaded,
         viewModelState: ViewModelState,
+        followMenu: FollowMenuController.Snapshot,
     ): UserProfileScreenUiState.Content.Loaded {
         val profile = loaded.profile
         val acct = "@${profile.username}@${profile.host}"
@@ -284,12 +265,12 @@ internal class UserProfileScreenViewModel(
                     },
                 )
             },
-            followButton = if (profile.actorUri == null) {
-                null
-            } else {
-                UserProfileScreenUiState.FollowButton(
-                    text = if (profile.following) "フォロー中・解除" else "フォロー",
-                    enabled = !loaded.followingChangeInProgress,
+            followMenu = profile.actorUri?.let { actorUri ->
+                followMenuController.menu(
+                    snapshot = followMenu,
+                    actorUri = actorUri,
+                    receivedFollowing = profile.following,
+                    receivedGroupId = profile.followingGroupId,
                 )
             },
             selectedTab = viewModelState.selectedTab,
@@ -380,7 +361,6 @@ internal class UserProfileScreenViewModel(
 
         data class Loaded(
             val profile: UserProfileResult.Found,
-            val followingChangeInProgress: Boolean,
         ) : ProfileState
 
         data object NotFound : ProfileState

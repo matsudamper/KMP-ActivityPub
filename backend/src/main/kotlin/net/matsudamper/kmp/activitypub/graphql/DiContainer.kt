@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
+import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
@@ -23,6 +24,7 @@ class DiContainer(
     val homeTimelineArrivals: HomeTimelineArrivals,
     val accountService: AccountService,
     val followingService: FollowingService,
+    val followingGroupService: FollowingGroupService,
     val followListService: FollowListService,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,

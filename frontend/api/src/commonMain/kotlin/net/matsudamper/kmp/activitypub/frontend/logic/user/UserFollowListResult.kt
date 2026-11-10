@@ -10,12 +10,14 @@ sealed interface UserFollowListResult {
 
     /**
      * @param following ログイン中のアカウントがフォローしているか
+     * @param followingGroupId 購読を入れたグループ。購読していないか、ホームに入っていれば null
      * @param username 相手のプロフィールをサーバーが受け取っていなければ null
      * @param displayName 未設定か、相手のプロフィールをサーバーが受け取っていなければ null
      */
     data class User(
         val actorUri: String,
         val following: Boolean,
+        val followingGroupId: String?,
         val username: String?,
         val host: String,
         val displayName: String?,

@@ -10,4 +10,15 @@ type UserInfo {
     "ホームタイムラインの投稿を 1 件。id には HomeTimelinePost.id を渡す。読めない投稿なら null"
     post(id: ID!): HomeTimelinePost @lazy
     id: UserId!
+    "フォローを仕分けるグループ。作った順"
+    followingGroups: [FollowingGroup!]! @lazy
+}
+
+"フォローを仕分けるグループの識別子"
+scalar FollowingGroupId
+
+"フォローを仕分けるグループ。どのグループにも入れていないフォローはホームに入る"
+type FollowingGroup {
+    id: FollowingGroupId!
+    name: String!
 }

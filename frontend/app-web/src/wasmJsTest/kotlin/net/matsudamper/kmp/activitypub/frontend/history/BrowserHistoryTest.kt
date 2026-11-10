@@ -134,6 +134,89 @@ class BrowserHistoryTest {
         }
     }
 
+    @Test
+    fun appBackWorksAfterReloadOnScreenWithoutParent() = runTest {
+        withContext(Dispatchers.Default) {
+            withTimeout(10_000) {
+                window.history.replaceState(null, "", "/home")
+                val backStack = NavBackStack<NavKey>(*BrowserHistory.initialScreens(Screen.Login).toTypedArray())
+                val navigator = Navigator(backStack)
+                val sync = BrowserHistory.BackStackHistorySync(backStack, Screen.Login)
+                sync.start()
+                val postDetail = Screen.PostDetail(postId = "1")
+                val userProfile = Screen.UserProfile(username = "alice")
+                try {
+                    navigator.navigate(postDetail)
+                    sync.onBackStackChanged(backStack.toList())
+                    navigator.navigate(userProfile)
+                    sync.onBackStackChanged(backStack.toList())
+                } finally {
+                    sync.stop()
+                }
+
+                val reloadedScreens = BrowserHistory.initialScreens(Screen.Login)
+                assertEquals(listOf(Screen.Home.Timeline, postDetail, userProfile), reloadedScreens)
+                val reloadedStack = NavBackStack<NavKey>(*reloadedScreens.toTypedArray())
+                val reloadedNavigator = Navigator(reloadedStack)
+                val reloadedSync = BrowserHistory.BackStackHistorySync(reloadedStack, Screen.Login)
+                reloadedSync.start()
+                try {
+                    awaitPopState {
+                        reloadedNavigator.back()
+                        reloadedSync.onBackStackChanged(reloadedStack.toList())
+                    }
+                    assertEquals(listOf(Screen.Home.Timeline, postDetail), reloadedStack.toList())
+                    assertEquals(postDetail.path, window.location.pathname)
+                } finally {
+                    reloadedSync.stop()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun appBackWorksAfterBrowserBackAcrossReload() = runTest {
+        withContext(Dispatchers.Default) {
+            withTimeout(10_000) {
+                window.history.replaceState(null, "", "/home")
+                val backStack = NavBackStack<NavKey>(*BrowserHistory.initialScreens(Screen.Login).toTypedArray())
+                val navigator = Navigator(backStack)
+                val sync = BrowserHistory.BackStackHistorySync(backStack, Screen.Login)
+                sync.start()
+                val postDetail = Screen.PostDetail(postId = "1")
+                try {
+                    navigator.navigate(postDetail)
+                    sync.onBackStackChanged(backStack.toList())
+                    navigator.navigate(Screen.UserProfile(username = "alice"))
+                    sync.onBackStackChanged(backStack.toList())
+                } finally {
+                    sync.stop()
+                }
+
+                // 積み上げを持たない古い履歴から再読み込みした状態にする
+                window.history.replaceState(2.toJsNumber(), "", window.location.pathname)
+                val reloadedStack = NavBackStack<NavKey>(*BrowserHistory.initialScreens(Screen.Login).toTypedArray())
+                val reloadedNavigator = Navigator(reloadedStack)
+                val reloadedSync = BrowserHistory.BackStackHistorySync(reloadedStack, Screen.Login)
+                reloadedSync.start()
+                try {
+                    awaitPopState { window.history.back() }
+                    assertEquals(listOf(Screen.Home.Timeline, postDetail), reloadedStack.toList())
+                    assertEquals(postDetail.path, window.location.pathname)
+                    reloadedSync.onBackStackChanged(reloadedStack.toList())
+
+                    awaitPopState {
+                        reloadedNavigator.back()
+                        reloadedSync.onBackStackChanged(reloadedStack.toList())
+                    }
+                    assertHome(reloadedStack, Screen.Home.Tab.Timeline)
+                } finally {
+                    reloadedSync.stop()
+                }
+            }
+        }
+    }
+
     private fun assertHome(backStack: NavBackStack<NavKey>, tab: Screen.Home.Tab) {
         val home = Screen.Home(tab)
         assertEquals(listOf(home), backStack.toList())

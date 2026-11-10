@@ -118,6 +118,7 @@ fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Succe
             UserSearchResult.User(
                 actorUri = it.actorUri,
                 following = it.following,
+                followingGroupId = it.followingGroupId,
                 username = it.username,
                 host = it.host,
                 isLocal = it.isLocal,
@@ -135,7 +136,7 @@ fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Succe
 fun HomeScreenSearchUsersQuery.Data.withFollowing(change: UserApi.FollowingChange): HomeScreenSearchUsersQuery.Data {
     return copy(
         searchUsers = searchUsers.copy(
-            users = searchUsers.users.map { if (it.actorUri == change.actorUri) it.copy(following = change.following) else it },
+            users = searchUsers.users.map { if (it.actorUri == change.actorUri) it.copy(following = change.following, followingGroupId = change.groupId) else it },
         ),
     )
 }
@@ -165,7 +166,7 @@ fun FollowerUsersQuery.Data.withFollowing(change: UserApi.FollowingChange): Foll
 }
 
 private fun ActorListFields.withFollowing(change: UserApi.FollowingChange): ActorListFields {
-    return copy(users = users.map { if (it.actorUri == change.actorUri) it.copy(following = change.following) else it })
+    return copy(users = users.map { if (it.actorUri == change.actorUri) it.copy(following = change.following, followingGroupId = change.groupId) else it })
 }
 
 private fun ActorListFields.toUserFollowListResult(): UserFollowListResult.Success {
@@ -174,6 +175,7 @@ private fun ActorListFields.toUserFollowListResult(): UserFollowListResult.Succe
             UserFollowListResult.User(
                 actorUri = it.actorUri,
                 following = it.following,
+                followingGroupId = it.followingGroupId,
                 username = it.username,
                 host = it.host,
                 displayName = it.displayName,

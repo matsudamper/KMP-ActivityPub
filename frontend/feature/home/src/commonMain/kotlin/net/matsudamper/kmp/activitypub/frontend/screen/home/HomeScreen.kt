@@ -78,7 +78,9 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImage
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
+import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
@@ -353,6 +355,10 @@ internal fun HomeContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
+    }
+    val addFollowingGroupDialog = uiState.addFollowingGroupDialog
+    if (addFollowingGroupDialog != null) {
+        AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
     }
 }
 
@@ -700,7 +706,7 @@ private fun UserProfileHeader(
         ) {
             FollowCount(
                 count = profile.followingCount,
-                label = "フォロー",
+                label = "購読",
                 onClick = listener::onClickFollowing,
             )
             FollowCount(
@@ -789,11 +795,9 @@ private fun SearchAccountItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
-            val followButtonText = account.followButtonText
-            if (followButtonText != null) {
-                Button(onClick = account.onClickFollow, enabled = account.followButtonEnabled) {
-                    Text(followButtonText)
-                }
+            val followMenu = account.followMenu
+            if (followMenu != null) {
+                FollowMenu(uiState = followMenu)
             }
         }
     }

@@ -74,6 +74,8 @@ type SearchedUser {
     actorUri: String
     "このサーバー内部でのフォロー状態"
     following: Boolean!
+    "フォローを入れたグループ。フォローしていないか、ホームに入っていれば null"
+    followingGroupId: FollowingGroupId
     username: String!
     host: String!
     "このサーバーのユーザーか"
@@ -97,6 +99,8 @@ type ListedActor {
     actorUri: String!
     "ログイン中のアカウントがフォローしているか"
     following: Boolean!
+    "フォローを入れたグループ。フォローしていないか、ホームに入っていれば null"
+    followingGroupId: FollowingGroupId
     username: String
     host: String!
     displayName: String
