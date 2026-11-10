@@ -137,7 +137,7 @@ class LikeRepositoryTest {
     @Test
     fun boostedPostIsLikedAsTheBoostedNoteOnlyWhileTheBoosterIsFollowed() = withRepository { repositories, alice, bob ->
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null)),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(alice, BOOSTER, NOW)
@@ -200,6 +200,7 @@ class LikeRepositoryTest {
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = visibility,
         localRecipients = recipients, inReplyTo = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
         images = listOf(),
+        emojis = listOf(),
     )
 
     private fun withRepository(block: (Repositories, AccountId, AccountId) -> Unit) {
@@ -212,7 +213,7 @@ class LikeRepositoryTest {
             }
             Repositories.create(DatabaseConfig(path)).use { repositories ->
                 repositories.remoteActorRepository.save(
-                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null)),
+                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, listOf())),
                     NOW,
                 )
                 val alice = checkNotNull(repositories.accountRepository.findByUsername("alice")).id

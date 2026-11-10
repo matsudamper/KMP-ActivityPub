@@ -137,7 +137,7 @@ class StampRepositoryTest {
             inbox = "$actorUri/inbox",
             sharedInbox = null,
             publicKeyPem = "key-$actorUri",
-            profile = RemoteActorProfileRecord(preferredUsername = null, displayName = null, profileUrl = null, iconUrl = null),
+            profile = RemoteActorProfileRecord(preferredUsername = null, displayName = null, profileUrl = null, iconUrl = null, emojis = listOf()),
         )
 
     private companion object {

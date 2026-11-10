@@ -145,6 +145,7 @@ internal class ReceivedRemoteNotes(
         publishedAt = published ?: now,
         receivedAt = now,
         images = attachments.mapNotNull { it.toImage() },
+        emojis = emojis.toRecords(),
     )
 
     // 動画や音声も添付で来る。画像だけを出すので、申告が画像のものだけを残す

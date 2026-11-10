@@ -252,6 +252,7 @@ class FollowerRepositoryTest {
                 displayName = "Alice",
                 profileUrl = "https://remote.example/@alice",
                 iconUrl = null,
+                emojis = listOf(),
             ),
         )
     }

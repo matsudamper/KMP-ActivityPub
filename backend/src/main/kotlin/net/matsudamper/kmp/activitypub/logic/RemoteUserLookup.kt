@@ -1,5 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
+
 /**
  * 他のサーバーのユーザーを引く。見つからない・相手のサーバーに届かないときは null
  */
@@ -24,4 +26,5 @@ data class RemoteUser(
     val username: String,
     val displayName: String?,
     val iconUrl: String?,
+    val displayNameEmojis: List<CustomEmojiRecord>,
 )
