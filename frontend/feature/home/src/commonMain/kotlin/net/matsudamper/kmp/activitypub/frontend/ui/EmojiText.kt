@@ -4,7 +4,10 @@ import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -44,8 +47,10 @@ fun EmojiText(
     overflow: TextOverflow,
     modifier: Modifier = Modifier,
 ) {
-    val inlineContent = remember(text.emojis) {
-        text.emojis.associate { emoji ->
+    var failedEmojiNames by remember(text.emojis) { mutableStateOf(setOf<String>()) }
+    // inline content を渡さなかった印には :name: の文字が出るので、画像を読めなかった絵文字は外す
+    val inlineContent = remember(text.emojis, failedEmojiNames) {
+        text.emojis.filter { it.name !in failedEmojiNames }.associate { emoji ->
             // 画像の縦横比は読み込むまで分からないので、文字に近い正方形の枠に収める
             emoji.name to InlineTextContent(
                 placeholder = Placeholder(width = EmojiSize, height = EmojiSize, placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter),
@@ -54,6 +59,7 @@ fun EmojiText(
                     model = emoji.imageUrl,
                     contentDescription = emoji.name,
                     contentScale = ContentScale.Fit,
+                    onError = { failedEmojiNames = failedEmojiNames + emoji.name },
                 )
             }
         }
