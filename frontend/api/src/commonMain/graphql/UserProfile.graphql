@@ -40,6 +40,12 @@ query UserProfile($username: String!) {
                 likedByMe
             }
             url
+            boostedNoteAuthor {
+                username
+                host
+                displayName
+                iconUrl
+            }
         }
     }
 }

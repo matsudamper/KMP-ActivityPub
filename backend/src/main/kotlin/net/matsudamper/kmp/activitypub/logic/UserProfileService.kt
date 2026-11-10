@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
+import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
@@ -67,6 +68,7 @@ class UserProfileService(
                         like = if (viewer == null || member == null) null else ProfilePostLike(postId = member, likedByMe = it.publicId in likedNoteIds),
                         noteRef = TimelineNoteRef.Local(it.publicId),
                         boostCount = boostCounts[it.publicId],
+                        boostedNoteAuthor = null,
                     )
                 },
             )
@@ -127,6 +129,17 @@ class UserProfileService(
             like = ProfilePostLike(postId = position.member, likedByMe = likedByMe),
             noteRef = noteRef,
             boostCount = boostCount,
+            boostedNoteAuthor = if (boostedBy == null) null else boostedNoteAuthor(),
+        )
+    }
+
+    private fun TimelinePost.boostedNoteAuthor(): ProfilePostAuthor {
+        return ProfilePostAuthor(
+            actorUri = checkNotNull(actorUri),
+            username = username,
+            displayName = displayName,
+            iconUrl = actorIconUrl,
+            updatedAt = actorUpdatedAt,
         )
     }
 
@@ -174,6 +187,7 @@ data class UserProfile(
  * @param like いいねできない投稿は null
  * @param noteRef 投稿を外から指すための元
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null
+ * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -189,6 +203,20 @@ data class ProfilePost(
     val noteRef: TimelineNoteRef,
     val boostCount: Long?,
     val like: ProfilePostLike?,
+    val boostedNoteAuthor: ProfilePostAuthor?,
+)
+
+/**
+ * @param username 相手の preferredUsername。無ければアクターの URI
+ * @param iconUrl プロフィール画像の URL。無ければ null
+ * @param updatedAt 相手の情報を最後に受け取った時刻
+ */
+data class ProfilePostAuthor(
+    val actorUri: String,
+    val username: String,
+    val displayName: String?,
+    val iconUrl: String?,
+    val updatedAt: Instant?,
 )
 
 /**
