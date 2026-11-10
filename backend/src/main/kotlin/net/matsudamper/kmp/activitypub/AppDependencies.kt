@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
+import net.matsudamper.kmp.activitypub.logic.NotePinService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
@@ -137,9 +138,16 @@ class AppDependencies(
         likes = repositories.likeRepository,
         boosts = repositories.boostRepository,
         timeline = repositories.timelineRepository,
+        pins = repositories.notePinRepository,
         following = followingService,
         remoteProfiles = federation?.remoteUserProfiles,
         localDomain = checkNotNull(env.domain),
+    )
+
+    val notePinService: NotePinService = NotePinService(
+        accounts = repositories.accountRepository,
+        pins = repositories.notePinRepository,
+        clock = Clock.systemUTC(),
     )
 
     val sessionService: UserSessionService = UserSessionService(

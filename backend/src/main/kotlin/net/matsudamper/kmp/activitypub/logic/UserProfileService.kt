@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -28,6 +29,7 @@ class UserProfileService(
     private val likes: LikeRepository,
     private val boosts: BoostRepository,
     private val timeline: TimelineRepository,
+    private val pins: NotePinRepository,
     private val following: FollowingService,
     private val remoteProfiles: RemoteUserProfiles?,
     private val localDomain: String,
@@ -39,7 +41,10 @@ class UserProfileService(
         val host = normalizedAcct.substringAfter('@', "").ifEmpty { localDomain }
         if (host.equals(localDomain, ignoreCase = true)) {
             val account = accounts.findByUsername(username) ?: return null
-            val localNotes = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT)
+            val pinnedNoteIds = pins.pinnedNotes(account.username)
+            val pinnedNotes = notes.findByPublicIds(pinnedNoteIds.toSet()).let { found -> pinnedNoteIds.mapNotNull { found[it] } }
+            val pinnedNoteIdSet = pinnedNoteIds.toSet()
+            val localNotes = pinnedNotes + notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT).filterNot { it.publicId in pinnedNoteIdSet }
             val localNoteIds = localNotes.map { it.publicId }.toSet()
             val favouriteCounts = favourites.counts(localNoteIds)
             val stampCounts = stamps.counts(localNoteIds)
@@ -63,6 +68,8 @@ class UserProfileService(
                         linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
                         postId = if (ownProfile) member else null,
                         deletableNoteId = if (ownProfile) it.publicId.value else null,
+                        pinned = it.publicId in pinnedNoteIdSet,
+                        pinnableNoteId = if (ownProfile) it.publicId.value else null,
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
                         emojis = listOf(),
                         favouriteCount = favouriteCounts[it.publicId],
@@ -134,6 +141,8 @@ class UserProfileService(
             linkPreviewId = position.member,
             postId = position.member,
             deletableNoteId = localPublicId?.value,
+            pinned = false,
+            pinnableNoteId = null,
             images = images,
             emojis = emojis,
             favouriteCount = favouriteCount,
@@ -194,6 +203,8 @@ data class UserProfile(
 /**
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
  * @param deletableNoteId 見ているアカウントの投稿なら deleteNote に渡す id。消せない投稿は null
+ * @param pinned プロフィールの先頭に固定されているか。他のサーバーの投稿は固定を受け取らないので false
+ * @param pinnableNoteId 見ているアカウントのプロフィールの投稿なら setPinned に渡す id。固定できない投稿は null
  * @param images URL にはしていない画像
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
@@ -210,6 +221,8 @@ data class ProfilePost(
     val linkPreviewId: String?,
     val postId: String?,
     val deletableNoteId: String?,
+    val pinned: Boolean,
+    val pinnableNoteId: String?,
     val images: List<TimelinePostImage>,
     val emojis: List<CustomEmojiRecord>,
     val favouriteCount: Long?,

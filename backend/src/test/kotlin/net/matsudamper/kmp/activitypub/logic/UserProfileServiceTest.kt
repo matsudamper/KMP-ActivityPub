@@ -40,6 +40,8 @@ class UserProfileServiceTest {
                     linkPreviewId = null,
                     postId = null,
                     deletableNoteId = null,
+                    pinned = false,
+                    pinnableNoteId = null,
                     images = listOf(),
                     favouriteCount = null,
                     stamps = listOf(),
@@ -66,6 +68,7 @@ class UserProfileServiceTest {
         likes = repositories.likeRepository,
         boosts = repositories.boostRepository,
         timeline = repositories.timelineRepository,
+        pins = repositories.notePinRepository,
         following = following,
         remoteProfiles = remoteProfiles,
         localDomain = "local.example",
@@ -163,6 +166,27 @@ class UserProfileServiceTest {
 
         assertEquals("note-alice", assertNotNull(service.profile("alice", viewer)).posts.single().deletableNoteId)
         assertNull(assertNotNull(service.profile("carol", viewer)).posts.single().deletableNoteId)
+    }
+
+    @Test
+    fun pinnedPostsComeFirstWithoutDuplicates() = runBlocking {
+        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", Instant.EPOCH, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", Instant.EPOCH.plusSeconds(1), listOf()))
+        repositories.notePinRepository.pin(viewer, PublicNoteId("old"), Instant.EPOCH, NotePinService.MAX_PINS)
+
+        val posts = assertNotNull(service.profile("alice", viewer)).posts
+
+        assertEquals(listOf("<p>古い投稿</p>", "<p>新しい投稿</p>"), posts.map { it.contentHtml })
+        assertEquals(listOf(true, false), posts.map { it.pinned })
+    }
+
+    @Test
+    fun onlyOwnProfilePostsHavePinnableNoteId() = runBlocking {
+        val carol = repositories.accountRepository.add("carol", "hash", "type")
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf()))
+
+        assertEquals(listOf(null), assertNotNull(service.profile("carol", viewer)).posts.map { it.pinnableNoteId })
+        assertEquals(listOf("note-carol"), assertNotNull(service.profile("carol", carol)).posts.map { it.pinnableNoteId })
     }
 
     @Test

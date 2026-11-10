@@ -37,6 +37,8 @@ internal class KotpubRemoteUserProfiles(
                 linkPreviewId = null,
                 postId = null,
                 deletableNoteId = null,
+                pinned = false,
+                pinnableNoteId = null,
                 images = it.attachments.mapNotNull { attachment -> attachment.toImage() },
                 emojis = it.emojis.toRecords(),
                 favouriteCount = null,
