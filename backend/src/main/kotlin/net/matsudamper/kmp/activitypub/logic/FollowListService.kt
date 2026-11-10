@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.ListedActor
@@ -74,6 +75,7 @@ class FollowListService(
             host = host.lowercase(),
             displayName = displayName?.takeIf { it.isNotBlank() },
             iconUrl = iconUrl,
+            displayNameEmojis = emojis,
             updatedAt = actorUpdatedAt,
         )
     }
@@ -103,6 +105,7 @@ data class ListedUser(
     val host: String,
     val displayName: String?,
     val iconUrl: String?,
+    val displayNameEmojis: List<CustomEmojiRecord>,
     val updatedAt: Instant?,
 )
 

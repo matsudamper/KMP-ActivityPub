@@ -91,6 +91,10 @@ type HomeTimelinePost {
     iconUrl: String
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
+    "本文と summary に入るカスタム絵文字。画像を中継できなければ空"
+    emojis: [CustomEmoji!]!
+    "displayName に入るカスタム絵文字。画像を中継できなければ空"
+    displayNameEmojis: [CustomEmoji!]!
     "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
     deletableNoteId: ID
     "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
@@ -111,8 +115,17 @@ type PostBooster {
     username: String!
     host: String!
     displayName: String!
+    "displayName に入るカスタム絵文字。画像を中継できなければ空"
+    displayNameEmojis: [CustomEmoji!]!
     "プロフィール画像の URL。無ければ null"
     iconUrl: String
+}
+
+"他のサーバーのカスタム絵文字。文字列の中の name を imageUrl の画像に置き換えて見せる"
+type CustomEmoji {
+    ":name: の形"
+    name: String!
+    imageUrl: String!
 }
 
 type PostStamp {

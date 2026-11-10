@@ -72,6 +72,15 @@ CREATE TABLE remote_actors (
     updated_at TEXT NOT NULL
 );
 
+-- 他のサーバーのアクターの表示名や自己紹介に :name: で入るカスタム絵文字。プロフィールを受け取るたびに入れ替える
+CREATE TABLE remote_actor_emojis (
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    -- :name: の形
+    name TEXT NOT NULL,
+    image_url TEXT NOT NULL,
+    PRIMARY KEY (remote_actor_id, name)
+);
+
 CREATE TABLE account_followers (
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
@@ -209,6 +218,15 @@ CREATE TABLE remote_note_images (
     url TEXT NOT NULL,
     description TEXT,
     PRIMARY KEY (remote_note_id, position)
+);
+
+-- 他のサーバーの投稿の本文や注意書きに :name: で入るカスタム絵文字
+CREATE TABLE remote_note_emojis (
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    -- :name: の形
+    name TEXT NOT NULL,
+    image_url TEXT NOT NULL,
+    PRIMARY KEY (remote_note_id, name)
 );
 
 CREATE TABLE remote_note_recipients (

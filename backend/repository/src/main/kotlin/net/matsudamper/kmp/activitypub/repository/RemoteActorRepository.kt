@@ -36,5 +36,6 @@ data class RemoteActorSearchRecord(
     val preferredUsername: String,
     val displayName: String?,
     val iconUrl: String?,
+    val emojis: List<CustomEmojiRecord>,
     val updatedAt: Instant,
 )

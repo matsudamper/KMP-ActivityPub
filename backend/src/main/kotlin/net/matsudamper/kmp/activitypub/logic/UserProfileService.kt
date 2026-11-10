@@ -4,6 +4,7 @@ import java.net.URI
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
@@ -48,7 +49,7 @@ class UserProfileService(
             val ownProfile = account.id == viewer
             val detail = accounts.findProfileDetail(account.username)
             return UserProfile(
-                user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, null),
+                user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, listOf(), null),
                 following = false,
                 biography = detail?.summary,
                 links = detail?.links.orEmpty(),
@@ -63,6 +64,7 @@ class UserProfileService(
                         postId = if (ownProfile) member else null,
                         deletableNoteId = if (ownProfile) it.publicId.value else null,
                         images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
+                        emojis = listOf(),
                         favouriteCount = favouriteCounts[it.publicId],
                         stamps = stampCounts[it.publicId].orEmpty(),
                         like = if (viewer == null || member == null) null else ProfilePostLike(postId = member, likedByMe = it.publicId in likedNoteIds),
@@ -78,7 +80,7 @@ class UserProfileService(
         if (followed) {
             val actor = checkNotNull(storedActor)
             return UserProfile(
-                user = SearchedUser(actor.actorUri, actor.preferredUsername, host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.updatedAt),
+                user = SearchedUser(actor.actorUri, actor.preferredUsername, host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.emojis, actor.updatedAt),
                 following = true,
                 biography = null,
                 links = listOf(),
@@ -92,7 +94,16 @@ class UserProfileService(
         val actorHost = URI(remote.user.actorUri).host ?: return null
         val remoteFollowed = following.isFollowing(viewer, remote.user.actorUri)
         return UserProfile(
-            user = SearchedUser(remote.user.actorUri, remote.user.username, actorHost, false, remote.user.displayName ?: remote.user.username, remote.user.iconUrl, null),
+            user = SearchedUser(
+                remote.user.actorUri,
+                remote.user.username,
+                actorHost,
+                false,
+                remote.user.displayName ?: remote.user.username,
+                remote.user.iconUrl,
+                remote.user.displayNameEmojis,
+                null,
+            ),
             following = remoteFollowed,
             biography = remote.biography?.let { htmlToPlainText(it) },
             links = listOf(),
@@ -124,6 +135,7 @@ class UserProfileService(
             postId = position.member,
             deletableNoteId = localPublicId?.value,
             images = images,
+            emojis = emojis,
             favouriteCount = favouriteCount,
             stamps = stamps,
             like = ProfilePostLike(postId = position.member, likedByMe = likedByMe),
@@ -139,6 +151,7 @@ class UserProfileService(
             username = username,
             displayName = displayName,
             iconUrl = actorIconUrl,
+            displayNameEmojis = actorEmojis,
             updatedAt = actorUpdatedAt,
         )
     }
@@ -198,6 +211,7 @@ data class ProfilePost(
     val postId: String?,
     val deletableNoteId: String?,
     val images: List<TimelinePostImage>,
+    val emojis: List<CustomEmojiRecord>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
     val noteRef: TimelineNoteRef,
@@ -216,6 +230,7 @@ data class ProfilePostAuthor(
     val username: String,
     val displayName: String?,
     val iconUrl: String?,
+    val displayNameEmojis: List<CustomEmojiRecord>,
     val updatedAt: Instant?,
 )
 

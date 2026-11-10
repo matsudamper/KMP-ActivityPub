@@ -29,16 +29,23 @@ internal class KotpubRemoteUserLookup(
         val actor = remoteActors.findActorByUrl(url) ?: return null
         if (url != actor.actorId) storedActors.remove(url)
         val username = actor.profile.preferredUsername ?: return null
+        val emojis = actor.profile.emojis.toRecords()
         storedActors.save(
             RemoteActorRecord(
                 actorUri = actor.actorId,
                 inbox = actor.inbox,
                 sharedInbox = actor.sharedInbox,
                 publicKeyPem = actor.publicKeyPem,
-                profile = RemoteActorProfileRecord(username, actor.profile.displayName, actor.profile.profileUrl, actor.profile.iconUrl),
+                profile = RemoteActorProfileRecord(username, actor.profile.displayName, actor.profile.profileUrl, actor.profile.iconUrl, emojis),
             ),
             updatedAt = Instant.now(),
         )
-        return RemoteUser(actorUri = actor.actorId, username = username, displayName = actor.profile.displayName, iconUrl = actor.profile.iconUrl)
+        return RemoteUser(
+            actorUri = actor.actorId,
+            username = username,
+            displayName = actor.profile.displayName,
+            iconUrl = actor.profile.iconUrl,
+            displayNameEmojis = emojis,
+        )
     }
 }

@@ -145,6 +145,7 @@ internal class ReceivedRemoteNotes(
         publishedAt = published ?: now,
         receivedAt = now,
         images = attachments.mapNotNull { it.toImage() },
+        emojis = emojis.toRecords(),
     )
 }
 

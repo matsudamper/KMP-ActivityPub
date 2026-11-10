@@ -5,6 +5,10 @@ query HomeScreenSearchUsers($query: String!, $after: String) {
             host
             isLocal
             displayName
+            displayNameEmojis {
+                name
+                imageUrl
+            }
             iconUrl
             actorUri
             following
@@ -20,6 +24,10 @@ query HomeScreenResolveUser($query: String!) {
         host
         isLocal
         displayName
+        displayNameEmojis {
+            name
+            imageUrl
+        }
         iconUrl
         actorUri
         following

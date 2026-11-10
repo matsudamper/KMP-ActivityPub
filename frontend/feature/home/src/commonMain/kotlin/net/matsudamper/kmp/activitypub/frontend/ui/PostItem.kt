@@ -92,9 +92,10 @@ internal fun PostItem(
                         .clip(CircleShape),
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                    EmojiText(
                         text = uiState.displayName,
                         style = MaterialTheme.typography.titleSmall,
+                        color = Color.Unspecified,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -118,9 +119,13 @@ internal fun PostItem(
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
+            EmojiText(
                 text = uiState.body,
                 style = MaterialTheme.typography.bodyMedium,
+                color = Color.Unspecified,
+                fontWeight = null,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Clip,
             )
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 LazyRow(
@@ -198,10 +203,11 @@ private fun BoostedByLabel(boostedBy: PostItemUiState.BoostedBy) {
                     .size(BoostedByIconSize)
                     .clip(CircleShape),
             )
-            Text(
+            EmojiText(
                 text = boostedBy.text,
                 style = MaterialTheme.typography.bodyMedium,
                 color = color,
+                fontWeight = null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

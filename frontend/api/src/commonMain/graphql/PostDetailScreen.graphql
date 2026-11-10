@@ -7,6 +7,10 @@ query PostDetailScreen($id: ID!) {
             username
             host
             displayName
+            displayNameEmojis {
+                name
+                imageUrl
+            }
             summary
             sensitive
             linkUrls
@@ -17,12 +21,20 @@ query PostDetailScreen($id: ID!) {
                 thumbnailUrl
                 description
             }
+            emojis {
+                name
+                imageUrl
+            }
             favouriteCount
             boostCount
             boostedBy {
                 username
                 host
                 displayName
+                displayNameEmojis {
+                    name
+                    imageUrl
+                }
                 iconUrl
             }
             stamps {

@@ -22,7 +22,7 @@ class RemoteActorRepositoryTest {
             val profileUrl = "https://remote.example/@alice"
             val actorId = "https://remote.example/users/alice"
             val account = checkNotNull(repositories.accountRepository.findByUsername("user1"))
-            val profile = RemoteActorProfileRecord("alice", null, profileUrl, null)
+            val profile = RemoteActorProfileRecord("alice", null, profileUrl, null, listOf())
             listOf(profileUrl, actorId).forEach { uri ->
                 repositories.remoteActorRepository.save(RemoteActorRecord(uri, "$actorId/inbox", null, "key", profile), NOW)
             }
@@ -35,6 +35,23 @@ class RemoteActorRepositoryTest {
             repositories.followingRepository.add(account.id, actorId, NOW)
             assertTrue(repositories.timelineRepository.shouldReceive(actorId, setOf()))
             assertEquals(false, repositories.timelineRepository.shouldReceive(profileUrl, setOf()))
+        }
+    }
+
+    @Test
+    fun savingProfileAgainReplacesCustomEmojis() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val actorUri = "https://remote.example/users/alice"
+            val old = CustomEmojiRecord(name = ":old:", imageUrl = "https://remote.example/old.png")
+            val new = CustomEmojiRecord(name = ":new:", imageUrl = "https://remote.example/new.png")
+            listOf(old, new).forEach { emoji ->
+                repositories.remoteActorRepository.save(
+                    RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("alice", "Alice", null, null, listOf(emoji))),
+                    NOW,
+                )
+            }
+            assertEquals(listOf(new), repositories.remoteActorRepository.findByUri(actorUri)?.profile?.emojis)
+            assertEquals(listOf(new), repositories.remoteActorRepository.searchByName("alice", null, 10).single().emojis)
         }
     }
 
@@ -83,6 +100,7 @@ class RemoteActorRepositoryTest {
                     displayName = "Ali Carol",
                     profileUrl = null,
                     iconUrl = "https://b.example/carol.png",
+                    emojis = listOf(),
                 ),
             )
 
@@ -98,6 +116,7 @@ class RemoteActorRepositoryTest {
                         displayName = null,
                         iconUrl = null,
                         updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                        emojis = listOf(),
                     ),
                     RemoteActorSearchRecord(
                         actorUri = "https://b.example/users/carol",
@@ -105,6 +124,7 @@ class RemoteActorRepositoryTest {
                         displayName = "Ali Carol",
                         iconUrl = "https://b.example/carol.png",
                         updatedAt = results.last().updatedAt,
+                        emojis = listOf(),
                     ),
                 ),
                 results,
@@ -169,6 +189,7 @@ class RemoteActorRepositoryTest {
                     displayName = displayName,
                     profileUrl = null,
                     iconUrl = null,
+                    emojis = listOf(),
                 ),
             ),
             followActivityUri = "$actorUri/follows/1",

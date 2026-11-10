@@ -97,4 +97,5 @@ data class RemoteActorProfileRecord(
     val displayName: String?,
     val profileUrl: String?,
     val iconUrl: String?,
+    val emojis: List<CustomEmojiRecord>,
 )

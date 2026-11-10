@@ -5,6 +5,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
@@ -27,9 +28,9 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
                     post = PostItemUiState(
                         boostedBy = null,
                         iconUrl = null,
-                        displayName = "Alice",
+                        displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                         acct = "@alice@example.social",
-                        body = createPostBodyText(content = "個別の投稿の画面です。 https://kotlinlang.org/", onOpenUrl = {}),
+                        body = createPostBodyText(content = "個別の投稿の画面です。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
                         postedAt = "2026-11-01T12:00:00Z",
                         linkPreviews = listOf(
                             PostItemUiState.LinkPreview(

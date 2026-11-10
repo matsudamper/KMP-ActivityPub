@@ -5,6 +5,10 @@ query UserProfile($username: String!) {
             username
             host
             displayName
+            displayNameEmojis {
+                name
+                imageUrl
+            }
             iconUrl
             following
             followingGroupId
@@ -28,6 +32,10 @@ query UserProfile($username: String!) {
                 thumbnailUrl
                 description
             }
+            emojis {
+                name
+                imageUrl
+            }
             favouriteCount
             boostCount
             stamps {
@@ -44,6 +52,10 @@ query UserProfile($username: String!) {
                 username
                 host
                 displayName
+                displayNameEmojis {
+                    name
+                    imageUrl
+                }
                 iconUrl
             }
         }

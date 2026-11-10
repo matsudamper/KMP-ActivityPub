@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
 
 data class HomeScreenUiState(
     val selectedTab: Tab,
@@ -87,7 +88,7 @@ data class HomeScreenUiState(
     data class SearchAccount(
         val followMenu: FollowMenuUiState?,
         val iconUrl: String?,
-        val displayName: String,
+        val displayName: TextWithEmojis,
         val acct: String,
         /**
          * 押しても何も起きないものは null

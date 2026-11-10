@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
@@ -79,11 +80,29 @@ class UserSearchService(
 
     private fun findLocalUser(username: String): SearchedUser? {
         val account = accountRepository.findByUsername(username) ?: return null
-        return SearchedUser(actorUri = null, username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username, iconUrl = null, updatedAt = null)
+        return SearchedUser(
+            actorUri = null,
+            username = account.username,
+            host = localDomain,
+            isLocal = true,
+            displayName = account.displayName ?: account.username,
+            iconUrl = null,
+            displayNameEmojis = listOf(),
+            updatedAt = null,
+        )
     }
 
     private fun RemoteUser.toSearchedUser(host: String): SearchedUser =
-        SearchedUser(actorUri = actorUri, username = username, host = host.lowercase(), isLocal = false, displayName = displayName ?: username, iconUrl = iconUrl, updatedAt = null)
+        SearchedUser(
+            actorUri = actorUri,
+            username = username,
+            host = host.lowercase(),
+            isLocal = false,
+            displayName = displayName ?: username,
+            iconUrl = iconUrl,
+            displayNameEmojis = displayNameEmojis,
+            updatedAt = null,
+        )
 
     /**
      * このサーバーのユーザーと他のサーバーのユーザーを、それぞれ 1 ページ分より 1 件多く取って名前順に混ぜる。
@@ -170,7 +189,16 @@ class UserSearchService(
             override val sortName: String = account.username.asciiLowercase()
 
             override fun toSearchedUser(localDomain: String): SearchedUser =
-                SearchedUser(actorUri = null, username = account.username, host = localDomain, isLocal = true, displayName = account.displayName ?: account.username, iconUrl = null, updatedAt = null)
+                SearchedUser(
+                    actorUri = null,
+                    username = account.username,
+                    host = localDomain,
+                    isLocal = true,
+                    displayName = account.displayName ?: account.username,
+                    iconUrl = null,
+                    displayNameEmojis = listOf(),
+                    updatedAt = null,
+                )
         }
 
         class Remote(
@@ -190,6 +218,7 @@ class UserSearchService(
                     isLocal = false,
                     displayName = record.displayName?.takeIf { it.isNotBlank() } ?: record.preferredUsername,
                     iconUrl = record.iconUrl,
+                    displayNameEmojis = record.emojis,
                     updatedAt = record.updatedAt,
                 )
             }
@@ -223,6 +252,7 @@ data class SearchedUser(
     val isLocal: Boolean,
     val displayName: String,
     val iconUrl: String?,
+    val displayNameEmojis: List<CustomEmojiRecord>,
     val updatedAt: Instant?,
 )
 

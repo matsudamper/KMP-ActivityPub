@@ -26,7 +26,7 @@ class UserProfileServiceTest {
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile {
             requests.add("profile")
-            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null), "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "自己紹介")
         }
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
@@ -47,13 +47,14 @@ class UserProfileServiceTest {
                     noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
                     boostCount = null,
                     boostedNoteAuthor = null,
+                    emojis = listOf(),
                 ),
             )
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
             requests.add("profile:$actorUri")
-            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null), "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "自己紹介")
         }
     }
     private val service = UserProfileService(
@@ -81,7 +82,7 @@ class UserProfileServiceTest {
 
     @Test
     fun storedActorLoadsProfileByUriWithoutResolvingAcct() = runBlocking {
-        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, Instant.EPOCH))
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
         val profile = assertNotNull(service.profile("bob@remote.example", viewer))
         assertEquals(listOf("profile:$actorUri", "posts"), requests)
         assertEquals(actorUri, profile.user.actorUri)
@@ -93,7 +94,7 @@ class UserProfileServiceTest {
     fun followedUserUsesStoredProfileWithoutRemoteRequests() = runBlocking {
         repositories.timelineRepository.actorPosts.add(storedPost("<p>受け取った投稿</p>", summary = null, sensitive = false))
         repositories.timelineRepository.actorPosts.add(storedPost("<p>閲覧注意の本文</p>", summary = "注意書き", sensitive = true))
-        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, Instant.EPOCH))
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
         following.setFollowing(viewer, actorUri, true)
         val profile = assertNotNull(service.profile("bob@remote.example", viewer))
         assertEquals(listOf(), requests)
@@ -117,12 +118,12 @@ class UserProfileServiceTest {
                 username = "carol",
                 displayName = "Carol",
                 actorIconUrl = "https://other.example/carol.png",
-                boostedBy = TimelineBooster(actorUri = actorUri, username = "bob", displayName = "Bob", iconUrl = null, updatedAt = Instant.EPOCH),
+                boostedBy = TimelineBooster(actorUri = actorUri, username = "bob", displayName = "Bob", iconUrl = null, updatedAt = Instant.EPOCH, emojis = listOf()),
             ),
         )
         repositories.timelineRepository.actorPosts.add(storedPost("<p>本人の投稿</p>", summary = null, sensitive = false))
         following.setFollowing(viewer, actorUri, true)
-        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, Instant.EPOCH))
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
 
         val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
         assertEquals(listOf("b1", "r1"), posts.map { it.postId })
@@ -206,6 +207,8 @@ class UserProfileServiceTest {
             noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
             boostCount = null,
             boostedBy = null,
+            actorEmojis = listOf(),
+            emojis = listOf(),
         )
 
     private companion object {

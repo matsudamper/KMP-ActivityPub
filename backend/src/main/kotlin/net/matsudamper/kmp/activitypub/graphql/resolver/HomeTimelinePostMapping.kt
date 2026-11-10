@@ -31,6 +31,8 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
             actorIconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = actorUpdatedAt) }
         },
         images = body.images,
+        emojis = emojis.toQlCustomEmojis(diContainer),
+        displayNameEmojis = actorEmojis.toQlCustomEmojis(diContainer),
         deletableNoteId = localPublicId?.value,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
@@ -42,6 +44,7 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
                 username = booster.username,
                 host = URI(booster.actorUri).host,
                 displayName = booster.displayName ?: booster.username,
+                displayNameEmojis = booster.emojis.toQlCustomEmojis(diContainer),
                 iconUrl = booster.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = booster.updatedAt) },
             )
         },

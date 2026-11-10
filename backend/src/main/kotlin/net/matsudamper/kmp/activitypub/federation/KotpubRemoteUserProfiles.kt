@@ -38,6 +38,7 @@ internal class KotpubRemoteUserProfiles(
                 postId = null,
                 deletableNoteId = null,
                 images = it.attachments.mapNotNull { attachment -> attachment.toImage() },
+                emojis = it.emojis.toRecords(),
                 favouriteCount = null,
                 stamps = listOf(),
                 // 保存していない投稿なので、いいねする投稿を指せない

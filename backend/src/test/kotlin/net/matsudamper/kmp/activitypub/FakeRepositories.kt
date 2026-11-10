@@ -200,7 +200,7 @@ internal class FakeRemoteActorRepository : RemoteActorRepository {
         savedActors[actor.actorUri] = actor
         val username = actor.profile.preferredUsername ?: return
         rows.removeAll { it.actorUri == actor.actorUri }
-        rows.add(RemoteActorSearchRecord(actor.actorUri, username, actor.profile.displayName, actor.profile.iconUrl, updatedAt))
+        rows.add(RemoteActorSearchRecord(actor.actorUri, username, actor.profile.displayName, actor.profile.iconUrl, listOf(), updatedAt))
     }
 
     override fun findByAcct(username: String, host: String): RemoteActorSearchRecord? =
@@ -228,6 +228,7 @@ internal class FakeRemoteActorRepository : RemoteActorRepository {
                             displayName = null,
                             iconUrl = null,
                             updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                            emojis = listOf(),
                         ),
                         { it.preferredUsername.sqliteLower() },
                         { it.actorUri },

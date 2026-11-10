@@ -23,5 +23,6 @@ data class ListedActor(
     val preferredUsername: String?,
     val displayName: String?,
     val iconUrl: String?,
+    val emojis: List<CustomEmojiRecord>,
     val actorUpdatedAt: Instant?,
 )

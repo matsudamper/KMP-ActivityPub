@@ -181,6 +181,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(dsl.remoteNoteReadableBy(accountId))
             val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
+            val emojisByNote = dsl.remoteNoteEmojisById(remoteIds)
             val likedRemoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
                 .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(remoteIds))
                 .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
@@ -189,7 +190,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .fetchSet(NOTE_LIKES.NOTE_ID)
             val stampsByMember = if (localIds.isEmpty()) mapOf() else dsl.stampCountsBy(NOTES.ID, NOTES.ID.`in`(localIds)).mapKeys { "l${it.key}" }
             val boosted = boostedPosts(dsl, accountId, boostIds)
-            boosted + local.unionAll(remote).fetch { record ->
+            val rows = local.unionAll(remote).fetch()
+            val emojisByActor = dsl.remoteActorEmojisByUri(rows.mapNotNull { it.value6() }.toSet())
+            boosted + rows.map { record ->
                 val published = StoredInstant.parse(checkNotNull(record.value3()))
                 val actor = record.value6()
                 val member = "${if (actor == null) "l" else "r"}${record.value1()}"
@@ -206,6 +209,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     record.value10(),
                     record.value11()?.let { StoredInstant.parse(it) },
                     imagesByMember[member].orEmpty(),
+                    if (actor == null) listOf() else emojisByNote[record.value1()].orEmpty(),
+                    if (actor == null) listOf() else emojisByActor[actor].orEmpty(),
                     record.value12(),
                     stampsByMember[member].orEmpty(),
                     record.value1() in if (actor == null) likedLocalIds else likedRemoteIds,
@@ -343,6 +348,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .set(REMOTE_NOTE_IMAGES.DESCRIPTION, image.description)
                 .execute()
         }
+        dsl.insertRemoteNoteEmojis(id, note.emojis)
         return id
     }
 
@@ -400,6 +406,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(rows.map { checkNotNull(it.value3()) }))
             .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
+        val emojisByNote = dsl.remoteNoteEmojisById(rows.map { checkNotNull(it.value3()) })
+        val emojisByActor = dsl.remoteActorEmojisByUri(rows.flatMap { listOf(checkNotNull(it.value8()), checkNotNull(it.value13())) }.toSet())
         return rows.map { record ->
             val authorUri = checkNotNull(record.value8())
             val boosterUri = checkNotNull(record.value13())
@@ -415,6 +423,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 actorIconUrl = record.value11(),
                 actorUpdatedAt = record.value12()?.let { StoredInstant.parse(it) },
                 images = imagesByNote["r${record.value3()}"].orEmpty(),
+                emojis = emojisByNote[record.value3()].orEmpty(),
+                actorEmojis = emojisByActor[authorUri].orEmpty(),
                 favouriteCount = null,
                 stamps = listOf(),
                 likedByMe = record.value3() in likedNoteIds,
@@ -425,6 +435,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     username = record.value14() ?: boosterUri,
                     displayName = record.value15(),
                     iconUrl = record.value16(),
+                    emojis = emojisByActor[boosterUri].orEmpty(),
                     updatedAt = StoredInstant.parse(checkNotNull(record.value17())),
                 ),
             )
