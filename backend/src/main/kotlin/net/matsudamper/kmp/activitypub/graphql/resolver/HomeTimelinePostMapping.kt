@@ -5,8 +5,9 @@ import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostBooster
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
+import net.matsudamper.kmp.activitypub.shared.AccountId
 
-internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHomeTimelinePost {
+internal fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, diContainer: DiContainer): QlHomeTimelinePost {
     val body = createQlPostBody(
         contentHtml = contentHtml,
         summary = summary,
@@ -48,5 +49,6 @@ internal fun TimelinePost.toQlHomeTimelinePost(diContainer: DiContainer): QlHome
                 iconUrl = booster.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = booster.updatedAt) },
             )
         },
+        followingGroupId = diContainer.followingGroupService.groupIdOfPost(accountId, this),
     )
 }

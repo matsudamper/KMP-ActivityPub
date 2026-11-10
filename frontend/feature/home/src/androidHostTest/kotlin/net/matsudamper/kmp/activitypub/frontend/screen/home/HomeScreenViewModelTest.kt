@@ -37,23 +37,65 @@ import com.apollographql.apollo.network.NetworkTransport
 import com.apollographql.apollo.network.http.HttpEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import okio.Buffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeScreenViewModelTest {
     private val arrivals = Channel<String>(Channel.UNLIMITED)
     private val subscriptionRejected = MutableStateFlow(false)
+    private val columnSettingStore = FakeTimelineColumnSettingStore(listOf(TimelineColumnSetting.Home))
+    private var followingGroupsResponse = """{"errors":[{"message":"購読の仕分け先は見ない"}]}"""
+
+    @Test
+    fun postsAreSplitIntoColumnsByFollowingGroup() = withViewModel { viewModel, engine ->
+        columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"))
+        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}]}}}"""
+        viewModel.uiStateFlow.value.listener.onClickAddTimelineColumn()
+        engine.responses.send {
+            response("""{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[${post("a")},${postInGroup("b", "1")}],"nextCursor":null}}}}""")
+        }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+
+        val uiState = viewModel.uiStateFlow.first { it.timelineColumns.size == 2 && it.homeColumnItems().isNotEmpty() }
+        assertEquals(listOf("ホーム", "ニュース"), uiState.timelineColumns.map { it.title })
+        assertEquals(listOf("a"), uiState.timelineColumns[0].items.map { it.body.text.text })
+        assertEquals(listOf("b"), uiState.timelineColumns[1].items.map { it.body.text.text })
+    }
+
+    @Test
+    fun removingEveryColumnShowsEmptyMessageAndAddingBringsItBack() = withViewModel { viewModel, _ ->
+        val home = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }.timelineColumns.single()
+        home.listener.onClickRemove()
+        val emptied = viewModel.uiStateFlow.first { it.timelineColumns.isEmpty() }
+        assertEquals(listOf(), columnSettingStore.columns.value)
+        assertTrue(emptied.timelineColumnsEmptyMessage != null)
+        assertTrue(emptied.addTimelineColumnButtonEnabled)
+
+        emptied.listener.onClickAddTimelineColumn()
+        val dialog = viewModel.uiStateFlow.first { it.addTimelineColumnDialog != null }.addTimelineColumnDialog
+        assertEquals(listOf("ホーム"), dialog?.items?.map { it.name })
+        dialog?.items?.single()?.listener?.onClick()
+
+        val restored = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }
+        assertEquals(listOf("ホーム"), restored.timelineColumns.map { it.title })
+        assertEquals(null, restored.timelineColumnsEmptyMessage)
+        assertEquals(null, restored.addTimelineColumnDialog)
+        assertFalse(restored.addTimelineColumnButtonEnabled)
+    }
 
     @Test
     fun arrivedPostsArePrependedAndKeptAcrossRefresh() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a"), null) }
         viewModel.uiStateFlow.value.listener.onScreenShown()
-        viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.homeColumnItems().isNotEmpty() && !it.timelineRefreshing }
         arrivals.send("b")
-        viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
-        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 2 }
+        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
 
         val pending = CompletableDeferred<HttpResponse>()
         engine.responses.send { pending.await() }
@@ -61,17 +103,17 @@ class HomeScreenViewModelTest {
         runCurrent()
         engine.started.first { it == 2 }
         arrivals.send("c")
-        viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 3 }
         pending.complete(page(listOf("b", "a"), null))
-        viewModel.uiStateFlow.first { !it.timelineRefreshing && it.timelineItems.size == 3 }
-        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
+        viewModel.uiStateFlow.first { !it.timelineRefreshing && it.homeColumnItems().size == 3 }
+        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
     }
 
     @Test
     fun appendHasItsOwnLoadingIndicatorAndDeduplicatesPageBoundary() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a", "b"), "next") }
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
-        viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.homeColumnItems().isNotEmpty() && !it.timelineRefreshing }
         val pending = CompletableDeferred<HttpResponse>()
         engine.responses.send { pending.await() }
         viewModel.uiStateFlow.value.listener.onScrolledToTimelineEnd()
@@ -82,8 +124,8 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onScrolledToTimelineEnd()
         assertEquals(2, engine.requests)
         pending.complete(page(listOf("b", "c"), null))
-        viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
-        assertEquals(listOf("a", "b", "c"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 3 }
+        assertEquals(listOf("a", "b", "c"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
         viewModel.uiStateFlow.value.listener.onScrolledToTimelineEnd()
         advanceUntilIdle()
         assertEquals(2, engine.requests)
@@ -93,7 +135,7 @@ class HomeScreenViewModelTest {
     fun appendFailureStopsAutomaticRetryUntilRetryButtonIsPressed() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a"), "next") }
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
-        viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.homeColumnItems().isNotEmpty() && !it.timelineRefreshing }
         engine.responses.send { response("""{"errors":[{"message":"追加取得失敗"}]}""") }
         viewModel.uiStateFlow.value.listener.onScrolledToTimelineEnd()
         viewModel.uiStateFlow.first { it.timelineFooter is HomeScreenUiState.TimelineFooter.Error }
@@ -103,8 +145,8 @@ class HomeScreenViewModelTest {
         assertEquals(2, engine.requests)
         engine.responses.send { page(listOf("b"), null) }
         viewModel.uiStateFlow.value.listener.onClickRetryTimelineLoadMore()
-        viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
-        assertEquals(listOf("a", "b"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 2 }
+        assertEquals(listOf("a", "b"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
         assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.timelineFooter)
     }
 
@@ -112,7 +154,7 @@ class HomeScreenViewModelTest {
     fun refreshCancelsAppendAndReplacesTheFirstPage() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a"), "next") }
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
-        viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.homeColumnItems().isNotEmpty() && !it.timelineRefreshing }
         val pending = CompletableDeferred<HttpResponse>()
         val cancelled = CompletableDeferred<Unit>()
         engine.responses.send {
@@ -129,11 +171,11 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
         viewModel.uiStateFlow.first { it.timelineRefreshing }
         assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.timelineFooter)
-        viewModel.uiStateFlow.first { it.timelineItems.singleOrNull()?.body?.text?.text == "fresh" && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.homeColumnItems().singleOrNull()?.body?.text?.text == "fresh" && !it.timelineRefreshing }
         assertTrue(cancelled.isCompleted)
         pending.complete(page(listOf("stale"), null))
         advanceUntilIdle()
-        assertEquals(listOf("fresh"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
+        assertEquals(listOf("fresh"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
         assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
     }
 
@@ -154,10 +196,10 @@ class HomeScreenViewModelTest {
         assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
         assertEquals(HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect, viewModel.uiStateFlow.value.timelineStreamStatus)
         pending.complete(page(listOf("b", "a"), null))
-        viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 2 }
         arrivals.send("c")
-        viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
-        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 3 }
+        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
         assertEquals(HomeScreenUiState.TimelineStreamStatus.Receiving, viewModel.uiStateFlow.value.timelineStreamStatus)
     }
 
@@ -165,7 +207,7 @@ class HomeScreenViewModelTest {
     fun pressingStatusWhileReceivingStopsStreamUntilPressedAgain() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a"), null) }
         viewModel.uiStateFlow.value.listener.onScreenShown()
-        viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.homeColumnItems().isNotEmpty() && !it.timelineRefreshing }
         viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
         viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Disconnected }
 
@@ -176,12 +218,12 @@ class HomeScreenViewModelTest {
         arrivals.send("b")
         advanceUntilIdle()
         assertEquals(HomeScreenUiState.TimelineStreamStatus.Disconnected, viewModel.uiStateFlow.value.timelineStreamStatus)
-        assertEquals(listOf("a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
+        assertEquals(listOf("a"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
 
         engine.responses.send { page(listOf("b", "a"), null) }
         viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
         viewModel.uiStateFlow.first { it.timelineStreamStatus == HomeScreenUiState.TimelineStreamStatus.Receiving }
-        viewModel.uiStateFlow.first { it.timelineItems.size == 2 && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 2 && !it.timelineRefreshing }
     }
 
     @Test
@@ -206,6 +248,10 @@ class HomeScreenViewModelTest {
 
         override fun scrollTabToTop(tab: HomeScreenUiState.Tab) {
             receivedEvents.trySend("scrollTabToTop:${tab.name}")
+        }
+
+        override fun scrollTimelineColumnToTop(listStateKey: String) {
+            receivedEvents.trySend("scrollTimelineColumnToTop:$listStateKey")
         }
 
         override fun navigateToPost() = Unit
@@ -245,6 +291,7 @@ class HomeScreenViewModelTest {
             object : PostedAtRefreshTicker {
                 override val ticks: Flow<Unit> = emptyFlow()
             },
+            columnSettingStore,
         )
         try {
             block(viewModel, engine)
@@ -261,12 +308,30 @@ class HomeScreenViewModelTest {
         return response("""{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[$posts],"nextCursor":$next}}}}""")
     }
 
-    private fun post(id: String): String =
-        """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],"summary":null,"sensitive":false,"linkUrls":[],"images":[],"emojis":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false}"""
+    private fun post(id: String): String = postInGroup(id, null)
+
+    private fun postInGroup(id: String, followingGroupId: String?): String {
+        val groupId = if (followingGroupId == null) "null" else "\"$followingGroupId\""
+        return """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],""" +
+            """"summary":null,"sensitive":false,"linkUrls":[],"images":[],"emojis":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false,"followingGroupId":$groupId}"""
+    }
+
+    private fun HomeScreenUiState.homeColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()
+
+    private class FakeTimelineColumnSettingStore(initialColumns: List<TimelineColumnSetting>) : TimelineColumnSettingStore {
+        val columns = MutableStateFlow(initialColumns)
+
+        override val columnsFlow: Flow<List<TimelineColumnSetting>> = columns
+
+        override suspend fun save(columns: List<TimelineColumnSetting>): Boolean {
+            this.columns.value = columns
+            return true
+        }
+    }
 
     private fun response(json: String): HttpResponse = HttpResponse.Builder(200).body(Buffer().writeUtf8(json)).build()
 
-    private class QueueEngine : HttpEngine {
+    private inner class QueueEngine : HttpEngine {
         val started = MutableStateFlow(0)
         val responses = Channel<suspend () -> HttpResponse>(Channel.UNLIMITED)
         val requests: Int get() = started.value
@@ -278,7 +343,7 @@ class HomeScreenViewModelTest {
                 return HttpResponse.Builder(200).body(Buffer().writeUtf8("""{"errors":[{"message":"プロフィールは見ない"}]}""")).build()
             }
             if (body.contains("\"operationName\":\"FollowingGroups\"")) {
-                return HttpResponse.Builder(200).body(Buffer().writeUtf8("""{"errors":[{"message":"購読の仕分け先は見ない"}]}""")).build()
+                return HttpResponse.Builder(200).body(Buffer().writeUtf8(followingGroupsResponse)).build()
             }
             started.value++
             return responses.receive().invoke()

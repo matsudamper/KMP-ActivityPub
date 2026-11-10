@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +45,8 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
- * 横に広い画面向け。タブを切り替えずに、レールから開いたカラムを 1 つだけタイムラインの左に出す
+ * 横に広い画面向け。タブを切り替えずに、レールから開いたカラムを 1 つだけタイムラインの左に出す。
+ * タイムラインは購読先ごとのカラムを並べ、右端のボタンで足す
  *
  * @param postColumn 投稿の画面は別の ViewModel で動くので、外から差し込む
  */
@@ -101,22 +103,46 @@ internal fun HomeColumnsContent(
                         }
                         VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
-                    HomeColumn(
-                        title = "タイムライン",
-                        onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Home) },
-                        onClickClose = null,
-                        modifier = Modifier.width(COLUMN_WIDTH).fillMaxHeight(),
-                    ) { contentModifier ->
-                        TimelineTabContent(
-                            listState = tabListStates.timeline,
-                            timelineItems = uiState.timelineItems,
-                            refreshing = uiState.timelineRefreshing,
-                            footer = uiState.timelineFooter,
-                            listener = uiState.listener,
-                            modifier = contentModifier,
+                    uiState.timelineColumns.forEach { timelineColumn ->
+                        key(timelineColumn.listStateKey) {
+                            HomeColumn(
+                                title = timelineColumn.title,
+                                onClickHeader = timelineColumn.listener::onClickHeader,
+                                onClickClose = timelineColumn.listener::onClickRemove,
+                                modifier = Modifier.width(COLUMN_WIDTH).fillMaxHeight(),
+                            ) { contentModifier ->
+                                TimelineTabContent(
+                                    listState = tabListStates.timeline(timelineColumn.listStateKey),
+                                    timelineItems = timelineColumn.items,
+                                    refreshing = uiState.timelineRefreshing,
+                                    footer = uiState.timelineFooter,
+                                    listener = uiState.listener,
+                                    modifier = contentModifier,
+                                )
+                            }
+                            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                    }
+                    val emptyMessage = uiState.timelineColumnsEmptyMessage
+                    if (emptyMessage != null) {
+                        TimelineColumnsEmptyContent(
+                            message = emptyMessage,
+                            addButtonEnabled = uiState.addTimelineColumnButtonEnabled,
+                            onClickAdd = uiState.listener::onClickAddTimelineColumn,
+                            modifier = Modifier.width(COLUMN_WIDTH).fillMaxHeight(),
+                        )
+                        VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    IconButton(
+                        onClick = uiState.listener::onClickAddTimelineColumn,
+                        enabled = uiState.addTimelineColumnButtonEnabled,
+                        modifier = Modifier.windowInsetsPadding(topBarWindowInsets).padding(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Add,
+                            contentDescription = "カラムを追加",
                         )
                     }
-                    VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
             SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
@@ -125,6 +151,10 @@ internal fun HomeColumnsContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
+    }
+    val addTimelineColumnDialog = uiState.addTimelineColumnDialog
+    if (addTimelineColumnDialog != null) {
+        AddTimelineColumnDialog(uiState = addTimelineColumnDialog)
     }
 }
 

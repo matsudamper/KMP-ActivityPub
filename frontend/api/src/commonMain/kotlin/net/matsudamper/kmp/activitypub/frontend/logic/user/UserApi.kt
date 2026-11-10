@@ -163,6 +163,7 @@ class UserApi(
                     )
                 },
                 deletableNoteId = post.deletableNoteId,
+                followingGroupId = post.followingGroupId,
             ),
         )
     }
@@ -670,6 +671,7 @@ class UserApi(
                                 )
                             },
                             deletableNoteId = post.deletableNoteId,
+                            followingGroupId = post.followingGroupId,
                         ),
                     ),
                 )

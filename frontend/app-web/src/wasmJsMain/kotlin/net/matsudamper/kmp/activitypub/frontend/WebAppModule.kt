@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyApi
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import org.koin.core.annotation.Module
 import org.koin.core.annotation.Singleton
@@ -30,6 +31,9 @@ class WebAppModule {
 
     @Singleton
     fun themeSettingStore(): ThemeSettingStore = WebThemeSettingStore()
+
+    @Singleton
+    fun timelineColumnSettingStore(): TimelineColumnSettingStore = WebTimelineColumnSettingStore()
 }
 
 private class WebGraphQlClientSource : GraphQlClientSource {

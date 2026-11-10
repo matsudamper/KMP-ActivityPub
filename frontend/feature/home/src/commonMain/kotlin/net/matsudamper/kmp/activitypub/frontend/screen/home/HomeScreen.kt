@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,10 +38,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -49,8 +52,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -124,6 +131,10 @@ internal fun HomeScreen(
 
                 override fun scrollTabToTop(tab: HomeScreenUiState.Tab) {
                     coroutineScope.launch { tabListStates.scrollToTop(tab) }
+                }
+
+                override fun scrollTimelineColumnToTop(listStateKey: String) {
+                    coroutineScope.launch { tabListStates.timeline(listStateKey).animateScrollToItem(0) }
                 }
 
                 override fun navigateToPost() {
@@ -213,13 +224,15 @@ internal fun HomeScreen(
  */
 @Stable
 internal class HomeTabListStates(
-    val timeline: LazyListState,
     val search: LazyListState,
     val user: LazyGridState,
+    private val timelineListStates: TimelineListStates,
 ) {
+    fun timeline(listStateKey: String): LazyListState = timelineListStates.get(listStateKey)
+
     suspend fun scrollToTop(tab: HomeScreenUiState.Tab) {
         when (tab) {
-            HomeScreenUiState.Tab.Home -> timeline.animateScrollToItem(0)
+            HomeScreenUiState.Tab.Home -> timelineListStates.all().forEach { it.animateScrollToItem(0) }
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
             HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
         }
@@ -228,11 +241,48 @@ internal class HomeTabListStates(
 
 @Composable
 internal fun rememberHomeTabListStates(): HomeTabListStates {
-    val timeline = rememberLazyListState()
     val search = rememberLazyListState()
     val user = rememberLazyGridState()
-    return remember(timeline, search, user) { HomeTabListStates(timeline = timeline, search = search, user = user) }
+    val timeline = rememberSaveable(saver = TimelineListStates.Saver) { TimelineListStates(initialPositions = mapOf()) }
+    return remember(search, user, timeline) { HomeTabListStates(search = search, user = user, timelineListStates = timeline) }
 }
+
+/**
+ * カラムは足し引きされるので、カラムごとに初めて出したときに作る。
+ * 投稿詳細などから戻ったときに位置を戻せるよう、カラムごとの位置を保存する
+ */
+@Stable
+internal class TimelineListStates(initialPositions: Map<String, TimelineListPosition>) {
+    private val states = initialPositions.mapValuesTo(mutableMapOf()) { (_, position) ->
+        LazyListState(firstVisibleItemIndex = position.index, firstVisibleItemScrollOffset = position.offset)
+    }
+
+    fun get(listStateKey: String): LazyListState = states.getOrPut(listStateKey) { LazyListState() }
+
+    fun all(): List<LazyListState> = states.values.toList()
+
+    companion object {
+        val Saver: Saver<TimelineListStates, Any> = listSaver(
+            save = { timelineListStates ->
+                timelineListStates.states.flatMap { (listStateKey, state) ->
+                    listOf(listStateKey, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset)
+                }
+            },
+            restore = { saved ->
+                TimelineListStates(
+                    initialPositions = saved.chunked(3).associate { (listStateKey, index, offset) ->
+                        listStateKey as String to TimelineListPosition(index = index as Int, offset = offset as Int)
+                    },
+                )
+            },
+        )
+    }
+}
+
+internal data class TimelineListPosition(
+    val index: Int,
+    val offset: Int,
+)
 
 @Composable
 internal fun HomeContent(
@@ -255,6 +305,15 @@ internal fun HomeContent(
                         fontWeight = FontWeight.Bold,
                     )
                     if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
+                        val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
+                        if (selectedColumn != null) {
+                            IconButton(onClick = selectedColumn.listener::onClickRemove) {
+                                Icon(
+                                    imageVector = AppIcons.Close,
+                                    contentDescription = "${selectedColumn.title}のタブを閉じる",
+                                )
+                            }
+                        }
                         SensitiveImagesVisibilityButton(
                             sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
                             onClick = uiState.listener::onClickSensitiveImagesVisibility,
@@ -323,12 +382,9 @@ internal fun HomeContent(
         tabStateHolder.SaveableStateProvider(uiState.selectedTab.name) {
             when (uiState.selectedTab) {
                 HomeScreenUiState.Tab.Home -> {
-                    TimelineTabContent(
-                        listState = tabListStates.timeline,
-                        timelineItems = uiState.timelineItems,
-                        refreshing = uiState.timelineRefreshing,
-                        footer = uiState.timelineFooter,
-                        listener = uiState.listener,
+                    TimelineTabsContent(
+                        uiState = uiState,
+                        tabListStates = tabListStates,
                         modifier = contentModifier,
                     )
                 }
@@ -362,6 +418,76 @@ internal fun HomeContent(
     val addFollowingGroupDialog = uiState.addFollowingGroupDialog
     if (addFollowingGroupDialog != null) {
         AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
+    }
+    val addTimelineColumnDialog = uiState.addTimelineColumnDialog
+    if (addTimelineColumnDialog != null) {
+        AddTimelineColumnDialog(uiState = addTimelineColumnDialog)
+    }
+}
+
+/**
+ * 小さい画面向け。購読先ごとのタイムラインをタブで切り替える
+ */
+@Composable
+private fun TimelineTabsContent(
+    uiState: HomeScreenUiState,
+    tabListStates: HomeTabListStates,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
+            if (selectedIndex >= 0) {
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = selectedIndex,
+                    edgePadding = 0.dp,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    uiState.timelineColumns.forEach { column ->
+                        Tab(
+                            selected = column.selected,
+                            onClick = column.listener::onClickTab,
+                            text = { Text(column.title) },
+                        )
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+            IconButton(
+                onClick = uiState.listener::onClickAddTimelineColumn,
+                enabled = uiState.addTimelineColumnButtonEnabled,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Add,
+                    contentDescription = "表示する購読先を追加",
+                )
+            }
+        }
+        val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
+        val emptyMessage = uiState.timelineColumnsEmptyMessage
+        val contentModifier = Modifier.fillMaxWidth().weight(1f)
+        if (selectedColumn != null) {
+            key(selectedColumn.listStateKey) {
+                TimelineTabContent(
+                    listState = tabListStates.timeline(selectedColumn.listStateKey),
+                    timelineItems = selectedColumn.items,
+                    refreshing = uiState.timelineRefreshing,
+                    footer = uiState.timelineFooter,
+                    listener = uiState.listener,
+                    modifier = contentModifier,
+                )
+            }
+        } else if (emptyMessage != null) {
+            TimelineColumnsEmptyContent(
+                message = emptyMessage,
+                addButtonEnabled = uiState.addTimelineColumnButtonEnabled,
+                onClickAdd = uiState.listener::onClickAddTimelineColumn,
+                modifier = contentModifier,
+            )
+        } else {
+            Spacer(modifier = contentModifier)
+        }
     }
 }
 
@@ -399,7 +525,8 @@ internal fun TimelineTabContent(
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            val nearEnd = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - 5
+            // 購読先で振り分けたカラムは、読んだページにその購読先の投稿が無いと空になる。空でも続きを読まないと止まる
+            val nearEnd = lastVisibleIndex == null || lastVisibleIndex >= layoutInfo.totalItemsCount - 5
             nearEnd to layoutInfo.totalItemsCount
         }
             .distinctUntilChanged()

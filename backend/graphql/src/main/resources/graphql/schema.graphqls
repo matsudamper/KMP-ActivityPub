@@ -109,6 +109,8 @@ type HomeTimelinePost {
     boostCount: Int
     "フォローしている相手のブーストとして載った投稿なら、ブーストした相手。投稿者などほかの項目はブーストされた投稿のもの"
     boostedBy: PostBooster
+    "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。ホームなら null"
+    followingGroupId: FollowingGroupId
 }
 
 type PostBooster {

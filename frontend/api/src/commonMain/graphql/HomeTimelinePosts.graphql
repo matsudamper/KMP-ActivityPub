@@ -43,5 +43,6 @@ subscription HomeTimelinePosts {
         }
         url
         likedByMe
+        followingGroupId
     }
 }

@@ -27,11 +27,23 @@ import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
 @Preview
 @Composable
-private fun HomeContentPreview() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.None, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving, deleteNoteDialog = null)
+private fun HomeContentPreview() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.None,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+    deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = null,
+    addTimelineColumnDialog = null,
+)
 
 @Preview
 @Composable
-private fun HomeContentPreviewLoading() = HomeTimelinePreview(HomeScreenUiState.TimelineFooter.Loading, streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving, deleteNoteDialog = null)
+private fun HomeContentPreviewLoading() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.Loading,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+    deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = null,
+    addTimelineColumnDialog = null,
+)
 
 @Preview
 @Composable
@@ -39,6 +51,8 @@ private fun HomeContentPreviewError() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.Error("続きを読み込めませんでした"),
     streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
     deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = null,
+    addTimelineColumnDialog = null,
 )
 
 @Preview
@@ -47,6 +61,8 @@ private fun HomeContentPreviewStreamDisconnected() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.None,
     streamStatus = HomeScreenUiState.TimelineStreamStatus.Disconnected,
     deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = null,
+    addTimelineColumnDialog = null,
 )
 
 @Preview
@@ -55,6 +71,8 @@ private fun HomeContentPreviewDeleteNoteDialog() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.None,
     streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
     deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
+    timelineColumnsEmptyMessage = null,
+    addTimelineColumnDialog = null,
 )
 
 @Preview
@@ -63,114 +81,56 @@ private fun HomeContentPreviewStreamWaitingToReconnect() = HomeTimelinePreview(
     HomeScreenUiState.TimelineFooter.None,
     streamStatus = HomeScreenUiState.TimelineStreamStatus.WaitingToReconnect,
     deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = null,
+    addTimelineColumnDialog = null,
 )
 
+@Preview
+@Composable
+private fun HomeContentPreviewTimelineColumnsEmpty() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.None,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+    deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = "表示する購読先がありません",
+    addTimelineColumnDialog = null,
+)
+
+@Preview
+@Composable
+private fun HomeContentPreviewAddTimelineColumnDialog() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.None,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+    deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = null,
+    addTimelineColumnDialog = HomeScreenUiState.AddTimelineColumnDialog(
+        items = listOf(
+            HomeScreenUiState.AddTimelineColumnDialog.Item(name = "技術", listener = AndroidPreviewAddTimelineColumnDialogItemListener),
+            HomeScreenUiState.AddTimelineColumnDialog.Item(name = "友達", listener = AndroidPreviewAddTimelineColumnDialogItemListener),
+        ),
+        emptyMessage = null,
+        listener = AndroidPreviewAddTimelineColumnDialogListener,
+    ),
+)
+
+/**
+ * @param timelineColumnsEmptyMessage null でなければカラムを全部消した状態にする
+ */
 @Composable
 private fun HomeTimelinePreview(
     footer: HomeScreenUiState.TimelineFooter,
     streamStatus: HomeScreenUiState.TimelineStreamStatus,
     deleteNoteDialog: DeleteNoteDialogUiState?,
+    timelineColumnsEmptyMessage: String?,
+    addTimelineColumnDialog: HomeScreenUiState.AddTimelineColumnDialog?,
 ) {
     HomePreviewTheme {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineItems = listOf(
-                    PostItemUiState(
-                        boostedBy = null,
-                        iconUrl = "https://example.com/kotlin.png",
-                        displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
-                        acct = "@kotlin@example.com",
-                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
-                        postedAt = "1分前",
-                        linkPreviews = listOf(
-                            PostItemUiState.LinkPreview(
-                                title = "Kotlin Programming Language",
-                                siteName = "Kotlin",
-                                imageUrl = "https://example.com/ogp.png",
-                                faviconUrl = "https://example.com/favicon.ico",
-                                listener = AndroidPreviewLinkPreviewListener,
-                            ),
-                            PostItemUiState.LinkPreview(
-                                title = "https://example.com/not-loaded",
-                                siteName = "example.com",
-                                imageUrl = null,
-                                faviconUrl = null,
-                                listener = AndroidPreviewLinkPreviewListener,
-                            ),
-                        ),
-                        images = listOf(
-                            PostItemUiState.Image(
-                                url = "https://example.com/photo.png",
-                                description = "写真",
-                                blurToggleButtonVisible = false,
-                                blurred = false,
-                                listener = AndroidPreviewImageListener,
-                            ),
-                        ),
-                        favouriteCountText = null,
-                        boostCountText = null,
-                        favouriteButton = null,
-                        stamps = listOf(),
-                        authorListener = AndroidPreviewAuthorListener,
-                        menuItems = listOf(),
-                        postListener = AndroidPreviewPostListener,
-                        shareListener = AndroidPreviewShareListener,
-                        listener = AndroidPreviewTimelineItemListener,
-                    ),
-                    PostItemUiState(
-                        boostedBy = PostItemUiState.BoostedBy(
-                            text = createTextWithEmojis(text = "Alice :kotlin: がブースト", emojis = PreviewEmojis),
-                            iconUrl = null,
-                            listener = AndroidPreviewBoostedByListener,
-                        ),
-                        iconUrl = null,
-                        displayName = createTextWithEmojis(text = "Compose :compose:", emojis = PreviewEmojis),
-                        acct = "@compose@example.com",
-                        body = createPostBodyText(content = "Compose Multiplatform :compose: で Web と Android の画面を共有している :kotlin:", emojis = PreviewEmojis, onOpenUrl = {}),
-                        postedAt = "5分前",
-                        linkPreviews = listOf(),
-                        images = listOf(
-                            PostItemUiState.Image(
-                                url = "https://example.com/1.png",
-                                description = null,
-                                blurToggleButtonVisible = true,
-                                blurred = true,
-                                listener = AndroidPreviewImageListener,
-                            ),
-                            PostItemUiState.Image(
-                                url = "https://example.com/2.png",
-                                description = null,
-                                blurToggleButtonVisible = true,
-                                blurred = true,
-                                listener = AndroidPreviewImageListener,
-                            ),
-                            PostItemUiState.Image(
-                                url = "https://example.com/3.png",
-                                description = null,
-                                blurToggleButtonVisible = true,
-                                blurred = true,
-                                listener = AndroidPreviewImageListener,
-                            ),
-                        ),
-                        favouriteCountText = "3",
-                        boostCountText = null,
-                        favouriteButton = PostItemUiState.FavouriteButton(
-                            iconHighlighted = true,
-                            listener = AndroidPreviewFavouriteButtonListener,
-                        ),
-                        stamps = listOf(
-                            PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
-                            PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
-                            PostItemUiState.Stamp(emoji = ":kotlin:", imageUrl = "https://example.com/kotlin.png", countText = "1"),
-                        ),
-                        authorListener = AndroidPreviewAuthorListener,
-                        menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
-                        postListener = AndroidPreviewPostListener,
-                        shareListener = AndroidPreviewShareListener,
-                        listener = AndroidPreviewTimelineItemListener,
-                    ),
-                ),
+                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewTimelinePosts()) else listOf(),
+                timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
+                addTimelineColumnButtonEnabled = true,
+                addTimelineColumnDialog = addTimelineColumnDialog,
                 timelineRefreshing = false,
                 timelineFooter = footer,
                 timelineStreamStatus = streamStatus,
@@ -202,7 +162,10 @@ private fun HomeSearchContentPreview() {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Search,
-                timelineItems = listOf(),
+                timelineColumns = listOf(),
+                timelineColumnsEmptyMessage = null,
+                addTimelineColumnButtonEnabled = true,
+                addTimelineColumnDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -259,7 +222,10 @@ private fun HomeSearchEmptyContentPreview() {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Search,
-                timelineItems = listOf(),
+                timelineColumns = listOf(),
+                timelineColumnsEmptyMessage = null,
+                addTimelineColumnButtonEnabled = true,
+                addTimelineColumnDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -294,7 +260,10 @@ private fun HomeUserContentPreview() {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.User,
-                timelineItems = listOf(),
+                timelineColumns = listOf(),
+                timelineColumnsEmptyMessage = null,
+                addTimelineColumnButtonEnabled = true,
+                addTimelineColumnDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -361,7 +330,10 @@ private fun HomeUserMediaEmptyContentPreview() {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.User,
-                timelineItems = listOf(),
+                timelineColumns = listOf(),
+                timelineColumnsEmptyMessage = null,
+                addTimelineColumnButtonEnabled = true,
+                addTimelineColumnDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -408,7 +380,10 @@ private fun HomeUserMediaContentPreview() {
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.User,
-                timelineItems = listOf(),
+                timelineColumns = listOf(),
+                timelineColumnsEmptyMessage = null,
+                addTimelineColumnButtonEnabled = true,
+                addTimelineColumnDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -475,32 +450,32 @@ private fun HomeUserMediaContentPreview() {
 
 @Preview(widthDp = 1280, heightDp = 800)
 @Composable
-private fun HomeColumnsContentPreview() {
+private fun HomeColumnsContentPreview() = HomeColumnsPreview(openedColumn = HomeScreenUiState.Column.Post, timelineColumnsEmptyMessage = null)
+
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun HomeColumnsContentPreviewTimelineColumns() = HomeColumnsPreview(openedColumn = null, timelineColumnsEmptyMessage = null)
+
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun HomeColumnsContentPreviewTimelineColumnsEmpty() = HomeColumnsPreview(openedColumn = null, timelineColumnsEmptyMessage = "表示する購読先がありません")
+
+/**
+ * @param timelineColumnsEmptyMessage null でなければカラムを全部消した状態にする
+ */
+@Composable
+private fun HomeColumnsPreview(
+    openedColumn: HomeScreenUiState.Column?,
+    timelineColumnsEmptyMessage: String?,
+) {
     HomePreviewTheme {
         HomeColumnsContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineItems = listOf(
-                    PostItemUiState(
-                        boostedBy = null,
-                        iconUrl = "https://example.com/kotlin.png",
-                        displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
-                        acct = "@kotlin@example.com",
-                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
-                        postedAt = "1分前",
-                        linkPreviews = listOf(),
-                        images = listOf(),
-                        favouriteCountText = null,
-                        boostCountText = null,
-                        favouriteButton = null,
-                        stamps = listOf(),
-                        postListener = AndroidPreviewPostListener,
-                        shareListener = AndroidPreviewShareListener,
-                        menuItems = listOf(),
-                        authorListener = AndroidPreviewAuthorListener,
-                        listener = AndroidPreviewTimelineItemListener,
-                    ),
-                ),
+                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewColumnsPosts()) else listOf(),
+                timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
+                addTimelineColumnButtonEnabled = true,
+                addTimelineColumnDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -526,9 +501,9 @@ private fun HomeColumnsContentPreview() {
                 userTabIconUrl = null,
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
-                openedColumn = HomeScreenUiState.Column.Post,
+                openedColumn = openedColumn,
                 railItems = listOf(
-                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Post, selected = true),
+                    HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Post, selected = openedColumn == HomeScreenUiState.Column.Post),
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Search, selected = false),
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.User, selected = false),
                 ),
@@ -593,6 +568,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 
     override fun onRefreshTimeline() = Unit
+
+    override fun onClickAddTimelineColumn() = Unit
     override fun onScrolledToTimelineEnd() = Unit
     override fun onClickRetryTimelineLoadMore() = Unit
 
@@ -689,4 +666,156 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onPressPostShortcut() = Unit
 
     override fun onClickBack() = Unit
+}
+
+private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
+    PostItemUiState(
+        boostedBy = null,
+        iconUrl = "https://example.com/kotlin.png",
+        displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
+        acct = "@kotlin@example.com",
+        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
+        postedAt = "1分前",
+        linkPreviews = listOf(
+            PostItemUiState.LinkPreview(
+                title = "Kotlin Programming Language",
+                siteName = "Kotlin",
+                imageUrl = "https://example.com/ogp.png",
+                faviconUrl = "https://example.com/favicon.ico",
+                listener = AndroidPreviewLinkPreviewListener,
+            ),
+            PostItemUiState.LinkPreview(
+                title = "https://example.com/not-loaded",
+                siteName = "example.com",
+                imageUrl = null,
+                faviconUrl = null,
+                listener = AndroidPreviewLinkPreviewListener,
+            ),
+        ),
+        images = listOf(
+            PostItemUiState.Image(
+                url = "https://example.com/photo.png",
+                description = "写真",
+                blurToggleButtonVisible = false,
+                blurred = false,
+                listener = AndroidPreviewImageListener,
+            ),
+        ),
+        favouriteCountText = null,
+        boostCountText = null,
+        favouriteButton = null,
+        stamps = listOf(),
+        authorListener = AndroidPreviewAuthorListener,
+        menuItems = listOf(),
+        postListener = AndroidPreviewPostListener,
+        shareListener = AndroidPreviewShareListener,
+        listener = AndroidPreviewTimelineItemListener,
+    ),
+    PostItemUiState(
+        boostedBy = PostItemUiState.BoostedBy(
+            text = createTextWithEmojis(text = "Alice :kotlin: がブースト", emojis = PreviewEmojis),
+            iconUrl = null,
+            listener = AndroidPreviewBoostedByListener,
+        ),
+        iconUrl = null,
+        displayName = createTextWithEmojis(text = "Compose :compose:", emojis = PreviewEmojis),
+        acct = "@compose@example.com",
+        body = createPostBodyText(content = "Compose Multiplatform :compose: で Web と Android の画面を共有している :kotlin:", emojis = PreviewEmojis, onOpenUrl = {}),
+        postedAt = "5分前",
+        linkPreviews = listOf(),
+        images = listOf(
+            PostItemUiState.Image(
+                url = "https://example.com/1.png",
+                description = null,
+                blurToggleButtonVisible = true,
+                blurred = true,
+                listener = AndroidPreviewImageListener,
+            ),
+            PostItemUiState.Image(
+                url = "https://example.com/2.png",
+                description = null,
+                blurToggleButtonVisible = true,
+                blurred = true,
+                listener = AndroidPreviewImageListener,
+            ),
+            PostItemUiState.Image(
+                url = "https://example.com/3.png",
+                description = null,
+                blurToggleButtonVisible = true,
+                blurred = true,
+                listener = AndroidPreviewImageListener,
+            ),
+        ),
+        favouriteCountText = "3",
+        boostCountText = null,
+        favouriteButton = PostItemUiState.FavouriteButton(
+            iconHighlighted = true,
+            listener = AndroidPreviewFavouriteButtonListener,
+        ),
+        stamps = listOf(
+            PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
+            PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
+            PostItemUiState.Stamp(emoji = ":kotlin:", imageUrl = "https://example.com/kotlin.png", countText = "1"),
+        ),
+        authorListener = AndroidPreviewAuthorListener,
+        menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
+        postListener = AndroidPreviewPostListener,
+        shareListener = AndroidPreviewShareListener,
+        listener = AndroidPreviewTimelineItemListener,
+    ),
+)
+
+private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
+    PostItemUiState(
+        boostedBy = null,
+        iconUrl = "https://example.com/kotlin.png",
+        displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
+        acct = "@kotlin@example.com",
+        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
+        postedAt = "1分前",
+        linkPreviews = listOf(),
+        images = listOf(),
+        favouriteCountText = null,
+        boostCountText = null,
+        favouriteButton = null,
+        stamps = listOf(),
+        postListener = AndroidPreviewPostListener,
+        shareListener = AndroidPreviewShareListener,
+        menuItems = listOf(),
+        authorListener = AndroidPreviewAuthorListener,
+        listener = AndroidPreviewTimelineItemListener,
+    ),
+)
+
+private fun previewTimelineColumns(items: List<PostItemUiState>): List<HomeScreenUiState.TimelineColumn> = listOf(
+    HomeScreenUiState.TimelineColumn(
+        title = "ホーム",
+        listStateKey = "home",
+        items = items,
+        selected = true,
+        listener = AndroidPreviewTimelineColumnListener,
+    ),
+    HomeScreenUiState.TimelineColumn(
+        title = "ニュース",
+        listStateKey = "group:1",
+        items = items.take(1),
+        selected = false,
+        listener = AndroidPreviewTimelineColumnListener,
+    ),
+)
+
+private object AndroidPreviewTimelineColumnListener : HomeScreenUiState.TimelineColumnListener {
+    override fun onClickTab() = Unit
+
+    override fun onClickHeader() = Unit
+
+    override fun onClickRemove() = Unit
+}
+
+private object AndroidPreviewAddTimelineColumnDialogListener : HomeScreenUiState.AddTimelineColumnDialog.Listener {
+    override fun onDismiss() = Unit
+}
+
+private object AndroidPreviewAddTimelineColumnDialogItemListener : HomeScreenUiState.AddTimelineColumnDialog.ItemListener {
+    override fun onClick() = Unit
 }
