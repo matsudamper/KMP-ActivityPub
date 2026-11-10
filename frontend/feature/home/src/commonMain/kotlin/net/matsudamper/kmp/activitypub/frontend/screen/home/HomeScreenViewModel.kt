@@ -173,6 +173,7 @@ internal class HomeScreenViewModel(
         }
 
         override fun onRefreshTimeline() {
+            loadFollowingGroups()
             loadTimeline(TimelineLoadTrigger.PullToRefresh)
         }
 
@@ -255,11 +256,13 @@ internal class HomeScreenViewModel(
         override fun onClickAddTimelineColumn() {
             updateTimelineColumns { it.copy(addDialogVisible = true) }
             // 別の画面でグループを作っていることがあるので、候補を出す前に読み直す
-            viewModelScope.launch { userApi.loadFollowingGroups() }
+            loadFollowingGroups()
         }
 
         override fun onScreenShown() {
             loadProfile()
+            // 読めなかったときは空になり、グループのカラムが消えたままになるので、戻るたびに読み直す
+            loadFollowingGroups()
             // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
             if (viewModelStateFlow.value.timelineStream.connection != TimelineStreamConnection.StoppedByUser) {
                 collectTimelineArrivals()
@@ -307,6 +310,8 @@ internal class HomeScreenViewModel(
             userApi.followingChanges.collect { change ->
                 // 購読の数が変わる
                 loadProfile()
+                // 読み込み済みの投稿は前の購読先のまま振り分けられるので、読み直して今の購読先に振り分ける
+                loadTimeline(TimelineLoadTrigger.ScreenShown)
                 searchPaging?.updateCache { it.withFollowing(change) }
                 updateSearchResult { result ->
                     if (result is SearchResultState.Loaded) {
@@ -334,6 +339,10 @@ internal class HomeScreenViewModel(
                 updateTimelineColumns { it.copy(followingGroups = groups) }
             }
         }
+    }
+
+    private fun loadFollowingGroups() {
+        viewModelScope.launch { userApi.loadFollowingGroups() }
     }
 
     private fun updateTimelineColumns(transform: (TimelineColumnsState) -> TimelineColumnsState) {
