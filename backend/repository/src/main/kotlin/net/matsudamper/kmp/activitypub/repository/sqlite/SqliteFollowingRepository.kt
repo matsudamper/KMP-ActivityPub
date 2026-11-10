@@ -116,16 +116,16 @@ internal class SqliteFollowingRepository(
             .fetch()
         val emojisByActor = dsl.remoteActorEmojisByUri(rows.mapNotNull { it.get(REMOTE_ACTORS.ACTOR_URI) }.toSet())
         rows.map { record ->
-                ListedActor(
-                    actorUri = checkNotNull(record.get(ACCOUNT_FOLLOWING.ACTOR_URI)),
-                    listedAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWING.CREATED_AT))),
-                    preferredUsername = record.get(REMOTE_ACTORS.PREFERRED_USERNAME),
-                    displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
-                    iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
-                    emojis = emojisByActor[record.get(REMOTE_ACTORS.ACTOR_URI)].orEmpty(),
-                    actorUpdatedAt = record.get(REMOTE_ACTORS.UPDATED_AT)?.let { StoredInstant.parse(it) },
-                )
-            }
+            ListedActor(
+                actorUri = checkNotNull(record.get(ACCOUNT_FOLLOWING.ACTOR_URI)),
+                listedAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWING.CREATED_AT))),
+                preferredUsername = record.get(REMOTE_ACTORS.PREFERRED_USERNAME),
+                displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
+                iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
+                emojis = emojisByActor[record.get(REMOTE_ACTORS.ACTOR_URI)].orEmpty(),
+                actorUpdatedAt = record.get(REMOTE_ACTORS.UPDATED_AT)?.let { StoredInstant.parse(it) },
+            )
+        }
     }
 
     override fun count(accountId: AccountId): Long = jooq.withConnection { dsl ->
