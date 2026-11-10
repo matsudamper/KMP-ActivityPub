@@ -121,7 +121,7 @@ internal class LoginTestServer : Closeable {
             val subscriptionId = JSONObject.quote(id)
             check(
                 webSocket.send(
-                    """{"type":"next","id":$subscriptionId,"payload":{"data":{"timelinePosts":{"__typename":"HomeTimelinePost","id":"post-after-recreation","content":"Activity 再生成後の新着投稿","publishedAt":"2026-11-03T10:01:00Z","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false}}}}""",
+                    """{"type":"next","id":$subscriptionId,"payload":{"data":{"homeTimelinePosts":{"__typename":"HomeTimelinePost","id":"post-after-recreation","content":"Activity 再生成後の新着投稿","publishedAt":"2026-11-03T10:01:00Z","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false}}}}""",
                 ),
             ) { "新着投稿を送信できない: $connectionEvents" }
         }

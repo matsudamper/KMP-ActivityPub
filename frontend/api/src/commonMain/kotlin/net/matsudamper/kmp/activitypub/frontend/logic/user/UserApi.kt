@@ -29,13 +29,13 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineLinkPreviewsQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelinePostsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
-import net.matsudamper.kmp.activitypub.frontend.graphql.TimelinePostsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -609,8 +609,8 @@ class UserApi(
     )
 
     private suspend fun FlowCollector<HomeTimelineStreamEvent>.collectHomeTimelinePosts(client: ApolloClient): Int {
-        val receivedPostCount = client.subscription(TimelinePostsSubscription()).toFlow()
-            .mapNotNull { response -> response.data?.timelinePosts }
+        val receivedPostCount = client.subscription(HomeTimelinePostsSubscription()).toFlow()
+            .mapNotNull { response -> response.data?.homeTimelinePosts }
             .onEach { post ->
                 emit(
                     HomeTimelineStreamEvent.Arrived(

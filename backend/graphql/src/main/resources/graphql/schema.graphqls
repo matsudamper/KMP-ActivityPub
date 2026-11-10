@@ -65,11 +65,10 @@ type Mutation {
 
 type Subscription {
     """
-    ログイン中のアカウントのタイムラインに新しく載った投稿を、載った順に流す。
+    ログイン中のアカウントのホームタイムラインに新しく載った投稿を、載った順に流す。
     購読より前に載った投稿は流さないので、homeTimeline で読む。ログインしていなければエラー
-    followingGroupId を省くとホームに載る投稿をすべて流す。グループでの絞り込みはまだ無いので、指定するとエラー
     """
-    timelinePosts(followingGroupId: FollowingGroupId): HomeTimelinePost!
+    homeTimelinePosts: HomeTimelinePost!
 }
 
 type HomeTimeline {
