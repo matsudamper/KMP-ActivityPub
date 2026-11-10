@@ -8,6 +8,8 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
+import org.jsoup.Jsoup
+import org.jsoup.safety.Safelist
 
 internal class KotpubRemoteUserProfiles(
     private val users: RemoteUserLookup,
@@ -29,14 +31,13 @@ internal class KotpubRemoteUserProfiles(
             ProfilePost(
                 contentHtml = it.contentHtml,
                 publishedAt = it.publishedAt,
-                // outbox から取った投稿は閲覧注意かどうかを持っていない
-                summary = null,
-                sensitive = false,
+                summary = it.summary?.let { summary -> Jsoup.clean(summary, Safelist.none()) },
+                sensitive = it.sensitive,
                 // 保存していない投稿なので、後から OGP を取りに行く元も個別投稿画面で開く元も無い
                 linkPreviewId = null,
                 postId = null,
                 deletableNoteId = null,
-                images = listOf(),
+                images = it.attachments.mapNotNull { attachment -> attachment.toImage() },
                 // outbox から取った投稿はカスタム絵文字を持っていない
                 emojis = listOf(),
                 favouriteCount = null,

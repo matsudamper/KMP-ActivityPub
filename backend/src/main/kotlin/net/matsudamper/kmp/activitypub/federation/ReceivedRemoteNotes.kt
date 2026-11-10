@@ -147,10 +147,10 @@ internal class ReceivedRemoteNotes(
         images = attachments.mapNotNull { it.toImage() },
         emojis = emojis.toRecords(),
     )
+}
 
-    // 動画や音声も添付で来る。画像だけを出すので、申告が画像のものだけを残す
-    private fun ReceivedNoteAttachment.toImage(): TimelinePostImage.Remote? {
-        if (mediaType?.startsWith("image/") != true) return null
-        return TimelinePostImage.Remote(url = url, description = name?.let { Jsoup.clean(it, Safelist.none()) }?.takeIf { it.isNotBlank() })
-    }
+// 動画や音声も添付で来る。画像だけを出すので、申告が画像のものだけを残す
+internal fun ReceivedNoteAttachment.toImage(): TimelinePostImage.Remote? {
+    if (mediaType?.startsWith("image/") != true) return null
+    return TimelinePostImage.Remote(url = url, description = name?.let { Jsoup.clean(it, Safelist.none()) }?.takeIf { it.isNotBlank() })
 }
