@@ -1,4 +1,4 @@
-mutation SetBoosted($postId: ID!, $boosted: Boolean!) {
+mutation SetBoosted($postId: TimelinePostId!, $boosted: Boolean!) {
     user {
         setBoosted(postId: $postId, boosted: $boosted) {
             failure

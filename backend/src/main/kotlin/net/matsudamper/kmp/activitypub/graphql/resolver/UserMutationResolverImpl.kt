@@ -58,6 +58,7 @@ import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
 class UserMutationResolverImpl : UserMutationResolver {
@@ -309,7 +310,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     override fun setBoosted(
         userMutation: QlUserMutation,
-        postId: String,
+        postId: TimelinePostId,
         boosted: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSetBoostedResult>> {
@@ -455,7 +456,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     }
 
     private fun setBoosted(
-        postId: String,
+        postId: TimelinePostId,
         boosted: Boolean,
         env: DataFetchingEnvironment,
     ): QlSetBoostedResult {
@@ -464,7 +465,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.boostService
                 ?: return QlSetBoostedResult(failure = QlSetBoostedFailure.FEDERATION_DISABLED)
         val failure =
-            when (boostService.setBoosted(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), postId = postId, boosted = boosted)) {
+            when (boostService.setBoosted(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), postId = postId.value, boosted = boosted)) {
                 SetBoostedResult.Updated -> null
                 SetBoostedResult.NotLoggedIn -> QlSetBoostedFailure.NOT_LOGGED_IN
                 SetBoostedResult.PostNotFound -> QlSetBoostedFailure.POST_NOT_FOUND
