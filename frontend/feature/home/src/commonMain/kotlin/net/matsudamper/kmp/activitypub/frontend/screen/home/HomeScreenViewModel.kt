@@ -40,6 +40,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
@@ -864,7 +865,7 @@ internal class HomeScreenViewModel(
                 )
             },
             iconUrl = user.iconUrl,
-            displayName = user.displayName,
+            displayName = createTextWithEmojis(text = user.displayName, emojis = user.displayNameEmojis),
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
             listener =
             object : HomeScreenUiState.SearchAccountListener {

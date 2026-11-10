@@ -236,6 +236,7 @@ class QueryResolverImpl : QueryResolver {
                     username = user.username,
                     host = user.host,
                     displayName = user.displayName,
+                    displayNameEmojis = user.displayNameEmojis.toQlCustomEmojis(diContainer),
                     iconUrl = user.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = user.updatedAt) },
                 )
             },

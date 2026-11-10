@@ -444,6 +444,7 @@ class UserApi(
                 host = user.host,
                 isLocal = user.isLocal,
                 displayName = user.displayName,
+                displayNameEmojis = user.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 iconUrl = user.iconUrl,
             ),
         )

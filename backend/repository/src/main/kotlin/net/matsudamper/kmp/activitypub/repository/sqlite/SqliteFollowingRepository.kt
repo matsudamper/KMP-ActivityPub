@@ -98,7 +98,7 @@ internal class SqliteFollowingRepository(
     }
 
     override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = jooq.withConnection { dsl ->
-        dsl
+        val rows = dsl
             .select(
                 ACCOUNT_FOLLOWING.ACTOR_URI,
                 ACCOUNT_FOLLOWING.CREATED_AT,
@@ -113,13 +113,16 @@ internal class SqliteFollowingRepository(
             .and(olderThan(after))
             .orderBy(ACCOUNT_FOLLOWING.CREATED_AT.desc(), ACCOUNT_FOLLOWING.ACTOR_URI.desc())
             .limit(limit)
-            .fetch { record ->
+            .fetch()
+        val emojisByActor = dsl.remoteActorEmojisByUri(rows.mapNotNull { it.get(REMOTE_ACTORS.ACTOR_URI) }.toSet())
+        rows.map { record ->
                 ListedActor(
                     actorUri = checkNotNull(record.get(ACCOUNT_FOLLOWING.ACTOR_URI)),
                     listedAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWING.CREATED_AT))),
                     preferredUsername = record.get(REMOTE_ACTORS.PREFERRED_USERNAME),
                     displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
                     iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
+                    emojis = emojisByActor[record.get(REMOTE_ACTORS.ACTOR_URI)].orEmpty(),
                     actorUpdatedAt = record.get(REMOTE_ACTORS.UPDATED_AT)?.let { StoredInstant.parse(it) },
                 )
             }

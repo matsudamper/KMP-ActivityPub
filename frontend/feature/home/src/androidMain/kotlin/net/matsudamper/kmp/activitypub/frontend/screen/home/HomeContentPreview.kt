@@ -213,21 +213,21 @@ private fun HomeSearchContentPreview() {
                         accounts = listOf(
                             HomeScreenUiState.SearchAccount(
                                 iconUrl = "https://example.com/icon.png",
-                                displayName = "kotlin",
+                                displayName = createTextWithEmojis(text = "kotlin", emojis = listOf()),
                                 acct = "@kotlin",
                                 followMenu = null,
                                 listener = AndroidPreviewSearchAccountListener,
                             ),
                             HomeScreenUiState.SearchAccount(
                                 iconUrl = null,
-                                displayName = "Kotlin Weekly",
+                                displayName = createTextWithEmojis(text = "Kotlin Weekly :kotlin:", emojis = PreviewEmojis),
                                 acct = "@kotlinweekly@remote.example",
                                 followMenu = previewFollowMenu(destinationName = "ニュース"),
                                 listener = null,
                             ),
                             HomeScreenUiState.SearchAccount(
                                 iconUrl = null,
-                                displayName = "Compose News",
+                                displayName = createTextWithEmojis(text = "Compose News", emojis = listOf()),
                                 acct = "@compose@remote.example",
                                 followMenu = previewFollowMenu(destinationName = null),
                                 listener = null,
@@ -511,7 +511,7 @@ private fun HomeColumnsContentPreview() {
                         accounts = listOf(
                             HomeScreenUiState.SearchAccount(
                                 iconUrl = "https://example.com/icon.png",
-                                displayName = "kotlin",
+                                displayName = createTextWithEmojis(text = "kotlin", emojis = listOf()),
                                 acct = "@kotlin",
                                 followMenu = null,
                                 listener = AndroidPreviewSearchAccountListener,

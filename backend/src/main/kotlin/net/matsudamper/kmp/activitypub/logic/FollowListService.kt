@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
@@ -74,6 +75,7 @@ class FollowListService(
             host = host.lowercase(),
             displayName = displayName?.takeIf { it.isNotBlank() },
             iconUrl = iconUrl,
+            displayNameEmojis = emojis,
             updatedAt = actorUpdatedAt,
         )
     }
@@ -103,6 +105,7 @@ data class ListedUser(
     val host: String,
     val displayName: String?,
     val iconUrl: String?,
+    val displayNameEmojis: List<CustomEmojiRecord>,
     val updatedAt: Instant?,
 )
 

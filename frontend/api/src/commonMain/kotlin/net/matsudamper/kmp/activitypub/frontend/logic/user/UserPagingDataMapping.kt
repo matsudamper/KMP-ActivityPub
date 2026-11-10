@@ -144,6 +144,7 @@ fun HomeScreenSearchUsersQuery.Data.toUserSearchResult(): UserSearchResult.Succe
                 host = it.host,
                 isLocal = it.isLocal,
                 displayName = it.displayName,
+                displayNameEmojis = it.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 iconUrl = it.iconUrl,
             )
         },
@@ -200,6 +201,7 @@ private fun ActorListFields.toUserFollowListResult(): UserFollowListResult.Succe
                 username = it.username,
                 host = it.host,
                 displayName = it.displayName,
+                displayNameEmojis = it.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 iconUrl = it.iconUrl,
             )
         },

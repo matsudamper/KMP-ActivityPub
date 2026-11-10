@@ -205,7 +205,7 @@ internal class SqliteFollowerRepository(
                 ACCOUNT_FOLLOWERS.ACCEPTED_AT.lt(acceptedAt)
                     .or(ACCOUNT_FOLLOWERS.ACCEPTED_AT.eq(acceptedAt).and(REMOTE_ACTORS.ACTOR_URI.lt(after.actorUri)))
             }
-        dsl
+        val rows = dsl
             .select(
                 REMOTE_ACTORS.ACTOR_URI,
                 ACCOUNT_FOLLOWERS.ACCEPTED_AT,
@@ -222,13 +222,16 @@ internal class SqliteFollowerRepository(
             .and(afterCondition)
             .orderBy(ACCOUNT_FOLLOWERS.ACCEPTED_AT.desc(), REMOTE_ACTORS.ACTOR_URI.desc())
             .limit(limit)
-            .fetch { record ->
+            .fetch()
+        val emojisByActor = dsl.remoteActorEmojisByUri(rows.mapNotNull { it.get(REMOTE_ACTORS.ACTOR_URI) }.toSet())
+        rows.map { record ->
                 ListedActor(
                     actorUri = checkNotNull(record.get(REMOTE_ACTORS.ACTOR_URI)),
                     listedAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNT_FOLLOWERS.ACCEPTED_AT))),
                     preferredUsername = record.get(REMOTE_ACTORS.PREFERRED_USERNAME),
                     displayName = record.get(REMOTE_ACTORS.DISPLAY_NAME),
                     iconUrl = record.get(REMOTE_ACTORS.ICON_URL),
+                    emojis = emojisByActor[record.get(REMOTE_ACTORS.ACTOR_URI)].orEmpty(),
                     actorUpdatedAt = record.get(REMOTE_ACTORS.UPDATED_AT)?.let { StoredInstant.parse(it) },
                 )
             }

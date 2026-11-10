@@ -46,6 +46,10 @@ fragment ActorListFields on ActorList {
         username
         host
         displayName
+        displayNameEmojis {
+            name
+            imageUrl
+        }
         iconUrl
     }
     nextCursor

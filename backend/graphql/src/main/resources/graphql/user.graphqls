@@ -110,5 +110,7 @@ type ListedActor {
     username: String
     host: String!
     displayName: String
+    "displayName に入るカスタム絵文字。画像を中継できなければ空"
+    displayNameEmojis: [CustomEmoji!]!
     iconUrl: String
 }
