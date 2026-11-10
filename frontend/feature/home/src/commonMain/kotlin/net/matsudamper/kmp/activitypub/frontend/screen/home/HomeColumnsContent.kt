@@ -76,7 +76,6 @@ internal fun HomeColumnsContent(
                                 title = "検索",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Search) },
                                 onClickClose = { uiState.listener.onClickCloseColumn(column) },
-                                headerModifier = Modifier,
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 SearchTabContent(
@@ -91,7 +90,6 @@ internal fun HomeColumnsContent(
                                 title = "ユーザー",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.User) },
                                 onClickClose = { uiState.listener.onClickCloseColumn(column) },
-                                headerModifier = Modifier,
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 UserTabContent(
@@ -267,8 +265,8 @@ private fun HomeColumn(
     title: String,
     onClickHeader: () -> Unit,
     onClickClose: (() -> Unit)?,
-    headerModifier: Modifier,
     modifier: Modifier = Modifier,
+    headerModifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
 ) {
     Column(modifier = modifier) {
