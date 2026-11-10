@@ -18,7 +18,7 @@ private fun AdminContentDeniedPreview() {
     MaterialTheme {
         AdminContent(
             uiState = AdminScreenUiState(
-                content = AdminScreenUiState.Content.Message("管理画面に入る権限がない"),
+                content = AdminScreenUiState.Content.Message("サーバー管理画面に入る権限がない"),
                 listener = AndroidPreviewAdminListener,
             ),
         )

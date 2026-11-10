@@ -58,7 +58,7 @@ internal class AdminScreenViewModel(
             when (val access = viewModelState.access) {
                 AccessState.Loading -> AdminScreenUiState.Content.Loading
                 AccessState.Granted -> AdminScreenUiState.Content.Empty
-                AccessState.Denied -> AdminScreenUiState.Content.Message("管理画面に入る権限がない")
+                AccessState.Denied -> AdminScreenUiState.Content.Message("サーバー管理画面に入る権限がない")
                 is AccessState.Error -> AdminScreenUiState.Content.Message(access.message)
             },
             listener = listener,

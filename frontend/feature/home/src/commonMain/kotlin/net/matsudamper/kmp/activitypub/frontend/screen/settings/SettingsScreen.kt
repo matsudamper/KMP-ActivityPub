@@ -206,7 +206,7 @@ private fun AdminItem(
     listener: SettingsScreenUiState.Listener,
 ) {
     Text(
-        text = "管理",
+        text = "サーバー管理",
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = listener::onClickAdmin)

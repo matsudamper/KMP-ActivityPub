@@ -64,7 +64,7 @@ internal fun AdminContent(
                     )
                 }
                 Text(
-                    text = "管理",
+                    text = "サーバー管理",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
