@@ -38,8 +38,7 @@ internal class KotpubRemoteUserProfiles(
                 postId = null,
                 deletableNoteId = null,
                 images = it.attachments.mapNotNull { attachment -> attachment.toImage() },
-                // outbox から取った投稿はカスタム絵文字を持っていない
-                emojis = listOf(),
+                emojis = it.emojis.toRecords(),
                 favouriteCount = null,
                 stamps = listOf(),
                 // 保存していない投稿なので、いいねする投稿を指せない
