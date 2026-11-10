@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.Boost
@@ -66,6 +67,7 @@ internal class UserProfileScreenViewModel(
      * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChangingPostIds = setOf<String>()
+    private var boostChangingPostIds = setOf<String>()
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -176,6 +178,32 @@ internal class UserProfileScreenViewModel(
     private fun applyLiked(likePostId: String, liked: Boolean) {
         updateProfile { profile ->
             if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withLiked(likePostId = likePostId, liked = liked)) else profile
+        }
+    }
+
+    /**
+     * @param boostedByMe 押す前の状態
+     */
+    private fun toggleBoost(postId: String, boostedByMe: Boolean) {
+        if (postId in boostChangingPostIds) return
+        boostChangingPostIds = boostChangingPostIds + postId
+        viewModelScope.launch {
+            try {
+                applyBoosted(postId = postId, boosted = !boostedByMe)
+                val error = api.setBoosted(postId = postId, boosted = !boostedByMe)
+                if (error != null) {
+                    applyBoosted(postId = postId, boosted = boostedByMe)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                boostChangingPostIds = boostChangingPostIds - postId
+            }
+        }
+    }
+
+    private fun applyBoosted(postId: String, boosted: Boolean) {
+        updateProfile { profile ->
+            if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withBoosted(postId = postId, boosted = boosted)) else profile
         }
     }
 
@@ -321,6 +349,11 @@ internal class UserProfileScreenViewModel(
                         val likePostId = post.likePostId
                         val likedByMe = post.body.likedByMe
                         if (likePostId != null && likedByMe != null) toggleLike(likePostId = likePostId, likedByMe = likedByMe)
+                    },
+                    onToggleBoost = {
+                        val postId = post.postId
+                        val boostedByMe = post.body.boostedByMe
+                        if (postId != null && boostedByMe != null) toggleBoost(postId = postId, boostedByMe = boostedByMe)
                     },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {

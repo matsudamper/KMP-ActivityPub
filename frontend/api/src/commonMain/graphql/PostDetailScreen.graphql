@@ -44,6 +44,7 @@ query PostDetailScreen($id: ID!) {
             }
             url
             likedByMe
+            boostedByMe
             followingGroupId
         }
     }

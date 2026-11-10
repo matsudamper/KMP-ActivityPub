@@ -23,7 +23,7 @@ sealed interface UserProfileResult {
 
     /**
      * @param linkPreviewId OGP を [UserApi.linkPreviews] で取るときの id。取れない投稿は null
-     * @param postId [UserApi.postDetail] で個別投稿画面を開くときの id。開けない投稿は null
+     * @param postId [UserApi.postDetail] で個別投稿画面を開くときと、[UserApi.setBoosted] に渡す id。開けない投稿は null
      * @param deletableNoteId ログイン中のアカウントの投稿なら [UserApi.deleteNote] に渡す id。消せない投稿は null
      * @param likePostId [UserApi.setLiked] に渡す id。いいねできない投稿は null
      * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
@@ -58,4 +58,11 @@ sealed interface UserProfileResult {
  */
 fun UserProfileResult.Found.withLiked(likePostId: String, liked: Boolean): UserProfileResult.Found {
     return copy(posts = posts.map { if (it.likePostId == likePostId) it.copy(body = it.body.withLiked(liked)) else it })
+}
+
+/**
+ * ブーストを変えた結果を、取得し直さずに反映する
+ */
+fun UserProfileResult.Found.withBoosted(postId: String, boosted: Boolean): UserProfileResult.Found {
+    return copy(posts = posts.map { if (it.postId == postId) it.copy(body = it.body.withBoosted(boosted)) else it })
 }

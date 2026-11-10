@@ -1,0 +1,7 @@
+mutation SetBoosted($postId: ID!, $boosted: Boolean!) {
+    user {
+        setBoosted(postId: $postId, boosted: $boosted) {
+            failure
+        }
+    }
+}

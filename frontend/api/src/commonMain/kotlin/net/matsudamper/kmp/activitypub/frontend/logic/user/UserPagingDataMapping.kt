@@ -30,6 +30,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     emojis = it.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                     shareUrl = it.url,
                     likedByMe = it.likedByMe,
+                    boostedByMe = it.boostedByMe,
                 ),
                 boostedBy = it.boostedBy?.let { booster ->
                     UserHomeTimelineResult.Booster(
@@ -92,6 +93,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
             url = it.body.shareUrl,
             likedByMe = it.body.likedByMe == true,
+            boostedByMe = it.body.boostedByMe,
             followingGroupId = it.followingGroupId,
         )
     }
@@ -118,6 +120,33 @@ fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimeli
                         post.copy(
                             likedByMe = liked,
                             favouriteCount = post.favouriteCount?.let { count -> if (liked) count + 1 else (count - 1).coerceAtLeast(0) },
+                        )
+                    }
+                },
+            ),
+        ),
+    )
+}
+
+/**
+ * ブーストを変えた結果を、取得し直さずに反映する。
+ * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、ブーストは元の投稿に付くので、投稿の URL が同じものもまとめて切り替える
+ */
+fun HomeTimelineQuery.Data.withBoosted(postId: String, boosted: Boolean): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    val boostedUrl = timeline.posts.firstOrNull { it.id == postId }?.url
+    return copy(
+        userInfo = info.copy(
+            homeTimeline = timeline.copy(
+                posts = timeline.posts.map { post ->
+                    val samePost = post.id == postId || (boostedUrl != null && post.url == boostedUrl)
+                    if (!samePost || post.boostedByMe == null || post.boostedByMe == boosted) {
+                        post
+                    } else {
+                        post.copy(
+                            boostedByMe = boosted,
+                            boostCount = post.boostCount?.let { count -> if (boosted) count + 1 else (count - 1).coerceAtLeast(0) },
                         )
                     }
                 },

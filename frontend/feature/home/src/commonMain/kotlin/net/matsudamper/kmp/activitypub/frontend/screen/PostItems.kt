@@ -34,6 +34,7 @@ internal fun createPostItemUiState(
     onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
     onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
+    onToggleBoost: () -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     val shareUrl = body.shareUrl
@@ -83,6 +84,16 @@ internal fun createPostItemUiState(
                 listener = object : PostItemUiState.FavouriteButtonListener {
                     override fun onClick() {
                         onToggleLike()
+                    }
+                },
+            )
+        },
+        boostButton = body.boostedByMe?.let { boosted ->
+            PostItemUiState.BoostButton(
+                iconHighlighted = boosted,
+                listener = object : PostItemUiState.BoostButtonListener {
+                    override fun onClick() {
+                        onToggleBoost()
                     }
                 },
             )

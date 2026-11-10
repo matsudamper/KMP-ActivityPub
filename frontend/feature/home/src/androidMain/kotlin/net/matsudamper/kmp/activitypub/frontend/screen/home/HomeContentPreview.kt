@@ -298,6 +298,7 @@ private fun HomeUserContentPreview() {
                             favouriteCountText = null,
                             boostCountText = null,
                             favouriteButton = null,
+                            boostButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             menuItems = listOf(),
@@ -416,6 +417,7 @@ private fun HomeUserMediaContentPreview() {
                             favouriteCountText = null,
                             boostCountText = null,
                             favouriteButton = null,
+                            boostButton = null,
                             stamps = listOf(),
                             authorListener = null,
                             menuItems = listOf(),
@@ -632,6 +634,10 @@ private object AndroidPreviewFavouriteButtonListener : PostItemUiState.Favourite
     override fun onClick() = Unit
 }
 
+private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
+    override fun onClick() = Unit
+}
+
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
     override fun onClick() = Unit
 }
@@ -704,6 +710,10 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         favouriteCountText = null,
         boostCountText = null,
         favouriteButton = null,
+        boostButton = PostItemUiState.BoostButton(
+            iconHighlighted = true,
+            listener = AndroidPreviewBoostButtonListener,
+        ),
         stamps = listOf(),
         authorListener = AndroidPreviewAuthorListener,
         menuItems = listOf(),
@@ -752,6 +762,10 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             iconHighlighted = true,
             listener = AndroidPreviewFavouriteButtonListener,
         ),
+        boostButton = PostItemUiState.BoostButton(
+            iconHighlighted = true,
+            listener = AndroidPreviewBoostButtonListener,
+        ),
         stamps = listOf(
             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5"),
             PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2"),
@@ -778,6 +792,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         favouriteCountText = null,
         boostCountText = null,
         favouriteButton = null,
+        boostButton = null,
         stamps = listOf(),
         postListener = AndroidPreviewPostListener,
         shareListener = AndroidPreviewShareListener,

@@ -34,6 +34,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.SetBoostedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
@@ -47,6 +48,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetBoostedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
@@ -150,6 +152,7 @@ class UserApi(
                     emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                     shareUrl = post.url,
                     likedByMe = post.likedByMe,
+                    boostedByMe = post.boostedByMe,
                 ),
                 boostedBy = post.boostedBy?.let {
                     UserHomeTimelineResult.Booster(
@@ -267,6 +270,28 @@ class UserApi(
             SetLikedFailure.FEDERATION_DISABLED,
             SetLikedFailure.UNKNOWN__,
             -> "いいねを変更できませんでした"
+        }
+    }
+
+    /**
+     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.postId]
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun setBoosted(postId: String, boosted: Boolean): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(SetBoostedMutation(postId = postId, boosted = boosted)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.setBoosted ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+
+            SetBoostedFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            SetBoostedFailure.POST_NOT_FOUND -> "この投稿はブーストできません"
+
+            SetBoostedFailure.FEDERATION_DISABLED,
+            SetBoostedFailure.UNKNOWN__,
+            -> "ブーストを変更できませんでした"
         }
     }
 
@@ -395,6 +420,7 @@ class UserApi(
                         emojis = it.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                         shareUrl = it.url,
                         likedByMe = it.like?.likedByMe,
+                        boostedByMe = it.boostedByMe,
                     ),
                     boostedNoteAuthor = it.boostedNoteAuthor?.let { author ->
                         UserProfileResult.Author(
@@ -658,6 +684,7 @@ class UserApi(
                                 emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                                 shareUrl = post.url,
                                 likedByMe = post.likedByMe,
+                                boostedByMe = post.boostedByMe,
                             ),
                             boostedBy = post.boostedBy?.let {
                                 UserHomeTimelineResult.Booster(

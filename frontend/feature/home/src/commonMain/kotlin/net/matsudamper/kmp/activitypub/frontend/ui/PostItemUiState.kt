@@ -32,6 +32,10 @@ data class PostItemUiState(
      * いいねできない投稿は null で、お気に入りのアイコンを押せなくする
      */
     val favouriteButton: FavouriteButton?,
+    /**
+     * ブーストできない投稿は null で、ブーストのアイコンを押せなくする
+     */
+    val boostButton: BoostButton?,
     val stamps: List<Stamp>,
     /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
@@ -83,6 +87,11 @@ data class PostItemUiState(
         val listener: FavouriteButtonListener,
     )
 
+    data class BoostButton(
+        val iconHighlighted: Boolean,
+        val listener: BoostButtonListener,
+    )
+
     /**
      * @param imageUrl カスタム絵文字の画像。null なら [emoji] の文字で見せる
      */
@@ -113,6 +122,11 @@ data class PostItemUiState(
 
     @Immutable
     interface FavouriteButtonListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface BoostButtonListener {
         fun onClick()
     }
 

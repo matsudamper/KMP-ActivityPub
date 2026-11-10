@@ -264,7 +264,7 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプはまだ押せないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。スタンプはまだ押せないので、押せないアイコンだけを置く
  */
 @Composable
 private fun PostActions(uiState: PostItemUiState) {
@@ -274,8 +274,19 @@ private fun PostActions(uiState: PostItemUiState) {
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val boostButton = uiState.boostButton
         Row(
-            modifier = Modifier.width(PostActionSlotWidth),
+            modifier = Modifier
+                .width(PostActionSlotWidth)
+                .then(
+                    if (boostButton == null) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { boostButton.listener.onClick() }
+                    },
+                ),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -283,7 +294,11 @@ private fun PostActions(uiState: PostItemUiState) {
                 imageVector = AppIcons.Repeat,
                 contentDescription = "ブースト",
                 modifier = Modifier.size(PostActionIconSize),
-                tint = disabledIconColor,
+                tint = when {
+                    boostButton == null -> disabledIconColor
+                    boostButton.iconHighlighted -> BoostHighlightedColor
+                    else -> iconColor
+                },
             )
             Text(
                 text = uiState.boostCountText.orEmpty(),
@@ -349,6 +364,8 @@ private fun PostActions(uiState: PostItemUiState) {
 private val PostActionIconSize = 24.dp
 
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
+
+private val BoostHighlightedColor = Color(0xFF2E9E5B)
 
 private val PostActionSlotWidth = 76.dp
 

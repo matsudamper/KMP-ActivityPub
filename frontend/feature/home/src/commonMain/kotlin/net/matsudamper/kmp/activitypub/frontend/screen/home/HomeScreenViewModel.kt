@@ -31,6 +31,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
@@ -122,6 +123,7 @@ internal class HomeScreenViewModel(
      * 返事を待たずに表示を切り替えるので、押している間かどうかは表示に使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChangingPostIds = setOf<String>()
+    private var boostChangingPostIds = setOf<String>()
 
     private val listener = object : HomeScreenUiState.Listener {
         override fun onClickPost() {
@@ -704,6 +706,34 @@ internal class HomeScreenViewModel(
         }
     }
 
+    /**
+     * @param boostedByMe 押す前の状態
+     */
+    private fun toggleBoost(postId: String, boostedByMe: Boolean) {
+        if (postId in boostChangingPostIds) return
+        boostChangingPostIds = boostChangingPostIds + postId
+        viewModelScope.launch {
+            try {
+                applyBoosted(postId = postId, boosted = !boostedByMe)
+                val error = userApi.setBoosted(postId = postId, boosted = !boostedByMe)
+                if (error != null) {
+                    applyBoosted(postId = postId, boosted = boostedByMe)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                boostChangingPostIds = boostChangingPostIds - postId
+            }
+        }
+    }
+
+    private suspend fun applyBoosted(postId: String, boosted: Boolean) {
+        timelinePaging.updateCache { it.withBoosted(postId = postId, boosted = boosted) }
+        viewModelStateFlow.update {
+            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(postId = postId, boosted = boosted)))
+        }
+    }
+
     private suspend fun timelineFailed(append: Boolean, message: String) {
         if (append) {
             updateTimeline { it.copy(loading = TimelineLoading.AppendFailed(message)) }
@@ -849,6 +879,11 @@ internal class HomeScreenViewModel(
                                 val likedByMe = post.body.likedByMe
                                 if (likePostId != null && likedByMe != null) toggleLike(postId = likePostId, likedByMe = likedByMe)
                             },
+                            onToggleBoost = {
+                                val postId = post.postId
+                                val boostedByMe = post.body.boostedByMe
+                                if (postId != null && boostedByMe != null) toggleBoost(postId = postId, boostedByMe = boostedByMe)
+                            },
                             onVisible = {
                                 if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
                                     loadLinkPreviews(linkPreviewId)
@@ -947,6 +982,10 @@ internal class HomeScreenViewModel(
                 onToggleLike = {
                     val likedByMe = post.body.likedByMe
                     if (likedByMe != null) toggleLike(postId = post.id, likedByMe = likedByMe)
+                },
+                onToggleBoost = {
+                    val boostedByMe = post.body.boostedByMe
+                    if (boostedByMe != null) toggleBoost(postId = post.id, boostedByMe = boostedByMe)
                 },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {

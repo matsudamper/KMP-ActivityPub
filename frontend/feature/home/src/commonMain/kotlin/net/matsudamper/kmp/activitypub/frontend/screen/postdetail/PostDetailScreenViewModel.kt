@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.Boost
@@ -60,6 +61,7 @@ internal class PostDetailScreenViewModel(
      * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChanging = false
+    private var boostChanging = false
 
     private val listener = object : PostDetailScreenUiState.Listener {
         override fun onClickRetry() {
@@ -139,6 +141,25 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private fun toggleBoost() {
+        val loaded = viewModelStateFlow.value.post as? PostState.Loaded ?: return
+        val boosted = loaded.post.body.boostedByMe ?: return
+        if (boostChanging) return
+        boostChanging = true
+        viewModelScope.launch {
+            try {
+                updateBoosted(!boosted)
+                val error = api.setBoosted(postId = postId, boosted = !boosted)
+                if (error != null) {
+                    updateBoosted(boosted)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                boostChanging = false
+            }
+        }
+    }
+
     private fun confirmNoteDeletion(noteId: String) {
         viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
@@ -168,6 +189,13 @@ internal class PostDetailScreenViewModel(
         viewModelStateFlow.update { state ->
             val post = state.post as? PostState.Loaded ?: return@update state
             state.copy(post = PostState.Loaded(post.post.copy(body = post.post.body.withLiked(liked))))
+        }
+    }
+
+    private fun updateBoosted(boosted: Boolean) {
+        viewModelStateFlow.update { state ->
+            val post = state.post as? PostState.Loaded ?: return@update state
+            state.copy(post = PostState.Loaded(post.post.copy(body = post.post.body.withBoosted(boosted))))
         }
     }
 
@@ -237,6 +265,7 @@ internal class PostDetailScreenViewModel(
             onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
             onToggleLike = { toggleLike() },
+            onToggleBoost = { toggleBoost() },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews()
