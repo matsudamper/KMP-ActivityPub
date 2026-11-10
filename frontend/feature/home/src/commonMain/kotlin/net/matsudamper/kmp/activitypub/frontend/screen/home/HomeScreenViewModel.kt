@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
@@ -830,6 +831,7 @@ internal class HomeScreenViewModel(
                             boostedBy = null,
                             iconUrl = profile.iconUrl,
                             displayName = profile.displayName,
+                            displayNameEmojis = profile.displayNameEmojis,
                             acct = "@${profile.username}",
                             body = post.body,
                             linkPreviews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty(),
@@ -924,6 +926,7 @@ internal class HomeScreenViewModel(
                 },
                 iconUrl = post.iconUrl,
                 displayName = post.displayName,
+                displayNameEmojis = post.displayNameEmojis,
                 acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
                 body = post.body,
                 linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
@@ -987,7 +990,7 @@ internal class HomeScreenViewModel(
                 )
             },
             iconUrl = user.iconUrl,
-            displayName = user.displayName,
+            displayName = createTextWithEmojis(text = user.displayName, emojis = user.displayNameEmojis),
             acct = if (user.isLocal) "@${user.username}" else "@${user.username}@${user.host}",
             listener =
             object : HomeScreenUiState.SearchAccountListener {

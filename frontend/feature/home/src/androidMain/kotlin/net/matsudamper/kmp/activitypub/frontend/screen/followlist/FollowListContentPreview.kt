@@ -10,6 +10,8 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
 @Preview
@@ -23,7 +25,10 @@ private fun FollowListContentPreview() {
                     accounts = listOf(
                         FollowListScreenUiState.Account(
                             iconUrl = "https://example.com/icon.png",
-                            displayName = "Kotlin Weekly",
+                            displayName = createTextWithEmojis(
+                                text = "Kotlin Weekly :kotlin:",
+                                emojis = listOf(UserCustomEmoji(name = ":kotlin:", imageUrl = "https://example.com/kotlin.png")),
+                            ),
                             acct = "@kotlinweekly@remote.example",
                             followMenu = previewFollowMenu(destinationName = "ホーム"),
                             clickable = true,
@@ -31,7 +36,7 @@ private fun FollowListContentPreview() {
                         ),
                         FollowListScreenUiState.Account(
                             iconUrl = null,
-                            displayName = "https://other.example/users/compose",
+                            displayName = createTextWithEmojis(text = "https://other.example/users/compose", emojis = listOf()),
                             acct = "other.example",
                             followMenu = previewFollowMenu(destinationName = null),
                             clickable = false,

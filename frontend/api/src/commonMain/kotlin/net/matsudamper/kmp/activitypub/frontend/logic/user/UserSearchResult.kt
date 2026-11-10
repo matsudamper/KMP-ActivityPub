@@ -17,6 +17,7 @@ sealed interface UserSearchResult {
         val host: String,
         val isLocal: Boolean,
         val displayName: String,
+        val displayNameEmojis: List<UserCustomEmoji>,
         val iconUrl: String?,
     )
 }

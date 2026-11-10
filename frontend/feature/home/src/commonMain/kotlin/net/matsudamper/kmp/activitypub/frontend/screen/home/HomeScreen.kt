@@ -62,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -72,6 +73,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -84,6 +86,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUi
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
+import net.matsudamper.kmp.activitypub.frontend.ui.EmojiText
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -874,10 +877,13 @@ private fun SearchAccountItem(
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(
+            EmojiText(
                 text = account.displayName,
                 style = MaterialTheme.typography.titleSmall,
+                color = Color.Unspecified,
                 fontWeight = FontWeight.Bold,
+                maxLines = Int.MAX_VALUE,
+                overflow = TextOverflow.Clip,
             )
             Text(
                 text = account.acct,

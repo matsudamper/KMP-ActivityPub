@@ -220,6 +220,7 @@ internal class PostDetailScreenViewModel(
             },
             iconUrl = post.iconUrl,
             displayName = post.displayName,
+            displayNameEmojis = post.displayNameEmojis,
             acct = if (host == null) "@${post.username}" else "@${post.username}@$host",
             body = post.body,
             linkPreviews = viewModelState.linkPreviews,

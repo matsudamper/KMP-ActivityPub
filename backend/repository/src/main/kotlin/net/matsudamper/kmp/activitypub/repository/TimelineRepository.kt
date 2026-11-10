@@ -46,6 +46,8 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param likedByMe 読んでいるアカウントがいいねしているか。ブーストで載った投稿は、ブーストされた元の投稿へのいいね
  * @param noteRef 投稿を外から指すための元。URL はこのサーバーのドメインで決まるので、ここでは作らない
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿の数は受け取らないので null
+ * @param emojis 本文と注意書きに入るカスタム絵文字。このサーバーの投稿は空
+ * @param actorEmojis 他のサーバーの投稿者の表示名に入るカスタム絵文字。このサーバーの投稿は空
  * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
  */
@@ -61,6 +63,8 @@ data class TimelinePost(
     val actorIconUrl: String?,
     val actorUpdatedAt: Instant?,
     val images: List<TimelinePostImage>,
+    val emojis: List<CustomEmojiRecord>,
+    val actorEmojis: List<CustomEmojiRecord>,
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
     val likedByMe: Boolean,
@@ -90,6 +94,7 @@ data class TimelineBooster(
     val username: String,
     val displayName: String?,
     val iconUrl: String?,
+    val emojis: List<CustomEmojiRecord>,
     val updatedAt: Instant,
 )
 
@@ -122,6 +127,7 @@ data class RemoteNoteInput(
     val publishedAt: Instant,
     val receivedAt: Instant,
     val images: List<TimelinePostImage.Remote>,
+    val emojis: List<CustomEmojiRecord>,
 )
 
 /**

@@ -135,6 +135,7 @@ class UserApi(
                 username = post.username,
                 host = post.host,
                 displayName = post.displayName,
+                displayNameEmojis = post.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 iconUrl = post.iconUrl,
                 body = UserPostBody(
                     content = post.content,
@@ -146,10 +147,21 @@ class UserApi(
                     favouriteCount = post.favouriteCount,
                     boostCount = post.boostCount,
                     stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                    emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                     shareUrl = post.url,
                     likedByMe = post.likedByMe,
                 ),
-                boostedBy = post.boostedBy?.let { UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName, iconUrl = it.iconUrl) },
+                boostedBy = post.boostedBy?.let {
+                    UserHomeTimelineResult.Booster(
+                        username = it.username,
+                        host = it.host,
+                        displayName = it.displayName,
+                        displayNameEmojis = it.displayNameEmojis.map { emoji ->
+                            UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
+                        },
+                        iconUrl = it.iconUrl,
+                    )
+                },
                 deletableNoteId = post.deletableNoteId,
                 followingGroupId = post.followingGroupId,
             ),
@@ -358,6 +370,7 @@ class UserApi(
             username = user.username,
             host = user.host,
             displayName = user.displayName,
+            displayNameEmojis = user.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
             iconUrl = user.iconUrl,
             following = user.following,
             followingGroupId = user.followingGroupId,
@@ -379,11 +392,20 @@ class UserApi(
                         favouriteCount = it.favouriteCount,
                         boostCount = it.boostCount,
                         stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                        emojis = it.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                         shareUrl = it.url,
                         likedByMe = it.like?.likedByMe,
                     ),
                     boostedNoteAuthor = it.boostedNoteAuthor?.let { author ->
-                        UserProfileResult.Author(username = author.username, host = author.host, displayName = author.displayName, iconUrl = author.iconUrl)
+                        UserProfileResult.Author(
+                            username = author.username,
+                            host = author.host,
+                            displayName = author.displayName,
+                            displayNameEmojis = author.displayNameEmojis.map { emoji ->
+                                UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
+                            },
+                            iconUrl = author.iconUrl,
+                        )
                     },
                 )
             },
@@ -423,6 +445,7 @@ class UserApi(
                 host = user.host,
                 isLocal = user.isLocal,
                 displayName = user.displayName,
+                displayNameEmojis = user.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 iconUrl = user.iconUrl,
             ),
         )
@@ -620,6 +643,7 @@ class UserApi(
                             username = post.username,
                             host = post.host,
                             displayName = post.displayName,
+                            displayNameEmojis = post.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                             iconUrl = post.iconUrl,
                             body = UserPostBody(
                                 content = post.content,
@@ -631,11 +655,20 @@ class UserApi(
                                 favouriteCount = post.favouriteCount,
                                 boostCount = post.boostCount,
                                 stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
+                                emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                                 shareUrl = post.url,
                                 likedByMe = post.likedByMe,
                             ),
                             boostedBy = post.boostedBy?.let {
-                                UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName, iconUrl = it.iconUrl)
+                                UserHomeTimelineResult.Booster(
+                                    username = it.username,
+                                    host = it.host,
+                                    displayName = it.displayName,
+                                    displayNameEmojis = it.displayNameEmojis.map { emoji ->
+                                        UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
+                                    },
+                                    iconUrl = it.iconUrl,
+                                )
                             },
                             deletableNoteId = post.deletableNoteId,
                             followingGroupId = post.followingGroupId,

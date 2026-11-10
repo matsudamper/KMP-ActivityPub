@@ -34,6 +34,8 @@ type ProfilePost {
     linkUrls: [String!]!
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
+    "本文と summary に入るカスタム絵文字。画像を中継できなければ空"
+    emojis: [CustomEmoji!]!
     "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
@@ -52,6 +54,8 @@ type PostAuthor {
     username: String!
     host: String!
     displayName: String!
+    "displayName に入るカスタム絵文字。画像を中継できなければ空"
+    displayNameEmojis: [CustomEmoji!]!
     "プロフィール画像の URL。無ければ null"
     iconUrl: String
 }
@@ -82,6 +86,8 @@ type SearchedUser {
     isLocal: Boolean!
     "表示名が無ければユーザー名"
     displayName: String!
+    "displayName に入るカスタム絵文字。画像を中継できなければ空"
+    displayNameEmojis: [CustomEmoji!]!
     iconUrl: String
 }
 
@@ -104,5 +110,7 @@ type ListedActor {
     username: String
     host: String!
     displayName: String
+    "displayName に入るカスタム絵文字。画像を中継できなければ空"
+    displayNameEmojis: [CustomEmoji!]!
     iconUrl: String
 }

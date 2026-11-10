@@ -1,9 +1,11 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
+import net.matsudamper.kmp.activitypub.graphql.model.QlCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostImage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostStamp
 import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -47,6 +49,11 @@ internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlP
         imageUrl = stamp.emojiImageUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(it) },
         count = stamp.count.toInt(),
     )
+}
+
+// 画像を中継できないときは :name: の文字のまま見せる
+internal fun List<CustomEmojiRecord>.toQlCustomEmojis(diContainer: DiContainer): List<QlCustomEmoji> = mapNotNull { emoji ->
+    diContainer.remoteImageProxy?.proxyUrlOf(emoji.imageUrl)?.let { QlCustomEmoji(name = emoji.name, imageUrl = it) }
 }
 
 internal fun createQlPostImage(url: String, description: String?): QlPostImage = QlPostImage(

@@ -53,6 +53,7 @@ class QueryResolverImpl : QueryResolver {
                                     username = author.username,
                                     host = URI(author.actorUri).host ?: return@mapNotNull null,
                                     displayName = author.displayName ?: author.username,
+                                    displayNameEmojis = author.displayNameEmojis.toQlCustomEmojis(diContainer),
                                     iconUrl = author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) },
                                 )
                             }
@@ -74,6 +75,7 @@ class QueryResolverImpl : QueryResolver {
                                 deletableNoteId = post.deletableNoteId,
                                 linkUrls = body.linkUrls,
                                 images = body.images,
+                                emojis = post.emojis.toQlCustomEmojis(diContainer),
                                 favouriteCount = post.favouriteCount?.toInt(),
                                 stamps = post.stamps.toQlPostStamps(diContainer),
                                 like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
@@ -234,6 +236,7 @@ class QueryResolverImpl : QueryResolver {
                     username = user.username,
                     host = user.host,
                     displayName = user.displayName,
+                    displayNameEmojis = user.displayNameEmojis.toQlCustomEmojis(diContainer),
                     iconUrl = user.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = user.updatedAt) },
                 )
             },
@@ -254,6 +257,7 @@ class QueryResolverImpl : QueryResolver {
             host = host,
             isLocal = isLocal,
             displayName = displayName,
+            displayNameEmojis = displayNameEmojis.toQlCustomEmojis(diContainer),
             iconUrl =
             if (isLocal) {
                 diContainer.profileIconUrls?.find(username)

@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowListResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserFollowListResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -197,9 +198,14 @@ internal class FollowListScreenViewModel(
         followMenu: FollowMenuController.Snapshot,
     ): FollowListScreenUiState.Account {
         val username = user.username
+        val displayName = user.displayName
         return FollowListScreenUiState.Account(
             iconUrl = user.iconUrl,
-            displayName = user.displayName ?: username ?: user.actorUri,
+            displayName = if (displayName == null) {
+                createTextWithEmojis(text = username ?: user.actorUri, emojis = listOf())
+            } else {
+                createTextWithEmojis(text = displayName, emojis = user.displayNameEmojis)
+            },
             acct = if (username == null) user.host else "@$username@${user.host}",
             // 解除しても行は残し、押し間違えたときにその場で購読し直せるようにする
             followMenu = followMenuController.menu(

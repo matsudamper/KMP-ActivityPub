@@ -21,6 +21,7 @@ sealed interface UserFollowListResult {
         val username: String?,
         val host: String,
         val displayName: String?,
+        val displayNameEmojis: List<UserCustomEmoji>,
         val iconUrl: String?,
     )
 }

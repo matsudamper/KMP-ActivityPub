@@ -6,6 +6,10 @@ subscription HomeTimelinePosts {
         username
         host
         displayName
+        displayNameEmojis {
+            name
+            imageUrl
+        }
         summary
         sensitive
         linkUrls
@@ -16,12 +20,20 @@ subscription HomeTimelinePosts {
             thumbnailUrl
             description
         }
+        emojis {
+            name
+            imageUrl
+        }
         favouriteCount
         boostCount
         boostedBy {
             username
             host
             displayName
+            displayNameEmojis {
+                name
+                imageUrl
+            }
             iconUrl
         }
         stamps {

@@ -99,11 +99,13 @@ class FollowingGroupServiceTest {
         actorIconUrl = null,
         actorUpdatedAt = null,
         images = listOf(),
+        emojis = listOf(),
+        actorEmojis = listOf(),
         favouriteCount = null,
         stamps = listOf(),
         likedByMe = false,
         noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
         boostCount = null,
-        boostedBy = boosterActorUri?.let { TimelineBooster(it, "booster", null, null, Instant.EPOCH) },
+        boostedBy = boosterActorUri?.let { TimelineBooster(it, "booster", null, null, listOf(), Instant.EPOCH) },
     )
 }

@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
 
 data class UserProfileScreenUiState(
     val content: Content,
@@ -31,7 +32,7 @@ data class UserProfileScreenUiState(
         data class Loaded(
             val acct: String,
             val iconUrl: String?,
-            val displayName: String,
+            val displayName: TextWithEmojis,
             val biography: String?,
             val links: List<ProfileLinkUiState>,
             val followMenu: FollowMenuUiState?,

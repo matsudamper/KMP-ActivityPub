@@ -35,18 +35,26 @@ class UserSearchServiceTest {
                 displayName = "Bob",
                 iconUrl = "https://remote.example/bob.png",
                 updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                emojis = listOf(),
             ),
         )
         remoteActorRepository.add(
-            RemoteActorSearchRecord(actorUri = "https://remote.example/users/dave", preferredUsername = "dave", displayName = null, iconUrl = null, updatedAt = Instant.parse("2026-09-01T00:00:00Z")),
+            RemoteActorSearchRecord(
+                actorUri = "https://remote.example/users/dave",
+                preferredUsername = "dave",
+                displayName = null,
+                iconUrl = null,
+                updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                emojis = listOf(),
+            ),
         )
 
         val result = service.searchUsers(query = "a", cursor = null)
 
         assertEquals(
             listOf(
-                SearchedUser(actorUri = null, username = "alice", host = "local.example", isLocal = true, displayName = "alice", iconUrl = null, updatedAt = null),
-                SearchedUser(actorUri = null, username = "carol", host = "local.example", isLocal = true, displayName = "carol", iconUrl = null, updatedAt = null),
+                SearchedUser(actorUri = null, username = "alice", host = "local.example", isLocal = true, displayName = "alice", iconUrl = null, updatedAt = null, displayNameEmojis = listOf()),
+                SearchedUser(actorUri = null, username = "carol", host = "local.example", isLocal = true, displayName = "carol", iconUrl = null, updatedAt = null, displayNameEmojis = listOf()),
                 SearchedUser(
                     actorUri = "https://remote.example/users/dave",
                     username = "dave",
@@ -55,6 +63,7 @@ class UserSearchServiceTest {
                     displayName = "dave",
                     iconUrl = null,
                     updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                    displayNameEmojis = listOf(),
                 ),
             ),
             result.users,
@@ -72,6 +81,7 @@ class UserSearchServiceTest {
                 displayName = "Alice",
                 iconUrl = "https://remote.example/alice.png",
                 updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                emojis = listOf(),
             ),
         )
 
@@ -87,6 +97,7 @@ class UserSearchServiceTest {
                     displayName = "Alice",
                     iconUrl = "https://remote.example/alice.png",
                     updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                    displayNameEmojis = listOf(),
                 ),
             ),
             result.users,
@@ -104,6 +115,7 @@ class UserSearchServiceTest {
                     displayName = null,
                     iconUrl = null,
                     updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                    emojis = listOf(),
                 ),
             )
         }
@@ -130,6 +142,7 @@ class UserSearchServiceTest {
                         displayName = "common",
                         iconUrl = null,
                         updatedAt = Instant.parse("2026-09-01T00:00:00Z"),
+                        emojis = listOf(),
                     ),
                 )
             }
@@ -158,14 +171,17 @@ class UserSearchServiceTest {
 
         val user = runBlocking { service.resolveUser(query = "@alice@LOCAL.example", remoteLookupAllowed = true) }
 
-        assertEquals(SearchedUser(actorUri = null, username = "alice", host = "local.example", isLocal = true, displayName = "alice", iconUrl = null, updatedAt = null), user)
+        assertEquals(
+            SearchedUser(actorUri = null, username = "alice", host = "local.example", isLocal = true, displayName = "alice", iconUrl = null, updatedAt = null, displayNameEmojis = listOf()),
+            user,
+        )
         assertEquals(listOf(), remoteUserLookup.requests)
     }
 
     @Test
     fun `このサーバーのアクターとプロフィールのURLでこのサーバーのユーザーを引く`() {
         addAccount("alice")
-        val expected = SearchedUser(actorUri = null, username = "alice", host = "local.example", isLocal = true, displayName = "alice", iconUrl = null, updatedAt = null)
+        val expected = SearchedUser(actorUri = null, username = "alice", host = "local.example", isLocal = true, displayName = "alice", iconUrl = null, updatedAt = null, displayNameEmojis = listOf())
 
         assertEquals(expected, runBlocking { service.resolveUser(query = "https://local.example/users/alice", remoteLookupAllowed = false) })
         assertEquals(expected, runBlocking { service.resolveUser(query = "https://local.example/@alice", remoteLookupAllowed = false) })
@@ -174,12 +190,21 @@ class UserSearchServiceTest {
 
     @Test
     fun `他のホストのacctはそのホストのユーザーを引く`() {
-        remoteUserLookup.users["bob@Remote.example"] = RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = null, iconUrl = null)
+        remoteUserLookup.users["bob@Remote.example"] = RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = null, iconUrl = null, displayNameEmojis = listOf())
 
         val user = runBlocking { service.resolveUser(query = " @bob@Remote.example ", remoteLookupAllowed = true) }
 
         assertEquals(
-            SearchedUser(actorUri = "https://remote.example/users/bob", username = "bob", host = "remote.example", isLocal = false, displayName = "bob", iconUrl = null, updatedAt = null),
+            SearchedUser(
+                actorUri = "https://remote.example/users/bob",
+                username = "bob",
+                host = "remote.example",
+                isLocal = false,
+                displayName = "bob",
+                iconUrl = null,
+                updatedAt = null,
+                displayNameEmojis = listOf(),
+            ),
             user,
         )
     }
@@ -187,7 +212,7 @@ class UserSearchServiceTest {
     @Test
     fun `他のホストのURLはそのURLのユーザーを引く`() {
         remoteUserLookup.users["https://remote.example/@bob"] =
-            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = "Bob", iconUrl = "https://remote.example/bob.png")
+            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = "Bob", iconUrl = "https://remote.example/bob.png", displayNameEmojis = listOf())
 
         val user = runBlocking { service.resolveUser(query = "https://remote.example/@bob", remoteLookupAllowed = true) }
 
@@ -200,6 +225,7 @@ class UserSearchServiceTest {
                 displayName = "Bob",
                 iconUrl = "https://remote.example/bob.png",
                 updatedAt = null,
+                displayNameEmojis = listOf(),
             ),
             user,
         )
@@ -208,12 +234,21 @@ class UserSearchServiceTest {
     @Test
     fun `他のホストのユーザーを表示するURLはアクターのホストのユーザーになる`() {
         remoteUserLookup.users["https://viewer.example/@bob@remote.example"] =
-            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = null, iconUrl = null)
+            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = null, iconUrl = null, displayNameEmojis = listOf())
 
         val user = runBlocking { service.resolveUser(query = "https://viewer.example/@bob@remote.example", remoteLookupAllowed = true) }
 
         assertEquals(
-            SearchedUser(actorUri = "https://remote.example/users/bob", username = "bob", host = "remote.example", isLocal = false, displayName = "bob", iconUrl = null, updatedAt = null),
+            SearchedUser(
+                actorUri = "https://remote.example/users/bob",
+                username = "bob",
+                host = "remote.example",
+                isLocal = false,
+                displayName = "bob",
+                iconUrl = null,
+                updatedAt = null,
+                displayNameEmojis = listOf(),
+            ),
             user,
         )
     }
@@ -225,9 +260,10 @@ class UserSearchServiceTest {
 
     @Test
     fun `他のホストへの問い合わせが許されていなければ問い合わせない`() {
-        remoteUserLookup.users["bob@remote.example"] = RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = "Bob", iconUrl = "https://remote.example/bob.png")
+        remoteUserLookup.users["bob@remote.example"] =
+            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = "Bob", iconUrl = "https://remote.example/bob.png", displayNameEmojis = listOf())
         remoteUserLookup.users["https://remote.example/@bob"] =
-            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = "Bob", iconUrl = "https://remote.example/bob.png")
+            RemoteUser(actorUri = "https://remote.example/users/bob", username = "bob", displayName = "Bob", iconUrl = "https://remote.example/bob.png", displayNameEmojis = listOf())
 
         assertNull(runBlocking { service.resolveUser(query = "@bob@remote.example", remoteLookupAllowed = false) })
         assertNull(runBlocking { service.resolveUser(query = "https://remote.example/@bob", remoteLookupAllowed = false) })

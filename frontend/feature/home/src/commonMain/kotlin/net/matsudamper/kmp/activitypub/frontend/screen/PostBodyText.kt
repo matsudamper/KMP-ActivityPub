@@ -1,34 +1,38 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
+import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
 
 /**
- * 本文の URL を押せるようにする。本文は HTML を文字にしたものなので、`<a>` の情報は残っておらず URL を文字から拾う
+ * 本文の URL を押せるようにし、カスタム絵文字を画像にする。本文は HTML を文字にしたものなので、`<a>` の情報は残っておらず URL を文字から拾う
  */
 internal fun createPostBodyText(
     content: String,
+    emojis: List<UserCustomEmoji>,
     onOpenUrl: (url: String) -> Unit,
-): AnnotatedString =
-    buildAnnotatedString {
+): TextWithEmojis = TextWithEmojis(
+    text = buildAnnotatedString {
         val urlRanges = PlainTextUrl.findAll(content).map { match ->
             match.range.first until match.range.first + trimTrailingPunctuation(match.value).length
         }
         val plainTextEnd = urlRanges.fold(0) { plainTextStart, urlRange ->
-            append(content.substring(plainTextStart, urlRange.first))
+            appendWithEmojis(content.substring(plainTextStart, urlRange.first), emojis)
             val url = content.substring(urlRange)
             withLink(LinkAnnotation.Clickable(tag = url, styles = PostBodyLinkStyles) { onOpenUrl(url) }) {
                 append(url)
             }
             urlRange.last + 1
         }
-        append(content.substring(plainTextEnd))
-    }
+        appendWithEmojis(content.substring(plainTextEnd), emojis)
+    },
+    emojis = emojis.toInlineEmojis(),
+)
 
 // 文末の句読点や、URL の外側で閉じている括弧までリンクにしない
 private fun trimTrailingPunctuation(url: String): String {

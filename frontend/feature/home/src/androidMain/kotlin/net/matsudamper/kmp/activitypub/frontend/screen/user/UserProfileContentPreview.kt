@@ -5,6 +5,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
@@ -20,7 +21,7 @@ private fun UserProfileContentPreview() {
                 content = UserProfileScreenUiState.Content.Loaded(
                     acct = "@alice@example.social",
                     iconUrl = null,
-                    displayName = "Alice",
+                    displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                     biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                     links = listOf(),
                     followMenu = previewFollowMenu(destinationName = null),
@@ -29,9 +30,9 @@ private fun UserProfileContentPreview() {
                         PostItemUiState(
                             boostedBy = null,
                             iconUrl = null,
-                            displayName = "Alice",
+                            displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                             acct = "@alice@example.social",
-                            body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", onOpenUrl = {}),
+                            body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
                             postedAt = "2026-11-01T12:00:00Z",
                             linkPreviews = listOf(
                                 PostItemUiState.LinkPreview(
@@ -76,7 +77,7 @@ private fun UserProfileContentLocalUserPreview() {
                 content = UserProfileScreenUiState.Content.Loaded(
                     acct = "@bob@local.example",
                     iconUrl = null,
-                    displayName = "Bob",
+                    displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
                     biography = "ローカルのユーザーです。",
                     links = listOf(
                         ProfileLinkUiState(name = "GitHub", url = "https://github.com/bob", listener = AndroidPreviewProfileLinkListener),
@@ -107,7 +108,7 @@ private fun UserProfileContentMediaPreview() {
                 content = UserProfileScreenUiState.Content.Loaded(
                     acct = "@alice@example.social",
                     iconUrl = null,
-                    displayName = "Alice",
+                    displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                     biography = null,
                     links = listOf(),
                     followMenu = previewFollowMenu(destinationName = null),

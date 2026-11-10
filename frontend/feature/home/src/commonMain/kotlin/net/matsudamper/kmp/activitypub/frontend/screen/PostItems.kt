@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen
 
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
@@ -19,6 +20,7 @@ internal fun createPostItemUiState(
     boostedBy: Boost?,
     iconUrl: String?,
     displayName: String,
+    displayNameEmojis: List<UserCustomEmoji>,
     acct: String,
     body: UserPostBody,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
@@ -40,7 +42,7 @@ internal fun createPostItemUiState(
         boostedBy = boostedBy?.let { boosted ->
             val booster = boosted.booster
             PostItemUiState.BoostedBy(
-                text = "${booster.displayName} がブースト",
+                text = createTextWithEmojis(text = "${booster.displayName} がブースト", emojis = booster.displayNameEmojis),
                 iconUrl = booster.iconUrl,
                 listener = boosted.navigateToProfile?.let { navigateToProfile ->
                     object : PostItemUiState.BoostedByListener {
@@ -52,9 +54,9 @@ internal fun createPostItemUiState(
             )
         },
         iconUrl = iconUrl,
-        displayName = displayName,
+        displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,
-        body = createPostBodyText(content = body.content, onOpenUrl = onOpenUrl),
+        body = createPostBodyText(content = body.content, emojis = body.emojis, onOpenUrl = onOpenUrl),
         postedAt = createPostedAtText(
             publishedAt = body.publishedAt,
             now = Clock.System.now(),

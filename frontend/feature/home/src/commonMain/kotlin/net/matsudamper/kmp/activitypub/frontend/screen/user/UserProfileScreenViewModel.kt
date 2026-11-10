@@ -26,6 +26,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
@@ -252,7 +253,7 @@ internal class UserProfileScreenViewModel(
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
             iconUrl = profile.iconUrl,
-            displayName = profile.displayName,
+            displayName = createTextWithEmojis(text = profile.displayName, emojis = profile.displayNameEmojis),
             biography = profile.biography,
             links = profile.links.map { link ->
                 ProfileLinkUiState(
@@ -287,6 +288,7 @@ internal class UserProfileScreenViewModel(
                                 username = profile.username,
                                 host = profile.host,
                                 displayName = profile.displayName,
+                                displayNameEmojis = profile.displayNameEmojis,
                                 iconUrl = profile.iconUrl,
                             ),
                             navigateToProfile = null,
@@ -294,6 +296,7 @@ internal class UserProfileScreenViewModel(
                     },
                     iconUrl = if (boostedNoteAuthor == null) profile.iconUrl else boostedNoteAuthor.iconUrl,
                     displayName = boostedNoteAuthor?.displayName ?: profile.displayName,
+                    displayNameEmojis = boostedNoteAuthor?.displayNameEmojis ?: profile.displayNameEmojis,
                     acct = if (boostedNoteAuthor == null) acct else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                     body = post.body,
                     linkPreviews = previews,
