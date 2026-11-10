@@ -4,9 +4,13 @@ package net.matsudamper.kmp.activitypub.logic
  * 文字のまま書かれた http / https の URL を見つける
  */
 internal object PlainTextUrls {
-    private val candidate = Regex("""https?://[^\s<>"]+""", RegexOption.IGNORE_CASE)
+    /**
+     * 日本語の文では URL のすぐ後に全角の括弧や句読点を挟んで文章が続くので、それらで区切る。
+     * `https://ja.wikipedia.org/wiki/日本` のようにパスに日本語を書く URL もあるので、全角文字すべては区切りにしない
+     */
+    private val candidate = Regex("""https?://[^\s<>"（）「」『』【】〈〉《》。、，．！？：；]+""", RegexOption.IGNORE_CASE)
 
-    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '\'', '。', '、', '」', '）')
+    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '\'')
 
     fun find(text: String): Sequence<IntRange> =
         candidate.findAll(text).map { match ->

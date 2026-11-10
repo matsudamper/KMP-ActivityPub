@@ -42,4 +42,17 @@ class NoteComposerTest {
             composed.contentHtml,
         )
     }
+
+    @Test
+    fun 全角の閉じ括弧の後に文章が続いてもURLをそこで区切る() {
+        val composed = assertIs<NoteComposer.ComposeResult.Composed>(
+            NoteComposer.compose("こちら（https://example.com）を参照 https://ja.wikipedia.org/wiki/日本"),
+        )
+
+        assertEquals(
+            "<p>こちら（<a href=\"https://example.com\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">https://example.com</a>）を参照 " +
+                "<a href=\"https://ja.wikipedia.org/wiki/日本\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">https://ja.wikipedia.org/wiki/日本</a></p>",
+            composed.contentHtml,
+        )
+    }
 }
