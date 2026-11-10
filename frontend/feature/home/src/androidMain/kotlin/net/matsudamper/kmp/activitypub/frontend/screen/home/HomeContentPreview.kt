@@ -11,7 +11,9 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
@@ -77,9 +79,9 @@ private fun HomeTimelinePreview(
                     PostItemUiState(
                         boostedBy = null,
                         iconUrl = "https://example.com/kotlin.png",
-                        displayName = "Kotlin",
+                        displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
                         acct = "@kotlin@example.com",
-                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", onOpenUrl = {}),
+                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
                         postedAt = "1分前",
                         linkPreviews = listOf(
                             PostItemUiState.LinkPreview(
@@ -118,14 +120,14 @@ private fun HomeTimelinePreview(
                     ),
                     PostItemUiState(
                         boostedBy = PostItemUiState.BoostedBy(
-                            text = "Alice がブースト",
+                            text = createTextWithEmojis(text = "Alice :kotlin: がブースト", emojis = PreviewEmojis),
                             iconUrl = null,
                             listener = AndroidPreviewBoostedByListener,
                         ),
                         iconUrl = null,
-                        displayName = "Compose",
+                        displayName = createTextWithEmojis(text = "Compose :compose:", emojis = PreviewEmojis),
                         acct = "@compose@example.com",
-                        body = createPostBodyText(content = "Compose Multiplatform で Web と Android の画面を共有している", onOpenUrl = {}),
+                        body = createPostBodyText(content = "Compose Multiplatform :compose: で Web と Android の画面を共有している :kotlin:", emojis = PreviewEmojis, onOpenUrl = {}),
                         postedAt = "5分前",
                         linkPreviews = listOf(),
                         images = listOf(
@@ -318,9 +320,9 @@ private fun HomeUserContentPreview() {
                         PostItemUiState(
                             boostedBy = null,
                             iconUrl = "https://example.com/icon.png",
-                            displayName = "ユーザー1",
+                            displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
                             acct = "@user1",
-                            body = createPostBodyText(content = "はじめての投稿", onOpenUrl = {}),
+                            body = createPostBodyText(content = "はじめての投稿", emojis = listOf(), onOpenUrl = {}),
                             postedAt = "3分前",
                             linkPreviews = listOf(),
                             images = listOf(),
@@ -430,9 +432,9 @@ private fun HomeUserMediaContentPreview() {
                         PostItemUiState(
                             boostedBy = null,
                             iconUrl = "https://example.com/icon.png",
-                            displayName = "ユーザー1",
+                            displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
                             acct = "@user1",
-                            body = createPostBodyText(content = "はじめての投稿", onOpenUrl = {}),
+                            body = createPostBodyText(content = "はじめての投稿", emojis = listOf(), onOpenUrl = {}),
                             postedAt = "3分前",
                             linkPreviews = listOf(),
                             images = listOf(),
@@ -482,9 +484,9 @@ private fun HomeColumnsContentPreview() {
                     PostItemUiState(
                         boostedBy = null,
                         iconUrl = "https://example.com/kotlin.png",
-                        displayName = "Kotlin",
+                        displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
                         acct = "@kotlin@example.com",
-                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", onOpenUrl = {}),
+                        body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
                         postedAt = "1分前",
                         linkPreviews = listOf(),
                         images = listOf(),
@@ -558,6 +560,11 @@ private fun HomeColumnsContentPreview() {
 }
 
 @OptIn(ExperimentalCoilApi::class)
+private val PreviewEmojis = listOf(
+    UserCustomEmoji(name = ":kotlin:", imageUrl = "https://example.com/kotlin.png"),
+    UserCustomEmoji(name = ":compose:", imageUrl = "https://example.com/compose.png"),
+)
+
 @Composable
 private fun HomePreviewTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(

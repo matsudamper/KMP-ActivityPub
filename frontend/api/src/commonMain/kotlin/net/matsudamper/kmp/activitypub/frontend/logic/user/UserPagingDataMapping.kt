@@ -15,6 +15,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                 username = it.username,
                 host = it.host,
                 displayName = it.displayName,
+                displayNameEmojis = it.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 iconUrl = it.iconUrl,
                 body = UserPostBody(
                     content = it.content,
@@ -26,11 +27,20 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     favouriteCount = it.favouriteCount,
                     boostCount = it.boostCount,
                     stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                    emojis = it.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                     shareUrl = it.url,
                     likedByMe = it.likedByMe,
                 ),
                 boostedBy = it.boostedBy?.let { booster ->
-                    UserHomeTimelineResult.Booster(username = booster.username, host = booster.host, displayName = booster.displayName, iconUrl = booster.iconUrl)
+                    UserHomeTimelineResult.Booster(
+                        username = booster.username,
+                        host = booster.host,
+                        displayName = booster.displayName,
+                        displayNameEmojis = booster.displayNameEmojis.map { emoji ->
+                            UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
+                        },
+                        iconUrl = booster.iconUrl,
+                    )
                 },
                 deletableNoteId = it.deletableNoteId,
             )
@@ -54,6 +64,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             username = it.username,
             host = it.host,
             displayName = it.displayName,
+            displayNameEmojis = it.displayNameEmojis.map { emoji -> HomeTimelineQuery.DisplayNameEmoji(__typename = "CustomEmoji", name = emoji.name, imageUrl = emoji.imageUrl) },
             summary = it.body.summary,
             sensitive = it.body.sensitive,
             linkUrls = it.body.linkUrls,
@@ -61,11 +72,21 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             images = it.body.images.map { image ->
                 HomeTimelineQuery.Image(__typename = "PostImage", url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description)
             },
+            emojis = it.body.emojis.map { emoji -> HomeTimelineQuery.Emoji(__typename = "CustomEmoji", name = emoji.name, imageUrl = emoji.imageUrl) },
             deletableNoteId = it.deletableNoteId,
             favouriteCount = it.body.favouriteCount,
             boostCount = it.body.boostCount,
             boostedBy = it.boostedBy?.let { booster ->
-                HomeTimelineQuery.BoostedBy(__typename = "PostBooster", username = booster.username, host = booster.host, displayName = booster.displayName, iconUrl = booster.iconUrl)
+                HomeTimelineQuery.BoostedBy(
+                    __typename = "PostBooster",
+                    username = booster.username,
+                    host = booster.host,
+                    displayName = booster.displayName,
+                    displayNameEmojis = booster.displayNameEmojis.map { emoji ->
+                        HomeTimelineQuery.DisplayNameEmoji1(__typename = "CustomEmoji", name = emoji.name, imageUrl = emoji.imageUrl)
+                    },
+                    iconUrl = booster.iconUrl,
+                )
             },
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
             url = it.body.shareUrl,

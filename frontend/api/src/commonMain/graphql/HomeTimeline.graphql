@@ -8,6 +8,10 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                 username
                 host
                 displayName
+                displayNameEmojis {
+                    name
+                    imageUrl
+                }
                 summary
                 sensitive
                 linkUrls
@@ -18,12 +22,20 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                     thumbnailUrl
                     description
                 }
+                emojis {
+                    name
+                    imageUrl
+                }
                 favouriteCount
                 boostCount
                 boostedBy {
                     username
                     host
                     displayName
+                    displayNameEmojis {
+                        name
+                        imageUrl
+                    }
                     iconUrl
                 }
                 stamps {

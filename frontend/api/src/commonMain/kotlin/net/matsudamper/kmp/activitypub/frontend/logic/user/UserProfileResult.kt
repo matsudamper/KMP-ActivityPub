@@ -10,6 +10,7 @@ sealed interface UserProfileResult {
         val username: String,
         val host: String,
         val displayName: String,
+        val displayNameEmojis: List<UserCustomEmoji>,
         val iconUrl: String?,
         val following: Boolean,
         val followingGroupId: String?,
@@ -43,6 +44,7 @@ sealed interface UserProfileResult {
         val username: String,
         val host: String,
         val displayName: String,
+        val displayNameEmojis: List<UserCustomEmoji>,
         val iconUrl: String?,
     )
 

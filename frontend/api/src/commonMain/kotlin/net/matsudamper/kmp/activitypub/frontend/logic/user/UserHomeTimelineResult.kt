@@ -9,6 +9,7 @@ sealed interface UserHomeTimelineResult {
         val username: String,
         val host: String?,
         val displayName: String,
+        val displayNameEmojis: List<UserCustomEmoji>,
         /**
          * 投稿者のプロフィール画像が無ければ null
          */
@@ -28,6 +29,7 @@ sealed interface UserHomeTimelineResult {
         val username: String,
         val host: String,
         val displayName: String,
+        val displayNameEmojis: List<UserCustomEmoji>,
         /**
          * ブーストした相手のプロフィール画像が無ければ null
          */

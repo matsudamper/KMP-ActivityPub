@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.text.AnnotatedString
 
 /**
  * @param iconUrl 投稿者のプロフィール画像が無ければ null
@@ -12,9 +11,9 @@ data class PostItemUiState(
      */
     val boostedBy: BoostedBy?,
     val iconUrl: String?,
-    val displayName: String,
+    val displayName: TextWithEmojis,
     val acct: String,
-    val body: AnnotatedString,
+    val body: TextWithEmojis,
     val postedAt: String,
     /**
      * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく
@@ -57,7 +56,7 @@ data class PostItemUiState(
      * @param listener ブーストした相手のプロフィールを見ているときは押せないので null
      */
     data class BoostedBy(
-        val text: String,
+        val text: TextWithEmojis,
         val iconUrl: String?,
         val listener: BoostedByListener?,
     )
