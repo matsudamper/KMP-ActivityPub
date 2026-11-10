@@ -20,13 +20,13 @@ internal class SqliteLikeRepository(
     private val jooq: SqliteJooq,
 ) : LikeRepository {
     override fun target(accountId: AccountId, member: String): LikeTarget? {
-        val localNoteId = localNoteIdOf(member)
+        val localNoteId = TimelineMembers.localNoteIdOf(member)
         if (localNoteId != null) {
             // このサーバーの投稿は outbox で公開しているので、誰でも読める
             val exists = jooq.withConnection { dsl -> dsl.fetchExists(NOTES, NOTES.ID.eq(localNoteId)) }
             return if (exists) LikeTarget.Local else null
         }
-        val boostId = boostIdOf(member)
+        val boostId = TimelineMembers.boostIdOf(member)
         if (boostId != null) {
             return jooq.withConnection { dsl ->
                 dsl.select(REMOTE_NOTES.OBJECT_URI, REMOTE_ACTORS.INBOX)
@@ -38,7 +38,7 @@ internal class SqliteLikeRepository(
                     .fetchOne { LikeTarget.Remote(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
             }
         }
-        val remoteNoteId = remoteNoteIdOf(member) ?: return null
+        val remoteNoteId = TimelineMembers.remoteNoteIdOf(member) ?: return null
         return jooq.withConnection { dsl ->
             dsl.select(REMOTE_NOTES.OBJECT_URI, REMOTE_ACTORS.INBOX)
                 .from(REMOTE_NOTES)
@@ -50,7 +50,7 @@ internal class SqliteLikeRepository(
     }
 
     override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean {
-        val localNoteId = localNoteIdOf(member) ?: return false
+        val localNoteId = TimelineMembers.localNoteIdOf(member) ?: return false
         return jooq.withConnection { dsl ->
             dsl.insertInto(NOTE_LIKES)
                 .set(NOTE_LIKES.ACCOUNT_ID, accountId.value)
@@ -62,7 +62,7 @@ internal class SqliteLikeRepository(
     }
 
     override fun unlikeLocal(accountId: AccountId, member: String): Boolean {
-        val localNoteId = localNoteIdOf(member) ?: return false
+        val localNoteId = TimelineMembers.localNoteIdOf(member) ?: return false
         return jooq.withConnection { dsl ->
             dsl.deleteFrom(NOTE_LIKES)
                 .where(NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
@@ -153,20 +153,11 @@ internal class SqliteLikeRepository(
             .execute()
     }
 
-    private fun localNoteIdOf(member: String): Long? =
-        if (member.startsWith("l")) member.drop(1).toLongOrNull() else null
-
     /**
      * ブーストで載った投稿へのいいねは、ブーストされた元の投稿に付ける
      */
     private fun DSLContext.likedRemoteNoteIdOf(member: String): Long? {
-        val boostId = boostIdOf(member) ?: return remoteNoteIdOf(member)
+        val boostId = TimelineMembers.boostIdOf(member) ?: return TimelineMembers.remoteNoteIdOf(member)
         return select(REMOTE_BOOSTS.REMOTE_NOTE_ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.ID.eq(boostId)).fetchOne(REMOTE_BOOSTS.REMOTE_NOTE_ID)
     }
-
-    private fun boostIdOf(member: String): Long? =
-        if (member.startsWith("b")) member.drop(1).toLongOrNull() else null
-
-    private fun remoteNoteIdOf(member: String): Long? =
-        if (member.startsWith("r")) member.drop(1).toLongOrNull() else null
 }

@@ -20,6 +20,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
@@ -45,6 +47,7 @@ import net.matsudamper.kmp.activitypub.logic.DeleteNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
+import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
@@ -304,6 +307,16 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun setBoosted(
+        userMutation: QlUserMutation,
+        postId: String,
+        boosted: Boolean,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlSetBoostedResult>> {
+        val result = setBoosted(postId = postId, boosted = boosted, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
         GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
 
@@ -439,6 +452,24 @@ class UserMutationResolverImpl : UserMutationResolver {
                 SetLikedResult.PostNotFound -> QlSetLikedFailure.POST_NOT_FOUND
             }
         return QlSetLikedResult(failure = failure)
+    }
+
+    private fun setBoosted(
+        postId: String,
+        boosted: Boolean,
+        env: DataFetchingEnvironment,
+    ): QlSetBoostedResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val boostService =
+            diContainer.boostService
+                ?: return QlSetBoostedResult(failure = QlSetBoostedFailure.FEDERATION_DISABLED)
+        val failure =
+            when (boostService.setBoosted(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), postId = postId, boosted = boosted)) {
+                SetBoostedResult.Updated -> null
+                SetBoostedResult.NotLoggedIn -> QlSetBoostedFailure.NOT_LOGGED_IN
+                SetBoostedResult.PostNotFound -> QlSetBoostedFailure.POST_NOT_FOUND
+            }
+        return QlSetBoostedResult(failure = failure)
     }
 
     private fun updateProfileIcon(

@@ -155,6 +155,7 @@ internal fun Application.module(deps: AppDependencies) {
                 notePostService = federation?.notePostService,
                 profileUpdateService = federation?.profileUpdateService,
                 likeService = federation?.likeService,
+                boostService = federation?.boostService,
                 profileIconUrls = federation?.profileIconUrls,
                 noteImageUrls = federation?.noteImageUrls,
                 noteShareUrls = federation?.noteShareUrls,

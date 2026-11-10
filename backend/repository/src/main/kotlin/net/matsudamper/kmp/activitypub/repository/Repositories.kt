@@ -18,6 +18,7 @@ interface Repositories : AutoCloseable {
     val stampRepository: StampRepository
     val boostRepository: BoostRepository
     val likeRepository: LikeRepository
+    val accountBoostRepository: AccountBoostRepository
 
     val passkeyRepository: PasskeyRepository
 

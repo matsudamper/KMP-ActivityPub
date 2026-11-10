@@ -45,6 +45,11 @@ type UserMutation {
     postId は HomeTimelinePost.id か ProfilePostLike.postId。既に望んだ状態なら何も積まずに成功する
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
+    """
+    ログインしているアカウントで、他のサーバーの公開・未収載の投稿をブーストするか外す。フォロワーと投稿者への Announce か Undo を積む。
+    postId は HomeTimelinePost.id か ProfilePost.postId。既に望んだ状態なら何も積まずに成功する
+    """
+    setBoosted(postId: ID!, boosted: Boolean!): SetBoostedResult! @lazy
 }
 
 type CreateFollowingGroupResult {
@@ -225,6 +230,18 @@ enum SetLikedFailure {
     "無いか、読めない投稿"
     POST_NOT_FOUND
     "サーバーに DOMAIN が無く、いいねを配れない"
+    FEDERATION_DISABLED
+}
+
+type SetBoostedResult {
+    failure: SetBoostedFailure
+}
+
+enum SetBoostedFailure {
+    NOT_LOGGED_IN
+    "無いか、読めないか、ブーストできない投稿"
+    POST_NOT_FOUND
+    "サーバーに DOMAIN が無く、ブーストを配れない"
     FEDERATION_DISABLED
 }
 

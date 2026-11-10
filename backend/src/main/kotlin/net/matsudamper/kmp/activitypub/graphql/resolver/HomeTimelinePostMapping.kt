@@ -39,6 +39,7 @@ internal fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, diContainer
         stamps = stamps.toQlPostStamps(diContainer),
         url = diContainer.noteShareUrls?.url(noteRef),
         likedByMe = likedByMe,
+        boostedByMe = boostedByMe,
         boostCount = boostCount?.toInt(),
         boostedBy = boostedBy?.let { booster ->
             QlPostBooster(

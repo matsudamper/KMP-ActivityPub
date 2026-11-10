@@ -104,6 +104,7 @@ class FollowingGroupServiceTest {
         favouriteCount = null,
         stamps = listOf(),
         likedByMe = false,
+        boostedByMe = null,
         noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
         boostCount = null,
         boostedBy = boosterActorUri?.let { TimelineBooster(it, "booster", null, null, listOf(), Instant.EPOCH) },

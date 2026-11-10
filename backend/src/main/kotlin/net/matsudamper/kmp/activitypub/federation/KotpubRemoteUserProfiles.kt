@@ -43,6 +43,7 @@ internal class KotpubRemoteUserProfiles(
                 stamps = listOf(),
                 // 保存していない投稿なので、いいねする投稿を指せない
                 like = null,
+                boostedByMe = null,
                 noteRef = TimelineNoteRef.Remote(it.id),
                 boostCount = null,
                 boostedNoteAuthor = null,

@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
@@ -20,6 +21,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
+import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
@@ -73,6 +75,7 @@ internal class Federation(
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
     likeRepository: LikeRepository,
+    accountBoostRepository: AccountBoostRepository,
     stampRepository: StampRepository,
     boostRepository: BoostRepository,
     imageStorage: ImageStorage?,
@@ -133,6 +136,16 @@ internal class Federation(
             directory = directory,
             accountService = accountService,
             likes = likeRepository,
+            clock = Clock.systemUTC(),
+            onEnqueued = deliveryQueueWorker::wakeUp,
+        )
+
+    val boostService: BoostService =
+        BoostService(
+            directory = directory,
+            accountService = accountService,
+            boosts = accountBoostRepository,
+            followerRepository = followerRepository,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
         )

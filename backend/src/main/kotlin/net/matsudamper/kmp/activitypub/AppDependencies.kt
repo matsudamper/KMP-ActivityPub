@@ -95,6 +95,7 @@ class AppDependencies(
                 remoteActorRepository = repositories.remoteActorRepository,
                 favouriteRepository = repositories.favouriteRepository,
                 likeRepository = repositories.likeRepository,
+                accountBoostRepository = repositories.accountBoostRepository,
                 stampRepository = repositories.stampRepository,
                 boostRepository = repositories.boostRepository,
                 imageStorage = imageStorage,

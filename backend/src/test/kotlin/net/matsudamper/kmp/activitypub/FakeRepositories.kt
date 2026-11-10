@@ -2,16 +2,19 @@ package net.matsudamper.kmp.activitypub
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
+import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
+import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.ListedActor
+import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
@@ -102,6 +105,17 @@ internal class FakeRepositories : Repositories {
             inbox: String,
             now: Instant,
             undoBody: (likeId: String) -> String,
+        ): Boolean = false
+    }
+    override val accountBoostRepository: AccountBoostRepository = object : AccountBoostRepository {
+        override fun target(accountId: AccountId, member: String): BoostTarget? = null
+        override fun boostAndEnqueue(boost: OutgoingBoost): Boolean = false
+        override fun unboostAndEnqueueUndo(
+            accountId: AccountId,
+            member: String,
+            inboxes: List<String>,
+            now: Instant,
+            undoBody: (announceBody: String) -> String,
         ): Boolean = false
     }
     override val boostRepository: FakeBoostRepository = FakeBoostRepository()

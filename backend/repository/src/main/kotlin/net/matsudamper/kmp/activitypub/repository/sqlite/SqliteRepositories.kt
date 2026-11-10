@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
+import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
@@ -34,6 +35,7 @@ internal class SqliteRepositories(
     override val boostRepository: BoostRepository = SqliteBoostRepository(jooq)
     override val stampRepository: StampRepository = SqliteStampRepository(jooq)
     override val likeRepository: LikeRepository = SqliteLikeRepository(jooq)
+    override val accountBoostRepository: AccountBoostRepository = SqliteAccountBoostRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

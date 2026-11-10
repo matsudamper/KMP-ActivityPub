@@ -282,7 +282,7 @@ internal class SqliteDeliveryQueueRepository(
         jooq.transaction { dsl ->
             dsl.deleteFrom(DELIVERY_QUEUE)
                 .where(DELIVERY_QUEUE.ID.eq(id))
-                .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_CANCELLED_LIKE))
+                .and(DELIVERY_QUEUE.KIND.`in`(DeliveryQueueValues.CANCELLED_KINDS))
                 .execute()
             dsl.update(DELIVERY_QUEUE)
                 .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
@@ -324,7 +324,7 @@ internal class SqliteDeliveryQueueRepository(
     override fun recoverDelivering(now: Instant): Int = jooq.transaction { dsl ->
         dsl.deleteFrom(DELIVERY_QUEUE)
             .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
-            .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_CANCELLED_LIKE))
+            .and(DELIVERY_QUEUE.KIND.`in`(DeliveryQueueValues.CANCELLED_KINDS))
             .execute()
         dsl.update(DELIVERY_QUEUE)
             .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
