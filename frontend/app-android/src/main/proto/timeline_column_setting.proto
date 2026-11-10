@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option java_package = "net.matsudamper.kmp.activitypub.android.timeline";
+option java_multiple_files = true;
+
+message TimelineColumnSettingProto {
+  // 一度も保存していないときと、全部消したときを分けるため
+  bool saved = 1;
+  repeated TimelineColumnProto columns = 2;
+}
+
+message TimelineColumnProto {
+  oneof kind {
+    bool home = 1;
+    string following_group_id = 2;
+  }
+}
