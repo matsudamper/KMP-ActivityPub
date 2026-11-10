@@ -108,7 +108,7 @@ class RemoteNoteReceptionTest {
         val fixture = Fixture(OpenTelemetry.noop())
         val profileUrl = "https://remote.example/@remote"
         fixture.repositories.remoteActorRepository.save(
-            RemoteActor(profileUrl, "$ACTOR/inbox", null, "old-key", RemoteActorProfile("remote", null, profileUrl, null, emojis = listOf())).toRecord(),
+            RemoteActor(profileUrl, "$ACTOR/inbox", null, "old-key", RemoteActorProfile("remote", null, profileUrl, null, null, emojis = listOf())).toRecord(),
             Instant.EPOCH,
         )
         val stored = fixture.repositories.timelineRepository
@@ -138,7 +138,7 @@ class RemoteNoteReceptionTest {
         val fixture = Fixture(OpenTelemetry.noop())
         val profileUrl = "https://remote.example/@remote"
         fixture.repositories.remoteActorRepository.save(
-            RemoteActor(profileUrl, "$ACTOR/inbox", null, "key", RemoteActorProfile("remote", null, profileUrl, null, emojis = listOf())).toRecord(),
+            RemoteActor(profileUrl, "$ACTOR/inbox", null, "key", RemoteActorProfile("remote", null, profileUrl, null, null, emojis = listOf())).toRecord(),
             Instant.EPOCH,
         )
         fixture.repositories.followingRepository.add(fixture.accountId, profileUrl, Instant.EPOCH)
@@ -363,7 +363,7 @@ class RemoteNoteReceptionTest {
             onFindActor()
             check(available) { "相手サーバーに接続できない" }
             val id = if (actorId == BOOSTER) BOOSTER else ACTOR
-            return RemoteActor(id, "$id/inbox", null, "key", RemoteActorProfile("remote", null, null, null, emojis = listOf()))
+            return RemoteActor(id, "$id/inbox", null, "key", RemoteActorProfile("remote", null, null, null, null, emojis = listOf()))
         }
         override suspend fun find(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable
         override suspend fun refresh(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable

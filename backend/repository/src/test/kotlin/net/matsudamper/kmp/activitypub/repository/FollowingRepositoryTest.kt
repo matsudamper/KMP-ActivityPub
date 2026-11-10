@@ -87,6 +87,7 @@ class FollowingRepositoryTest {
                             displayName = "Carol",
                             profileUrl = null,
                             iconUrl = "https://remote.example/carol.png",
+                            headerUrl = null,
                             emojis = listOf(),
                         ),
                     ),
