@@ -33,6 +33,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     UserHomeTimelineResult.Booster(username = booster.username, host = booster.host, displayName = booster.displayName, iconUrl = booster.iconUrl)
                 },
                 deletableNoteId = it.deletableNoteId,
+                followingGroupId = it.followingGroupId,
             )
         },
         nextCursor = timeline.nextCursor,
@@ -70,6 +71,7 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
             url = it.body.shareUrl,
             likedByMe = it.body.likedByMe == true,
+            followingGroupId = it.followingGroupId,
         )
     }
     return copy(userInfo = info.copy(homeTimeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.id })))

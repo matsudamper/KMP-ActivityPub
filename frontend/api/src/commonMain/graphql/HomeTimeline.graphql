@@ -33,6 +33,7 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                 }
                 url
                 likedByMe
+                followingGroupId
             }
             nextCursor
         }

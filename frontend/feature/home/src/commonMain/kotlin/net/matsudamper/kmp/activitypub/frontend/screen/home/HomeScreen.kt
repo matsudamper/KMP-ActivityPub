@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,10 +38,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -49,6 +52,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -121,6 +125,10 @@ internal fun HomeScreen(
 
                 override fun scrollTabToTop(tab: HomeScreenUiState.Tab) {
                     coroutineScope.launch { tabListStates.scrollToTop(tab) }
+                }
+
+                override fun scrollTimelineColumnToTop(listStateKey: String) {
+                    coroutineScope.launch { tabListStates.timeline(listStateKey).animateScrollToItem(0) }
                 }
 
                 override fun navigateToPost() {
@@ -210,13 +218,19 @@ internal fun HomeScreen(
  */
 @Stable
 internal class HomeTabListStates(
-    val timeline: LazyListState,
     val search: LazyListState,
     val user: LazyGridState,
 ) {
+    /**
+     * カラムは足し引きされるので、カラムごとに初めて出したときに作る
+     */
+    private val timelineListStates = mutableMapOf<String, LazyListState>()
+
+    fun timeline(listStateKey: String): LazyListState = timelineListStates.getOrPut(listStateKey) { LazyListState() }
+
     suspend fun scrollToTop(tab: HomeScreenUiState.Tab) {
         when (tab) {
-            HomeScreenUiState.Tab.Home -> timeline.animateScrollToItem(0)
+            HomeScreenUiState.Tab.Home -> timelineListStates.values.forEach { it.animateScrollToItem(0) }
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
             HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
         }
@@ -225,10 +239,9 @@ internal class HomeTabListStates(
 
 @Composable
 internal fun rememberHomeTabListStates(): HomeTabListStates {
-    val timeline = rememberLazyListState()
     val search = rememberLazyListState()
     val user = rememberLazyGridState()
-    return remember(timeline, search, user) { HomeTabListStates(timeline = timeline, search = search, user = user) }
+    return remember(search, user) { HomeTabListStates(search = search, user = user) }
 }
 
 @Composable
@@ -252,6 +265,15 @@ internal fun HomeContent(
                         fontWeight = FontWeight.Bold,
                     )
                     if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
+                        val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
+                        if (selectedColumn != null) {
+                            IconButton(onClick = selectedColumn.listener::onClickRemove) {
+                                Icon(
+                                    imageVector = AppIcons.Close,
+                                    contentDescription = "${selectedColumn.title}のタブを閉じる",
+                                )
+                            }
+                        }
                         SensitiveImagesVisibilityButton(
                             sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
                             onClick = uiState.listener::onClickSensitiveImagesVisibility,
@@ -320,12 +342,9 @@ internal fun HomeContent(
         tabStateHolder.SaveableStateProvider(uiState.selectedTab.name) {
             when (uiState.selectedTab) {
                 HomeScreenUiState.Tab.Home -> {
-                    TimelineTabContent(
-                        listState = tabListStates.timeline,
-                        timelineItems = uiState.timelineItems,
-                        refreshing = uiState.timelineRefreshing,
-                        footer = uiState.timelineFooter,
-                        listener = uiState.listener,
+                    TimelineTabsContent(
+                        uiState = uiState,
+                        tabListStates = tabListStates,
                         modifier = contentModifier,
                     )
                 }
@@ -359,6 +378,76 @@ internal fun HomeContent(
     val addFollowingGroupDialog = uiState.addFollowingGroupDialog
     if (addFollowingGroupDialog != null) {
         AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
+    }
+    val addTimelineColumnDialog = uiState.addTimelineColumnDialog
+    if (addTimelineColumnDialog != null) {
+        AddTimelineColumnDialog(uiState = addTimelineColumnDialog)
+    }
+}
+
+/**
+ * 小さい画面向け。購読先ごとのタイムラインをタブで切り替える
+ */
+@Composable
+private fun TimelineTabsContent(
+    uiState: HomeScreenUiState,
+    tabListStates: HomeTabListStates,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
+            if (selectedIndex >= 0) {
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = selectedIndex,
+                    edgePadding = 0.dp,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    uiState.timelineColumns.forEach { column ->
+                        Tab(
+                            selected = column.selected,
+                            onClick = column.listener::onClickTab,
+                            text = { Text(column.title) },
+                        )
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+            IconButton(
+                onClick = uiState.listener::onClickAddTimelineColumn,
+                enabled = uiState.addTimelineColumnButtonEnabled,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Add,
+                    contentDescription = "表示する購読先を追加",
+                )
+            }
+        }
+        val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
+        val emptyMessage = uiState.timelineColumnsEmptyMessage
+        val contentModifier = Modifier.fillMaxWidth().weight(1f)
+        if (selectedColumn != null) {
+            key(selectedColumn.listStateKey) {
+                TimelineTabContent(
+                    listState = tabListStates.timeline(selectedColumn.listStateKey),
+                    timelineItems = selectedColumn.items,
+                    refreshing = uiState.timelineRefreshing,
+                    footer = uiState.timelineFooter,
+                    listener = uiState.listener,
+                    modifier = contentModifier,
+                )
+            }
+        } else if (emptyMessage != null) {
+            TimelineColumnsEmptyContent(
+                message = emptyMessage,
+                addButtonEnabled = uiState.addTimelineColumnButtonEnabled,
+                onClickAdd = uiState.listener::onClickAddTimelineColumn,
+                modifier = contentModifier,
+            )
+        } else {
+            Spacer(modifier = contentModifier)
+        }
     }
 }
 

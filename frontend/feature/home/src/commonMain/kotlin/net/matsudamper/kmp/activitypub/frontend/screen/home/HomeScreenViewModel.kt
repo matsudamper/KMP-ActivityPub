@@ -17,8 +17,11 @@ import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.user.HomeTimelineStreamEvent
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowingGroup
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
@@ -55,6 +58,7 @@ internal class HomeScreenViewModel(
     @InjectedParam private val selectedTab: HomeScreenUiState.Tab,
     private val userApi: UserApi,
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
+    private val timelineColumnSettingStore: TimelineColumnSettingStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -86,6 +90,12 @@ internal class HomeScreenViewModel(
                 myPosts = MyPostsState.Loading,
                 noteDeletion = NoteDeletionState.None,
                 userContentTab = ProfileContentTab.Posts,
+                timelineColumns = TimelineColumnsState(
+                    settings = null,
+                    followingGroups = listOf(),
+                    selected = null,
+                    addDialogVisible = false,
+                ),
             ),
         )
     private val timelinePaging = userApi.homeTimelinePaging()
@@ -242,6 +252,12 @@ internal class HomeScreenViewModel(
             }
         }
 
+        override fun onClickAddTimelineColumn() {
+            updateTimelineColumns { it.copy(addDialogVisible = true) }
+            // 別の画面でグループを作っていることがあるので、候補を出す前に読み直す
+            viewModelScope.launch { userApi.loadFollowingGroups() }
+        }
+
         override fun onScreenShown() {
             loadProfile()
             // 読み込みより先に購読を始め、読み込み結果との間で投稿を取りこぼしにくくする
@@ -249,6 +265,12 @@ internal class HomeScreenViewModel(
                 collectTimelineArrivals()
             }
             loadTimeline(TimelineLoadTrigger.ScreenShown)
+        }
+    }
+
+    private val addTimelineColumnDialogListener = object : HomeScreenUiState.AddTimelineColumnDialog.Listener {
+        override fun onDismiss() {
+            updateTimelineColumns { it.copy(addDialogVisible = false) }
         }
     }
 
@@ -301,6 +323,49 @@ internal class HomeScreenViewModel(
         }
         viewModelScope.launch {
             timelinePaging.watch().collect { applyTimeline(it.toUserHomeTimelineResult()) }
+        }
+        viewModelScope.launch {
+            timelineColumnSettingStore.columnsFlow.collect { settings ->
+                updateTimelineColumns { it.copy(settings = settings) }
+            }
+        }
+        viewModelScope.launch {
+            userApi.followingGroups.collect { groups ->
+                updateTimelineColumns { it.copy(followingGroups = groups) }
+            }
+        }
+    }
+
+    private fun updateTimelineColumns(transform: (TimelineColumnsState) -> TimelineColumnsState) {
+        viewModelStateFlow.update { it.copy(timelineColumns = transform(it.timelineColumns)) }
+    }
+
+    private fun addTimelineColumn(column: TimelineColumnSetting) {
+        val settings = viewModelStateFlow.value.timelineColumns.settings ?: return
+        updateTimelineColumns { it.copy(selected = column, addDialogVisible = false) }
+        saveTimelineColumns(settings + column)
+    }
+
+    /**
+     * 小さい画面で選んでいたタブを消したときは、隣のタブに移す
+     */
+    private fun removeTimelineColumn(column: TimelineColumnSetting) {
+        val state = viewModelStateFlow.value.timelineColumns
+        val settings = state.settings ?: return
+        val visibleColumns = state.visibleColumns()
+        if (state.selectedColumn() == column) {
+            val removedIndex = visibleColumns.indexOf(column)
+            val remaining = visibleColumns - column
+            updateTimelineColumns { it.copy(selected = remaining.getOrNull(removedIndex.coerceAtMost(remaining.lastIndex))) }
+        }
+        saveTimelineColumns(settings - column)
+    }
+
+    private fun saveTimelineColumns(settings: List<TimelineColumnSetting>) {
+        viewModelScope.launch {
+            if (!timelineColumnSettingStore.save(settings)) {
+                events.send { it.showMessage(TIMELINE_COLUMNS_NOT_SAVED_MESSAGE) }
+            }
         }
     }
 
@@ -674,7 +739,10 @@ internal class HomeScreenViewModel(
         val profile = viewModelState.profile
         return HomeScreenUiState(
             selectedTab = viewModelState.selectedTab,
-            timelineItems = createTimelineItems(viewModelState),
+            timelineColumns = createTimelineColumns(viewModelState),
+            timelineColumnsEmptyMessage = if (viewModelState.timelineColumns.settings?.isEmpty() == true) TIMELINE_COLUMNS_EMPTY_MESSAGE else null,
+            addTimelineColumnButtonEnabled = viewModelState.timelineColumns.addableColumns().isNotEmpty(),
+            addTimelineColumnDialog = createAddTimelineColumnDialog(viewModelState.timelineColumns),
             timelineRefreshing = viewModelState.timeline.loading == TimelineLoading.PullToRefresh,
             timelineFooter = createTimelineFooter(viewModelState.timeline.loading),
             timelineStreamStatus = viewModelState.timelineStream.status(),
@@ -789,8 +857,56 @@ internal class HomeScreenViewModel(
         viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
     }
 
-    private fun createTimelineItems(viewModelState: ViewModelState): List<PostItemUiState> {
-        return viewModelState.timeline.posts.map { post ->
+    private fun createTimelineColumns(viewModelState: ViewModelState): List<HomeScreenUiState.TimelineColumn> {
+        val columnsState = viewModelState.timelineColumns
+        val selectedColumn = columnsState.selectedColumn()
+        return columnsState.visibleColumns().map { column ->
+            HomeScreenUiState.TimelineColumn(
+                title = columnsState.titleOf(column),
+                listStateKey = column.listStateKey,
+                items = createTimelineItems(viewModelState, column),
+                selected = column == selectedColumn,
+                listener = object : HomeScreenUiState.TimelineColumnListener {
+                    override fun onClickTab() {
+                        if (viewModelStateFlow.value.timelineColumns.selectedColumn() == column) {
+                            viewModelScope.launch { events.send { it.scrollTimelineColumnToTop(column.listStateKey) } }
+                        } else {
+                            updateTimelineColumns { it.copy(selected = column) }
+                        }
+                    }
+
+                    override fun onClickHeader() {
+                        viewModelScope.launch { events.send { it.scrollTimelineColumnToTop(column.listStateKey) } }
+                    }
+
+                    override fun onClickRemove() {
+                        removeTimelineColumn(column)
+                    }
+                },
+            )
+        }
+    }
+
+    private fun createAddTimelineColumnDialog(columnsState: TimelineColumnsState): HomeScreenUiState.AddTimelineColumnDialog? {
+        if (!columnsState.addDialogVisible) return null
+        return HomeScreenUiState.AddTimelineColumnDialog(
+            items = columnsState.addableColumns().map { column ->
+                HomeScreenUiState.AddTimelineColumnDialog.Item(
+                    name = columnsState.titleOf(column),
+                    listener = object : HomeScreenUiState.AddTimelineColumnDialog.ItemListener {
+                        override fun onClick() {
+                            addTimelineColumn(column)
+                        }
+                    },
+                )
+            },
+            emptyMessage = if (columnsState.addableColumns().isEmpty()) ADDABLE_TIMELINE_COLUMNS_EMPTY_MESSAGE else null,
+            listener = addTimelineColumnDialogListener,
+        )
+    }
+
+    private fun createTimelineItems(viewModelState: ViewModelState, column: TimelineColumnSetting): List<PostItemUiState> {
+        return viewModelState.timeline.posts.filter { column.contains(it) }.map { post ->
             createPostItemUiState(
                 boostedBy = post.boostedBy?.let { booster ->
                     Boost(booster = booster) { username ->
@@ -899,6 +1015,8 @@ internal class HomeScreenViewModel(
 
         fun scrollTabToTop(tab: HomeScreenUiState.Tab)
 
+        fun scrollTimelineColumnToTop(listStateKey: String)
+
         fun navigateToPost()
 
         fun navigateToSettings()
@@ -927,6 +1045,10 @@ internal class HomeScreenViewModel(
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
         const val MY_POSTS_NOT_FOUND_MESSAGE = "投稿を読み込めませんでした"
         const val TIMELINE_STREAM_DISCONNECTED_MESSAGE = "新着投稿の受信が切れました"
+        const val TIMELINE_COLUMNS_EMPTY_MESSAGE = "表示する購読先がありません"
+        const val ADDABLE_TIMELINE_COLUMNS_EMPTY_MESSAGE = "追加できる購読先がありません"
+        const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "表示する購読先を端末に保存できませんでした"
+        const val HOME_COLUMN_TITLE = "ホーム"
     }
 
     private enum class TimelineLoadTrigger {
@@ -951,7 +1073,48 @@ internal class HomeScreenViewModel(
         val myPosts: MyPostsState,
         val noteDeletion: NoteDeletionState,
         val userContentTab: ProfileContentTab,
+        val timelineColumns: TimelineColumnsState,
     )
+
+    /**
+     * @param settings 端末から読み終えるまでは null
+     * @param followingGroups 読めていないグループのカラムは名前を出せないので、読めるまで並べない
+     * @param selected 小さい画面で選んでいるタブ。消えていれば先頭を選んでいるものとして扱う
+     */
+    private data class TimelineColumnsState(
+        val settings: List<TimelineColumnSetting>?,
+        val followingGroups: List<UserFollowingGroup>,
+        val selected: TimelineColumnSetting?,
+        val addDialogVisible: Boolean,
+    ) {
+        fun visibleColumns(): List<TimelineColumnSetting> =
+            settings.orEmpty().filter { column ->
+                when (column) {
+                    TimelineColumnSetting.Home -> true
+                    is TimelineColumnSetting.FollowingGroup -> followingGroups.any { it.id == column.groupId }
+                }
+            }
+
+        fun selectedColumn(): TimelineColumnSetting? {
+            val visibleColumns = visibleColumns()
+            return selected?.takeIf { it in visibleColumns } ?: visibleColumns.firstOrNull()
+        }
+
+        /**
+         * 端末から読み終えるまでは、足した結果で読み終えた内容を上書きしないよう何も足せない
+         */
+        fun addableColumns(): List<TimelineColumnSetting> {
+            val currentSettings = settings ?: return listOf()
+            val candidates = listOf(TimelineColumnSetting.Home) + followingGroups.map { TimelineColumnSetting.FollowingGroup(it.id) }
+            return candidates - currentSettings.toSet()
+        }
+
+        fun titleOf(column: TimelineColumnSetting): String =
+            when (column) {
+                TimelineColumnSetting.Home -> HOME_COLUMN_TITLE
+                is TimelineColumnSetting.FollowingGroup -> followingGroups.firstOrNull { it.id == column.groupId }?.name.orEmpty()
+            }
+    }
 
     /**
      * @param postsArrivedSinceRefresh 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
@@ -1049,3 +1212,15 @@ internal class HomeScreenViewModel(
         ) : MyPostsState
     }
 }
+
+private fun TimelineColumnSetting.contains(post: UserHomeTimelineResult.Post): Boolean =
+    when (this) {
+        TimelineColumnSetting.Home -> post.followingGroupId == null
+        is TimelineColumnSetting.FollowingGroup -> post.followingGroupId == groupId
+    }
+
+private val TimelineColumnSetting.listStateKey: String
+    get() = when (this) {
+        TimelineColumnSetting.Home -> "home"
+        is TimelineColumnSetting.FollowingGroup -> "group:$groupId"
+    }

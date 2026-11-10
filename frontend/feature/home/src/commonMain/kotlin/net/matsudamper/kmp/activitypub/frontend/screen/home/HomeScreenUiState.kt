@@ -11,7 +11,19 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 
 data class HomeScreenUiState(
     val selectedTab: Tab,
-    val timelineItems: List<PostItemUiState>,
+    /**
+     * 購読先ごとのカラム。大きい画面では横に並べ、小さい画面ではタブで切り替える
+     */
+    val timelineColumns: List<TimelineColumn>,
+    /**
+     * カラムを全部消していなければ null
+     */
+    val timelineColumnsEmptyMessage: String?,
+    val addTimelineColumnButtonEnabled: Boolean,
+    /**
+     * 出していなければ null
+     */
+    val addTimelineColumnDialog: AddTimelineColumnDialog?,
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
     val timelineStreamStatus: TimelineStreamStatus,
@@ -46,6 +58,51 @@ data class HomeScreenUiState(
         val column: Column,
         val selected: Boolean,
     )
+
+    /**
+     * @param listStateKey カラムを足し引きしても、それぞれのスクロール位置を取り違えないための鍵
+     * @param selected 小さい画面で選んでいるタブ
+     */
+    data class TimelineColumn(
+        val title: String,
+        val listStateKey: String,
+        val items: List<PostItemUiState>,
+        val selected: Boolean,
+        val listener: TimelineColumnListener,
+    )
+
+    @Immutable
+    interface TimelineColumnListener {
+        fun onClickTab()
+
+        fun onClickHeader()
+
+        fun onClickRemove()
+    }
+
+    /**
+     * @param emptyMessage 足せる購読先が残っていれば null
+     */
+    data class AddTimelineColumnDialog(
+        val items: List<Item>,
+        val emptyMessage: String?,
+        val listener: Listener,
+    ) {
+        data class Item(
+            val name: String,
+            val listener: ItemListener,
+        )
+
+        @Immutable
+        interface ItemListener {
+            fun onClick()
+        }
+
+        @Immutable
+        interface Listener {
+            fun onDismiss()
+        }
+    }
 
     sealed interface TimelineFooter {
         data object None : TimelineFooter
@@ -153,6 +210,8 @@ data class HomeScreenUiState(
         fun onTabChanged(tab: Tab)
 
         fun onRefreshTimeline()
+
+        fun onClickAddTimelineColumn()
 
         fun onScrolledToTimelineEnd()
 

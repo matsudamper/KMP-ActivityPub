@@ -151,6 +151,7 @@ class UserApi(
                 ),
                 boostedBy = post.boostedBy?.let { UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName, iconUrl = it.iconUrl) },
                 deletableNoteId = post.deletableNoteId,
+                followingGroupId = post.followingGroupId,
             ),
         )
     }
@@ -637,6 +638,7 @@ class UserApi(
                                 UserHomeTimelineResult.Booster(username = it.username, host = it.host, displayName = it.displayName, iconUrl = it.iconUrl)
                             },
                             deletableNoteId = post.deletableNoteId,
+                            followingGroupId = post.followingGroupId,
                         ),
                     ),
                 )

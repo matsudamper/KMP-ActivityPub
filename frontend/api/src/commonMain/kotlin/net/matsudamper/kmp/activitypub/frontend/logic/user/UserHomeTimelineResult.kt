@@ -22,6 +22,10 @@ sealed interface UserHomeTimelineResult {
          * フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null
          */
         val boostedBy: Booster?,
+        /**
+         * 投稿が載った購読先のグループ。ホームなら null
+         */
+        val followingGroupId: String?,
     )
 
     data class Booster(
