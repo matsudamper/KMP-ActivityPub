@@ -236,7 +236,9 @@ internal class HomeTabListStates(
         when (tab) {
             // 出ていないカラムのリストはスクロールが終わらないので、タイムラインは scrollTimelineColumnToTop でカラムを選んで戻す
             HomeScreenUiState.Tab.Home -> Unit
+
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
+
             HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
         }
     }
