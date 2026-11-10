@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.logic
 import java.time.Clock
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
+import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
@@ -20,6 +21,8 @@ class FollowingGroupService(
     private val clock: Clock,
 ) {
     fun groups(accountId: AccountId): List<FollowingGroup> = groups.list(accountId)
+
+    fun homeName(accountId: AccountId): String = groups.homeName(accountId) ?: DEFAULT_HOME_NAME
 
     /**
      * 購読していないか、ホームに入っていれば null
@@ -43,6 +46,24 @@ class FollowingGroupService(
     }
 
     /**
+     * @param groupId null ならホーム
+     */
+    fun renameGroup(accountId: AccountId?, groupId: FollowingGroupId?, name: String): RenameFollowingGroupResult {
+        if (accountId == null || accounts.findById(accountId) == null) return RenameFollowingGroupResult.NotLoggedIn
+        val trimmedName = name.trim()
+        if (trimmedName.isEmpty() || trimmedName.length > MAX_NAME_LENGTH) return RenameFollowingGroupResult.InvalidName
+        if (groupId == null) {
+            groups.setHomeName(accountId, trimmedName)
+            return RenameFollowingGroupResult.Renamed
+        }
+        return when (groups.rename(accountId, groupId, trimmedName)) {
+            FollowingGroupRenameResult.Renamed -> RenameFollowingGroupResult.Renamed
+            FollowingGroupRenameResult.NotFound -> RenameFollowingGroupResult.NotFound
+            FollowingGroupRenameResult.DuplicateName -> RenameFollowingGroupResult.DuplicateName
+        }
+    }
+
+    /**
      * 購読するときは [groupId] に入れる。既に購読していれば入れ直すだけ。
      *
      * @param groupId null ならホーム。購読をやめるときは使わない
@@ -57,6 +78,7 @@ class FollowingGroupService(
 
     companion object {
         const val MAX_NAME_LENGTH = 30
+        const val DEFAULT_HOME_NAME = "ホーム"
     }
 }
 
@@ -68,4 +90,20 @@ sealed interface CreateFollowingGroupResult {
      * 空か長すぎる
      */
     data object InvalidName : CreateFollowingGroupResult
+}
+
+sealed interface RenameFollowingGroupResult {
+    data object Renamed : RenameFollowingGroupResult
+    data object NotLoggedIn : RenameFollowingGroupResult
+
+    /**
+     * 空か長すぎる
+     */
+    data object InvalidName : RenameFollowingGroupResult
+
+    /**
+     * 無いか、他のアカウントのグループ
+     */
+    data object NotFound : RenameFollowingGroupResult
+    data object DuplicateName : RenameFollowingGroupResult
 }
