@@ -393,7 +393,11 @@ internal class HomeScreenViewModel(
         saveTimelineColumns(withoutMoved.take(insertIndex) + movedColumn + withoutMoved.drop(insertIndex))
     }
 
+    /**
+     * 端末への書き込みは後から届くので、続けて並べ替えたときに前の並べ替えを失わないよう、先に表示へ反映する
+     */
     private fun saveTimelineColumns(settings: List<TimelineColumnSetting>) {
+        updateTimelineColumns { it.copy(settings = settings) }
         viewModelScope.launch {
             if (!timelineColumnSettingStore.save(settings)) {
                 events.send { it.showMessage(TIMELINE_COLUMNS_NOT_SAVED_MESSAGE) }
