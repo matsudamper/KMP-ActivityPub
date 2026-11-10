@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -438,16 +440,26 @@ private fun TimelineTabsContent(
         Row(verticalAlignment = Alignment.CenterVertically) {
             val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
             if (selectedIndex >= 0) {
+                val reorderState = rememberHorizontalReorderState()
+                SideEffect { reorderState.retainItems(uiState.timelineColumns.size) }
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedIndex,
                     edgePadding = 0.dp,
                     modifier = Modifier.weight(1f),
                 ) {
-                    uiState.timelineColumns.forEach { column ->
+                    uiState.timelineColumns.forEachIndexed { index, column ->
                         Tab(
                             selected = column.selected,
                             onClick = column.listener::onClickTab,
                             text = { Text(column.title) },
+                            modifier = Modifier
+                                .horizontalReorderItem(state = reorderState, index = index)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .horizontalReorderHandle(
+                                    state = reorderState,
+                                    index = index,
+                                    onMove = uiState.listener::onMoveTimelineColumn,
+                                ),
                         )
                     }
                 }

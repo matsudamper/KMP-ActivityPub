@@ -260,6 +260,10 @@ internal class HomeScreenViewModel(
             loadFollowingGroups()
         }
 
+        override fun onMoveTimelineColumn(fromIndex: Int, toIndex: Int) {
+            moveTimelineColumn(fromIndex = fromIndex, toIndex = toIndex)
+        }
+
         override fun onScreenShown() {
             loadProfile()
             // 読めなかったときは空になり、グループのカラムが消えたままになるので、戻るたびに読み直す
@@ -369,6 +373,22 @@ internal class HomeScreenViewModel(
             updateTimelineColumns { it.copy(selected = remaining.getOrNull(removedIndex.coerceAtMost(remaining.lastIndex))) }
         }
         saveTimelineColumns(settings - column)
+    }
+
+    /**
+     * 名前を読めていないグループのカラムは出していないので、出しているカラムでの位置を保存する並びでの位置に直して動かす
+     */
+    private fun moveTimelineColumn(fromIndex: Int, toIndex: Int) {
+        val state = viewModelStateFlow.value.timelineColumns
+        val settings = state.settings ?: return
+        val visibleColumns = state.visibleColumns()
+        val movedColumn = visibleColumns.getOrNull(fromIndex) ?: return
+        val targetColumn = visibleColumns.getOrNull(toIndex) ?: return
+        if (movedColumn == targetColumn) return
+        val withoutMoved = settings - movedColumn
+        val targetIndex = withoutMoved.indexOf(targetColumn)
+        val insertIndex = if (fromIndex < toIndex) targetIndex + 1 else targetIndex
+        saveTimelineColumns(withoutMoved.take(insertIndex) + movedColumn + withoutMoved.drop(insertIndex))
     }
 
     private fun saveTimelineColumns(settings: List<TimelineColumnSetting>) {

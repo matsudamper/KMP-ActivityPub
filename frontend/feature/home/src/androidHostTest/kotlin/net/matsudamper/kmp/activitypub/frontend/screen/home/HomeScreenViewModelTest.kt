@@ -69,6 +69,26 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun movingColumnSavesNewOrder() = withViewModel { viewModel, _ ->
+        columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.All)
+        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}]}}}"""
+        viewModel.uiStateFlow.value.listener.onClickAddTimelineColumn()
+        viewModel.uiStateFlow.first { it.timelineColumns.size == 3 }
+
+        viewModel.uiStateFlow.value.listener.onMoveTimelineColumn(fromIndex = 0, toIndex = 2)
+        val movedRight = viewModel.uiStateFlow.first { it.timelineColumns.firstOrNull()?.title == "ニュース" }
+        assertEquals(listOf("ニュース", "全て", "ホーム"), movedRight.timelineColumns.map { it.title })
+
+        viewModel.uiStateFlow.value.listener.onMoveTimelineColumn(fromIndex = 2, toIndex = 1)
+        val movedLeft = viewModel.uiStateFlow.first { it.timelineColumns.getOrNull(1)?.title == "ホーム" }
+        assertEquals(listOf("ニュース", "ホーム", "全て"), movedLeft.timelineColumns.map { it.title })
+        assertEquals(
+            listOf(TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.Home, TimelineColumnSetting.All),
+            columnSettingStore.columns.value,
+        )
+    }
+
+    @Test
     fun removingEveryColumnShowsEmptyMessageAndAddingBringsItBack() = withViewModel { viewModel, _ ->
         val home = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }.timelineColumns.single()
         home.listener.onClickRemove()
