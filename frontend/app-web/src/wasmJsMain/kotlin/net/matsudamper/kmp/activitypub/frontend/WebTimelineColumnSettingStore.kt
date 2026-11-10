@@ -38,12 +38,14 @@ internal class WebTimelineColumnSettingStore : TimelineColumnSettingStore {
 
 private fun TimelineColumnSetting.encode(): String =
     when (this) {
+        TimelineColumnSetting.All -> ALL_VALUE
         TimelineColumnSetting.Home -> HOME_VALUE
         is TimelineColumnSetting.FollowingGroup -> FOLLOWING_GROUP_PREFIX + groupId
     }
 
 private fun decodeColumn(value: String): TimelineColumnSetting? =
     when {
+        value == ALL_VALUE -> TimelineColumnSetting.All
         value == HOME_VALUE -> TimelineColumnSetting.Home
         value.startsWith(FOLLOWING_GROUP_PREFIX) -> TimelineColumnSetting.FollowingGroup(value.removePrefix(FOLLOWING_GROUP_PREFIX))
         else -> null
@@ -51,5 +53,6 @@ private fun decodeColumn(value: String): TimelineColumnSetting? =
 
 private const val TIMELINE_COLUMNS_KEY = "timelineColumns"
 private const val COLUMN_SEPARATOR = ","
+private const val ALL_VALUE = "all"
 private const val HOME_VALUE = "home"
 private const val FOLLOWING_GROUP_PREFIX = "group:"
