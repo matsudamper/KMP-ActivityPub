@@ -374,6 +374,7 @@ class UserApi(
             iconUrl = user.iconUrl,
             following = user.following,
             followingGroupId = user.followingGroupId,
+            headerUrl = profile.headerUrl,
             biography = profile.biography,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             posts = profile.posts.map {

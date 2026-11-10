@@ -27,11 +27,13 @@ data class UserProfileScreenUiState(
 
         /**
          * @param iconUrl プロフィール画像が無ければ null
+         * @param headerUrl ヘッダー画像が無ければ null
          * @param followMenu 購読できない相手には出さないので null
          */
         data class Loaded(
             val acct: String,
             val iconUrl: String?,
+            val headerUrl: String?,
             val displayName: TextWithEmojis,
             val biography: String?,
             val links: List<ProfileLinkUiState>,
