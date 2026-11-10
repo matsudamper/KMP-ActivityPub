@@ -485,7 +485,8 @@ internal fun TimelineTabContent(
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            val nearEnd = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - 5
+            // 購読先で振り分けたカラムは、読んだページにその購読先の投稿が無いと空になる。空でも続きを読まないと止まる
+            val nearEnd = lastVisibleIndex == null || lastVisibleIndex >= layoutInfo.totalItemsCount - 5
             nearEnd to layoutInfo.totalItemsCount
         }
             .distinctUntilChanged()
