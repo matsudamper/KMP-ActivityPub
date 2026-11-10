@@ -53,7 +53,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.first { it.timelineItems.isNotEmpty() && !it.timelineRefreshing }
         arrivals.send("b")
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
-        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
 
         val pending = CompletableDeferred<HttpResponse>()
         engine.responses.send { pending.await() }
@@ -64,7 +64,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
         pending.complete(page(listOf("b", "a"), null))
         viewModel.uiStateFlow.first { !it.timelineRefreshing && it.timelineItems.size == 3 }
-        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
     }
 
     @Test
@@ -83,7 +83,7 @@ class HomeScreenViewModelTest {
         assertEquals(2, engine.requests)
         pending.complete(page(listOf("b", "c"), null))
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
-        assertEquals(listOf("a", "b", "c"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertEquals(listOf("a", "b", "c"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
         viewModel.uiStateFlow.value.listener.onScrolledToTimelineEnd()
         advanceUntilIdle()
         assertEquals(2, engine.requests)
@@ -104,7 +104,7 @@ class HomeScreenViewModelTest {
         engine.responses.send { page(listOf("b"), null) }
         viewModel.uiStateFlow.value.listener.onClickRetryTimelineLoadMore()
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
-        assertEquals(listOf("a", "b"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertEquals(listOf("a", "b"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
         assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.timelineFooter)
     }
 
@@ -129,11 +129,11 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
         viewModel.uiStateFlow.first { it.timelineRefreshing }
         assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.timelineFooter)
-        viewModel.uiStateFlow.first { it.timelineItems.singleOrNull()?.body?.text == "fresh" && !it.timelineRefreshing }
+        viewModel.uiStateFlow.first { it.timelineItems.singleOrNull()?.body?.text?.text == "fresh" && !it.timelineRefreshing }
         assertTrue(cancelled.isCompleted)
         pending.complete(page(listOf("stale"), null))
         advanceUntilIdle()
-        assertEquals(listOf("fresh"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertEquals(listOf("fresh"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
         assertFalse(viewModel.uiStateFlow.value.timelineRefreshing)
     }
 
@@ -157,7 +157,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.first { it.timelineItems.size == 2 }
         arrivals.send("c")
         viewModel.uiStateFlow.first { it.timelineItems.size == 3 }
-        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertEquals(listOf("c", "b", "a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
         assertEquals(HomeScreenUiState.TimelineStreamStatus.Receiving, viewModel.uiStateFlow.value.timelineStreamStatus)
     }
 
@@ -176,7 +176,7 @@ class HomeScreenViewModelTest {
         arrivals.send("b")
         advanceUntilIdle()
         assertEquals(HomeScreenUiState.TimelineStreamStatus.Disconnected, viewModel.uiStateFlow.value.timelineStreamStatus)
-        assertEquals(listOf("a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text })
+        assertEquals(listOf("a"), viewModel.uiStateFlow.value.timelineItems.map { it.body.text.text })
 
         engine.responses.send { page(listOf("b", "a"), null) }
         viewModel.uiStateFlow.value.listener.onClickTimelineStreamStatus()
@@ -262,7 +262,7 @@ class HomeScreenViewModelTest {
     }
 
     private fun post(id: String): String =
-        """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","summary":null,"sensitive":false,"linkUrls":[],"images":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false}"""
+        """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],"summary":null,"sensitive":false,"linkUrls":[],"images":[],"emojis":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false}"""
 
     private fun response(json: String): HttpResponse = HttpResponse.Builder(200).body(Buffer().writeUtf8(json)).build()
 
