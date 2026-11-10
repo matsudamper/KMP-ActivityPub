@@ -453,7 +453,7 @@ private fun TimelineTabsContent(
                             onClick = column.listener::onClickTab,
                             text = { Text(column.title) },
                             modifier = Modifier
-                                .horizontalReorderItem(state = reorderState, index = index)
+                                .horizontalReorderItem(state = reorderState, index = index, dropIndicatorColor = MaterialTheme.colorScheme.primary)
                                 .background(MaterialTheme.colorScheme.surface)
                                 .horizontalReorderHandle(
                                     state = reorderState,

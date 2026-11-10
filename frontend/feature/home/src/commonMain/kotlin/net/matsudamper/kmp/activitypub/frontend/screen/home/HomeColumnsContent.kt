@@ -120,7 +120,7 @@ internal fun HomeColumnsContent(
                                 modifier = Modifier
                                     .width(COLUMN_WIDTH)
                                     .fillMaxHeight()
-                                    .horizontalReorderItem(state = reorderState, index = index)
+                                    .horizontalReorderItem(state = reorderState, index = index, dropIndicatorColor = MaterialTheme.colorScheme.primary)
                                     .background(MaterialTheme.colorScheme.background),
                             ) { contentModifier ->
                                 TimelineTabContent(

@@ -11,10 +11,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
 /**
@@ -54,14 +58,22 @@ internal class HorizontalReorderState {
      */
     fun endDrag(): Pair<Int, Int>? {
         val fromIndex = draggingIndex
-        val draggedRange = fromIndex?.let { itemRanges[it] }
-        val draggedCenter = draggedRange?.let { (it.start + it.endInclusive) / 2 + dragOffsetX }
+        val toIndex = dropTargetIndex()
         cancelDrag()
-        if (fromIndex == null || draggedCenter == null) return null
+        return if (fromIndex == null || toIndex == null) null else fromIndex to toIndex
+    }
+
+    /**
+     * 今離したら移る先。動かしていないか、元の位置のままなら null
+     */
+    fun dropTargetIndex(): Int? {
+        val fromIndex = draggingIndex ?: return null
+        val draggedRange = itemRanges[fromIndex] ?: return null
+        val draggedCenter = (draggedRange.start + draggedRange.endInclusive) / 2 + dragOffsetX
         val toIndex = itemRanges.entries.firstOrNull { draggedCenter in it.value }?.key
             ?: farthestIndexInDirection(draggedCenter)
             ?: return null
-        return if (toIndex == fromIndex) null else fromIndex to toIndex
+        return toIndex.takeIf { it != fromIndex }
     }
 
     fun cancelDrag() {
@@ -87,11 +99,31 @@ internal class HorizontalReorderState {
 internal fun rememberHorizontalReorderState(): HorizontalReorderState = remember { HorizontalReorderState() }
 
 /**
- * 並べ替える 1 つ分の全体に付ける。位置を覚え、動かしている間は指に付いてこさせる
+ * 並べ替える 1 つ分の全体に付ける。位置を覚え、動かしている間は指に付いてこさせる。
+ * 離したら入る位置が分かるよう、移る先の入る側の端に縦線を引く
  */
-internal fun Modifier.horizontalReorderItem(state: HorizontalReorderState, index: Int): Modifier = this
+internal fun Modifier.horizontalReorderItem(
+    state: HorizontalReorderState,
+    index: Int,
+    dropIndicatorColor: Color,
+): Modifier = this
     .onGloballyPositioned { coordinates ->
         state.updateItemRange(index = index, start = coordinates.positionInParent().x, width = coordinates.size.width.toFloat())
+    }
+    .drawWithContent {
+        drawContent()
+        val fromIndex = state.draggingIndex
+        if (fromIndex != null && state.dropTargetIndex() == index) {
+            val lineWidth = DROP_INDICATOR_WIDTH.toPx()
+            // 右へ動かすと移る先の後ろ、左へ動かすと前に入る
+            val lineX = if (fromIndex < index) size.width - lineWidth / 2 else lineWidth / 2
+            drawLine(
+                color = dropIndicatorColor,
+                start = Offset(lineX, 0f),
+                end = Offset(lineX, size.height),
+                strokeWidth = lineWidth,
+            )
+        }
     }
     .zIndex(if (state.draggingIndex == index) 1f else 0f)
     .graphicsLayer {
@@ -123,3 +155,5 @@ internal fun Modifier.horizontalReorderHandle(
         )
     }
 }
+
+private val DROP_INDICATOR_WIDTH = 3.dp
