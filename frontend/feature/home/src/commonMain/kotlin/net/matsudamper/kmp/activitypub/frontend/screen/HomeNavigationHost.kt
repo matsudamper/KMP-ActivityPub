@@ -136,7 +136,7 @@ internal fun UserProfileDialogFrame(content: @Composable () -> Unit) {
 
 /**
  * 画像を大きく並べられるよう、プロフィールより広くする。
- * 中心を画面の上から 1/3 に置き、高さが増えると上下に広がって、画面の端の余白で止まる
+ * 中心を画面の上から 1/5 に置き、高さが増えると上下に広がって、画面の端の余白で止まる
  */
 @Composable
 internal fun PostDetailDialogFrame(
@@ -171,7 +171,7 @@ internal fun PostDetailDialogFrame(
                 maxHeight = (constraints.maxHeight - verticalMargin * 2).coerceAtLeast(0),
             ),
         )
-        val dialogTop = (constraints.maxHeight / 3 - dialog.height / 2)
+        val dialogTop = (constraints.maxHeight / 5 - dialog.height / 2)
             .coerceAtMost(constraints.maxHeight - verticalMargin - dialog.height)
             .coerceAtLeast(verticalMargin)
         layout(constraints.maxWidth, constraints.maxHeight) {
