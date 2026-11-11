@@ -40,14 +40,14 @@ class FollowingGroupRepositoryTest {
     }
 
     @Test
-    fun homeNameIsStoredPerAccount() {
+    fun mainGroupNameIsStoredPerAccount() {
         withAliceAndBob { repositories, alice, bob ->
             val groups = repositories.followingGroupRepository
-            assertNull(groups.homeName(alice))
-            groups.setHomeName(alice, "すべて")
-            groups.setHomeName(alice, "全部")
-            assertEquals("全部", groups.homeName(alice))
-            assertNull(groups.homeName(bob))
+            assertNull(groups.mainGroupName(alice))
+            groups.setMainGroupName(alice, "すべて")
+            groups.setMainGroupName(alice, "全部")
+            assertEquals("全部", groups.mainGroupName(alice))
+            assertNull(groups.mainGroupName(bob))
         }
     }
 

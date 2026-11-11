@@ -11,7 +11,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 /**
- * 購読した相手をグループに仕分ける。グループに入れていない購読はホームに入る
+ * 購読した相手をグループに仕分ける。グループに入れていない購読はメインに入る
  */
 class FollowingGroupService(
     private val accounts: AccountRepository,
@@ -22,10 +22,10 @@ class FollowingGroupService(
 ) {
     fun groups(accountId: AccountId): List<FollowingGroup> = groups.list(accountId)
 
-    fun homeName(accountId: AccountId): String = groups.homeName(accountId) ?: DEFAULT_HOME_NAME
+    fun mainGroupName(accountId: AccountId): String = groups.mainGroupName(accountId) ?: DEFAULT_MAIN_GROUP_NAME
 
     /**
-     * 購読していないか、ホームに入っていれば null
+     * 購読していないか、メインに入っていれば null
      */
     fun groupIdOf(accountId: AccountId?, actorUri: String?): FollowingGroupId? {
         if (accountId == null || actorUri == null) return null
@@ -33,7 +33,7 @@ class FollowingGroupService(
     }
 
     /**
-     * 投稿を載せた購読先。ブーストならブーストした相手の購読先。自分の投稿などホームに入るものは null
+     * 投稿を載せた購読先。ブーストならブーストした相手の購読先。自分の投稿などメインに入るものは null
      */
     fun groupIdOfPost(accountId: AccountId, post: TimelinePost): FollowingGroupId? =
         groupIdOf(accountId, post.boostedBy?.actorUri ?: post.actorUri)
@@ -46,14 +46,14 @@ class FollowingGroupService(
     }
 
     /**
-     * @param groupId null ならホーム
+     * @param groupId null ならメイン
      */
     fun renameGroup(accountId: AccountId?, groupId: FollowingGroupId?, name: String): RenameFollowingGroupResult {
         if (accountId == null || accounts.findById(accountId) == null) return RenameFollowingGroupResult.NotLoggedIn
         val trimmedName = name.trim()
         if (trimmedName.isEmpty() || trimmedName.length > MAX_NAME_LENGTH) return RenameFollowingGroupResult.InvalidName
         if (groupId == null) {
-            groups.setHomeName(accountId, trimmedName)
+            groups.setMainGroupName(accountId, trimmedName)
             return RenameFollowingGroupResult.Renamed
         }
         return when (groups.rename(accountId, groupId, trimmedName)) {
@@ -66,7 +66,7 @@ class FollowingGroupService(
     /**
      * 購読するときは [groupId] に入れる。既に購読していれば入れ直すだけ。
      *
-     * @param groupId null ならホーム。購読をやめるときは使わない
+     * @param groupId null ならメイン。購読をやめるときは使わない
      * @return 未ログイン・不正な相手・他のアカウントのグループなら false
      */
     suspend fun setFollowing(accountId: AccountId?, actorUri: String, followed: Boolean, groupId: FollowingGroupId?): Boolean {
@@ -78,7 +78,7 @@ class FollowingGroupService(
 
     companion object {
         const val MAX_NAME_LENGTH = 30
-        const val DEFAULT_HOME_NAME = "メイン"
+        const val DEFAULT_MAIN_GROUP_NAME = "メイン"
     }
 }
 

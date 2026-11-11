@@ -200,7 +200,7 @@ private fun FollowingGroupsItem(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "ホームとグループの名前",
+            text = "メインとグループの名前",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

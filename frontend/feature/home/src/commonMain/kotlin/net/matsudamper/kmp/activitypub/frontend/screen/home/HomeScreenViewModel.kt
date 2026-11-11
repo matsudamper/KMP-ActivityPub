@@ -100,7 +100,7 @@ internal class HomeScreenViewModel(
                 userContentTab = ProfileContentTab.Posts,
                 timelineColumns = TimelineColumnsState(
                     settings = null,
-                    homeName = userApi.currentHomeGroupName(),
+                    mainGroupName = userApi.currentMainGroupName(),
                     followingGroups = listOf(),
                     selectedId = null,
                     editor = null,
@@ -406,8 +406,8 @@ internal class HomeScreenViewModel(
             }
         }
         viewModelScope.launch {
-            userApi.homeGroupName.collect { homeName ->
-                updateTimelineColumns { it.copy(homeName = homeName) }
+            userApi.mainGroupName.collect { mainGroupName ->
+                updateTimelineColumns { it.copy(mainGroupName = mainGroupName) }
             }
         }
     }
@@ -1247,7 +1247,7 @@ internal class HomeScreenViewModel(
      */
     private data class TimelineColumnsState(
         val settings: List<TimelineColumnSetting>?,
-        val homeName: String,
+        val mainGroupName: String,
         val followingGroups: List<UserFollowingGroup>,
         val selectedId: String?,
         val editor: TimelineColumnEditorState?,
@@ -1258,11 +1258,11 @@ internal class HomeScreenViewModel(
         }
 
         fun selectableSources(): List<TimelineSource> =
-            listOf(TimelineSource.Home) + followingGroups.map { TimelineSource.FollowingGroup(it.id) }
+            listOf(TimelineSource.MainGroup) + followingGroups.map { TimelineSource.FollowingGroup(it.id) }
 
         fun nameOf(source: TimelineSource): String =
             when (source) {
-                TimelineSource.Home -> homeName
+                TimelineSource.MainGroup -> mainGroupName
                 is TimelineSource.FollowingGroup -> followingGroups.firstOrNull { it.id == source.groupId }?.name.orEmpty()
             }
 
@@ -1384,5 +1384,5 @@ internal class HomeScreenViewModel(
 
 private fun TimelineColumnSetting.contains(post: UserHomeTimelineResult.Post): Boolean {
     val groupId = post.followingGroupId
-    return if (groupId == null) TimelineSource.Home in sources else TimelineSource.FollowingGroup(groupId) in sources
+    return if (groupId == null) TimelineSource.MainGroup in sources else TimelineSource.FollowingGroup(groupId) in sources
 }

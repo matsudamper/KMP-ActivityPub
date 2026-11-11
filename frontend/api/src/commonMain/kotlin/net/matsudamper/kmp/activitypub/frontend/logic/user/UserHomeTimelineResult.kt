@@ -32,7 +32,7 @@ sealed interface UserHomeTimelineResult {
          */
         val boostedBy: Booster?,
         /**
-         * 投稿が載った購読先のグループ。ホームなら null
+         * 投稿が載った購読先のグループ。メインなら null
          */
         val followingGroupId: String?,
     )

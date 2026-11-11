@@ -5,7 +5,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 /**
- * 購読した相手を仕分けるグループ。どのグループにも入っていない購読はホームに入る
+ * 購読した相手を仕分けるグループ。どのグループにも入っていない購読はメインに入る
  */
 interface FollowingGroupRepository {
     /**
@@ -25,9 +25,9 @@ interface FollowingGroupRepository {
     /**
      * 変えていなければ null
      */
-    fun homeName(accountId: AccountId): String?
+    fun mainGroupName(accountId: AccountId): String?
 
-    fun setHomeName(accountId: AccountId, name: String)
+    fun setMainGroupName(accountId: AccountId, name: String)
 }
 
 sealed interface FollowingGroupRenameResult {

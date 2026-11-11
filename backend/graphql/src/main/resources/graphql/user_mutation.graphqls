@@ -1,13 +1,13 @@
 type UserMutation {
     """
     内部のフォロー状態を設定する。未ログインや不正な相手なら false。
-    フォローするときは groupId のグループに入れる。null ならホーム。既にフォローしていればグループだけ入れ直す。
+    フォローするときは groupId のグループに入れる。null ならメイン。既にフォローしていればグループだけ入れ直す。
     groupId がログイン中のアカウントのグループでなければ false
     """
     setFollowing(actorUri: String!, followed: Boolean!, groupId: FollowingGroupId): Boolean! @lazy
     "フォローを仕分けるグループを作る。同じ名前のグループが既にあればそれを返す"
     createFollowingGroup(name: String!): CreateFollowingGroupResult! @lazy
-    "フォローを仕分けるグループの名前を変える。groupId が null ならホームの名前を変える"
+    "フォローを仕分けるグループの名前を変える。groupId が null ならメインの名前を変える"
     renameFollowingGroup(groupId: FollowingGroupId, name: String!): RenameFollowingGroupResult! @lazy
     login(query: UserLoginQuery!): UserLoginResult! @lazy
     passkeyLoginOptions: String! @lazy
