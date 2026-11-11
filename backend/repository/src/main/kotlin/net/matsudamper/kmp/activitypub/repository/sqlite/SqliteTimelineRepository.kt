@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_LI
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_EMOJIS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
@@ -312,7 +313,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     override fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost> = jooq.transaction { dsl ->
         val remoteIds = notes.filter { it.visibility in PUBLISHED_REMOTE_NOTE_VISIBILITIES }
-            .mapNotNull { note -> existingPublishedNoteId(dsl, note.objectUri) ?: insertBoostedNote(dsl, note) }
+            .mapNotNull { note -> refreshFetchedNote(dsl, note) ?: insertBoostedNote(dsl, note) }
         hydrateNotes(
             dsl = dsl,
             viewer = viewer,
@@ -455,14 +456,45 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .execute()
         if (inserted == 0) return null
         val id = checkNotNull(dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID))
-        note.images.forEachIndexed { index, image ->
+        insertRemoteNoteImages(dsl, id, note.images)
+        dsl.insertRemoteNoteEmojis(id, note.emojis)
+        return id
+    }
+
+    private fun insertRemoteNoteImages(dsl: DSLContext, remoteNoteId: Long, images: List<TimelinePostImage.Remote>) {
+        images.forEachIndexed { index, image ->
             dsl.insertInto(REMOTE_NOTE_IMAGES)
-                .set(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, id)
+                .set(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, remoteNoteId)
                 .set(REMOTE_NOTE_IMAGES.POSITION, index.toLong())
                 .set(REMOTE_NOTE_IMAGES.URL, image.url)
                 .set(REMOTE_NOTE_IMAGES.DESCRIPTION, image.description)
                 .execute()
         }
+    }
+
+    /**
+     * 保存済みの公開している投稿を、相手のサーバーから取り直した内容に書き換える。保存した後に編集されていることがある。
+     * 公開範囲と位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない
+     *
+     * @return 書き換えた投稿の id。保存していなければ null
+     */
+    private fun refreshFetchedNote(dsl: DSLContext, note: RemoteNoteInput): Long? {
+        val id = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
+            .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+            .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri))
+            .and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri))
+            .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
+            .fetchOne(REMOTE_NOTES.ID)
+            ?: return null
+        dsl.update(REMOTE_NOTES)
+            .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
+            .set(REMOTE_NOTES.SUMMARY, note.summary)
+            .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
+            .where(REMOTE_NOTES.ID.eq(id))
+            .execute()
+        dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
+        insertRemoteNoteImages(dsl, id, note.images)
+        dsl.deleteFrom(REMOTE_NOTE_EMOJIS).where(REMOTE_NOTE_EMOJIS.REMOTE_NOTE_ID.eq(id)).execute()
         dsl.insertRemoteNoteEmojis(id, note.emojis)
         return id
     }

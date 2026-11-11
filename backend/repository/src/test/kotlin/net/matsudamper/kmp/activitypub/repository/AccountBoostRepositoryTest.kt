@@ -217,6 +217,25 @@ class AccountBoostRepositoryTest {
     }
 
     @Test
+    fun refetchedNoteReplacesTheStoredContentOnlyForTheSameAuthor() = withRepository { repositories, alice, _ ->
+        val timeline = repositories.timelineRepository
+        val member = assertNotNull(timeline.storeFetchedNotes(alice, listOf(note("public")))["$ACTOR/notes/public"]).reactionMember
+
+        val edited = timeline.storeFetchedNotes(alice, listOf(note("public").copy(contentHtml = "<p>編集後</p>", summary = "注意", sensitive = true)))
+        assertEquals(member, edited["$ACTOR/notes/public"]?.reactionMember)
+        assertEquals("<p>編集後</p>", edited["$ACTOR/notes/public"]?.contentHtml)
+        assertEquals("注意", edited["$ACTOR/notes/public"]?.summary)
+
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            NOW,
+        )
+        assertTrue(timeline.storeFetchedNotes(alice, listOf(note("public").copy(actorUri = BOOSTER, contentHtml = "<p>なりすまし</p>"))).isEmpty())
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        assertEquals("<p>編集後</p>", timeline.hydrate(alice, listOf(member)).single().contentHtml)
+    }
+
+    @Test
     fun outboxListsBoostsNewestFirstAndContinuesAfterThePosition() = withRepository { repositories, alice, _ ->
         val public = receiveNote(repositories, "public", alice)
         val unlisted = assertNotNull(repositories.timelineRepository.receive(note("unlisted"))).member
