@@ -514,7 +514,9 @@ private fun TimelineColumnsPager(
     val columns = uiState.timelineColumns
     val pagerState = rememberPagerState(initialPage = selectedIndex) { columns.size }
     LaunchedEffect(pagerState, selectedIndex) {
-        if (pagerState.settledPage != selectedIndex) {
+        // 途中で止まったアニメーションのずれが残るので、ページの番号だけでなくずれも見る
+        val pageSettledOnSelected = pagerState.currentPage == selectedIndex && pagerState.currentPageOffsetFraction == 0f
+        if (!pageSettledOnSelected) {
             pagerState.animateScrollToPage(selectedIndex)
         }
     }
