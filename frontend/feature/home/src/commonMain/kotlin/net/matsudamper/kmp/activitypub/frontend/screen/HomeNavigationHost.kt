@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -88,6 +89,7 @@ fun HomeNavigationHost(
                                 screen = screen,
                                 navigator = navigator,
                                 serverSettingUiState = serverSettingUiState,
+                                inDialog = true,
                             )
                         }
                     } else if (screen is Screen.PostDetail && openAsDialog) {
@@ -96,6 +98,7 @@ fun HomeNavigationHost(
                                 screen = screen,
                                 navigator = navigator,
                                 serverSettingUiState = serverSettingUiState,
+                                inDialog = true,
                             )
                         }
                     } else {
@@ -103,6 +106,7 @@ fun HomeNavigationHost(
                             screen = screen,
                             navigator = navigator,
                             serverSettingUiState = serverSettingUiState,
+                            inDialog = false,
                         )
                     }
                 }
@@ -129,14 +133,16 @@ internal fun UserProfileDialogFrame(content: @Composable () -> Unit) {
  */
 @Composable
 internal fun PostDetailDialogFrame(content: @Composable () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .widthIn(max = POST_DETAIL_DIALOG_MAX_WIDTH)
-            .fillMaxWidth(0.9f)
-            .fillMaxHeight(0.9f),
-        shape = MaterialTheme.shapes.large,
-    ) {
-        content()
+    BoxWithConstraints {
+        Surface(
+            modifier = Modifier
+                .widthIn(max = POST_DETAIL_DIALOG_MAX_WIDTH)
+                .fillMaxWidth(0.9f)
+                .heightIn(max = maxHeight * 0.9f),
+            shape = MaterialTheme.shapes.large,
+        ) {
+            content()
+        }
     }
 }
 
@@ -145,6 +151,7 @@ private fun ScreenEntryContent(
     screen: Screen,
     navigator: Navigator,
     serverSettingUiState: @Composable () -> ServerSettingUiState?,
+    inDialog: Boolean,
 ) {
     if (screen.loginRequired) {
         val loginGateViewModel = koinViewModel<LoginGateViewModel>()
@@ -155,6 +162,7 @@ private fun ScreenEntryContent(
                     screen = screen,
                     navigator = navigator,
                     serverSettingUiState = serverSettingUiState,
+                    inDialog = inDialog,
                 )
             }
 
@@ -175,6 +183,7 @@ private fun ScreenEntryContent(
             screen = screen,
             navigator = navigator,
             serverSettingUiState = serverSettingUiState,
+            inDialog = inDialog,
         )
     }
 }
@@ -184,6 +193,7 @@ private fun ScreenContent(
     screen: Screen,
     navigator: Navigator,
     serverSettingUiState: @Composable () -> ServerSettingUiState?,
+    inDialog: Boolean,
 ) {
     when (screen) {
         Screen.Login -> {
@@ -234,7 +244,7 @@ private fun ScreenContent(
         }
 
         is Screen.PostDetail -> {
-            PostDetailScreen(postId = screen.postId, navigator = navigator)
+            PostDetailScreen(postId = screen.postId, navigator = navigator, heightFitsContent = inDialog)
         }
 
         is Screen.Image -> {

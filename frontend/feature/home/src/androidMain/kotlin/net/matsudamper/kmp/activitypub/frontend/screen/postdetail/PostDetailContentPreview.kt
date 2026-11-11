@@ -38,6 +38,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
         PostDetailContent(
             uiState = createLoadedUiState(images = listOf(previewImage(index = 1), previewImage(index = 2)), deleteNoteDialog = deleteNoteDialog),
             snackbarHostState = SnackbarHostState(),
+            heightFitsContent = false,
         )
     }
 }
@@ -98,6 +99,7 @@ private fun PostDetailDialogPreview() {
                     PostDetailContent(
                         uiState = createLoadedUiState(images = (1..6).map { previewImage(index = it) }, deleteNoteDialog = null),
                         snackbarHostState = SnackbarHostState(),
+                        heightFitsContent = true,
                     )
                 }
             }
@@ -124,6 +126,7 @@ private fun PostDetailContentNotFoundPreview() {
                 listener = AndroidPreviewPostDetailListener,
             ),
             snackbarHostState = SnackbarHostState(),
+            heightFitsContent = false,
         )
     }
 }
