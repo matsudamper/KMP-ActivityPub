@@ -173,7 +173,6 @@ class LikeRepositoryTest {
         queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
         repositories.followingRepository.remove(alice, ACTOR)
 
-        assertNull(likes.target(alice, member))
         assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, objectUri -> "undo:$likeId:$objectUri" })
 
         assertEquals(listOf("$ACTOR/inbox" to "undo:like-1:$ACTOR/notes/1"), queue.claim(NOW, 10).map { it.inbox to it.body })

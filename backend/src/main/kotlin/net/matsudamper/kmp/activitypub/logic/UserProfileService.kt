@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
@@ -85,7 +86,7 @@ class UserProfileService(
             headerUrl = remote.headerUrl,
             biography = remote.biography?.let { htmlToPlainText(it) },
             links = listOf(),
-            posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else profiles.recentPosts(remote.user.actorUri),
+            posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else fetchedPosts(viewer, profiles.recentNotes(remote.user.actorUri)),
         )
     }
 
@@ -153,6 +154,38 @@ class UserProfileService(
         }
 
     /**
+     * フォローしていない相手の投稿は受け取っていないので、相手のサーバーから取ったものを保存して、いいねやブーストできるようにする。
+     * 保存できなかった投稿は、いいねもブーストもできないまま出す
+     */
+    private fun fetchedPosts(viewer: AccountId, notes: List<RemoteNoteInput>): List<ProfilePost> {
+        val stored = timeline.storeFetchedNotes(viewer, notes)
+        return notes.map { note ->
+            // 個別投稿画面はホームタイムラインに載る投稿しか開けず、フォローしていない相手の投稿は載らない
+            stored[note.objectUri]?.toProfilePost(viewer = viewer, openable = false, boostedNoteAuthor = null) ?: note.toUnstoredProfilePost()
+        }
+    }
+
+    private fun RemoteNoteInput.toUnstoredProfilePost(): ProfilePost = ProfilePost(
+        contentHtml = contentHtml,
+        publishedAt = publishedAt.toString(),
+        summary = summary,
+        sensitive = sensitive,
+        linkPreviewId = null,
+        postId = null,
+        deletableNoteId = null,
+        images = images,
+        emojis = emojis,
+        favouriteCount = null,
+        stamps = listOf(),
+        like = null,
+        boostedByMe = null,
+        reactionPostId = null,
+        noteRef = TimelineNoteRef.Remote(objectUri),
+        boostCount = null,
+        boostedNoteAuthor = null,
+    )
+
+    /**
      * @param openable 個別投稿画面で開けるか
      */
     private fun TimelinePost.toProfilePost(viewer: AccountId?, openable: Boolean, boostedNoteAuthor: ProfilePostAuthor?): ProfilePost {
@@ -217,7 +250,10 @@ interface RemoteUserProfiles {
 
     suspend fun findByActorUri(actorUri: String): RemoteUserProfile?
 
-    suspend fun recentPosts(actorUri: String): List<ProfilePost>
+    /**
+     * 相手のサーバーから取った、公開している最近の投稿。新しい順
+     */
+    suspend fun recentNotes(actorUri: String): List<RemoteNoteInput>
 }
 
 /**

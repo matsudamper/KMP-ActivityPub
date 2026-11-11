@@ -11,7 +11,7 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
  */
 interface AccountBoostRepository {
     /**
-     * @return [accountId] が読めない投稿、無い投稿、フォロワー限定などブーストできない投稿なら null
+     * @return 無い投稿、フォロワー限定などブーストできない投稿なら null。公開している投稿は誰でも読めるので、フォローしていなくてもブーストできる
      */
     fun target(accountId: AccountId, member: String): BoostTarget?
 

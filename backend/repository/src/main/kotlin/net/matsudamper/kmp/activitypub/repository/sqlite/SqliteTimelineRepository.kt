@@ -310,6 +310,19 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    override fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost> = jooq.transaction { dsl ->
+        val remoteIds = notes.filter { it.visibility in PUBLISHED_REMOTE_NOTE_VISIBILITIES }
+            .mapNotNull { note -> existingPublishedNoteId(dsl, note.objectUri) ?: insertBoostedNote(dsl, note) }
+        hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = listOf(),
+            remoteIds = remoteIds,
+            localCondition = DSL.noCondition(),
+            remoteCondition = REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES),
+        ).associateBy { (it.noteRef as TimelineNoteRef.Remote).objectUri }
+    }
+
     override fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost> = jooq.withConnection { dsl ->
         val boostIds = dsl.select(ACCOUNT_BOOSTS.ID).from(ACCOUNT_BOOSTS)
             .where(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(booster.value))
@@ -482,7 +495,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .fetchOne(REMOTE_NOTES.ID)
 
     /**
-     * ブーストした相手をフォローしているアカウントにだけ見せる。ブーストされた投稿は公開か未収載のものしか記録しないので、投稿者のフォローは問わない
+     * ブーストした相手をフォローしているアカウントにだけ見せる。ブーストされた投稿は公開か、公開タイムラインに載せない公開のものしか記録しないので、投稿者のフォローは問わない
      */
     private fun boostedPosts(dsl: DSLContext, accountId: AccountId, boostIds: List<Long>): List<TimelinePost> {
         if (boostIds.isEmpty()) return listOf()

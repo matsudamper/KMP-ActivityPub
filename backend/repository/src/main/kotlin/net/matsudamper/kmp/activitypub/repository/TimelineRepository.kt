@@ -37,6 +37,15 @@ interface TimelineRepository {
      * @param viewer いいねやブーストの有無を見るアカウント。ログインしていなければ null
      */
     fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost>
+
+    /**
+     * フォローしていない相手のプロフィールで取った投稿を、いいねやブーストできるように保存する。タイムラインには載せない。
+     * 公開と、公開タイムラインに載せない公開の投稿だけを保存する。投稿者のアクターは記録済みであること
+     *
+     * @param viewer いいねやブーストの有無を見るアカウント
+     * @return 投稿の id ごとの、保存した投稿。保存できなかった投稿は含まない
+     */
+    fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost>
 }
 
 data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val localRecipientCount: Long) {

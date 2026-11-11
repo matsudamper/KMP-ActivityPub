@@ -144,7 +144,6 @@ class AccountBoostRepositoryTest {
         queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
         repositories.followingRepository.remove(alice, ACTOR)
 
-        assertNull(boosts.target(alice, member))
         assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
 
         assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
@@ -158,7 +157,6 @@ class AccountBoostRepositoryTest {
         val queue = repositories.deliveryQueueRepository
 
         assertNotNull(boosts.target(alice, reactionMember))
-        assertNull(boosts.target(bob, reactionMember))
         assertNotNull(boosts.boostAndEnqueue(boost(alice, reactionMember, "announce-1")))
         queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
         assertTrue(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1"))
@@ -199,6 +197,23 @@ class AccountBoostRepositoryTest {
             setOf(FOLLOWER_INBOX, "$ACTOR/inbox"),
             queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet(),
         )
+    }
+
+    @Test
+    fun notesFetchedFromAnUnfollowedProfileCanBeLikedAndBoosted() = withRepository { repositories, alice, bob ->
+        val stored = repositories.timelineRepository.storeFetchedNotes(alice, listOf(note("public"), note("unlisted"), note("followers")))
+
+        assertEquals(setOf("$ACTOR/notes/public", "$ACTOR/notes/unlisted"), stored.keys)
+        val member = assertNotNull(stored["$ACTOR/notes/public"]).reactionMember
+        assertEquals(false, stored["$ACTOR/notes/public"]?.boostedByMe)
+        assertNotNull(repositories.likeRepository.target(alice, member))
+        assertNotNull(repositories.accountBoostRepository.target(bob, member))
+        assertNotNull(repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1")))
+        assertTrue(repositories.timelineRepository.rebuild(bob, 10).none { it.member == member })
+
+        val storedAgain = repositories.timelineRepository.storeFetchedNotes(alice, listOf(note("public")))
+        assertEquals(member, storedAgain["$ACTOR/notes/public"]?.reactionMember)
+        assertEquals(true, storedAgain["$ACTOR/notes/public"]?.boostedByMe)
     }
 
     @Test

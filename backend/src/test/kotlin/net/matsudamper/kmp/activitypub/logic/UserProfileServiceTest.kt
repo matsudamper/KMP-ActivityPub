@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
@@ -31,26 +32,21 @@ class UserProfileServiceTest {
             return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
         }
 
-        override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
+        override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> {
             requests.add("posts")
             return listOf(
-                ProfilePost(
+                RemoteNoteInput(
+                    objectUri = "https://remote.example/notes/1",
+                    actorUri = actorUri,
                     contentHtml = "<p>最新の投稿</p>",
-                    publishedAt = Instant.EPOCH.toString(),
+                    visibility = "public",
+                    localRecipients = setOf(),
+                    inReplyTo = null,
                     summary = null,
                     sensitive = false,
-                    linkPreviewId = null,
-                    postId = null,
-                    deletableNoteId = null,
+                    publishedAt = Instant.EPOCH,
+                    receivedAt = Instant.EPOCH,
                     images = listOf(),
-                    favouriteCount = null,
-                    stamps = listOf(),
-                    like = null,
-                    boostedByMe = null,
-                    reactionPostId = null,
-                    noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
-                    boostCount = null,
-                    boostedNoteAuthor = null,
                     emojis = listOf(),
                 ),
             )
@@ -84,6 +80,30 @@ class UserProfileServiceTest {
         assertEquals("https://remote.example/header.png", profile.headerUrl)
         assertEquals("<p>最新の投稿</p>", profile.posts.single().contentHtml)
         assertEquals(false, profile.following)
+    }
+
+    @Test
+    fun unfollowedUserPostsCanBeLikedAndBoostedOnceStored() = runBlocking {
+        repositories.timelineRepository.storedFetchedNotes["https://remote.example/notes/1"] =
+            storedPost("<p>保存した投稿</p>", summary = null, sensitive = false).copy(boostedByMe = false)
+
+        val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
+
+        assertEquals("<p>保存した投稿</p>", post.contentHtml)
+        assertEquals("r1", post.reactionPostId)
+        assertEquals(ProfilePostLike(postId = "r1", likedByMe = false), post.like)
+        assertEquals(false, post.boostedByMe)
+        assertNull(post.postId)
+    }
+
+    @Test
+    fun unfollowedUserPostsThatCannotBeStoredHaveNoReactions() = runBlocking {
+        val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
+
+        assertEquals("<p>最新の投稿</p>", post.contentHtml)
+        assertNull(post.reactionPostId)
+        assertNull(post.like)
+        assertNull(post.boostedByMe)
     }
 
     @Test

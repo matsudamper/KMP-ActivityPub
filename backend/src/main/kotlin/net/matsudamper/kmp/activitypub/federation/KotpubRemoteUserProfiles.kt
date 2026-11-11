@@ -1,11 +1,11 @@
 package net.matsudamper.kmp.activitypub.federation
 
-import net.matsudamper.kmp.activitypub.logic.ProfilePost
+import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.RemoteUser
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
-import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import org.jsoup.Jsoup
@@ -26,30 +26,25 @@ internal class KotpubRemoteUserProfiles(
         return profileFor(user)
     }
 
-    override suspend fun recentPosts(actorUri: String): List<ProfilePost> =
-        outbox.recent(actorUri, limit = 20).map {
-            ProfilePost(
-                contentHtml = it.contentHtml,
-                publishedAt = it.publishedAt,
+    override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> {
+        val fetchedAt = Instant.now()
+        return outbox.recent(actorUri, limit = 20).map {
+            RemoteNoteInput(
+                objectUri = it.id,
+                actorUri = actorUri,
+                contentHtml = Jsoup.clean(it.contentHtml, Safelist.basic()),
+                visibility = if (it.unlisted) "unlisted" else "public",
+                localRecipients = setOf(),
+                inReplyTo = null,
                 summary = it.summary?.let { summary -> Jsoup.clean(summary, Safelist.none()) },
                 sensitive = it.sensitive,
-                // 保存していない投稿なので、後から OGP を取りに行く元も個別投稿画面で開く元も無い
-                linkPreviewId = null,
-                postId = null,
-                deletableNoteId = null,
+                publishedAt = Instant.parse(it.publishedAt),
+                receivedAt = fetchedAt,
                 images = it.attachments.mapNotNull { attachment -> attachment.toImage() },
                 emojis = it.emojis.toRecords(),
-                favouriteCount = null,
-                stamps = listOf(),
-                // 保存していない投稿なので、いいねする投稿を指せない
-                like = null,
-                boostedByMe = null,
-                reactionPostId = null,
-                noteRef = TimelineNoteRef.Remote(it.id),
-                boostCount = null,
-                boostedNoteAuthor = null,
             )
         }
+    }
 
     private suspend fun profileFor(user: RemoteUser): RemoteUserProfile? {
         val actor = actors.findActor(user.actorUri) ?: return null
