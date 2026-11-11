@@ -25,6 +25,12 @@ class UserProfileServiceTest {
     private val actorUri = "https://remote.example/users/bob"
     private val following = FollowingService(repositories.accountRepository, repositories.followingRepository, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
     private val requests = mutableListOf<String>()
+
+    /**
+     * 固定した投稿はどの経路でも取りに行くので、[requests] とは分けて数える
+     */
+    private val featuredRequests = mutableListOf<String>()
+    private var featured: () -> List<ProfilePost> = { listOf() }
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile {
             requests.add("profile")
@@ -33,27 +39,12 @@ class UserProfileServiceTest {
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
             requests.add("posts")
-            return listOf(
-                ProfilePost(
-                    contentHtml = "<p>最新の投稿</p>",
-                    publishedAt = Instant.EPOCH.toString(),
-                    summary = null,
-                    sensitive = false,
-                    linkPreviewId = null,
-                    postId = null,
-                    deletableNoteId = null,
-                    pinned = false,
-                    pinnableNoteId = null,
-                    images = listOf(),
-                    favouriteCount = null,
-                    stamps = listOf(),
-                    like = null,
-                    noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
-                    boostCount = null,
-                    boostedNoteAuthor = null,
-                    emojis = listOf(),
-                ),
-            )
+            return listOf(remotePost("<p>最新の投稿</p>", "https://remote.example/notes/1", pinned = false))
+        }
+
+        override suspend fun featuredPosts(actorUri: String): List<ProfilePost> {
+            featuredRequests.add(actorUri)
+            return featured()
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -228,6 +219,67 @@ class UserProfileServiceTest {
         assertNull(service.profile("bob@remote.example", null))
         assertEquals(listOf(), requests)
     }
+
+    @Test
+    fun unfollowedUserFeaturedPostsComeFirstWithoutDuplicates() = runBlocking {
+        featured = {
+            listOf(
+                remotePost("<p>固定した投稿</p>", "https://remote.example/notes/pinned", pinned = true),
+                remotePost("<p>最新の投稿</p>", "https://remote.example/notes/1", pinned = true),
+            )
+        }
+
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertEquals(listOf(actorUri), featuredRequests)
+        assertEquals(listOf("<p>固定した投稿</p>", "<p>最新の投稿</p>"), posts.map { it.contentHtml })
+        assertEquals(listOf(true, true), posts.map { it.pinned })
+    }
+
+    @Test
+    fun followedUserFeaturedPostUsesStoredPost() = runBlocking {
+        repositories.timelineRepository.actorPosts.add(storedPost("<p>受け取った投稿</p>", summary = null, sensitive = false))
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+        featured = { listOf(remotePost("<p>相手のサーバーの本文</p>", "https://remote.example/notes/1", pinned = true)) }
+
+        val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
+
+        assertEquals("<p>受け取った投稿</p>", post.contentHtml)
+        assertEquals("r1", post.postId)
+        assertEquals(true, post.pinned)
+    }
+
+    @Test
+    fun featuredFailureStillShowsProfile() = runBlocking {
+        featured = { error("相手のサーバーに接続できない") }
+
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
+        assertEquals(listOf(false), posts.map { it.pinned })
+    }
+
+    private fun remotePost(contentHtml: String, noteUri: String, pinned: Boolean): ProfilePost =
+        ProfilePost(
+            contentHtml = contentHtml,
+            publishedAt = Instant.EPOCH.toString(),
+            summary = null,
+            sensitive = false,
+            linkPreviewId = null,
+            postId = null,
+            deletableNoteId = null,
+            pinned = pinned,
+            pinnableNoteId = null,
+            images = listOf(),
+            favouriteCount = null,
+            stamps = listOf(),
+            like = null,
+            noteRef = TimelineNoteRef.Remote(noteUri),
+            boostCount = null,
+            boostedNoteAuthor = null,
+            emojis = listOf(),
+        )
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
         TimelinePost(

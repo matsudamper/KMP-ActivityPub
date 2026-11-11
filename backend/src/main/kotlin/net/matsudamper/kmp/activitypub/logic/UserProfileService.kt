@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import java.time.Instant
+import kotlinx.coroutines.CancellationException
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
@@ -19,6 +20,7 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import org.slf4j.LoggerFactory
 
 class UserProfileService(
     private val accounts: AccountRepository,
@@ -34,6 +36,8 @@ class UserProfileService(
     private val remoteProfiles: RemoteUserProfiles?,
     private val localDomain: String,
 ) {
+    private val logger = LoggerFactory.getLogger(UserProfileService::class.java)
+
     suspend fun profile(acct: String, viewer: AccountId?): UserProfile? {
         val normalizedAcct = acct.removePrefix("@")
         val username = normalizedAcct.substringBefore('@')
@@ -93,7 +97,7 @@ class UserProfileService(
                 headerUrl = remoteActors.findByUri(actor.actorUri)?.profile?.headerUrl,
                 biography = null,
                 links = listOf(),
-                posts = storedPosts(checkNotNull(viewer), actor.actorUri),
+                posts = withFeaturedPosts(storedPosts(checkNotNull(viewer), actor.actorUri), actor.actorUri),
             )
         }
         if (viewer == null) return null
@@ -117,7 +121,10 @@ class UserProfileService(
             headerUrl = remote.headerUrl,
             biography = remote.biography?.let { htmlToPlainText(it) },
             links = listOf(),
-            posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else profiles.recentPosts(remote.user.actorUri),
+            posts = withFeaturedPosts(
+                posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else profiles.recentPosts(remote.user.actorUri),
+                actorUri = remote.user.actorUri,
+            ),
         )
     }
 
@@ -127,6 +134,31 @@ class UserProfileService(
     fun localNoteContentHtml(linkPreviewId: String): String? {
         if (!linkPreviewId.startsWith(LOCAL_NOTE_ID_PREFIX)) return null
         return notes.find(PublicNoteId(linkPreviewId.removePrefix(LOCAL_NOTE_ID_PREFIX)))?.contentHtml
+    }
+
+    /**
+     * 相手がプロフィールに固定した投稿を、相手が並べた順で先頭に置く。固定は受け取って保存していないので、開くたびに相手のサーバーへ取りに行く。
+     * 同じ投稿を保存していれば、いいねなどが付いた保存済みの方を使う。取れなければ固定した投稿なしで返す
+     */
+    private suspend fun withFeaturedPosts(posts: List<ProfilePost>, actorUri: String): List<ProfilePost> {
+        val featured = featuredPosts(actorUri)
+        if (featured.isEmpty()) return posts
+        val postsByNoteRef = posts.filter { it.boostedNoteAuthor == null }.associateBy { it.noteRef }
+        val pinnedPosts = featured.map { (postsByNoteRef[it.noteRef] ?: it).copy(pinned = true) }
+        val pinnedNoteRefs = pinnedPosts.map { it.noteRef }.toSet()
+        return pinnedPosts + posts.filterNot { it.boostedNoteAuthor == null && it.noteRef in pinnedNoteRefs }
+    }
+
+    private suspend fun featuredPosts(actorUri: String): List<ProfilePost> {
+        val profiles = remoteProfiles ?: return listOf()
+        return try {
+            profiles.featuredPosts(actorUri)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            logger.warn("固定した投稿を取れなかった: $actorUri", exception)
+            listOf()
+        }
     }
 
     /**
@@ -184,6 +216,11 @@ interface RemoteUserProfiles {
     suspend fun findByActorUri(actorUri: String): RemoteUserProfile?
 
     suspend fun recentPosts(actorUri: String): List<ProfilePost>
+
+    /**
+     * 相手がプロフィールに固定した投稿。相手が並べた順
+     */
+    suspend fun featuredPosts(actorUri: String): List<ProfilePost>
 }
 
 /**
