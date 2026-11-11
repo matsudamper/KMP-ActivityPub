@@ -5,11 +5,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -46,11 +48,23 @@ import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
+ * 投稿の画像の並べ方
+ */
+internal enum class PostImageLayout {
+    /** 横にスクロールして見る。タイムラインで投稿 1 件の高さを抑える */
+    HorizontalScroll,
+
+    /** 折り返して全部を一度に見せる */
+    Grid,
+}
+
+/**
  * タイムラインやプロフィールに並べる投稿 1 件
  */
 @Composable
 internal fun PostItem(
     uiState: PostItemUiState,
+    imageLayout: PostImageLayout,
     modifier: Modifier = Modifier,
 ) {
     val authorListener = uiState.authorListener
@@ -132,7 +146,17 @@ internal fun PostItem(
                     overflow = TextOverflow.Clip,
                 )
             }
-            if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
+            if (imageLayout == PostImageLayout.Grid && uiState.images.isNotEmpty()) {
+                PostImageGrid(
+                    images = uiState.images,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            val horizontalScrollImages = when (imageLayout) {
+                PostImageLayout.HorizontalScroll -> uiState.images
+                PostImageLayout.Grid -> listOf()
+            }
+            if (horizontalScrollImages.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 LazyRow(
                     modifier = Modifier
                         .padding(top = 8.dp)
@@ -140,7 +164,7 @@ internal fun PostItem(
                     contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(uiState.images) { image ->
+                    items(horizontalScrollImages) { image ->
                         PostImageCard(image = image)
                     }
                     items(uiState.linkPreviews) { preview ->
@@ -171,6 +195,33 @@ internal fun PostItem(
     }
     LaunchedEffect(uiState.listener) {
         uiState.listener.onVisible()
+    }
+}
+
+@Composable
+private fun PostImageGrid(
+    images: List<PostItemUiState.Image>,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val columnCount = (maxWidth / PostImageGridMinCellWidth).toInt()
+            .coerceIn(1, PostImageGridMaxColumnCount)
+            .coerceAtMost(images.size)
+        Column(verticalArrangement = Arrangement.spacedBy(PostImageGridSpacing)) {
+            images.chunked(columnCount).forEach { rowImages ->
+                Row(horizontalArrangement = Arrangement.spacedBy(PostImageGridSpacing)) {
+                    rowImages.forEach { image ->
+                        PostImageTile(
+                            image = image,
+                            modifier = Modifier.weight(1f).aspectRatio(PostImageGridCellAspectRatio),
+                        )
+                    }
+                    repeat(columnCount - rowImages.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -394,6 +445,10 @@ private val PostMenuButtonSize = 32.dp
 private val PostHorizontalPadding = 16.dp
 private val PostBodySelectionVerticalMargin = 4.dp
 private val PostIconSize = 46.dp
+private val PostImageGridMinCellWidth = 160.dp
+private val PostImageGridSpacing = 8.dp
+private const val PostImageGridMaxColumnCount = 4
+private const val PostImageGridCellAspectRatio = 4f / 3f
 private val PostIconHeaderSpacing = 12.dp
 
 // 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする

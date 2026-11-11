@@ -35,6 +35,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
+import net.matsudamper.kmp.activitypub.frontend.ui.PostImageLayout
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -115,7 +116,7 @@ internal fun PostDetailContent(
                 is PostDetailScreenUiState.Content.Loaded -> {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         item {
-                            PostItem(uiState = content.post)
+                            PostItem(uiState = content.post, imageLayout = PostImageLayout.Grid)
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
