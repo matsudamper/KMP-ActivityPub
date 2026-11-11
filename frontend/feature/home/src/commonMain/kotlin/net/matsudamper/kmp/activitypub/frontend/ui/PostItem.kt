@@ -480,6 +480,11 @@ private fun Modifier.scrollHorizontallyByMouseDrag(
                         change.consume()
                     }
                     if (dragCompleted) {
+                        // 止めてから離したときに慣性を付けないよう、離した時刻も速さの計算に入れる
+                        val release = currentEvent.changes.firstOrNull { it.id == dragStart.id }
+                        if (release != null) {
+                            velocityTracker.addPointerInputChange(release)
+                        }
                         val flingVelocity = toScrollAmount(velocityTracker.calculateVelocity().x)
                         launch {
                             state.scroll {
