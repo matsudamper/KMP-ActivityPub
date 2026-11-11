@@ -14,3 +14,8 @@ internal expect fun PostBodySelectionContainer(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 )
+
+/**
+ * 画面のどこかが押されたら、押された本文以外の選択を消す。本文を並べる画面の外側に付ける
+ */
+internal expect fun Modifier.clearPostBodySelectionOnPress(): Modifier

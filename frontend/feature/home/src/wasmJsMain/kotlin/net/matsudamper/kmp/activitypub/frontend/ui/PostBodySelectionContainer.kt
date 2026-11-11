@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.browser.window
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 
@@ -28,10 +27,19 @@ import kotlinx.coroutines.flow.filter
  */
 private object LastPressedPostBody {
     var owner: Any? by mutableStateOf(null)
+}
 
-    init {
-        // Compose より先に受けるため capture で登録する。押された本文は、この後に Compose の Initial パスで入れ直す
-        window.addEventListener("pointerdown", { owner = null }, true)
+/**
+ * 選択ハンドルは別の Popup に置かれ、ここには届かない。ハンドルの操作では選択を消さずに済む
+ */
+internal actual fun Modifier.clearPostBodySelectionOnPress(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (event.type == PointerEventType.Press) {
+                LastPressedPostBody.owner = null
+            }
+        }
     }
 }
 
@@ -48,7 +56,7 @@ internal actual fun PostBodySelectionContainer(
             .drop(1)
             .filter { pressed -> !pressed }
             .collect {
-                // capture で null にしてから押された本文が入れ直すまでの間を拾うことがあるので、1 フレーム待って確かめる
+                // 親で null にしてから押された本文が入れ直すまでの間を拾うことがあるので、1 フレーム待って確かめる
                 withFrameNanos { }
                 if (LastPressedPostBody.owner !== owner) {
                     selectionGeneration++

@@ -19,3 +19,5 @@ internal actual fun PostBodySelectionContainer(
         content()
     }
 }
+
+internal actual fun Modifier.clearPostBodySelectionOnPress(): Modifier = this

@@ -36,6 +36,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditSc
 import net.matsudamper.kmp.activitypub.frontend.screen.security.SecurityScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.user.UserProfileScreen
+import net.matsudamper.kmp.activitypub.frontend.ui.clearPostBodySelectionOnPress
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -47,7 +48,7 @@ fun HomeNavigationHost(
     val navigator = remember(backStack) { Navigator(backStack) }
     NavDisplay(
         backStack = backStack,
-        modifier = modifier,
+        modifier = modifier.clearPostBodySelectionOnPress(),
         onBack = navigator::back,
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
