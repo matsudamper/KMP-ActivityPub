@@ -948,22 +948,45 @@ internal class HomeScreenViewModel(
 
             is MyPostsState.Loaded -> {
                 val profile = myPosts.profile
-                val media = createProfileMedia(profile.posts, ::navigateToPostDetail)
+                // ブーストした他の人の投稿の画像は、自分のメディアに含めない
+                val media = createProfileMedia(profile.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
                 HomeScreenUiState.UserPosts.Loaded(
                     items = profile.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
+                        val boostedNoteAuthor = post.boostedNoteAuthor
                         createPostItemUiState(
                             pinned = post.pinned,
-                            boostedBy = null,
-                            iconUrl = profile.iconUrl,
-                            displayName = profile.displayName,
-                            displayNameEmojis = profile.displayNameEmojis,
-                            acct = "@${profile.username}",
+                            boostedBy = if (boostedNoteAuthor == null) {
+                                null
+                            } else {
+                                Boost(
+                                    booster = UserHomeTimelineResult.Booster(
+                                        username = profile.username,
+                                        host = null,
+                                        displayName = profile.displayName,
+                                        displayNameEmojis = profile.displayNameEmojis,
+                                        iconUrl = profile.iconUrl,
+                                    ),
+                                    navigateToProfile = null,
+                                )
+                            },
+                            iconUrl = if (boostedNoteAuthor == null) profile.iconUrl else boostedNoteAuthor.iconUrl,
+                            displayName = boostedNoteAuthor?.displayName ?: profile.displayName,
+                            displayNameEmojis = boostedNoteAuthor?.displayNameEmojis ?: profile.displayNameEmojis,
+                            acct = if (boostedNoteAuthor == null) "@${profile.username}" else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                             body = post.body,
                             linkPreviews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty(),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
-                            authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
+                            authorTapAction = if (boostedNoteAuthor == null) {
+                                AuthorTapAction.AlreadyOnAuthorProfile
+                            } else {
+                                AuthorTapAction.OpenProfile {
+                                    viewModelScope.launch {
+                                        events.send { it.navigateToUserProfile("${boostedNoteAuthor.username}@${boostedNoteAuthor.host}") }
+                                    }
+                                }
+                            },
                             menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
