@@ -338,7 +338,7 @@ class HomeScreenViewModelTest {
     private fun postInGroup(id: String, followingGroupId: String?): String {
         val groupId = if (followingGroupId == null) "null" else "\"$followingGroupId\""
         return """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],""" +
-            """"summary":null,"sensitive":false,"linkUrls":[],"images":[],"emojis":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false,"followingGroupId":$groupId}"""
+            """"summary":null,"sensitive":false,"linkUrls":[],"images":[],"emojis":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false,"pinned":false,"followingGroupId":$groupId}"""
     }
 
     private fun HomeScreenUiState.homeColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()

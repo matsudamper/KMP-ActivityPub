@@ -37,6 +37,11 @@ class NotePinService(
         }
     }
 
+    /**
+     * @return [publicIds] のうち固定されている投稿
+     */
+    fun pinnedAmong(publicIds: Set<PublicNoteId>): Set<PublicNoteId> = pins.pinnedAmong(publicIds)
+
     companion object {
         /**
          * Mastodon の固定できる投稿の上限

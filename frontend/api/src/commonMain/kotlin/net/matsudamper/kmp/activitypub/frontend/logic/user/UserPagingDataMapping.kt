@@ -43,6 +43,8 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     )
                 },
                 deletableNoteId = it.deletableNoteId,
+                pinnableNoteId = it.pinnableNoteId,
+                pinned = it.pinned,
                 followingGroupId = it.followingGroupId,
             )
         },
@@ -75,6 +77,8 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             },
             emojis = it.body.emojis.map { emoji -> HomeTimelineQuery.Emoji(__typename = "CustomEmoji", name = emoji.name, imageUrl = emoji.imageUrl) },
             deletableNoteId = it.deletableNoteId,
+            pinnableNoteId = it.pinnableNoteId,
+            pinned = it.pinned,
             favouriteCount = it.body.favouriteCount,
             boostCount = it.body.boostCount,
             boostedBy = it.boostedBy?.let { booster ->
@@ -121,6 +125,21 @@ fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimeli
                         )
                     }
                 },
+            ),
+        ),
+    )
+}
+
+/**
+ * 固定を変えた結果を、取得し直さずに反映する
+ */
+fun HomeTimelineQuery.Data.withPinned(pinnableNoteId: String, pinned: Boolean): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    return copy(
+        userInfo = info.copy(
+            homeTimeline = timeline.copy(
+                posts = timeline.posts.map { post -> if (post.pinnableNoteId == pinnableNoteId) post.copy(pinned = pinned) else post },
             ),
         ),
     )

@@ -353,7 +353,7 @@ internal class UserProfileScreenViewModel(
                             }
                         }
                     },
-                    menuItems = createPinMenuItems(post, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                    menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },

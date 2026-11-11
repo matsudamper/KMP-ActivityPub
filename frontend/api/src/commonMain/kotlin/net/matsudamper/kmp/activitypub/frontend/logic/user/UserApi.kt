@@ -183,6 +183,8 @@ class UserApi(
                     )
                 },
                 deletableNoteId = post.deletableNoteId,
+                pinnableNoteId = post.pinnableNoteId,
+                pinned = post.pinned,
                 followingGroupId = post.followingGroupId,
             ),
         )
@@ -811,6 +813,8 @@ class UserApi(
                                 )
                             },
                             deletableNoteId = post.deletableNoteId,
+                            pinnableNoteId = post.pinnableNoteId,
+                            pinned = post.pinned,
                             followingGroupId = post.followingGroupId,
                         ),
                     ),

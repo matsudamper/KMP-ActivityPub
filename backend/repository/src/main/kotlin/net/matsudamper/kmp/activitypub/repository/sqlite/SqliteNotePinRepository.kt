@@ -55,6 +55,17 @@ internal class SqliteNotePinRepository(
             .execute() > 0
     }
 
+    override fun pinnedAmong(publicIds: Set<PublicNoteId>): Set<PublicNoteId> {
+        if (publicIds.isEmpty()) return setOf()
+        return jooq.withConnection { dsl ->
+            dsl.select(NOTES.PUBLIC_ID)
+                .from(NOTE_PINS)
+                .join(NOTES).on(NOTES.ID.eq(NOTE_PINS.NOTE_ID))
+                .where(NOTES.PUBLIC_ID.`in`(publicIds.map { it.value }))
+                .fetchSet { PublicNoteId(checkNotNull(it.value1())) }
+        }
+    }
+
     override fun pinnedNotes(username: String): List<PublicNoteId> = jooq.withConnection { dsl ->
         dsl.select(NOTES.PUBLIC_ID)
             .from(NOTE_PINS)

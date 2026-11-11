@@ -30,4 +30,6 @@ internal class FakeNotePinRepository : NotePinRepository {
     ): Boolean = pinnedNoteIds.remove(publicId)
 
     override fun pinnedNotes(username: String): List<PublicNoteId> = pinnedNoteIds.toList()
+
+    override fun pinnedAmong(publicIds: Set<PublicNoteId>): Set<PublicNoteId> = pinnedNoteIds.filter { it in publicIds }.toSet()
 }

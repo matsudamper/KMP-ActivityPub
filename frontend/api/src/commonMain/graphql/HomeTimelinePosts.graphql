@@ -15,6 +15,8 @@ subscription HomeTimelinePosts {
         linkUrls
         iconUrl
         deletableNoteId
+        pinnableNoteId
+        pinned
         images {
             url
             thumbnailUrl

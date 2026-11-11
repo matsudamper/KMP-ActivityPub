@@ -328,8 +328,16 @@ internal class HomeScreenViewModel(
             userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
         }
         viewModelScope.launch {
-            // プロフィール画面で変えた固定もここで並べ直す
+            // プロフィール画面や個別投稿画面で変えた固定もここで反映する
             userApi.pinChanges.collect { change ->
+                timelinePaging.updateCache { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
+                updateTimeline { timeline ->
+                    timeline.copy(
+                        postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.map { post ->
+                            if (post.pinnableNoteId == change.noteId) post.copy(pinned = change.pinned) else post
+                        },
+                    )
+                }
                 viewModelStateFlow.update {
                     val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
                     it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned)))
@@ -908,7 +916,7 @@ internal class HomeScreenViewModel(
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
-                            menuItems = createPinMenuItems(post, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                            menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
@@ -1009,7 +1017,7 @@ internal class HomeScreenViewModel(
                         events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
                     }
                 },
-                menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                 postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },

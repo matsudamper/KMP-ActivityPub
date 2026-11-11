@@ -30,6 +30,11 @@ interface NotePinRepository {
      * 固定した新しい順に返す
      */
     fun pinnedNotes(username: String): List<PublicNoteId>
+
+    /**
+     * @return [publicIds] のうち固定されている投稿
+     */
+    fun pinnedAmong(publicIds: Set<PublicNoteId>): Set<PublicNoteId>
 }
 
 sealed interface PinNoteResult {

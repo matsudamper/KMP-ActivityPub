@@ -55,6 +55,21 @@ class NotePinRepositoryTest {
     }
 
     @Test
+    fun pinnedAmongReturnsOnlyPinnedNotesOfTheGivenOnes() = withRepository { repositories, alice, bob ->
+        postLocalNote(repositories, username = "alice", publicId = "pinned")
+        postLocalNote(repositories, username = "alice", publicId = "not-pinned")
+        postLocalNote(repositories, username = "bob", publicId = "bob-pinned")
+        repositories.notePinRepository.pin(alice, PublicNoteId("pinned"), NOW, MAX_PINS)
+        repositories.notePinRepository.pin(bob, PublicNoteId("bob-pinned"), NOW, MAX_PINS)
+
+        assertEquals(
+            setOf(PublicNoteId("pinned")),
+            repositories.notePinRepository.pinnedAmong(setOf(PublicNoteId("pinned"), PublicNoteId("not-pinned"), PublicNoteId("missing"))),
+        )
+        assertEquals(setOf(), repositories.notePinRepository.pinnedAmong(setOf()))
+    }
+
+    @Test
     fun deletedNoteIsNoLongerPinned() = withRepository { repositories, alice, _ ->
         postLocalNote(repositories, username = "alice", publicId = "first")
         repositories.notePinRepository.pin(alice, PublicNoteId("first"), NOW, MAX_PINS)
