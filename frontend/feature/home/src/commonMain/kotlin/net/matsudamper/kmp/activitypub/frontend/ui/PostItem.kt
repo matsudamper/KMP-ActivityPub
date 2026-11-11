@@ -412,72 +412,77 @@ private fun PostActions(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 狭い画面で操作が並びきらなくても、メニュー（削除・ピン留め）を押せるよう、残りの幅だけを操作に使う
         Row(
-            modifier = Modifier.width(sizes.actionSlotWidth),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Row(
+                modifier = Modifier.width(sizes.actionSlotWidth),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Repeat,
+                    contentDescription = "ブースト",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = disabledIconColor,
+                )
+                Text(
+                    text = uiState.boostCountText.orEmpty(),
+                    style = sizes.countTextStyle,
+                    color = iconColor,
+                    maxLines = 1,
+                )
+            }
+            val favouriteButton = uiState.favouriteButton
+            Row(
+                modifier = Modifier
+                    .width(sizes.actionSlotWidth)
+                    .then(
+                        if (favouriteButton == null) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { favouriteButton.listener.onClick() }
+                        },
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Star,
+                    contentDescription = "お気に入り",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
+                )
+                Text(
+                    text = uiState.favouriteCountText.orEmpty(),
+                    style = sizes.countTextStyle,
+                    color = iconColor,
+                    maxLines = 1,
+                )
+            }
+            Box(modifier = Modifier.width(sizes.actionSlotWidth)) {
+                Icon(
+                    imageVector = AppIcons.Emoticon,
+                    contentDescription = "スタンプ",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = disabledIconColor,
+                )
+            }
+            val shareListener = uiState.shareListener
             Icon(
-                imageVector = AppIcons.Repeat,
-                contentDescription = "ブースト",
-                modifier = Modifier.size(sizes.actionIconSize),
-                tint = disabledIconColor,
-            )
-            Text(
-                text = uiState.boostCountText.orEmpty(),
-                style = sizes.countTextStyle,
-                color = iconColor,
-                maxLines = 1,
+                imageVector = AppIcons.Share,
+                contentDescription = "共有",
+                modifier = Modifier
+                    .size(sizes.actionIconSize)
+                    .clip(CircleShape)
+                    .clickable(enabled = shareListener != null) { shareListener?.onClick() },
+                tint = if (shareListener == null) disabledIconColor else iconColor,
             )
         }
-        val favouriteButton = uiState.favouriteButton
-        Row(
-            modifier = Modifier
-                .width(sizes.actionSlotWidth)
-                .then(
-                    if (favouriteButton == null) {
-                        Modifier
-                    } else {
-                        Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { favouriteButton.listener.onClick() }
-                    },
-                ),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = AppIcons.Star,
-                contentDescription = "お気に入り",
-                modifier = Modifier.size(sizes.actionIconSize),
-                tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
-            )
-            Text(
-                text = uiState.favouriteCountText.orEmpty(),
-                style = sizes.countTextStyle,
-                color = iconColor,
-                maxLines = 1,
-            )
-        }
-        Box(modifier = Modifier.width(sizes.actionSlotWidth)) {
-            Icon(
-                imageVector = AppIcons.Emoticon,
-                contentDescription = "スタンプ",
-                modifier = Modifier.size(sizes.actionIconSize),
-                tint = disabledIconColor,
-            )
-        }
-        val shareListener = uiState.shareListener
-        Icon(
-            imageVector = AppIcons.Share,
-            contentDescription = "共有",
-            modifier = Modifier
-                .size(sizes.actionIconSize)
-                .clip(CircleShape)
-                .clickable(enabled = shareListener != null) { shareListener?.onClick() },
-            tint = if (shareListener == null) disabledIconColor else iconColor,
-        )
-        Spacer(modifier = Modifier.weight(1f))
         if (uiState.menuItems.isNotEmpty()) {
             PostMenu(menuItems = uiState.menuItems, sizes = sizes)
         }
