@@ -91,6 +91,7 @@ class AppDependencies(
                 followingRepository = repositories.followingRepository,
                 deliveryQueueRepository = repositories.deliveryQueueRepository,
                 noteRepository = repositories.noteRepository,
+                notePinRepository = repositories.notePinRepository,
                 timelineRepository = repositories.timelineRepository,
                 timeline = homeTimelineService,
                 remoteActorRepository = repositories.remoteActorRepository,
