@@ -525,7 +525,7 @@ private val PostHorizontalPadding = 16.dp
 private val PostBodySelectionVerticalMargin = 4.dp
 private val PostImageGridMinCellWidth = 180.dp
 private val PostImageGridSpacing = 8.dp
-private const val PostImageGridMaxColumnCount = 4
+private const val PostImageGridMaxColumnCount = 3
 private const val PostImageGridCellAspectRatio = 4f / 3f
 private val PostIconHeaderSpacing = 12.dp
 
