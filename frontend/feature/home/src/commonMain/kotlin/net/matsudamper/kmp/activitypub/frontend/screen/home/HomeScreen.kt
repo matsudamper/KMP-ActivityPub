@@ -29,6 +29,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -54,9 +56,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -437,10 +439,10 @@ private fun TimelineTabsContent(
     tabListStates: HomeTabListStates,
     modifier: Modifier = Modifier,
 ) {
+    val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
     Column(modifier = modifier) {
         // 追加ボタンの下まで線を通すため、タブ行の線は消して行全体に引く
         Row(verticalAlignment = Alignment.CenterVertically) {
-            val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
             if (selectedIndex >= 0) {
                 val reorderState = rememberHorizontalReorderState()
                 SideEffect { reorderState.retainItems(uiState.timelineColumns.size) }
@@ -480,20 +482,15 @@ private fun TimelineTabsContent(
             }
         }
         HorizontalDivider()
-        val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
         val emptyMessage = uiState.timelineColumnsEmptyMessage
         val contentModifier = Modifier.fillMaxWidth().weight(1f)
-        if (selectedColumn != null) {
-            key(selectedColumn.listStateKey) {
-                TimelineTabContent(
-                    listState = tabListStates.timeline(selectedColumn.listStateKey),
-                    timelineItems = selectedColumn.items,
-                    refreshing = uiState.timelineRefreshing,
-                    footer = uiState.timelineFooter,
-                    listener = uiState.listener,
-                    modifier = contentModifier,
-                )
-            }
+        if (selectedIndex >= 0) {
+            TimelineColumnsPager(
+                uiState = uiState,
+                selectedIndex = selectedIndex,
+                tabListStates = tabListStates,
+                modifier = contentModifier,
+            )
         } else if (emptyMessage != null) {
             TimelineColumnsEmptyContent(
                 message = emptyMessage,
@@ -504,6 +501,46 @@ private fun TimelineTabsContent(
         } else {
             Spacer(modifier = contentModifier)
         }
+    }
+}
+
+@Composable
+private fun TimelineColumnsPager(
+    uiState: HomeScreenUiState,
+    selectedIndex: Int,
+    tabListStates: HomeTabListStates,
+    modifier: Modifier = Modifier,
+) {
+    val columns = uiState.timelineColumns
+    val pagerState = rememberPagerState(initialPage = selectedIndex) { columns.size }
+    LaunchedEffect(pagerState, selectedIndex) {
+        if (pagerState.settledPage != selectedIndex) {
+            pagerState.animateScrollToPage(selectedIndex)
+        }
+    }
+    val latestColumns by rememberUpdatedState(columns)
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            val column = latestColumns.getOrNull(page)
+            if (column != null && !column.selected) {
+                column.listener.onClickTab()
+            }
+        }
+    }
+    HorizontalPager(
+        state = pagerState,
+        key = { page -> columns[page].listStateKey },
+        modifier = modifier,
+    ) { page ->
+        val column = columns[page]
+        TimelineTabContent(
+            listState = tabListStates.timeline(column.listStateKey),
+            timelineItems = column.items,
+            refreshing = uiState.timelineRefreshing,
+            footer = uiState.timelineFooter,
+            listener = uiState.listener,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 
