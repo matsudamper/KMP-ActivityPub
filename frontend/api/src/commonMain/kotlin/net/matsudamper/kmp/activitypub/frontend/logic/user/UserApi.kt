@@ -545,6 +545,7 @@ class UserApi(
             headerUrl = profile.headerUrl,
             biography = profile.biography,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
+            viewerIsOwner = profile.viewerIsOwner,
             posts = profile.posts.map {
                 UserProfileResult.Post(
                     linkPreviewId = it.linkPreviewId,

@@ -379,6 +379,7 @@ internal class UserProfileScreenViewModel(
                                 displayNameEmojis = profile.displayNameEmojis,
                                 iconUrl = profile.iconUrl,
                             ),
+                            byViewer = profile.viewerIsOwner,
                             navigateToProfile = null,
                         )
                     },

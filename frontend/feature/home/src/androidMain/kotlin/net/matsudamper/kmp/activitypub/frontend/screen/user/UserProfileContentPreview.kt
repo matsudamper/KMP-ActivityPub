@@ -80,6 +80,7 @@ private fun UserProfileContentPreview() {
                                 boostedBy = PostItemUiState.BoostedBy(
                                     text = createTextWithEmojis(text = "Alice がブースト", emojis = listOf()),
                                     iconUrl = null,
+                                    cancelledLabelVisible = true,
                                     listener = null,
                                 ),
                                 iconUrl = null,
@@ -92,7 +93,7 @@ private fun UserProfileContentPreview() {
                                 favouriteCountText = null,
                                 boostCountText = null,
                                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-                                boostButton = PostItemUiState.BoostButton(iconHighlighted = true, listener = AndroidPreviewBoostButtonListener),
+                                boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
                                 stamps = listOf(),
                                 authorListener = null,
                                 menuItems = listOf(),

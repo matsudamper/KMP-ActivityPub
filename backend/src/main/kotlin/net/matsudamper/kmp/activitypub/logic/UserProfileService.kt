@@ -64,6 +64,7 @@ class UserProfileService(
                 biography = detail?.summary,
                 links = detail?.links.orEmpty(),
                 posts = localProfilePosts(account.id, account.username, viewer),
+                viewerIsOwner = account.id == viewer,
             )
         }
         val storedActor = remoteActors.findByAcct(username, host)
@@ -77,6 +78,7 @@ class UserProfileService(
                 biography = null,
                 links = listOf(),
                 posts = withFeaturedPosts(storedPosts(checkNotNull(viewer), actor.actorUri), checkNotNull(viewer), actor.actorUri),
+                viewerIsOwner = false,
             )
         }
         if (viewer == null) return null
@@ -105,6 +107,7 @@ class UserProfileService(
                 viewer = viewer,
                 actorUri = remote.user.actorUri,
             ),
+            viewerIsOwner = false,
         )
     }
 
@@ -351,6 +354,7 @@ data class RemoteUserProfile(
  * @param headerUrl ヘッダー画像の取得元。中継する前の相手の URL。このサーバーのユーザーは設定できないので null
  * @param biography プレーンテキスト
  * @param links 他のサーバーのユーザーのものは受け取っていないので空
+ * @param viewerIsOwner 見ているアカウント本人のプロフィールか。他のサーバーのユーザーは本人になりえないので false
  */
 data class UserProfile(
     val user: SearchedUser,
@@ -359,6 +363,7 @@ data class UserProfile(
     val biography: String?,
     val links: List<ProfileLink>,
     val posts: List<ProfilePost>,
+    val viewerIsOwner: Boolean,
 )
 
 /**

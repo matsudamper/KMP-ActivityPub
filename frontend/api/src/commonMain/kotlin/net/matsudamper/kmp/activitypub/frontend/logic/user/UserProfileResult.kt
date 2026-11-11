@@ -7,6 +7,7 @@ sealed interface UserProfileResult {
      * @param iconUrl プロフィール画像が無ければ null
      * @param headerUrl ヘッダー画像が無ければ null
      * @param actorUri フォローできない相手（このサーバーのユーザー）は null
+     * @param viewerIsOwner ログイン中のアカウント本人のプロフィールか
      */
     data class Found(
         val actorUri: String?,
@@ -21,6 +22,7 @@ sealed interface UserProfileResult {
         val biography: String?,
         val links: List<UserProfileLink>,
         val posts: List<Post>,
+        val viewerIsOwner: Boolean,
     ) : UserProfileResult
 
     data object NotFound : UserProfileResult

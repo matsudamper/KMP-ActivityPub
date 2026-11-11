@@ -364,6 +364,7 @@ private fun BoostedByLabel(
                     .clip(CircleShape),
             )
             EmojiText(
+                modifier = Modifier.weight(1f, fill = false),
                 text = boostedBy.text,
                 style = sizes.secondaryTextStyle,
                 color = color,
@@ -371,6 +372,17 @@ private fun BoostedByLabel(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (boostedBy.cancelledLabelVisible) {
+                Text(
+                    text = "取り消し",
+                    modifier = Modifier
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                    style = sizes.secondaryTextStyle,
+                    color = color,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

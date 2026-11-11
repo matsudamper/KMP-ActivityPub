@@ -1023,6 +1023,7 @@ internal class HomeScreenViewModel(
                                         displayNameEmojis = profile.displayNameEmojis,
                                         iconUrl = profile.iconUrl,
                                     ),
+                                    byViewer = true,
                                     navigateToProfile = null,
                                 )
                             },
@@ -1145,7 +1146,8 @@ internal class HomeScreenViewModel(
             createPostItemUiState(
                 pinned = false,
                 boostedBy = post.boostedBy?.let { booster ->
-                    Boost(booster = booster) { username ->
+                    // このサーバーのアカウントのブーストでタイムラインに載るのは、自分のブーストだけ
+                    Boost(booster = booster, byViewer = booster.host == null) { username ->
                         viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
                     }
                 },

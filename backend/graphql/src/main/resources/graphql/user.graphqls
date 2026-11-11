@@ -14,6 +14,8 @@ type UserProfile {
     "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"
     links: [ProfileLink!]!
     posts: [ProfilePost!]!
+    "ログイン中のアカウント本人のプロフィールか"
+    viewerIsOwner: Boolean!
 }
 
 type ProfileLink {

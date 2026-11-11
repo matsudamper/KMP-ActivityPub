@@ -736,6 +736,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         boostedBy = PostItemUiState.BoostedBy(
             text = createTextWithEmojis(text = "Alice :kotlin: がブースト", emojis = PreviewEmojis),
             iconUrl = null,
+            cancelledLabelVisible = true,
             listener = AndroidPreviewBoostedByListener,
         ),
         iconUrl = null,
@@ -774,7 +775,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             listener = AndroidPreviewFavouriteButtonListener,
         ),
         boostButton = PostItemUiState.BoostButton(
-            iconHighlighted = true,
+            iconHighlighted = false,
             listener = AndroidPreviewBoostButtonListener,
         ),
         stamps = listOf(

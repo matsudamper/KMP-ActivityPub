@@ -59,10 +59,12 @@ data class PostItemUiState(
     /**
      * @param iconUrl ブーストした相手のプロフィール画像が無ければ null
      * @param listener ブーストした相手のプロフィールを見ているときは押せないので null
+     * @param cancelledLabelVisible 自分のブーストを外した後か。一覧は読み直すまでそのまま出すので、外したことを示す
      */
     data class BoostedBy(
         val text: TextWithEmojis,
         val iconUrl: String?,
+        val cancelledLabelVisible: Boolean,
         val listener: BoostedByListener?,
     )
 

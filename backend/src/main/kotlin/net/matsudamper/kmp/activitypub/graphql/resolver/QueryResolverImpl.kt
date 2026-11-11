@@ -47,6 +47,7 @@ class QueryResolverImpl : QueryResolver {
                         headerUrl = profile.headerUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = profile.user.updatedAt) },
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
+                        viewerIsOwner = profile.viewerIsOwner,
                         posts = profile.posts.map { post ->
                             val boostedNoteAuthor = post.boostedNoteAuthor?.let { author ->
                                 QlPostAuthor(
