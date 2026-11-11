@@ -261,10 +261,13 @@ class UserApi(
     }
 
     /**
+     * 変えたら読み直す。送っている間に始まった読み込みや、アカウントの切り替えで捨てられた内容を取り戻すため
+     *
      * @param groupId null ならホームの名前を変える
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun renameFollowingGroup(groupId: String?, name: String): String? {
+        val startedVersion = followingGroupsStateFlow.value.version
         val client = clients.client.value ?: return "接続先が未設定"
         val response = client.mutation(RenameFollowingGroupMutation(groupId = Optional.present(groupId), name = name)).execute()
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
@@ -273,15 +276,18 @@ class UserApi(
             null -> {
                 val trimmedName = name.trim()
                 followingGroupsStateFlow.update { state ->
-                    if (groupId == null) {
-                        state.copy(homeName = trimmedName, version = state.version + 1)
-                    } else {
-                        state.copy(
+                    when {
+                        state.version != startedVersion -> state
+
+                        groupId == null -> state.copy(homeName = trimmedName, version = state.version + 1)
+
+                        else -> state.copy(
                             groups = state.groups.map { if (it.id == groupId) it.copy(name = trimmedName) else it },
                             version = state.version + 1,
                         )
                     }
                 }
+                loadFollowingGroups()
                 null
             }
 
