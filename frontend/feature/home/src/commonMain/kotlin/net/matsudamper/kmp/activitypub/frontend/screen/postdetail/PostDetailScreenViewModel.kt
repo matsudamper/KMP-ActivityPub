@@ -114,6 +114,13 @@ internal class PostDetailScreenViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            // ほかの画面で変えたブーストもここで反映する
+            api.boostChanges.collect { change ->
+                val loaded = viewModelStateFlow.value.post as? PostState.Loaded ?: return@collect
+                if (loaded.post.reactionPostId == change.reactionPostId) updateBoosted(change.boosted)
+            }
+        }
         load()
     }
 

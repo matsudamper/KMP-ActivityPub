@@ -142,6 +142,10 @@ internal class UserProfileScreenViewModel(
             }
         }
         viewModelScope.launch {
+            // ほかの画面で変えたブーストもここで反映する
+            api.boostChanges.collect { change -> applyBoosted(postId = change.reactionPostId, boosted = change.boosted) }
+        }
+        viewModelScope.launch {
             // 固定の変更はこの画面のものも他の画面のものもここで届く
             api.pinChanges.collect { change ->
                 val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded

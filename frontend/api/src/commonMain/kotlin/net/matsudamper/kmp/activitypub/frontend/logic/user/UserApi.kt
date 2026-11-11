@@ -99,6 +99,12 @@ class UserApi(
      * [setPinned] で変えられた固定。どの画面で変えても、プロフィールの投稿を出している画面がここで並べ直す
      */
     val pinChanges = pinChangesFlow.asSharedFlow()
+    private val boostChangesFlow = MutableSharedFlow<BoostChange>()
+
+    /**
+     * [setBoosted] で変えられたブースト。どの画面で変えても、同じ投稿を出している画面がここで表示を合わせる
+     */
+    val boostChanges = boostChangesFlow.asSharedFlow()
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
@@ -353,7 +359,10 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
         val result = response.data?.user?.setBoosted ?: return response.failureMessage()
         return when (result.failure) {
-            null -> null
+            null -> {
+                boostChangesFlow.emit(BoostChange(reactionPostId = postId, boosted = boosted))
+                null
+            }
 
             SetBoostedFailure.NOT_LOGGED_IN -> "ログインしていません"
 
@@ -786,6 +795,14 @@ class UserApi(
         val homeName: String,
         val groups: List<UserFollowingGroup>,
         val version: Long,
+    )
+
+    /**
+     * @param reactionPostId [UserHomeTimelineResult.Post.reactionPostId]
+     */
+    data class BoostChange(
+        val reactionPostId: String,
+        val boosted: Boolean,
     )
 
     /**

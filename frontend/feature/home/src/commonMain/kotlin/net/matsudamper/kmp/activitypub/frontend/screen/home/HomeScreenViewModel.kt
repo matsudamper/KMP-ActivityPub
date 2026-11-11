@@ -353,6 +353,15 @@ internal class HomeScreenViewModel(
             userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
         }
         viewModelScope.launch {
+            // プロフィール画面や個別投稿画面で変えたブーストもここで反映する
+            userApi.boostChanges.collect { change ->
+                applyBoosted(postId = change.reactionPostId, boosted = change.boosted)
+                // 自分のブーストは自分の投稿に並ぶので、付けたら読み直して加える
+                val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
+                if (change.boosted && myPosts != null) loadMyPosts(myPosts.profile.username)
+            }
+        }
+        viewModelScope.launch {
             // プロフィール画面や個別投稿画面で変えた固定もここで反映する
             userApi.pinChanges.collect { change ->
                 timelinePaging.updateCache { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
@@ -862,6 +871,14 @@ internal class HomeScreenViewModel(
 
     private suspend fun applyBoosted(postId: String, boosted: Boolean) {
         timelinePaging.updateCache { it.withBoosted(reactionPostId = postId, boosted = boosted) }
+        // 読み直しの後に到着した投稿を足し直すので、そちらも合わせないと変える前の状態に戻る
+        updateTimeline { timeline ->
+            timeline.copy(
+                postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.map { post ->
+                    if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post
+                },
+            )
+        }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(reactionPostId = postId, boosted = boosted)))
