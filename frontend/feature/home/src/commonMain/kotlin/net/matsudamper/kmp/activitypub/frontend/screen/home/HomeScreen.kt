@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,6 +31,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
@@ -79,15 +81,22 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.round
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -561,9 +570,21 @@ private fun TimelineColumnsPager(
             }
         }
     }
+    val defaultPageNestedScrollConnection = PagerDefaults.pageNestedScrollConnection(pagerState, Orientation.Horizontal)
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val pageNestedScrollConnection = remember(pagerState, defaultPageNestedScrollConnection, density, layoutDirection) {
+        FlingVelocityKeepingPageNestedScrollConnection(
+            pagerState = pagerState,
+            defaultConnection = defaultPageNestedScrollConnection,
+            pageChangeVelocityThreshold = with(density) { PageChangeVelocityThreshold.toPx() },
+            layoutDirection = layoutDirection,
+        )
+    }
     HorizontalPager(
         state = pagerState,
         key = { page -> columns[page].listStateKey },
+        pageNestedScrollConnection = pageNestedScrollConnection,
         modifier = modifier,
     ) { page ->
         val column = columns[page]
@@ -577,6 +598,35 @@ private fun TimelineColumnsPager(
             listener = uiState.listener,
             modifier = Modifier.fillMaxSize(),
         )
+    }
+}
+
+/** ページャーが指を払ったと見なす速さの標準値に合わせる */
+private val PageChangeVelocityThreshold = 400.dp
+
+/**
+ * 画像や OGP の横に並ぶ列から始めたスワイプでも、本文から始めたときと同じく払った速さでページを切り替える。
+ * 標準の接続は子のスクロールから渡された速さを捨てるので、半分を超えて動かさないと切り替わらない
+ */
+private class FlingVelocityKeepingPageNestedScrollConnection(
+    private val pagerState: PagerState,
+    private val defaultConnection: NestedScrollConnection,
+    private val pageChangeVelocityThreshold: Float,
+    private val layoutDirection: LayoutDirection,
+) : NestedScrollConnection by defaultConnection {
+    override suspend fun onPreFling(available: Velocity): Velocity {
+        val pageMovedByDrag = abs(pagerState.currentPageOffsetFraction) > 1e-6f
+        if (!pageMovedByDrag) return defaultConnection.onPreFling(available)
+        val pagePosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
+        val velocityTowardNextPage = if (layoutDirection == LayoutDirection.Ltr) -available.x else available.x
+        val targetPage = when {
+            velocityTowardNextPage > pageChangeVelocityThreshold -> ceil(pagePosition)
+            velocityTowardNextPage < -pageChangeVelocityThreshold -> floor(pagePosition)
+            else -> round(pagePosition)
+        }.toInt().coerceIn(0, pagerState.pageCount - 1)
+        pagerState.animateScrollToPage(targetPage)
+        // ページを動かしたので、子の列には払った速さを渡さない
+        return available
     }
 }
 
