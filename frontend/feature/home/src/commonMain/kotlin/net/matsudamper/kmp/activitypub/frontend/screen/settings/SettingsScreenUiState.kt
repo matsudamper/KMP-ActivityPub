@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 data class SettingsScreenUiState(
     val themeOptions: List<ThemeOption>,
     val logoutButtonEnabled: Boolean,
+    val adminItemVisible: Boolean,
     val listener: Listener,
 ) {
     data class ThemeOption(
@@ -21,6 +22,8 @@ data class SettingsScreenUiState(
     @Immutable
     interface Listener {
         fun onClickSecurity()
+
+        fun onClickAdmin()
 
         fun onClickGitHubRelease()
 
