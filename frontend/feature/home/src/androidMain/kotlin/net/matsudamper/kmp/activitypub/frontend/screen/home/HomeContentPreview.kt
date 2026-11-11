@@ -34,6 +34,7 @@ private fun HomeContentPreview() = HomeTimelinePreview(
     deleteNoteDialog = null,
     timelineColumnsEmptyMessage = null,
     timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = null,
 )
 
 @Preview
@@ -44,6 +45,7 @@ private fun HomeContentPreviewLoading() = HomeTimelinePreview(
     deleteNoteDialog = null,
     timelineColumnsEmptyMessage = null,
     timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = null,
 )
 
 @Preview
@@ -54,6 +56,7 @@ private fun HomeContentPreviewError() = HomeTimelinePreview(
     deleteNoteDialog = null,
     timelineColumnsEmptyMessage = null,
     timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = null,
 )
 
 @Preview
@@ -64,6 +67,7 @@ private fun HomeContentPreviewStreamDisconnected() = HomeTimelinePreview(
     deleteNoteDialog = null,
     timelineColumnsEmptyMessage = null,
     timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = null,
 )
 
 @Preview
@@ -74,6 +78,7 @@ private fun HomeContentPreviewDeleteNoteDialog() = HomeTimelinePreview(
     deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
     timelineColumnsEmptyMessage = null,
     timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = null,
 )
 
 @Preview
@@ -84,6 +89,7 @@ private fun HomeContentPreviewStreamWaitingToReconnect() = HomeTimelinePreview(
     deleteNoteDialog = null,
     timelineColumnsEmptyMessage = null,
     timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = null,
 )
 
 @Preview
@@ -94,6 +100,7 @@ private fun HomeContentPreviewTimelineColumnsEmpty() = HomeTimelinePreview(
     deleteNoteDialog = null,
     timelineColumnsEmptyMessage = "表示するカラムがありません",
     timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = null,
 )
 
 @Preview
@@ -115,6 +122,21 @@ private fun HomeContentPreviewTimelineColumnEditDialog() = HomeTimelinePreview(
         saveButtonEnabled = true,
         listener = AndroidPreviewTimelineColumnEditDialogListener,
     ),
+    timelineColumnDeleteDialog = null,
+)
+
+@Preview
+@Composable
+private fun HomeContentPreviewTimelineColumnDeleteDialog() = HomeTimelinePreview(
+    HomeScreenUiState.TimelineFooter.None,
+    streamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+    deleteNoteDialog = null,
+    timelineColumnsEmptyMessage = null,
+    timelineColumnEditDialog = null,
+    timelineColumnDeleteDialog = HomeScreenUiState.TimelineColumnDeleteDialog(
+        message = "「技術と友達」のカラムを削除する",
+        listener = AndroidPreviewTimelineColumnDeleteDialogListener,
+    ),
 )
 
 /**
@@ -127,6 +149,7 @@ private fun HomeTimelinePreview(
     deleteNoteDialog: DeleteNoteDialogUiState?,
     timelineColumnsEmptyMessage: String?,
     timelineColumnEditDialog: HomeScreenUiState.TimelineColumnEditDialog?,
+    timelineColumnDeleteDialog: HomeScreenUiState.TimelineColumnDeleteDialog?,
 ) {
     HomePreviewTheme {
         HomeContent(
@@ -136,6 +159,7 @@ private fun HomeTimelinePreview(
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = timelineColumnEditDialog,
+                timelineColumnDeleteDialog = timelineColumnDeleteDialog,
                 timelineRefreshing = false,
                 timelineFooter = footer,
                 timelineStreamStatus = streamStatus,
@@ -171,6 +195,7 @@ private fun HomeSearchContentPreview() {
                 timelineColumnsEmptyMessage = null,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -231,6 +256,7 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineColumnsEmptyMessage = null,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -269,6 +295,7 @@ private fun HomeUserContentPreview() {
                 timelineColumnsEmptyMessage = null,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -340,6 +367,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                 timelineColumnsEmptyMessage = null,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -390,6 +418,7 @@ private fun HomeUserMediaContentPreview() {
                 timelineColumnsEmptyMessage = null,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -483,6 +512,7 @@ private fun HomeColumnsPreview(
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
                 timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
@@ -832,6 +862,12 @@ private object AndroidPreviewTimelineColumnEditDialogListener : HomeScreenUiStat
     override fun onClickAllSources() = Unit
 
     override fun onClickSave() = Unit
+
+    override fun onDismiss() = Unit
+}
+
+private object AndroidPreviewTimelineColumnDeleteDialogListener : HomeScreenUiState.TimelineColumnDeleteDialog.Listener {
+    override fun onClickDelete() = Unit
 
     override fun onDismiss() = Unit
 }

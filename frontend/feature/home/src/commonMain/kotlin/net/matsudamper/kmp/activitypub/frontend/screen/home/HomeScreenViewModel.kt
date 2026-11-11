@@ -104,6 +104,7 @@ internal class HomeScreenViewModel(
                     followingGroups = listOf(),
                     selectedId = null,
                     editor = null,
+                    deletingId = null,
                 ),
             ),
         )
@@ -318,6 +319,21 @@ internal class HomeScreenViewModel(
 
         override fun onDismiss() {
             updateTimelineColumns { it.copy(editor = null) }
+        }
+    }
+
+    private val timelineColumnDeleteDialogListener = object : HomeScreenUiState.TimelineColumnDeleteDialog.Listener {
+        override fun onClickDelete() {
+            val state = viewModelStateFlow.value.timelineColumns
+            val column = state.settings.orEmpty().firstOrNull { it.id == state.deletingId }
+            updateTimelineColumns { it.copy(deletingId = null) }
+            if (column != null) {
+                removeTimelineColumn(column)
+            }
+        }
+
+        override fun onDismiss() {
+            updateTimelineColumns { it.copy(deletingId = null) }
         }
     }
 
@@ -887,6 +903,7 @@ internal class HomeScreenViewModel(
             timelineColumnsEmptyMessage = if (viewModelState.timelineColumns.settings?.isEmpty() == true) TIMELINE_COLUMNS_EMPTY_MESSAGE else null,
             addTimelineColumnButtonEnabled = viewModelState.timelineColumns.settings != null,
             timelineColumnEditDialog = createTimelineColumnEditDialog(viewModelState.timelineColumns),
+            timelineColumnDeleteDialog = createTimelineColumnDeleteDialog(viewModelState.timelineColumns),
             timelineRefreshing = viewModelState.timeline.loading == TimelineLoading.PullToRefresh,
             timelineFooter = createTimelineFooter(viewModelState.timeline.loading),
             timelineStreamStatus = viewModelState.timelineStream.status(),
@@ -1030,11 +1047,19 @@ internal class HomeScreenViewModel(
                     }
 
                     override fun onClickDelete() {
-                        removeTimelineColumn(column)
+                        updateTimelineColumns { it.copy(deletingId = column.id) }
                     }
                 },
             )
         }
+    }
+
+    private fun createTimelineColumnDeleteDialog(columnsState: TimelineColumnsState): HomeScreenUiState.TimelineColumnDeleteDialog? {
+        val column = columnsState.settings.orEmpty().firstOrNull { it.id == columnsState.deletingId } ?: return null
+        return HomeScreenUiState.TimelineColumnDeleteDialog(
+            message = "「${column.name}」のカラムを削除する",
+            listener = timelineColumnDeleteDialogListener,
+        )
     }
 
     private fun createTimelineColumnEditDialog(columnsState: TimelineColumnsState): HomeScreenUiState.TimelineColumnEditDialog? {
@@ -1244,6 +1269,7 @@ internal class HomeScreenViewModel(
      * @param followingGroups 読めていないグループは名前を出せないので、編集のダイアログに並べない
      * @param selectedId 小さい画面で選んでいるタブ。消えていれば先頭を選んでいるものとして扱う
      * @param editor 編集のダイアログを出していなければ null
+     * @param deletingId 削除を確かめるダイアログを出していなければ null
      */
     private data class TimelineColumnsState(
         val settings: List<TimelineColumnSetting>?,
@@ -1251,6 +1277,7 @@ internal class HomeScreenViewModel(
         val followingGroups: List<UserFollowingGroup>,
         val selectedId: String?,
         val editor: TimelineColumnEditorState?,
+        val deletingId: String?,
     ) {
         fun selectedColumn(): TimelineColumnSetting? {
             val columns = settings.orEmpty()

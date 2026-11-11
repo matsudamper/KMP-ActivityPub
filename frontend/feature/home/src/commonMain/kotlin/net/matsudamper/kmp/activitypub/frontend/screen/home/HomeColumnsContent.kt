@@ -169,6 +169,10 @@ internal fun HomeColumnsContent(
     if (timelineColumnEditDialog != null) {
         TimelineColumnEditDialog(uiState = timelineColumnEditDialog)
     }
+    val timelineColumnDeleteDialog = uiState.timelineColumnDeleteDialog
+    if (timelineColumnDeleteDialog != null) {
+        TimelineColumnDeleteDialog(uiState = timelineColumnDeleteDialog)
+    }
 }
 
 @Composable
