@@ -3,6 +3,10 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -36,11 +42,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -133,10 +144,17 @@ internal fun PostItem(
                 )
             }
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
+                val attachmentListState = rememberLazyListState()
+                val layoutDirection = LocalLayoutDirection.current
                 LazyRow(
+                    state = attachmentListState,
                     modifier = Modifier
                         .padding(top = 8.dp)
-                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding),
+                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
+                        .scrollHorizontallyByMouseDrag(
+                            state = attachmentListState,
+                            reverseDirection = layoutDirection == LayoutDirection.Rtl,
+                        ),
                     contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -395,6 +413,31 @@ private val PostHorizontalPadding = 16.dp
 private val PostBodySelectionVerticalMargin = 4.dp
 private val PostIconSize = 46.dp
 private val PostIconHeaderSpacing = 12.dp
+
+/**
+ * スクロールの部品はマウスのドラッグでは動かないので、画面に収まらない画像をマウスで送れるようにする。
+ * ドラッグで動かした押下は消費して、離したときに画像を開かないようにする
+ */
+private fun Modifier.scrollHorizontallyByMouseDrag(
+    state: LazyListState,
+    reverseDirection: Boolean,
+): Modifier = pointerInput(state, reverseDirection) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        if (down.type == PointerType.Mouse) {
+            val dragStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ ->
+                change.consume()
+            }
+            if (dragStart != null) {
+                horizontalDrag(dragStart.id) { change ->
+                    val dragAmount = change.positionChange().x
+                    state.dispatchRawDelta(if (reverseDirection) dragAmount else -dragAmount)
+                    change.consume()
+                }
+            }
+        }
+    }
+}
 
 // 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
 private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
