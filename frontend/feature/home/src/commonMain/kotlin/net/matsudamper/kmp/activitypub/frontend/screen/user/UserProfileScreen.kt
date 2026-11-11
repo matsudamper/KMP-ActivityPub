@@ -1,9 +1,11 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -32,12 +34,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
@@ -137,6 +141,12 @@ internal fun UserProfileContent(
                         columns = ProfileGridCells,
                         modifier = Modifier.fillMaxSize(),
                     ) {
+                        val headerUrl = content.headerUrl
+                        if (headerUrl != null) {
+                            fullLineItem {
+                                ProfileHeaderImage(headerUrl = headerUrl)
+                            }
+                        }
                         fullLineItem {
                             ProfileHeader(profile = content)
                         }
@@ -218,6 +228,22 @@ private fun EmptyMessage(text: String) {
     )
 }
 
+/**
+ * 読み込みの前後で下の要素が動かないよう、比率で高さを決めて先に場所を取る
+ */
+@Composable
+private fun ProfileHeaderImage(headerUrl: String) {
+    AsyncImage(
+        model = headerUrl,
+        contentDescription = "ヘッダー画像",
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(PROFILE_HEADER_ASPECT_RATIO)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+    )
+}
+
 @Composable
 private fun ProfileHeader(
     profile: UserProfileScreenUiState.Content.Loaded,
@@ -253,3 +279,5 @@ private fun ProfileHeader(
         }
     }
 }
+
+private const val PROFILE_HEADER_ASPECT_RATIO = 3f

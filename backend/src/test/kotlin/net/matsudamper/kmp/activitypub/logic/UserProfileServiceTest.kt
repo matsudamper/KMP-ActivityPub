@@ -9,6 +9,8 @@ import kotlin.test.assertNull
 import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
+import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
+import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
@@ -26,7 +28,7 @@ class UserProfileServiceTest {
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile {
             requests.add("profile")
-            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
         }
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
@@ -56,7 +58,7 @@ class UserProfileServiceTest {
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
             requests.add("profile:$actorUri")
-            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
         }
     }
     private val service = UserProfileService(
@@ -78,8 +80,23 @@ class UserProfileServiceTest {
         val profile = assertNotNull(service.profile("bob@remote.example", viewer))
         assertEquals(listOf("profile", "posts"), requests)
         assertEquals("自己紹介", profile.biography)
+        assertEquals("https://remote.example/header.png", profile.headerUrl)
         assertEquals("<p>最新の投稿</p>", profile.posts.single().contentHtml)
         assertEquals(false, profile.following)
+    }
+
+    @Test
+    fun followedUserHeaderComesFromStoredActor() = runBlocking {
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("bob", "Bob", null, null, "https://remote.example/stored-header.png", listOf())),
+            Instant.EPOCH,
+        )
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+
+        assertEquals(listOf(), requests)
+        assertEquals("https://remote.example/stored-header.png", profile.headerUrl)
     }
 
     @Test

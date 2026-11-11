@@ -53,6 +53,6 @@ internal class KotpubRemoteUserProfiles(
 
     private suspend fun profileFor(user: RemoteUser): RemoteUserProfile? {
         val actor = actors.findActor(user.actorUri) ?: return null
-        return RemoteUserProfile(user = user, biography = actor.profile.summary)
+        return RemoteUserProfile(user = user, headerUrl = actor.profile.headerUrl, biography = actor.profile.summary)
     }
 }

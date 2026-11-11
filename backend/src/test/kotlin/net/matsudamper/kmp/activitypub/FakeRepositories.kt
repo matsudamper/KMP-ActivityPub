@@ -235,6 +235,11 @@ internal class FakeRemoteActorRepository : RemoteActorRepository {
         rows += record
     }
 
+    override fun listActorUris(after: String?, limit: Int): List<String> =
+        (savedActors.keys + rows.map { it.actorUri }).toSortedSet().filter { after == null || it > after }.take(limit)
+
+    override fun count(): Long = (savedActors.keys + rows.map { it.actorUri }).toSet().size.toLong()
+
     override fun searchByName(
         keyword: String,
         after: RemoteActorSearchCursor?,

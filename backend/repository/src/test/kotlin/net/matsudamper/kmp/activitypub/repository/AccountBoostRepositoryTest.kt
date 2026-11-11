@@ -139,7 +139,7 @@ class AccountBoostRepositoryTest {
 
     private fun receiveBoost(repositories: Repositories, follower: AccountId): String {
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(follower, BOOSTER, NOW)
@@ -184,7 +184,7 @@ class AccountBoostRepositoryTest {
             }
             Repositories.create(DatabaseConfig(path)).use { repositories ->
                 repositories.remoteActorRepository.save(
-                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, listOf())),
+                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf())),
                     NOW,
                 )
                 val alice = checkNotNull(repositories.accountRepository.findByUsername("alice")).id

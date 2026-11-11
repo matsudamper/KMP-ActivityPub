@@ -93,6 +93,7 @@ internal class AccountFollowerStore(
             displayName = displayName,
             profileUrl = profileUrl,
             iconUrl = iconUrl,
+            headerUrl = headerUrl,
             emojis = emojis.toRecords(),
         )
 }

@@ -69,6 +69,7 @@ CREATE TABLE remote_actors (
     display_name TEXT,
     profile_url TEXT,
     icon_url TEXT,
+    header_url TEXT,
     updated_at TEXT NOT NULL
 );
 

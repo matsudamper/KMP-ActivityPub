@@ -3,3 +3,17 @@ query AdminAccess {
         isAdmin
     }
 }
+
+subscription RemoteProfileRefresh($start: Boolean!) {
+    remoteProfileRefresh(start: $start) {
+        progress {
+            running
+            total
+            refreshed
+            failed
+            skipped
+            startedAt
+            finishedAt
+        }
+    }
+}

@@ -45,6 +45,7 @@ class QueryResolverImpl : QueryResolver {
                 } else {
                     QlUserProfile(
                         user = profile.user.toQlSearchedUser(env, accountId).copy(following = profile.following),
+                        headerUrl = profile.headerUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = profile.user.updatedAt) },
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
                         posts = profile.posts.mapNotNull { post ->
