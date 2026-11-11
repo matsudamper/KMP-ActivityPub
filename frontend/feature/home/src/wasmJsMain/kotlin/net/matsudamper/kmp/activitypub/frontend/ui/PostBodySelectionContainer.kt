@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -40,7 +41,13 @@ internal actual fun PostBodySelectionContainer(content: @Composable () -> Unit) 
         snapshotFlow { LastPressedPostBody.owner === owner }
             .drop(1)
             .filter { pressed -> !pressed }
-            .collect { selectionGeneration++ }
+            .collect {
+                // capture で null にしてから押された本文が入れ直すまでの間を拾うことがあるので、1 フレーム待って確かめる
+                withFrameNanos { }
+                if (LastPressedPostBody.owner !== owner) {
+                    selectionGeneration++
+                }
+            }
     }
     Box(
         modifier = Modifier.pointerInput(owner) {
