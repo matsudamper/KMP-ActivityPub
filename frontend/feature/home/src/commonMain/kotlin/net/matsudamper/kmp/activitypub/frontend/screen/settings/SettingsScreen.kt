@@ -63,6 +63,14 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.Security)
                 }
 
+                override fun navigateToFollowingGroups() {
+                    navigator.navigate(Screen.FollowingGroups)
+                }
+
+                override fun navigateToAdmin() {
+                    navigator.navigate(Screen.Admin)
+                }
+
                 override fun loggedOut() {
                     navigator.replaceAll(Screen.Login)
                 }
@@ -115,8 +123,14 @@ internal fun SettingsContent(
         ) {
             ThemeSection(themeOptions = uiState.themeOptions)
             HorizontalDivider()
+            FollowingGroupsItem(listener = uiState.listener)
+            HorizontalDivider()
             SecurityItem(listener = uiState.listener)
             HorizontalDivider()
+            if (uiState.adminItemVisible) {
+                AdminItem(listener = uiState.listener)
+                HorizontalDivider()
+            }
             GitHubReleaseItem(listener = uiState.listener)
             HorizontalDivider()
             OutlinedButton(
@@ -170,6 +184,30 @@ private fun ThemeSection(
 }
 
 @Composable
+private fun FollowingGroupsItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickFollowingGroups)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "購読先",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "ホームとグループの名前",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun SecurityItem(
     listener: SettingsScreenUiState.Listener,
 ) {
@@ -191,6 +229,21 @@ private fun SecurityItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun AdminItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Text(
+        text = "サーバー管理",
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickAdmin)
+            .padding(vertical = 8.dp),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable

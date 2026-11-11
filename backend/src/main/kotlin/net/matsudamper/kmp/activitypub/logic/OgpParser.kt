@@ -10,16 +10,12 @@ import org.jsoup.nodes.TextNode
  * 投稿の本文からカードにするリンクを、リンク先の HTML から OGP を抜き出す。
  */
 internal object OgpParser {
-    private val plainTextUrl = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE)
-
-    private val TRAILING_PUNCTUATION = setOf('.', ',', '!', '?', ':', ';', '。', '、', '」', '）')
-
     private val FAVICON_RELS = setOf("icon", "apple-touch-icon")
 
     /**
      * 本文のリンクを出てくる順に、重複を除いて返す。http と https のものだけ。
      *
-     * このサーバーで書いた投稿は URL を `<a>` にせず文字のまま保存しているので、`<a>` の外にある URL も拾う。
+     * 以前このサーバーで書いた投稿は URL を `<a>` にせず文字のまま保存しているので、`<a>` の外にある URL も拾う。
      *
      * Mastodon などはメンションとハッシュタグもリンクにする。これらはプロフィールやタグの一覧を指すだけなので
      * カードにしない。受け取った投稿は保存前に Safelist.basic で `class` / `rel` が落ちるので、
@@ -33,7 +29,7 @@ internal object OgpParser {
                         add(node.attr("href").trim())
 
                     node is TextNode && (node.parent() as? Element)?.closest("a") == null ->
-                        plainTextUrl.findAll(node.wholeText).forEach { add(trimTrailingPunctuation(it.value)) }
+                        PlainTextUrls.find(node.wholeText).forEach { add(node.wholeText.substring(it)) }
                 }
             }
         }
@@ -93,26 +89,6 @@ internal object OgpParser {
             hasClass("hashtag") ||
             attr("rel").split(' ').any { it.equals("tag", ignoreCase = true) } ||
             text().trimStart().let { it.startsWith("@") || it.startsWith("#") }
-
-    /**
-     * 文末の句読点や閉じ括弧が URL に続けて書かれることが多いので、末尾からは外す。
-     * `https://en.wikipedia.org/wiki/Kotlin_(programming_language)` のように URL の中で開いた括弧を
-     * 閉じているものは URL の一部なので残す
-     */
-    private fun trimTrailingPunctuation(url: String): String {
-        var end = url.length
-        while (end > 0) {
-            val last = url[end - 1]
-            val isUnbalancedClose = when (last) {
-                ')' -> url.take(end).count { it == '(' } < url.take(end).count { it == ')' }
-                ']' -> url.take(end).count { it == '[' } < url.take(end).count { it == ']' }
-                else -> false
-            }
-            if (last !in TRAILING_PUNCTUATION && !isUnbalancedClose) break
-            end--
-        }
-        return url.take(end)
-    }
 
     data class Ogp(
         val title: String?,

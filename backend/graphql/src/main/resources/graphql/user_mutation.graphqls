@@ -7,6 +7,8 @@ type UserMutation {
     setFollowing(actorUri: String!, followed: Boolean!, groupId: FollowingGroupId): Boolean! @lazy
     "フォローを仕分けるグループを作る。同じ名前のグループが既にあればそれを返す"
     createFollowingGroup(name: String!): CreateFollowingGroupResult! @lazy
+    "フォローを仕分けるグループの名前を変える。groupId が null ならホームの名前を変える"
+    renameFollowingGroup(groupId: FollowingGroupId, name: String!): RenameFollowingGroupResult! @lazy
     login(query: UserLoginQuery!): UserLoginResult! @lazy
     passkeyLoginOptions: String! @lazy
     passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
@@ -62,6 +64,21 @@ enum CreateFollowingGroupFailure {
     NOT_LOGGED_IN
     "名前が空か長すぎる。上限は 30 文字"
     INVALID_NAME
+}
+
+type RenameFollowingGroupResult {
+    "変えられたら null"
+    failure: RenameFollowingGroupFailure
+}
+
+enum RenameFollowingGroupFailure {
+    NOT_LOGGED_IN
+    "名前が空か長すぎる。上限は 30 文字"
+    INVALID_NAME
+    "グループが無いか、ログイン中のアカウントのグループでない"
+    NOT_FOUND
+    "同じ名前のグループが既にある"
+    DUPLICATE_NAME
 }
 
 input UserLoginQuery {

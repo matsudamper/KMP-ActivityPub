@@ -21,6 +21,7 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
+import net.matsudamper.kmp.activitypub.frontend.graphql.AdminAccessQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
@@ -34,6 +35,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetPinnedMutation
@@ -48,6 +50,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetPinnedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
@@ -67,12 +70,17 @@ class UserApi(
 ) {
     private val followingChangesFlow = MutableSharedFlow<FollowingChange>()
     val followingChanges = followingChangesFlow.asSharedFlow()
-    private val followingGroupsStateFlow = MutableStateFlow(FollowingGroupsState(groups = listOf(), version = 0))
+    private val followingGroupsStateFlow = MutableStateFlow(FollowingGroupsState(homeName = DEFAULT_HOME_GROUP_NAME, groups = listOf(), version = 0))
 
     /**
      * 購読を仕分けるグループ。作った順。[loadFollowingGroups] で読み直す
      */
     val followingGroups: Flow<List<UserFollowingGroup>> = followingGroupsStateFlow.map { it.groups }.distinctUntilChanged()
+
+    /**
+     * グループに入れていない購読を入れるホームの名前。[loadFollowingGroups] で読み直す
+     */
+    val homeGroupName: Flow<String> = followingGroupsStateFlow.map { it.homeName }.distinctUntilChanged()
     private val deletedNoteIdsFlow = MutableSharedFlow<String>()
 
     /**
@@ -211,6 +219,8 @@ class UserApi(
 
     fun currentFollowingGroups(): List<UserFollowingGroup> = followingGroupsStateFlow.value.groups
 
+    fun currentHomeGroupName(): String = followingGroupsStateFlow.value.homeName
+
     /**
      * 読めなかったときは空にする。ここを通らずにアカウントが変わることもあり、前の内容が別のアカウントのものかもしれない。
      * 読んでいる間にアカウントが変わるか、グループを作ったら、読んだ内容は古いので捨てる
@@ -218,11 +228,13 @@ class UserApi(
     suspend fun loadFollowingGroups() {
         val startedVersion = followingGroupsStateFlow.value.version
         val client = clients.awaitLoadedClient()
-        val groups = client?.query(FollowingGroupsQuery())?.execute()?.data?.userInfo?.followingGroups
+        val userInfo = client?.query(FollowingGroupsQuery())?.execute()?.data?.userInfo
+        val groups = userInfo?.followingGroups
             .orEmpty()
             .map { UserFollowingGroup(id = it.id, name = it.name) }
+        val homeName = userInfo?.homeGroupName ?: DEFAULT_HOME_GROUP_NAME
         followingGroupsStateFlow.update { state ->
-            if (state.version == startedVersion) FollowingGroupsState(groups = groups, version = state.version + 1) else state
+            if (state.version == startedVersion) FollowingGroupsState(homeName = homeName, groups = groups, version = state.version + 1) else state
         }
     }
 
@@ -230,7 +242,7 @@ class UserApi(
      * ログインしているアカウントが変わったときに、前のアカウントのグループを出さないよう呼ぶ
      */
     fun forgetFollowingGroups() {
-        followingGroupsStateFlow.update { FollowingGroupsState(groups = listOf(), version = it.version + 1) }
+        followingGroupsStateFlow.update { FollowingGroupsState(homeName = DEFAULT_HOME_GROUP_NAME, groups = listOf(), version = it.version + 1) }
     }
 
     suspend fun createFollowingGroup(name: String): UserCreateFollowingGroupResult {
@@ -243,7 +255,7 @@ class UserApi(
             val created = UserFollowingGroup(id = group.id, name = group.name)
             followingGroupsStateFlow.update { state ->
                 val groups = if (state.groups.any { it.id == created.id }) state.groups else state.groups + created
-                FollowingGroupsState(groups = groups, version = state.version + 1)
+                state.copy(groups = groups, version = state.version + 1)
             }
             return UserCreateFollowingGroupResult.Created(created)
         }
@@ -254,6 +266,49 @@ class UserApi(
                 CreateFollowingGroupFailure.UNKNOWN__, null -> "グループを作れませんでした"
             },
         )
+    }
+
+    /**
+     * 変えたら読み直す。送っている間に始まった読み込みや、アカウントの切り替えで捨てられた内容を取り戻すため
+     *
+     * @param groupId null ならホームの名前を変える
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun renameFollowingGroup(groupId: String?, name: String): String? {
+        val startedVersion = followingGroupsStateFlow.value.version
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(RenameFollowingGroupMutation(groupId = Optional.present(groupId), name = name)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.renameFollowingGroup ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> {
+                val trimmedName = name.trim()
+                followingGroupsStateFlow.update { state ->
+                    when {
+                        state.version != startedVersion -> state
+
+                        groupId == null -> state.copy(homeName = trimmedName, version = state.version + 1)
+
+                        else -> state.copy(
+                            groups = state.groups.map { if (it.id == groupId) it.copy(name = trimmedName) else it },
+                            version = state.version + 1,
+                        )
+                    }
+                }
+                loadFollowingGroups()
+                null
+            }
+
+            RenameFollowingGroupFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            RenameFollowingGroupFailure.INVALID_NAME -> "名前は 1〜30 文字にしてください"
+
+            RenameFollowingGroupFailure.NOT_FOUND -> "購読先が見つかりませんでした"
+
+            RenameFollowingGroupFailure.DUPLICATE_NAME -> "同じ名前の購読先があります"
+
+            RenameFollowingGroupFailure.UNKNOWN__ -> "名前を変えられませんでした"
+        }
     }
 
     /**
@@ -387,6 +442,20 @@ class UserApi(
             UserLoginStateResult.NotLoggedIn
         } else {
             UserLoginStateResult.LoggedIn
+        }
+    }
+
+    suspend fun adminAccess(): UserAdminAccessResult {
+        val client = clients.client.value ?: return UserAdminAccessResult.Failure("接続先が未設定")
+        val response = client.query(AdminAccessQuery()).execute()
+        if (response.exception != null || response.hasErrors()) return UserAdminAccessResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserAdminAccessResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserAdminAccessResult.NotLoggedIn
+
+        return if (userInfo.isAdmin) {
+            UserAdminAccessResult.Granted
+        } else {
+            UserAdminAccessResult.Denied
         }
     }
 
@@ -654,6 +723,7 @@ class UserApi(
      * @param version 読み込みを始めてから変わったかを見分けるため、書き換えるたびに増やす
      */
     private data class FollowingGroupsState(
+        val homeName: String,
         val groups: List<UserFollowingGroup>,
         val version: Long,
     )
@@ -728,6 +798,11 @@ class UserApi(
     private companion object {
         const val HOME_TIMELINE_PAGE_SIZE = 40
         const val HOME_TIMELINE_MAX_CONSECUTIVE_FAILURES = 5
+
+        /**
+         * 読めるまでと読めなかったときに出す。サーバーの既定と合わせる
+         */
+        const val DEFAULT_HOME_GROUP_NAME = "ホーム"
 
         /**
          * 失敗の回数に応じて倍にしていく。5 回続けて失敗すると、諦めるまでに 5 + 10 + 20 + 40 秒待つ
