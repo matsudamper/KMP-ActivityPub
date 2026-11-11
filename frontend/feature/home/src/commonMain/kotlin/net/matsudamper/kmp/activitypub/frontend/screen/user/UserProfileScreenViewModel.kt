@@ -16,7 +16,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.Boost
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
@@ -24,6 +26,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
+import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
@@ -66,6 +69,11 @@ internal class UserProfileScreenViewModel(
      * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChangingPostIds = setOf<String>()
+
+    /**
+     * 続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var pinChangingNoteIds = setOf<String>()
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -132,6 +140,23 @@ internal class UserProfileScreenViewModel(
             }
         }
         viewModelScope.launch {
+            // 固定の変更はこの画面のものも他の画面のものもここで届く
+            api.pinChanges.collect { change ->
+                val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded
+                if (loaded != null && loaded.profile.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
+                    reloadWithoutLoading()
+                    return@collect
+                }
+                updateProfile { profile ->
+                    if (profile is ProfileState.Loaded) {
+                        profile.copy(profile = profile.profile.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned))
+                    } else {
+                        profile
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
             // フォローの変更はこの画面のものも他の画面のものもここで届く
             api.followingChanges.collect { change ->
                 updateProfile { profile ->
@@ -144,6 +169,14 @@ internal class UserProfileScreenViewModel(
             }
         }
         load()
+    }
+
+    /**
+     * 表示中の投稿を消さずに読み直す。失敗したら今の表示のまま
+     */
+    private suspend fun reloadWithoutLoading() {
+        val result = api.userProfile(username = username) as? UserProfileResult.Found ?: return
+        updateProfile { profile -> if (profile is ProfileState.Loaded) ProfileState.Loaded(profile = result) else profile }
     }
 
     private fun load() {
@@ -183,6 +216,19 @@ internal class UserProfileScreenViewModel(
     private fun applyLiked(likePostId: String, liked: Boolean) {
         updateProfile { profile ->
             if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withLiked(likePostId = likePostId, liked = liked)) else profile
+        }
+    }
+
+    private fun setPinned(pinnableNoteId: String, pinned: Boolean) {
+        if (pinnableNoteId in pinChangingNoteIds) return
+        pinChangingNoteIds = pinChangingNoteIds + pinnableNoteId
+        viewModelScope.launch {
+            try {
+                val error = api.setPinned(noteId = pinnableNoteId, pinned = pinned)
+                if (error != null) events.send { it.showMessage(error) }
+            } finally {
+                pinChangingNoteIds = pinChangingNoteIds - pinnableNoteId
+            }
         }
     }
 
@@ -289,6 +335,7 @@ internal class UserProfileScreenViewModel(
                 val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
                 val boostedNoteAuthor = post.boostedNoteAuthor
                 createPostItemUiState(
+                    pinned = post.pinned,
                     boostedBy = if (boostedNoteAuthor == null) {
                         null
                     } else {
@@ -320,7 +367,7 @@ internal class UserProfileScreenViewModel(
                             }
                         }
                     },
-                    menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                    menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },

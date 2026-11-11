@@ -329,3 +329,9 @@ CREATE UNIQUE INDEX remote_boosts_actor_note ON remote_boosts (remote_actor_id, 
 CREATE INDEX remote_boosts_actor_score ON remote_boosts (remote_actor_id, score_ms DESC, id DESC);
 
 CREATE INDEX remote_boosts_remote_note_id ON remote_boosts (remote_note_id);
+
+-- このサーバーのアカウントが自分のプロフィールの先頭に固定した投稿。固定できるのは自分の投稿だけなので、アカウントは投稿から決まる
+CREATE TABLE note_pins (
+    note_id INTEGER PRIMARY KEY REFERENCES notes (id) ON DELETE CASCADE,
+    pinned_at TEXT NOT NULL
+);

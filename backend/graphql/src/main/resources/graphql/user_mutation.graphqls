@@ -47,6 +47,11 @@ type UserMutation {
     postId は HomeTimelinePost.id か ProfilePostLike.postId。既に望んだ状態なら何も積まずに成功する
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
+    """
+    ログインしているアカウントの投稿を、プロフィールの先頭に固定するか外す。他のサーバーには配らない。
+    noteId は ProfilePost.pinnableNoteId。既に望んだ状態なら何もせずに成功する
+    """
+    setPinned(noteId: PublicNoteId!, pinned: Boolean!): SetPinnedResult! @lazy
 }
 
 type CreateFollowingGroupResult {
@@ -257,4 +262,16 @@ enum DeleteNoteFailure {
     FEDERATION_DISABLED
     "サーバー内部の失敗。投稿は残っているので、時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
+}
+
+type SetPinnedResult {
+    failure: SetPinnedFailure
+}
+
+enum SetPinnedFailure {
+    NOT_LOGGED_IN
+    "無いか、ログイン中のアカウントの投稿ではない"
+    NOT_FOUND
+    "固定している投稿が多すぎる。上限は 5 件"
+    TOO_MANY_PINS
 }
