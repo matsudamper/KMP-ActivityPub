@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -114,75 +114,77 @@ internal fun PostDetailContent(
         PostDetailLayout.FullScreen -> true
         PostDetailLayout.Dialog -> false
     }
-    Box(
-        modifier = Modifier
-            .then(if (fillsScreen) Modifier.fillMaxSize() else Modifier)
-            .background(MaterialTheme.colorScheme.background),
+    // Scaffold を使わないので、文字やアイコンの色が背景に合うよう Surface で色を渡す
+    Surface(
+        modifier = if (fillsScreen) Modifier.fillMaxSize() else Modifier,
+        color = MaterialTheme.colorScheme.background,
     ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = uiState.listener::onClickBack) {
-                    Icon(imageVector = AppIcons.ArrowBack, contentDescription = "戻る")
-                }
-                Text(text = "投稿", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-            Column(
-                modifier = Modifier
-                    .weight(1f, fill = fillsScreen)
-                    .windowInsetsPadding(contentWindowInsets),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = fillsScreen)
-                        .heightIn(min = ContentMinHeight),
+        Box {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    when (val content = uiState.content) {
-                        PostDetailScreenUiState.Content.Loading -> {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                        }
+                    IconButton(onClick = uiState.listener::onClickBack) {
+                        Icon(imageVector = AppIcons.ArrowBack, contentDescription = "戻る")
+                    }
+                    Text(text = "投稿", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = fillsScreen)
+                        .windowInsetsPadding(contentWindowInsets),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = fillsScreen)
+                            .heightIn(min = ContentMinHeight),
+                    ) {
+                        when (val content = uiState.content) {
+                            PostDetailScreenUiState.Content.Loading -> {
+                                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                            }
 
-                        is PostDetailScreenUiState.Content.Loaded -> {
-                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                                item {
-                                    PostItemScale(layout = layout) {
-                                        PostItem(uiState = content.post, imageLayout = PostImageLayout.Grid)
+                            is PostDetailScreenUiState.Content.Loaded -> {
+                                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                    item {
+                                        PostItemScale(layout = layout) {
+                                            PostItem(uiState = content.post, imageLayout = PostImageLayout.Grid)
+                                        }
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
-                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                }
+                            }
+
+                            PostDetailScreenUiState.Content.NotFound -> {
+                                Text(text = "投稿が見つかりません", modifier = Modifier.align(Alignment.Center))
+                            }
+
+                            PostDetailScreenUiState.Content.Error -> {
+                                Column(
+                                    modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Text(text = "投稿を読み込めませんでした")
+                                    Button(onClick = uiState.listener::onClickRetry) { Text("再読み込み") }
                                 }
                             }
                         }
-
-                        PostDetailScreenUiState.Content.NotFound -> {
-                            Text(text = "投稿が見つかりません", modifier = Modifier.align(Alignment.Center))
-                        }
-
-                        PostDetailScreenUiState.Content.Error -> {
-                            Column(
-                                modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Text(text = "投稿を読み込めませんでした")
-                                Button(onClick = uiState.listener::onClickRetry) { Text("再読み込み") }
-                            }
-                        }
+                    }
+                    val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
+                    if (loadedContent != null) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        DummyMentionBox(placeholder = loadedContent.mentionBoxPlaceholder)
                     }
                 }
-                val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
-                if (loadedContent != null) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    DummyMentionBox(placeholder = loadedContent.mentionBoxPlaceholder)
-                }
             }
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(contentWindowInsets),
+            )
         }
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(contentWindowInsets),
-        )
     }
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {

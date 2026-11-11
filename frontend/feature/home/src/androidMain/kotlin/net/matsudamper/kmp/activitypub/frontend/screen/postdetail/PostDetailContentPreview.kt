@@ -3,8 +3,11 @@ package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -85,16 +88,23 @@ private fun createLoadedUiState(
 
 @Preview(widthDp = 1200, heightDp = 900)
 @Composable
-private fun PostDetailDialogPreview() = PostDetailDialogPreviewContent(imageCount = 6)
+private fun PostDetailDialogPreview() = PostDetailDialogPreviewContent(imageCount = 6, colorScheme = lightColorScheme())
 
 @Preview(widthDp = 1200, heightDp = 900)
 @Composable
-private fun PostDetailDialogNoImagePreview() = PostDetailDialogPreviewContent(imageCount = 0)
+private fun PostDetailDialogNoImagePreview() = PostDetailDialogPreviewContent(imageCount = 0, colorScheme = lightColorScheme())
+
+@Preview(widthDp = 1200, heightDp = 900)
+@Composable
+private fun PostDetailDialogDarkPreview() = PostDetailDialogPreviewContent(imageCount = 0, colorScheme = darkColorScheme())
 
 @OptIn(ExperimentalCoilApi::class)
 @Composable
-private fun PostDetailDialogPreviewContent(imageCount: Int) {
-    MaterialTheme {
+private fun PostDetailDialogPreviewContent(
+    imageCount: Int,
+    colorScheme: ColorScheme,
+) {
+    MaterialTheme(colorScheme = colorScheme) {
         CompositionLocalProvider(
             LocalInspectionMode provides true,
             LocalAsyncImagePreviewHandler provides AsyncImagePreviewHandler { ColorImage(0xFF5C6BC0.toInt()) },
