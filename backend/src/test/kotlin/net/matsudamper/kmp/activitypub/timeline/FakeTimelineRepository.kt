@@ -56,8 +56,18 @@ internal class FakeTimelineRepository : TimelineRepository {
         )
     }
 
-    override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> =
-        actorPosts.filter { (it.boostedBy?.actorUri ?: it.actorUri) == actorUri }.take(limit)
+    override fun actorPosts(accountId: AccountId, actorUri: String, before: Long?, limit: Int): List<TimelinePost> =
+        actorPosts.filter { (it.boostedBy?.actorUri ?: it.actorUri) == actorUri }.filter { before == null || it.position.score < before }.take(limit)
+
+    override fun publishedRemotePosts(accountId: AccountId, objectUris: Set<String>): List<TimelinePost> =
+        actorPosts.filter { it.boostedBy == null && (it.noteRef as? TimelineNoteRef.Remote)?.objectUri in objectUris }
+
+    override fun publishedRemoteNoteMember(objectUri: String): String? = null
+
+    override fun savePublishedNote(note: RemoteNoteInput): String? {
+        received.add(note)
+        return "r1"
+    }
 
     override fun localPosition(publicId: String): TimelinePosition? = null
 

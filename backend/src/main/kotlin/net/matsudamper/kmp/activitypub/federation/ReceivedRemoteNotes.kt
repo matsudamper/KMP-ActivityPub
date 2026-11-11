@@ -42,6 +42,17 @@ internal class ReceivedRemoteNotes(
         repository.deleteRemote(actorId, objectId)
     }
 
+    /**
+     * 受け取っていない公開の投稿を、ホームタイムラインに配らずに保存する
+     *
+     * @return 保存した投稿のタイムラインの id。公開か未収載でないか、投稿者を記録できなければ null
+     */
+    suspend fun savePublished(note: ReceivedNote): String? {
+        val now = clock.instant()
+        if (storeActorIfMissing(note.attributedTo, now) != null) return null
+        return repository.savePublishedNote(note.toInput(localRecipients = setOf(), now = now))
+    }
+
     suspend fun saveBoost(boost: ReceivedRemoteBoost) {
         inOpenTelemetrySuspendSpan(tracer, "Inbox.Announce", false) { span -> saveBoostInSpan(boost, span) }
     }

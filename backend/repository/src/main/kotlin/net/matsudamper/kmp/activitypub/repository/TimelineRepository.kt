@@ -27,8 +27,28 @@ interface TimelineRepository {
 
     /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す
+     *
+     * @param before この位置の score より古いものだけ返す。null なら最新から
      */
-    fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost>
+    fun actorPosts(accountId: AccountId, actorUri: String, before: Long?, limit: Int): List<TimelinePost>
+
+    /**
+     * 保存済みの投稿のうち、id が [objectUris] のもの。[accountId] が読めるものに加えて、公開か未収載のものは読めなくても返す
+     */
+    fun publishedRemotePosts(accountId: AccountId, objectUris: Set<String>): List<TimelinePost>
+
+    /**
+     * @return 公開か未収載で保存済みなら、その投稿のタイムラインの id。無ければ null
+     */
+    fun publishedRemoteNoteMember(objectUri: String): String?
+
+    /**
+     * 受け取っていない公開の投稿を、宛先を付けずに保存する。ホームタイムラインには配らない。
+     * 後から Create が届いたら、ブーストで知った投稿と同じく宛先を登録できる
+     *
+     * @return 保存したか、保存済みの投稿のタイムラインの id。公開か未収載でないか、投稿者が記録に無ければ null
+     */
+    fun savePublishedNote(note: RemoteNoteInput): String?
     fun localPosition(publicId: String): TimelinePosition?
 }
 

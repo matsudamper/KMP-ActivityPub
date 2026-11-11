@@ -327,8 +327,8 @@ class UserMutationResolverImpl : UserMutationResolver {
         liked: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSetLikedResult>> {
-        val result = setLiked(postId = postId, liked = liked, env = env)
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+        // 保存していない投稿は相手のサーバーへ取りに行くので、待つ間スレッドを塞がない
+        return otelFuture { DataFetcherResult.Builder(setLiked(postId = postId, liked = liked, env = env)).build() }
     }
 
     override fun setPinned(
@@ -460,7 +460,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         }
     }
 
-    private fun setLiked(
+    private suspend fun setLiked(
         postId: String,
         liked: Boolean,
         env: DataFetchingEnvironment,

@@ -11,7 +11,7 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
 /**
- * ブーストを受け取って載せる投稿の公開範囲
+ * 誰でも読める投稿の公開範囲。ブーストやプロフィールで知っただけの投稿は、この範囲のものだけ保存する
  */
 internal val PUBLISHED_REMOTE_NOTE_VISIBILITIES = listOf("public", "unlisted")
 
@@ -34,6 +34,12 @@ internal fun DSLContext.remoteNoteReadableBy(accountId: AccountId): Condition {
     )
     return explicit.or(follows.and(REMOTE_NOTES.VISIBILITY.`in`("public", "unlisted").or(REMOTE_NOTES.VISIBILITY.eq("followers").and(followerRecipient))))
 }
+
+/**
+ * REMOTE_NOTES の行を [accountId] が読めるか、誰でも読める公開範囲の投稿か
+ */
+internal fun DSLContext.remoteNoteReadableOrPublishedFor(accountId: AccountId): Condition =
+    remoteNoteReadableBy(accountId).or(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
 
 /**
  * REMOTE_BOOSTS の行を [accountId] のタイムラインに載せてよいか。ブーストした相手をフォローしていれば、投稿者のフォローは問わない

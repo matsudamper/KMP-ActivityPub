@@ -157,7 +157,31 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     override fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition> = positions(accountId, after, limit, limit)
 
-    override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> {
+    override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> =
+        hydrate(accountId, members) { dsl -> dsl.remoteNoteReadableBy(accountId) }
+
+    override fun publishedRemotePosts(accountId: AccountId, objectUris: Set<String>): List<TimelinePost> {
+        if (objectUris.isEmpty()) return listOf()
+        val members = jooq.withConnection { dsl ->
+            dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.`in`(objectUris)).fetch { "r${it.value1()}" }
+        }
+        return hydrate(accountId, members) { dsl -> dsl.remoteNoteReadableOrPublishedFor(accountId) }
+    }
+
+    override fun publishedRemoteNoteMember(objectUri: String): String? = jooq.withConnection { dsl ->
+        existingPublishedNoteId(dsl, objectUri)?.let { "r$it" }
+    }
+
+    override fun savePublishedNote(note: RemoteNoteInput): String? = jooq.transaction { dsl ->
+        if (note.visibility !in PUBLISHED_REMOTE_NOTE_VISIBILITIES) return@transaction null
+        val id = existingPublishedNoteId(dsl, note.objectUri) ?: insertBoostedNote(dsl, note) ?: return@transaction null
+        "r$id"
+    }
+
+    /**
+     * @param remoteNoteReadable 他のサーバーの投稿のうち、返してよいものの条件
+     */
+    private fun hydrate(accountId: AccountId, members: List<String>, remoteNoteReadable: (DSLContext) -> Condition): List<TimelinePost> {
         if (members.isEmpty()) return listOf()
         val localIds = members.filter { it.startsWith("l") }.map { it.drop(1).toLong() }
         val remoteIds = members.filter { it.startsWith("r") }.map { it.drop(1).toLong() }
@@ -179,7 +203,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, Long::class.java), DSL.inline(null, Long::class.java),
                 REMOTE_NOTES.OBJECT_URI,
             ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
-                .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(dsl.remoteNoteReadableBy(accountId))
+                .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(remoteNoteReadable(dsl))
             val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
             val emojisByNote = dsl.remoteNoteEmojisById(remoteIds)
             val likedRemoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
@@ -222,16 +246,18 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> {
+    override fun actorPosts(accountId: AccountId, actorUri: String, before: Long?, limit: Int): List<TimelinePost> {
         val members = jooq.withConnection { dsl ->
             val notes = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(dsl.remoteNoteReadableBy(accountId))
+                .and(if (before == null) DSL.noCondition() else REMOTE_NOTES.SCORE_MS.lt(before))
                 .orderBy(REMOTE_NOTES.SCORE_MS.desc(), REMOTE_NOTES.ID.desc()).limit(limit)
                 .fetch { it.toRemotePosition() }
             val boosts = dsl.select(REMOTE_BOOSTS.ID, REMOTE_BOOSTS.SCORE_MS).from(REMOTE_BOOSTS)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
                 .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
+                .and(if (before == null) DSL.noCondition() else REMOTE_BOOSTS.SCORE_MS.lt(before))
                 .orderBy(REMOTE_BOOSTS.SCORE_MS.desc(), boostMember.desc()).limit(limit)
                 .fetch { TimelinePosition(checkNotNull(it.value2()), "b${it.value1()}") }
             (notes + boosts).sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })

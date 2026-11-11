@@ -14,6 +14,14 @@ type UserProfile {
     "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"
     links: [ProfileLink!]!
     posts: [ProfilePost!]!
+    "posts の続きを Query.userProfilePosts で読むときに after に渡す。続きが無ければ null"
+    postsNextCursor: String
+}
+
+type ProfilePostPage {
+    posts: [ProfilePost!]!
+    "続きが無ければ null"
+    nextCursor: String
 }
 
 type ProfileLink {
@@ -67,7 +75,7 @@ type PostAuthor {
 }
 
 type ProfilePostLike {
-    "UserMutation.setLiked の postId に渡す id"
+    "UserMutation.setLiked の postId に渡す id。保存していない他のサーバーの投稿は、いいねしたときに保存する"
     postId: ID!
     "ログイン中のアカウントがいいねしているか"
     likedByMe: Boolean!

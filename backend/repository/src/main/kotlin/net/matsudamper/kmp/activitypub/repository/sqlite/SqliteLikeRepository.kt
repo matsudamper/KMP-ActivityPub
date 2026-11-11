@@ -44,7 +44,7 @@ internal class SqliteLikeRepository(
                 .from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.eq(remoteNoteId))
-                .and(dsl.remoteNoteReadableBy(accountId))
+                .and(dsl.remoteNoteReadableOrPublishedFor(accountId))
                 .fetchOne { LikeTarget.Remote(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
         }
     }

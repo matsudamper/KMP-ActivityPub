@@ -93,10 +93,10 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         val older = assertNotNull(repository.receive(note("older", "public", setOf())))
         val newer = assertNotNull(repository.receive(note("newer", "public", setOf())))
-        assertEquals(listOf(newer.member, older.member), repository.actorPosts(alice, ACTOR, 10).map { it.position.member })
-        assertEquals(listOf(newer.member), repository.actorPosts(alice, ACTOR, 1).map { it.position.member })
-        assertTrue(repository.actorPosts(alice, "https://other.example/actor", 10).isEmpty())
-        assertTrue(repository.actorPosts(accounts.getValue("bob"), ACTOR, 10).isEmpty())
+        assertEquals(listOf(newer.member, older.member), repository.actorPosts(alice, ACTOR, null, 10).map { it.position.member })
+        assertEquals(listOf(newer.member), repository.actorPosts(alice, ACTOR, null, 1).map { it.position.member })
+        assertTrue(repository.actorPosts(alice, "https://other.example/actor", null, 10).isEmpty())
+        assertTrue(repository.actorPosts(accounts.getValue("bob"), ACTOR, null, 10).isEmpty())
     }
 
     @Test
@@ -113,7 +113,7 @@ class TimelineRepositoryTest {
         val hydrated = repository.hydrate(alice, listOf(withImages.member, withoutImages.member)).associateBy { it.position.member }
         assertEquals(images, hydrated.getValue(withImages.member).images)
         assertTrue(hydrated.getValue(withoutImages.member).images.isEmpty())
-        assertEquals(images, repository.actorPosts(alice, ACTOR, 10).single { it.position == withImages }.images)
+        assertEquals(images, repository.actorPosts(alice, ACTOR, null, 10).single { it.position == withImages }.images)
     }
 
     @Test
@@ -386,12 +386,12 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         val boost = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
 
-        val post = repository.actorPosts(alice, BOOSTER, 10).single()
+        val post = repository.actorPosts(alice, BOOSTER, null, 10).single()
         assertEquals(boost, post.position)
         assertEquals(ACTOR, post.actorUri)
         assertEquals(BOOSTER, post.boostedBy?.actorUri)
-        assertTrue(repository.actorPosts(alice, ACTOR, 10).isEmpty())
-        assertTrue(repository.actorPosts(accounts.getValue("bob"), BOOSTER, 10).isEmpty())
+        assertTrue(repository.actorPosts(alice, ACTOR, null, 10).isEmpty())
+        assertTrue(repository.actorPosts(accounts.getValue("bob"), BOOSTER, null, 10).isEmpty())
     }
 
     @Test

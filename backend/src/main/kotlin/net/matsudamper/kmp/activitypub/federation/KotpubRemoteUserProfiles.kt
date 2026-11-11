@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import net.matsudamper.kmp.activitypub.logic.ProfilePost
+import net.matsudamper.kmp.activitypub.logic.RemoteProfilePostPage
 import net.matsudamper.kmp.activitypub.logic.RemoteUser
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
@@ -27,8 +28,10 @@ internal class KotpubRemoteUserProfiles(
         return profileFor(user)
     }
 
-    override suspend fun recentPosts(actorUri: String): List<ProfilePost> =
-        outbox.recent(actorUri, limit = 20).map { it.toProfilePost(pinned = false) }
+    override suspend fun recentPostsPage(actorUri: String, pageId: String?): RemoteProfilePostPage {
+        val page = outbox.recentPage(actorUri, pageId)
+        return RemoteProfilePostPage(posts = page.notes.map { it.toProfilePost(pinned = false) }, nextPageId = page.nextPageId)
+    }
 
     override suspend fun featuredPosts(actorUri: String): List<ProfilePost> =
         outbox.featured(actorUri, limit = 20).map { it.toProfilePost(pinned = true) }
@@ -48,7 +51,7 @@ internal class KotpubRemoteUserProfiles(
         emojis = emojis.toRecords(),
         favouriteCount = null,
         stamps = listOf(),
-        // 保存していない投稿なので、いいねする投稿を指せない
+        // 保存していない投稿のいいねは、見ているアカウントが分かるところで付ける
         like = null,
         noteRef = TimelineNoteRef.Remote(id),
         boostCount = null,

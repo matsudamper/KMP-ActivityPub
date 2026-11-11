@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteNoteImporter
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
@@ -135,11 +136,17 @@ internal class Federation(
             },
         )
 
+    private val remoteNotes = HttpRemoteNotes(httpClient)
+
     val likeService: LikeService =
         LikeService(
             directory = directory,
             accountService = accountService,
             likes = likeRepository,
+            remoteNotes = RemoteNoteImporter { objectUri ->
+                timelineRepository.publishedRemoteNoteMember(objectUri)
+                    ?: remoteNotes.find(objectUri)?.let { note -> receivedNotes.savePublished(note) }
+            },
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
@@ -242,7 +249,7 @@ internal class Federation(
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
-    val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, null)
+    val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory = directory, notes = notes, boosts = NoOutboxBoosts, webPages = null)
 
     val featuredEndpoint: FeaturedEndpoint =
         FeaturedEndpoint(directory = directory, featuredNotes = RepositoryFeaturedNoteStore(pins = notePinRepository, notes = notes), webPages = null)
@@ -285,7 +292,7 @@ internal class Federation(
                     AnnounceHandler(
                         domain = domain,
                         remoteActors = remoteActors,
-                        remoteNotes = HttpRemoteNotes(httpClient),
+                        remoteNotes = remoteNotes,
                         boosts = boosts,
                         earlyUndone = favourites,
                     ),

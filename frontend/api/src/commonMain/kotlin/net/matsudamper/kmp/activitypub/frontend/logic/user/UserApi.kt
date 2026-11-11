@@ -49,8 +49,10 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfilePostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ProfilePostFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
@@ -510,41 +512,23 @@ class UserApi(
             headerUrl = profile.headerUrl,
             biography = profile.biography,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
-            posts = profile.posts.map {
-                UserProfileResult.Post(
-                    linkPreviewId = it.linkPreviewId,
-                    postId = it.postId,
-                    deletableNoteId = it.deletableNoteId,
-                    pinned = it.pinned,
-                    pinnableNoteId = it.pinnableNoteId,
-                    likePostId = it.like?.postId,
-                    body = UserPostBody(
-                        content = it.content,
-                        publishedAt = it.publishedAt,
-                        summary = it.summary,
-                        sensitive = it.sensitive,
-                        linkUrls = it.linkUrls,
-                        images = it.images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
-                        favouriteCount = it.favouriteCount,
-                        boostCount = it.boostCount,
-                        stamps = it.stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
-                        emojis = it.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
-                        shareUrl = it.url,
-                        likedByMe = it.like?.likedByMe,
-                    ),
-                    boostedNoteAuthor = it.boostedNoteAuthor?.let { author ->
-                        UserProfileResult.Author(
-                            username = author.username,
-                            host = author.host,
-                            displayName = author.displayName,
-                            displayNameEmojis = author.displayNameEmojis.map { emoji ->
-                                UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
-                            },
-                            iconUrl = author.iconUrl,
-                        )
-                    },
-                )
-            },
+            posts = profile.posts.map { it.profilePostFields.toUserProfilePost() },
+            postsNextCursor = profile.postsNextCursor,
+        )
+    }
+
+    /**
+     * 他のサーバーのユーザーのプロフィールで、[UserProfileResult.Found.postsNextCursor] から先の投稿
+     */
+    suspend fun userProfilePosts(actorUri: String, after: String): UserProfilePostsResult {
+        val client = clients.awaitLoadedClient() ?: return UserProfilePostsResult.Failure("接続先が未設定")
+        val response = client.query(UserProfilePostsQuery(actorUri = actorUri, after = after)).execute()
+        if (response.exception != null || response.hasErrors()) return UserProfilePostsResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserProfilePostsResult.Failure(response.failureMessage())
+        val page = data.userProfilePosts ?: return UserProfilePostsResult.Failure("ログインしていません")
+        return UserProfilePostsResult.Success(
+            posts = page.posts.map { it.profilePostFields.toUserProfilePost() },
+            nextCursor = page.nextCursor,
         )
     }
 
@@ -845,6 +829,41 @@ class UserApi(
 
     private fun ActorListFields.append(page: ActorListFields): ActorListFields =
         copy(users = users + page.users, nextCursor = page.nextCursor)
+
+    private fun ProfilePostFields.toUserProfilePost(): UserProfileResult.Post =
+        UserProfileResult.Post(
+            linkPreviewId = linkPreviewId,
+            postId = postId,
+            deletableNoteId = deletableNoteId,
+            pinned = pinned,
+            pinnableNoteId = pinnableNoteId,
+            likePostId = like?.postId,
+            body = UserPostBody(
+                content = content,
+                publishedAt = publishedAt,
+                summary = summary,
+                sensitive = sensitive,
+                linkUrls = linkUrls,
+                images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
+                favouriteCount = favouriteCount,
+                boostCount = boostCount,
+                stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
+                shareUrl = url,
+                likedByMe = like?.likedByMe,
+            ),
+            boostedNoteAuthor = boostedNoteAuthor?.let { author ->
+                UserProfileResult.Author(
+                    username = author.username,
+                    host = author.host,
+                    displayName = author.displayName,
+                    displayNameEmojis = author.displayNameEmojis.map { emoji ->
+                        UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
+                    },
+                    iconUrl = author.iconUrl,
+                )
+            },
+        )
 
     private companion object {
         const val HOME_TIMELINE_PAGE_SIZE = 40

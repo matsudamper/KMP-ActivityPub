@@ -76,6 +76,7 @@ private fun UserProfileContentPreview() {
                             ),
                         ),
                         postsEmptyMessage = null,
+                        postsFooter = UserProfileScreenUiState.PostsFooter.Loading,
                         media = listOf(),
                         mediaEmptyMessage = "表示できるメディアはありません",
                     ),
@@ -136,6 +137,7 @@ private fun UserProfileContentMediaPreview() {
                     selectedTab = ProfileContentTab.Media,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
+                    postsFooter = UserProfileScreenUiState.PostsFooter.None,
                     media = List(7) { index ->
                         ProfileMediaUiState(
                             url = "https://example.social/media/$index.png",
@@ -150,6 +152,22 @@ private fun UserProfileContentMediaPreview() {
                 addFollowingGroupDialog = null,
                 openOriginalMenuItemVisible = true,
                 listener = AndroidPreviewUserProfileListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun UserProfileContentLoadMoreErrorPreview() {
+    MaterialTheme {
+        UserProfileContent(
+            uiState = LocalUserUiState.copy(
+                content = LocalUserContent.copy(
+                    postsEmptyMessage = null,
+                    postsFooter = UserProfileScreenUiState.PostsFooter.Error("相手のサーバーから投稿を読めなかった"),
+                ),
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -173,24 +191,27 @@ private fun UserProfileContentNotFoundPreview() {
     }
 }
 
-private val LocalUserUiState = UserProfileScreenUiState(
-    content = UserProfileScreenUiState.Content.Loaded(
-        acct = "@bob@local.example",
-        iconUrl = null,
-        headerUrl = null,
-        displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
-        biography = "ローカルのユーザーです。",
-        links = listOf(
-            ProfileLinkUiState(name = "GitHub", url = "https://github.com/bob", listener = AndroidPreviewProfileLinkListener),
-            ProfileLinkUiState(name = "Blog", url = "https://blog.example/bob/very/long/path/to/the/article", listener = AndroidPreviewProfileLinkListener),
-        ),
-        followMenu = null,
-        selectedTab = ProfileContentTab.Posts,
-        posts = listOf(),
-        postsEmptyMessage = "表示できる投稿はありません",
-        media = listOf(),
-        mediaEmptyMessage = "表示できるメディアはありません",
+private val LocalUserContent = UserProfileScreenUiState.Content.Loaded(
+    acct = "@bob@local.example",
+    iconUrl = null,
+    headerUrl = null,
+    displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+    biography = "ローカルのユーザーです。",
+    links = listOf(
+        ProfileLinkUiState(name = "GitHub", url = "https://github.com/bob", listener = AndroidPreviewProfileLinkListener),
+        ProfileLinkUiState(name = "Blog", url = "https://blog.example/bob/very/long/path/to/the/article", listener = AndroidPreviewProfileLinkListener),
     ),
+    followMenu = null,
+    selectedTab = ProfileContentTab.Posts,
+    posts = listOf(),
+    postsEmptyMessage = "表示できる投稿はありません",
+    postsFooter = UserProfileScreenUiState.PostsFooter.None,
+    media = listOf(),
+    mediaEmptyMessage = "表示できるメディアはありません",
+)
+
+private val LocalUserUiState = UserProfileScreenUiState(
+    content = LocalUserContent,
     deleteNoteDialog = null,
     addFollowingGroupDialog = null,
     openOriginalMenuItemVisible = true,
@@ -205,6 +226,10 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickTab(tab: ProfileContentTab) = Unit
 
     override fun onClickOpenOriginal() = Unit
+
+    override fun onScrolledToEnd() = Unit
+
+    override fun onClickRetryLoadMore() = Unit
 }
 
 private object AndroidPreviewMediaListener : ProfileMediaUiState.Listener {

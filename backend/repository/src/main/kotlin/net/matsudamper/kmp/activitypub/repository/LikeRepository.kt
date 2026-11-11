@@ -11,6 +11,8 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
  */
 interface LikeRepository {
     /**
+     * 他のサーバーの公開か未収載の投稿は、[accountId] が読めなくてもいいねできる
+     *
      * @return [accountId] が読めない投稿や、無い投稿なら null
      */
     fun target(accountId: AccountId, member: String): LikeTarget?

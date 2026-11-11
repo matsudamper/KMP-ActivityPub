@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -35,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +46,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -149,8 +153,22 @@ internal fun UserProfileContent(
                 }
 
                 is UserProfileScreenUiState.Content.Loaded -> {
+                    val gridState = rememberLazyGridState()
+                    LaunchedEffect(gridState, uiState.listener) {
+                        // 件数も比べ、続きを読んでもまだ末尾が見えているときにもう一度知らせる
+                        snapshotFlow {
+                            val layoutInfo = gridState.layoutInfo
+                            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                            val nearEnd = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - LOAD_MORE_THRESHOLD
+                            nearEnd to layoutInfo.totalItemsCount
+                        }
+                            .distinctUntilChanged()
+                            .filter { (nearEnd, _) -> nearEnd }
+                            .collect { uiState.listener.onScrolledToEnd() }
+                    }
                     LazyVerticalGrid(
                         columns = ProfileGridCells,
+                        state = gridState,
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         val headerUrl = content.headerUrl
@@ -195,6 +213,7 @@ internal fun UserProfileContent(
                                 }
                             }
                         }
+                        postsFooter(footer = content.postsFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
                     }
                 }
 
@@ -249,6 +268,32 @@ private fun TopBarMenu(onClickOpenOriginal: () -> Unit) {
 
 private fun LazyGridScope.fullLineItem(content: @Composable () -> Unit) {
     item(span = { GridItemSpan(maxLineSpan) }) { content() }
+}
+
+private fun LazyGridScope.postsFooter(
+    footer: UserProfileScreenUiState.PostsFooter,
+    onClickRetry: () -> Unit,
+) {
+    when (footer) {
+        UserProfileScreenUiState.PostsFooter.None -> Unit
+
+        UserProfileScreenUiState.PostsFooter.Loading -> fullLineItem {
+            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+
+        is UserProfileScreenUiState.PostsFooter.Error -> fullLineItem {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(text = footer.message, color = MaterialTheme.colorScheme.error)
+                Button(onClick = onClickRetry) { Text("再読み込み") }
+            }
+        }
+    }
 }
 
 @Composable
@@ -315,3 +360,5 @@ private fun ProfileHeader(
 }
 
 private const val PROFILE_HEADER_ASPECT_RATIO = 3f
+
+private const val LOAD_MORE_THRESHOLD = 5

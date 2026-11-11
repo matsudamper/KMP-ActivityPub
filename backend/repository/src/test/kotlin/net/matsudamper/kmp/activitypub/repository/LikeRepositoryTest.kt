@@ -164,6 +164,23 @@ class LikeRepositoryTest {
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
     }
 
+    @Test
+    fun publicNoteSavedFromProfileCanBeLikedWithoutFollowingAndStaysOffHomeTimeline() = withRepository { repositories, alice, _ ->
+        val timeline = repositories.timelineRepository
+        assertNull(timeline.savePublishedNote(note("direct", "direct", setOf())))
+        val member = assertNotNull(timeline.savePublishedNote(note("profile", "public", setOf())))
+        assertEquals(member, timeline.savePublishedNote(note("profile", "public", setOf())))
+        assertEquals(member, timeline.publishedRemoteNoteMember("$ACTOR/notes/profile"))
+
+        val likes = repositories.likeRepository
+        assertEquals(LikeTarget.Remote(objectUri = "$ACTOR/notes/profile", inbox = "$ACTOR/inbox"), likes.target(alice, member))
+        assertTrue(likes.likeAndEnqueue(like(alice, member, "like-1")))
+
+        assertEquals(listOf(true), timeline.publishedRemotePosts(alice, setOf("$ACTOR/notes/profile")).map { it.likedByMe })
+        assertTrue(timeline.hydrate(alice, listOf(member)).isEmpty())
+        assertTrue(timeline.page(alice, null, 10).isEmpty())
+    }
+
     private fun postLocalNote(repositories: Repositories, username: String, publicId: String): String {
         repositories.deliveryQueueRepository.enqueueNote(
             NotePost(
