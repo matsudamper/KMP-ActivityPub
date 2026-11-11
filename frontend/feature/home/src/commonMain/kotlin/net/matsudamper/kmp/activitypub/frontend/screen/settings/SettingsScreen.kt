@@ -63,6 +63,10 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.Security)
                 }
 
+                override fun navigateToFollowingGroups() {
+                    navigator.navigate(Screen.FollowingGroups)
+                }
+
                 override fun navigateToAdmin() {
                     navigator.navigate(Screen.Admin)
                 }
@@ -119,6 +123,8 @@ internal fun SettingsContent(
         ) {
             ThemeSection(themeOptions = uiState.themeOptions)
             HorizontalDivider()
+            FollowingGroupsItem(listener = uiState.listener)
+            HorizontalDivider()
             SecurityItem(listener = uiState.listener)
             HorizontalDivider()
             if (uiState.adminItemVisible) {
@@ -174,6 +180,30 @@ private fun ThemeSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FollowingGroupsItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickFollowingGroups)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "購読先",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "ホームとグループの名前",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

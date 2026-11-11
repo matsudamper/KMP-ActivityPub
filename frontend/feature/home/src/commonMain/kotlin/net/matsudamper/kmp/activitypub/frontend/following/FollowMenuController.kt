@@ -30,11 +30,12 @@ internal class FollowMenuController(
         ),
     )
 
-    val snapshots: Flow<Snapshot> = combine(stateFlow, userApi.followingGroups) { state, groups ->
-        Snapshot(state = state, groups = groups)
+    val snapshots: Flow<Snapshot> = combine(stateFlow, userApi.homeGroupName, userApi.followingGroups) { state, homeName, groups ->
+        Snapshot(state = state, homeName = homeName, groups = groups)
     }
 
-    val initialSnapshot: Snapshot get() = Snapshot(state = stateFlow.value, groups = userApi.currentFollowingGroups())
+    val initialSnapshot: Snapshot
+        get() = Snapshot(state = stateFlow.value, homeName = userApi.currentHomeGroupName(), groups = userApi.currentFollowingGroups())
 
     private val addGroupDialogListener = object : AddFollowingGroupDialogUiState.Listener {
         override fun onClickAdd(name: String) {
@@ -70,14 +71,14 @@ internal class FollowMenuController(
         return FollowMenuUiState(
             button = when {
                 !following -> FollowMenuUiState.Button.Follow(text = "購読")
-                groupId == null -> FollowMenuUiState.Button.Following(destinationName = HOME_NAME)
+                groupId == null -> FollowMenuUiState.Button.Following(destinationName = snapshot.homeName)
                 else -> FollowMenuUiState.Button.Following(destinationName = snapshot.groups.firstOrNull { it.id == groupId }?.name ?: "購読中")
             },
             items = buildList {
                 if (following) {
                     add(FollowMenuUiState.Item.Unfollow(text = "購読解除", listener = itemListener { change(actorUri = actorUri, followed = false, groupId = null) }))
                 }
-                add(destination(text = HOME_NAME, selected = following && groupId == null) { change(actorUri = actorUri, followed = true, groupId = null) })
+                add(destination(text = snapshot.homeName, selected = following && groupId == null) { change(actorUri = actorUri, followed = true, groupId = null) })
                 snapshot.groups.forEach { group ->
                     add(destination(text = group.name, selected = following && groupId == group.id) { change(actorUri = actorUri, followed = true, groupId = group.id) })
                 }
@@ -165,6 +166,7 @@ internal class FollowMenuController(
 
     data class Snapshot(
         val state: State,
+        val homeName: String,
         val groups: List<UserFollowingGroup>,
     )
 
@@ -187,8 +189,4 @@ internal class FollowMenuController(
         val following: Boolean,
         val groupId: String?,
     )
-
-    private companion object {
-        const val HOME_NAME = "ホーム"
-    }
 }

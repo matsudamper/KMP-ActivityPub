@@ -38,6 +38,11 @@ class UserInfoResolverImpl : UserInfoResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(groups).build())
     }
 
+    override fun homeGroupName(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<String>> {
+        val name = GraphQlEngine.diContainer(env).followingGroupService.homeName(userInfo.id)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(name).build())
+    }
+
     override fun linkPreviews(userInfo: QlUserInfo, postId: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {

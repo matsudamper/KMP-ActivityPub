@@ -11,6 +11,15 @@ query FollowingGroups {
             id
             name
         }
+        homeGroupName
+    }
+}
+
+mutation RenameFollowingGroup($groupId: FollowingGroupId, $name: String!) {
+    user {
+        renameFollowingGroup(groupId: $groupId, name: $name) {
+            failure
+        }
     }
 }
 
