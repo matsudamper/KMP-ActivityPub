@@ -267,9 +267,14 @@ class AccountBoostRepositoryTest {
         val timeline = repositories.timelineRepository
         val member = assertNotNull(timeline.storeFetchedNotes(alice, listOf(note("public")))["$ACTOR/notes/public"]).reactionMember
 
-        timeline.storeFetchedNotes(alice, listOf(note("public").copy(visibility = "unlisted")))
+        repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1"))
+
+        val refetched = timeline.storeFetchedNotes(alice, listOf(note("public").copy(visibility = "unlisted")))
 
         assertNull(repositories.accountBoostRepository.target(alice, member))
+        // 付けたブーストは公開範囲が変わっても外せる
+        assertEquals(true, refetched["$ACTOR/notes/public"]?.boostedByMe)
+        assertTrue(repositories.accountBoostRepository.unboostAndEnqueueUndo(alice, member, NOW))
     }
 
     @Test

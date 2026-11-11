@@ -264,8 +264,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 record.value1() in if (actor == null) likedLocalIds else likedRemoteIds,
                 when {
                     actor == null -> record.value1() in boostedLocalIds
-                    record.value15() == BOOSTABLE_REMOTE_NOTE_VISIBILITY -> record.value1() in boostedRemoteIds
-                    else -> null
+                    else -> remoteBoostedByMe(boosted = record.value1() in boostedRemoteIds, visibility = record.value15())
                 },
                 member,
                 if (actor == null) TimelineNoteRef.Local(PublicNoteId(noteKey)) else TimelineNoteRef.Remote(noteKey),
@@ -580,7 +579,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 favouriteCount = null,
                 stamps = listOf(),
                 likedByMe = record.value3() in likedNoteIds,
-                boostedByMe = if (record.value19() == BOOSTABLE_REMOTE_NOTE_VISIBILITY) record.value3() in boostedNoteIds else null,
+                boostedByMe = remoteBoostedByMe(boosted = record.value3() in boostedNoteIds, visibility = record.value19()),
                 reactionMember = "r${record.value3()}",
                 noteRef = TimelineNoteRef.Remote(checkNotNull(record.value18())),
                 boostCount = null,
@@ -624,6 +623,16 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     )
 
     private fun Record.toRemotePosition(): TimelinePosition = TimelinePosition(checkNotNull(get(REMOTE_NOTES.SCORE_MS)), "r${get(REMOTE_NOTES.ID)}")
+}
+
+/**
+ * 他のサーバーの投稿の boostedByMe。付けたブーストは公開範囲が後から変わっても外せるよう true にする。
+ * 付けていない投稿は、今ブーストできる公開範囲なら false、できなければ null
+ */
+private fun remoteBoostedByMe(boosted: Boolean, visibility: String?): Boolean? = when {
+    boosted -> true
+    visibility == BOOSTABLE_REMOTE_NOTE_VISIBILITY -> false
+    else -> null
 }
 
 /**
