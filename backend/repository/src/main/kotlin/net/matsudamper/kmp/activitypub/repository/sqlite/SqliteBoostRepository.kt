@@ -71,17 +71,16 @@ internal class SqliteBoostRepository(
 
         // 他のサーバーから届いたブーストと、このサーバーのアカウントのブーストを合わせる
         val counted = jooq.withConnection { dsl ->
-            val remote = dsl.select(NOTES.PUBLIC_ID).from(NOTE_BOOSTS)
-                .join(NOTES).on(NOTES.ID.eq(NOTE_BOOSTS.NOTE_ID))
-                .where(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
-            val local = dsl.select(NOTES.PUBLIC_ID).from(ACCOUNT_BOOSTS)
-                .join(NOTES).on(NOTES.ID.eq(ACCOUNT_BOOSTS.NOTE_ID))
-                .where(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
-            dsl.fetch(remote.unionAll(local))
-                .groupingBy { PublicNoteId(checkNotNull(it.value1())) }
-                .eachCount()
+            listOf(NOTE_BOOSTS.NOTE_ID, ACCOUNT_BOOSTS.NOTE_ID).map { noteIdField ->
+                dsl.select(NOTES.PUBLIC_ID, DSL.count())
+                    .from(noteIdField.table)
+                    .join(NOTES).on(NOTES.ID.eq(noteIdField))
+                    .where(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
+                    .groupBy(NOTES.PUBLIC_ID)
+                    .fetch { PublicNoteId(checkNotNull(it.value1())) to it.value2().toLong() }
+            }.flatten().groupBy({ it.first }, { it.second }).mapValues { it.value.sum() }
         }
-        return notePublicIds.associateWith { (counted[it] ?: 0).toLong() }
+        return notePublicIds.associateWith { counted[it] ?: 0L }
     }
 
     private fun DSLContext.remoteActorId(actorUri: String): Long? =
