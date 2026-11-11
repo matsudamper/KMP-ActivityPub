@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
@@ -338,9 +339,14 @@ internal class HomeScreenViewModel(
                         },
                     )
                 }
-                viewModelStateFlow.update {
-                    val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-                    it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned)))
+                val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
+                if (myPosts != null && myPosts.profile.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
+                    loadMyPosts(myPosts.profile.username)
+                } else {
+                    viewModelStateFlow.update {
+                        val loaded = it.myPosts as? MyPostsState.Loaded ?: return@update it
+                        it.copy(myPosts = MyPostsState.Loaded(loaded.profile.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned)))
+                    }
                 }
             }
         }

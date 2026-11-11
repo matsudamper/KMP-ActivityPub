@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
@@ -141,6 +142,11 @@ internal class UserProfileScreenViewModel(
         viewModelScope.launch {
             // 固定の変更はこの画面のものも他の画面のものもここで届く
             api.pinChanges.collect { change ->
+                val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded
+                if (loaded != null && loaded.profile.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
+                    reloadWithoutLoading()
+                    return@collect
+                }
                 updateProfile { profile ->
                     if (profile is ProfileState.Loaded) {
                         profile.copy(profile = profile.profile.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned))
@@ -163,6 +169,14 @@ internal class UserProfileScreenViewModel(
             }
         }
         load()
+    }
+
+    /**
+     * 表示中の投稿を消さずに読み直す。失敗したら今の表示のまま
+     */
+    private suspend fun reloadWithoutLoading() {
+        val result = api.userProfile(username = username) as? UserProfileResult.Found ?: return
+        updateProfile { profile -> if (profile is ProfileState.Loaded) ProfileState.Loaded(profile = result) else profile }
     }
 
     private fun load() {

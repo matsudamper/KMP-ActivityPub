@@ -69,6 +69,14 @@ fun UserProfileResult.Found.withLiked(likePostId: String, liked: Boolean): UserP
 }
 
 /**
+ * 一覧より古い自分の投稿を固定したときは [withPinned] で並べ直せないので、取得し直して先頭に出す
+ */
+fun UserProfileResult.Found.needsReloadForPin(pinnableNoteId: String, pinned: Boolean): Boolean {
+    val ownProfile = posts.any { it.pinnableNoteId != null }
+    return pinned && ownProfile && posts.none { it.pinnableNoteId == pinnableNoteId }
+}
+
+/**
  * 固定を変えた結果を、取得し直さずに反映する。サーバーと同じく、固定した投稿を固定した新しい順で先頭に並べ、残りを投稿の新しい順に並べる
  */
 fun UserProfileResult.Found.withPinned(pinnableNoteId: String, pinned: Boolean): UserProfileResult.Found {
