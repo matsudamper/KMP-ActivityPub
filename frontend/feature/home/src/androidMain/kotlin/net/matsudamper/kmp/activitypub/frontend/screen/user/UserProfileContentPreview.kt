@@ -192,7 +192,7 @@ private val LocalUserUiState = UserProfileScreenUiState(
     ),
     deleteNoteDialog = null,
     addFollowingGroupDialog = null,
-    openOriginalMenuItemVisible = false,
+    openOriginalMenuItemVisible = true,
     listener = AndroidPreviewUserProfileListener,
 )
 
