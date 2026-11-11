@@ -3,3 +3,25 @@ query AdminAccess {
         isAdmin
     }
 }
+
+query RemoteProfileRefreshProgress {
+    userInfo {
+        remoteProfileRefresh {
+            running
+            total
+            refreshed
+            failed
+            skipped
+            startedAt
+            finishedAt
+        }
+    }
+}
+
+mutation StartRemoteProfileRefresh {
+    user {
+        startRemoteProfileRefresh {
+            failure
+        }
+    }
+}

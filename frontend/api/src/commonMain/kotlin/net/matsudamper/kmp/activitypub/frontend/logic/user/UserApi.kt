@@ -35,8 +35,10 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshProgressQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.StartRemoteProfileRefreshMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -49,6 +51,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGrou
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.StartRemoteProfileRefreshFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -369,6 +372,44 @@ class UserApi(
             UserAdminAccessResult.Granted
         } else {
             UserAdminAccessResult.Denied
+        }
+    }
+
+    suspend fun remoteProfileRefreshProgress(): UserRemoteProfileRefreshResult {
+        val client = clients.client.value ?: return UserRemoteProfileRefreshResult.Failure("接続先が未設定")
+        val response = client.query(RemoteProfileRefreshProgressQuery()).execute()
+        if (response.exception != null || response.hasErrors()) return UserRemoteProfileRefreshResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserRemoteProfileRefreshResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserRemoteProfileRefreshResult.Failure("ログインしていません")
+        val progress = userInfo.remoteProfileRefresh?.let {
+            UserRemoteProfileRefreshResult.Progress(
+                running = it.running,
+                total = it.total,
+                refreshed = it.refreshed,
+                failed = it.failed,
+                skipped = it.skipped,
+                startedAt = it.startedAt,
+                finishedAt = it.finishedAt,
+            )
+        }
+        return UserRemoteProfileRefreshResult.Success(progress = progress)
+    }
+
+    /**
+     * 始められなければ理由を返す
+     */
+    suspend fun startRemoteProfileRefresh(): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(StartRemoteProfileRefreshMutation()).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.startRemoteProfileRefresh ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+            StartRemoteProfileRefreshFailure.NOT_LOGGED_IN -> "ログインしていません"
+            StartRemoteProfileRefreshFailure.NOT_ADMIN -> "管理者ではありません"
+            StartRemoteProfileRefreshFailure.FEDERATION_DISABLED -> "サーバーに DOMAIN が設定されていないため取り直せません"
+            StartRemoteProfileRefreshFailure.ALREADY_RUNNING -> "すでに取り直し中です"
+            StartRemoteProfileRefreshFailure.UNKNOWN__ -> "取り直しを始められませんでした"
         }
     }
 

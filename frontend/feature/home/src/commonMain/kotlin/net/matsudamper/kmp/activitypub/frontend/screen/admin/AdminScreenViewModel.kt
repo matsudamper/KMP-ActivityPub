@@ -2,6 +2,9 @@ package net.matsudamper.kmp.activitypub.frontend.screen.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,6 +13,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserAdminAccessResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserRemoteProfileRefreshResult
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -19,7 +23,14 @@ internal class AdminScreenViewModel(
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
-        MutableStateFlow(ViewModelState(access = AccessState.Loading))
+        MutableStateFlow(
+            ViewModelState(
+                access = AccessState.Loading,
+                refresh = RefreshState.Loading,
+                starting = false,
+            ),
+        )
+    private var pollingJob: Job? = null
 
     private val listener =
         object : AdminScreenUiState.Listener {
@@ -27,6 +38,13 @@ internal class AdminScreenViewModel(
                 viewModelScope.launch {
                     events.send { it.navigateBack() }
                 }
+            }
+        }
+
+    private val remoteProfileRefreshListener =
+        object : AdminScreenUiState.RemoteProfileRefreshListener {
+            override fun onClickStart() {
+                startRemoteProfileRefresh()
             }
         }
 
@@ -49,6 +67,40 @@ internal class AdminScreenViewModel(
                     is UserAdminAccessResult.Failure -> AccessState.Error(result.message)
                 }
             viewModelStateFlow.update { it.copy(access = access) }
+            if (access == AccessState.Granted) pollRemoteProfileRefresh()
+        }
+    }
+
+    private fun startRemoteProfileRefresh() {
+        if (viewModelStateFlow.value.starting) return
+        viewModelStateFlow.update { it.copy(starting = true) }
+        viewModelScope.launch {
+            try {
+                val error = api.startRemoteProfileRefresh()
+                events.send { it.showMessage(error ?: "取り直しを始めました") }
+            } finally {
+                viewModelStateFlow.update { it.copy(starting = false) }
+            }
+            pollRemoteProfileRefresh()
+        }
+    }
+
+    /**
+     * 取り直しが終わるまで、進み具合を読み直し続ける
+     */
+    private fun pollRemoteProfileRefresh() {
+        pollingJob?.cancel()
+        pollingJob = viewModelScope.launch {
+            while (true) {
+                val refresh =
+                    when (val result = api.remoteProfileRefreshProgress()) {
+                        is UserRemoteProfileRefreshResult.Success -> RefreshState.Loaded(result.progress)
+                        is UserRemoteProfileRefreshResult.Failure -> RefreshState.Error(result.message)
+                    }
+                viewModelStateFlow.update { it.copy(refresh = refresh) }
+                if (refresh !is RefreshState.Loaded || refresh.progress?.running != true) break
+                delay(POLLING_INTERVAL)
+            }
         }
     }
 
@@ -57,7 +109,7 @@ internal class AdminScreenViewModel(
             content =
             when (val access = viewModelState.access) {
                 AccessState.Loading -> AdminScreenUiState.Content.Loading
-                AccessState.Granted -> AdminScreenUiState.Content.Empty
+                AccessState.Granted -> AdminScreenUiState.Content.Loaded(remoteProfileRefresh = createRemoteProfileRefresh(viewModelState))
                 AccessState.Denied -> AdminScreenUiState.Content.Message("サーバー管理画面に入る権限がない")
                 is AccessState.Error -> AdminScreenUiState.Content.Message(access.message)
             },
@@ -65,12 +117,42 @@ internal class AdminScreenViewModel(
         )
     }
 
+    private fun createRemoteProfileRefresh(viewModelState: ViewModelState): AdminScreenUiState.RemoteProfileRefresh {
+        val refresh = viewModelState.refresh
+        val running = refresh is RefreshState.Loaded && refresh.progress?.running == true
+        return AdminScreenUiState.RemoteProfileRefresh(
+            statusText =
+            when (refresh) {
+                RefreshState.Loading -> "状態を読み込み中"
+                is RefreshState.Error -> refresh.message
+                is RefreshState.Loaded -> refresh.progress.toStatusText()
+            },
+            startButtonEnabled = refresh is RefreshState.Loaded && !running && !viewModelState.starting,
+            listener = remoteProfileRefreshListener,
+        )
+    }
+
+    private fun UserRemoteProfileRefreshResult.Progress?.toStatusText(): String {
+        if (this == null) return "まだ取り直していません"
+        val counts = "$total 人中 $refreshed 人を取り直し、失敗 $failed 人、スキップ $skipped 人"
+        val finishedAt = finishedAt
+        return if (finishedAt == null) {
+            "取り直し中（$startedAt 開始）\n$counts"
+        } else {
+            "前回は $finishedAt に終了\n$counts"
+        }
+    }
+
     internal interface Event {
         fun navigateBack()
+
+        fun showMessage(message: String)
     }
 
     private data class ViewModelState(
         val access: AccessState,
+        val refresh: RefreshState,
+        val starting: Boolean,
     )
 
     private sealed interface AccessState {
@@ -83,5 +165,24 @@ internal class AdminScreenViewModel(
         data class Error(
             val message: String,
         ) : AccessState
+    }
+
+    private sealed interface RefreshState {
+        data object Loading : RefreshState
+
+        /**
+         * @param progress 一度も始めていなければ null
+         */
+        data class Loaded(
+            val progress: UserRemoteProfileRefreshResult.Progress?,
+        ) : RefreshState
+
+        data class Error(
+            val message: String,
+        ) : RefreshState
+    }
+
+    private companion object {
+        val POLLING_INTERVAL = 3.seconds
     }
 }

@@ -9,11 +9,27 @@ data class AdminScreenUiState(
     sealed interface Content {
         data object Loading : Content
 
-        data object Empty : Content
+        data class Loaded(
+            val remoteProfileRefresh: RemoteProfileRefresh,
+        ) : Content
 
         data class Message(
             val message: String,
         ) : Content
+    }
+
+    /**
+     * 他のサーバーのユーザー全員のプロフィールを取り直す
+     */
+    data class RemoteProfileRefresh(
+        val statusText: String,
+        val startButtonEnabled: Boolean,
+        val listener: RemoteProfileRefreshListener,
+    )
+
+    @Immutable
+    interface RemoteProfileRefreshListener {
+        fun onClickStart()
     }
 
     @Immutable
