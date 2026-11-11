@@ -320,7 +320,7 @@ class HomeScreenViewModelTest {
         }
         viewModel.uiStateFlow.first { uiState -> uiState.timelineColumns.any { it.selected } }
         viewModel.uiStateFlow.value.listener.onClickTab(HomeScreenUiState.Tab.Home)
-        assertEquals("scrollTimelineColumnToTop:home", receivedEvents.receive())
+        assertEquals("scrollTimelineColumnToTop:main", receivedEvents.receive())
         viewModel.uiStateFlow.value.listener.onClickTab(HomeScreenUiState.Tab.Search)
         assertEquals("navigateToTab:Search", receivedEvents.receive())
         collectJob.cancel()
