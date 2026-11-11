@@ -29,6 +29,7 @@ import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 class QueryResolverImpl : QueryResolver {
     override fun userProfile(acct: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlUserProfile?>> {
@@ -80,6 +81,7 @@ class QueryResolverImpl : QueryResolver {
                                 stamps = post.stamps.toQlPostStamps(diContainer),
                                 like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
                                 boostedByMe = post.boostedByMe,
+                                reactionPostId = post.reactionPostId?.let(::TimelinePostId),
                                 url = diContainer.noteShareUrls?.url(post.noteRef),
                                 boostCount = post.boostCount?.toInt(),
                                 boostedNoteAuthor = boostedNoteAuthor,

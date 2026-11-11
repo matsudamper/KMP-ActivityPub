@@ -48,6 +48,7 @@ query UserProfile($username: String!) {
                 likedByMe
             }
             boostedByMe
+            reactionPostId
             url
             boostedNoteAuthor {
                 username

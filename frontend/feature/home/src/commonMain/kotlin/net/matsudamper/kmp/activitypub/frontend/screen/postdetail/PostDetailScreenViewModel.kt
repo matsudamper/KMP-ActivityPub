@@ -130,7 +130,7 @@ internal class PostDetailScreenViewModel(
         viewModelScope.launch {
             try {
                 updateLiked(!liked)
-                val error = api.setLiked(postId = postId, liked = !liked)
+                val error = api.setLiked(postId = loaded.post.reactionPostId, liked = !liked)
                 if (error != null) {
                     updateLiked(liked)
                     events.send { it.showMessage(error) }
@@ -149,7 +149,7 @@ internal class PostDetailScreenViewModel(
         viewModelScope.launch {
             try {
                 updateBoosted(!boosted)
-                val error = api.setBoosted(postId = postId, boosted = !boosted)
+                val error = api.setBoosted(postId = loaded.post.reactionPostId, boosted = !boosted)
                 if (error != null) {
                     updateBoosted(boosted)
                     events.send { it.showMessage(error) }

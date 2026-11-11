@@ -83,6 +83,23 @@ class AccountBoostRepositoryTest {
     }
 
     @Test
+    fun postSeenThroughABoostCanBeBoostedAndUnboostedAfterTheReceivedBoostIsUndone() = withRepository { repositories, alice, bob ->
+        val boostMember = receiveBoost(repositories, alice)
+        val reactionMember = repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().reactionMember
+        val boosts = repositories.accountBoostRepository
+        val queue = repositories.deliveryQueueRepository
+
+        assertNotNull(boosts.target(alice, reactionMember))
+        assertNull(boosts.target(bob, reactionMember))
+        assertTrue(boosts.boostAndEnqueue(boost(alice, reactionMember, "announce-1")))
+        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+        assertTrue(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1"))
+
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, reactionMember, NOW) { "undo:$it" })
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
+    }
+
+    @Test
     fun announceBeingDeliveredIsNotRetriedAfterUnboost() = withRepository { repositories, alice, _ ->
         val member = receiveNote(repositories, "public", alice)
         val boosts = repositories.accountBoostRepository
@@ -118,6 +135,25 @@ class AccountBoostRepositoryTest {
     private fun receiveNote(repositories: Repositories, visibility: String, vararg followers: AccountId): String {
         followers.forEach { repositories.followingRepository.add(it, ACTOR, NOW) }
         return assertNotNull(repositories.timelineRepository.receive(note(visibility))).member
+    }
+
+    private fun receiveBoost(repositories: Repositories, follower: AccountId): String {
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(follower, BOOSTER, NOW)
+        return assertNotNull(
+            repositories.timelineRepository.receiveBoost(
+                RemoteBoostInput(
+                    activityUri = "$BOOSTER/announces/1",
+                    boosterUri = BOOSTER,
+                    boostedAt = NOW,
+                    receivedAt = NOW,
+                    note = note("public"),
+                ),
+            ),
+        ).member
     }
 
     private fun boost(accountId: AccountId, member: String, announceId: String): OutgoingBoost = OutgoingBoost(
@@ -162,6 +198,7 @@ class AccountBoostRepositoryTest {
 
     private companion object {
         const val ACTOR = "https://remote.example/actor"
+        const val BOOSTER = "https://booster.example/actor"
         const val FOLLOWER_INBOX = "https://follower.example/inbox"
         val INBOXES = listOf(FOLLOWER_INBOX, "$ACTOR/inbox")
         val NOW: Instant = Instant.parse("2026-11-01T12:00:00Z")

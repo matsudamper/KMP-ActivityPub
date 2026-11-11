@@ -725,7 +725,7 @@ internal class HomeScreenViewModel(
     }
 
     private suspend fun applyLiked(postId: String, liked: Boolean) {
-        timelinePaging.updateCache { it.withLiked(postId = postId, liked = liked) }
+        timelinePaging.updateCache { it.withLiked(reactionPostId = postId, liked = liked) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withLiked(likePostId = postId, liked = liked)))
@@ -753,10 +753,10 @@ internal class HomeScreenViewModel(
     }
 
     private suspend fun applyBoosted(postId: String, boosted: Boolean) {
-        timelinePaging.updateCache { it.withBoosted(postId = postId, boosted = boosted) }
+        timelinePaging.updateCache { it.withBoosted(reactionPostId = postId, boosted = boosted) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(postId = postId, boosted = boosted)))
+            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(reactionPostId = postId, boosted = boosted)))
         }
     }
 
@@ -906,9 +906,9 @@ internal class HomeScreenViewModel(
                                 if (likePostId != null && likedByMe != null) toggleLike(postId = likePostId, likedByMe = likedByMe)
                             },
                             onToggleBoost = {
-                                val postId = post.postId
+                                val reactionPostId = post.reactionPostId
                                 val boostedByMe = post.body.boostedByMe
-                                if (postId != null && boostedByMe != null) toggleBoost(postId = postId, boostedByMe = boostedByMe)
+                                if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                             },
                             onVisible = {
                                 if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
@@ -1007,11 +1007,11 @@ internal class HomeScreenViewModel(
                 onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                 onToggleLike = {
                     val likedByMe = post.body.likedByMe
-                    if (likedByMe != null) toggleLike(postId = post.id, likedByMe = likedByMe)
+                    if (likedByMe != null) toggleLike(postId = post.reactionPostId, likedByMe = likedByMe)
                 },
                 onToggleBoost = {
                     val boostedByMe = post.body.boostedByMe
-                    if (boostedByMe != null) toggleBoost(postId = post.id, boostedByMe = boostedByMe)
+                    if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
                 },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {

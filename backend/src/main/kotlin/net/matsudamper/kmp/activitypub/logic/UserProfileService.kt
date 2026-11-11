@@ -69,6 +69,7 @@ class UserProfileService(
                         stamps = stampCounts[it.publicId].orEmpty(),
                         like = if (viewer == null || member == null) null else ProfilePostLike(postId = member, likedByMe = it.publicId in likedNoteIds),
                         boostedByMe = null,
+                        reactionPostId = if (viewer == null) null else member,
                         noteRef = TimelineNoteRef.Local(it.publicId),
                         boostCount = boostCounts[it.publicId],
                         boostedNoteAuthor = null,
@@ -139,8 +140,9 @@ class UserProfileService(
             emojis = emojis,
             favouriteCount = favouriteCount,
             stamps = stamps,
-            like = ProfilePostLike(postId = position.member, likedByMe = likedByMe),
+            like = ProfilePostLike(postId = reactionMember, likedByMe = likedByMe),
             boostedByMe = boostedByMe,
+            reactionPostId = reactionMember,
             noteRef = noteRef,
             boostCount = boostCount,
             boostedNoteAuthor = if (boostedBy == null) null else boostedNoteAuthor(),
@@ -200,7 +202,9 @@ data class UserProfile(
  * @param favouriteCount 他のサーバーから届いたお気に入りの数。他のサーバーの投稿は数を受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  * @param like いいねできない投稿は null
- * @param boostedByMe 見ているアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しには [postId] を渡す
+ * @param boostedByMe 見ているアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しには [reactionPostId] を渡す
+ * @param reactionPostId いいねやブーストを付け外しするときに渡す、タイムラインの投稿の id。ブーストした投稿は、ブーストされた元の投稿を指す。
+ *   ログインしていないか、付け外しできない投稿は null
  * @param noteRef 投稿を外から指すための元
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null
  * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
@@ -221,6 +225,7 @@ data class ProfilePost(
     val boostCount: Long?,
     val like: ProfilePostLike?,
     val boostedByMe: Boolean?,
+    val reactionPostId: String?,
     val boostedNoteAuthor: ProfilePostAuthor?,
 )
 

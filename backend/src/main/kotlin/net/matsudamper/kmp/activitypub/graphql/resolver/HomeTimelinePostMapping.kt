@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostBooster
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 internal fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, diContainer: DiContainer): QlHomeTimelinePost {
     val body = createQlPostBody(
@@ -40,6 +41,7 @@ internal fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, diContainer
         url = diContainer.noteShareUrls?.url(noteRef),
         likedByMe = likedByMe,
         boostedByMe = boostedByMe,
+        reactionPostId = TimelinePostId(reactionMember),
         boostCount = boostCount?.toInt(),
         boostedBy = boostedBy?.let { booster ->
             QlPostBooster(

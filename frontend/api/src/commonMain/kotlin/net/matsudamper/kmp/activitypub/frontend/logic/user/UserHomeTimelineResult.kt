@@ -16,6 +16,10 @@ sealed interface UserHomeTimelineResult {
         val iconUrl: String?,
         val body: UserPostBody,
         /**
+         * [UserApi.setLiked] と [UserApi.setBoosted] に渡す id。ブーストで載った投稿は、ブーストされた元の投稿を指す
+         */
+        val reactionPostId: String,
+        /**
          * ログイン中のアカウントの投稿なら [UserApi.deleteNote] に渡す id。消せない投稿は null
          */
         val deletableNoteId: String?,

@@ -219,6 +219,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     stampsByMember[member].orEmpty(),
                     record.value1() in if (actor == null) likedLocalIds else likedRemoteIds,
                     if (record.value15() in PUBLISHED_REMOTE_NOTE_VISIBILITIES) record.value1() in boostedRemoteIds else null,
+                    member,
                     if (actor == null) TimelineNoteRef.Local(PublicNoteId(noteKey)) else TimelineNoteRef.Remote(noteKey),
                     record.value13(),
                     null,
@@ -435,6 +436,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 stamps = listOf(),
                 likedByMe = record.value3() in likedNoteIds,
                 boostedByMe = record.value3() in boostedNoteIds,
+                reactionMember = "r${record.value3()}",
                 noteRef = TimelineNoteRef.Remote(checkNotNull(record.value18())),
                 boostCount = null,
                 boostedBy = TimelineBooster(

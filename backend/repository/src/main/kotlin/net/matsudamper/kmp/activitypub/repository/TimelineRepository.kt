@@ -46,6 +46,8 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param likedByMe 読んでいるアカウントがいいねしているか。ブーストで載った投稿は、ブーストされた元の投稿へのいいね
  * @param boostedByMe 読んでいるアカウントがブーストしているか。ブーストできない投稿（このサーバーの投稿や、公開・未収載でない投稿）は null。
  *   ブーストで載った投稿は、ブーストされた元の投稿のブースト
+ * @param reactionMember いいねやブーストを付け外しするときに指す member。ブーストで載った投稿は、ブーストされた元の投稿を指す。
+ *   受け取ったブーストが取り消されても同じ投稿を指し続ける
  * @param noteRef 投稿を外から指すための元。URL はこのサーバーのドメインで決まるので、ここでは作らない
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿の数は受け取らないので null
  * @param emojis 本文と注意書きに入るカスタム絵文字。このサーバーの投稿は空
@@ -71,6 +73,7 @@ data class TimelinePost(
     val stamps: List<StampCount>,
     val likedByMe: Boolean,
     val boostedByMe: Boolean?,
+    val reactionMember: String,
     val noteRef: TimelineNoteRef,
     val boostCount: Long?,
     val boostedBy: TimelineBooster?,

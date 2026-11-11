@@ -203,7 +203,7 @@ internal class UserProfileScreenViewModel(
 
     private fun applyBoosted(postId: String, boosted: Boolean) {
         updateProfile { profile ->
-            if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withBoosted(postId = postId, boosted = boosted)) else profile
+            if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withBoosted(reactionPostId = postId, boosted = boosted)) else profile
         }
     }
 
@@ -351,9 +351,9 @@ internal class UserProfileScreenViewModel(
                         if (likePostId != null && likedByMe != null) toggleLike(likePostId = likePostId, likedByMe = likedByMe)
                     },
                     onToggleBoost = {
-                        val postId = post.postId
+                        val reactionPostId = post.reactionPostId
                         val boostedByMe = post.body.boostedByMe
-                        if (postId != null && boostedByMe != null) toggleBoost(postId = postId, boostedByMe = boostedByMe)
+                        if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                     },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {

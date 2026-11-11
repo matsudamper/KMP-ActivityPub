@@ -38,7 +38,7 @@ internal class SqliteAccountBoostRepository(
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.eq(remoteNoteId))
                 .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
-                .and(dsl.remoteNoteReadableBy(accountId))
+                .and(dsl.remoteNoteReadableOrBoostedTo(accountId))
                 .fetchOne { it.toBoostTarget() }
         }
     }

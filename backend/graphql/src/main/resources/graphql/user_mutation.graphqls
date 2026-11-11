@@ -1,4 +1,4 @@
-"タイムラインに並ぶ投稿の識別子。HomeTimelinePost.id と ProfilePost.postId の値を渡す"
+"タイムラインに並ぶ投稿の識別子"
 scalar TimelinePostId
 
 type UserMutation {
@@ -45,12 +45,14 @@ type UserMutation {
     updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
     """
     ログインしているアカウントで、投稿にいいねを付けるか外す。他のサーバーの投稿なら投稿者への Like か Undo を積む。
-    postId は HomeTimelinePost.id か ProfilePostLike.postId。既に望んだ状態なら何も積まずに成功する
+    postId は HomeTimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
+    外すときは今読めない投稿でも、付けたいいねを外す
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
     """
     ログインしているアカウントで、他のサーバーの公開・未収載の投稿をブーストするか外す。フォロワーと投稿者への Announce か Undo を積む。
-    postId は HomeTimelinePost.id か ProfilePost.postId。既に望んだ状態なら何も積まずに成功する
+    postId は HomeTimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
+    外すときは今読めない投稿でも、付けたブーストを外す
     """
     setBoosted(postId: TimelinePostId!, boosted: Boolean!): SetBoostedResult! @lazy
 }

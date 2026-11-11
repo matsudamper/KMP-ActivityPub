@@ -48,6 +48,8 @@ type ProfilePost {
     like: ProfilePostLike
     "ログイン中のアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しは UserMutation.setBoosted に postId を渡す"
     boostedByMe: Boolean
+    "setLiked と setBoosted に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。ログインしていないか、付け外しできない投稿は null"
+    reactionPostId: TimelinePostId
     "プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null"
     boostedNoteAuthor: PostAuthor
 }

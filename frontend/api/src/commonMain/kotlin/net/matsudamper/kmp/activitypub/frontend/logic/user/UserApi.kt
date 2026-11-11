@@ -165,6 +165,7 @@ class UserApi(
                         iconUrl = it.iconUrl,
                     )
                 },
+                reactionPostId = post.reactionPostId,
                 deletableNoteId = post.deletableNoteId,
                 followingGroupId = post.followingGroupId,
             ),
@@ -252,7 +253,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.likePostId]
+     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.likePostId]
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun setLiked(postId: String, liked: Boolean): String? {
@@ -274,7 +275,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.postId]
+     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.reactionPostId]
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun setBoosted(postId: String, boosted: Boolean): String? {
@@ -407,6 +408,7 @@ class UserApi(
                     postId = it.postId,
                     deletableNoteId = it.deletableNoteId,
                     likePostId = it.like?.postId,
+                    reactionPostId = it.reactionPostId,
                     body = UserPostBody(
                         content = it.content,
                         publishedAt = it.publishedAt,
@@ -697,6 +699,7 @@ class UserApi(
                                     iconUrl = it.iconUrl,
                                 )
                             },
+                            reactionPostId = post.reactionPostId,
                             deletableNoteId = post.deletableNoteId,
                             followingGroupId = post.followingGroupId,
                         ),
