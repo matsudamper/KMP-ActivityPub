@@ -402,7 +402,6 @@ private val PostBodySelectionVerticalMargin = 4.dp
 private val PostIconSize = 46.dp
 private val PostIconHeaderSpacing = 12.dp
 
-// 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
 /**
  * ホイールやトラックパッドで横に並ぶ画像まで動かすと、上を通るだけで縦のスクロールやタブの横移動を奪って途切れさせる。
  * ホイールやトラックパッドを使っている間は横の並びのスクロールを止め、押下されたら戻す
@@ -419,12 +418,14 @@ private fun Modifier.detectWheelInput(
                 -> onWheelInputActiveChange(true)
 
                 PointerEventType.Press -> onWheelInputActiveChange(false)
+
                 else -> Unit
             }
         }
     }
 }
 
+// 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
 private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
     val startPx = start.roundToPx()
     val endPx = end.roundToPx()
