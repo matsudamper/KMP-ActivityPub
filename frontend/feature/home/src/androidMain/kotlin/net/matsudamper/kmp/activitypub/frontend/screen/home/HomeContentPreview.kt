@@ -570,6 +570,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onRefreshTimeline() = Unit
 
     override fun onClickAddTimelineColumn() = Unit
+
+    override fun onMoveTimelineColumn(fromIndex: Int, toIndex: Int) = Unit
     override fun onScrolledToTimelineEnd() = Unit
     override fun onClickRetryTimelineLoadMore() = Unit
 
