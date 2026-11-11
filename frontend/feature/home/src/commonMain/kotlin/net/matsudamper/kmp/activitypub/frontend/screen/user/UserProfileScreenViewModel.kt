@@ -86,6 +86,13 @@ internal class UserProfileScreenViewModel(
         override fun onClickTab(tab: ProfileContentTab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }
+
+        override fun onClickOpenOriginal() {
+            val profile = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile ?: return
+            // このサーバーのユーザーは actorUri が無いので、画面のプロフィールの URL を開く
+            val originalUrl = profile.actorUri ?: "https://${profile.host}/@${profile.username}"
+            viewModelScope.launch { events.send { it.openUrl(originalUrl) } }
+        }
     }
 
     private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
@@ -262,6 +269,7 @@ internal class UserProfileScreenViewModel(
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
+            openOriginalMenuItemVisible = viewModelState.profile is ProfileState.Loaded,
             listener = listener,
         )
     }

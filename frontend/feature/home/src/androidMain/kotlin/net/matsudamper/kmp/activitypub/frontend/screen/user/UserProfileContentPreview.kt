@@ -1,15 +1,22 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.screen.UserProfileDialogFrame
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -74,6 +81,7 @@ private fun UserProfileContentPreview() {
                     ),
                     deleteNoteDialog = null,
                     addFollowingGroupDialog = null,
+                    openOriginalMenuItemVisible = true,
                     listener = AndroidPreviewUserProfileListener,
                 ),
                 snackbarHostState = SnackbarHostState(),
@@ -87,30 +95,27 @@ private fun UserProfileContentPreview() {
 private fun UserProfileContentLocalUserPreview() {
     MaterialTheme {
         UserProfileContent(
-            uiState = UserProfileScreenUiState(
-                content = UserProfileScreenUiState.Content.Loaded(
-                    acct = "@bob@local.example",
-                    iconUrl = null,
-                    headerUrl = null,
-                    displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
-                    biography = "ローカルのユーザーです。",
-                    links = listOf(
-                        ProfileLinkUiState(name = "GitHub", url = "https://github.com/bob", listener = AndroidPreviewProfileLinkListener),
-                        ProfileLinkUiState(name = "Blog", url = "https://blog.example/bob/very/long/path/to/the/article", listener = AndroidPreviewProfileLinkListener),
-                    ),
-                    followMenu = null,
-                    selectedTab = ProfileContentTab.Posts,
-                    posts = listOf(),
-                    postsEmptyMessage = "表示できる投稿はありません",
-                    media = listOf(),
-                    mediaEmptyMessage = "表示できるメディアはありません",
-                ),
-                deleteNoteDialog = null,
-                addFollowingGroupDialog = null,
-                listener = AndroidPreviewUserProfileListener,
-            ),
+            uiState = LocalUserUiState,
             snackbarHostState = SnackbarHostState(),
         )
+    }
+}
+
+@Preview(widthDp = 1200, heightDp = 800)
+@Composable
+private fun UserProfileDialogPreview() {
+    MaterialTheme {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            UserProfileDialogFrame {
+                UserProfileContent(
+                    uiState = LocalUserUiState,
+                    snackbarHostState = SnackbarHostState(),
+                )
+            }
+        }
     }
 }
 
@@ -143,6 +148,7 @@ private fun UserProfileContentMediaPreview() {
                 ),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
+                openOriginalMenuItemVisible = true,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -159,6 +165,7 @@ private fun UserProfileContentNotFoundPreview() {
                 content = UserProfileScreenUiState.Content.NotFound,
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
+                openOriginalMenuItemVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -166,12 +173,38 @@ private fun UserProfileContentNotFoundPreview() {
     }
 }
 
+private val LocalUserUiState = UserProfileScreenUiState(
+    content = UserProfileScreenUiState.Content.Loaded(
+        acct = "@bob@local.example",
+        iconUrl = null,
+        headerUrl = null,
+        displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+        biography = "ローカルのユーザーです。",
+        links = listOf(
+            ProfileLinkUiState(name = "GitHub", url = "https://github.com/bob", listener = AndroidPreviewProfileLinkListener),
+            ProfileLinkUiState(name = "Blog", url = "https://blog.example/bob/very/long/path/to/the/article", listener = AndroidPreviewProfileLinkListener),
+        ),
+        followMenu = null,
+        selectedTab = ProfileContentTab.Posts,
+        posts = listOf(),
+        postsEmptyMessage = "表示できる投稿はありません",
+        media = listOf(),
+        mediaEmptyMessage = "表示できるメディアはありません",
+    ),
+    deleteNoteDialog = null,
+    addFollowingGroupDialog = null,
+    openOriginalMenuItemVisible = true,
+    listener = AndroidPreviewUserProfileListener,
+)
+
 private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.Listener {
     override fun onClickRetry() = Unit
 
     override fun onClickBack() = Unit
 
     override fun onClickTab(tab: ProfileContentTab) = Unit
+
+    override fun onClickOpenOriginal() = Unit
 }
 
 private object AndroidPreviewMediaListener : ProfileMediaUiState.Listener {

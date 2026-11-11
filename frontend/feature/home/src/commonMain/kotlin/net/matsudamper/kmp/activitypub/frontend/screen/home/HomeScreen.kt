@@ -1194,6 +1194,6 @@ private class WheelPullToRefreshBlocker : NestedScrollConnection {
 /**
  * レールとタイムラインに加えて、投稿などのカラムを 1 つ並べられる幅
  */
-private val COLUMNS_LAYOUT_MIN_WIDTH = 840.dp
+internal val COLUMNS_LAYOUT_MIN_WIDTH = 840.dp
 
 private const val SEARCH_QUERY_INPUT_ID = "home-search-query"
