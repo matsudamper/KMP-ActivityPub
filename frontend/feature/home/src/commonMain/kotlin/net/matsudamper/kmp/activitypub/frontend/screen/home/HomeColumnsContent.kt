@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -103,13 +104,24 @@ internal fun HomeColumnsContent(
                         }
                         VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
-                    uiState.timelineColumns.forEach { timelineColumn ->
+                    val reorderState = rememberHorizontalReorderState()
+                    SideEffect { reorderState.retainItems(uiState.timelineColumns.size) }
+                    uiState.timelineColumns.forEachIndexed { index, timelineColumn ->
                         key(timelineColumn.listStateKey) {
                             HomeColumn(
                                 title = timelineColumn.title,
                                 onClickHeader = timelineColumn.listener::onClickHeader,
                                 onClickClose = timelineColumn.listener::onClickRemove,
-                                modifier = Modifier.width(COLUMN_WIDTH).fillMaxHeight(),
+                                headerModifier = Modifier.horizontalReorderHandle(
+                                    state = reorderState,
+                                    index = index,
+                                    onMove = uiState.listener::onMoveTimelineColumn,
+                                ),
+                                modifier = Modifier
+                                    .width(COLUMN_WIDTH)
+                                    .fillMaxHeight()
+                                    .horizontalReorderItem(state = reorderState, index = index, dropIndicatorColor = MaterialTheme.colorScheme.primary)
+                                    .background(MaterialTheme.colorScheme.background),
                             ) { contentModifier ->
                                 TimelineTabContent(
                                     listState = tabListStates.timeline(timelineColumn.listStateKey),
@@ -246,6 +258,7 @@ private fun ColumnToggleButton(
 
 /**
  * @param onClickClose 閉じられないカラムは null
+ * @param headerModifier 見出しを長押しして並べ替えるカラムで、見出しに付ける
  */
 @Composable
 private fun HomeColumn(
@@ -253,11 +266,12 @@ private fun HomeColumn(
     onClickHeader: () -> Unit,
     onClickClose: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    headerModifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
 ) {
     Column(modifier = modifier) {
         Row(
-            modifier = Modifier
+            modifier = headerModifier
                 .fillMaxWidth()
                 .clickable(onClick = onClickHeader)
                 .windowInsetsPadding(topBarWindowInsets)
