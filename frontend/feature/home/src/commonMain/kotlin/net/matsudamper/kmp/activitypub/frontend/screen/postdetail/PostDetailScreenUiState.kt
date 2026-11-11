@@ -15,8 +15,12 @@ data class PostDetailScreenUiState(
     sealed interface Content {
         data object Loading : Content
 
+        /**
+         * @param mentionBoxPlaceholder 投稿の下に置くメンションの入力欄（まだ送れないダミー）に出す文言
+         */
         data class Loaded(
             val post: PostItemUiState,
+            val mentionBoxPlaceholder: String,
         ) : Content
 
         data object NotFound : Content
