@@ -51,6 +51,26 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
 }
 
 /**
+ * 取り直した 1 ページ目を、読み込み済みの投稿の先頭へつなぐ。
+ * 1 ページ目の最後の投稿が読み込み済みに無いと、その間の投稿が抜けるので null
+ */
+fun HomeTimelineQuery.Data.withFirstPage(firstPage: HomeTimelineQuery.Data): HomeTimelineQuery.Data? {
+    val loadedTimeline = userInfo?.homeTimeline ?: return null
+    val firstPageInfo = firstPage.userInfo ?: return null
+    val firstPageTimeline = firstPageInfo.homeTimeline ?: return null
+    val lastFirstPagePostId = firstPageTimeline.posts.lastOrNull()?.id ?: return null
+    val joinIndex = loadedTimeline.posts.indexOfFirst { it.id == lastFirstPagePostId }.takeIf { it >= 0 } ?: return null
+    return firstPage.copy(
+        userInfo = firstPageInfo.copy(
+            homeTimeline = firstPageTimeline.copy(
+                posts = firstPageTimeline.posts + loadedTimeline.posts.drop(joinIndex + 1),
+                nextCursor = loadedTimeline.nextCursor,
+            ),
+        ),
+    )
+}
+
+/**
  * 購読で届いた投稿を、取得し直さずに先頭へ足す。[posts] は新しい順
  */
 fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.Post>): HomeTimelineQuery.Data {
