@@ -51,6 +51,8 @@ private object AndroidPreviewThemeOptionListener : SettingsScreenUiState.ThemeOp
 private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
     override fun onClickSecurity() = Unit
 
+    override fun onClickFollowingGroups() = Unit
+
     override fun onClickAdmin() = Unit
 
     override fun onClickGitHubRelease() = Unit
