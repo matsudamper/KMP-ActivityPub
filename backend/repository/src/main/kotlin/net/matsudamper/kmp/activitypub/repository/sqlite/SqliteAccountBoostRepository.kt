@@ -43,6 +43,7 @@ internal class SqliteAccountBoostRepository(
                     .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                     .where(REMOTE_BOOSTS.ID.eq(boostId))
                     .and(dsl.remoteBoostReadableBy(accountId))
+                    .and(REMOTE_NOTES.VISIBILITY.eq(BOOSTABLE_REMOTE_NOTE_VISIBILITY))
                     .fetchOne { it.toRemoteTarget() }
             }
         }
@@ -53,7 +54,7 @@ internal class SqliteAccountBoostRepository(
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.eq(remoteNoteId))
                 // 公開している投稿は誰でも読めるので、保存していればフォローしていなくてもブーストできる
-                .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
+                .and(REMOTE_NOTES.VISIBILITY.eq(BOOSTABLE_REMOTE_NOTE_VISIBILITY))
                 .fetchOne { it.toRemoteTarget() }
         }
     }

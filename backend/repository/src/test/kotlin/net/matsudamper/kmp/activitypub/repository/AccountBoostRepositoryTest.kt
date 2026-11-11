@@ -47,11 +47,11 @@ class AccountBoostRepositoryTest {
     }
 
     @Test
-    fun unlistedPostIsBoostedAsUnlisted() = withRepository { repositories, alice, _ ->
+    fun unlistedPostCannotBeBoosted() = withRepository { repositories, alice, _ ->
         val member = receiveNote(repositories, "unlisted", alice)
 
-        assertEquals(true, (repositories.accountBoostRepository.target(alice, member) as? BoostTarget.Remote)?.unlisted)
-        assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
+        assertNull(repositories.accountBoostRepository.target(alice, member))
+        assertNull(repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
     }
 
     @Test

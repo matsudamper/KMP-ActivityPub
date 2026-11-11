@@ -263,7 +263,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 record.value1() in if (actor == null) likedLocalIds else likedRemoteIds,
                 when {
                     actor == null -> record.value1() in boostedLocalIds
-                    record.value15() in PUBLISHED_REMOTE_NOTE_VISIBILITIES -> record.value1() in boostedRemoteIds
+                    record.value15() == BOOSTABLE_REMOTE_NOTE_VISIBILITY -> record.value1() in boostedRemoteIds
                     else -> null
                 },
                 member,
@@ -537,7 +537,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE,
             REMOTE_ACTORS.ACTOR_URI, REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.DISPLAY_NAME, REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT,
             booster.ACTOR_URI, booster.PREFERRED_USERNAME, booster.DISPLAY_NAME, booster.ICON_URL, booster.UPDATED_AT,
-            REMOTE_NOTES.OBJECT_URI,
+            REMOTE_NOTES.OBJECT_URI, REMOTE_NOTES.VISIBILITY,
         ).from(REMOTE_BOOSTS)
             .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
@@ -576,7 +576,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 favouriteCount = null,
                 stamps = listOf(),
                 likedByMe = record.value3() in likedNoteIds,
-                boostedByMe = record.value3() in boostedNoteIds,
+                boostedByMe = if (record.value19() == BOOSTABLE_REMOTE_NOTE_VISIBILITY) record.value3() in boostedNoteIds else null,
                 reactionMember = "r${record.value3()}",
                 noteRef = TimelineNoteRef.Remote(checkNotNull(record.value18())),
                 boostCount = null,

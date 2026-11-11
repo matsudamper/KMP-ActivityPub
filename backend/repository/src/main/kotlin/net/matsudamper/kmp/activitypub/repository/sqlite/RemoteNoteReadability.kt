@@ -16,6 +16,11 @@ import org.jooq.impl.DSL
 internal val PUBLISHED_REMOTE_NOTE_VISIBILITIES = listOf("public", "unlisted")
 
 /**
+ * こちらのアカウントがブーストできる投稿の公開範囲。公開タイムラインに載せない公開など、公開範囲に制限のある投稿はひとまずブーストできないようにする
+ */
+internal const val BOOSTABLE_REMOTE_NOTE_VISIBILITY = "public"
+
+/**
  * REMOTE_NOTES の行を [accountId] が読めるか
  */
 internal fun DSLContext.remoteNoteReadableBy(accountId: AccountId): Condition {
