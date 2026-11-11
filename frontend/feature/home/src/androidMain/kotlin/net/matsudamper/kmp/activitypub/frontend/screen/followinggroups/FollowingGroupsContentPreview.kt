@@ -48,7 +48,7 @@ private val previewEditingState = FollowingGroupsScreenUiState.ItemState.Editing
 )
 
 private val previewFollowingGroupsUiState = FollowingGroupsScreenUiState(
-    home = FollowingGroupsScreenUiState.Item(name = "ホーム", state = previewDisplayState),
+    home = FollowingGroupsScreenUiState.Item(name = "メイン", state = previewDisplayState),
     groups = listOf("ニュース", "友人", "技術ブログ").map { name ->
         FollowingGroupsScreenUiState.Item(name = name, state = previewDisplayState)
     },

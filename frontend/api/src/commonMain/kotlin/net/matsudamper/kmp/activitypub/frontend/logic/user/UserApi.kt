@@ -853,7 +853,7 @@ class UserApi(
         /**
          * 読めるまでと読めなかったときに出す。サーバーの既定と合わせる
          */
-        const val DEFAULT_HOME_GROUP_NAME = "ホーム"
+        const val DEFAULT_HOME_GROUP_NAME = "メイン"
 
         /**
          * 失敗の回数に応じて倍にしていく。5 回続けて失敗すると、諦めるまでに 5 + 10 + 20 + 40 秒待つ

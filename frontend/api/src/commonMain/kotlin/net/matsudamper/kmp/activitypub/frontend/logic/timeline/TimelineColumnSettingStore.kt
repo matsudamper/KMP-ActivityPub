@@ -34,5 +34,5 @@ sealed interface TimelineSource {
 }
 
 val DEFAULT_TIMELINE_COLUMNS: List<TimelineColumnSetting> = listOf(
-    TimelineColumnSetting(id = "home", name = "ホーム", sources = setOf(TimelineSource.Home)),
+    TimelineColumnSetting(id = "home", name = "メイン", sources = setOf(TimelineSource.Home)),
 )

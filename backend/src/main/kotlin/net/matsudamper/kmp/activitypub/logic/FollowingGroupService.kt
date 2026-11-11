@@ -78,7 +78,7 @@ class FollowingGroupService(
 
     companion object {
         const val MAX_NAME_LENGTH = 30
-        const val DEFAULT_HOME_NAME = "ホーム"
+        const val DEFAULT_HOME_NAME = "メイン"
     }
 }
 

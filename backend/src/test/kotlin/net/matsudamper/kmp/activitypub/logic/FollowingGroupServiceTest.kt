@@ -61,10 +61,10 @@ class FollowingGroupServiceTest {
         assertEquals(listOf("技術", "友人"), service.groups(alice).map { it.name })
         assertEquals(friends, service.groups(alice).last())
 
-        assertEquals("ホーム", service.homeName(alice))
+        assertEquals("メイン", service.homeName(alice))
         assertEquals(RenameFollowingGroupResult.Renamed, service.renameGroup(alice, null, "すべて"))
         assertEquals("すべて", service.homeName(alice))
-        assertEquals("ホーム", service.homeName(bob))
+        assertEquals("メイン", service.homeName(bob))
     }
 
     @Test
