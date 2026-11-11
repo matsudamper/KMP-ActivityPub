@@ -18,6 +18,11 @@ interface TimelineColumnSettingStore {
 }
 
 sealed interface TimelineColumnSetting {
+    /**
+     * ホームもグループも分けずに全部の投稿を出す
+     */
+    data object All : TimelineColumnSetting
+
     data object Home : TimelineColumnSetting
 
     data class FollowingGroup(val groupId: String) : TimelineColumnSetting

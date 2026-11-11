@@ -58,6 +58,7 @@ private val Context.timelineColumnSettingDataStore: DataStore<TimelineColumnSett
 
 private fun TimelineColumnProto.toTimelineColumnSetting(): TimelineColumnSetting? =
     when (kindCase) {
+        TimelineColumnProto.KindCase.ALL -> TimelineColumnSetting.All
         TimelineColumnProto.KindCase.HOME -> TimelineColumnSetting.Home
         TimelineColumnProto.KindCase.FOLLOWING_GROUP_ID -> TimelineColumnSetting.FollowingGroup(followingGroupId)
         TimelineColumnProto.KindCase.KIND_NOT_SET, null -> null
@@ -65,6 +66,7 @@ private fun TimelineColumnProto.toTimelineColumnSetting(): TimelineColumnSetting
 
 private fun TimelineColumnSetting.toProto(): TimelineColumnProto =
     when (this) {
+        TimelineColumnSetting.All -> TimelineColumnProto.newBuilder().setAll(true).build()
         TimelineColumnSetting.Home -> TimelineColumnProto.newBuilder().setHome(true).build()
         is TimelineColumnSetting.FollowingGroup -> TimelineColumnProto.newBuilder().setFollowingGroupId(groupId).build()
     }
