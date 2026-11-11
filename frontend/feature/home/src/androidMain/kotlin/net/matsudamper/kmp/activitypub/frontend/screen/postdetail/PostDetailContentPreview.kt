@@ -59,8 +59,8 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
                         ),
                         favouriteCountText = "12",
                         boostCountText = "4",
-                        favouriteButton = null,
-                        boostButton = null,
+                        favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
+                        boostButton = PostItemUiState.BoostButton(iconHighlighted = true, listener = AndroidPreviewBoostButtonListener),
                         stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
                         authorListener = null,
                         postListener = null,
@@ -120,4 +120,12 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
     override fun onClick() = Unit
 
     override fun onClickBlurToggle() = Unit
+}
+
+private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
+    override fun onClick() = Unit
 }
