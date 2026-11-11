@@ -438,6 +438,7 @@ private fun TimelineTabsContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
+        // 追加ボタンの下まで線を通すため、タブ行の線は消して行全体に引く
         Row(verticalAlignment = Alignment.CenterVertically) {
             val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
             if (selectedIndex >= 0) {
@@ -446,6 +447,7 @@ private fun TimelineTabsContent(
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedIndex,
                     edgePadding = 0.dp,
+                    divider = {},
                     modifier = Modifier.weight(1f),
                 ) {
                     uiState.timelineColumns.forEachIndexed { index, column ->
@@ -477,6 +479,7 @@ private fun TimelineTabsContent(
                 )
             }
         }
+        HorizontalDivider()
         val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
         val emptyMessage = uiState.timelineColumnsEmptyMessage
         val contentModifier = Modifier.fillMaxWidth().weight(1f)
