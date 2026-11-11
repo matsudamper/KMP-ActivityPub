@@ -26,7 +26,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,19 +33,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
-import net.matsudamper.kmp.activitypub.frontend.ui.PostImageLayout
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
@@ -100,7 +97,7 @@ internal fun PostDetailScreen(
 internal enum class PostDetailLayout {
     FullScreen,
 
-    /** 投稿が短くても下に空きを残さず、投稿を大きく見せる */
+    /** 投稿が短くても下に空きを残さない */
     Dialog,
 }
 
@@ -149,9 +146,7 @@ internal fun PostDetailContent(
                             is PostDetailScreenUiState.Content.Loaded -> {
                                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
                                     item {
-                                        PostItemScale(layout = layout) {
-                                            PostItem(uiState = content.post, imageLayout = PostImageLayout.Grid)
-                                        }
+                                        PostItem(uiState = content.post, style = PostItemStyle.Detail)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
                                 }
@@ -193,27 +188,6 @@ internal fun PostDetailContent(
 }
 
 /**
- * 文字もボタンも画像も同じ割合で大きくするため、大きさを個別に持たずに密度ごと上げる
- */
-@Composable
-private fun PostItemScale(
-    layout: PostDetailLayout,
-    content: @Composable () -> Unit,
-) {
-    when (layout) {
-        PostDetailLayout.FullScreen -> content()
-
-        PostDetailLayout.Dialog -> {
-            val density = LocalDensity.current
-            CompositionLocalProvider(
-                LocalDensity provides Density(density = density.density * DialogPostScale, fontScale = density.fontScale),
-                content = content,
-            )
-        }
-    }
-}
-
-/**
  * 送信はまだできないので、入力も送信も押せない見た目だけの欄
  */
 @Composable
@@ -236,8 +210,6 @@ private fun DummyMentionBox(placeholder: String) {
         }
     }
 }
-
-private const val DialogPostScale = 1.25f
 
 private val contentWindowInsets: WindowInsets
     @Composable
