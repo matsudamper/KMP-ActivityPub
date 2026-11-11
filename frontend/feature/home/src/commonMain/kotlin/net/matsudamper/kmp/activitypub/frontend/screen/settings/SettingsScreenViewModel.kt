@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeMode
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserAdminAccessResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLogoutResult
 import org.koin.core.annotation.KoinViewModel
@@ -28,6 +29,7 @@ internal class SettingsScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 loggingOut = false,
+                admin = false,
             ),
         )
     private val themeModeStateFlow: StateFlow<ThemeMode> =
@@ -38,6 +40,12 @@ internal class SettingsScreenViewModel(
             override fun onClickSecurity() {
                 viewModelScope.launch {
                     events.send { it.navigateToSecurity() }
+                }
+            }
+
+            override fun onClickAdmin() {
+                viewModelScope.launch {
+                    events.send { it.navigateToAdmin() }
                 }
             }
 
@@ -81,6 +89,13 @@ internal class SettingsScreenViewModel(
             }
         }.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            val admin = api.adminAccess() == UserAdminAccessResult.Granted
+            viewModelStateFlow.update { it.copy(admin = admin) }
+        }
+    }
+
     private fun logout() {
         if (viewModelStateFlow.value.loggingOut) return
 
@@ -122,6 +137,7 @@ internal class SettingsScreenViewModel(
                 )
             },
             logoutButtonEnabled = viewModelState.loggingOut.not(),
+            adminItemVisible = viewModelState.admin,
             listener = listener,
         )
     }
@@ -130,6 +146,8 @@ internal class SettingsScreenViewModel(
         fun navigateBack()
 
         fun navigateToSecurity()
+
+        fun navigateToAdmin()
 
         fun loggedOut()
 
@@ -140,6 +158,7 @@ internal class SettingsScreenViewModel(
 
     private data class ViewModelState(
         val loggingOut: Boolean,
+        val admin: Boolean,
     )
 
     private companion object {
