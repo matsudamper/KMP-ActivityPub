@@ -40,7 +40,6 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     private val remoteMember = DSL.inline("r").concat(REMOTE_NOTES.ID.cast(String::class.java))
     private val localMember = DSL.inline("l").concat(NOTES.ID.cast(String::class.java))
     private val boostMember = DSL.inline("b").concat(REMOTE_BOOSTS.ID.cast(String::class.java))
-    private val accountBoostMember = DSL.inline("a").concat(ACCOUNT_BOOSTS.ID.cast(String::class.java))
 
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest = jooq.withConnection { dsl ->
         RemoteNoteReceptionInterest(
@@ -112,12 +111,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .and(NOTES.ACCOUNT_ID.gt(after?.value ?: 0L)).limit(limit)
                 .fetch { AccountId(checkNotNull(it.value1())) }
         }
-        if (member.startsWith("a")) {
-            // 自分が付けたブーストは、ブーストしたアカウントのタイムラインにだけ載る
-            return@withConnection dsl.select(ACCOUNT_BOOSTS.ACCOUNT_ID).from(ACCOUNT_BOOSTS).where(ACCOUNT_BOOSTS.ID.eq(id))
-                .and(ACCOUNT_BOOSTS.ACCOUNT_ID.gt(after?.value ?: 0L)).limit(limit)
-                .fetch { AccountId(checkNotNull(it.value1())) }
-        }
+        // このサーバーのアカウントのブーストは、どのホームタイムラインにも載せない
+        if (TimelineMembers.accountBoostIdOf(member) != null) return@withConnection listOf()
         if (member.startsWith("b")) {
             return@withConnection dsl.select(ACCOUNT_FOLLOWING.ACCOUNT_ID).from(REMOTE_BOOSTS)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
@@ -383,12 +378,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .and(olderThan(REMOTE_NOTE_RECIPIENTS.SCORE_MS, REMOTE_NOTE_RECIPIENTS.MEMBER, after))
             .orderBy(REMOTE_NOTE_RECIPIENTS.SCORE_MS.desc(), REMOTE_NOTE_RECIPIENTS.MEMBER.desc()).limit(limit)
             .fetch { TimelinePosition(checkNotNull(it.value1()), checkNotNull(it.value2())) }
-        val ownBoosts = dsl.select(ACCOUNT_BOOSTS.ID, ACCOUNT_BOOSTS.SCORE_MS).from(ACCOUNT_BOOSTS)
-            .where(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))
-            .and(olderThan(ACCOUNT_BOOSTS.SCORE_MS, accountBoostMember, after))
-            .orderBy(ACCOUNT_BOOSTS.SCORE_MS.desc(), accountBoostMember.desc()).limit(limit)
-            .fetch { TimelinePosition(checkNotNull(it.value2()), TimelineMembers.accountBoostMember(checkNotNull(it.value1()))) }
-        (perActor.flatten() + addressed + ownBoosts + localPositions(dsl, accountId, after, limit)).distinctBy { it.member }
+        (perActor.flatten() + addressed + localPositions(dsl, accountId, after, limit)).distinctBy { it.member }
             .filter { cutoff == null || newestFirst.compare(it, cutoff) <= 0 }
             .sortedWith(newestFirst).take(limit)
     }

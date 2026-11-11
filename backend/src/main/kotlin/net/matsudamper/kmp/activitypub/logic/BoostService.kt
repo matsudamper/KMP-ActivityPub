@@ -6,7 +6,6 @@ import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
-import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kotpub.activity.AnnounceActivity
 import net.matsudamper.kotpub.activity.BoostActivities
@@ -22,7 +21,6 @@ import net.matsudamper.kotpub.note.NoteUrls
  * ブーストを記録して、フォロワーと投稿者への Announce / Undo を積む。送るのは配信キューのワーカー
  *
  * @param onEnqueued 積んだ後に呼ぶ。次の巡回を待たずに送らせる
- * @param onBoosted ブーストしたアカウントのタイムラインに、ブーストを載せる
  */
 class BoostService(
     private val directory: ActorDirectory,
@@ -31,7 +29,6 @@ class BoostService(
     private val followerRepository: FollowerRepository,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
-    private val onBoosted: (TimelinePosition) -> Unit,
 ) {
     /**
      * @param postId タイムラインの投稿の id
@@ -72,10 +69,7 @@ class BoostService(
                 boostedAt = clock.instant(),
             ),
         )
-        if (position != null) {
-            onEnqueued()
-            onBoosted(position)
-        }
+        if (position != null) onEnqueued()
         return SetBoostedResult.Updated
     }
 

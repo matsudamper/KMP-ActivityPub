@@ -30,15 +30,15 @@ class AccountBoostRepositoryTest {
             setOf(FOLLOWER_INBOX to announceBody("announce-1"), "$ACTOR/inbox" to announceBody("announce-1")),
             repositories.deliveryQueueRepository.claim(NOW, 10).map { it.inbox to it.body }.toSet(),
         )
-        assertEquals(listOf(alice), repositories.timelineRepository.recipients(position.member, NOW.minusSeconds(60), null, 10))
+        assertTrue(repositories.timelineRepository.recipients(position.member, NOW.minusSeconds(60), null, 10).isEmpty())
     }
 
     @Test
-    fun ownBoostIsShownInTheBoostersTimeline() = withRepository { repositories, alice, _ ->
+    fun ownBoostIsNotShownInTheHomeTimelineButCanBeOpened() = withRepository { repositories, alice, _ ->
         val member = receiveNote(repositories, "public", alice)
         val position = assertNotNull(repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1")))
 
-        assertTrue(position in repositories.timelineRepository.rebuild(alice, 10))
+        assertTrue(repositories.timelineRepository.rebuild(alice, 10).none { it.member == position.member })
         val post = repositories.timelineRepository.hydrate(alice, listOf(position.member)).single()
         assertEquals("alice", post.boostedBy?.username)
         assertNull(post.boostedBy?.actorUri)

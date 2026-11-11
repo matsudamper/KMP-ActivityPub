@@ -14,7 +14,7 @@ internal object TimelineMembers {
         if (member.startsWith("b")) member.drop(1).toLongOrNull() else null
 
     /**
-     * このサーバーのアカウントが付けたブースト。ブーストしたアカウントのタイムラインにだけ載る
+     * このサーバーのアカウントが付けたブースト。ホームタイムラインには載せず、プロフィールと個別投稿画面で使う
      */
     fun accountBoostIdOf(member: String): Long? =
         if (member.startsWith("a")) member.drop(1).toLongOrNull() else null

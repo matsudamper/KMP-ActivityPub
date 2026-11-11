@@ -15,7 +15,6 @@ import net.matsudamper.kmp.activitypub.FakeAccountBoostRepository
 import net.matsudamper.kmp.activitypub.FakeAccountRepository
 import net.matsudamper.kmp.activitypub.FakeFollowerRepository
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
-import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.activity.ActivityStreamsIri
 import net.matsudamper.kotpub.actor.ActorDirectory
@@ -29,7 +28,6 @@ class BoostServiceTest {
     private val followerRepository = FakeFollowerRepository().apply { deliveryInboxes += FOLLOWER_INBOX }
     private val boosts = FakeAccountBoostRepository()
     private var enqueuedCount = 0
-    private val boostedPositions = mutableListOf<TimelinePosition>()
     private val service = BoostService(
         directory = ActorDirectory(domain = DOMAIN, stored = LocalAccounts),
         accountService = AccountService(accountRepository),
@@ -37,11 +35,10 @@ class BoostServiceTest {
         followerRepository = followerRepository,
         clock = Clock.fixed(NOW, ZoneOffset.UTC),
         onEnqueued = { enqueuedCount++ },
-        onBoosted = { boostedPositions.add(it) },
     )
 
     @Test
-    fun `公開の投稿は公開でブーストし、投稿者とフォロワーに送って自分のタイムラインに載せる`() {
+    fun `公開の投稿は公開でブーストし、投稿者とフォロワーに送る`() {
         boosts.targets = mapOf("r1" to BoostTarget.Remote(OBJECT_URI, AUTHOR, AUTHOR_INBOX, unlisted = false))
 
         assertEquals(SetBoostedResult.Updated, service.setBoosted(alice, "r1", boosted = true))
@@ -56,7 +53,6 @@ class BoostServiceTest {
         assertEquals("Undo", undo["type"]?.jsonPrimitive?.content)
         assertEquals(boost.announceId, undo["object"]?.jsonObject?.get("id")?.jsonPrimitive?.content)
         assertEquals(1, enqueuedCount)
-        assertEquals(1, boostedPositions.size)
     }
 
     @Test
@@ -81,18 +77,16 @@ class BoostServiceTest {
         assertEquals("https://$DOMAIN/notes/note-1", boost.objectUri)
         assertEquals("https://$DOMAIN/users/alice", boost.objectAuthor)
         assertEquals(listOf(FOLLOWER_INBOX), boost.inboxes)
-        assertEquals(1, boostedPositions.size)
     }
 
     @Test
-    fun `既にブーストしていれば積まずにタイムラインにも載せ直さない`() {
+    fun `既にブーストしていれば積まない`() {
         boosts.targets = mapOf("r1" to BoostTarget.Remote(OBJECT_URI, AUTHOR, AUTHOR_INBOX, unlisted = false))
         service.setBoosted(alice, "r1", boosted = true)
 
         assertEquals(SetBoostedResult.Updated, service.setBoosted(alice, "r1", boosted = true))
 
         assertEquals(1, enqueuedCount)
-        assertEquals(1, boostedPositions.size)
     }
 
     @Test

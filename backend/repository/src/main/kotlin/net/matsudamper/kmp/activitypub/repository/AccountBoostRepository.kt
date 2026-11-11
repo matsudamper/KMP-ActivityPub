@@ -18,7 +18,7 @@ interface AccountBoostRepository {
     /**
      * ブーストを記録して、[OutgoingBoost.inboxes] への Announce を積む。記録と投函を分けると、ブーストしたのに相手に届かない状態が残る
      *
-     * @return 自分のタイムラインに載せるブーストの位置。既にブーストしていれば何も書かずに null
+     * @return 付けたブーストの位置。既にブーストしていれば何も書かずに null
      */
     fun boostAndEnqueue(boost: OutgoingBoost): TimelinePosition?
 

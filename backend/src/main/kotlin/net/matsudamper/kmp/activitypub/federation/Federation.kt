@@ -163,7 +163,6 @@ internal class Federation(
             followerRepository = followerRepository,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
-            onBoosted = timeline::enqueue,
         )
 
     val followDelivery = QueuedFollowDelivery(
