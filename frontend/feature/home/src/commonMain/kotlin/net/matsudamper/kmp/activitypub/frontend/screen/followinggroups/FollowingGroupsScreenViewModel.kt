@@ -45,13 +45,13 @@ internal class FollowingGroupsScreenViewModel(
             }
         }
 
-    private val renameDialogListener =
-        object : FollowingGroupsScreenUiState.RenameDialogListener {
+    private val editingListener =
+        object : FollowingGroupsScreenUiState.EditingListener {
             override fun onClickSave(name: String) {
                 rename(name)
             }
 
-            override fun onDismiss() {
+            override fun onClickCancel() {
                 if (viewModelStateFlow.value.renaming) return
                 viewModelStateFlow.update { it.copy(renameTarget = null) }
             }
@@ -96,13 +96,24 @@ internal class FollowingGroupsScreenViewModel(
         }
     }
 
-    private fun group(name: String, target: RenameTarget): FollowingGroupsScreenUiState.Group {
-        return FollowingGroupsScreenUiState.Group(
+    private fun item(name: String, target: RenameTarget, viewModelState: ViewModelState): FollowingGroupsScreenUiState.Item {
+        return FollowingGroupsScreenUiState.Item(
             name = name,
-            listener = object : FollowingGroupsScreenUiState.GroupListener {
-                override fun onClick() {
-                    viewModelStateFlow.update { it.copy(renameTarget = target) }
-                }
+            state = if (viewModelState.renameTarget == target) {
+                FollowingGroupsScreenUiState.ItemState.Editing(
+                    inputEnabled = viewModelState.renaming.not(),
+                    listener = editingListener,
+                )
+            } else {
+                FollowingGroupsScreenUiState.ItemState.Display(
+                    listener = object : FollowingGroupsScreenUiState.DisplayListener {
+                        override fun onClickEdit() {
+                            // 送っている途中に別の行へ移ると、返事が来たときに移った先の編集まで閉じてしまう
+                            if (viewModelStateFlow.value.renaming) return
+                            viewModelStateFlow.update { it.copy(renameTarget = target) }
+                        }
+                    },
+                )
             },
         )
     }
@@ -111,24 +122,12 @@ internal class FollowingGroupsScreenViewModel(
         viewModelState: ViewModelState,
         followingGroups: FollowingGroupsState,
     ): FollowingGroupsScreenUiState {
-        val renameTarget = viewModelState.renameTarget
         return FollowingGroupsScreenUiState(
-            groups = buildList {
-                add(group(name = followingGroups.homeName, target = RenameTarget.Home))
-                followingGroups.groups.forEach { group ->
-                    add(group(name = group.name, target = RenameTarget.Group(group.id)))
-                }
+            home = item(name = followingGroups.homeName, target = RenameTarget.Home, viewModelState = viewModelState),
+            groups = followingGroups.groups.map { group ->
+                item(name = group.name, target = RenameTarget.Group(group.id), viewModelState = viewModelState)
             },
-            renameDialog = renameTarget?.let { target ->
-                FollowingGroupsScreenUiState.RenameDialog(
-                    initialName = when (target) {
-                        RenameTarget.Home -> followingGroups.homeName
-                        is RenameTarget.Group -> followingGroups.groups.firstOrNull { it.id == target.groupId }?.name.orEmpty()
-                    },
-                    inputEnabled = viewModelState.renaming.not(),
-                    listener = renameDialogListener,
-                )
-            },
+            groupsEmptyMessageVisible = followingGroups.groups.isEmpty(),
             listener = listener,
         )
     }
@@ -140,7 +139,7 @@ internal class FollowingGroupsScreenViewModel(
     }
 
     /**
-     * @param renameTarget 名前を変えるダイアログを出している購読先。出していなければ null
+     * @param renameTarget 名前を変えている購読先。変えていなければ null
      */
     private data class ViewModelState(
         val renameTarget: RenameTarget?,

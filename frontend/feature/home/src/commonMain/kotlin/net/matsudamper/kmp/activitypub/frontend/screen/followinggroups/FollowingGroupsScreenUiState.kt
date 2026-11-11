@@ -3,37 +3,40 @@ package net.matsudamper.kmp.activitypub.frontend.screen.followinggroups
 import androidx.compose.runtime.Immutable
 
 data class FollowingGroupsScreenUiState(
+    val home: Item,
     /**
-     * 先頭はホーム。続けてグループを作った順
+     * 作った順
      */
-    val groups: List<Group>,
-    /**
-     * 出していなければ null
-     */
-    val renameDialog: RenameDialog?,
+    val groups: List<Item>,
+    val groupsEmptyMessageVisible: Boolean,
     val listener: Listener,
 ) {
-    data class Group(
+    data class Item(
         val name: String,
-        val listener: GroupListener,
+        val state: ItemState,
     )
 
-    data class RenameDialog(
-        val initialName: String,
-        val inputEnabled: Boolean,
-        val listener: RenameDialogListener,
-    )
+    sealed interface ItemState {
+        data class Display(
+            val listener: DisplayListener,
+        ) : ItemState
 
-    @Immutable
-    interface GroupListener {
-        fun onClick()
+        data class Editing(
+            val inputEnabled: Boolean,
+            val listener: EditingListener,
+        ) : ItemState
     }
 
     @Immutable
-    interface RenameDialogListener {
+    interface DisplayListener {
+        fun onClickEdit()
+    }
+
+    @Immutable
+    interface EditingListener {
         fun onClickSave(name: String)
 
-        fun onDismiss()
+        fun onClickCancel()
     }
 
     @Immutable
