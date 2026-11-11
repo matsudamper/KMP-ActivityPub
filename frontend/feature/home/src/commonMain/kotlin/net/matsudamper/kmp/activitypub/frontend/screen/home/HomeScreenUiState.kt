@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.state.ToggleableState
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuUiState
@@ -24,7 +25,7 @@ data class HomeScreenUiState(
     /**
      * 出していなければ null
      */
-    val addTimelineColumnDialog: AddTimelineColumnDialog?,
+    val timelineColumnEditDialog: TimelineColumnEditDialog?,
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
     val timelineStreamStatus: TimelineStreamStatus,
@@ -78,29 +79,43 @@ data class HomeScreenUiState(
 
         fun onClickHeader()
 
-        fun onClickRemove()
+        fun onClickEdit()
+
+        fun onClickDelete()
     }
 
     /**
-     * @param emptyMessage 足せる購読先が残っていれば null
+     * カラムの名前と、そこに流す購読先を決めるダイアログ。足すときも直すときも使う
+     *
+     * @param allSourcesCheckState 「すべて」のチェック。一部だけ選んでいれば [ToggleableState.Indeterminate]
      */
-    data class AddTimelineColumnDialog(
-        val items: List<Item>,
-        val emptyMessage: String?,
+    data class TimelineColumnEditDialog(
+        val title: String,
+        val name: String,
+        val allSourcesCheckState: ToggleableState,
+        val sources: List<Source>,
+        val saveButtonEnabled: Boolean,
         val listener: Listener,
     ) {
-        data class Item(
+        data class Source(
             val name: String,
-            val listener: ItemListener,
+            val checked: Boolean,
+            val listener: SourceListener,
         )
 
         @Immutable
-        interface ItemListener {
+        interface SourceListener {
             fun onClick()
         }
 
         @Immutable
         interface Listener {
+            fun onNameChanged(name: String)
+
+            fun onClickAllSources()
+
+            fun onClickSave()
+
             fun onDismiss()
         }
     }

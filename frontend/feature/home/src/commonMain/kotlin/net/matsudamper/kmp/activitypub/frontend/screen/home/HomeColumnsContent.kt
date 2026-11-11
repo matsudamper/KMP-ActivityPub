@@ -75,7 +75,7 @@ internal fun HomeColumnsContent(
                             HomeScreenUiState.Column.Search -> HomeColumn(
                                 title = "検索",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Search) },
-                                onClickClose = { uiState.listener.onClickCloseColumn(column) },
+                                headerActions = { ColumnCloseButton(title = "検索", onClick = { uiState.listener.onClickCloseColumn(column) }) },
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 SearchTabContent(
@@ -89,7 +89,7 @@ internal fun HomeColumnsContent(
                             HomeScreenUiState.Column.User -> HomeColumn(
                                 title = "ユーザー",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.User) },
-                                onClickClose = { uiState.listener.onClickCloseColumn(column) },
+                                headerActions = { ColumnCloseButton(title = "ユーザー", onClick = { uiState.listener.onClickCloseColumn(column) }) },
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 UserTabContent(
@@ -111,7 +111,7 @@ internal fun HomeColumnsContent(
                             HomeColumn(
                                 title = timelineColumn.title,
                                 onClickHeader = timelineColumn.listener::onClickHeader,
-                                onClickClose = timelineColumn.listener::onClickRemove,
+                                headerActions = { TimelineColumnSettingsButton(column = timelineColumn) },
                                 headerModifier = Modifier.horizontalReorderHandle(
                                     state = reorderState,
                                     index = index,
@@ -165,9 +165,9 @@ internal fun HomeColumnsContent(
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
     }
-    val addTimelineColumnDialog = uiState.addTimelineColumnDialog
-    if (addTimelineColumnDialog != null) {
-        AddTimelineColumnDialog(uiState = addTimelineColumnDialog)
+    val timelineColumnEditDialog = uiState.timelineColumnEditDialog
+    if (timelineColumnEditDialog != null) {
+        TimelineColumnEditDialog(uiState = timelineColumnEditDialog)
     }
 }
 
@@ -258,14 +258,13 @@ private fun ColumnToggleButton(
 }
 
 /**
- * @param onClickClose 閉じられないカラムは null
  * @param headerModifier 見出しを長押しして並べ替えるカラムで、見出しに付ける
  */
 @Composable
 private fun HomeColumn(
     title: String,
     onClickHeader: () -> Unit,
-    onClickClose: (() -> Unit)?,
+    headerActions: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     headerModifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
@@ -286,17 +285,20 @@ private fun HomeColumn(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
-            if (onClickClose != null) {
-                IconButton(onClick = onClickClose) {
-                    Icon(
-                        imageVector = AppIcons.Close,
-                        contentDescription = "${title}を閉じる",
-                    )
-                }
-            }
+            headerActions()
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         content(Modifier.fillMaxWidth().weight(1f))
+    }
+}
+
+@Composable
+private fun ColumnCloseButton(title: String, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = AppIcons.Close,
+            contentDescription = "${title}を閉じる",
+        )
     }
 }
 

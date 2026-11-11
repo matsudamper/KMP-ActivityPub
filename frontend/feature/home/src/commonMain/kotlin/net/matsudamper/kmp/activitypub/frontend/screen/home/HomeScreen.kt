@@ -330,15 +330,6 @@ internal fun HomeContent(
                         fontWeight = FontWeight.Bold,
                     )
                     if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
-                        val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
-                        if (selectedColumn != null) {
-                            IconButton(onClick = selectedColumn.listener::onClickRemove) {
-                                Icon(
-                                    imageVector = AppIcons.Close,
-                                    contentDescription = "${selectedColumn.title}のタブを閉じる",
-                                )
-                            }
-                        }
                         SensitiveImagesVisibilityButton(
                             sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
                             onClick = uiState.listener::onClickSensitiveImagesVisibility,
@@ -444,9 +435,9 @@ internal fun HomeContent(
     if (addFollowingGroupDialog != null) {
         AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
     }
-    val addTimelineColumnDialog = uiState.addTimelineColumnDialog
-    if (addTimelineColumnDialog != null) {
-        AddTimelineColumnDialog(uiState = addTimelineColumnDialog)
+    val timelineColumnEditDialog = uiState.timelineColumnEditDialog
+    if (timelineColumnEditDialog != null) {
+        TimelineColumnEditDialog(uiState = timelineColumnEditDialog)
     }
 }
 
@@ -515,13 +506,17 @@ private fun TimelineTabsContent(
             } else {
                 Spacer(modifier = Modifier.weight(1f))
             }
+            val selectedColumn = uiState.timelineColumns.getOrNull(selectedIndex)
+            if (selectedColumn != null) {
+                TimelineColumnSettingsButton(column = selectedColumn)
+            }
             IconButton(
                 onClick = uiState.listener::onClickAddTimelineColumn,
                 enabled = uiState.addTimelineColumnButtonEnabled,
             ) {
                 Icon(
                     imageVector = AppIcons.Add,
-                    contentDescription = "表示する購読先を追加",
+                    contentDescription = "カラムを追加",
                 )
             }
         }

@@ -3,7 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.timeline
 import kotlinx.coroutines.flow.Flow
 
 /**
- * 端末ごとに覚えておく、タイムラインのカラムやタブに並べる購読先。サーバーには送らない
+ * 端末ごとに覚えておく、タイムラインのカラムやタブ。サーバーには送らない
  */
 interface TimelineColumnSettingStore {
     /**
@@ -17,15 +17,22 @@ interface TimelineColumnSettingStore {
     suspend fun save(columns: List<TimelineColumnSetting>): Boolean
 }
 
-sealed interface TimelineColumnSetting {
-    /**
-     * ホームもグループも分けずに全部の投稿を出す
-     */
-    data object All : TimelineColumnSetting
+/**
+ * @param id 名前や流す購読先を変えても同じカラムだと分かるための鍵
+ * @param sources このカラムに流す購読先
+ */
+data class TimelineColumnSetting(
+    val id: String,
+    val name: String,
+    val sources: Set<TimelineSource>,
+)
 
-    data object Home : TimelineColumnSetting
+sealed interface TimelineSource {
+    data object Home : TimelineSource
 
-    data class FollowingGroup(val groupId: String) : TimelineColumnSetting
+    data class FollowingGroup(val groupId: String) : TimelineSource
 }
 
-val DEFAULT_TIMELINE_COLUMNS: List<TimelineColumnSetting> = listOf(TimelineColumnSetting.Home)
+val DEFAULT_TIMELINE_COLUMNS: List<TimelineColumnSetting> = listOf(
+    TimelineColumnSetting(id = "home", name = "ホーム", sources = setOf(TimelineSource.Home)),
+)
