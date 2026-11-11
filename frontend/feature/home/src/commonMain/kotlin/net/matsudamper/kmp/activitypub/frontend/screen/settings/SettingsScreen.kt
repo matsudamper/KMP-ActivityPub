@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -24,28 +23,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
-import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
-import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -68,6 +61,10 @@ internal fun SettingsScreen(
 
                 override fun navigateToSecurity() {
                     navigator.navigate(Screen.Security)
+                }
+
+                override fun navigateToFollowingGroups() {
+                    navigator.navigate(Screen.FollowingGroups)
                 }
 
                 override fun loggedOut() {
@@ -122,7 +119,7 @@ internal fun SettingsContent(
         ) {
             ThemeSection(themeOptions = uiState.themeOptions)
             HorizontalDivider()
-            FollowingGroupsSection(followingGroups = uiState.followingGroups)
+            FollowingGroupsItem(listener = uiState.listener)
             HorizontalDivider()
             SecurityItem(listener = uiState.listener)
             HorizontalDivider()
@@ -137,10 +134,6 @@ internal fun SettingsContent(
                 Text("ログアウト")
             }
         }
-    }
-    val renameFollowingGroupDialog = uiState.renameFollowingGroupDialog
-    if (renameFollowingGroupDialog != null) {
-        RenameFollowingGroupDialog(uiState = renameFollowingGroupDialog)
     }
 }
 
@@ -183,79 +176,27 @@ private fun ThemeSection(
 }
 
 @Composable
-private fun FollowingGroupsSection(
-    followingGroups: List<SettingsScreenUiState.FollowingGroupItem>,
+private fun FollowingGroupsItem(
+    listener: SettingsScreenUiState.Listener,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickFollowingGroups)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         Text(
             text = "購読先",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
-        followingGroups.forEach { group ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = group.listener::onClick)
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = group.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Text(
-                    text = "名前を変更",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
+        Text(
+            text = "ホームとグループの名前",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
-}
-
-@Composable
-private fun RenameFollowingGroupDialog(uiState: SettingsScreenUiState.RenameFollowingGroupDialog) {
-    var name by remember { mutableStateOf(uiState.initialName) }
-    AlertDialog(
-        onDismissRequest = uiState.listener::onDismiss,
-        title = { Text("購読先の名前を変更") },
-        text = {
-            SingleLineTextField(
-                value = name,
-                onValueChange = { name = it },
-                onImeAction = { uiState.listener.onClickSave(name) },
-                label = "名前",
-                kind = SingleLineTextFieldKind.Plain,
-                autofill = null,
-                formId = null,
-                required = true,
-                imeAction = ImeAction.Done,
-                inputId = "rename-following-group-name",
-                inputName = "rename-following-group-name",
-                enabled = uiState.inputEnabled,
-                hasError = false,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { uiState.listener.onClickSave(name) },
-                enabled = uiState.inputEnabled,
-            ) {
-                Text("保存")
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = uiState.listener::onDismiss,
-                enabled = uiState.inputEnabled,
-            ) {
-                Text("キャンセル")
-            }
-        },
-    )
 }
 
 @Composable

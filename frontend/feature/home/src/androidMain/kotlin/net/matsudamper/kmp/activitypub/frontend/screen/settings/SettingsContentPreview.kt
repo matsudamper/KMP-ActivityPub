@@ -16,23 +16,6 @@ private fun SettingsContentPreview() {
 
 @Preview
 @Composable
-private fun SettingsContentRenameFollowingGroupPreview() {
-    MaterialTheme {
-        SettingsContent(
-            uiState = previewSettingsUiState.copy(
-                renameFollowingGroupDialog = SettingsScreenUiState.RenameFollowingGroupDialog(
-                    initialName = "ニュース",
-                    inputEnabled = true,
-                    listener = AndroidPreviewRenameFollowingGroupDialogListener,
-                ),
-            ),
-            snackbarHostState = SnackbarHostState(),
-        )
-    }
-}
-
-@Preview
-@Composable
 private fun SettingsContentDarkPreview() {
     AppTheme(darkTheme = true) {
         SettingsContent(
@@ -55,10 +38,6 @@ private fun previewThemeOptions(selected: Int): List<SettingsScreenUiState.Theme
 
 private val previewSettingsUiState = SettingsScreenUiState(
     themeOptions = previewThemeOptions(selected = 0),
-    followingGroups = listOf("ホーム", "ニュース", "友人").map { name ->
-        SettingsScreenUiState.FollowingGroupItem(name = name, listener = AndroidPreviewFollowingGroupItemListener)
-    },
-    renameFollowingGroupDialog = null,
     logoutButtonEnabled = true,
     listener = AndroidPreviewSettingsListener,
 )
@@ -67,18 +46,10 @@ private object AndroidPreviewThemeOptionListener : SettingsScreenUiState.ThemeOp
     override fun onClick() = Unit
 }
 
-private object AndroidPreviewFollowingGroupItemListener : SettingsScreenUiState.FollowingGroupItemListener {
-    override fun onClick() = Unit
-}
-
-private object AndroidPreviewRenameFollowingGroupDialogListener : SettingsScreenUiState.RenameFollowingGroupDialogListener {
-    override fun onClickSave(name: String) = Unit
-
-    override fun onDismiss() = Unit
-}
-
 private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
     override fun onClickSecurity() = Unit
+
+    override fun onClickFollowingGroups() = Unit
 
     override fun onClickGitHubRelease() = Unit
 

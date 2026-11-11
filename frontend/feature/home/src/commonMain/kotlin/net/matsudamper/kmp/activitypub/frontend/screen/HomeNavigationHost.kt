@@ -18,6 +18,7 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.followinggroups.FollowingGroupsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListKind
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
@@ -127,6 +128,10 @@ private fun ScreenContent(
 
         Screen.Security -> {
             SecurityScreen(navigator = navigator)
+        }
+
+        Screen.FollowingGroups -> {
+            FollowingGroupsScreen(navigator = navigator)
         }
 
         Screen.Following -> {
