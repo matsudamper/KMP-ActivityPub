@@ -35,13 +35,13 @@ interface AccountBoostRepository {
     ): Boolean
 
     /**
-     * 投稿者が投稿を消したとき、その投稿へのこのサーバーのアカウントのブーストをすべて消し、[unboostAndEnqueueUndo] と同じく Undo を積む。
+     * 投稿者が消した他のサーバーの投稿を消す。その投稿へのこのサーバーのアカウントのブーストもすべて外し、[unboostAndEnqueueUndo] と同じく Undo を積む。
      * 投稿者の Delete がこちらのフォロワーのサーバーに届くとは限らないので、ブーストを届けた宛先にはこちらから取り消しを送る。
-     * 投稿が [actorUri] のものでなければ何もしない
+     * 投稿を消すとブーストの記録も消えるので、ブーストの取り消しと投稿の削除は分けずに行う。投稿が [actorUri] のものでなければ何もしない
      *
-     * @return 消したブーストの数
+     * @return 外したブーストの数
      */
-    fun unboostAllOfDeletedNote(
+    fun deleteRemoteNoteAndUndoBoosts(
         actorUri: String,
         objectUri: String,
         now: Instant,

@@ -128,7 +128,7 @@ internal class FakeRepositories : Repositories {
             now: Instant,
             undoBody: (announceBody: String) -> String,
         ): Boolean = false
-        override fun unboostAllOfDeletedNote(
+        override fun deleteRemoteNoteAndUndoBoosts(
             actorUri: String,
             objectUri: String,
             now: Instant,

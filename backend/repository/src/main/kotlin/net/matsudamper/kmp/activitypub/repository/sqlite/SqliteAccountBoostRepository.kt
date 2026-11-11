@@ -81,7 +81,7 @@ internal class SqliteAccountBoostRepository(
         }
     }
 
-    override fun unboostAllOfDeletedNote(
+    override fun deleteRemoteNoteAndUndoBoosts(
         actorUri: String,
         objectUri: String,
         now: Instant,
@@ -95,7 +95,11 @@ internal class SqliteAccountBoostRepository(
                 .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri))
                 .and(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
                 .fetch { AccountId(checkNotNull(it.value1())) to checkNotNull(it.value2()) }
-            boosts.count { (accountId, remoteNoteId) -> dsl.unboost(accountId, remoteNoteId, now, undoBody) }
+            val undone = boosts.count { (accountId, remoteNoteId) -> dsl.unboost(accountId, remoteNoteId, now, undoBody) }
+            dsl.deleteFrom(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(objectUri))
+                .and(REMOTE_NOTES.REMOTE_ACTOR_ID.`in`(dsl.select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))))
+                .execute()
+            undone
         }
     }
 

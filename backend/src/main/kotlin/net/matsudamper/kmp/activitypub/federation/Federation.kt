@@ -106,7 +106,7 @@ internal class Federation(
         directory,
         timeline,
         Clock.systemUTC(),
-        beforeRemoteNoteDeleted = { actorUri, objectUri -> boostService.undoBoostsOfDeletedNote(actorUri, objectUri) },
+        deleteRemoteNote = { actorUri, objectUri -> boostService.deleteRemoteNote(actorUri, objectUri) },
     )
     private val boosts = RecordedBoosts(boostRepository, receivedNotes)
 
