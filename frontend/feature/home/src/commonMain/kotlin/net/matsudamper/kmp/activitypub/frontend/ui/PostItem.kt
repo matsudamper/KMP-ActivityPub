@@ -36,6 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
@@ -133,10 +136,13 @@ internal fun PostItem(
                 )
             }
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
+                var wheelInputActive by remember { mutableStateOf(false) }
                 LazyRow(
+                    userScrollEnabled = !wheelInputActive,
                     modifier = Modifier
                         .padding(top = 8.dp)
-                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding),
+                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
+                        .detectWheelInput(onWheelInputActiveChange = { wheelInputActive = it }),
                     contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -397,6 +403,28 @@ private val PostIconSize = 46.dp
 private val PostIconHeaderSpacing = 12.dp
 
 // 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
+/**
+ * ホイールやトラックパッドで横に並ぶ画像まで動かすと、上を通るだけで縦のスクロールやタブの横移動を奪って途切れさせる。
+ * ホイールやトラックパッドを使っている間は横の並びのスクロールを止め、押下されたら戻す
+ */
+private fun Modifier.detectWheelInput(
+    onWheelInputActiveChange: (Boolean) -> Unit,
+): Modifier = pointerInput(onWheelInputActiveChange) {
+    awaitPointerEventScope {
+        while (true) {
+            when (awaitPointerEvent(PointerEventPass.Initial).type) {
+                PointerEventType.Scroll,
+                PointerEventType.PanStart,
+                PointerEventType.PanMove,
+                -> onWheelInputActiveChange(true)
+
+                PointerEventType.Press -> onWheelInputActiveChange(false)
+                else -> Unit
+            }
+        }
+    }
+}
+
 private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
     val startPx = start.roundToPx()
     val endPx = end.roundToPx()
