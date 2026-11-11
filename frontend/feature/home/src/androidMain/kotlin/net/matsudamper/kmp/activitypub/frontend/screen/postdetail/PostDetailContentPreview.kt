@@ -82,10 +82,17 @@ private fun createLoadedUiState(
     )
 }
 
-@OptIn(ExperimentalCoilApi::class)
 @Preview(widthDp = 1200, heightDp = 900)
 @Composable
-private fun PostDetailDialogPreview() {
+private fun PostDetailDialogPreview() = PostDetailDialogPreviewContent(imageCount = 6)
+
+@Preview(widthDp = 1200, heightDp = 900)
+@Composable
+private fun PostDetailDialogNoImagePreview() = PostDetailDialogPreviewContent(imageCount = 0)
+
+@OptIn(ExperimentalCoilApi::class)
+@Composable
+private fun PostDetailDialogPreviewContent(imageCount: Int) {
     MaterialTheme {
         CompositionLocalProvider(
             LocalInspectionMode provides true,
@@ -95,9 +102,9 @@ private fun PostDetailDialogPreview() {
                 modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center,
             ) {
-                PostDetailDialogFrame {
+                PostDetailDialogFrame(onDismissRequest = {}) {
                     PostDetailContent(
-                        uiState = createLoadedUiState(images = (1..6).map { previewImage(index = it) }, deleteNoteDialog = null),
+                        uiState = createLoadedUiState(images = (1..imageCount).map { previewImage(index = it) }, deleteNoteDialog = null),
                         snackbarHostState = SnackbarHostState(),
                         heightFitsContent = true,
                     )

@@ -3,7 +3,9 @@ package net.matsudamper.kmp.activitypub.frontend.screen
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +18,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -25,6 +30,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
+import kotlin.math.roundToInt
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
@@ -93,7 +99,7 @@ fun HomeNavigationHost(
                             )
                         }
                     } else if (screen is Screen.PostDetail && openAsDialog) {
-                        PostDetailDialogFrame {
+                        PostDetailDialogFrame(onDismissRequest = navigator::back) {
                             ScreenEntryContent(
                                 screen = screen,
                                 navigator = navigator,
@@ -129,19 +135,48 @@ internal fun UserProfileDialogFrame(content: @Composable () -> Unit) {
 }
 
 /**
- * 画像を大きく並べられるよう、プロフィールより広くする
+ * 画像を大きく並べられるよう、プロフィールより広くする。
+ * 中心を画面の上から 1/3 に置き、高さが増えると上下に広がって、画面の端の余白で止まる
  */
 @Composable
-internal fun PostDetailDialogFrame(content: @Composable () -> Unit) {
-    BoxWithConstraints {
-        Surface(
-            modifier = Modifier
-                .widthIn(max = POST_DETAIL_DIALOG_MAX_WIDTH)
-                .fillMaxWidth(0.9f)
-                .heightIn(max = maxHeight * 0.9f),
-            shape = MaterialTheme.shapes.large,
-        ) {
-            content()
+internal fun PostDetailDialogFrame(
+    onDismissRequest: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Layout(
+        modifier = Modifier.fillMaxSize(),
+        content = {
+            // ダイアログが画面全体を覆うので、外側を押して閉じるのはプラットフォームに頼らずここで受ける
+            Spacer(
+                modifier = Modifier.pointerInput(onDismissRequest) {
+                    detectTapGestures(onTap = { onDismissRequest() })
+                },
+            )
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = POST_DETAIL_DIALOG_MAX_WIDTH)
+                    .fillMaxWidth(0.9f),
+                shape = MaterialTheme.shapes.large,
+            ) {
+                content()
+            }
+        },
+    ) { measurables, constraints ->
+        val outsideArea = measurables[0].measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight))
+        val verticalMargin = (constraints.maxHeight * POST_DETAIL_DIALOG_VERTICAL_MARGIN_RATIO).roundToInt()
+        val dialog = measurables[1].measure(
+            constraints.copy(
+                minWidth = 0,
+                minHeight = 0,
+                maxHeight = (constraints.maxHeight - verticalMargin * 2).coerceAtLeast(0),
+            ),
+        )
+        val dialogTop = (constraints.maxHeight / 3 - dialog.height / 2)
+            .coerceAtMost(constraints.maxHeight - verticalMargin - dialog.height)
+            .coerceAtLeast(verticalMargin)
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            outsideArea.place(0, 0)
+            dialog.place((constraints.maxWidth - dialog.width) / 2, dialogTop)
         }
     }
 }
@@ -256,6 +291,7 @@ private fun ScreenContent(
 private val USER_PROFILE_DIALOG_MAX_WIDTH = 600.dp
 
 private val POST_DETAIL_DIALOG_MAX_WIDTH = 1000.dp
+private const val POST_DETAIL_DIALOG_VERTICAL_MARGIN_RATIO = 0.05f
 
 private val PostDetailDialogMetadata: Map<String, Any> =
     DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false))
