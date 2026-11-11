@@ -3,10 +3,13 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.horizontalDrag
+import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -53,6 +58,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
@@ -149,6 +156,7 @@ internal fun PostItem(
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 val attachmentListState = rememberLazyListState()
                 val layoutDirection = LocalLayoutDirection.current
+                val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
                 LazyRow(
                     state = attachmentListState,
                     modifier = Modifier
@@ -156,6 +164,7 @@ internal fun PostItem(
                         .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
                         .scrollHorizontallyByMouseDrag(
                             state = attachmentListState,
+                            flingBehavior = attachmentFlingBehavior,
                             reverseDirection = layoutDirection == LayoutDirection.Rtl,
                         ),
                     contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
@@ -449,19 +458,35 @@ private val PostIconHeaderSpacing = 12.dp
  */
 private fun Modifier.scrollHorizontallyByMouseDrag(
     state: LazyListState,
+    flingBehavior: FlingBehavior,
     reverseDirection: Boolean,
-): Modifier = pointerInput(state, reverseDirection) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        if (down.type == PointerType.Mouse) {
-            val dragStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ ->
-                change.consume()
-            }
-            if (dragStart != null) {
-                horizontalDrag(dragStart.id) { change ->
-                    val dragAmount = change.positionChange().x
-                    state.dispatchRawDelta(if (reverseDirection) dragAmount else -dragAmount)
+): Modifier = pointerInput(state, flingBehavior, reverseDirection) {
+    val toScrollAmount = { dragAmount: Float -> if (reverseDirection) dragAmount else -dragAmount }
+    coroutineScope {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            if (down.type == PointerType.Mouse) {
+                launch { state.stopScroll() }
+                val velocityTracker = VelocityTracker()
+                velocityTracker.addPointerInputChange(down)
+                val dragStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ ->
+                    velocityTracker.addPointerInputChange(change)
                     change.consume()
+                }
+                if (dragStart != null) {
+                    val dragCompleted = horizontalDrag(dragStart.id) { change ->
+                        velocityTracker.addPointerInputChange(change)
+                        state.dispatchRawDelta(toScrollAmount(change.positionChange().x))
+                        change.consume()
+                    }
+                    if (dragCompleted) {
+                        val flingVelocity = toScrollAmount(velocityTracker.calculateVelocity().x)
+                        launch {
+                            state.scroll {
+                                with(flingBehavior) { performFling(flingVelocity) }
+                            }
+                        }
+                    }
                 }
             }
         }
