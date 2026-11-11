@@ -435,20 +435,16 @@ internal class HomeScreenViewModel(
         loadFollowingGroups()
     }
 
-    /**
-     * 名前を読めていないグループはチェックを出していないので、外したことにはせず残す
-     */
     private fun saveEditingTimelineColumn() {
         val state = viewModelStateFlow.value.timelineColumns
         val settings = state.settings ?: return
         val editor = state.editor ?: return
         if (!state.editorSaveEnabled()) return
         val editingColumn = settings.firstOrNull { it.id == editor.editingId }
-        val hiddenSources = editingColumn?.sources.orEmpty() - state.selectableSources().toSet()
         val savedColumn = TimelineColumnSetting(
             id = editingColumn?.id ?: Uuid.random().toString(),
             name = editor.name.trim(),
-            sources = editor.sources + hiddenSources,
+            sources = editor.sources,
         )
         updateTimelineColumns { it.copy(selectedId = savedColumn.id, editor = null) }
         saveTimelineColumns(
@@ -1281,6 +1277,7 @@ internal class HomeScreenViewModel(
 
     /**
      * @param editingId 新しく足すときは null
+     * @param sources 名前を読めていないグループはチェックを出さないが、外したことにはせずここに残す
      */
     private data class TimelineColumnEditorState(
         val editingId: String?,
