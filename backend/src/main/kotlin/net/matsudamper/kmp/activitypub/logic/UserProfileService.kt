@@ -5,6 +5,10 @@ import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
@@ -40,6 +44,7 @@ class UserProfileService(
     private val localDomain: String,
 ) {
     private val logger = LoggerFactory.getLogger(UserProfileService::class.java)
+    private val featuredFetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun profile(acct: String, viewer: AccountId?): UserProfile? {
         val normalizedAcct = acct.removePrefix("@")
@@ -153,11 +158,14 @@ class UserProfileService(
     }
 
     /**
-     * フォロー中の相手は保存済みの投稿だけで出せるので、相手のサーバーが遅くてもプロフィールを待たせないよう期限を切る
+     * フォロー中の相手は保存済みの投稿だけで出せるので、相手のサーバーが遅くてもプロフィールを待たせないよう期限を切る。
+     *
+     * 取得はこの呼び出しから切り離して動かす。ソケットの読み取りはスレッドの割り込みで止まらないことがあり、
+     * 同じコルーチンで待つと期限を過ぎても読み取りのタイムアウトまで戻れない
      */
     private suspend fun featuredPosts(actorUri: String): List<ProfilePost> {
         val profiles = remoteProfiles ?: return listOf()
-        val featured = withTimeoutOrNull(FEATURED_POSTS_TIMEOUT) {
+        val fetching = featuredFetchScope.async {
             try {
                 profiles.featuredPosts(actorUri)
             } catch (exception: CancellationException) {
@@ -166,6 +174,11 @@ class UserProfileService(
                 logger.warn("固定した投稿を取れなかった: $actorUri", exception)
                 listOf()
             }
+        }
+        val featured = try {
+            withTimeoutOrNull(FEATURED_POSTS_TIMEOUT) { fetching.await() }
+        } finally {
+            fetching.cancel()
         }
         if (featured == null) logger.warn("固定した投稿の取得が期限を過ぎた: $actorUri")
         return featured.orEmpty()

@@ -6,9 +6,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
@@ -260,6 +265,20 @@ class UserProfileServiceTest {
 
         assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
         assertEquals(listOf(false), posts.map { it.pinned })
+    }
+
+    @Test
+    fun featuredRequestIgnoringCancellationDoesNotHoldProfile() = runBlocking {
+        featured = {
+            withContext(NonCancellable) { delay(1.minutes) }
+            listOf()
+        }
+
+        val startedAt = System.nanoTime()
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertTrue((System.nanoTime() - startedAt).nanoseconds < 30.seconds)
+        assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
     }
 
     @Test
