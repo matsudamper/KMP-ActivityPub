@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.compose.compiler)
     alias(libs.plugins.compose)
     alias(libs.plugins.koin.compiler)
+    alias(libs.plugins.kotlin.serialization)
     id("kmp-activitypub.webpack-bundle-hash")
 }
 
@@ -51,6 +52,7 @@ kotlin {
                 implementation(libs.koin.compose)
                 implementation(libs.koin.compose.viewmodel)
                 implementation(libs.kotlinx.coroutines.core)
+                implementation(libs.kotlinx.serialization.json)
             }
         }
     }
