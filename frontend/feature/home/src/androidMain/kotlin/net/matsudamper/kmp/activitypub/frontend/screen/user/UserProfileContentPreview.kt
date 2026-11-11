@@ -73,6 +73,7 @@ private fun UserProfileContentPreview() {
                     ),
                     deleteNoteDialog = null,
                     addFollowingGroupDialog = null,
+                    openOriginalMenuItemVisible = true,
                     listener = AndroidPreviewUserProfileListener,
                 ),
                 snackbarHostState = SnackbarHostState(),
@@ -106,6 +107,7 @@ private fun UserProfileContentLocalUserPreview() {
                 ),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
+                openOriginalMenuItemVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -142,6 +144,7 @@ private fun UserProfileContentMediaPreview() {
                 ),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
+                openOriginalMenuItemVisible = true,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -158,6 +161,7 @@ private fun UserProfileContentNotFoundPreview() {
                 content = UserProfileScreenUiState.Content.NotFound,
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
+                openOriginalMenuItemVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -171,6 +175,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickBack() = Unit
 
     override fun onClickTab(tab: ProfileContentTab) = Unit
+
+    override fun onClickOpenOriginal() = Unit
 }
 
 private object AndroidPreviewMediaListener : ProfileMediaUiState.Listener {

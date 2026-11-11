@@ -20,6 +20,10 @@ data class UserProfileScreenUiState(
      * 出していなければ null
      */
     val addFollowingGroupDialog: AddFollowingGroupDialogUiState?,
+    /**
+     * このサーバーのユーザーには元のインスタンスが無いので false
+     */
+    val openOriginalMenuItemVisible: Boolean,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -59,5 +63,7 @@ data class UserProfileScreenUiState(
         fun onClickBack()
 
         fun onClickTab(tab: ProfileContentTab)
+
+        fun onClickOpenOriginal()
     }
 }

@@ -84,6 +84,11 @@ internal class UserProfileScreenViewModel(
         override fun onClickTab(tab: ProfileContentTab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }
+
+        override fun onClickOpenOriginal() {
+            val actorUri = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile?.actorUri ?: return
+            viewModelScope.launch { events.send { it.openUrl(actorUri) } }
+        }
     }
 
     private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
@@ -234,6 +239,7 @@ internal class UserProfileScreenViewModel(
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
+            openOriginalMenuItemVisible = (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
             listener = listener,
         )
     }
