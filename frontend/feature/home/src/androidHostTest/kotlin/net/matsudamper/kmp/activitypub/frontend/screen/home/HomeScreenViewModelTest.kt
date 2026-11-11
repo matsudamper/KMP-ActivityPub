@@ -156,6 +156,35 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun screenShownAgainKeepsLoadedPagesBelowFreshFirstPage() = withViewModel { viewModel, engine ->
+        engine.responses.send { page(listOf("a", "b"), "next") }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 2 }
+        // 読み込み中は続きを読まないので、読み終えるのを待つ
+        advanceUntilIdle()
+        engine.responses.send { page(listOf("c", "d"), null) }
+        viewModel.uiStateFlow.value.listener.onScrolledToTimelineEnd()
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 4 }
+
+        engine.responses.send { page(listOf("new", "a"), "next") }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 5 }
+        assertEquals(listOf("new", "a", "b", "c", "d"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
+    }
+
+    @Test
+    fun screenShownAgainReplacesLoadedPagesWhenFirstPageDoesNotReachThem() = withViewModel { viewModel, engine ->
+        engine.responses.send { page(listOf("a", "b"), "next") }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.homeColumnItems().size == 2 && !it.timelineRefreshing }
+
+        engine.responses.send { page(listOf("x", "y"), "next") }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.homeColumnItems().firstOrNull()?.body?.text?.text == "x" }
+        assertEquals(listOf("x", "y"), viewModel.uiStateFlow.value.homeColumnItems().map { it.body.text.text })
+    }
+
+    @Test
     fun appendFailureStopsAutomaticRetryUntilRetryButtonIsPressed() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a"), "next") }
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()
