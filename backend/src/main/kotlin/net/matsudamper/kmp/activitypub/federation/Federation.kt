@@ -30,6 +30,7 @@ import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
@@ -57,6 +58,7 @@ import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.note.FeaturedEndpoint
 import net.matsudamper.kotpub.note.HttpRemoteNotes
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
@@ -72,6 +74,7 @@ internal class Federation(
     followingRepository: FollowingRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
+    notePinRepository: NotePinRepository,
     timelineRepository: TimelineRepository,
     timeline: HomeTimelineService,
     remoteActorRepository: RemoteActorRepository,
@@ -240,6 +243,9 @@ internal class Federation(
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
     val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, null)
+
+    val featuredEndpoint: FeaturedEndpoint =
+        FeaturedEndpoint(directory = directory, featuredNotes = RepositoryFeaturedNoteStore(pins = notePinRepository, notes = notes), webPages = null)
 
     /**
      * kotpub の InboxService.default に、他のサーバーからの投稿の受け取りとフォローへの応答の受け取りを足したもの

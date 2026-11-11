@@ -24,7 +24,7 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             .posts(accountId)
             // 接続はログアウトや期限切れの後も残るので、流すたびにセッションを確かめて終える
             .takeWhile { context.userAccountId() == accountId }
-            .map { it.toQlHomeTimelinePost(accountId, diContainer) }
+            .map { listOf(it).toQlHomeTimelinePosts(accountId, diContainer).single() }
             .asPublisher(Dispatchers.IO)
     }
 

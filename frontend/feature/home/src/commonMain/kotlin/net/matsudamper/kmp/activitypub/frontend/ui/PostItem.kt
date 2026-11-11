@@ -85,6 +85,9 @@ internal fun PostItem(
         modifier = modifier.fillMaxWidth().then(postClickModifier).padding(horizontal = PostHorizontalPadding, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (uiState.pinnedLabelVisible) {
+            PinnedLabel()
+        }
         val boostedBy = uiState.boostedBy
         if (boostedBy != null) {
             BoostedByLabel(boostedBy = boostedBy)
@@ -222,6 +225,32 @@ private fun PostImageGrid(
                 }
             }
         }
+    }
+}
+
+/**
+ * ブーストの行と同じく、アイコンの列に揃えて出す
+ */
+@Composable
+private fun PinnedLabel() {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.width(PostIconSize), contentAlignment = Alignment.CenterEnd) {
+            Icon(
+                imageVector = AppIcons.PushPin,
+                contentDescription = null,
+                modifier = Modifier.size(PostActionIconSize),
+                tint = color,
+            )
+        }
+        Text(
+            text = "ピン留め",
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+        )
     }
 }
 

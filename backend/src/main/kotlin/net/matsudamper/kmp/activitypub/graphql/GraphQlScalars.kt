@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 object GraphQlScalars {
     /**
@@ -38,6 +39,13 @@ object GraphQlScalars {
             .newScalar()
             .name("NoteImageId")
             .coercing(StringIdCoercing(name = "NoteImageId", type = NoteImagePublicId::class.java, wrap = ::NoteImagePublicId, unwrap = NoteImagePublicId::value))
+            .build()
+
+    val publicNoteId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("PublicNoteId")
+            .coercing(StringIdCoercing(name = "PublicNoteId", type = PublicNoteId::class.java, wrap = ::PublicNoteId, unwrap = PublicNoteId::value))
             .build()
 
     /**

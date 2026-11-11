@@ -81,6 +81,14 @@ internal fun Route.federationRoutes(federation: Federation) {
         call.respondEndpoint(response)
     }
 
+    get("/users/{username}/collections/featured") {
+        val response =
+            withOpenTelemetryContext {
+                federation.featuredEndpoint.get(call.parameters["username"], call.request.header(HttpHeaders.Accept))
+            }
+        call.respondEndpoint(response)
+    }
+
     get("/notes/{publicId}") {
         val response =
             withOpenTelemetryContext {

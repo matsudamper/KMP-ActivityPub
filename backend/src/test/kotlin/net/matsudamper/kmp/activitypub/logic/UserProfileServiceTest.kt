@@ -6,7 +6,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.nanoseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
@@ -25,6 +32,12 @@ class UserProfileServiceTest {
     private val actorUri = "https://remote.example/users/bob"
     private val following = FollowingService(repositories.accountRepository, repositories.followingRepository, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
     private val requests = mutableListOf<String>()
+
+    /**
+     * 固定した投稿はどの経路でも取りに行くので、[requests] とは分けて数える
+     */
+    private val featuredRequests = mutableListOf<String>()
+    private var featured: suspend () -> List<ProfilePost> = { listOf() }
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile {
             requests.add("profile")
@@ -33,25 +46,12 @@ class UserProfileServiceTest {
 
         override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
             requests.add("posts")
-            return listOf(
-                ProfilePost(
-                    contentHtml = "<p>最新の投稿</p>",
-                    publishedAt = Instant.EPOCH.toString(),
-                    summary = null,
-                    sensitive = false,
-                    linkPreviewId = null,
-                    postId = null,
-                    deletableNoteId = null,
-                    images = listOf(),
-                    favouriteCount = null,
-                    stamps = listOf(),
-                    like = null,
-                    noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
-                    boostCount = null,
-                    boostedNoteAuthor = null,
-                    emojis = listOf(),
-                ),
-            )
+            return listOf(remotePost("<p>最新の投稿</p>", "https://remote.example/notes/1", pinned = false))
+        }
+
+        override suspend fun featuredPosts(actorUri: String): List<ProfilePost> {
+            featuredRequests.add(actorUri)
+            return featured()
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -68,6 +68,7 @@ class UserProfileServiceTest {
         likes = repositories.likeRepository,
         boosts = repositories.boostRepository,
         timeline = repositories.timelineRepository,
+        pins = repositories.notePinRepository,
         following = following,
         remoteProfiles = remoteProfiles,
         localDomain = "local.example",
@@ -183,6 +184,27 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun pinnedPostsComeFirstWithoutDuplicates() = runBlocking {
+        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", Instant.EPOCH, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", Instant.EPOCH.plusSeconds(1), listOf()))
+        repositories.notePinRepository.pin(viewer, PublicNoteId("old"), Instant.EPOCH, NotePinService.MAX_PINS)
+
+        val posts = assertNotNull(service.profile("alice", viewer)).posts
+
+        assertEquals(listOf("<p>古い投稿</p>", "<p>新しい投稿</p>"), posts.map { it.contentHtml })
+        assertEquals(listOf(true, false), posts.map { it.pinned })
+    }
+
+    @Test
+    fun onlyOwnProfilePostsHavePinnableNoteId() = runBlocking {
+        val carol = repositories.accountRepository.add("carol", "hash", "type")
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf()))
+
+        assertEquals(listOf(null), assertNotNull(service.profile("carol", viewer)).posts.map { it.pinnableNoteId })
+        assertEquals(listOf(PublicNoteId("note-carol")), assertNotNull(service.profile("carol", carol)).posts.map { it.pinnableNoteId })
+    }
+
+    @Test
     fun emptyUsernameDoesNotFetchRemoteProfile() = runBlocking {
         for (acct in listOf("", "@", "@@remote.example")) {
             assertNull(service.profile(acct, viewer))
@@ -204,6 +226,93 @@ class UserProfileServiceTest {
         assertNull(service.profile("bob@remote.example", null))
         assertEquals(listOf(), requests)
     }
+
+    @Test
+    fun unfollowedUserFeaturedPostsComeFirstWithoutDuplicates() = runBlocking {
+        featured = {
+            listOf(
+                remotePost("<p>固定した投稿</p>", "https://remote.example/notes/pinned", pinned = true),
+                remotePost("<p>最新の投稿</p>", "https://remote.example/notes/1", pinned = true),
+            )
+        }
+
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertEquals(listOf(actorUri), featuredRequests)
+        assertEquals(listOf("<p>固定した投稿</p>", "<p>最新の投稿</p>"), posts.map { it.contentHtml })
+        assertEquals(listOf(true, true), posts.map { it.pinned })
+    }
+
+    @Test
+    fun followedUserFeaturedPostUsesStoredPost() = runBlocking {
+        repositories.timelineRepository.actorPosts.add(storedPost("<p>受け取った投稿</p>", summary = null, sensitive = false))
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+        featured = { listOf(remotePost("<p>相手のサーバーの本文</p>", "https://remote.example/notes/1", pinned = true)) }
+
+        val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
+
+        assertEquals("<p>受け取った投稿</p>", post.contentHtml)
+        assertEquals("r1", post.postId)
+        assertEquals(true, post.pinned)
+    }
+
+    @Test
+    fun featuredFailureStillShowsProfile() = runBlocking {
+        featured = { error("相手のサーバーに接続できない") }
+
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
+        assertEquals(listOf(false), posts.map { it.pinned })
+    }
+
+    @Test
+    fun featuredRequestIgnoringCancellationDoesNotHoldProfile() = runBlocking {
+        featured = {
+            withContext(NonCancellable) { delay(1.minutes) }
+            listOf()
+        }
+
+        val startedAt = System.nanoTime()
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertTrue((System.nanoTime() - startedAt).nanoseconds < 30.seconds)
+        assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
+    }
+
+    @Test
+    fun slowFeaturedRequestDoesNotHoldProfile() = runBlocking {
+        featured = {
+            delay(1.minutes)
+            listOf(remotePost("<p>固定した投稿</p>", "https://remote.example/notes/pinned", pinned = true))
+        }
+
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
+    }
+
+    private fun remotePost(contentHtml: String, noteUri: String, pinned: Boolean): ProfilePost =
+        ProfilePost(
+            contentHtml = contentHtml,
+            publishedAt = Instant.EPOCH.toString(),
+            summary = null,
+            sensitive = false,
+            linkPreviewId = null,
+            postId = null,
+            deletableNoteId = null,
+            pinned = pinned,
+            pinnableNoteId = null,
+            images = listOf(),
+            favouriteCount = null,
+            stamps = listOf(),
+            like = null,
+            noteRef = TimelineNoteRef.Remote(noteUri),
+            boostCount = null,
+            boostedNoteAuthor = null,
+            emojis = listOf(),
+        )
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
         TimelinePost(
