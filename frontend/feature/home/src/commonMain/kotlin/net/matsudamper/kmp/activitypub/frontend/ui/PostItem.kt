@@ -119,14 +119,16 @@ internal fun PostItem(
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            EmojiText(
-                text = uiState.body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Unspecified,
-                fontWeight = null,
-                maxLines = Int.MAX_VALUE,
-                overflow = TextOverflow.Clip,
-            )
+            PostBodySelectionContainer {
+                EmojiText(
+                    text = uiState.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Unspecified,
+                    fontWeight = null,
+                    maxLines = Int.MAX_VALUE,
+                    overflow = TextOverflow.Clip,
+                )
+            }
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 LazyRow(
                     modifier = Modifier
