@@ -522,8 +522,9 @@ private fun TimelineColumnsPager(
     }
     val latestColumns by rememberUpdatedState(columns)
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
-            val column = latestColumns.getOrNull(page)
+        // 元のページに戻って止まったときも同期するため、スクロール中は null を挟んで止まるたびに流す
+        snapshotFlow { if (pagerState.isScrollInProgress) null else pagerState.settledPage }.collect { page ->
+            val column = page?.let { latestColumns.getOrNull(it) }
             if (column != null && !column.selected) {
                 column.listener.onClickTab()
             }
