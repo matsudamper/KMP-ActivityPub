@@ -7,6 +7,7 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.network.websocket.WebSocketEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.link.LinkOpenSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyApi
 import net.matsudamper.kmp.activitypub.frontend.logic.passkey.PasskeyAuthenticator
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeSettingStore
@@ -31,6 +32,9 @@ class WebAppModule {
 
     @Singleton
     fun themeSettingStore(): ThemeSettingStore = WebThemeSettingStore()
+
+    @Singleton
+    fun linkOpenSettingStore(): LinkOpenSettingStore = WebLinkOpenSettingStore()
 
     @Singleton
     fun timelineColumnSettingStore(): TimelineColumnSettingStore = WebTimelineColumnSettingStore()

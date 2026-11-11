@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option java_package = "net.matsudamper.kmp.activitypub.android.link";
+option java_multiple_files = true;
+
+message LinkOpenSetting {
+  LinkOpenModeProto link_open_mode = 1;
+}
+
+enum LinkOpenModeProto {
+  LINK_OPEN_MODE_PROTO_CUSTOM_TAB = 0;
+  LINK_OPEN_MODE_PROTO_EXTERNAL_BROWSER = 1;
+}
