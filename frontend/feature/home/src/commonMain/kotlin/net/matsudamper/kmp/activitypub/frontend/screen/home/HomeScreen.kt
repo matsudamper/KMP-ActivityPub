@@ -9,6 +9,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -61,6 +63,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -68,6 +71,7 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,6 +85,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
@@ -581,11 +586,15 @@ private fun TimelineColumnsPager(
             layoutDirection = layoutDirection,
         )
     }
+    var pagerSwipeEnabled by remember { mutableStateOf(true) }
     HorizontalPager(
         state = pagerState,
         key = { page -> columns[page].listStateKey },
         pageNestedScrollConnection = pageNestedScrollConnection,
-        modifier = modifier,
+        userScrollEnabled = pagerSwipeEnabled,
+        modifier = modifier.disablePagerSwipeWhileVerticalDrag(
+            onPagerSwipeEnabledChange = { pagerSwipeEnabled = it },
+        ),
     ) { page ->
         val column = columns[page]
         TimelineTabContent(
@@ -598,6 +607,34 @@ private fun TimelineColumnsPager(
             listener = uiState.listener,
             modifier = Modifier.fillMaxSize(),
         )
+    }
+}
+
+/**
+ * 縦に動かし始めた指は、離すまで横に動かしてもページを切り替えない。
+ * 縦の列が動かしている最中も、ページャーは横の移動だけを見てドラッグを始めてしまう
+ */
+private fun Modifier.disablePagerSwipeWhileVerticalDrag(
+    onPagerSwipeEnabledChange: (Boolean) -> Unit,
+): Modifier = pointerInput(onPagerSwipeEnabledChange) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        var totalDrag = Offset.Zero
+        var dragDirectionDecided = false
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            val change = event.changes.firstOrNull { it.id == down.id }
+            if (!dragDirectionDecided && change != null) {
+                totalDrag += change.positionChangeIgnoreConsumed()
+                val verticalDrag = abs(totalDrag.y) > viewConfiguration.touchSlop && abs(totalDrag.y) > abs(totalDrag.x)
+                val horizontalDrag = abs(totalDrag.x) > viewConfiguration.touchSlop && abs(totalDrag.x) >= abs(totalDrag.y)
+                if (verticalDrag) {
+                    onPagerSwipeEnabledChange(false)
+                }
+                dragDirectionDecided = verticalDrag || horizontalDrag
+            }
+        } while (event.changes.any { it.pressed })
+        onPagerSwipeEnabledChange(true)
     }
 }
 
