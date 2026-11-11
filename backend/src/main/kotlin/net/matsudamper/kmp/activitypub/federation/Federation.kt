@@ -4,6 +4,9 @@ import java.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
@@ -17,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
@@ -168,6 +172,17 @@ internal class Federation(
 
     val remoteUserLookup: RemoteUserLookup =
         KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors, storedActors = remoteActorRepository)
+
+    val remoteProfileRefreshService: RemoteProfileRefreshService =
+        RemoteProfileRefreshService(
+            remoteActors = remoteActorRepository,
+            users = remoteUserLookup,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+            clock = Clock.systemUTC(),
+            sameHostInterval = RemoteProfileRefreshService.DEFAULT_SAME_HOST_INTERVAL,
+            requestTimeout = RemoteProfileRefreshService.DEFAULT_REQUEST_TIMEOUT,
+            maxConsecutiveFailuresPerHost = RemoteProfileRefreshService.DEFAULT_MAX_CONSECUTIVE_FAILURES_PER_HOST,
+        )
 
     val remoteUserProfiles: RemoteUserProfiles = KotpubRemoteUserProfiles(
         users = remoteUserLookup,

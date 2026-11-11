@@ -13,6 +13,7 @@ query UserProfile($username: String!) {
             following
             followingGroupId
         }
+        headerUrl
         biography
         links {
             name

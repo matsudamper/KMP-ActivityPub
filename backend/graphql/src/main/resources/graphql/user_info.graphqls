@@ -18,6 +18,25 @@ type UserInfo {
     homeGroupName: String! @lazy
 }
 
+type RemoteProfileRefreshState {
+    "一度も始めていなければ null"
+    progress: RemoteProfileRefreshProgress
+}
+
+type RemoteProfileRefreshProgress {
+    running: Boolean!
+    "始めたときに保存していた他のサーバーのユーザーの数"
+    total: Int!
+    refreshed: Int!
+    "取りに行ったが取れなかった数"
+    failed: Int!
+    "相手のサーバーが続けて失敗したので取りに行かなかった数"
+    skipped: Int!
+    startedAt: String!
+    "終わっていなければ null"
+    finishedAt: String
+}
+
 "フォローを仕分けるグループの識別子"
 scalar FollowingGroupId
 

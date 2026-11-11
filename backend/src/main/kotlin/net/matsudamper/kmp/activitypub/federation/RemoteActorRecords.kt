@@ -11,7 +11,7 @@ internal fun RemoteActor.toRecord(): RemoteActorRecord = RemoteActorRecord(
     inbox,
     sharedInbox,
     publicKeyPem,
-    RemoteActorProfileRecord(profile.preferredUsername, profile.displayName, profile.profileUrl, profile.iconUrl, profile.emojis.toRecords()),
+    RemoteActorProfileRecord(profile.preferredUsername, profile.displayName, profile.profileUrl, profile.iconUrl, profile.headerUrl, profile.emojis.toRecords()),
 )
 
 internal fun List<CustomEmoji>.toRecords(): List<CustomEmojiRecord> = map { CustomEmojiRecord(name = it.name, imageUrl = it.imageUrl) }

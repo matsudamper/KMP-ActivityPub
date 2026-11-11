@@ -17,12 +17,47 @@ class RemoteActorRepositoryTest {
     private val dbPath: Path = tempDir.resolve("test.db")
 
     @Test
+    fun listActorUrisPagesInUriOrder() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val existingCount = repositories.remoteActorRepository.count()
+            val actorUris = listOf("https://c.example/users/c", "https://a.example/users/a", "https://b.example/users/b")
+            actorUris.forEach { actorUri ->
+                repositories.remoteActorRepository.save(
+                    RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+                    NOW,
+                )
+            }
+
+            val firstPage = repositories.remoteActorRepository.listActorUris(after = null, limit = 2)
+            val secondPage = repositories.remoteActorRepository.listActorUris(after = firstPage.last(), limit = 2)
+
+            assertEquals(listOf("https://a.example/users/a", "https://b.example/users/b"), firstPage)
+            assertEquals(listOf("https://c.example/users/c"), secondPage)
+            assertEquals(existingCount + 3, repositories.remoteActorRepository.count())
+        }
+    }
+
+    @Test
+    fun savingActorStoresAndUpdatesHeaderUrl() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val actorUri = "https://remote.example/users/alice"
+            listOf("https://files.remote.example/old.png", "https://files.remote.example/new.png").forEach { headerUrl ->
+                repositories.remoteActorRepository.save(
+                    RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("alice", null, null, null, headerUrl, listOf())),
+                    NOW,
+                )
+            }
+            assertEquals("https://files.remote.example/new.png", repositories.remoteActorRepository.findByUri(actorUri)?.profile?.headerUrl)
+        }
+    }
+
+    @Test
     fun removingLegacyActorPreservesCanonicalActorAndFollowingCanBeRemoved() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val profileUrl = "https://remote.example/@alice"
             val actorId = "https://remote.example/users/alice"
             val account = checkNotNull(repositories.accountRepository.findByUsername("user1"))
-            val profile = RemoteActorProfileRecord("alice", null, profileUrl, null, listOf())
+            val profile = RemoteActorProfileRecord("alice", null, profileUrl, null, null, listOf())
             listOf(profileUrl, actorId).forEach { uri ->
                 repositories.remoteActorRepository.save(RemoteActorRecord(uri, "$actorId/inbox", null, "key", profile), NOW)
             }
@@ -46,7 +81,7 @@ class RemoteActorRepositoryTest {
             val new = CustomEmojiRecord(name = ":new:", imageUrl = "https://remote.example/new.png")
             listOf(old, new).forEach { emoji ->
                 repositories.remoteActorRepository.save(
-                    RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("alice", "Alice", null, null, listOf(emoji))),
+                    RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("alice", "Alice", null, null, null, listOf(emoji))),
                     NOW,
                 )
             }
@@ -100,6 +135,7 @@ class RemoteActorRepositoryTest {
                     displayName = "Ali Carol",
                     profileUrl = null,
                     iconUrl = "https://b.example/carol.png",
+                    headerUrl = null,
                     emojis = listOf(),
                 ),
             )
@@ -189,6 +225,7 @@ class RemoteActorRepositoryTest {
                     displayName = displayName,
                     profileUrl = null,
                     iconUrl = null,
+                    headerUrl = null,
                     emojis = listOf(),
                 ),
             ),
