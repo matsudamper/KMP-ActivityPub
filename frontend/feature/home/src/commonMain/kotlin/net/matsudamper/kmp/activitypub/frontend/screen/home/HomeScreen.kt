@@ -572,6 +572,8 @@ private fun TimelineColumnsPager(
             timelineItems = column.items,
             refreshing = uiState.timelineRefreshing,
             footer = uiState.timelineFooter,
+            // 隣のページはスワイプの途中から作られるので、見ていないカラムのために続きを読まない
+            loadMoreAtEndEnabled = column.selected,
             listener = uiState.listener,
             modifier = Modifier.fillMaxSize(),
         )
@@ -631,10 +633,12 @@ internal fun TimelineTabContent(
     timelineItems: List<PostItemUiState>,
     refreshing: Boolean,
     footer: HomeScreenUiState.TimelineFooter,
+    loadMoreAtEndEnabled: Boolean,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(listState, listener, timelineItems.size, footer) {
+    LaunchedEffect(listState, listener, timelineItems.size, footer, loadMoreAtEndEnabled) {
+        if (!loadMoreAtEndEnabled) return@LaunchedEffect
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
