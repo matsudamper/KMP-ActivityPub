@@ -234,8 +234,11 @@ internal class HomeTabListStates(
 
     suspend fun scrollToTop(tab: HomeScreenUiState.Tab) {
         when (tab) {
-            HomeScreenUiState.Tab.Home -> timelineListStates.all().forEach { it.animateScrollToItem(0) }
+            // 出ていないカラムのリストはスクロールが終わらないので、タイムラインは scrollTimelineColumnToTop でカラムを選んで戻す
+            HomeScreenUiState.Tab.Home -> Unit
+
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
+
             HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
         }
     }
@@ -260,8 +263,6 @@ internal class TimelineListStates(initialPositions: Map<String, TimelineListPosi
     }
 
     fun get(listStateKey: String): LazyListState = states.getOrPut(listStateKey) { LazyListState() }
-
-    fun all(): List<LazyListState> = states.values.toList()
 
     companion object {
         val Saver: Saver<TimelineListStates, Any> = listSaver(
