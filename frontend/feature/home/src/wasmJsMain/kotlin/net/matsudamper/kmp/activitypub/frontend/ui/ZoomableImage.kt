@@ -55,6 +55,9 @@ internal actual fun ZoomableImage(
     }
 }
 
+/** 横長の画像でも左右に画像の外を残し、押して閉じられるようにする */
+private const val IMAGE_HORIZONTAL_PADDING = 48.0
+
 private fun createZoomableImageElement(
     imageUrl: String,
     onClickImage: () -> Unit,
@@ -78,6 +81,9 @@ private fun createZoomableImageElement(
     image.style.apply {
         width = "100%"
         height = "100%"
+        setProperty("box-sizing", "border-box")
+        setProperty("padding-left", "${IMAGE_HORIZONTAL_PADDING}px")
+        setProperty("padding-right", "${IMAGE_HORIZONTAL_PADDING}px")
         setProperty("object-fit", "scale-down")
         setProperty("transform-origin", "0 0")
     }
@@ -230,19 +236,19 @@ private class HtmlImageZoomGesture(
     }
 
     /**
-     * 画像は object-fit: scale-down で入れ物の中央に原寸で置かれ、入りきらないときだけ縮めて収まる。
+     * 画像は object-fit: scale-down で左右の余白を除いた範囲の中央に原寸で置かれ、入りきらないときだけ縮めて収まる。
      * その上で左上を起点に拡大してから移動して描かれる
      */
     private fun isOnDisplayedImage(position: Position): Boolean {
         val naturalWidth = image.naturalWidth.toDouble()
         val naturalHeight = image.naturalHeight.toDouble()
         if (naturalWidth <= 0.0 || naturalHeight <= 0.0) return false
-        val width = container.clientWidth.toDouble()
+        val contentWidth = container.clientWidth.toDouble() - IMAGE_HORIZONTAL_PADDING * 2
         val height = container.clientHeight.toDouble()
-        val fitScale = min(ORIGINAL_SCALE, min(width / naturalWidth, height / naturalHeight))
+        val fitScale = min(ORIGINAL_SCALE, min(contentWidth / naturalWidth, height / naturalHeight))
         val fittedWidth = naturalWidth * fitScale
         val fittedHeight = naturalHeight * fitScale
-        val left = (width - fittedWidth) / 2
+        val left = IMAGE_HORIZONTAL_PADDING + (contentWidth - fittedWidth) / 2
         val top = (height - fittedHeight) / 2
         val x = (position.x - translateX) / scale
         val y = (position.y - translateY) / scale

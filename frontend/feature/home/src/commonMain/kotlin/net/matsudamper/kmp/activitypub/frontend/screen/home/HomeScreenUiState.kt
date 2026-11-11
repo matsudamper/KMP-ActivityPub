@@ -214,6 +214,11 @@ data class HomeScreenUiState(
 
         fun onClickAddTimelineColumn()
 
+        /**
+         * タブやカラムの見出しを長押しして動かしたとき。どちらも [timelineColumns] での位置
+         */
+        fun onMoveTimelineColumn(fromIndex: Int, toIndex: Int)
+
         fun onScrolledToTimelineEnd()
 
         fun onClickRetryTimelineLoadMore()
