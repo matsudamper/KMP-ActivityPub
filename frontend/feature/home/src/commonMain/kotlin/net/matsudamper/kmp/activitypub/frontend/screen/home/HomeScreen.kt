@@ -455,7 +455,7 @@ private fun TimelineTabsContent(
     // タブの下の線をスワイプの途中にも追従させるため、タブ行とページで同じ状態を使う
     val pagerState = rememberPagerState(initialPage = selectedIndex.coerceAtLeast(0)) { uiState.timelineColumns.size }
     Column(modifier = modifier) {
-        // 追加ボタンの下まで線を通すため、タブ行の線は消して行全体に引く
+        // メニューボタンの下まで線を通すため、タブ行の線は消して行全体に引く
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (selectedIndex >= 0) {
                 val reorderState = rememberHorizontalReorderState()
@@ -508,18 +508,11 @@ private fun TimelineTabsContent(
                 Spacer(modifier = Modifier.weight(1f))
             }
             val selectedColumn = uiState.timelineColumns.getOrNull(selectedIndex)
-            if (selectedColumn != null) {
-                TimelineColumnSettingsButton(column = selectedColumn)
-            }
-            IconButton(
-                onClick = uiState.listener::onClickAddTimelineColumn,
-                enabled = uiState.addTimelineColumnButtonEnabled,
-            ) {
-                Icon(
-                    imageVector = AppIcons.Add,
-                    contentDescription = "カラムを追加",
-                )
-            }
+            TimelineTabsMenuButton(
+                selectedColumn = selectedColumn,
+                addItemEnabled = uiState.addTimelineColumnButtonEnabled,
+                onClickAdd = uiState.listener::onClickAddTimelineColumn,
+            )
         }
         HorizontalDivider()
         val emptyMessage = uiState.timelineColumnsEmptyMessage
