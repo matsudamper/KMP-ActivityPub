@@ -52,7 +52,7 @@ type UserMutation {
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
     """
-    ログインしているアカウントで、このサーバーの投稿か、他のサーバーの公開・公開タイムラインに載せない公開の投稿をブーストするか外す。フォロワーと投稿者への Announce か Undo を積む。
+    ログインしているアカウントで、このサーバーの投稿か、他のサーバーの公開の投稿をブーストするか外す。公開範囲に制限のある投稿はブーストできない。フォロワーと投稿者への Announce か Undo を積む。
     postId は HomeTimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
     外すときは今読めない投稿でも、付けたブーストを外す
     """
