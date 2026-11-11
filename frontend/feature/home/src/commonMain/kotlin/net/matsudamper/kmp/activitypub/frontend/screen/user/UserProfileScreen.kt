@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,8 +31,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -125,7 +129,15 @@ internal fun UserProfileContent(
                 IconButton(onClick = uiState.listener::onClickBack) {
                     Icon(imageVector = AppIcons.ArrowBack, contentDescription = "戻る")
                 }
-                Text(text = "プロフィール", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "プロフィール",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (uiState.openOriginalMenuItemVisible) {
+                    TopBarMenu(onClickOpenOriginal = uiState.listener::onClickOpenOriginal)
+                }
             }
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -210,6 +222,28 @@ internal fun UserProfileContent(
     val addFollowingGroupDialog = uiState.addFollowingGroupDialog
     if (addFollowingGroupDialog != null) {
         AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
+    }
+}
+
+@Composable
+private fun TopBarMenu(onClickOpenOriginal: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(imageVector = AppIcons.MoreVert, contentDescription = "メニュー")
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("オリジナルを開く") },
+                onClick = {
+                    expanded = false
+                    onClickOpenOriginal()
+                },
+            )
+        }
     }
 }
 
