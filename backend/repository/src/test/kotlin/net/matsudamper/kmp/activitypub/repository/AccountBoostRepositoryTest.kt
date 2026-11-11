@@ -249,6 +249,24 @@ class AccountBoostRepositoryTest {
     }
 
     @Test
+    fun fetchedNoteWhoseIdIsOnAnotherHostIsNotStored() = withRepository { repositories, alice, _ ->
+        val stored = repositories.timelineRepository.storeFetchedNotes(alice, listOf(note("public").copy(objectUri = "https://other.example/notes/1")))
+
+        assertTrue(stored.isEmpty())
+        assertFalse(repositories.timelineRepository.hasRemoteNote("https://other.example/notes/1"))
+    }
+
+    @Test
+    fun refetchedNoteTakesTheNewVisibility() = withRepository { repositories, alice, _ ->
+        val timeline = repositories.timelineRepository
+        val member = assertNotNull(timeline.storeFetchedNotes(alice, listOf(note("public")))["$ACTOR/notes/public"]).reactionMember
+
+        timeline.storeFetchedNotes(alice, listOf(note("public").copy(visibility = "unlisted")))
+
+        assertNull(repositories.accountBoostRepository.target(alice, member))
+    }
+
+    @Test
     fun outboxListsBoostsNewestFirstAndContinuesAfterThePosition() = withRepository { repositories, alice, _ ->
         val public = receiveNote(repositories, "public", alice)
         val unlisted = assertNotNull(repositories.timelineRepository.receive(note("unlisted"))).member

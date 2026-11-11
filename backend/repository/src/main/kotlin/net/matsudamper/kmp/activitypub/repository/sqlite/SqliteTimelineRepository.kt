@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
+import java.net.URI
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
@@ -312,7 +313,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     }
 
     override fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost> = jooq.transaction { dsl ->
-        val remoteIds = notes.filter { it.visibility in PUBLISHED_REMOTE_NOTE_VISIBILITIES }
+        val remoteIds = notes.filter { it.visibility in PUBLISHED_REMOTE_NOTE_VISIBILITIES && it.isOnAuthorsHost() }
             .mapNotNull { note -> refreshFetchedNote(dsl, note) ?: insertBoostedNote(dsl, note) }
         hydrateNotes(
             dsl = dsl,
@@ -474,7 +475,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     /**
      * 保存済みの公開している投稿を、相手のサーバーから取り直した内容に書き換える。保存した後に編集されていることがある。
-     * 公開範囲と位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない
+     * 公開範囲も取り直した値にする。どちらも公開している範囲の中での変更に限る。位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない
      *
      * @return 書き換えた投稿の id。保存していなければ null
      */
@@ -487,6 +488,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .fetchOne(REMOTE_NOTES.ID)
             ?: return null
         dsl.update(REMOTE_NOTES)
+            .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
@@ -620,4 +622,14 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     )
 
     private fun Record.toRemotePosition(): TimelinePosition = TimelinePosition(checkNotNull(get(REMOTE_NOTES.SCORE_MS)), "r${get(REMOTE_NOTES.ID)}")
+}
+
+/**
+ * 投稿の id が投稿者と同じホストにあるか。outbox の中に埋め込まれた投稿は取りに行かずに読むので、
+ * 他のサーバーの投稿の id を名乗る投稿を保存すると、後で本物の投稿が届いたときに取り違える
+ */
+private fun RemoteNoteInput.isOnAuthorsHost(): Boolean {
+    val noteHost = runCatching { URI(objectUri).host }.getOrNull() ?: return false
+    val actorHost = runCatching { URI(actorUri).host }.getOrNull() ?: return false
+    return noteHost.equals(actorHost, ignoreCase = true)
 }
