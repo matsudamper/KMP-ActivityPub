@@ -1,2 +1,0 @@
-"投稿に付ける画像の識別子。uploadNoteImage が返す"
-scalar NoteImageId

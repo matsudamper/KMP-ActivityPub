@@ -1,5 +1,3 @@
-scalar UserId
-
 type UserInfo {
     homeTimeline(cursor: String, limit: Int!): HomeTimeline @lazy
     """
@@ -36,9 +34,6 @@ type RemoteProfileRefreshProgress {
     "終わっていなければ null"
     finishedAt: String
 }
-
-"フォローを仕分けるグループの識別子"
-scalar FollowingGroupId
 
 "フォローを仕分けるグループ。どのグループにも入れていないフォローはホームに入る"
 type FollowingGroup {
