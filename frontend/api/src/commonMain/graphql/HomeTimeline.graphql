@@ -17,6 +17,8 @@ query HomeTimeline($cursor: String, $limit: Int!) {
                 linkUrls
                 iconUrl
                 deletableNoteId
+                pinnableNoteId
+                pinned
                 images {
                     url
                     thumbnailUrl

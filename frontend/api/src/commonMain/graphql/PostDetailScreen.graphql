@@ -16,6 +16,8 @@ query PostDetailScreen($id: ID!) {
             linkUrls
             iconUrl
             deletableNoteId
+            pinnableNoteId
+            pinned
             images {
                 url
                 thumbnailUrl

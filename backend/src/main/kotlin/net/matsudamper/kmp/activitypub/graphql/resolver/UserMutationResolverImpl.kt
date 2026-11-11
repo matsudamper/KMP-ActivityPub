@@ -26,6 +26,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
@@ -52,6 +54,7 @@ import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.RenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
+import net.matsudamper.kmp.activitypub.logic.SetPinnedResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
@@ -342,6 +345,16 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun setPinned(
+        userMutation: QlUserMutation,
+        noteId: PublicNoteId,
+        pinned: Boolean,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlSetPinnedResult>> {
+        val result = setPinned(noteId = noteId, pinned = pinned, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
         GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
 
@@ -495,6 +508,22 @@ class UserMutationResolverImpl : UserMutationResolver {
                 SetBoostedResult.PostNotFound -> QlSetBoostedFailure.POST_NOT_FOUND
             }
         return QlSetBoostedResult(failure = failure)
+    }
+
+    private fun setPinned(
+        noteId: PublicNoteId,
+        pinned: Boolean,
+        env: DataFetchingEnvironment,
+    ): QlSetPinnedResult {
+        val notePinService = GraphQlEngine.diContainer(env).notePinService
+        val failure =
+            when (notePinService.setPinned(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), publicId = noteId, pinned = pinned)) {
+                SetPinnedResult.Updated -> null
+                SetPinnedResult.NotLoggedIn -> QlSetPinnedFailure.NOT_LOGGED_IN
+                SetPinnedResult.NotFound -> QlSetPinnedFailure.NOT_FOUND
+                SetPinnedResult.TooManyPins -> QlSetPinnedFailure.TOO_MANY_PINS
+            }
+        return QlSetPinnedResult(failure = failure)
     }
 
     private fun updateProfileIcon(

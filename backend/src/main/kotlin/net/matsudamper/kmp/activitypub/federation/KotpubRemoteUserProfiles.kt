@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
+import net.matsudamper.kotpub.note.RemoteOutboxNote
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
 
@@ -26,25 +27,26 @@ internal class KotpubRemoteUserProfiles(
         return profileFor(user)
     }
 
-    override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> {
-        val fetchedAt = Instant.now()
-        return outbox.recent(actorUri, limit = 20).map {
-            RemoteNoteInput(
-                objectUri = it.id,
-                actorUri = actorUri,
-                contentHtml = Jsoup.clean(it.contentHtml, Safelist.basic()),
-                visibility = if (it.unlisted) "unlisted" else "public",
-                localRecipients = setOf(),
-                inReplyTo = null,
-                summary = it.summary?.let { summary -> Jsoup.clean(summary, Safelist.none()) },
-                sensitive = it.sensitive,
-                publishedAt = Instant.parse(it.publishedAt),
-                receivedAt = fetchedAt,
-                images = it.attachments.mapNotNull { attachment -> attachment.toImage() },
-                emojis = it.emojis.toRecords(),
-            )
-        }
-    }
+    override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> =
+        outbox.recent(actorUri, limit = 20).map { it.toInput(actorUri, Instant.now()) }
+
+    override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> =
+        outbox.featured(actorUri, limit = 20).map { it.toInput(actorUri, Instant.now()) }
+
+    private fun RemoteOutboxNote.toInput(actorUri: String, fetchedAt: Instant): RemoteNoteInput = RemoteNoteInput(
+        objectUri = id,
+        actorUri = actorUri,
+        contentHtml = Jsoup.clean(contentHtml, Safelist.basic()),
+        visibility = if (unlisted) "unlisted" else "public",
+        localRecipients = setOf(),
+        inReplyTo = null,
+        summary = summary?.let { Jsoup.clean(it, Safelist.none()) },
+        sensitive = sensitive,
+        publishedAt = Instant.parse(publishedAt),
+        receivedAt = fetchedAt,
+        images = attachments.mapNotNull { attachment -> attachment.toImage() },
+        emojis = emojis.toRecords(),
+    )
 
     private suspend fun profileFor(user: RemoteUser): RemoteUserProfile? {
         val actor = actors.findActor(user.actorUri) ?: return null

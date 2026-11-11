@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
+import net.matsudamper.kmp.activitypub.logic.NotePinService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
@@ -31,6 +32,7 @@ class DiContainer(
     val followListService: FollowListService,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,
+    val notePinService: NotePinService,
     /**
      * ENABLE_PASSKEY が false なら null
      */

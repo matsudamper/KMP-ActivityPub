@@ -20,7 +20,7 @@ class UserInfoResolverImpl : UserInfoResolver {
             val diContainer = GraphQlEngine.diContainer(env)
             val page = diContainer.homeTimelineService.page(userInfo.id, cursor, limit)
             val result = QlHomeTimeline(
-                posts = page.posts.map { it.toQlHomeTimelinePost(userInfo.id, diContainer) },
+                posts = page.posts.toQlHomeTimelinePosts(userInfo.id, diContainer),
                 nextCursor = page.nextCursor,
             )
             DataFetcherResult.Builder<QlHomeTimeline?>(result).build()
@@ -29,7 +29,7 @@ class UserInfoResolverImpl : UserInfoResolver {
     override fun post(userInfo: QlUserInfo, id: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlHomeTimelinePost?>> =
         otelSupplyAsync {
             val diContainer = GraphQlEngine.diContainer(env)
-            val post = diContainer.homeTimelineService.post(userInfo.id, id)?.toQlHomeTimelinePost(userInfo.id, diContainer)
+            val post = diContainer.homeTimelineService.post(userInfo.id, id)?.let { listOf(it).toQlHomeTimelinePosts(userInfo.id, diContainer).single() }
             DataFetcherResult.Builder<QlHomeTimelinePost?>(post).build()
         }
 

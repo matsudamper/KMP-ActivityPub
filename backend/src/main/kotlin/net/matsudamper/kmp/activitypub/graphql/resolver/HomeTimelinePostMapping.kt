@@ -6,9 +6,18 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostBooster
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
-internal fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, diContainer: DiContainer): QlHomeTimelinePost {
+/**
+ * 投稿ごとに固定を引くと件数分問い合わせることになるので、並べる投稿の分をまとめて引く
+ */
+internal fun List<TimelinePost>.toQlHomeTimelinePosts(accountId: AccountId, diContainer: DiContainer): List<QlHomeTimelinePost> {
+    val pinnedNoteIds = diContainer.notePinService.pinnedAmong(mapNotNull { it.localPublicId }.toSet())
+    return map { it.toQlHomeTimelinePost(accountId, pinnedNoteIds, diContainer) }
+}
+
+private fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, pinnedNoteIds: Set<PublicNoteId>, diContainer: DiContainer): QlHomeTimelinePost {
     val body = createQlPostBody(
         contentHtml = contentHtml,
         summary = summary,
@@ -36,6 +45,8 @@ internal fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, diContainer
         emojis = emojis.toQlCustomEmojis(diContainer),
         displayNameEmojis = actorEmojis.toQlCustomEmojis(diContainer),
         deletableNoteId = localPublicId?.value,
+        pinnableNoteId = localPublicId,
+        pinned = localPublicId in pinnedNoteIds,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
         url = diContainer.noteShareUrls?.url(noteRef),

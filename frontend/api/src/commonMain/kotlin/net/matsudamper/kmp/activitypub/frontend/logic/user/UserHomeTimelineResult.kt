@@ -24,6 +24,14 @@ sealed interface UserHomeTimelineResult {
          */
         val deletableNoteId: String?,
         /**
+         * ログイン中のアカウントの投稿なら [UserApi.setPinned] に渡す id。固定できない投稿は null
+         */
+        val pinnableNoteId: String?,
+        /**
+         * プロフィールの先頭に固定されているか
+         */
+        val pinned: Boolean,
+        /**
          * フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null
          */
         val boostedBy: Booster?,

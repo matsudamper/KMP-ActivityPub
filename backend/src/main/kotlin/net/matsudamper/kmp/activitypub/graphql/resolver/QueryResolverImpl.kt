@@ -77,6 +77,8 @@ class QueryResolverImpl : QueryResolver {
                                 linkPreviewId = post.linkPreviewId,
                                 postId = post.postId,
                                 deletableNoteId = post.deletableNoteId,
+                                pinned = post.pinned,
+                                pinnableNoteId = post.pinnableNoteId,
                                 linkUrls = body.linkUrls,
                                 images = body.images,
                                 emojis = post.emojis.toQlCustomEmojis(diContainer),

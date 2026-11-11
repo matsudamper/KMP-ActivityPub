@@ -27,6 +27,8 @@ query UserProfile($username: String!) {
             linkPreviewId
             postId
             deletableNoteId
+            pinned
+            pinnableNoteId
             linkUrls
             images {
                 url

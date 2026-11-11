@@ -13,11 +13,13 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  *
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手
+ * @param pinned プロフィールの先頭に固定されている投稿か
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
  */
 internal fun createPostItemUiState(
     boostedBy: Boost?,
+    pinned: Boolean,
     iconUrl: String?,
     displayName: String,
     displayNameEmojis: List<UserCustomEmoji>,
@@ -54,6 +56,7 @@ internal fun createPostItemUiState(
                 },
             )
         },
+        pinnedLabelVisible = pinned,
         iconUrl = iconUrl,
         displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,

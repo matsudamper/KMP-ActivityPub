@@ -365,3 +365,9 @@ CREATE TABLE account_boost_inboxes (
     inbox TEXT NOT NULL,
     PRIMARY KEY (boost_id, inbox)
 );
+
+-- このサーバーのアカウントが自分のプロフィールの先頭に固定した投稿。固定できるのは自分の投稿だけなので、アカウントは投稿から決まる
+CREATE TABLE note_pins (
+    note_id INTEGER PRIMARY KEY REFERENCES notes (id) ON DELETE CASCADE,
+    pinned_at TEXT NOT NULL
+);

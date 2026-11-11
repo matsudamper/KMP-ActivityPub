@@ -26,6 +26,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
             uiState = PostDetailScreenUiState(
                 content = PostDetailScreenUiState.Content.Loaded(
                     post = PostItemUiState(
+                        pinnedLabelVisible = false,
                         boostedBy = null,
                         iconUrl = null,
                         displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
