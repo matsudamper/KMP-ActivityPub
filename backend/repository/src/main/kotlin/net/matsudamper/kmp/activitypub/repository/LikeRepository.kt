@@ -40,17 +40,17 @@ interface LikeRepository {
     fun likeAndEnqueue(like: OutgoingLike): Boolean
 
     /**
-     * いいねを消して、投稿者への Undo を積む。まだ一度も送っていない Like は取り消すだけで Undo は積まない
+     * いいねを消して、投稿者への Undo を積む。まだ一度も送っていない Like は取り消すだけで Undo は積まない。
+     * 今読めるかは問わない。投稿者のフォローを外した後でも、付けたいいねを外せるようにする
      *
-     * @param undoBody 消したいいねの Like の id から Undo のアクティビティを作る
+     * @param undoBody 消したいいねの Like の id と、いいねした投稿の id から Undo のアクティビティを作る
      * @return いいねしていなければ false
      */
     fun unlikeAndEnqueueUndo(
         accountId: AccountId,
         member: String,
-        inbox: String,
         now: Instant,
-        undoBody: (likeId: String) -> String,
+        undoBody: (likeId: String, objectUri: String) -> String,
     ): Boolean
 }
 

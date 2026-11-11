@@ -102,9 +102,8 @@ internal class FakeRepositories : Repositories {
         override fun unlikeAndEnqueueUndo(
             accountId: AccountId,
             member: String,
-            inbox: String,
             now: Instant,
-            undoBody: (likeId: String) -> String,
+            undoBody: (likeId: String, objectUri: String) -> String,
         ): Boolean = false
     }
     override val accountBoostRepository: AccountBoostRepository = object : AccountBoostRepository {

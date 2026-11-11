@@ -44,7 +44,7 @@ internal class SqliteLikeRepository(
                 .from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.eq(remoteNoteId))
-                .and(dsl.remoteNoteReadableBy(accountId))
+                .and(dsl.remoteNoteReadableOrBoostedTo(accountId))
                 .fetchOne { LikeTarget.Remote(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
         }
     }
@@ -104,12 +104,19 @@ internal class SqliteLikeRepository(
     override fun unlikeAndEnqueueUndo(
         accountId: AccountId,
         member: String,
-        inbox: String,
         now: Instant,
-        undoBody: (likeId: String) -> String,
+        undoBody: (likeId: String, objectUri: String) -> String,
     ): Boolean {
         return jooq.transaction { dsl ->
             val remoteNoteId = dsl.likedRemoteNoteIdOf(member) ?: return@transaction false
+            val note = dsl.select(REMOTE_NOTES.OBJECT_URI, REMOTE_ACTORS.INBOX)
+                .from(REMOTE_NOTES)
+                .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+                .where(REMOTE_NOTES.ID.eq(remoteNoteId))
+                .fetchOne()
+                ?: return@transaction false
+            val objectUri = checkNotNull(note.value1())
+            val inbox = checkNotNull(note.value2())
             val likeId = dsl.deleteFrom(REMOTE_NOTE_LIKES)
                 .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
                 .and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.eq(remoteNoteId))
@@ -134,7 +141,7 @@ internal class SqliteLikeRepository(
                     .where(matchingLike)
                     .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
                     .execute()
-                dsl.enqueue(accountId, inbox, undoBody(likeId), StoredInstant.format(now), DeliveryQueueValues.KIND_UNDO_LIKE)
+                dsl.enqueue(accountId, inbox, undoBody(likeId, objectUri), StoredInstant.format(now), DeliveryQueueValues.KIND_UNDO_LIKE)
             }
             true
         }
