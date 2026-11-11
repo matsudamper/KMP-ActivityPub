@@ -33,7 +33,7 @@ type ProfilePost {
     "プロフィールの先頭に固定されているか。固定した投稿は posts の先頭に固定した新しい順で並ぶ。他のサーバーの投稿は固定を受け取らないので false"
     pinned: Boolean!
     "ログイン中のアカウントのプロフィールの投稿なら setPinned に渡す id。固定できない投稿は null"
-    pinnableNoteId: ID
+    pinnableNoteId: PublicNoteId
     "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び"
     linkUrls: [String!]!
     "投稿に付いた画像。付いた順"

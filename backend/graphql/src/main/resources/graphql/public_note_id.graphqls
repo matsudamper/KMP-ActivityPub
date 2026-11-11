@@ -1,0 +1,2 @@
+"このサーバーの投稿の公開 id。投稿の URL に入る。タイムラインの投稿の id とは別物"
+scalar PublicNoteId

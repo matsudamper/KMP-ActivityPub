@@ -309,7 +309,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     override fun setPinned(
         userMutation: QlUserMutation,
-        noteId: String,
+        noteId: PublicNoteId,
         pinned: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSetPinnedResult>> {
@@ -455,13 +455,13 @@ class UserMutationResolverImpl : UserMutationResolver {
     }
 
     private fun setPinned(
-        noteId: String,
+        noteId: PublicNoteId,
         pinned: Boolean,
         env: DataFetchingEnvironment,
     ): QlSetPinnedResult {
         val notePinService = GraphQlEngine.diContainer(env).notePinService
         val failure =
-            when (notePinService.setPinned(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), publicId = PublicNoteId(noteId), pinned = pinned)) {
+            when (notePinService.setPinned(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), publicId = noteId, pinned = pinned)) {
                 SetPinnedResult.Updated -> null
                 SetPinnedResult.NotLoggedIn -> QlSetPinnedFailure.NOT_LOGGED_IN
                 SetPinnedResult.NotFound -> QlSetPinnedFailure.NOT_FOUND

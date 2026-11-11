@@ -186,7 +186,7 @@ class UserProfileServiceTest {
         repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf()))
 
         assertEquals(listOf(null), assertNotNull(service.profile("carol", viewer)).posts.map { it.pinnableNoteId })
-        assertEquals(listOf("note-carol"), assertNotNull(service.profile("carol", carol)).posts.map { it.pinnableNoteId })
+        assertEquals(listOf(PublicNoteId("note-carol")), assertNotNull(service.profile("carol", carol)).posts.map { it.pinnableNoteId })
     }
 
     @Test

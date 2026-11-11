@@ -1,4 +1,4 @@
-mutation SetPinned($noteId: ID!, $pinned: Boolean!) {
+mutation SetPinned($noteId: PublicNoteId!, $pinned: Boolean!) {
     user {
         setPinned(noteId: $noteId, pinned: $pinned) {
             failure

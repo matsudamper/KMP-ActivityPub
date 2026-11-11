@@ -49,7 +49,7 @@ type UserMutation {
     ログインしているアカウントの投稿を、プロフィールの先頭に固定するか外す。他のサーバーには配らない。
     noteId は ProfilePost.pinnableNoteId。既に望んだ状態なら何もせずに成功する
     """
-    setPinned(noteId: ID!, pinned: Boolean!): SetPinnedResult! @lazy
+    setPinned(noteId: PublicNoteId!, pinned: Boolean!): SetPinnedResult! @lazy
 }
 
 type CreateFollowingGroupResult {
