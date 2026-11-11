@@ -28,7 +28,7 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             .asPublisher(Dispatchers.IO)
     }
 
-    override fun remoteProfileRefreshState(env: DataFetchingEnvironment): Publisher<QlRemoteProfileRefreshState> {
+    override fun remoteProfileRefresh(start: Boolean, env: DataFetchingEnvironment): Publisher<QlRemoteProfileRefreshState> {
         val context = GraphQlEngine.graphQlContext(env)
         val accountId = context.userAccountId()
             ?: throw GraphQlClientException("ログインしていない")
@@ -36,6 +36,8 @@ class SubscriptionResolverImpl : SubscriptionResolver {
         if (accountId !in diContainer.adminAccountIds) throw GraphQlClientException("管理者ではない")
         val service = diContainer.remoteProfileRefreshService
             ?: throw GraphQlClientException("DOMAIN が無いので他のサーバーに取りに行けない")
+        // 既に走っていれば始め直さず、その進み具合を流す
+        if (start) service.start()
         return service.progress
             .takeWhile { context.userAccountId() == accountId }
             .map { progress -> QlRemoteProfileRefreshState(progress = progress?.toQlRemoteProfileRefreshProgress()) }

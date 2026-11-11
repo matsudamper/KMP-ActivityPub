@@ -38,11 +38,10 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
-import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshStateSubscription
+import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
-import net.matsudamper.kmp.activitypub.frontend.graphql.StartRemoteProfileRefreshMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -56,7 +55,6 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
-import net.matsudamper.kmp.activitypub.frontend.graphql.type.StartRemoteProfileRefreshFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -434,14 +432,16 @@ class UserApi(
 
     /**
      * 購読した時点の進み具合を流し、その後は変わるたびに流す。購読できないか切れたら [UserRemoteProfileRefreshResult.Failure] を流して終わる
+     *
+     * @param start 走っていなければ取り直しを始める。既に走っていれば、それの進み具合を流す
      */
-    fun remoteProfileRefreshStream(): Flow<UserRemoteProfileRefreshResult> = flow {
+    fun remoteProfileRefreshStream(start: Boolean): Flow<UserRemoteProfileRefreshResult> = flow {
         val client = clients.client.value
         if (client == null) {
             emit(UserRemoteProfileRefreshResult.Failure("接続先が未設定"))
             return@flow
         }
-        val results = client.subscription(RemoteProfileRefreshStateSubscription()).toFlow()
+        val results = client.subscription(RemoteProfileRefreshSubscription(start = start)).toFlow()
             .map { response -> response.toRemoteProfileRefreshResult() }
             .transformWhile { result ->
                 emit(result)
@@ -452,24 +452,6 @@ class UserApi(
         // エラーを流さずに終わったときも、もう届かないことを知らせる
         if (lastResult !is UserRemoteProfileRefreshResult.Failure) {
             emit(UserRemoteProfileRefreshResult.Failure("進み具合の受信が切れました"))
-        }
-    }
-
-    /**
-     * 始められなければ理由を返す
-     */
-    suspend fun startRemoteProfileRefresh(): String? {
-        val client = clients.client.value ?: return "接続先が未設定"
-        val response = client.mutation(StartRemoteProfileRefreshMutation()).execute()
-        if (response.exception != null || response.hasErrors()) return response.failureMessage()
-        val result = response.data?.user?.startRemoteProfileRefresh ?: return response.failureMessage()
-        return when (result.failure) {
-            null -> null
-            StartRemoteProfileRefreshFailure.NOT_LOGGED_IN -> "ログインしていません"
-            StartRemoteProfileRefreshFailure.NOT_ADMIN -> "管理者ではありません"
-            StartRemoteProfileRefreshFailure.FEDERATION_DISABLED -> "サーバーに DOMAIN が設定されていないため取り直せません"
-            StartRemoteProfileRefreshFailure.ALREADY_RUNNING -> "すでに取り直し中です"
-            StartRemoteProfileRefreshFailure.UNKNOWN__ -> "取り直しを始められませんでした"
         }
     }
 
@@ -800,8 +782,8 @@ class UserApi(
         return receivedPostCount
     }
 
-    private fun ApolloResponse<RemoteProfileRefreshStateSubscription.Data>.toRemoteProfileRefreshResult(): UserRemoteProfileRefreshResult {
-        val state = data?.remoteProfileRefreshState
+    private fun ApolloResponse<RemoteProfileRefreshSubscription.Data>.toRemoteProfileRefreshResult(): UserRemoteProfileRefreshResult {
+        val state = data?.remoteProfileRefresh
         if (exception != null || hasErrors() || state == null) return UserRemoteProfileRefreshResult.Failure(failureMessage())
         val progress = state.progress?.let {
             UserRemoteProfileRefreshResult.Progress(

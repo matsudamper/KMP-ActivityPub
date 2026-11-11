@@ -24,8 +24,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlRenameFollowingGroupFailu
 import net.matsudamper.kmp.activitypub.graphql.model.QlRenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedResult
-import net.matsudamper.kmp.activitypub.graphql.model.QlStartRemoteProfileRefreshFailure
-import net.matsudamper.kmp.activitypub.graphql.model.QlStartRemoteProfileRefreshResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
@@ -51,7 +49,6 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.RenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
-import net.matsudamper.kmp.activitypub.logic.StartRemoteProfileRefreshResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
@@ -331,14 +328,6 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
-    override fun startRemoteProfileRefresh(
-        userMutation: QlUserMutation,
-        env: DataFetchingEnvironment,
-    ): CompletionStage<DataFetcherResult<QlStartRemoteProfileRefreshResult>> {
-        val result = QlStartRemoteProfileRefreshResult(failure = startRemoteProfileRefresh(env))
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
-    }
-
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
         GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
 
@@ -474,19 +463,6 @@ class UserMutationResolverImpl : UserMutationResolver {
                 SetLikedResult.PostNotFound -> QlSetLikedFailure.POST_NOT_FOUND
             }
         return QlSetLikedResult(failure = failure)
-    }
-
-    private fun startRemoteProfileRefresh(env: DataFetchingEnvironment): QlStartRemoteProfileRefreshFailure? {
-        val diContainer = GraphQlEngine.diContainer(env)
-        val accountId =
-            GraphQlEngine.graphQlContext(env).userAccountId()
-                ?: return QlStartRemoteProfileRefreshFailure.NOT_LOGGED_IN
-        if (accountId !in diContainer.adminAccountIds) return QlStartRemoteProfileRefreshFailure.NOT_ADMIN
-        val service = diContainer.remoteProfileRefreshService ?: return QlStartRemoteProfileRefreshFailure.FEDERATION_DISABLED
-        return when (service.start()) {
-            StartRemoteProfileRefreshResult.Started -> null
-            StartRemoteProfileRefreshResult.AlreadyRunning -> QlStartRemoteProfileRefreshFailure.ALREADY_RUNNING
-        }
     }
 
     private fun updateProfileIcon(

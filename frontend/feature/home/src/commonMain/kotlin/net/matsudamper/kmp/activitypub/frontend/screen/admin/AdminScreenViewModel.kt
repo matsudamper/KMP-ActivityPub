@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.admin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,8 @@ internal class AdminScreenViewModel(
                 starting = false,
             ),
         )
+
+    private var refreshJob: Job? = null
 
     private val listener =
         object : AdminScreenUiState.Listener {
@@ -65,47 +68,48 @@ internal class AdminScreenViewModel(
                     is UserAdminAccessResult.Failure -> AccessState.Error(result.message)
                 }
             viewModelStateFlow.update { it.copy(access = access) }
-            if (access == AccessState.Granted) collectRemoteProfileRefresh()
+            if (access == AccessState.Granted) collectRemoteProfileRefresh(start = false)
         }
     }
 
     private fun startRemoteProfileRefresh() {
         if (viewModelStateFlow.value.starting) return
         viewModelStateFlow.update { it.copy(starting = true) }
-        viewModelScope.launch {
-            try {
-                val error = api.startRemoteProfileRefresh()
-                events.send { it.showMessage(error ?: "取り直しを始めました") }
-            } finally {
-                viewModelStateFlow.update { it.copy(starting = false) }
-            }
-        }
+        collectRemoteProfileRefresh(start = true)
     }
 
     /**
      * 画面を開いた時点で走っている取り直しがあれば、その進み具合から受け取る。
      * 切れても取り直しはサーバーで続いているので、直前の進み具合を出したまま張り直す
+     *
+     * @param start 走っていなければ取り直しを始める。張り直しでは、終わった取り直しをまた始めないよう指定しない
      */
-    private suspend fun collectRemoteProfileRefresh() {
-        var disconnectNotified = false
-        while (true) {
-            api.remoteProfileRefreshStream().collect { result ->
-                when (result) {
-                    is UserRemoteProfileRefreshResult.Success -> {
-                        disconnectNotified = false
-                        viewModelStateFlow.update { it.copy(refresh = RefreshState.Loaded(result.progress)) }
-                    }
+    private fun collectRemoteProfileRefresh(start: Boolean) {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            var startOnSubscribe = start
+            var disconnectNotified = false
+            while (true) {
+                api.remoteProfileRefreshStream(start = startOnSubscribe).collect { result ->
+                    when (result) {
+                        is UserRemoteProfileRefreshResult.Success -> {
+                            disconnectNotified = false
+                            startOnSubscribe = false
+                            viewModelStateFlow.update { it.copy(refresh = RefreshState.Loaded(result.progress), starting = false) }
+                        }
 
-                    is UserRemoteProfileRefreshResult.Failure -> {
-                        // 張り直しのたびに同じ知らせを重ねない
-                        if (!disconnectNotified) {
-                            disconnectNotified = true
-                            events.send { it.showMessage("進み具合を受け取れませんでした。つなぎ直します: ${result.message}") }
+                        is UserRemoteProfileRefreshResult.Failure -> {
+                            viewModelStateFlow.update { it.copy(starting = false) }
+                            // 張り直しのたびに同じ知らせを重ねない
+                            if (!disconnectNotified) {
+                                disconnectNotified = true
+                                events.send { it.showMessage("進み具合を受け取れませんでした。つなぎ直します: ${result.message}") }
+                            }
                         }
                     }
                 }
+                delay(RECONNECT_INTERVAL)
             }
-            delay(RECONNECT_INTERVAL)
         }
     }
 

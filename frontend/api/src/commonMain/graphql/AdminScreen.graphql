@@ -4,8 +4,8 @@ query AdminAccess {
     }
 }
 
-subscription RemoteProfileRefreshState {
-    remoteProfileRefreshState {
+subscription RemoteProfileRefresh($start: Boolean!) {
+    remoteProfileRefresh(start: $start) {
         progress {
             running
             total
@@ -14,14 +14,6 @@ subscription RemoteProfileRefreshState {
             skipped
             startedAt
             finishedAt
-        }
-    }
-}
-
-mutation StartRemoteProfileRefresh {
-    user {
-        startRemoteProfileRefresh {
-            failure
         }
     }
 }
