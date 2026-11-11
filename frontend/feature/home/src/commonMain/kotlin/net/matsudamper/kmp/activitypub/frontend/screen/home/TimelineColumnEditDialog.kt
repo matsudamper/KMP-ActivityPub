@@ -15,7 +15,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TriStateCheckbox
@@ -24,7 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 
 /**
  * タイムラインのカラムやタブの名前と、流す購読先を決めるダイアログ
@@ -36,11 +38,20 @@ internal fun TimelineColumnEditDialog(uiState: HomeScreenUiState.TimelineColumnE
         title = { Text(uiState.title) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(
+                SingleLineTextField(
                     value = uiState.name,
                     onValueChange = uiState.listener::onNameChanged,
-                    label = { Text("名前") },
-                    singleLine = true,
+                    onImeAction = uiState.listener::onClickSave,
+                    label = "名前",
+                    kind = SingleLineTextFieldKind.Plain,
+                    autofill = null,
+                    formId = null,
+                    required = true,
+                    imeAction = ImeAction.Done,
+                    inputId = "timeline-column-name",
+                    inputName = "timeline-column-name",
+                    enabled = true,
+                    hasError = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(modifier = Modifier.height(8.dp))
