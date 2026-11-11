@@ -1,6 +1,3 @@
-"タイムラインに並ぶ投稿の識別子"
-scalar TimelinePostId
-
 type UserMutation {
     """
     内部のフォロー状態を設定する。未ログインや不正な相手なら false。
