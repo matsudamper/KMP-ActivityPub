@@ -116,6 +116,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.EmojiText
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
@@ -745,7 +746,7 @@ internal fun TimelineTabContent(
                 .then(wheelPullToRefreshBlocker.modifier),
         ) {
             items(timelineItems) { item ->
-                PostItem(uiState = item)
+                PostItem(uiState = item, style = PostItemStyle.Timeline)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             when (footer) {
@@ -952,7 +953,7 @@ internal fun UserTabContent(
                                     span = { GridItemSpan(maxLineSpan) },
                                 ) { post ->
                                     Column {
-                                        PostItem(uiState = post)
+                                        PostItem(uiState = post, style = PostItemStyle.Timeline)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
                                 }
