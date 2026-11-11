@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,6 +30,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -45,6 +50,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabPosition
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -54,9 +61,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -74,12 +81,22 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
+import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.round
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -437,15 +454,41 @@ private fun TimelineTabsContent(
     tabListStates: HomeTabListStates,
     modifier: Modifier = Modifier,
 ) {
+    val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
+    // タブの下の線をスワイプの途中にも追従させるため、タブ行とページで同じ状態を使う
+    val pagerState = rememberPagerState(initialPage = selectedIndex.coerceAtLeast(0)) { uiState.timelineColumns.size }
     Column(modifier = modifier) {
+        // 追加ボタンの下まで線を通すため、タブ行の線は消して行全体に引く
         Row(verticalAlignment = Alignment.CenterVertically) {
-            val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
             if (selectedIndex >= 0) {
                 val reorderState = rememberHorizontalReorderState()
                 SideEffect { reorderState.retainItems(uiState.timelineColumns.size) }
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedIndex,
                     edgePadding = 0.dp,
+                    indicator = {
+                        TabRowDefaults.PrimaryIndicator(
+                            modifier = Modifier.tabIndicatorLayout { measurable, constraints, tabPositions ->
+                                val indicatorPosition = pagerIndicatorPosition(
+                                    tabPositions = tabPositions,
+                                    currentPage = pagerState.currentPage,
+                                    currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
+                                )
+                                val indicatorWidth = indicatorPosition.width.roundToPx()
+                                val placeable = measurable.measure(
+                                    constraints.copy(minWidth = indicatorWidth, maxWidth = indicatorWidth),
+                                )
+                                // タブ行は下線を選んでいるタブの幅の中で中央に寄せて置くので、その分を差し引く
+                                val selectedTabWidth = tabPositions.getOrNull(selectedIndex)?.width?.roundToPx() ?: 0
+                                val offsetByTabRow = maxOf(0, (selectedTabWidth - placeable.width) / 2)
+                                layout(placeable.width, placeable.height) {
+                                    placeable.place(x = indicatorPosition.left.roundToPx() - offsetByTabRow, y = 0)
+                                }
+                            },
+                            width = Dp.Unspecified,
+                        )
+                    },
+                    divider = {},
                     modifier = Modifier.weight(1f),
                 ) {
                     uiState.timelineColumns.forEachIndexed { index, column ->
@@ -477,20 +520,17 @@ private fun TimelineTabsContent(
                 )
             }
         }
-        val selectedColumn = uiState.timelineColumns.firstOrNull { it.selected }
+        HorizontalDivider()
         val emptyMessage = uiState.timelineColumnsEmptyMessage
         val contentModifier = Modifier.fillMaxWidth().weight(1f)
-        if (selectedColumn != null) {
-            key(selectedColumn.listStateKey) {
-                TimelineTabContent(
-                    listState = tabListStates.timeline(selectedColumn.listStateKey),
-                    timelineItems = selectedColumn.items,
-                    refreshing = uiState.timelineRefreshing,
-                    footer = uiState.timelineFooter,
-                    listener = uiState.listener,
-                    modifier = contentModifier,
-                )
-            }
+        if (selectedIndex >= 0) {
+            TimelineColumnsPager(
+                uiState = uiState,
+                pagerState = pagerState,
+                selectedIndex = selectedIndex,
+                tabListStates = tabListStates,
+                modifier = contentModifier,
+            )
         } else if (emptyMessage != null) {
             TimelineColumnsEmptyContent(
                 message = emptyMessage,
@@ -502,6 +542,118 @@ private fun TimelineTabsContent(
             Spacer(modifier = contentModifier)
         }
     }
+}
+
+@Composable
+private fun TimelineColumnsPager(
+    uiState: HomeScreenUiState,
+    pagerState: PagerState,
+    selectedIndex: Int,
+    tabListStates: HomeTabListStates,
+    modifier: Modifier = Modifier,
+) {
+    val columns = uiState.timelineColumns
+    LaunchedEffect(pagerState, selectedIndex) {
+        // 途中で止まったアニメーションのずれが残るので、ページの番号だけでなくずれも見る
+        val pageSettledOnSelected = pagerState.currentPage == selectedIndex && pagerState.currentPageOffsetFraction == 0f
+        if (!pageSettledOnSelected) {
+            pagerState.animateScrollToPage(selectedIndex)
+        }
+    }
+    val latestColumns by rememberUpdatedState(columns)
+    LaunchedEffect(pagerState) {
+        // 元のページに戻って止まったときも同期するため、スクロール中は null を挟んで止まるたびに流す
+        snapshotFlow { if (pagerState.isScrollInProgress) null else pagerState.settledPage }.collect { page ->
+            val column = page?.let { latestColumns.getOrNull(it) }
+            if (column != null && !column.selected) {
+                column.listener.onClickTab()
+            }
+        }
+    }
+    val defaultPageNestedScrollConnection = PagerDefaults.pageNestedScrollConnection(pagerState, Orientation.Horizontal)
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val pageNestedScrollConnection = remember(pagerState, defaultPageNestedScrollConnection, density, layoutDirection) {
+        FlingVelocityKeepingPageNestedScrollConnection(
+            pagerState = pagerState,
+            defaultConnection = defaultPageNestedScrollConnection,
+            pageChangeVelocityThreshold = with(density) { PageChangeVelocityThreshold.toPx() },
+            layoutDirection = layoutDirection,
+        )
+    }
+    HorizontalPager(
+        state = pagerState,
+        key = { page -> columns[page].listStateKey },
+        pageNestedScrollConnection = pageNestedScrollConnection,
+        modifier = modifier,
+    ) { page ->
+        val column = columns[page]
+        TimelineTabContent(
+            listState = tabListStates.timeline(column.listStateKey),
+            timelineItems = column.items,
+            refreshing = uiState.timelineRefreshing,
+            footer = uiState.timelineFooter,
+            // 隣のページはスワイプの途中から作られるので、見ていないカラムのために続きを読まない
+            loadMoreAtEndEnabled = column.selected,
+            listener = uiState.listener,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** ページャーが指を払ったと見なす速さの標準値に合わせる */
+private val PageChangeVelocityThreshold = 400.dp
+
+/**
+ * 画像や OGP の横に並ぶ列から始めたスワイプでも、本文から始めたときと同じく払った速さでページを切り替える。
+ * 標準の接続は子のスクロールから渡された速さを捨てるので、半分を超えて動かさないと切り替わらない
+ */
+private class FlingVelocityKeepingPageNestedScrollConnection(
+    private val pagerState: PagerState,
+    private val defaultConnection: NestedScrollConnection,
+    private val pageChangeVelocityThreshold: Float,
+    private val layoutDirection: LayoutDirection,
+) : NestedScrollConnection by defaultConnection {
+    override suspend fun onPreFling(available: Velocity): Velocity {
+        val pageMovedByDrag = abs(pagerState.currentPageOffsetFraction) > 1e-6f
+        if (!pageMovedByDrag) return defaultConnection.onPreFling(available)
+        val pagePosition = pagerState.currentPage + pagerState.currentPageOffsetFraction
+        val velocityTowardNextPage = if (layoutDirection == LayoutDirection.Ltr) -available.x else available.x
+        val targetPage = when {
+            velocityTowardNextPage > pageChangeVelocityThreshold -> ceil(pagePosition)
+            velocityTowardNextPage < -pageChangeVelocityThreshold -> floor(pagePosition)
+            else -> round(pagePosition)
+        }.toInt().coerceIn(0, pagerState.pageCount - 1)
+        pagerState.animateScrollToPage(targetPage)
+        // ページを動かしたので、子の列には払った速さを渡さない
+        return available
+    }
+}
+
+private data class TabIndicatorPosition(
+    val left: Dp,
+    val width: Dp,
+)
+
+/**
+ * スワイプ中のページのずれに合わせて、今のタブと向かう先のタブの間に下線を置く
+ */
+private fun pagerIndicatorPosition(
+    tabPositions: List<TabPosition>,
+    currentPage: Int,
+    currentPageOffsetFraction: Float,
+): TabIndicatorPosition {
+    val currentTab = tabPositions.getOrNull(currentPage) ?: return TabIndicatorPosition(left = 0.dp, width = 0.dp)
+    val targetPage = if (currentPageOffsetFraction > 0f) currentPage + 1 else currentPage - 1
+    val targetTab = tabPositions.getOrNull(targetPage) ?: currentTab
+    val fraction = abs(currentPageOffsetFraction)
+    val width = lerp(currentTab.contentWidth, targetTab.contentWidth, fraction)
+    val center = lerp(
+        currentTab.left + currentTab.width / 2,
+        targetTab.left + targetTab.width / 2,
+        fraction,
+    )
+    return TabIndicatorPosition(left = center - width / 2, width = width)
 }
 
 @Composable
@@ -531,10 +683,12 @@ internal fun TimelineTabContent(
     timelineItems: List<PostItemUiState>,
     refreshing: Boolean,
     footer: HomeScreenUiState.TimelineFooter,
+    loadMoreAtEndEnabled: Boolean,
     listener: HomeScreenUiState.Listener,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(listState, listener, timelineItems.size, footer) {
+    LaunchedEffect(listState, listener, timelineItems.size, footer, loadMoreAtEndEnabled) {
+        if (!loadMoreAtEndEnabled) return@LaunchedEffect
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index

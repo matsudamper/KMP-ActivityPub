@@ -128,6 +128,7 @@ internal fun HomeColumnsContent(
                                     timelineItems = timelineColumn.items,
                                     refreshing = uiState.timelineRefreshing,
                                     footer = uiState.timelineFooter,
+                                    loadMoreAtEndEnabled = true,
                                     listener = uiState.listener,
                                     modifier = contentModifier,
                                 )
