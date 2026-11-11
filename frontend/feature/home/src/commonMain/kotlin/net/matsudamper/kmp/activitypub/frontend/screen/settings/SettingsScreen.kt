@@ -63,6 +63,10 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.Security)
                 }
 
+                override fun navigateToAdmin() {
+                    navigator.navigate(Screen.Admin)
+                }
+
                 override fun loggedOut() {
                     navigator.replaceAll(Screen.Login)
                 }
@@ -117,6 +121,10 @@ internal fun SettingsContent(
             HorizontalDivider()
             SecurityItem(listener = uiState.listener)
             HorizontalDivider()
+            if (uiState.adminItemVisible) {
+                AdminItem(listener = uiState.listener)
+                HorizontalDivider()
+            }
             GitHubReleaseItem(listener = uiState.listener)
             HorizontalDivider()
             OutlinedButton(
@@ -191,6 +199,21 @@ private fun SecurityItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun AdminItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Text(
+        text = "サーバー管理",
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickAdmin)
+            .padding(vertical = 8.dp),
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 @Composable

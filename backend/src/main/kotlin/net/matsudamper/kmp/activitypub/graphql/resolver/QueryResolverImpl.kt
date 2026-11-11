@@ -100,7 +100,10 @@ class QueryResolverImpl : QueryResolver {
             if (accountId == null) {
                 null
             } else {
-                QlUserInfo(id = accountId)
+                QlUserInfo(
+                    id = accountId,
+                    isAdmin = accountId in GraphQlEngine.diContainer(env).adminAccountIds,
+                )
             }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlUserInfo?>(userInfo).build())
     }
