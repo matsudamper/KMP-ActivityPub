@@ -6,6 +6,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
@@ -30,7 +32,7 @@ class UserProfileServiceTest {
      * 固定した投稿はどの経路でも取りに行くので、[requests] とは分けて数える
      */
     private val featuredRequests = mutableListOf<String>()
-    private var featured: () -> List<ProfilePost> = { listOf() }
+    private var featured: suspend () -> List<ProfilePost> = { listOf() }
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile {
             requests.add("profile")
@@ -258,6 +260,18 @@ class UserProfileServiceTest {
 
         assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
         assertEquals(listOf(false), posts.map { it.pinned })
+    }
+
+    @Test
+    fun slowFeaturedRequestDoesNotHoldProfile() = runBlocking {
+        featured = {
+            delay(1.minutes)
+            listOf(remotePost("<p>固定した投稿</p>", "https://remote.example/notes/pinned", pinned = true))
+        }
+
+        val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
+
+        assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
     }
 
     private fun remotePost(contentHtml: String, noteUri: String, pinned: Boolean): ProfilePost =

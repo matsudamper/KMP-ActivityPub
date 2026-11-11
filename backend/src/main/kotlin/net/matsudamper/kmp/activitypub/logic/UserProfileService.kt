@@ -2,7 +2,10 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import java.time.Instant
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
@@ -149,16 +152,23 @@ class UserProfileService(
         return pinnedPosts + posts.filterNot { it.boostedNoteAuthor == null && it.noteRef in pinnedNoteRefs }
     }
 
+    /**
+     * フォロー中の相手は保存済みの投稿だけで出せるので、相手のサーバーが遅くてもプロフィールを待たせないよう期限を切る
+     */
     private suspend fun featuredPosts(actorUri: String): List<ProfilePost> {
         val profiles = remoteProfiles ?: return listOf()
-        return try {
-            profiles.featuredPosts(actorUri)
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (exception: Exception) {
-            logger.warn("固定した投稿を取れなかった: $actorUri", exception)
-            listOf()
+        val featured = withTimeoutOrNull(FEATURED_POSTS_TIMEOUT) {
+            try {
+                profiles.featuredPosts(actorUri)
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                logger.warn("固定した投稿を取れなかった: $actorUri", exception)
+                listOf()
+            }
         }
+        if (featured == null) logger.warn("固定した投稿の取得が期限を過ぎた: $actorUri")
+        return featured.orEmpty()
     }
 
     /**
@@ -202,6 +212,8 @@ class UserProfileService(
 
     private companion object {
         const val PROFILE_POST_LIMIT = 20
+
+        val FEATURED_POSTS_TIMEOUT: Duration = 3.seconds
 
         /**
          * このサーバーの投稿は公開されているので、タイムラインの id ではなく公開 id で OGP を引けるようにする
