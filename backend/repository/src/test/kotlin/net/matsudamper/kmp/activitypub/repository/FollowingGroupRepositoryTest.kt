@@ -26,6 +26,32 @@ class FollowingGroupRepositoryTest {
     }
 
     @Test
+    fun renameKeepsGroupIdAndRejectsDuplicateOrOtherAccount() {
+        withAliceAndBob { repositories, alice, bob ->
+            val groups = repositories.followingGroupRepository
+            val news = groups.create(alice, "ニュース", Instant.EPOCH)
+            groups.create(alice, "友人", Instant.EPOCH)
+            assertEquals(FollowingGroupRenameResult.DuplicateName, groups.rename(alice, news.id, "友人"))
+            assertEquals(FollowingGroupRenameResult.NotFound, groups.rename(bob, news.id, "技術"))
+            assertEquals(FollowingGroupRenameResult.Renamed, groups.rename(alice, news.id, "ニュース"))
+            assertEquals(FollowingGroupRenameResult.Renamed, groups.rename(alice, news.id, "技術"))
+            assertEquals(FollowingGroup(id = news.id, name = "技術"), groups.list(alice).first())
+        }
+    }
+
+    @Test
+    fun homeNameIsStoredPerAccount() {
+        withAliceAndBob { repositories, alice, bob ->
+            val groups = repositories.followingGroupRepository
+            assertNull(groups.homeName(alice))
+            groups.setHomeName(alice, "すべて")
+            groups.setHomeName(alice, "全部")
+            assertEquals("全部", groups.homeName(alice))
+            assertNull(groups.homeName(bob))
+        }
+    }
+
+    @Test
     fun followingMovesBetweenGroupsAndForgetsGroupWhenUnfollowed() {
         withAliceAndBob { repositories, alice, _ ->
             val actorUri = "https://remote.example/users/carol"

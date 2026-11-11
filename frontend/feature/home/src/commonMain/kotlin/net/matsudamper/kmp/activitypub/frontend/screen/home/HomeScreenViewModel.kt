@@ -95,6 +95,7 @@ internal class HomeScreenViewModel(
                 userContentTab = ProfileContentTab.Posts,
                 timelineColumns = TimelineColumnsState(
                     settings = null,
+                    homeName = userApi.currentHomeGroupName(),
                     followingGroups = listOf(),
                     selected = null,
                     addDialogVisible = false,
@@ -145,11 +146,19 @@ internal class HomeScreenViewModel(
 
         override fun onClickTab(tab: HomeScreenUiState.Tab) {
             val reselected = viewModelStateFlow.value.selectedTab == tab
+            val selectedTimelineColumn = viewModelStateFlow.value.timelineColumns.selectedColumn()
             viewModelScope.launch {
-                if (reselected) {
-                    events.send { it.scrollTabToTop(tab) }
-                } else {
-                    events.send { it.navigateToTab(tab) }
+                when {
+                    !reselected -> events.send { it.navigateToTab(tab) }
+
+                    // 縦並びでは選んでいるカラムのリストしか出ていない。出ていないリストはスクロールが終わらないので、選んでいるカラムだけ戻す
+                    tab == HomeScreenUiState.Tab.Home -> {
+                        if (selectedTimelineColumn != null) {
+                            events.send { it.scrollTimelineColumnToTop(selectedTimelineColumn.listStateKey) }
+                        }
+                    }
+
+                    else -> events.send { it.scrollTabToTop(tab) }
                 }
             }
         }
@@ -358,6 +367,11 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             userApi.followingGroups.collect { groups ->
                 updateTimelineColumns { it.copy(followingGroups = groups) }
+            }
+        }
+        viewModelScope.launch {
+            userApi.homeGroupName.collect { homeName ->
+                updateTimelineColumns { it.copy(homeName = homeName) }
             }
         }
     }
@@ -1117,7 +1131,6 @@ internal class HomeScreenViewModel(
         const val TIMELINE_COLUMNS_EMPTY_MESSAGE = "表示する購読先がありません"
         const val ADDABLE_TIMELINE_COLUMNS_EMPTY_MESSAGE = "追加できる購読先がありません"
         const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "表示する購読先を端末に保存できませんでした"
-        const val HOME_COLUMN_TITLE = "ホーム"
         const val ALL_COLUMN_TITLE = "全て"
     }
 
@@ -1153,6 +1166,7 @@ internal class HomeScreenViewModel(
      */
     private data class TimelineColumnsState(
         val settings: List<TimelineColumnSetting>?,
+        val homeName: String,
         val followingGroups: List<UserFollowingGroup>,
         val selected: TimelineColumnSetting?,
         val addDialogVisible: Boolean,
@@ -1185,7 +1199,7 @@ internal class HomeScreenViewModel(
         fun titleOf(column: TimelineColumnSetting): String =
             when (column) {
                 TimelineColumnSetting.All -> ALL_COLUMN_TITLE
-                TimelineColumnSetting.Home -> HOME_COLUMN_TITLE
+                TimelineColumnSetting.Home -> homeName
                 is TimelineColumnSetting.FollowingGroup -> followingGroups.firstOrNull { it.id == column.groupId }?.name.orEmpty()
             }
     }

@@ -19,7 +19,8 @@ object NoteComposer {
     }
 
     /**
-     * Mastodon が残すのはこの程度のタグで、それ以外は相手側で落とされる
+     * Mastodon が残すのはこの程度のタグで、それ以外は相手側で落とされる。
+     * Mastodon は他サーバーの本文をリンクにし直さないので、URL はここで `<a>` にしておく
      */
     private fun toHtml(text: String): String =
         text
@@ -27,9 +28,21 @@ object NoteComposer {
             .split(Regex("\n{2,}"))
             .filter { it.isNotBlank() }
             .joinToString("") { paragraph ->
-                val lines = paragraph.trim().split("\n").joinToString("<br>") { escapeHtml(it) }
+                val lines = paragraph.trim().split("\n").joinToString("<br>") { linkifyLine(it) }
                 "<p>$lines</p>"
             }
+
+    private fun linkifyLine(line: String): String =
+        buildString {
+            var plainStart = 0
+            PlainTextUrls.find(line).forEach { urlRange ->
+                append(escapeHtml(line.substring(plainStart, urlRange.first)))
+                val url = escapeHtml(line.substring(urlRange))
+                append("<a href=\"$url\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">$url</a>")
+                plainStart = urlRange.last + 1
+            }
+            append(escapeHtml(line.substring(plainStart)))
+        }
 
     private fun escapeHtml(raw: String): String =
         raw
