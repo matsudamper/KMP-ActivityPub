@@ -3,6 +3,13 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
+import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -18,8 +25,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -39,13 +48,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
@@ -203,10 +221,19 @@ internal fun PostItem(
                 PostItemStyle.Detail -> listOf()
             }
             if (horizontalScrollImages.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
+                val attachmentListState = rememberLazyListState()
+                val layoutDirection = LocalLayoutDirection.current
+                val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
                 LazyRow(
+                    state = attachmentListState,
                     modifier = Modifier
                         .padding(top = 8.dp)
-                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding),
+                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
+                        .scrollHorizontallyByMouseDrag(
+                            state = attachmentListState,
+                            flingBehavior = attachmentFlingBehavior,
+                            reverseDirection = layoutDirection == LayoutDirection.Rtl,
+                        ),
                     contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -533,6 +560,52 @@ private val PostImageGridSpacing = 8.dp
 private const val PostImageGridMaxColumnCount = 3
 private const val PostImageGridCellAspectRatio = 4f / 3f
 private val PostIconHeaderSpacing = 12.dp
+
+/**
+ * スクロールの部品はマウスのドラッグでは動かないので、画面に収まらない画像をマウスで送れるようにする。
+ * ドラッグで動かした押下は消費して、離したときに画像を開かないようにする
+ */
+private fun Modifier.scrollHorizontallyByMouseDrag(
+    state: LazyListState,
+    flingBehavior: FlingBehavior,
+    reverseDirection: Boolean,
+): Modifier = pointerInput(state, flingBehavior, reverseDirection) {
+    val toScrollAmount = { dragAmount: Float -> if (reverseDirection) dragAmount else -dragAmount }
+    coroutineScope {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            if (down.type == PointerType.Mouse) {
+                launch { state.stopScroll() }
+                val velocityTracker = VelocityTracker()
+                velocityTracker.addPointerInputChange(down)
+                val dragStart = awaitHorizontalTouchSlopOrCancellation(down.id) { change, _ ->
+                    velocityTracker.addPointerInputChange(change)
+                    change.consume()
+                }
+                if (dragStart != null) {
+                    val dragCompleted = horizontalDrag(dragStart.id) { change ->
+                        velocityTracker.addPointerInputChange(change)
+                        state.dispatchRawDelta(toScrollAmount(change.positionChange().x))
+                        change.consume()
+                    }
+                    if (dragCompleted) {
+                        // 止めてから離したときに慣性を付けないよう、離した時刻も速さの計算に入れる
+                        val release = currentEvent.changes.firstOrNull { it.id == dragStart.id }
+                        if (release != null) {
+                            velocityTracker.addPointerInputChange(release)
+                        }
+                        val flingVelocity = toScrollAmount(velocityTracker.calculateVelocity().x)
+                        launch {
+                            state.scroll {
+                                with(flingBehavior) { performFling(flingVelocity) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 // 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
 private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
