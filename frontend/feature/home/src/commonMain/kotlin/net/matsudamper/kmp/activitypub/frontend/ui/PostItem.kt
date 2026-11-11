@@ -36,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -404,26 +406,46 @@ private val PostIconHeaderSpacing = 12.dp
 
 /**
  * ホイールやトラックパッドで横に並ぶ画像まで動かすと、上を通るだけで縦のスクロールやタブの横移動を奪って途切れさせる。
- * ホイールやトラックパッドを使っている間は横の並びのスクロールを止め、押下されたら戻す
+ * ホイールやトラックパッドの入力が続く間だけ横の並びのスクロールを止める。
+ * 押下で戻すと、State の反映が同じ押下に間に合わずタッチの最初のドラッグを取りこぼすので、入力が止まってからの時間で戻す
  */
 private fun Modifier.detectWheelInput(
     onWheelInputActiveChange: (Boolean) -> Unit,
 ): Modifier = pointerInput(onWheelInputActiveChange) {
     awaitPointerEventScope {
         while (true) {
-            when (awaitPointerEvent(PointerEventPass.Initial).type) {
-                PointerEventType.Scroll,
-                PointerEventType.PanStart,
-                PointerEventType.PanMove,
-                -> onWheelInputActiveChange(true)
-
-                PointerEventType.Press -> onWheelInputActiveChange(false)
-
-                else -> Unit
+            if (awaitPointerEvent(PointerEventPass.Initial).isWheelInput()) {
+                onWheelInputActiveChange(true)
+                do {
+                    val wheelInputContinued = withTimeoutOrNull(WheelInputIdleTimeoutMillis) {
+                        awaitWheelInput()
+                    }
+                } while (wheelInputContinued != null)
+                onWheelInputActiveChange(false)
             }
         }
     }
 }
+
+private suspend fun AwaitPointerEventScope.awaitWheelInput() {
+    do {
+        val event = awaitPointerEvent(PointerEventPass.Initial)
+    } while (!event.isWheelInput())
+}
+
+private fun PointerEvent.isWheelInput(): Boolean {
+    return when (type) {
+        PointerEventType.Scroll,
+        PointerEventType.PanStart,
+        PointerEventType.PanMove,
+        PointerEventType.PanEnd,
+        -> true
+
+        else -> false
+    }
+}
+
+private const val WheelInputIdleTimeoutMillis = 300L
 
 // 投稿の左右の余白まで横スクロールの表示領域を広げ、スクロール中の画像が余白の手前で切れないようにする
 private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { measurable, constraints ->
