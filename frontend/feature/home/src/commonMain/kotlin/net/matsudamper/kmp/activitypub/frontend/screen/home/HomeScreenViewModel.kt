@@ -32,6 +32,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withFirstPage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
@@ -327,7 +328,7 @@ internal class HomeScreenViewModel(
                 // 購読の数が変わる
                 loadProfile()
                 // 読み込み済みの投稿は前の購読先のまま振り分けられるので、読み直して今の購読先に振り分ける
-                loadTimeline(TimelineLoadTrigger.ScreenShown)
+                loadTimeline(TimelineLoadTrigger.FollowingChanged)
                 searchPaging?.updateCache { it.withFollowing(change) }
                 updateSearchResult { result ->
                     if (result is SearchResultState.Loaded) {
@@ -637,6 +638,7 @@ internal class HomeScreenViewModel(
                     TimelineLoadTrigger.Append -> TimelineLoading.Append
 
                     TimelineLoadTrigger.ScreenShown,
+                    TimelineLoadTrigger.FollowingChanged,
                     TimelineLoadTrigger.Reconnect,
                     -> TimelineLoading.None
                 },
@@ -645,7 +647,17 @@ internal class HomeScreenViewModel(
         }
         timelineJob = viewModelScope.launch {
             try {
-                val result = if (append) timelinePaging.fetchNext() else timelinePaging.refresh()
+                val result = when (trigger) {
+                    TimelineLoadTrigger.Append -> timelinePaging.fetchNext()
+
+                    // 1 ページ目だけにすると、続きまで読んでいたカラムが戻ってきたときに位置を保てず、読み直しからやり直しになる
+                    TimelineLoadTrigger.ScreenShown -> timelinePaging.refreshKeepingLoadedPages { loaded, firstPage -> loaded.withFirstPage(firstPage) }
+
+                    TimelineLoadTrigger.PullToRefresh,
+                    TimelineLoadTrigger.FollowingChanged,
+                    TimelineLoadTrigger.Reconnect,
+                    -> timelinePaging.refresh()
+                }
                 when (result) {
                     is UpdateOperationResponseResult.Success -> {
                         val timeline = result.result.data?.toUserHomeTimelineResult()
@@ -1145,6 +1157,7 @@ internal class HomeScreenViewModel(
     private enum class TimelineLoadTrigger {
         PullToRefresh,
         ScreenShown,
+        FollowingChanged,
         Reconnect,
         Append,
     }

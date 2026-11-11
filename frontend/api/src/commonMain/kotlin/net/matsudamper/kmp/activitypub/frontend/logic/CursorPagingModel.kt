@@ -11,6 +11,7 @@ import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Query
 import com.apollographql.cache.normalized.FetchPolicy
 import com.apollographql.cache.normalized.apolloStore
+import com.apollographql.cache.normalized.doNotStore
 import com.apollographql.cache.normalized.fetchPolicy
 import com.apollographql.cache.normalized.watch
 
@@ -47,17 +48,37 @@ class CursorPagingModel<D : Query.Data> internal constructor(
     suspend fun refresh(): UpdateOperationResponseResult<D> {
         val client = clients.awaitLoadedClient() ?: return UpdateOperationResponseResult.Error(GraphQlRequestException(NO_SERVER_MESSAGE))
         return client.updateOperation(firstQuery) {
-            fetchPage(client, firstQuery)
+            fetchPage(client, firstQuery, storeResponse = true)
+        }
+    }
+
+    /**
+     * 読み込み済みの続きのページを残したまま、1 ページ目を取り直す
+     *
+     * @param prependFirstPage 取り直した 1 ページ目を読み込み済みの内容の先頭へつなぐ。つなげず間が抜けるときは null を返し、1 ページ目だけにする
+     */
+    suspend fun refreshKeepingLoadedPages(prependFirstPage: (loaded: D, firstPage: D) -> D?): UpdateOperationResponseResult<D> {
+        val client = clients.awaitLoadedClient() ?: return UpdateOperationResponseResult.Error(GraphQlRequestException(NO_SERVER_MESSAGE))
+        return client.updateOperation(firstQuery) update@{ before ->
+            // 取った 1 ページ目がそのままキャッシュに入ると、つなぐ前に読み込み済みの内容が消えて画面に出る
+            val pageResult = fetchPage(client, firstQuery, storeResponse = false)
+            if (pageResult !is UpdateOperationResponseResult.Success<D>) return@update pageResult
+            val page = pageResult.result
+            val firstPage = page.data ?: return@update pageResult
+            // 取得を待つ間に updateCache で書き換わった内容を巻き戻さないよう、つなぐ直前に読み直す
+            val loaded = client.readCacheOrNull() ?: before ?: return@update pageResult
+            val merged = prependFirstPage(loaded, firstPage) ?: return@update pageResult
+            success(page.newBuilder().data(merged).build())
         }
     }
 
     suspend fun fetchNext(): UpdateOperationResponseResult<D> {
         val client = clients.awaitLoadedClient() ?: return UpdateOperationResponseResult.Error(GraphQlRequestException(NO_SERVER_MESSAGE))
         return client.updateOperation(firstQuery) update@{ before ->
-            if (before == null) return@update fetchPage(client, firstQuery)
+            if (before == null) return@update fetchPage(client, firstQuery, storeResponse = true)
             val cursor = nextCursorOf(before) ?: return@update noHasMore()
 
-            val pageResult = fetchPage(client, queryAfter(cursor))
+            val pageResult = fetchPage(client, queryAfter(cursor), storeResponse = true)
             if (pageResult !is UpdateOperationResponseResult.Success<D>) return@update pageResult
             val page = pageResult.result
             // 取得を待つ間に updateCache で書き換わったフォロー状態を巻き戻さないよう、結合の直前に読み直す
@@ -87,9 +108,11 @@ class CursorPagingModel<D : Query.Data> internal constructor(
     private suspend fun UpdateOperationResponseScope<D>.fetchPage(
         client: ApolloClient,
         query: Query<D>,
+        storeResponse: Boolean,
     ): UpdateOperationResponseResult<D> {
         val response = client.query(query)
             .fetchPolicy(FetchPolicy.NetworkOnly)
+            .doNotStore(!storeResponse)
             .execute()
         if (response.exception != null || response.hasErrors() || response.data == null) {
             return error(GraphQlRequestException(response.failureMessage()))
