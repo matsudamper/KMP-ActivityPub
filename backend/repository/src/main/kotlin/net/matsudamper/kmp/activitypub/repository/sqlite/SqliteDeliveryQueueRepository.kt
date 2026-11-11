@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.repository.ProfileValueChange
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_PROFILE_LINKS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
@@ -126,10 +127,18 @@ internal class SqliteDeliveryQueueRepository(
                 .where(ACCOUNTS.USERNAME.eq(deletion.username.lowercase()))
                 .fetchOne(ACCOUNTS.ID)
                 ?: return@transaction false
-        val deletedCount =
-            dsl.deleteFrom(NOTES)
+        val noteId =
+            dsl.select(NOTES.ID)
+                .from(NOTES)
                 .where(NOTES.ACCOUNT_ID.eq(accountId))
                 .and(NOTES.PUBLIC_ID.eq(deletion.publicId.value))
+                .fetchOne(NOTES.ID)
+                ?: return@transaction false
+        // 投稿を消すとブーストの記録も消えるので先に取り消す。投稿者の Delete は、ブーストしたアカウントのフォロワーに届くとは限らない
+        dsl.undoAccountBoosts(ACCOUNT_BOOSTS.NOTE_ID.eq(noteId), deletion.deletedAt)
+        val deletedCount =
+            dsl.deleteFrom(NOTES)
+                .where(NOTES.ID.eq(noteId))
                 .execute()
         if (deletedCount == 0) return@transaction false
 

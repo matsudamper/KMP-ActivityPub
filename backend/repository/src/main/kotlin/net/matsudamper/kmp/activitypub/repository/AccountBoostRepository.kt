@@ -2,37 +2,33 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
- * こちらのアカウントが付けるブースト。今は他のサーバーの公開・未収載の投稿だけを扱う。
- * 投稿はタイムラインの member（`r` + REMOTE_NOTES の id、ブーストで載った投稿は `b` + REMOTE_BOOSTS の id）で指す。
+ * こちらのアカウントが付けるブースト。他のサーバーの公開・公開タイムラインに載せない投稿と、このサーバーの投稿を扱う。
+ * 投稿はタイムラインの member（`r` + REMOTE_NOTES の id、`l` + NOTES の id、ブーストで載った投稿は `b` + REMOTE_BOOSTS の id、自分のブーストは `a` + ACCOUNT_BOOSTS の id）で指す。
  * ブーストで載った投稿のブーストは、ブーストされた元の投稿に付ける
  */
 interface AccountBoostRepository {
     /**
-     * @return [accountId] が読めない投稿、無い投稿、公開・未収載でない投稿、このサーバーの投稿なら null
+     * @return [accountId] が読めない投稿、無い投稿、フォロワー限定などブーストできない投稿なら null
      */
     fun target(accountId: AccountId, member: String): BoostTarget?
 
     /**
      * ブーストを記録して、[OutgoingBoost.inboxes] への Announce を積む。記録と投函を分けると、ブーストしたのに相手に届かない状態が残る
      *
-     * @return 既にブーストしていれば何も書かずに false
+     * @return 自分のタイムラインに載せるブーストの位置。既にブーストしていれば何も書かずに null
      */
-    fun boostAndEnqueue(boost: OutgoingBoost): Boolean
+    fun boostAndEnqueue(boost: OutgoingBoost): TimelinePosition?
 
     /**
-     * ブーストを消して、Announce を積んだ宛先への Undo を積む。まだ一度も送っていない Announce の宛先には、取り消すだけで Undo は積まない
+     * ブーストを消して、Announce を積んだ宛先への Undo を積む。まだ一度も送っていない Announce の宛先には、取り消すだけで Undo は積まない。
+     * 今読めるかは問わない。投稿者のフォローを外した後でも、付けたブーストを外せるようにする
      *
-     * @param undoBody 消したブーストの Announce のアクティビティから Undo のアクティビティを作る
      * @return ブーストしていなければ false
      */
-    fun unboostAndEnqueueUndo(
-        accountId: AccountId,
-        member: String,
-        now: Instant,
-        undoBody: (announceBody: String) -> String,
-    ): Boolean
+    fun unboostAndEnqueueUndo(accountId: AccountId, member: String, now: Instant): Boolean
 
     /**
      * 投稿者が消した他のサーバーの投稿を消す。その投稿へのこのサーバーのアカウントのブーストもすべて外し、[unboostAndEnqueueUndo] と同じく Undo を積む。
@@ -41,35 +37,83 @@ interface AccountBoostRepository {
      *
      * @return 外したブーストの数
      */
-    fun deleteRemoteNoteAndUndoBoosts(
-        actorUri: String,
-        objectUri: String,
-        now: Instant,
-        undoBody: (announceBody: String) -> String,
-    ): Int
+    fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): Int
+
+    /**
+     * outbox に出すブースト。新しい順で、同じ時刻なら Announce の id の大きい順
+     *
+     * @param after ここより古いものを返す。null なら先頭から
+     */
+    fun listForOutbox(username: String, after: AccountBoostPosition?, limit: Int): List<AccountBoostRecord>
+
+    fun countForOutbox(username: String): Long
+
+    /**
+     * @return [publicIds] のうち、[accountId] がブーストしているこのサーバーの投稿
+     */
+    fun boostedLocalNotes(accountId: AccountId, publicIds: Set<PublicNoteId>): Set<PublicNoteId>
+}
+
+sealed interface BoostTarget {
+    /**
+     * @param objectUri ブーストする投稿の id
+     * @param authorActorUri 投稿者のアクター id
+     * @param authorInbox 投稿者の inbox
+     * @param unlisted 公開タイムラインに載せない投稿か。ブーストも同じく載せないように配る
+     */
+    data class Remote(
+        val objectUri: String,
+        val authorActorUri: String,
+        val authorInbox: String,
+        val unlisted: Boolean,
+    ) : BoostTarget
+
+    /**
+     * @param authorUsername 投稿したこのサーバーのアカウント
+     */
+    data class Local(
+        val publicId: PublicNoteId,
+        val authorUsername: String,
+    ) : BoostTarget
 }
 
 /**
- * @param objectUri ブーストする投稿の id
- * @param authorActorUri 投稿者のアクター id
- * @param authorInbox 投稿者の inbox
- */
-data class BoostTarget(
-    val objectUri: String,
-    val authorActorUri: String,
-    val authorInbox: String,
-)
-
-/**
  * @param announceId 送る Announce の id
- * @param body 送る Announce のアクティビティ。Undo に埋めるので記録する
+ * @param announceBody 送る Announce のアクティビティ
+ * @param undoBody 外すときに送る Undo のアクティビティ。投稿が消えたときにも送るので、ブーストするときに作っておく
  * @param inboxes Announce を送る inbox
+ * @param objectUri ブーストする投稿の id
+ * @param objectAuthor ブーストする投稿の投稿者のアクター id
+ * @param unlisted 公開タイムラインに載せない形で配ったか
  */
 data class OutgoingBoost(
     val accountId: AccountId,
     val member: String,
     val announceId: String,
+    val announceBody: String,
+    val undoBody: String,
     val inboxes: List<String>,
-    val body: String,
+    val objectUri: String,
+    val objectAuthor: String,
+    val unlisted: Boolean,
+    val boostedAt: Instant,
+)
+
+/**
+ * outbox の続きを指す位置
+ */
+data class AccountBoostPosition(
+    val boostedAt: Instant,
+    val announceId: String,
+)
+
+/**
+ * outbox に出すブースト 1 件
+ */
+data class AccountBoostRecord(
+    val announceId: String,
+    val objectUri: String,
+    val objectAuthor: String,
+    val unlisted: Boolean,
     val boostedAt: Instant,
 )

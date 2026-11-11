@@ -48,7 +48,7 @@ internal fun createPostItemUiState(
                 listener = boosted.navigateToProfile?.let { navigateToProfile ->
                     object : PostItemUiState.BoostedByListener {
                         override fun onClick() {
-                            navigateToProfile("${booster.username}@${booster.host}")
+                            navigateToProfile(booster.host?.let { host -> "${booster.username}@$host" } ?: booster.username)
                         }
                     }
                 },
@@ -173,7 +173,7 @@ internal sealed interface AuthorTapAction {
 }
 
 /**
- * @param navigateToProfile username はブーストした相手の user@host。ブーストした相手のプロフィールを見ているときは null
+ * @param navigateToProfile username はブーストした相手の user@host。このサーバーのアカウントなら user だけ。ブーストした相手のプロフィールを見ているときは null
  */
 internal class Boost(
     val booster: UserHomeTimelineResult.Booster,

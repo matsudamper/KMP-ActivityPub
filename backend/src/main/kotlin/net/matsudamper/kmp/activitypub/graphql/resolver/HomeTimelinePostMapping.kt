@@ -46,10 +46,14 @@ internal fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, diContainer
         boostedBy = boostedBy?.let { booster ->
             QlPostBooster(
                 username = booster.username,
-                host = URI(booster.actorUri).host,
+                host = booster.actorUri?.let { URI(it).host },
                 displayName = booster.displayName ?: booster.username,
                 displayNameEmojis = booster.emojis.toQlCustomEmojis(diContainer),
-                iconUrl = booster.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = booster.updatedAt) },
+                iconUrl = if (booster.actorUri == null) {
+                    diContainer.profileIconUrls?.find(booster.username)
+                } else {
+                    booster.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = booster.updatedAt) }
+                },
             )
         },
         followingGroupId = diContainer.followingGroupService.groupIdOfPost(accountId, this),

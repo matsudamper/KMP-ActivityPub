@@ -137,6 +137,7 @@ class AppDependencies(
         stamps = repositories.stampRepository,
         likes = repositories.likeRepository,
         boosts = repositories.boostRepository,
+        accountBoosts = repositories.accountBoostRepository,
         timeline = repositories.timelineRepository,
         following = followingService,
         remoteProfiles = federation?.remoteUserProfiles,

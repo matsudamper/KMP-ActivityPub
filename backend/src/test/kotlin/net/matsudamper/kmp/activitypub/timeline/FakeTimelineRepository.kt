@@ -18,6 +18,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     val received = mutableListOf<RemoteNoteInput>()
     val receivedBoosts = mutableListOf<RemoteBoostInput>()
     val actorPosts = mutableListOf<TimelinePost>()
+    val accountBoosts = mutableListOf<TimelinePost>()
 
     var interested = true
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
@@ -60,6 +61,8 @@ internal class FakeTimelineRepository : TimelineRepository {
         actorPosts.filter { (it.boostedBy?.actorUri ?: it.actorUri) == actorUri }.take(limit)
 
     override fun localPosition(publicId: String): TimelinePosition? = null
+
+    override fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost> = accountBoosts.toList()
 
     private fun sorted(): List<TimelinePosition> = positions.sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })
 }

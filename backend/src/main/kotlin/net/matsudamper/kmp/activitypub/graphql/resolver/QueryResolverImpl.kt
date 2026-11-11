@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
-import java.net.URI
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import kotlinx.coroutines.runBlocking
@@ -48,15 +47,18 @@ class QueryResolverImpl : QueryResolver {
                         headerUrl = profile.headerUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = profile.user.updatedAt) },
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
-                        posts = profile.posts.mapNotNull { post ->
-                            // 投稿者のホストを出せないブーストは、誰の投稿か示せないので一覧から外す
+                        posts = profile.posts.map { post ->
                             val boostedNoteAuthor = post.boostedNoteAuthor?.let { author ->
                                 QlPostAuthor(
                                     username = author.username,
-                                    host = URI(author.actorUri).host ?: return@mapNotNull null,
+                                    host = author.host,
                                     displayName = author.displayName ?: author.username,
                                     displayNameEmojis = author.displayNameEmojis.toQlCustomEmojis(diContainer),
-                                    iconUrl = author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) },
+                                    iconUrl = if (author.actorUri == null) {
+                                        diContainer.profileIconUrls?.find(author.username)
+                                    } else {
+                                        author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) }
+                                    },
                                 )
                             }
                             val body = createQlPostBody(

@@ -35,7 +35,10 @@ sealed interface UserHomeTimelineResult {
 
     data class Booster(
         val username: String,
-        val host: String,
+        /**
+         * このサーバーのアカウントなら null
+         */
+        val host: String?,
         val displayName: String,
         val displayNameEmojis: List<UserCustomEmoji>,
         /**

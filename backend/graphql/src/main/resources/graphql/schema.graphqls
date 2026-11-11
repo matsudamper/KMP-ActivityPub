@@ -112,13 +112,13 @@ type HomeTimelinePost {
     url: String
     "ログイン中のアカウントがいいねしているか。ブーストで載った投稿は、ブーストされた元の投稿へのいいね"
     likedByMe: Boolean!
-    "ログイン中のアカウントがブーストしているか。ブーストできない投稿（このサーバーの投稿や、公開・未収載でない投稿）は null。ブーストで載った投稿は、ブーストされた元の投稿のブースト"
+    "ログイン中のアカウントがブーストしているか。フォロワー限定などブーストできない投稿は null。ブーストで載った投稿は、ブーストされた元の投稿のブースト"
     boostedByMe: Boolean
     "setLiked と setBoosted に渡す id。ブーストで載った投稿は、ブーストされた元の投稿を指す"
     reactionPostId: TimelinePostId!
     "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
     boostCount: Int
-    "フォローしている相手のブーストとして載った投稿なら、ブーストした相手。投稿者などほかの項目はブーストされた投稿のもの"
+    "フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。投稿者などほかの項目はブーストされた投稿のもの"
     boostedBy: PostBooster
     "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。ホームなら null"
     followingGroupId: FollowingGroupId
@@ -126,7 +126,8 @@ type HomeTimelinePost {
 
 type PostBooster {
     username: String!
-    host: String!
+    "このサーバーのアカウントなら null"
+    host: String
     displayName: String!
     "displayName に入るカスタム絵文字。画像を中継できなければ空"
     displayNameEmojis: [CustomEmoji!]!

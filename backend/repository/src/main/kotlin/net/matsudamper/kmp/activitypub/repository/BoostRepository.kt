@@ -37,7 +37,7 @@ interface BoostRepository {
     fun findPublicKeyPem(actorUri: String): String?
 
     /**
-     * こちらの投稿のブーストの数。1 件も無い投稿も 0 で返す
+     * こちらの投稿のブーストの数。他のサーバーから届いたものと、このサーバーのアカウントのものを合わせる。1 件も無い投稿も 0 で返す
      */
     fun counts(notePublicIds: Set<PublicNoteId>): Map<PublicNoteId, Long>
 }

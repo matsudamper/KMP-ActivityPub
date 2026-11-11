@@ -69,6 +69,7 @@ class UserProfileServiceTest {
         stamps = repositories.stampRepository,
         likes = repositories.likeRepository,
         boosts = repositories.boostRepository,
+        accountBoosts = repositories.accountBoostRepository,
         timeline = repositories.timelineRepository,
         following = following,
         remoteProfiles = remoteProfiles,
@@ -182,6 +183,39 @@ class UserProfileServiceTest {
 
         assertEquals("note-alice", assertNotNull(service.profile("alice", viewer)).posts.single().deletableNoteId)
         assertNull(assertNotNull(service.profile("carol", viewer)).posts.single().deletableNoteId)
+    }
+
+    @Test
+    fun localProfileShowsOwnBoostsAtTheTimeTheyWereBoosted() = runBlocking {
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.ofEpochMilli(1_000), listOf()))
+        repositories.timelineRepository.accountBoosts.add(
+            storedPost("<p>ブーストした投稿</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(2_000, "a1"),
+                boostedBy = TimelineBooster(actorUri = null, username = "alice", displayName = null, iconUrl = null, updatedAt = null, emojis = listOf()),
+            ),
+        )
+        repositories.timelineRepository.accountBoosts.add(
+            storedPost("<p>古いブースト</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(500, "a2"),
+                actorUri = null,
+                username = "carol",
+                reactionMember = "l9",
+                noteRef = TimelineNoteRef.Local(PublicNoteId("note-carol")),
+                boostedBy = TimelineBooster(actorUri = null, username = "alice", displayName = null, iconUrl = null, updatedAt = null, emojis = listOf()),
+            ),
+        )
+
+        val ownPosts = assertNotNull(service.profile("alice", viewer)).posts
+        assertEquals(listOf("<p>ブーストした投稿</p>", "<p>自分の投稿</p>", "<p>古いブースト</p>"), ownPosts.map { it.contentHtml })
+        assertEquals(listOf("a1", null, "a2"), ownPosts.map { it.postId })
+        assertEquals(listOf("remote.example", null, "local.example"), ownPosts.map { it.boostedNoteAuthor?.host })
+        assertEquals(listOf("r1", "l9"), listOf(ownPosts[0].reactionPostId, ownPosts[2].reactionPostId))
+        assertEquals(listOf(null, null), listOf(ownPosts[0].deletableNoteId, ownPosts[2].deletableNoteId))
+
+        val anonymousPosts = assertNotNull(service.profile("alice", null)).posts
+        assertEquals(listOf(null, null, null), anonymousPosts.map { it.reactionPostId })
+        assertNull(anonymousPosts.first().postId)
+        assertNull(anonymousPosts.first().like)
     }
 
     @Test

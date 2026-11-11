@@ -160,6 +160,7 @@ internal class Federation(
             followerRepository = followerRepository,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
+            onBoosted = timeline::enqueue,
         )
 
     val followDelivery = QueuedFollowDelivery(
@@ -260,7 +261,7 @@ internal class Federation(
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
-    val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, null)
+    val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, AccountBoostOutbox(accountBoostRepository), null)
 
     /**
      * kotpub の InboxService.default に、他のサーバーからの投稿の受け取りとフォローへの応答の受け取りを足したもの

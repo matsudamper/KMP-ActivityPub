@@ -16,10 +16,13 @@ class AccountBoostRepositoryTest {
     fun boostIsRecordedOnceAndShownOnlyToTheAccountThatBoosted() = withRepository { repositories, alice, bob ->
         val member = receiveNote(repositories, "public", alice, bob)
         val boosts = repositories.accountBoostRepository
-        assertEquals(BoostTarget(objectUri = "$ACTOR/notes/public", authorActorUri = ACTOR, authorInbox = "$ACTOR/inbox"), boosts.target(alice, member))
+        assertEquals(
+            BoostTarget.Remote(objectUri = "$ACTOR/notes/public", authorActorUri = ACTOR, authorInbox = "$ACTOR/inbox", unlisted = false),
+            boosts.target(alice, member),
+        )
 
-        assertTrue(boosts.boostAndEnqueue(boost(alice, member, "announce-1")))
-        assertFalse(boosts.boostAndEnqueue(boost(alice, member, "announce-2")))
+        val position = assertNotNull(boosts.boostAndEnqueue(boost(alice, member, "announce-1")))
+        assertNull(boosts.boostAndEnqueue(boost(alice, member, "announce-2")))
 
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
         assertEquals(false, repositories.timelineRepository.hydrate(bob, listOf(member)).single().boostedByMe)
@@ -27,17 +30,71 @@ class AccountBoostRepositoryTest {
             setOf(FOLLOWER_INBOX to announceBody("announce-1"), "$ACTOR/inbox" to announceBody("announce-1")),
             repositories.deliveryQueueRepository.claim(NOW, 10).map { it.inbox to it.body }.toSet(),
         )
+        assertEquals(listOf(alice), repositories.timelineRepository.recipients(position.member, NOW.minusSeconds(60), null, 10))
     }
 
     @Test
-    fun followersOnlyLocalOrMissingPostCannotBeBoosted() = withRepository { repositories, alice, bob ->
+    fun ownBoostIsShownInTheBoostersTimeline() = withRepository { repositories, alice, _ ->
+        val member = receiveNote(repositories, "public", alice)
+        val position = assertNotNull(repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1")))
+
+        assertTrue(position in repositories.timelineRepository.rebuild(alice, 10))
+        val post = repositories.timelineRepository.hydrate(alice, listOf(position.member)).single()
+        assertEquals("alice", post.boostedBy?.username)
+        assertNull(post.boostedBy?.actorUri)
+        assertEquals(member, post.reactionMember)
+        assertEquals(true, post.boostedByMe)
+    }
+
+    @Test
+    fun unlistedPostIsBoostedAsUnlisted() = withRepository { repositories, alice, _ ->
+        val member = receiveNote(repositories, "unlisted", alice)
+
+        assertEquals(true, (repositories.accountBoostRepository.target(alice, member) as? BoostTarget.Remote)?.unlisted)
+        assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
+    }
+
+    @Test
+    fun followersOnlyOrMissingPostCannotBeBoosted() = withRepository { repositories, alice, _ ->
         val followersOnly = receiveNote(repositories, "followers", alice)
-        val local = postLocalNote(repositories)
 
         assertNull(repositories.accountBoostRepository.target(alice, followersOnly))
-        assertNull(repositories.accountBoostRepository.target(alice, local))
         assertNull(repositories.accountBoostRepository.target(alice, "r999"))
-        assertNull(repositories.timelineRepository.hydrate(bob, listOf(local)).single().boostedByMe)
+        assertNull(repositories.accountBoostRepository.target(alice, "l999"))
+    }
+
+    @Test
+    fun localPostCanBeBoostedByItsAuthorAndOthers() = withRepository { repositories, alice, bob ->
+        val local = postLocalNote(repositories)
+        val boosts = repositories.accountBoostRepository
+        assertEquals(BoostTarget.Local(publicId = PublicNoteId("bob-note"), authorUsername = "bob"), boosts.target(bob, local))
+        assertEquals(BoostTarget.Local(publicId = PublicNoteId("bob-note"), authorUsername = "bob"), boosts.target(alice, local))
+        assertEquals(false, repositories.timelineRepository.hydrate(bob, listOf(local)).single().boostedByMe)
+
+        assertNotNull(boosts.boostAndEnqueue(boost(bob, local, "announce-bob")))
+        assertNotNull(boosts.boostAndEnqueue(boost(alice, local, "announce-alice")))
+
+        assertEquals(true, repositories.timelineRepository.hydrate(bob, listOf(local)).single().boostedByMe)
+        assertEquals(setOf(PublicNoteId("bob-note")), boosts.boostedLocalNotes(alice, setOf(PublicNoteId("bob-note"))))
+        assertEquals(mapOf(PublicNoteId("bob-note") to 2L), repositories.boostRepository.counts(setOf(PublicNoteId("bob-note"))))
+    }
+
+    @Test
+    fun deletingLocalPostUndoesItsBoosts() = withRepository { repositories, alice, _ ->
+        val local = postLocalNote(repositories)
+        val boosts = repositories.accountBoostRepository
+        val queue = repositories.deliveryQueueRepository
+        boosts.boostAndEnqueue(boost(alice, local, "announce-1"))
+        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+
+        assertTrue(
+            queue.enqueueNoteDeletion(
+                NoteDeletion(username = "bob", publicId = PublicNoteId("bob-note"), deletedAt = NOW, body = "delete", inboxes = listOf()),
+            ),
+        )
+
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
+        assertTrue(boosts.boostedLocalNotes(alice, setOf(PublicNoteId("bob-note"))).isEmpty())
     }
 
     @Test
@@ -46,11 +103,22 @@ class AccountBoostRepositoryTest {
         val boosts = repositories.accountBoostRepository
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
 
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
 
         assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10).isEmpty())
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
-        assertFalse(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
+        assertFalse(boosts.unboostAndEnqueueUndo(alice, member, NOW))
+    }
+
+    @Test
+    fun unboostByTheOwnBoostMemberRemovesTheBoost() = withRepository { repositories, alice, _ ->
+        val member = receiveNote(repositories, "public", alice)
+        val boosts = repositories.accountBoostRepository
+        val position = assertNotNull(boosts.boostAndEnqueue(boost(alice, member, "announce-1")))
+
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, position.member, NOW))
+
+        assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
     }
 
     @Test
@@ -62,9 +130,9 @@ class AccountBoostRepositoryTest {
         val sent = queue.claim(NOW, 1).single()
         queue.markDelivered(sent.id, NOW)
 
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
 
-        assertEquals(listOf(sent.inbox to "undo:${announceBody("announce-1")}"), queue.claim(NOW, 10).map { it.inbox to it.body })
+        assertEquals(listOf(sent.inbox to undoBody("announce-1")), queue.claim(NOW, 10).map { it.inbox to it.body })
     }
 
     @Test
@@ -77,7 +145,7 @@ class AccountBoostRepositoryTest {
         repositories.followingRepository.remove(alice, ACTOR)
 
         assertNull(boosts.target(alice, member))
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
 
         assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
     }
@@ -91,11 +159,11 @@ class AccountBoostRepositoryTest {
 
         assertNotNull(boosts.target(alice, reactionMember))
         assertNull(boosts.target(bob, reactionMember))
-        assertTrue(boosts.boostAndEnqueue(boost(alice, reactionMember, "announce-1")))
+        assertNotNull(boosts.boostAndEnqueue(boost(alice, reactionMember, "announce-1")))
         queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
         assertTrue(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1"))
 
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, reactionMember, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, reactionMember, NOW))
         assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
     }
 
@@ -107,12 +175,12 @@ class AccountBoostRepositoryTest {
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
         queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
 
-        assertEquals(0, boosts.deleteRemoteNoteAndUndoBoosts("https://other.example/actor", "$ACTOR/notes/public", NOW) { "undo:$it" })
+        assertEquals(0, boosts.deleteRemoteNoteAndUndoBoosts("https://other.example/actor", "$ACTOR/notes/public", NOW))
         assertTrue(queue.claim(NOW, 10).isEmpty())
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
 
-        assertEquals(1, boosts.deleteRemoteNoteAndUndoBoosts(ACTOR, "$ACTOR/notes/public", NOW) { "undo:$it" })
-        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals("undo:${announceBody("announce-1")}", it.body) }.map { it.inbox }.toSet())
+        assertEquals(1, boosts.deleteRemoteNoteAndUndoBoosts(ACTOR, "$ACTOR/notes/public", NOW))
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
         assertFalse(repositories.timelineRepository.hasRemoteNote("$ACTOR/notes/public"))
     }
 
@@ -124,13 +192,46 @@ class AccountBoostRepositoryTest {
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
         val delivering = queue.claim(NOW, 10)
 
-        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW) { "undo:$it" })
+        assertTrue(boosts.unboostAndEnqueueUndo(alice, member, NOW))
         delivering.forEach { queue.scheduleRetry(it.id, NOW, "接続失敗") }
 
         assertEquals(
             setOf(FOLLOWER_INBOX, "$ACTOR/inbox"),
-            queue.claim(NOW, 10).onEach { assertEquals("undo:${announceBody("announce-1")}", it.body) }.map { it.inbox }.toSet(),
+            queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet(),
         )
+    }
+
+    @Test
+    fun outboxListsBoostsNewestFirstAndContinuesAfterThePosition() = withRepository { repositories, alice, _ ->
+        val public = receiveNote(repositories, "public", alice)
+        val unlisted = assertNotNull(repositories.timelineRepository.receive(note("unlisted"))).member
+        val boosts = repositories.accountBoostRepository
+        boosts.boostAndEnqueue(boost(alice, public, "announce-1", boostedAt = NOW))
+        boosts.boostAndEnqueue(boost(alice, unlisted, "announce-2", boostedAt = NOW.plusSeconds(1), unlisted = true))
+
+        assertEquals(2, boosts.countForOutbox("alice"))
+        assertEquals(0, boosts.countForOutbox("bob"))
+        val first = boosts.listForOutbox("alice", after = null, limit = 1).single()
+        assertEquals(
+            AccountBoostRecord(announceId = "announce-2", objectUri = "$ACTOR/notes/unlisted", objectAuthor = ACTOR, unlisted = true, boostedAt = NOW.plusSeconds(1)),
+            first,
+        )
+        assertEquals(
+            listOf("announce-1"),
+            boosts.listForOutbox("alice", after = AccountBoostPosition(first.boostedAt, first.announceId), limit = 10).map { it.announceId },
+        )
+    }
+
+    @Test
+    fun accountBoostsAreShownToOtherViewersWithTheirOwnReactions() = withRepository { repositories, alice, bob ->
+        val member = receiveNote(repositories, "public", alice, bob)
+        repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1"))
+
+        val seenByBob = repositories.timelineRepository.accountBoosts(booster = alice, viewer = bob, limit = 10).single()
+        assertEquals("alice", seenByBob.boostedBy?.username)
+        assertEquals(false, seenByBob.boostedByMe)
+        assertEquals(1, repositories.timelineRepository.accountBoosts(booster = alice, viewer = null, limit = 10).size)
+        assertTrue(repositories.timelineRepository.accountBoosts(booster = bob, viewer = null, limit = 10).isEmpty())
     }
 
     private fun postLocalNote(repositories: Repositories): String {
@@ -173,16 +274,28 @@ class AccountBoostRepositoryTest {
         ).member
     }
 
-    private fun boost(accountId: AccountId, member: String, announceId: String): OutgoingBoost = OutgoingBoost(
+    private fun boost(
+        accountId: AccountId,
+        member: String,
+        announceId: String,
+        boostedAt: Instant = NOW,
+        unlisted: Boolean = false,
+    ): OutgoingBoost = OutgoingBoost(
         accountId = accountId,
         member = member,
         announceId = announceId,
+        announceBody = announceBody(announceId),
+        undoBody = undoBody(announceId),
         inboxes = INBOXES,
-        body = announceBody(announceId),
-        boostedAt = NOW,
+        objectUri = "$ACTOR/notes/${if (unlisted) "unlisted" else "public"}",
+        objectAuthor = ACTOR,
+        unlisted = unlisted,
+        boostedAt = boostedAt,
     )
 
     private fun announceBody(id: String): String = """{"id":"$id","type":"Announce"}"""
+
+    private fun undoBody(id: String): String = """{"type":"Undo","object":"$id"}"""
 
     private fun note(id: String): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = id,

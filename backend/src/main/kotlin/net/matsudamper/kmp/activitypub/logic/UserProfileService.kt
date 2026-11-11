@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
@@ -27,6 +28,7 @@ class UserProfileService(
     private val stamps: StampRepository,
     private val likes: LikeRepository,
     private val boosts: BoostRepository,
+    private val accountBoosts: AccountBoostRepository,
     private val timeline: TimelineRepository,
     private val following: FollowingService,
     private val remoteProfiles: RemoteUserProfiles?,
@@ -39,14 +41,6 @@ class UserProfileService(
         val host = normalizedAcct.substringAfter('@', "").ifEmpty { localDomain }
         if (host.equals(localDomain, ignoreCase = true)) {
             val account = accounts.findByUsername(username) ?: return null
-            val localNotes = notes.list(account.username, after = null, limit = PROFILE_POST_LIMIT)
-            val localNoteIds = localNotes.map { it.publicId }.toSet()
-            val favouriteCounts = favourites.counts(localNoteIds)
-            val stampCounts = stamps.counts(localNoteIds)
-            val likedNoteIds = if (viewer == null) setOf() else likes.likedLocalNotes(viewer, localNoteIds)
-            val boostCounts = boosts.counts(localNoteIds)
-            // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分のものだけ
-            val ownProfile = account.id == viewer
             val detail = accounts.findProfileDetail(account.username)
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, listOf(), null),
@@ -54,28 +48,7 @@ class UserProfileService(
                 headerUrl = null,
                 biography = detail?.summary,
                 links = detail?.links.orEmpty(),
-                posts = localNotes.map {
-                    val member = timeline.localPosition(it.publicId.value)?.member
-                    ProfilePost(
-                        contentHtml = it.contentHtml,
-                        publishedAt = it.publishedAt.toString(),
-                        summary = null,
-                        sensitive = false,
-                        linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
-                        postId = if (ownProfile) member else null,
-                        deletableNoteId = if (ownProfile) it.publicId.value else null,
-                        images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
-                        emojis = listOf(),
-                        favouriteCount = favouriteCounts[it.publicId],
-                        stamps = stampCounts[it.publicId].orEmpty(),
-                        like = if (viewer == null || member == null) null else ProfilePostLike(postId = member, likedByMe = it.publicId in likedNoteIds),
-                        boostedByMe = null,
-                        reactionPostId = if (viewer == null) null else member,
-                        noteRef = TimelineNoteRef.Local(it.publicId),
-                        boostCount = boostCounts[it.publicId],
-                        boostedNoteAuthor = null,
-                    )
-                },
+                posts = localProfilePosts(account.id, account.username, viewer),
             )
         }
         val storedActor = remoteActors.findByAcct(username, host)
@@ -117,6 +90,52 @@ class UserProfileService(
     }
 
     /**
+     * このサーバーのアカウントの投稿と、そのアカウントが付けたブーストを新しい順に並べる。ブーストは、ブーストした時刻の位置に置く
+     */
+    private fun localProfilePosts(accountId: AccountId, username: String, viewer: AccountId?): List<ProfilePost> {
+        val localNotes = notes.list(username, after = null, limit = PROFILE_POST_LIMIT)
+        val localNoteIds = localNotes.map { it.publicId }.toSet()
+        val favouriteCounts = favourites.counts(localNoteIds)
+        val stampCounts = stamps.counts(localNoteIds)
+        val likedNoteIds = if (viewer == null) setOf() else likes.likedLocalNotes(viewer, localNoteIds)
+        val boostedNoteIds = if (viewer == null) setOf() else accountBoosts.boostedLocalNotes(viewer, localNoteIds)
+        val boostCounts = boosts.counts(localNoteIds)
+        // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分の投稿と自分のブーストだけ
+        val ownProfile = accountId == viewer
+        val notePosts = localNotes.map {
+            val member = timeline.localPosition(it.publicId.value)?.member
+            it.publishedAt to ProfilePost(
+                contentHtml = it.contentHtml,
+                publishedAt = it.publishedAt.toString(),
+                summary = null,
+                sensitive = false,
+                linkPreviewId = LOCAL_NOTE_ID_PREFIX + it.publicId.value,
+                postId = if (ownProfile) member else null,
+                deletableNoteId = if (ownProfile) it.publicId.value else null,
+                images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
+                emojis = listOf(),
+                favouriteCount = favouriteCounts[it.publicId],
+                stamps = stampCounts[it.publicId].orEmpty(),
+                like = if (viewer == null || member == null) null else ProfilePostLike(postId = member, likedByMe = it.publicId in likedNoteIds),
+                boostedByMe = if (viewer == null || member == null) null else it.publicId in boostedNoteIds,
+                reactionPostId = if (viewer == null) null else member,
+                noteRef = TimelineNoteRef.Local(it.publicId),
+                boostCount = boostCounts[it.publicId],
+                boostedNoteAuthor = null,
+            )
+        }
+        val boostPosts = timeline.accountBoosts(booster = accountId, viewer = viewer, limit = PROFILE_POST_LIMIT).mapNotNull { post ->
+            val author = post.boostedNoteAuthor() ?: return@mapNotNull null
+            Instant.ofEpochMilli(post.position.score) to post.toProfilePost(
+                viewer = viewer,
+                openable = ownProfile,
+                boostedNoteAuthor = author,
+            )
+        }
+        return (notePosts + boostPosts).sortedByDescending { it.first }.take(PROFILE_POST_LIMIT).map { it.second }
+    }
+
+    /**
      * [linkPreviewId] がこのサーバーの投稿を指すなら、その本文。指さないか、投稿が無ければ null
      */
     fun localNoteContentHtml(linkPreviewId: String): String? {
@@ -128,33 +147,53 @@ class UserProfileService(
      * フォロー中の相手の投稿は受け取って保存しているので、相手のサーバーには取りに行かない
      */
     private fun storedPosts(viewer: AccountId, actorUri: String): List<ProfilePost> =
-        timeline.actorPosts(viewer, actorUri, limit = PROFILE_POST_LIMIT).map { it.toProfilePost() }
+        timeline.actorPosts(viewer, actorUri, limit = PROFILE_POST_LIMIT).mapNotNull { post ->
+            val author = if (post.boostedBy == null) null else post.boostedNoteAuthor() ?: return@mapNotNull null
+            post.toProfilePost(viewer = viewer, openable = true, boostedNoteAuthor = author)
+        }
 
-    private fun TimelinePost.toProfilePost(): ProfilePost {
+    /**
+     * @param openable 個別投稿画面で開けるか
+     */
+    private fun TimelinePost.toProfilePost(viewer: AccountId?, openable: Boolean, boostedNoteAuthor: ProfilePostAuthor?): ProfilePost {
+        val notePublicId = localPublicId
         return ProfilePost(
             contentHtml = contentHtml,
             publishedAt = publishedAt.toString(),
             summary = summary,
             sensitive = sensitive,
-            linkPreviewId = position.member,
-            postId = position.member,
-            deletableNoteId = localPublicId?.value,
+            linkPreviewId = when {
+                notePublicId != null -> LOCAL_NOTE_ID_PREFIX + notePublicId.value
+
+                // OGP はタイムラインの投稿として引くので、見ている人のタイムラインで開けない投稿は引けない
+                openable -> position.member
+
+                else -> null
+            },
+            postId = if (openable) position.member else null,
+            // ブーストとして載せた投稿は、ブーストされた元の投稿を消す場所ではない
+            deletableNoteId = if (boostedBy == null) notePublicId?.value else null,
             images = images,
             emojis = emojis,
             favouriteCount = favouriteCount,
             stamps = stamps,
-            like = ProfilePostLike(postId = reactionMember, likedByMe = likedByMe),
-            boostedByMe = boostedByMe,
-            reactionPostId = reactionMember,
+            like = if (viewer == null) null else ProfilePostLike(postId = reactionMember, likedByMe = likedByMe),
+            boostedByMe = if (viewer == null) null else boostedByMe,
+            reactionPostId = if (viewer == null) null else reactionMember,
             noteRef = noteRef,
             boostCount = boostCount,
-            boostedNoteAuthor = if (boostedBy == null) null else boostedNoteAuthor(),
+            boostedNoteAuthor = boostedNoteAuthor,
         )
     }
 
-    private fun TimelinePost.boostedNoteAuthor(): ProfilePostAuthor {
+    /**
+     * @return 他のサーバーの投稿者のホストが分からなければ null
+     */
+    private fun TimelinePost.boostedNoteAuthor(): ProfilePostAuthor? {
+        val authorHost = if (actorUri == null) localDomain else URI(actorUri).host ?: return null
         return ProfilePostAuthor(
-            actorUri = checkNotNull(actorUri),
+            actorUri = actorUri,
+            host = authorHost,
             username = username,
             displayName = displayName,
             iconUrl = actorIconUrl,
@@ -239,12 +278,14 @@ data class ProfilePost(
 )
 
 /**
+ * @param actorUri 他のサーバーの投稿者のアクター。このサーバーのアカウントは null
  * @param username 相手の preferredUsername。無ければアクターの URI
- * @param iconUrl プロフィール画像の URL。無ければ null
- * @param updatedAt 相手の情報を最後に受け取った時刻
+ * @param iconUrl 他のサーバーの投稿者のプロフィール画像の URL。無いか、このサーバーのアカウントなら null
+ * @param updatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーのアカウントは null
  */
 data class ProfilePostAuthor(
-    val actorUri: String,
+    val actorUri: String?,
+    val host: String,
     val username: String,
     val displayName: String?,
     val iconUrl: String?,

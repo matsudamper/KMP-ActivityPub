@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
@@ -68,16 +69,19 @@ internal class SqliteBoostRepository(
     override fun counts(notePublicIds: Set<PublicNoteId>): Map<PublicNoteId, Long> {
         if (notePublicIds.isEmpty()) return mapOf()
 
+        // 他のサーバーから届いたブーストと、このサーバーのアカウントのブーストを合わせる
         val counted = jooq.withConnection { dsl ->
-            dsl.select(NOTES.PUBLIC_ID, DSL.count())
-                .from(NOTE_BOOSTS)
+            val remote = dsl.select(NOTES.PUBLIC_ID).from(NOTE_BOOSTS)
                 .join(NOTES).on(NOTES.ID.eq(NOTE_BOOSTS.NOTE_ID))
                 .where(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
-                .groupBy(NOTES.PUBLIC_ID)
-                .fetch { PublicNoteId(checkNotNull(it.value1())) to it.value2().toLong() }
-                .toMap()
+            val local = dsl.select(NOTES.PUBLIC_ID).from(ACCOUNT_BOOSTS)
+                .join(NOTES).on(NOTES.ID.eq(ACCOUNT_BOOSTS.NOTE_ID))
+                .where(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
+            dsl.fetch(remote.unionAll(local))
+                .groupingBy { PublicNoteId(checkNotNull(it.value1())) }
+                .eachCount()
         }
-        return notePublicIds.associateWith { counted[it] ?: 0L }
+        return notePublicIds.associateWith { (counted[it] ?: 0).toLong() }
     }
 
     private fun DSLContext.remoteActorId(actorUri: String): Long? =

@@ -330,23 +330,38 @@ CREATE INDEX remote_boosts_actor_score ON remote_boosts (remote_actor_id, score_
 
 CREATE INDEX remote_boosts_remote_note_id ON remote_boosts (remote_note_id);
 
--- こちらのアカウントが他のサーバーの投稿に付けたブースト。Undo に送った Announce をそのまま埋めるので残す
-CREATE TABLE account_remote_note_boosts (
+-- こちらのアカウントが付けたブースト。他のサーバーの投稿なら remote_note_id、このサーバーの投稿なら note_id のどちらかを指す。
+-- 外すときや投稿が消えたときに、宛先の DB を見ずに Undo を積めるよう、ブーストしたときに Undo の本文まで作って残す
+CREATE TABLE account_boosts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    remote_note_id INTEGER REFERENCES remote_notes (id) ON DELETE CASCADE,
+    note_id INTEGER REFERENCES notes (id) ON DELETE CASCADE,
     announce_activity_uri TEXT NOT NULL,
     announce_body TEXT NOT NULL,
+    undo_body TEXT NOT NULL,
+    -- outbox に Announce を出し直すのに使う
+    object_uri TEXT NOT NULL,
+    object_author TEXT NOT NULL,
+    -- public: 公開 / unlisted: 公開タイムラインに載せない公開。取りうる値は AccountBoostValues が持つ
+    audience TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    PRIMARY KEY (account_id, remote_note_id)
+    score_ms INTEGER NOT NULL
 );
 
-CREATE INDEX account_remote_note_boosts_remote_note_id ON account_remote_note_boosts (remote_note_id);
+CREATE UNIQUE INDEX account_boosts_account_remote_note ON account_boosts (account_id, remote_note_id);
+
+CREATE UNIQUE INDEX account_boosts_account_note ON account_boosts (account_id, note_id);
+
+CREATE INDEX account_boosts_remote_note_id ON account_boosts (remote_note_id);
+
+CREATE INDEX account_boosts_note_id ON account_boosts (note_id);
+
+CREATE INDEX account_boosts_account_score ON account_boosts (account_id, score_ms DESC, id DESC);
 
 -- ブーストの Announce を積んだ宛先。外すときはここへ Undo を送る。後でフォローを外した相手にも取り消しを届けるため残す
-CREATE TABLE account_remote_note_boost_inboxes (
-    account_id INTEGER NOT NULL,
-    remote_note_id INTEGER NOT NULL,
+CREATE TABLE account_boost_inboxes (
+    boost_id INTEGER NOT NULL REFERENCES account_boosts (id) ON DELETE CASCADE,
     inbox TEXT NOT NULL,
-    PRIMARY KEY (account_id, remote_note_id, inbox),
-    FOREIGN KEY (account_id, remote_note_id) REFERENCES account_remote_note_boosts (account_id, remote_note_id) ON DELETE CASCADE
+    PRIMARY KEY (boost_id, inbox)
 );

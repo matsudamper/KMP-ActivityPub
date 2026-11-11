@@ -10,9 +10,10 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.records.AccountBoostsRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
-import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_REMOTE_NOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
@@ -30,12 +31,14 @@ import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
 import org.jooq.Record
+import org.jooq.TableField
 import org.jooq.impl.DSL
 
 internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : TimelineRepository {
     private val remoteMember = DSL.inline("r").concat(REMOTE_NOTES.ID.cast(String::class.java))
     private val localMember = DSL.inline("l").concat(NOTES.ID.cast(String::class.java))
     private val boostMember = DSL.inline("b").concat(REMOTE_BOOSTS.ID.cast(String::class.java))
+    private val accountBoostMember = DSL.inline("a").concat(ACCOUNT_BOOSTS.ID.cast(String::class.java))
 
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest = jooq.withConnection { dsl ->
         RemoteNoteReceptionInterest(
@@ -107,6 +110,12 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .and(NOTES.ACCOUNT_ID.gt(after?.value ?: 0L)).limit(limit)
                 .fetch { AccountId(checkNotNull(it.value1())) }
         }
+        if (member.startsWith("a")) {
+            // 自分が付けたブーストは、ブーストしたアカウントのタイムラインにだけ載る
+            return@withConnection dsl.select(ACCOUNT_BOOSTS.ACCOUNT_ID).from(ACCOUNT_BOOSTS).where(ACCOUNT_BOOSTS.ID.eq(id))
+                .and(ACCOUNT_BOOSTS.ACCOUNT_ID.gt(after?.value ?: 0L)).limit(limit)
+                .fetch { AccountId(checkNotNull(it.value1())) }
+        }
         if (member.startsWith("b")) {
             return@withConnection dsl.select(ACCOUNT_FOLLOWING.ACCOUNT_ID).from(REMOTE_BOOSTS)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
@@ -160,72 +169,154 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> {
         if (members.isEmpty()) return listOf()
-        val localIds = members.filter { it.startsWith("l") }.map { it.drop(1).toLong() }
-        val remoteIds = members.filter { it.startsWith("r") }.map { it.drop(1).toLong() }
-        val boostIds = members.filter { it.startsWith("b") }.map { it.drop(1).toLong() }
+        val localIds = members.mapNotNull { TimelineMembers.localNoteIdOf(it) }
+        val remoteIds = members.mapNotNull { TimelineMembers.remoteNoteIdOf(it) }
+        val boostIds = members.mapNotNull { TimelineMembers.boostIdOf(it) }
+        val accountBoostIds = members.mapNotNull { TimelineMembers.accountBoostIdOf(it) }
         return jooq.withConnection { dsl ->
-            val local = dsl.select(
-                NOTES.ID, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME,
-                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
-                DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
-                dsl.favouriteCountOf(NOTES.ID),
-                DSL.field(dsl.selectCount().from(NOTE_BOOSTS).where(NOTE_BOOSTS.NOTE_ID.eq(NOTES.ID))).cast(Long::class.java),
-                NOTES.PUBLIC_ID,
-                DSL.inline(null, String::class.java),
-            ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
-                .where(NOTES.ID.`in`(localIds)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
-            val remote = dsl.select(
-                REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.PUBLISHED_AT,
-                DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
-                REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
-                REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, Long::class.java), DSL.inline(null, Long::class.java),
-                REMOTE_NOTES.OBJECT_URI,
-                REMOTE_NOTES.VISIBILITY,
-            ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
-                .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(dsl.remoteNoteReadableBy(accountId))
-            val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
-            val emojisByNote = dsl.remoteNoteEmojisById(remoteIds)
-            val likedRemoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
-                .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(remoteIds))
-                .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
-            val likedLocalIds = dsl.select(NOTE_LIKES.NOTE_ID).from(NOTE_LIKES)
-                .where(NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(NOTE_LIKES.NOTE_ID.`in`(localIds))
-                .fetchSet(NOTE_LIKES.NOTE_ID)
-            val boostedRemoteIds = dsl.boostedRemoteNoteIds(accountId, remoteIds)
-            val stampsByMember = if (localIds.isEmpty()) mapOf() else dsl.stampCountsBy(NOTES.ID, NOTES.ID.`in`(localIds)).mapKeys { "l${it.key}" }
-            val boosted = boostedPosts(dsl, accountId, boostIds)
-            val rows = local.unionAll(remote).fetch()
-            val emojisByActor = dsl.remoteActorEmojisByUri(rows.mapNotNull { it.value6() }.toSet())
-            boosted + rows.map { record ->
-                val published = StoredInstant.parse(checkNotNull(record.value3()))
-                val actor = record.value6()
-                val member = "${if (actor == null) "l" else "r"}${record.value1()}"
-                val noteKey = checkNotNull(record.value14())
-                TimelinePost(
-                    TimelinePosition(record.value9() ?: published.toEpochMilli(), member),
-                    checkNotNull(record.value2()),
-                    published,
-                    actor,
-                    checkNotNull(record.value4()),
-                    record.value5(),
-                    record.value7(),
-                    record.value8() == 1L,
-                    record.value10(),
-                    record.value11()?.let { StoredInstant.parse(it) },
-                    imagesByMember[member].orEmpty(),
-                    if (actor == null) listOf() else emojisByNote[record.value1()].orEmpty(),
-                    if (actor == null) listOf() else emojisByActor[actor].orEmpty(),
-                    record.value12(),
-                    stampsByMember[member].orEmpty(),
-                    record.value1() in if (actor == null) likedLocalIds else likedRemoteIds,
-                    if (record.value15() in PUBLISHED_REMOTE_NOTE_VISIBILITIES) record.value1() in boostedRemoteIds else null,
-                    member,
-                    if (actor == null) TimelineNoteRef.Local(PublicNoteId(noteKey)) else TimelineNoteRef.Remote(noteKey),
-                    record.value13(),
-                    null,
-                )
-            }
+            val notes = hydrateNotes(
+                dsl = dsl,
+                viewer = accountId,
+                localIds = localIds,
+                remoteIds = remoteIds,
+                // このサーバーの投稿でタイムラインに載るのは自分の投稿だけ
+                localCondition = NOTES.ACCOUNT_ID.eq(accountId.value),
+                remoteCondition = dsl.remoteNoteReadableBy(accountId),
+            )
+            boostedPosts(dsl, accountId, boostIds) +
+                accountBoostedPosts(dsl, accountId, ACCOUNT_BOOSTS.ID.`in`(accountBoostIds).and(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))) +
+                notes
         }
+    }
+
+    /**
+     * このサーバーの投稿と他のサーバーの投稿を、member の位置のまま組み立てる
+     *
+     * @param viewer いいねやブーストの有無を見るアカウント。ログインしていなければ null で、どれも付けていない扱いになる
+     * @param localCondition 返すこのサーバーの投稿を絞る条件
+     * @param remoteCondition 返す他のサーバーの投稿を絞る条件
+     */
+    private fun hydrateNotes(
+        dsl: DSLContext,
+        viewer: AccountId?,
+        localIds: List<Long>,
+        remoteIds: List<Long>,
+        localCondition: Condition,
+        remoteCondition: Condition,
+    ): List<TimelinePost> {
+        if (localIds.isEmpty() && remoteIds.isEmpty()) return listOf()
+        val local = dsl.select(
+            NOTES.ID, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME,
+            DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
+            DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
+            dsl.favouriteCountOf(NOTES.ID),
+            DSL.field(dsl.selectCount().from(NOTE_BOOSTS).where(NOTE_BOOSTS.NOTE_ID.eq(NOTES.ID))).cast(Long::class.java)
+                .plus(DSL.field(dsl.selectCount().from(ACCOUNT_BOOSTS).where(ACCOUNT_BOOSTS.NOTE_ID.eq(NOTES.ID))).cast(Long::class.java)),
+            NOTES.PUBLIC_ID,
+            DSL.inline(null, String::class.java),
+        ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
+            .where(NOTES.ID.`in`(localIds)).and(localCondition)
+        val remote = dsl.select(
+            REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.PUBLISHED_AT,
+            DSL.coalesce(REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.ACTOR_URI), REMOTE_ACTORS.DISPLAY_NAME,
+            REMOTE_ACTORS.ACTOR_URI, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.SCORE_MS,
+            REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT, DSL.inline(null, Long::class.java), DSL.inline(null, Long::class.java),
+            REMOTE_NOTES.OBJECT_URI,
+            REMOTE_NOTES.VISIBILITY,
+        ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+            .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(remoteCondition)
+        val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
+        val emojisByNote = dsl.remoteNoteEmojisById(remoteIds)
+        val likedRemoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
+            .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eqViewer(viewer)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(remoteIds))
+            .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
+        val likedLocalIds = dsl.select(NOTE_LIKES.NOTE_ID).from(NOTE_LIKES)
+            .where(NOTE_LIKES.ACCOUNT_ID.eqViewer(viewer)).and(NOTE_LIKES.NOTE_ID.`in`(localIds))
+            .fetchSet(NOTE_LIKES.NOTE_ID)
+        val boostedRemoteIds = dsl.boostedNoteIds(viewer, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, remoteIds)
+        val boostedLocalIds = dsl.boostedNoteIds(viewer, ACCOUNT_BOOSTS.NOTE_ID, localIds)
+        val stampsByMember = if (localIds.isEmpty()) mapOf() else dsl.stampCountsBy(NOTES.ID, NOTES.ID.`in`(localIds)).mapKeys { "l${it.key}" }
+        val rows = local.unionAll(remote).fetch()
+        val emojisByActor = dsl.remoteActorEmojisByUri(rows.mapNotNull { it.value6() }.toSet())
+        return rows.map { record ->
+            val published = StoredInstant.parse(checkNotNull(record.value3()))
+            val actor = record.value6()
+            val member = "${if (actor == null) "l" else "r"}${record.value1()}"
+            val noteKey = checkNotNull(record.value14())
+            TimelinePost(
+                TimelinePosition(record.value9() ?: published.toEpochMilli(), member),
+                checkNotNull(record.value2()),
+                published,
+                actor,
+                checkNotNull(record.value4()),
+                record.value5(),
+                record.value7(),
+                record.value8() == 1L,
+                record.value10(),
+                record.value11()?.let { StoredInstant.parse(it) },
+                imagesByMember[member].orEmpty(),
+                if (actor == null) listOf() else emojisByNote[record.value1()].orEmpty(),
+                if (actor == null) listOf() else emojisByActor[actor].orEmpty(),
+                record.value12(),
+                stampsByMember[member].orEmpty(),
+                record.value1() in if (actor == null) likedLocalIds else likedRemoteIds,
+                when {
+                    actor == null -> record.value1() in boostedLocalIds
+                    record.value15() in PUBLISHED_REMOTE_NOTE_VISIBILITIES -> record.value1() in boostedRemoteIds
+                    else -> null
+                },
+                member,
+                if (actor == null) TimelineNoteRef.Local(PublicNoteId(noteKey)) else TimelineNoteRef.Remote(noteKey),
+                record.value13(),
+                null,
+            )
+        }
+    }
+
+    /**
+     * このサーバーのアカウントが付けたブースト。ブーストした時点で読めていたので、今読めるかは問わない
+     *
+     * @param viewer いいねやブーストの有無を見るアカウント
+     * @param boostCondition 返す account_boosts を絞る条件
+     */
+    private fun accountBoostedPosts(dsl: DSLContext, viewer: AccountId?, boostCondition: Condition): List<TimelinePost> {
+        val rows = dsl.select(ACCOUNT_BOOSTS.ID, ACCOUNT_BOOSTS.SCORE_MS, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, ACCOUNT_BOOSTS.NOTE_ID, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME)
+            .from(ACCOUNT_BOOSTS).join(ACCOUNTS).on(ACCOUNTS.ID.eq(ACCOUNT_BOOSTS.ACCOUNT_ID))
+            .where(boostCondition)
+            .fetch()
+        if (rows.isEmpty()) return listOf()
+        val notes = hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = rows.mapNotNull { it.value4() },
+            remoteIds = rows.mapNotNull { it.value3() },
+            localCondition = DSL.noCondition(),
+            remoteCondition = DSL.noCondition(),
+        ).associateBy { it.position.member }
+        return rows.mapNotNull { record ->
+            val noteMember = record.value3()?.let { "r$it" } ?: "l${record.value4()}"
+            val note = notes[noteMember] ?: return@mapNotNull null
+            note.copy(
+                position = TimelinePosition(checkNotNull(record.value2()), TimelineMembers.accountBoostMember(checkNotNull(record.value1()))),
+                boostedBy = TimelineBooster(
+                    actorUri = null,
+                    username = checkNotNull(record.value5()),
+                    displayName = record.value6(),
+                    iconUrl = null,
+                    emojis = listOf(),
+                    updatedAt = null,
+                ),
+            )
+        }
+    }
+
+    override fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost> = jooq.withConnection { dsl ->
+        val boostIds = dsl.select(ACCOUNT_BOOSTS.ID).from(ACCOUNT_BOOSTS)
+            .where(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(booster.value))
+            .orderBy(ACCOUNT_BOOSTS.SCORE_MS.desc(), ACCOUNT_BOOSTS.ID.desc()).limit(limit)
+            .fetch(ACCOUNT_BOOSTS.ID)
+        accountBoostedPosts(dsl, viewer, ACCOUNT_BOOSTS.ID.`in`(boostIds))
+            .sortedWith(compareByDescending<TimelinePost> { it.position.score }.thenByDescending { TimelineMembers.accountBoostIdOf(it.position.member) })
     }
 
     override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> {
@@ -278,7 +369,12 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .and(olderThan(REMOTE_NOTE_RECIPIENTS.SCORE_MS, REMOTE_NOTE_RECIPIENTS.MEMBER, after))
             .orderBy(REMOTE_NOTE_RECIPIENTS.SCORE_MS.desc(), REMOTE_NOTE_RECIPIENTS.MEMBER.desc()).limit(limit)
             .fetch { TimelinePosition(checkNotNull(it.value1()), checkNotNull(it.value2())) }
-        (perActor.flatten() + addressed + localPositions(dsl, accountId, after, limit)).distinctBy { it.member }
+        val ownBoosts = dsl.select(ACCOUNT_BOOSTS.ID, ACCOUNT_BOOSTS.SCORE_MS).from(ACCOUNT_BOOSTS)
+            .where(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))
+            .and(olderThan(ACCOUNT_BOOSTS.SCORE_MS, accountBoostMember, after))
+            .orderBy(ACCOUNT_BOOSTS.SCORE_MS.desc(), accountBoostMember.desc()).limit(limit)
+            .fetch { TimelinePosition(checkNotNull(it.value2()), TimelineMembers.accountBoostMember(checkNotNull(it.value1()))) }
+        (perActor.flatten() + addressed + ownBoosts + localPositions(dsl, accountId, after, limit)).distinctBy { it.member }
             .filter { cutoff == null || newestFirst.compare(it, cutoff) <= 0 }
             .sortedWith(newestFirst).take(limit)
     }
@@ -411,7 +507,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val likedNoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
             .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(rows.map { checkNotNull(it.value3()) }))
             .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
-        val boostedNoteIds = dsl.boostedRemoteNoteIds(accountId, rows.map { checkNotNull(it.value3()) })
+        val boostedNoteIds = dsl.boostedNoteIds(accountId, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, rows.map { checkNotNull(it.value3()) })
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
         val emojisByNote = dsl.remoteNoteEmojisById(rows.map { checkNotNull(it.value3()) })
         val emojisByActor = dsl.remoteActorEmojisByUri(rows.flatMap { listOf(checkNotNull(it.value8()), checkNotNull(it.value13())) }.toSet())
@@ -451,10 +547,16 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    private fun DSLContext.boostedRemoteNoteIds(accountId: AccountId, remoteNoteIds: List<Long>): Set<Long?> =
-        select(ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID).from(ACCOUNT_REMOTE_NOTE_BOOSTS)
-            .where(ACCOUNT_REMOTE_NOTE_BOOSTS.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID.`in`(remoteNoteIds))
-            .fetchSet(ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID)
+    private fun DSLContext.boostedNoteIds(viewer: AccountId?, noteIdField: TableField<AccountBoostsRecord, Long?>, noteIds: List<Long>): Set<Long?> =
+        if (noteIds.isEmpty()) {
+            setOf()
+        } else {
+            select(noteIdField).from(ACCOUNT_BOOSTS)
+                .where(ACCOUNT_BOOSTS.ACCOUNT_ID.eqViewer(viewer)).and(noteIdField.`in`(noteIds))
+                .fetchSet(noteIdField)
+        }
+
+    private fun Field<Long?>.eqViewer(viewer: AccountId?): Condition = if (viewer == null) DSL.falseCondition() else eq(viewer.value)
 
     private fun olderThan(score: Field<Long?>, member: Field<String?>, after: TimelinePosition?): Condition =
         if (after == null) DSL.noCondition() else score.le(after.score).and(score.lt(after.score).or(member.lt(after.member)))
