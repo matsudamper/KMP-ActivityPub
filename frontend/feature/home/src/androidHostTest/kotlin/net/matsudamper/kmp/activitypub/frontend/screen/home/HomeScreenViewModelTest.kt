@@ -256,8 +256,9 @@ class HomeScreenViewModelTest {
         val collectJob = backgroundScope.launch {
             viewModel.eventHandler.collect(RecordingEvent(receivedEvents))
         }
+        viewModel.uiStateFlow.first { uiState -> uiState.timelineColumns.any { it.selected } }
         viewModel.uiStateFlow.value.listener.onClickTab(HomeScreenUiState.Tab.Home)
-        assertEquals("scrollTabToTop:Home", receivedEvents.receive())
+        assertEquals("scrollTimelineColumnToTop:home", receivedEvents.receive())
         viewModel.uiStateFlow.value.listener.onClickTab(HomeScreenUiState.Tab.Search)
         assertEquals("navigateToTab:Search", receivedEvents.receive())
         collectJob.cancel()

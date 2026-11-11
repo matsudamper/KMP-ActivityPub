@@ -152,6 +152,7 @@ internal fun Application.module(deps: AppDependencies) {
                 followListService = deps.followListService,
                 passkeyService = deps.passkeyService,
                 loginThrottle = deps.loginThrottle,
+                adminAccountIds = deps.env.adminAccountIds,
                 notePostService = federation?.notePostService,
                 profileUpdateService = federation?.profileUpdateService,
                 likeService = federation?.likeService,

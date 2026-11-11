@@ -18,6 +18,7 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListKind
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
@@ -36,6 +37,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditSc
 import net.matsudamper.kmp.activitypub.frontend.screen.security.SecurityScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.user.UserProfileScreen
+import net.matsudamper.kmp.activitypub.frontend.ui.clearPostBodySelectionOnPress
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -47,7 +49,7 @@ fun HomeNavigationHost(
     val navigator = remember(backStack) { Navigator(backStack) }
     NavDisplay(
         backStack = backStack,
-        modifier = modifier,
+        modifier = modifier.clearPostBodySelectionOnPress(),
         onBack = navigator::back,
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
@@ -127,6 +129,10 @@ private fun ScreenContent(
 
         Screen.Security -> {
             SecurityScreen(navigator = navigator)
+        }
+
+        Screen.Admin -> {
+            AdminScreen(navigator = navigator)
         }
 
         Screen.Following -> {

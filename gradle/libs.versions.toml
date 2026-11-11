@@ -52,7 +52,7 @@ opentelemetry = "1.68.0"
 opentelemetryApiIncubator = "1.67.0-alpha"
 opentelemetryInstrumentation = "2.29.0-alpha"
 nimbusJoseJwt = "10.10"
-awsSdk = "2.57.12"
+awsSdk = "2.57.13"
 
 [libraries]
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

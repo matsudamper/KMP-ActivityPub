@@ -119,14 +119,19 @@ internal fun PostItem(
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            EmojiText(
-                text = uiState.body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Unspecified,
-                fontWeight = null,
-                maxLines = Int.MAX_VALUE,
-                overflow = TextOverflow.Clip,
-            )
+            PostBodySelectionContainer(
+                modifier = Modifier.bleed(horizontal = PostHorizontalPadding, vertical = PostBodySelectionVerticalMargin),
+                contentPadding = PaddingValues(horizontal = PostHorizontalPadding, vertical = PostBodySelectionVerticalMargin),
+            ) {
+                EmojiText(
+                    text = uiState.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Unspecified,
+                    fontWeight = null,
+                    maxLines = Int.MAX_VALUE,
+                    overflow = TextOverflow.Clip,
+                )
+            }
             if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 LazyRow(
                     modifier = Modifier
@@ -404,6 +409,7 @@ private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
 private val PostMenuButtonSize = 32.dp
 
 private val PostHorizontalPadding = 16.dp
+private val PostBodySelectionVerticalMargin = 4.dp
 private val PostIconSize = 46.dp
 private val PostIconHeaderSpacing = 12.dp
 
@@ -419,5 +425,23 @@ private fun Modifier.bleedHorizontally(start: Dp, end: Dp): Modifier = layout { 
     )
     layout(constraints.maxWidth, placeable.height) {
         placeable.placeRelative(-startPx, 0)
+    }
+}
+
+// 本文の位置は変えずに、押せる範囲だけを周りの余白へ広げる
+private fun Modifier.bleed(horizontal: Dp, vertical: Dp): Modifier = layout { measurable, constraints ->
+    val horizontalPx = horizontal.roundToPx()
+    val verticalPx = vertical.roundToPx()
+    val width = constraints.maxWidth + horizontalPx * 2
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = width,
+            maxWidth = width,
+            minHeight = 0,
+            maxHeight = if (constraints.hasBoundedHeight) constraints.maxHeight + verticalPx * 2 else constraints.maxHeight,
+        ),
+    )
+    layout(constraints.maxWidth, (placeable.height - verticalPx * 2).coerceAtLeast(0)) {
+        placeable.placeRelative(-horizontalPx, -verticalPx)
     }
 }

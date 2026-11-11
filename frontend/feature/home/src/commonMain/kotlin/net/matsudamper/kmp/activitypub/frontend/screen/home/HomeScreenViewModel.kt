@@ -140,11 +140,19 @@ internal class HomeScreenViewModel(
 
         override fun onClickTab(tab: HomeScreenUiState.Tab) {
             val reselected = viewModelStateFlow.value.selectedTab == tab
+            val selectedTimelineColumn = viewModelStateFlow.value.timelineColumns.selectedColumn()
             viewModelScope.launch {
-                if (reselected) {
-                    events.send { it.scrollTabToTop(tab) }
-                } else {
-                    events.send { it.navigateToTab(tab) }
+                when {
+                    !reselected -> events.send { it.navigateToTab(tab) }
+
+                    // 縦並びでは選んでいるカラムのリストしか出ていない。出ていないリストはスクロールが終わらないので、選んでいるカラムだけ戻す
+                    tab == HomeScreenUiState.Tab.Home -> {
+                        if (selectedTimelineColumn != null) {
+                            events.send { it.scrollTimelineColumnToTop(selectedTimelineColumn.listStateKey) }
+                        }
+                    }
+
+                    else -> events.send { it.scrollTabToTop(tab) }
                 }
             }
         }

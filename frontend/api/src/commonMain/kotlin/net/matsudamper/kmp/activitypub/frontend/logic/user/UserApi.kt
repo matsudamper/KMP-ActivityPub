@@ -21,6 +21,7 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
+import net.matsudamper.kmp.activitypub.frontend.graphql.AdminAccessQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
@@ -380,6 +381,20 @@ class UserApi(
             UserLoginStateResult.NotLoggedIn
         } else {
             UserLoginStateResult.LoggedIn
+        }
+    }
+
+    suspend fun adminAccess(): UserAdminAccessResult {
+        val client = clients.client.value ?: return UserAdminAccessResult.Failure("接続先が未設定")
+        val response = client.query(AdminAccessQuery()).execute()
+        if (response.exception != null || response.hasErrors()) return UserAdminAccessResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserAdminAccessResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserAdminAccessResult.NotLoggedIn
+
+        return if (userInfo.isAdmin) {
+            UserAdminAccessResult.Granted
+        } else {
+            UserAdminAccessResult.Denied
         }
     }
 

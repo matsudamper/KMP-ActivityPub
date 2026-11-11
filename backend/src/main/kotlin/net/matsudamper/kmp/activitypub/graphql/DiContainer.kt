@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.timeline.HomeTimelineArrivals
 import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
 
@@ -34,6 +35,7 @@ class DiContainer(
      */
     val passkeyService: PasskeyService?,
     val loginThrottle: LoginThrottle,
+    val adminAccountIds: Set<AccountId>,
     /**
      * DOMAIN が無いと配れないので null
      */
