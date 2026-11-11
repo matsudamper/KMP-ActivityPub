@@ -99,7 +99,15 @@ internal class Federation(
     private val webPages = FrontendWebPageUrls(domain)
     private val favourites = RecordedFavourites(favouriteRepository)
     private val stamps = RecordedStamps(stampRepository)
-    private val receivedNotes = ReceivedRemoteNotes(timelineRepository, remoteActors, remoteActorRepository, directory, timeline, Clock.systemUTC())
+    private val receivedNotes = ReceivedRemoteNotes(
+        timelineRepository,
+        remoteActors,
+        remoteActorRepository,
+        directory,
+        timeline,
+        Clock.systemUTC(),
+        beforeRemoteNoteDeleted = { actorUri, objectUri -> boostService.undoBoostsOfDeletedNote(actorUri, objectUri) },
+    )
     private val boosts = RecordedBoosts(boostRepository, receivedNotes)
 
     val deliveryQueueWorker: DeliveryQueueWorker =

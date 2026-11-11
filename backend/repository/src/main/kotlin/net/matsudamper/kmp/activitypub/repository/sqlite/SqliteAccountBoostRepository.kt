@@ -77,49 +77,79 @@ internal class SqliteAccountBoostRepository(
     ): Boolean {
         return jooq.transaction { dsl ->
             val remoteNoteId = dsl.remoteNoteIdOfMember(member) ?: return@transaction false
-            val announcedInboxes = dsl.select(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.INBOX).from(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES)
-                .where(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.ACCOUNT_ID.eq(accountId.value))
-                .and(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.REMOTE_NOTE_ID.eq(remoteNoteId))
-                .fetch(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.INBOX)
-                .filterNotNull()
-            val removed = dsl.deleteFrom(ACCOUNT_REMOTE_NOTE_BOOSTS)
-                .where(ACCOUNT_REMOTE_NOTE_BOOSTS.ACCOUNT_ID.eq(accountId.value))
-                .and(ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID.eq(remoteNoteId))
-                .returning(ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_ACTIVITY_URI, ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_BODY)
-                .fetchOne()
-                ?: return@transaction false
-            val announceId = checkNotNull(removed.get(ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_ACTIVITY_URI))
-            val announceBody = checkNotNull(removed.get(ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_BODY))
-            val matchingAnnounce = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
-                .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_ANNOUNCE))
-                .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(announceId))
-            val unsentInboxes = dsl.deleteFrom(DELIVERY_QUEUE).where(matchingAnnounce)
-                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
-                .and(DELIVERY_QUEUE.ATTEMPTS.eq(0L))
-                .returning(DELIVERY_QUEUE.INBOX)
-                .fetch(DELIVERY_QUEUE.INBOX)
-                .filterNotNull()
-                .toSet()
-            // 送り直し待ちの Announce は相手に届いているかもしれないので、取り消した上で Undo も送る
-            dsl.deleteFrom(DELIVERY_QUEUE).where(matchingAnnounce)
-                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
-                .execute()
-            // 送っている途中の行は消しても送信が止まらない。失敗したときに送り直して Undo の後に届かないよう、印を付ける
-            dsl.update(DELIVERY_QUEUE)
-                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_CANCELLED_ANNOUNCE)
-                .where(matchingAnnounce)
-                .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
-                .execute()
-            val undoInboxes = announcedInboxes.filterNot { it in unsentInboxes }
-            if (undoInboxes.isNotEmpty()) {
-                val body = undoBody(announceBody)
-                val enqueuedAt = StoredInstant.format(now)
-                undoInboxes.forEach { inbox ->
-                    dsl.enqueue(accountId, inbox, body, enqueuedAt, DeliveryQueueValues.KIND_UNDO_ANNOUNCE)
-                }
-            }
-            true
+            dsl.unboost(accountId, remoteNoteId, now, undoBody)
         }
+    }
+
+    override fun unboostAllOfDeletedNote(
+        actorUri: String,
+        objectUri: String,
+        now: Instant,
+        undoBody: (announceBody: String) -> String,
+    ): Int {
+        return jooq.transaction { dsl ->
+            val boosts = dsl.select(ACCOUNT_REMOTE_NOTE_BOOSTS.ACCOUNT_ID, ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID)
+                .from(ACCOUNT_REMOTE_NOTE_BOOSTS)
+                .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID))
+                .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+                .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri))
+                .and(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
+                .fetch { AccountId(checkNotNull(it.value1())) to checkNotNull(it.value2()) }
+            boosts.count { (accountId, remoteNoteId) -> dsl.unboost(accountId, remoteNoteId, now, undoBody) }
+        }
+    }
+
+    /**
+     * @return ブーストしていなければ false
+     */
+    private fun DSLContext.unboost(
+        accountId: AccountId,
+        remoteNoteId: Long,
+        now: Instant,
+        undoBody: (announceBody: String) -> String,
+    ): Boolean {
+        val announcedInboxes = select(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.INBOX).from(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES)
+            .where(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.ACCOUNT_ID.eq(accountId.value))
+            .and(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.REMOTE_NOTE_ID.eq(remoteNoteId))
+            .fetch(ACCOUNT_REMOTE_NOTE_BOOST_INBOXES.INBOX)
+            .filterNotNull()
+        val removed = deleteFrom(ACCOUNT_REMOTE_NOTE_BOOSTS)
+            .where(ACCOUNT_REMOTE_NOTE_BOOSTS.ACCOUNT_ID.eq(accountId.value))
+            .and(ACCOUNT_REMOTE_NOTE_BOOSTS.REMOTE_NOTE_ID.eq(remoteNoteId))
+            .returning(ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_ACTIVITY_URI, ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_BODY)
+            .fetchOne()
+            ?: return false
+        val announceId = checkNotNull(removed.get(ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_ACTIVITY_URI))
+        val announceBody = checkNotNull(removed.get(ACCOUNT_REMOTE_NOTE_BOOSTS.ANNOUNCE_BODY))
+        val matchingAnnounce = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
+            .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_ANNOUNCE))
+            .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(announceId))
+        val unsentInboxes = deleteFrom(DELIVERY_QUEUE).where(matchingAnnounce)
+            .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+            .and(DELIVERY_QUEUE.ATTEMPTS.eq(0L))
+            .returning(DELIVERY_QUEUE.INBOX)
+            .fetch(DELIVERY_QUEUE.INBOX)
+            .filterNotNull()
+            .toSet()
+        // 送り直し待ちの Announce は相手に届いているかもしれないので、取り消した上で Undo も送る
+        deleteFrom(DELIVERY_QUEUE).where(matchingAnnounce)
+            .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+            .execute()
+        // 送っている途中の行は消しても送信が止まらない。失敗したときに送り直して Undo の後に届かないよう、印を付ける
+        update(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_CANCELLED_ANNOUNCE)
+            .where(matchingAnnounce)
+            .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
+            .execute()
+        val undoInboxes = announcedInboxes.filterNot { it in unsentInboxes }
+        if (undoInboxes.isNotEmpty()) {
+            val body = undoBody(announceBody)
+            val enqueuedAt = StoredInstant.format(now)
+            undoInboxes.forEach { inbox ->
+                enqueue(accountId, inbox, body, enqueuedAt, DeliveryQueueValues.KIND_UNDO_ANNOUNCE)
+            }
+        }
+        return true
     }
 
     private fun DSLContext.enqueue(accountId: AccountId, inbox: String, body: String, now: String, kind: String) {

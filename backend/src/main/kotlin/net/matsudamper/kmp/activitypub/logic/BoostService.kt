@@ -65,6 +65,19 @@ class BoostService(
         if (enqueued) onEnqueued()
         return SetBoostedResult.Updated
     }
+
+    /**
+     * 投稿者が投稿を消したとき、その投稿へのこのサーバーのアカウントのブーストを外して Undo を積む。
+     * 投稿者の Delete はこちらのフォロワーのサーバーに届くとは限らず、届かないと消えた投稿のブーストが残る
+     */
+    fun undoBoostsOfDeletedNote(actorUri: String, objectUri: String) {
+        val removed = boosts.unboostAllOfDeletedNote(actorUri = actorUri, objectUri = objectUri, now = clock.instant()) { announceBody ->
+            val announce = AppJson.decodeFromString(AnnounceActivity.serializer(), announceBody)
+            val undo = BoostActivities.undo(id = "${announce.actor}/undo/${UUID.randomUUID()}", announce = announce)
+            AppJson.encodeToString(OutgoingActivity.serializer(), undo)
+        }
+        if (removed > 0) onEnqueued()
+    }
 }
 
 sealed interface SetBoostedResult {

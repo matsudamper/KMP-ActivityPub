@@ -30,6 +30,7 @@ internal class ReceivedRemoteNotes(
     private val directory: ActorDirectory,
     private val timeline: HomeTimelineService,
     private val clock: Clock,
+    private val beforeRemoteNoteDeleted: (actorUri: String, objectUri: String) -> Unit,
     openTelemetry: OpenTelemetry = OpenTelemetryInitializer.get(),
 ) : RemoteNoteStore {
     private val tracer = openTelemetry.getTracer("activitypub-inbox")
@@ -39,6 +40,8 @@ internal class ReceivedRemoteNotes(
     }
 
     override suspend fun delete(actorId: String, objectId: String) {
+        // 投稿を消すと付けたブーストの記録も消えるので、先に取り消しを積む
+        beforeRemoteNoteDeleted(actorId, objectId)
         repository.deleteRemote(actorId, objectId)
     }
 

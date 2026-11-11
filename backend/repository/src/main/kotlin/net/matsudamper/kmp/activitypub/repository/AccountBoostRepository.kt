@@ -33,6 +33,20 @@ interface AccountBoostRepository {
         now: Instant,
         undoBody: (announceBody: String) -> String,
     ): Boolean
+
+    /**
+     * 投稿者が投稿を消したとき、その投稿へのこのサーバーのアカウントのブーストをすべて消し、[unboostAndEnqueueUndo] と同じく Undo を積む。
+     * 投稿者の Delete がこちらのフォロワーのサーバーに届くとは限らないので、ブーストを届けた宛先にはこちらから取り消しを送る。
+     * 投稿が [actorUri] のものでなければ何もしない
+     *
+     * @return 消したブーストの数
+     */
+    fun unboostAllOfDeletedNote(
+        actorUri: String,
+        objectUri: String,
+        now: Instant,
+        undoBody: (announceBody: String) -> String,
+    ): Int
 }
 
 /**

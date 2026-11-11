@@ -100,6 +100,22 @@ class AccountBoostRepositoryTest {
     }
 
     @Test
+    fun deletedNoteUndoesBoostsOnlyWhenTheAuthorDeletesIt() = withRepository { repositories, alice, bob ->
+        val member = receiveNote(repositories, "public", alice, bob)
+        val boosts = repositories.accountBoostRepository
+        val queue = repositories.deliveryQueueRepository
+        boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
+        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+
+        assertEquals(0, boosts.unboostAllOfDeletedNote("https://other.example/actor", "$ACTOR/notes/public", NOW) { "undo:$it" })
+        assertTrue(queue.claim(NOW, 10).isEmpty())
+
+        assertEquals(1, boosts.unboostAllOfDeletedNote(ACTOR, "$ACTOR/notes/public", NOW) { "undo:$it" })
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals("undo:${announceBody("announce-1")}", it.body) }.map { it.inbox }.toSet())
+        assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
+    }
+
+    @Test
     fun announceBeingDeliveredIsNotRetriedAfterUnboost() = withRepository { repositories, alice, _ ->
         val member = receiveNote(repositories, "public", alice)
         val boosts = repositories.accountBoostRepository
