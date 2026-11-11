@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,6 +48,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabPosition
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -81,7 +84,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
+import kotlin.math.abs
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -440,6 +446,8 @@ private fun TimelineTabsContent(
     modifier: Modifier = Modifier,
 ) {
     val selectedIndex = uiState.timelineColumns.indexOfFirst { it.selected }
+    // タブの下の線をスワイプの途中にも追従させるため、タブ行とページで同じ状態を使う
+    val pagerState = rememberPagerState(initialPage = selectedIndex.coerceAtLeast(0)) { uiState.timelineColumns.size }
     Column(modifier = modifier) {
         // 追加ボタンの下まで線を通すため、タブ行の線は消して行全体に引く
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -449,6 +457,28 @@ private fun TimelineTabsContent(
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedIndex,
                     edgePadding = 0.dp,
+                    indicator = {
+                        TabRowDefaults.PrimaryIndicator(
+                            modifier = Modifier.tabIndicatorLayout { measurable, constraints, tabPositions ->
+                                val indicatorPosition = pagerIndicatorPosition(
+                                    tabPositions = tabPositions,
+                                    currentPage = pagerState.currentPage,
+                                    currentPageOffsetFraction = pagerState.currentPageOffsetFraction,
+                                )
+                                val indicatorWidth = indicatorPosition.width.roundToPx()
+                                val placeable = measurable.measure(
+                                    constraints.copy(minWidth = indicatorWidth, maxWidth = indicatorWidth),
+                                )
+                                // タブ行は下線を選んでいるタブの幅の中で中央に寄せて置くので、その分を差し引く
+                                val selectedTabWidth = tabPositions.getOrNull(selectedIndex)?.width?.roundToPx() ?: 0
+                                val offsetByTabRow = maxOf(0, (selectedTabWidth - placeable.width) / 2)
+                                layout(placeable.width, placeable.height) {
+                                    placeable.place(x = indicatorPosition.left.roundToPx() - offsetByTabRow, y = 0)
+                                }
+                            },
+                            width = Dp.Unspecified,
+                        )
+                    },
                     divider = {},
                     modifier = Modifier.weight(1f),
                 ) {
@@ -487,6 +517,7 @@ private fun TimelineTabsContent(
         if (selectedIndex >= 0) {
             TimelineColumnsPager(
                 uiState = uiState,
+                pagerState = pagerState,
                 selectedIndex = selectedIndex,
                 tabListStates = tabListStates,
                 modifier = contentModifier,
@@ -507,12 +538,12 @@ private fun TimelineTabsContent(
 @Composable
 private fun TimelineColumnsPager(
     uiState: HomeScreenUiState,
+    pagerState: PagerState,
     selectedIndex: Int,
     tabListStates: HomeTabListStates,
     modifier: Modifier = Modifier,
 ) {
     val columns = uiState.timelineColumns
-    val pagerState = rememberPagerState(initialPage = selectedIndex) { columns.size }
     LaunchedEffect(pagerState, selectedIndex) {
         // 途中で止まったアニメーションのずれが残るので、ページの番号だけでなくずれも見る
         val pageSettledOnSelected = pagerState.currentPage == selectedIndex && pagerState.currentPageOffsetFraction == 0f
@@ -545,6 +576,32 @@ private fun TimelineColumnsPager(
             modifier = Modifier.fillMaxSize(),
         )
     }
+}
+
+private data class TabIndicatorPosition(
+    val left: Dp,
+    val width: Dp,
+)
+
+/**
+ * スワイプ中のページのずれに合わせて、今のタブと向かう先のタブの間に下線を置く
+ */
+private fun pagerIndicatorPosition(
+    tabPositions: List<TabPosition>,
+    currentPage: Int,
+    currentPageOffsetFraction: Float,
+): TabIndicatorPosition {
+    val currentTab = tabPositions.getOrNull(currentPage) ?: return TabIndicatorPosition(left = 0.dp, width = 0.dp)
+    val targetPage = if (currentPageOffsetFraction > 0f) currentPage + 1 else currentPage - 1
+    val targetTab = tabPositions.getOrNull(targetPage) ?: currentTab
+    val fraction = abs(currentPageOffsetFraction)
+    val width = lerp(currentTab.contentWidth, targetTab.contentWidth, fraction)
+    val center = lerp(
+        currentTab.left + currentTab.width / 2,
+        targetTab.left + targetTab.width / 2,
+        fraction,
+    )
+    return TabIndicatorPosition(left = center - width / 2, width = width)
 }
 
 @Composable
