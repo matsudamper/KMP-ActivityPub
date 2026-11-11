@@ -4,6 +4,7 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
@@ -117,6 +118,7 @@ internal class HomeScreenViewModel(
     private var profileJob: Job? = null
     private var myPostsRetryJob: Job? = null
     private var timelineJob: Job? = null
+    private var pullToRefreshIndicatorJob: Job? = null
     private var timelineArrivalsJob: Job? = null
     private val followMenuController = FollowMenuController(
         scope = viewModelScope,
@@ -698,6 +700,7 @@ internal class HomeScreenViewModel(
         if (append && timelineJob?.isActive == true) return
         if (append && viewModelStateFlow.value.timeline.nextCursor == null) return
         timelineJob?.cancel()
+        pullToRefreshIndicatorJob?.cancel()
         // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
         if (!append) updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
         updateTimeline {
@@ -747,17 +750,29 @@ internal class HomeScreenViewModel(
                     is UpdateOperationResponseResult.NoHasMore -> Unit
                 }
             } finally {
-                if (trigger == TimelineLoadTrigger.PullToRefresh && currentCoroutineContext().isActive) {
-                    // すぐ終わると読み込んだかどうか分からないので、最低限アニメーションを見せる
-                    val remaining = PULL_TO_REFRESH_MIN_DURATION - startMark.elapsedNow()
-                    if (remaining.isPositive()) delay(remaining)
-                }
                 if (currentCoroutineContext().isActive) {
-                    updateTimeline {
-                        if (it.loading is TimelineLoading.AppendFailed) it else it.copy(loading = TimelineLoading.None)
+                    if (trigger == TimelineLoadTrigger.PullToRefresh) {
+                        keepPullToRefreshIndicator(startMark)
+                    } else {
+                        updateTimeline {
+                            if (it.loading is TimelineLoading.AppendFailed) it else it.copy(loading = TimelineLoading.None)
+                        }
                     }
                     if (trigger == TimelineLoadTrigger.Reconnect) updateTimelineCatchingUpAfterReconnect(false)
                 }
+            }
+        }
+    }
+
+    /**
+     * 取得ジョブの中で待つと、その間の追加読み込みが取得中として破棄されるので、表示の維持は別のジョブで行う
+     */
+    private fun keepPullToRefreshIndicator(startMark: TimeMark) {
+        pullToRefreshIndicatorJob = viewModelScope.launch {
+            val remaining = PULL_TO_REFRESH_MIN_DURATION - startMark.elapsedNow()
+            if (remaining.isPositive()) delay(remaining)
+            updateTimeline {
+                if (it.loading == TimelineLoading.PullToRefresh) it.copy(loading = TimelineLoading.None) else it
             }
         }
     }
