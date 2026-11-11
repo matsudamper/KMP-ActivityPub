@@ -12,11 +12,13 @@ import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -36,6 +38,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +56,7 @@ import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -63,14 +67,67 @@ import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
+internal enum class PostItemStyle {
+    /** 並べて流し読みするので、文字を小さめにし、画像は横にスクロールして投稿 1 件の高さを抑える */
+    Timeline,
+
+    /** 1 件だけを読むので、文字やボタンを大きくし、画像は折り返して全部を一度に見せる */
+    Detail,
+}
+
+@Immutable
+private class PostItemSizes(
+    val displayNameTextStyle: TextStyle,
+    val secondaryTextStyle: TextStyle,
+    val bodyTextStyle: TextStyle,
+    val countTextStyle: TextStyle,
+    val iconSize: Dp,
+    val actionIconSize: Dp,
+    val actionSlotWidth: Dp,
+    val menuButtonSize: Dp,
+    val stampImageHeight: Dp,
+)
+
+@Composable
+private fun PostItemStyle.sizes(): PostItemSizes {
+    val typography = MaterialTheme.typography
+    return when (this) {
+        PostItemStyle.Timeline -> PostItemSizes(
+            displayNameTextStyle = typography.titleSmall,
+            secondaryTextStyle = typography.bodyMedium,
+            bodyTextStyle = typography.bodyMedium,
+            countTextStyle = typography.bodySmall,
+            iconSize = 46.dp,
+            actionIconSize = 24.dp,
+            actionSlotWidth = 76.dp,
+            menuButtonSize = 32.dp,
+            stampImageHeight = 18.dp,
+        )
+
+        PostItemStyle.Detail -> PostItemSizes(
+            displayNameTextStyle = typography.titleMedium,
+            secondaryTextStyle = typography.bodyLarge,
+            bodyTextStyle = typography.bodyLarge,
+            countTextStyle = typography.bodyMedium,
+            iconSize = 56.dp,
+            actionIconSize = 28.dp,
+            actionSlotWidth = 88.dp,
+            menuButtonSize = 40.dp,
+            stampImageHeight = 22.dp,
+        )
+    }
+}
+
 /**
  * タイムラインやプロフィールに並べる投稿 1 件
  */
 @Composable
 internal fun PostItem(
     uiState: PostItemUiState,
+    style: PostItemStyle,
     modifier: Modifier = Modifier,
 ) {
+    val sizes = style.sizes()
     val authorListener = uiState.authorListener
     val authorClickModifier = if (authorListener == null) Modifier else Modifier.clickable(onClick = authorListener::onClick)
     val postListener = uiState.postListener
@@ -90,11 +147,11 @@ internal fun PostItem(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (uiState.pinnedLabelVisible) {
-            PinnedLabel()
+            PinnedLabel(sizes = sizes)
         }
         val boostedBy = uiState.boostedBy
         if (boostedBy != null) {
-            BoostedByLabel(boostedBy = boostedBy)
+            BoostedByLabel(boostedBy = boostedBy, sizes = sizes)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -109,13 +166,13 @@ internal fun PostItem(
                     iconUrl = uiState.iconUrl,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(PostIconSize)
+                        .size(sizes.iconSize)
                         .clip(CircleShape),
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     EmojiText(
                         text = uiState.displayName,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = sizes.displayNameTextStyle,
                         color = Color.Unspecified,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -123,7 +180,7 @@ internal fun PostItem(
                     )
                     Text(
                         text = uiState.acct,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = sizes.secondaryTextStyle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -132,7 +189,7 @@ internal fun PostItem(
             }
             Text(
                 text = uiState.postedAt,
-                style = MaterialTheme.typography.bodyMedium,
+                style = sizes.secondaryTextStyle,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
             )
@@ -146,14 +203,24 @@ internal fun PostItem(
             ) {
                 EmojiText(
                     text = uiState.body,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = sizes.bodyTextStyle,
                     color = Color.Unspecified,
                     fontWeight = null,
                     maxLines = Int.MAX_VALUE,
                     overflow = TextOverflow.Clip,
                 )
             }
-            if (uiState.images.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
+            if (style == PostItemStyle.Detail && uiState.images.isNotEmpty()) {
+                PostImageGrid(
+                    images = uiState.images,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            val horizontalScrollImages = when (style) {
+                PostItemStyle.Timeline -> uiState.images
+                PostItemStyle.Detail -> listOf()
+            }
+            if (horizontalScrollImages.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                 val attachmentListState = rememberLazyListState()
                 val layoutDirection = LocalLayoutDirection.current
                 val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
@@ -170,7 +237,7 @@ internal fun PostItem(
                     contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(uiState.images) { image ->
+                    items(horizontalScrollImages) { image ->
                         PostImageCard(image = image)
                     }
                     items(uiState.linkPreviews) { preview ->
@@ -184,15 +251,15 @@ internal fun PostItem(
                     }
                 }
             }
-            PostActions(uiState = uiState)
+            PostActions(uiState = uiState, sizes = sizes)
             if (uiState.stamps.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     uiState.stamps.forEach { stamp ->
-                        ReactionCount(countText = stamp.countText) {
-                            StampEmoji(stamp = stamp)
+                        ReactionCount(countText = stamp.countText, sizes = sizes) {
+                            StampEmoji(stamp = stamp, sizes = sizes)
                         }
                     }
                 }
@@ -204,27 +271,54 @@ internal fun PostItem(
     }
 }
 
+@Composable
+private fun PostImageGrid(
+    images: List<PostItemUiState.Image>,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val columnCount = (maxWidth / PostImageGridMinCellWidth).toInt()
+            .coerceIn(1, PostImageGridMaxColumnCount)
+            .coerceAtMost(images.size)
+        Column(verticalArrangement = Arrangement.spacedBy(PostImageGridSpacing)) {
+            images.chunked(columnCount).forEach { rowImages ->
+                Row(horizontalArrangement = Arrangement.spacedBy(PostImageGridSpacing)) {
+                    rowImages.forEach { image ->
+                        PostImageTile(
+                            image = image,
+                            modifier = Modifier.weight(1f).aspectRatio(PostImageGridCellAspectRatio),
+                        )
+                    }
+                    repeat(columnCount - rowImages.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
 /**
  * ブーストの行と同じく、アイコンの列に揃えて出す
  */
 @Composable
-private fun PinnedLabel() {
+private fun PinnedLabel(sizes: PostItemSizes) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(PostIconSize), contentAlignment = Alignment.CenterEnd) {
+        Box(modifier = Modifier.width(sizes.iconSize), contentAlignment = Alignment.CenterEnd) {
             Icon(
                 imageVector = AppIcons.PushPin,
                 contentDescription = null,
-                modifier = Modifier.size(PostActionIconSize),
+                modifier = Modifier.size(sizes.actionIconSize),
                 tint = color,
             )
         }
         Text(
             text = "ピン留め",
-            style = MaterialTheme.typography.bodyMedium,
+            style = sizes.secondaryTextStyle,
             color = color,
         )
     }
@@ -234,7 +328,10 @@ private fun PinnedLabel() {
  * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
  */
 @Composable
-private fun BoostedByLabel(boostedBy: PostItemUiState.BoostedBy) {
+private fun BoostedByLabel(
+    boostedBy: PostItemUiState.BoostedBy,
+    sizes: PostItemSizes,
+) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
     val listener = boostedBy.listener
     Row(
@@ -245,11 +342,11 @@ private fun BoostedByLabel(boostedBy: PostItemUiState.BoostedBy) {
         horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.width(PostIconSize), contentAlignment = Alignment.CenterEnd) {
+        Box(modifier = Modifier.width(sizes.iconSize), contentAlignment = Alignment.CenterEnd) {
             Icon(
                 imageVector = AppIcons.Repeat,
                 contentDescription = null,
-                modifier = Modifier.size(PostActionIconSize),
+                modifier = Modifier.size(sizes.actionIconSize),
                 tint = color,
             )
         }
@@ -266,7 +363,7 @@ private fun BoostedByLabel(boostedBy: PostItemUiState.BoostedBy) {
             )
             EmojiText(
                 text = boostedBy.text,
-                style = MaterialTheme.typography.bodyMedium,
+                style = sizes.secondaryTextStyle,
                 color = color,
                 fontWeight = null,
                 maxLines = 1,
@@ -281,6 +378,7 @@ private val BoostedByIconSize = 20.dp
 @Composable
 private fun ReactionCount(
     countText: String,
+    sizes: PostItemSizes,
     reaction: @Composable () -> Unit,
 ) {
     Row(
@@ -294,7 +392,7 @@ private fun ReactionCount(
         reaction()
         Text(
             text = countText,
-            style = MaterialTheme.typography.bodySmall,
+            style = sizes.countTextStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -304,19 +402,22 @@ private fun ReactionCount(
  * カスタム絵文字の画像が取れなければ :name: の文字で出す。何も出さないと数だけが残る
  */
 @Composable
-private fun StampEmoji(stamp: PostItemUiState.Stamp) {
+private fun StampEmoji(
+    stamp: PostItemUiState.Stamp,
+    sizes: PostItemSizes,
+) {
     val imageUrl = stamp.imageUrl
     var imageFailed by remember(imageUrl) { mutableStateOf(false) }
     if (imageUrl == null || imageFailed) {
         Text(
             text = stamp.emoji,
-            style = MaterialTheme.typography.bodyMedium,
+            style = sizes.secondaryTextStyle,
         )
     } else {
         AsyncImage(
             model = imageUrl,
             contentDescription = stamp.emoji,
-            modifier = Modifier.height(18.dp).widthIn(max = 54.dp),
+            modifier = Modifier.height(sizes.stampImageHeight).widthIn(max = sizes.stampImageHeight * 3),
             contentScale = ContentScale.Fit,
             onError = { imageFailed = true },
         )
@@ -328,103 +429,110 @@ private fun StampEmoji(stamp: PostItemUiState.Stamp) {
  * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプはまだ押せないので、押せないアイコンだけを置く
  */
 @Composable
-private fun PostActions(uiState: PostItemUiState) {
+private fun PostActions(
+    uiState: PostItemUiState,
+    sizes: PostItemSizes,
+) {
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 狭い画面で操作が並びきらなくても、メニュー（削除・ピン留め）を押せるよう、残りの幅だけを操作に使う
         Row(
-            modifier = Modifier.width(PostActionSlotWidth),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Row(
+                modifier = Modifier.width(sizes.actionSlotWidth),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Repeat,
+                    contentDescription = "ブースト",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = disabledIconColor,
+                )
+                Text(
+                    text = uiState.boostCountText.orEmpty(),
+                    style = sizes.countTextStyle,
+                    color = iconColor,
+                    maxLines = 1,
+                )
+            }
+            val favouriteButton = uiState.favouriteButton
+            Row(
+                modifier = Modifier
+                    .width(sizes.actionSlotWidth)
+                    .then(
+                        if (favouriteButton == null) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { favouriteButton.listener.onClick() }
+                        },
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Star,
+                    contentDescription = "お気に入り",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
+                )
+                Text(
+                    text = uiState.favouriteCountText.orEmpty(),
+                    style = sizes.countTextStyle,
+                    color = iconColor,
+                    maxLines = 1,
+                )
+            }
+            Box(modifier = Modifier.width(sizes.actionSlotWidth)) {
+                Icon(
+                    imageVector = AppIcons.Emoticon,
+                    contentDescription = "スタンプ",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = disabledIconColor,
+                )
+            }
+            val shareListener = uiState.shareListener
             Icon(
-                imageVector = AppIcons.Repeat,
-                contentDescription = "ブースト",
-                modifier = Modifier.size(PostActionIconSize),
-                tint = disabledIconColor,
-            )
-            Text(
-                text = uiState.boostCountText.orEmpty(),
-                style = MaterialTheme.typography.bodySmall,
-                color = iconColor,
-                maxLines = 1,
+                imageVector = AppIcons.Share,
+                contentDescription = "共有",
+                modifier = Modifier
+                    .size(sizes.actionIconSize)
+                    .clip(CircleShape)
+                    .clickable(enabled = shareListener != null) { shareListener?.onClick() },
+                tint = if (shareListener == null) disabledIconColor else iconColor,
             )
         }
-        val favouriteButton = uiState.favouriteButton
-        Row(
-            modifier = Modifier
-                .width(PostActionSlotWidth)
-                .then(
-                    if (favouriteButton == null) {
-                        Modifier
-                    } else {
-                        Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { favouriteButton.listener.onClick() }
-                    },
-                ),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = AppIcons.Star,
-                contentDescription = "お気に入り",
-                modifier = Modifier.size(PostActionIconSize),
-                tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
-            )
-            Text(
-                text = uiState.favouriteCountText.orEmpty(),
-                style = MaterialTheme.typography.bodySmall,
-                color = iconColor,
-                maxLines = 1,
-            )
-        }
-        Box(modifier = Modifier.width(PostActionSlotWidth)) {
-            Icon(
-                imageVector = AppIcons.Emoticon,
-                contentDescription = "スタンプ",
-                modifier = Modifier.size(PostActionIconSize),
-                tint = disabledIconColor,
-            )
-        }
-        val shareListener = uiState.shareListener
-        Icon(
-            imageVector = AppIcons.Share,
-            contentDescription = "共有",
-            modifier = Modifier
-                .size(PostActionIconSize)
-                .clip(CircleShape)
-                .clickable(enabled = shareListener != null) { shareListener?.onClick() },
-            tint = if (shareListener == null) disabledIconColor else iconColor,
-        )
-        Spacer(modifier = Modifier.weight(1f))
         if (uiState.menuItems.isNotEmpty()) {
-            PostMenu(menuItems = uiState.menuItems)
+            PostMenu(menuItems = uiState.menuItems, sizes = sizes)
         }
     }
 }
 
-private val PostActionIconSize = 24.dp
-
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
 
-private val PostActionSlotWidth = 76.dp
-
 @Composable
-private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
+private fun PostMenu(
+    menuItems: List<PostItemUiState.MenuItem>,
+    sizes: PostItemSizes,
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(PostMenuButtonSize),
+            modifier = Modifier.size(sizes.menuButtonSize),
         ) {
             Icon(
                 imageVector = AppIcons.MoreVert,
                 contentDescription = "メニュー",
-                modifier = Modifier.size(PostActionIconSize),
+                modifier = Modifier.size(sizes.actionIconSize),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -445,11 +553,12 @@ private fun PostMenu(menuItems: List<PostItemUiState.MenuItem>) {
     }
 }
 
-private val PostMenuButtonSize = 32.dp
-
 private val PostHorizontalPadding = 16.dp
 private val PostBodySelectionVerticalMargin = 4.dp
-private val PostIconSize = 46.dp
+private val PostImageGridMinCellWidth = 180.dp
+private val PostImageGridSpacing = 8.dp
+private const val PostImageGridMaxColumnCount = 3
+private const val PostImageGridCellAspectRatio = 4f / 3f
 private val PostIconHeaderSpacing = 12.dp
 
 /**

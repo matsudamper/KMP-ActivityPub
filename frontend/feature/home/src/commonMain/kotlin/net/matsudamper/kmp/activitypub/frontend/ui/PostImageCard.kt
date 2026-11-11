@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,57 +52,83 @@ internal fun PostImageCard(
                 faviconUrl = null,
                 modifier = Modifier.alpha(0f),
             )
-            if (image.blurred) {
-                // Modifier.blur は Android 11 以下で効かないので、小さく読み込んで引き伸ばしたぼやけでも隠す。
-                // 一度表示した通常の大きさの画像がキャッシュから使われると隠れないので、キャッシュを分けて大きさも固定する
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalPlatformContext.current)
-                        .data(image.url)
-                        .memoryCacheKey("blurred:${image.url}")
-                        .size(BlurredImageLoadSizePx)
-                        .precision(Precision.EXACT)
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier.matchParentSize().blur(32.dp),
-                    contentScale = ContentScale.Crop,
-                )
-                Text(
-                    text = "閲覧注意",
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .background(MaterialTheme.colorScheme.inverseSurface, RoundedCornerShape(50))
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                )
-            } else {
-                AsyncImage(
-                    model = image.url,
-                    contentDescription = image.description,
-                    modifier = Modifier.matchParentSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-            if (image.blurToggleButtonVisible) {
-                IconButton(
-                    onClick = image.listener::onClickBlurToggle,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(32.dp),
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.inverseSurface,
-                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-                    ),
-                    shape = CircleShape,
-                ) {
-                    Icon(
-                        imageVector = if (image.blurred) AppIcons.Visibility else AppIcons.VisibilityOff,
-                        contentDescription = if (image.blurred) "表示する" else "隠す",
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
+            PostImageLayers(image = image)
+        }
+    }
+}
+
+/**
+ * 投稿の画像を一覧で並べるときの 1 枚。たくさん並べられるよう、大きさは並べる側の [modifier] で決める
+ */
+@Composable
+internal fun PostImageTile(
+    image: PostItemUiState.Image,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        onClick = image.listener::onClick,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Box {
+            PostImageLayers(image = image)
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.PostImageLayers(image: PostItemUiState.Image) {
+    if (image.blurred) {
+        // Modifier.blur は Android 11 以下で効かないので、小さく読み込んで引き伸ばしたぼやけでも隠す。
+        // 一度表示した通常の大きさの画像がキャッシュから使われると隠れないので、キャッシュを分けて大きさも固定する
+        AsyncImage(
+            model = ImageRequest.Builder(LocalPlatformContext.current)
+                .data(image.url)
+                .memoryCacheKey("blurred:${image.url}")
+                .size(BlurredImageLoadSizePx)
+                .precision(Precision.EXACT)
+                .build(),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize().blur(32.dp),
+            contentScale = ContentScale.Crop,
+        )
+        Text(
+            text = "閲覧注意",
+            modifier = Modifier
+                .align(Alignment.Center)
+                .background(MaterialTheme.colorScheme.inverseSurface, RoundedCornerShape(50))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.inverseOnSurface,
+        )
+    } else {
+        AsyncImage(
+            model = image.url,
+            contentDescription = image.description,
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Crop,
+        )
+    }
+    if (image.blurToggleButtonVisible) {
+        IconButton(
+            onClick = image.listener::onClickBlurToggle,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(32.dp),
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+            ),
+            shape = CircleShape,
+        ) {
+            Icon(
+                imageVector = if (image.blurred) AppIcons.Visibility else AppIcons.VisibilityOff,
+                contentDescription = if (image.blurred) "表示する" else "隠す",
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
