@@ -933,9 +933,7 @@ internal class HomeScreenViewModel(
     private fun createTimelineFooter(loading: TimelineLoading): HomeScreenUiState.TimelineFooter {
         return when (loading) {
             is TimelineLoading.AppendFailed -> HomeScreenUiState.TimelineFooter.Error(loading.message)
-
             TimelineLoading.Append -> HomeScreenUiState.TimelineFooter.Loading
-
             TimelineLoading.None -> HomeScreenUiState.TimelineFooter.None
         }
     }
