@@ -16,6 +16,8 @@ type UserInfo {
     followingGroups: [FollowingGroup!]! @lazy
     "他のサーバーのユーザーのプロフィールを取り直す処理の進み具合。管理者でないか、一度も始めていなければ null"
     remoteProfileRefresh: RemoteProfileRefreshProgress @lazy
+    "どのグループにも入れていないフォローを入れるホームの名前"
+    homeGroupName: String! @lazy
 }
 
 type RemoteProfileRefreshProgress {

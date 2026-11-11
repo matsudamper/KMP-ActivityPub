@@ -23,6 +23,8 @@ data class SettingsScreenUiState(
     interface Listener {
         fun onClickSecurity()
 
+        fun onClickFollowingGroups()
+
         fun onClickAdmin()
 
         fun onClickGitHubRelease()
