@@ -4,9 +4,9 @@ query AdminAccess {
     }
 }
 
-query RemoteProfileRefreshProgress {
-    userInfo {
-        remoteProfileRefresh {
+subscription RemoteProfileRefreshState {
+    remoteProfileRefreshState {
+        progress {
             running
             total
             refreshed

@@ -12,12 +12,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.update
 import com.apollographql.apollo.ApolloClient
+import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
@@ -35,7 +38,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
-import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshProgressQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshStateSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
@@ -429,24 +432,27 @@ class UserApi(
         }
     }
 
-    suspend fun remoteProfileRefreshProgress(): UserRemoteProfileRefreshResult {
-        val client = clients.client.value ?: return UserRemoteProfileRefreshResult.Failure("接続先が未設定")
-        val response = client.query(RemoteProfileRefreshProgressQuery()).execute()
-        if (response.exception != null || response.hasErrors()) return UserRemoteProfileRefreshResult.Failure(response.failureMessage())
-        val data = response.data ?: return UserRemoteProfileRefreshResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserRemoteProfileRefreshResult.Failure("ログインしていません")
-        val progress = userInfo.remoteProfileRefresh?.let {
-            UserRemoteProfileRefreshResult.Progress(
-                running = it.running,
-                total = it.total,
-                refreshed = it.refreshed,
-                failed = it.failed,
-                skipped = it.skipped,
-                startedAt = it.startedAt,
-                finishedAt = it.finishedAt,
-            )
+    /**
+     * 購読した時点の進み具合を流し、その後は変わるたびに流す。購読できないか切れたら [UserRemoteProfileRefreshResult.Failure] を流して終わる
+     */
+    fun remoteProfileRefreshStream(): Flow<UserRemoteProfileRefreshResult> = flow {
+        val client = clients.client.value
+        if (client == null) {
+            emit(UserRemoteProfileRefreshResult.Failure("接続先が未設定"))
+            return@flow
         }
-        return UserRemoteProfileRefreshResult.Success(progress = progress)
+        val results = client.subscription(RemoteProfileRefreshStateSubscription()).toFlow()
+            .map { response -> response.toRemoteProfileRefreshResult() }
+            .transformWhile { result ->
+                emit(result)
+                result is UserRemoteProfileRefreshResult.Success
+            }
+        var lastResult: UserRemoteProfileRefreshResult? = null
+        emitAll(results.onEach { lastResult = it })
+        // エラーを流さずに終わったときも、もう届かないことを知らせる
+        if (lastResult !is UserRemoteProfileRefreshResult.Failure) {
+            emit(UserRemoteProfileRefreshResult.Failure("進み具合の受信が切れました"))
+        }
     }
 
     /**
@@ -792,6 +798,23 @@ class UserApi(
         // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
         client.closeSubscriptionConnection()
         return receivedPostCount
+    }
+
+    private fun ApolloResponse<RemoteProfileRefreshStateSubscription.Data>.toRemoteProfileRefreshResult(): UserRemoteProfileRefreshResult {
+        val state = data?.remoteProfileRefreshState
+        if (exception != null || hasErrors() || state == null) return UserRemoteProfileRefreshResult.Failure(failureMessage())
+        val progress = state.progress?.let {
+            UserRemoteProfileRefreshResult.Progress(
+                running = it.running,
+                total = it.total,
+                refreshed = it.refreshed,
+                failed = it.failed,
+                skipped = it.skipped,
+                startedAt = it.startedAt,
+                finishedAt = it.finishedAt,
+            )
+        }
+        return UserRemoteProfileRefreshResult.Success(progress = progress)
     }
 
     private fun ActorListFields.append(page: ActorListFields): ActorListFields =

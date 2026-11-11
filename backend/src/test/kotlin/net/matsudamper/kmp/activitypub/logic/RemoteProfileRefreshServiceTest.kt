@@ -36,7 +36,7 @@ class RemoteProfileRefreshServiceTest {
 
         assertEquals(StartRemoteProfileRefreshResult.Started, service.start())
         assertEquals(listOf("https://a.example/users/1", "https://b.example/users/2"), requested)
-        val progress = checkNotNull(service.progress())
+        val progress = checkNotNull(service.progress.value)
         assertEquals(false, progress.running)
         assertEquals(2, progress.total)
         assertEquals(2, progress.refreshed)
@@ -59,7 +59,7 @@ class RemoteProfileRefreshServiceTest {
         service.start()
 
         assertEquals(listOf("https://down.example/users/1", "https://down.example/users/2", "https://up.example/users/1"), requested)
-        val progress = checkNotNull(service.progress())
+        val progress = checkNotNull(service.progress.value)
         assertEquals(1, progress.refreshed)
         assertEquals(2, progress.failed)
         assertEquals(2, progress.skipped)

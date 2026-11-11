@@ -69,6 +69,11 @@ type Subscription {
     購読より前に載った投稿は流さないので、homeTimeline で読む。ログインしていなければエラー
     """
     homeTimelinePosts: HomeTimelinePost!
+    """
+    他のサーバーのユーザーのプロフィールを取り直す処理の進み具合。購読した時点の状態を流し、その後は変わるたびに流す。
+    管理者でなければエラー
+    """
+    remoteProfileRefreshState: RemoteProfileRefreshState!
 }
 
 type HomeTimeline {

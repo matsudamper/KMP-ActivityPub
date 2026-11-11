@@ -14,10 +14,13 @@ type UserInfo {
     isAdmin: Boolean!
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
-    "他のサーバーのユーザーのプロフィールを取り直す処理の進み具合。管理者でないか、一度も始めていなければ null"
-    remoteProfileRefresh: RemoteProfileRefreshProgress @lazy
     "どのグループにも入れていないフォローを入れるホームの名前"
     homeGroupName: String! @lazy
+}
+
+type RemoteProfileRefreshState {
+    "一度も始めていなければ null"
+    progress: RemoteProfileRefreshProgress
 }
 
 type RemoteProfileRefreshProgress {

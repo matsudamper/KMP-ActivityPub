@@ -10,6 +10,8 @@ import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -36,7 +38,7 @@ class RemoteProfileRefreshService(
     /**
      * 一度も始めていなければ null
      */
-    fun progress(): RemoteProfileRefreshProgress? = progressFlow.value
+    val progress: StateFlow<RemoteProfileRefreshProgress?> = progressFlow.asStateFlow()
 
     fun start(): StartRemoteProfileRefreshResult {
         val initial = RemoteProfileRefreshProgress(

@@ -2,9 +2,6 @@ package net.matsudamper.kmp.activitypub.frontend.screen.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,7 +27,6 @@ internal class AdminScreenViewModel(
                 starting = false,
             ),
         )
-    private var pollingJob: Job? = null
 
     private val listener =
         object : AdminScreenUiState.Listener {
@@ -67,7 +63,7 @@ internal class AdminScreenViewModel(
                     is UserAdminAccessResult.Failure -> AccessState.Error(result.message)
                 }
             viewModelStateFlow.update { it.copy(access = access) }
-            if (access == AccessState.Granted) pollRemoteProfileRefresh()
+            if (access == AccessState.Granted) collectRemoteProfileRefresh()
         }
     }
 
@@ -81,26 +77,20 @@ internal class AdminScreenViewModel(
             } finally {
                 viewModelStateFlow.update { it.copy(starting = false) }
             }
-            pollRemoteProfileRefresh()
         }
     }
 
     /**
-     * 取り直しが終わるまで、進み具合を読み直し続ける
+     * 画面を開いた時点で走っている取り直しがあれば、その進み具合から受け取る
      */
-    private fun pollRemoteProfileRefresh() {
-        pollingJob?.cancel()
-        pollingJob = viewModelScope.launch {
-            while (true) {
-                val refresh =
-                    when (val result = api.remoteProfileRefreshProgress()) {
-                        is UserRemoteProfileRefreshResult.Success -> RefreshState.Loaded(result.progress)
-                        is UserRemoteProfileRefreshResult.Failure -> RefreshState.Error(result.message)
-                    }
-                viewModelStateFlow.update { it.copy(refresh = refresh) }
-                if (refresh !is RefreshState.Loaded || refresh.progress?.running != true) break
-                delay(POLLING_INTERVAL)
-            }
+    private suspend fun collectRemoteProfileRefresh() {
+        api.remoteProfileRefreshStream().collect { result ->
+            val refresh =
+                when (result) {
+                    is UserRemoteProfileRefreshResult.Success -> RefreshState.Loaded(result.progress)
+                    is UserRemoteProfileRefreshResult.Failure -> RefreshState.Error(result.message)
+                }
+            viewModelStateFlow.update { it.copy(refresh = refresh) }
         }
     }
 
@@ -180,9 +170,5 @@ internal class AdminScreenViewModel(
         data class Error(
             val message: String,
         ) : RefreshState
-    }
-
-    private companion object {
-        val POLLING_INTERVAL = 3.seconds
     }
 }

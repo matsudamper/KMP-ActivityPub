@@ -9,7 +9,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimeline
 import net.matsudamper.kmp.activitypub.graphql.model.QlHomeTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
-import net.matsudamper.kmp.activitypub.graphql.model.QlRemoteProfileRefreshProgress
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
@@ -37,27 +36,6 @@ class UserInfoResolverImpl : UserInfoResolver {
     override fun followingGroups(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlFollowingGroup>>> {
         val groups = GraphQlEngine.diContainer(env).followingGroupService.groups(userInfo.id).map { it.toQlFollowingGroup() }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(groups).build())
-    }
-
-    override fun remoteProfileRefresh(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlRemoteProfileRefreshProgress?>> {
-        val diContainer = GraphQlEngine.diContainer(env)
-        val progress =
-            if (userInfo.id in diContainer.adminAccountIds) {
-                diContainer.remoteProfileRefreshService?.progress()?.let { progress ->
-                    QlRemoteProfileRefreshProgress(
-                        running = progress.running,
-                        total = progress.total.toInt(),
-                        refreshed = progress.refreshed.toInt(),
-                        failed = progress.failed.toInt(),
-                        skipped = progress.skipped.toInt(),
-                        startedAt = progress.startedAt.toString(),
-                        finishedAt = progress.finishedAt?.toString(),
-                    )
-                }
-            } else {
-                null
-            }
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder<QlRemoteProfileRefreshProgress?>(progress).build())
     }
 
     override fun homeGroupName(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<String>> {
