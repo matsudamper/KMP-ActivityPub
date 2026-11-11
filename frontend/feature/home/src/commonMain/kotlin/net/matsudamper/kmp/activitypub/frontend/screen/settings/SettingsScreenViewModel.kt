@@ -43,6 +43,12 @@ internal class SettingsScreenViewModel(
                 }
             }
 
+            override fun onClickFollowingGroups() {
+                viewModelScope.launch {
+                    events.send { it.navigateToFollowingGroups() }
+                }
+            }
+
             override fun onClickAdmin() {
                 viewModelScope.launch {
                     events.send { it.navigateToAdmin() }
@@ -146,6 +152,8 @@ internal class SettingsScreenViewModel(
         fun navigateBack()
 
         fun navigateToSecurity()
+
+        fun navigateToFollowingGroups()
 
         fun navigateToAdmin()
 

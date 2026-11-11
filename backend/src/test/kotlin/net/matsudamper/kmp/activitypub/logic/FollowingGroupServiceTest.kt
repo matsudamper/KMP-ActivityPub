@@ -47,6 +47,27 @@ class FollowingGroupServiceTest {
     }
 
     @Test
+    fun renameGroupAndHome() {
+        val alice = repositories.accountRepository.add("alice", "hash", "type")
+        val bob = repositories.accountRepository.add("bob", "hash", "type")
+        val news = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "ニュース")).group
+        val friends = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "友人")).group
+
+        assertEquals(RenameFollowingGroupResult.NotLoggedIn, service.renameGroup(null, news.id, "技術"))
+        assertEquals(RenameFollowingGroupResult.InvalidName, service.renameGroup(alice, news.id, " "))
+        assertEquals(RenameFollowingGroupResult.NotFound, service.renameGroup(bob, news.id, "技術"))
+        assertEquals(RenameFollowingGroupResult.DuplicateName, service.renameGroup(alice, news.id, "友人"))
+        assertEquals(RenameFollowingGroupResult.Renamed, service.renameGroup(alice, news.id, " 技術 "))
+        assertEquals(listOf("技術", "友人"), service.groups(alice).map { it.name })
+        assertEquals(friends, service.groups(alice).last())
+
+        assertEquals("ホーム", service.homeName(alice))
+        assertEquals(RenameFollowingGroupResult.Renamed, service.renameGroup(alice, null, "すべて"))
+        assertEquals("すべて", service.homeName(alice))
+        assertEquals("ホーム", service.homeName(bob))
+    }
+
+    @Test
     fun followingIntoGroupAndMovingBackToHome() = runBlocking {
         val alice = repositories.accountRepository.add("alice", "hash", "type")
         val news = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "ニュース")).group

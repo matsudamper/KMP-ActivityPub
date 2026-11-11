@@ -19,6 +19,25 @@ interface FollowingGroupRepository {
     fun create(accountId: AccountId, name: String, createdAt: Instant): FollowingGroup
 
     fun exists(accountId: AccountId, groupId: FollowingGroupId): Boolean
+
+    fun rename(accountId: AccountId, groupId: FollowingGroupId, name: String): FollowingGroupRenameResult
+
+    /**
+     * 変えていなければ null
+     */
+    fun homeName(accountId: AccountId): String?
+
+    fun setHomeName(accountId: AccountId, name: String)
+}
+
+sealed interface FollowingGroupRenameResult {
+    data object Renamed : FollowingGroupRenameResult
+
+    /**
+     * 無いか、他のアカウントのグループ
+     */
+    data object NotFound : FollowingGroupRenameResult
+    data object DuplicateName : FollowingGroupRenameResult
 }
 
 data class FollowingGroup(

@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
+import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
@@ -86,6 +87,18 @@ internal class FakeRepositories : Repositories {
             return group
         }
         override fun exists(accountId: AccountId, groupId: FollowingGroupId): Boolean = list(accountId).any { it.id == groupId }
+        override fun rename(accountId: AccountId, groupId: FollowingGroupId, name: String): FollowingGroupRenameResult {
+            val index = rows.indexOfFirst { it.first == accountId && it.second.id == groupId }.takeIf { it >= 0 }
+                ?: return FollowingGroupRenameResult.NotFound
+            if (list(accountId).any { it.name == name && it.id != groupId }) return FollowingGroupRenameResult.DuplicateName
+            rows[index] = accountId to FollowingGroup(id = groupId, name = name)
+            return FollowingGroupRenameResult.Renamed
+        }
+        private val homeNames = mutableMapOf<AccountId, String>()
+        override fun homeName(accountId: AccountId): String? = homeNames[accountId]
+        override fun setHomeName(accountId: AccountId, name: String) {
+            homeNames[accountId] = name
+        }
     }
     override val accountRepository: FakeAccountRepository = FakeAccountRepository(hasPasskey = { passkeyRepository.passkeys(it).isNotEmpty() })
     override val followerRepository: FakeFollowerRepository = FakeFollowerRepository()

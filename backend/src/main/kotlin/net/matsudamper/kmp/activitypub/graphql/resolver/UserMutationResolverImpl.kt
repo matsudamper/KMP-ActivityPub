@@ -20,6 +20,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlRenameFollowingGroupFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlRenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
@@ -47,6 +49,7 @@ import net.matsudamper.kmp.activitypub.logic.DeleteNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
+import net.matsudamper.kmp.activitypub.logic.RenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
@@ -95,6 +98,27 @@ class UserMutationResolverImpl : UserMutationResolver {
             CreateFollowingGroupResult.InvalidName -> QlCreateFollowingGroupResult(group = null, failure = QlCreateFollowingGroupFailure.INVALID_NAME)
         }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(qlResult).build())
+    }
+
+    override fun renameFollowingGroup(
+        userMutation: QlUserMutation,
+        groupId: FollowingGroupId?,
+        name: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlRenameFollowingGroupResult>> {
+        val result = GraphQlEngine.diContainer(env).followingGroupService.renameGroup(
+            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
+            groupId = groupId,
+            name = name,
+        )
+        val failure = when (result) {
+            RenameFollowingGroupResult.Renamed -> null
+            RenameFollowingGroupResult.NotLoggedIn -> QlRenameFollowingGroupFailure.NOT_LOGGED_IN
+            RenameFollowingGroupResult.InvalidName -> QlRenameFollowingGroupFailure.INVALID_NAME
+            RenameFollowingGroupResult.NotFound -> QlRenameFollowingGroupFailure.NOT_FOUND
+            RenameFollowingGroupResult.DuplicateName -> QlRenameFollowingGroupFailure.DUPLICATE_NAME
+        }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlRenameFollowingGroupResult(failure = failure)).build())
     }
 
     /**
