@@ -5,7 +5,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
- * こちらのアカウントが付けるブースト。他のサーバーの公開・公開タイムラインに載せない投稿と、このサーバーの投稿を扱う。
+ * こちらのアカウントが付けるブースト。他のサーバーの公開の投稿と、このサーバーの投稿を扱う。公開範囲に制限のある投稿はブーストできない。
  * 投稿はタイムラインの member（`r` + REMOTE_NOTES の id、`l` + NOTES の id、ブーストで載った投稿は `b` + REMOTE_BOOSTS の id、自分のブーストは `a` + ACCOUNT_BOOSTS の id）で指す。
  * ブーストで載った投稿のブーストは、ブーストされた元の投稿に付ける
  */
