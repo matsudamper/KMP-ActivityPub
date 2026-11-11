@@ -3,9 +3,12 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.compose.ui.state.ToggleableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -713,6 +716,7 @@ internal class HomeScreenViewModel(
             )
         }
         timelineJob = viewModelScope.launch {
+            val startMark = TimeSource.Monotonic.markNow()
             try {
                 val result = when (trigger) {
                     TimelineLoadTrigger.Append -> timelinePaging.fetchNext()
@@ -743,6 +747,11 @@ internal class HomeScreenViewModel(
                     is UpdateOperationResponseResult.NoHasMore -> Unit
                 }
             } finally {
+                if (trigger == TimelineLoadTrigger.PullToRefresh && currentCoroutineContext().isActive) {
+                    // すぐ終わると読み込んだかどうか分からないので、最低限アニメーションを見せる
+                    val remaining = PULL_TO_REFRESH_MIN_DURATION - startMark.elapsedNow()
+                    if (remaining.isPositive()) delay(remaining)
+                }
                 if (currentCoroutineContext().isActive) {
                     updateTimeline {
                         if (it.loading is TimelineLoading.AppendFailed) it else it.copy(loading = TimelineLoading.None)
@@ -1203,6 +1212,7 @@ internal class HomeScreenViewModel(
     }
 
     private companion object {
+        val PULL_TO_REFRESH_MIN_DURATION = 600.milliseconds
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
         const val MY_POSTS_NOT_FOUND_MESSAGE = "投稿を読み込めませんでした"
