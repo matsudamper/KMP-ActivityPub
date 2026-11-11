@@ -4,9 +4,12 @@ import kotlinx.browser.localStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.DEFAULT_TIMELINE_COLUMNS
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 
 internal class WebTimelineColumnSettingStore : TimelineColumnSettingStore {
     private val columnsStateFlow = MutableStateFlow(loadColumns())
@@ -17,42 +20,51 @@ internal class WebTimelineColumnSettingStore : TimelineColumnSettingStore {
      * ストレージを拒否されたブラウザでも、開いている間だけはカラムを変えられるようにする
      */
     override suspend fun save(columns: List<TimelineColumnSetting>): Boolean {
-        val encoded = columns.joinToString(separator = COLUMN_SEPARATOR) { it.encode() }
+        val encoded = Json.encodeToString(columns.map { it.toStored() })
         val saved = runCatching { localStorage.setItem(TIMELINE_COLUMNS_KEY, encoded) }.isSuccess
         columnsStateFlow.value = columns
         return saved
     }
 
     /**
-     * ストレージを拒否されると getItem が例外を投げ、生成時に読むのでアプリごと起動しなくなる
+     * ストレージを拒否されると getItem が例外を投げ、生成時に読むのでアプリごと起動しなくなる。
+     * 壊れた値も同じく起動を止めないよう、既定のカラムに戻す
      */
     private fun loadColumns(): List<TimelineColumnSetting> {
-        val saved = runCatching { localStorage.getItem(TIMELINE_COLUMNS_KEY) }.getOrNull()
-        return when {
-            saved == null -> DEFAULT_TIMELINE_COLUMNS
-            saved.isEmpty() -> listOf()
-            else -> saved.split(COLUMN_SEPARATOR).mapNotNull { decodeColumn(it) }
-        }
+        val saved = runCatching { localStorage.getItem(TIMELINE_COLUMNS_KEY) }.getOrNull() ?: return DEFAULT_TIMELINE_COLUMNS
+        return runCatching { Json.decodeFromString<List<StoredTimelineColumn>>(saved) }
+            .map { columns -> columns.map { it.toTimelineColumnSetting() } }
+            .getOrDefault(DEFAULT_TIMELINE_COLUMNS)
     }
 }
 
-private fun TimelineColumnSetting.encode(): String =
-    when (this) {
-        TimelineColumnSetting.All -> ALL_VALUE
-        TimelineColumnSetting.Home -> HOME_VALUE
-        is TimelineColumnSetting.FollowingGroup -> FOLLOWING_GROUP_PREFIX + groupId
-    }
+@Serializable
+private data class StoredTimelineColumn(
+    val id: String,
+    val name: String,
+    val home: Boolean,
+    val followingGroupIds: List<String>,
+)
 
-private fun decodeColumn(value: String): TimelineColumnSetting? =
-    when {
-        value == ALL_VALUE -> TimelineColumnSetting.All
-        value == HOME_VALUE -> TimelineColumnSetting.Home
-        value.startsWith(FOLLOWING_GROUP_PREFIX) -> TimelineColumnSetting.FollowingGroup(value.removePrefix(FOLLOWING_GROUP_PREFIX))
-        else -> null
-    }
+private fun TimelineColumnSetting.toStored(): StoredTimelineColumn =
+    StoredTimelineColumn(
+        id = id,
+        name = name,
+        home = TimelineSource.Home in sources,
+        followingGroupIds = sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId },
+    )
 
-private const val TIMELINE_COLUMNS_KEY = "timelineColumns"
-private const val COLUMN_SEPARATOR = ","
-private const val ALL_VALUE = "all"
-private const val HOME_VALUE = "home"
-private const val FOLLOWING_GROUP_PREFIX = "group:"
+private fun StoredTimelineColumn.toTimelineColumnSetting(): TimelineColumnSetting =
+    TimelineColumnSetting(
+        id = id,
+        name = name,
+        sources = buildSet {
+            if (home) add(TimelineSource.Home)
+            followingGroupIds.forEach { add(TimelineSource.FollowingGroup(it)) }
+        },
+    )
+
+/**
+ * 購読先を 1 つずつ選んでいた頃の "timelineColumns" とは形が違うので、別の鍵に置く
+ */
+private const val TIMELINE_COLUMNS_KEY = "timelineColumnsV2"

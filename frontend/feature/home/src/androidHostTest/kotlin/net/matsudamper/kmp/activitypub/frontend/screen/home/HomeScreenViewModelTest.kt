@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.ui.state.ToggleableState
 import androidx.lifecycle.viewModelScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -39,6 +40,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -48,21 +50,23 @@ import okio.Buffer
 class HomeScreenViewModelTest {
     private val arrivals = Channel<String>(Channel.UNLIMITED)
     private val subscriptionRejected = MutableStateFlow(false)
-    private val columnSettingStore = FakeTimelineColumnSettingStore(listOf(TimelineColumnSetting.Home))
+    private val homeColumn = TimelineColumnSetting(id = "home", name = "ホーム", sources = setOf(TimelineSource.Home))
+    private val newsColumn = TimelineColumnSetting(id = "news", name = "ニュース", sources = setOf(TimelineSource.FollowingGroup("1")))
+    private val allColumn = TimelineColumnSetting(id = "all", name = "全部", sources = setOf(TimelineSource.Home, TimelineSource.FollowingGroup("1")))
+    private val columnSettingStore = FakeTimelineColumnSettingStore(listOf(homeColumn))
     private var followingGroupsResponse = """{"errors":[{"message":"購読の仕分け先は見ない"}]}"""
 
     @Test
-    fun postsAreSplitIntoColumnsByFollowingGroup() = withViewModel { viewModel, engine ->
-        columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.All)
-        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}],"homeGroupName":"メイン"}}}"""
-        viewModel.uiStateFlow.value.listener.onClickAddTimelineColumn()
+    fun postsAreSplitIntoColumnsByCheckedSources() = withViewModel { viewModel, engine ->
+        columnSettingStore.columns.value = listOf(homeColumn, newsColumn, allColumn)
+        followingGroupsResponse = NEWS_GROUP_RESPONSE
         engine.responses.send {
             response("""{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[${post("a")},${postInGroup("b", "1")}],"nextCursor":null}}}}""")
         }
         viewModel.uiStateFlow.value.listener.onScreenShown()
 
-        val uiState = viewModel.uiStateFlow.first { it.timelineColumns.size == 3 && it.timelineColumns[0].title == "メイン" && it.homeColumnItems().isNotEmpty() }
-        assertEquals(listOf("メイン", "ニュース", "全て"), uiState.timelineColumns.map { it.title })
+        val uiState = viewModel.uiStateFlow.first { it.timelineColumns.size == 3 && it.homeColumnItems().isNotEmpty() }
+        assertEquals(listOf("ホーム", "ニュース", "全部"), uiState.timelineColumns.map { it.title })
         assertEquals(listOf("a"), uiState.timelineColumns[0].items.map { it.body.text.text })
         assertEquals(listOf("b"), uiState.timelineColumns[1].items.map { it.body.text.text })
         assertEquals(listOf("a", "b"), uiState.timelineColumns[2].items.map { it.body.text.text })
@@ -70,46 +74,75 @@ class HomeScreenViewModelTest {
 
     @Test
     fun movingColumnSavesNewOrder() = withViewModel { viewModel, _ ->
-        columnSettingStore.columns.value = listOf(TimelineColumnSetting.Home, TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.All)
-        followingGroupsResponse = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}],"homeGroupName":"ホーム"}}}"""
-        viewModel.uiStateFlow.value.listener.onClickAddTimelineColumn()
+        columnSettingStore.columns.value = listOf(homeColumn, newsColumn, allColumn)
         viewModel.uiStateFlow.first { it.timelineColumns.size == 3 }
 
         viewModel.uiStateFlow.value.listener.onMoveTimelineColumn(fromIndex = 0, toIndex = 2)
         val movedRight = viewModel.uiStateFlow.first { it.timelineColumns.firstOrNull()?.title == "ニュース" }
-        assertEquals(listOf("ニュース", "全て", "ホーム"), movedRight.timelineColumns.map { it.title })
+        assertEquals(listOf("ニュース", "全部", "ホーム"), movedRight.timelineColumns.map { it.title })
         // 動かす前に見ていた先頭のホームを見続ける
         assertEquals("ホーム", movedRight.timelineColumns.single { it.selected }.title)
 
         viewModel.uiStateFlow.value.listener.onMoveTimelineColumn(fromIndex = 2, toIndex = 1)
         val movedLeft = viewModel.uiStateFlow.first { it.timelineColumns.getOrNull(1)?.title == "ホーム" }
-        assertEquals(listOf("ニュース", "ホーム", "全て"), movedLeft.timelineColumns.map { it.title })
-        assertEquals(
-            listOf(TimelineColumnSetting.FollowingGroup("1"), TimelineColumnSetting.Home, TimelineColumnSetting.All),
-            columnSettingStore.columns.value,
-        )
+        assertEquals(listOf("ニュース", "ホーム", "全部"), movedLeft.timelineColumns.map { it.title })
+        assertEquals(listOf(newsColumn, homeColumn, allColumn), columnSettingStore.columns.value)
     }
 
     @Test
-    fun removingEveryColumnShowsEmptyMessageAndAddingBringsItBack() = withViewModel { viewModel, _ ->
+    fun addingColumnSavesNameAndCheckedSources() = withViewModel { viewModel, _ ->
+        followingGroupsResponse = NEWS_GROUP_RESPONSE
         val home = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }.timelineColumns.single()
-        home.listener.onClickRemove()
+        home.listener.onClickDelete()
         val emptied = viewModel.uiStateFlow.first { it.timelineColumns.isEmpty() }
         assertEquals(listOf(), columnSettingStore.columns.value)
         assertTrue(emptied.timelineColumnsEmptyMessage != null)
         assertTrue(emptied.addTimelineColumnButtonEnabled)
 
         emptied.listener.onClickAddTimelineColumn()
-        val dialog = viewModel.uiStateFlow.first { it.addTimelineColumnDialog != null }.addTimelineColumnDialog
-        assertEquals(listOf("全て", "ホーム"), dialog?.items?.map { it.name })
-        dialog?.items?.first { it.name == "ホーム" }?.listener?.onClick()
+        val dialog = viewModel.uiStateFlow.first { it.timelineColumnEditDialog?.sources?.size == 2 }.timelineColumnEditDialog
+        assertEquals(listOf("ホーム", "ニュース"), dialog?.sources?.map { it.name })
+        assertEquals(ToggleableState.Off, dialog?.allSourcesCheckState)
+        assertFalse(dialog?.saveButtonEnabled ?: true)
+
+        dialog?.listener?.onNameChanged("まとめ")
+        dialog?.listener?.onClickAllSources()
+        val allChecked = viewModel.uiStateFlow.first { it.timelineColumnEditDialog?.allSourcesCheckState == ToggleableState.On }.timelineColumnEditDialog
+        assertEquals(listOf(true, true), allChecked?.sources?.map { it.checked })
+        allChecked?.sources?.first { it.name == "ホーム" }?.listener?.onClick()
+        val partlyChecked = viewModel.uiStateFlow.first { it.timelineColumnEditDialog?.allSourcesCheckState == ToggleableState.Indeterminate }
+        assertTrue(partlyChecked.timelineColumnEditDialog?.saveButtonEnabled ?: false)
+        partlyChecked.timelineColumnEditDialog?.listener?.onClickSave()
 
         val restored = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }
-        assertEquals(listOf("ホーム"), restored.timelineColumns.map { it.title })
+        assertEquals(listOf("まとめ"), restored.timelineColumns.map { it.title })
         assertEquals(null, restored.timelineColumnsEmptyMessage)
-        assertEquals(null, restored.addTimelineColumnDialog)
-        // 全てが残っているので、まだ足せる
-        assertTrue(restored.addTimelineColumnButtonEnabled)
+        assertEquals(null, restored.timelineColumnEditDialog)
+        val saved = columnSettingStore.columns.value.single()
+        assertEquals("まとめ", saved.name)
+        assertEquals(setOf(TimelineSource.FollowingGroup("1")), saved.sources)
+    }
+
+    @Test
+    fun editingColumnKeepsIdAndUpdatesNameAndSources() = withViewModel { viewModel, _ ->
+        followingGroupsResponse = NEWS_GROUP_RESPONSE
+        columnSettingStore.columns.value = listOf(homeColumn, newsColumn)
+        val news = viewModel.uiStateFlow.first { it.timelineColumns.size == 2 }.timelineColumns[1]
+
+        news.listener.onClickEdit()
+        val dialog = viewModel.uiStateFlow.first { it.timelineColumnEditDialog?.sources?.size == 2 }.timelineColumnEditDialog
+        assertEquals("ニュース", dialog?.name)
+        assertEquals(listOf(false, true), dialog?.sources?.map { it.checked })
+        dialog?.listener?.onNameChanged("ニュースとホーム")
+        dialog?.sources?.first { it.name == "ホーム" }?.listener?.onClick()
+        viewModel.uiStateFlow.first { it.timelineColumnEditDialog?.allSourcesCheckState == ToggleableState.On }
+            .timelineColumnEditDialog?.listener?.onClickSave()
+
+        viewModel.uiStateFlow.first { it.timelineColumnEditDialog == null && it.timelineColumns[1].title == "ニュースとホーム" }
+        assertEquals(
+            listOf(homeColumn, newsColumn.copy(name = "ニュースとホーム", sources = setOf(TimelineSource.Home, TimelineSource.FollowingGroup("1")))),
+            columnSettingStore.columns.value,
+        )
     }
 
     @Test
@@ -419,3 +452,5 @@ class HomeScreenViewModelTest {
         override fun dispose() = Unit
     }
 }
+
+private const val NEWS_GROUP_RESPONSE = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}],"homeGroupName":"ホーム"}}}"""

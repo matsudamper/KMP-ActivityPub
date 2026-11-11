@@ -4,15 +4,16 @@ option java_package = "net.matsudamper.kmp.activitypub.android.timeline";
 option java_multiple_files = true;
 
 message TimelineColumnSettingProto {
+  // 購読先を 1 つずつ選んでいた頃の形。読めないので既定のカラムに戻す
+  reserved 1, 2;
   // 一度も保存していないときと、全部消したときを分けるため
-  bool saved = 1;
-  repeated TimelineColumnProto columns = 2;
+  bool saved = 3;
+  repeated TimelineColumnProto columns = 4;
 }
 
 message TimelineColumnProto {
-  oneof kind {
-    bool home = 1;
-    string following_group_id = 2;
-    bool all = 3;
-  }
+  string id = 1;
+  string name = 2;
+  bool home = 3;
+  repeated string following_group_ids = 4;
 }

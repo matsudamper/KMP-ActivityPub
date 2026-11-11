@@ -16,6 +16,7 @@ import com.google.protobuf.InvalidProtocolBufferException
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.DEFAULT_TIMELINE_COLUMNS
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 import org.koin.core.annotation.Singleton
 
 @Singleton
@@ -30,7 +31,7 @@ internal class AndroidTimelineColumnSettingStore(
         }
         .map { setting ->
             if (setting.saved) {
-                setting.columnsList.mapNotNull { it.toTimelineColumnSetting() }
+                setting.columnsList.map { it.toTimelineColumnSetting() }
             } else {
                 DEFAULT_TIMELINE_COLUMNS
             }
@@ -56,20 +57,23 @@ private val Context.timelineColumnSettingDataStore: DataStore<TimelineColumnSett
     corruptionHandler = ReplaceFileCorruptionHandler { TimelineColumnSettingProto.getDefaultInstance() },
 )
 
-private fun TimelineColumnProto.toTimelineColumnSetting(): TimelineColumnSetting? =
-    when (kindCase) {
-        TimelineColumnProto.KindCase.ALL -> TimelineColumnSetting.All
-        TimelineColumnProto.KindCase.HOME -> TimelineColumnSetting.Home
-        TimelineColumnProto.KindCase.FOLLOWING_GROUP_ID -> TimelineColumnSetting.FollowingGroup(followingGroupId)
-        TimelineColumnProto.KindCase.KIND_NOT_SET, null -> null
-    }
+private fun TimelineColumnProto.toTimelineColumnSetting(): TimelineColumnSetting =
+    TimelineColumnSetting(
+        id = id,
+        name = name,
+        sources = buildSet {
+            if (home) add(TimelineSource.Home)
+            followingGroupIdsList.forEach { add(TimelineSource.FollowingGroup(it)) }
+        },
+    )
 
 private fun TimelineColumnSetting.toProto(): TimelineColumnProto =
-    when (this) {
-        TimelineColumnSetting.All -> TimelineColumnProto.newBuilder().setAll(true).build()
-        TimelineColumnSetting.Home -> TimelineColumnProto.newBuilder().setHome(true).build()
-        is TimelineColumnSetting.FollowingGroup -> TimelineColumnProto.newBuilder().setFollowingGroupId(groupId).build()
-    }
+    TimelineColumnProto.newBuilder()
+        .setId(id)
+        .setName(name)
+        .setHome(TimelineSource.Home in sources)
+        .addAllFollowingGroupIds(sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId })
+        .build()
 
 private object TimelineColumnSettingSerializer : Serializer<TimelineColumnSettingProto> {
     override val defaultValue: TimelineColumnSettingProto = TimelineColumnSettingProto.getDefaultInstance()

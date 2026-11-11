@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
+import androidx.compose.ui.state.ToggleableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +21,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.HomeTimelineStreamEvent
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowingGroup
@@ -99,8 +102,8 @@ internal class HomeScreenViewModel(
                     settings = null,
                     homeName = userApi.currentHomeGroupName(),
                     followingGroups = listOf(),
-                    selected = null,
-                    addDialogVisible = false,
+                    selectedId = null,
+                    editor = null,
                 ),
             ),
         )
@@ -156,7 +159,7 @@ internal class HomeScreenViewModel(
                     // 縦並びでは選んでいるカラムのリストしか出ていない。出ていないリストはスクロールが終わらないので、選んでいるカラムだけ戻す
                     tab == HomeScreenUiState.Tab.Home -> {
                         if (selectedTimelineColumn != null) {
-                            events.send { it.scrollTimelineColumnToTop(selectedTimelineColumn.listStateKey) }
+                            events.send { it.scrollTimelineColumnToTop(selectedTimelineColumn.id) }
                         }
                     }
 
@@ -273,7 +276,8 @@ internal class HomeScreenViewModel(
         }
 
         override fun onClickAddTimelineColumn() {
-            updateTimelineColumns { it.copy(addDialogVisible = true) }
+            if (viewModelStateFlow.value.timelineColumns.settings == null) return
+            updateTimelineColumns { it.copy(editor = TimelineColumnEditorState(editingId = null, name = "", sources = setOf())) }
             // 別の画面でグループを作っていることがあるので、候補を出す前に読み直す
             loadFollowingGroups()
         }
@@ -294,9 +298,26 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private val addTimelineColumnDialogListener = object : HomeScreenUiState.AddTimelineColumnDialog.Listener {
+    private val timelineColumnEditDialogListener = object : HomeScreenUiState.TimelineColumnEditDialog.Listener {
+        override fun onNameChanged(name: String) {
+            updateTimelineColumnEditor { it.copy(name = name) }
+        }
+
+        override fun onClickAllSources() {
+            updateTimelineColumns { state ->
+                val editor = state.editor ?: return@updateTimelineColumns state
+                val selectableSources = state.selectableSources()
+                val allChecked = editor.sources.containsAll(selectableSources)
+                state.copy(editor = editor.copy(sources = if (allChecked) editor.sources - selectableSources.toSet() else editor.sources + selectableSources))
+            }
+        }
+
+        override fun onClickSave() {
+            saveEditingTimelineColumn()
+        }
+
         override fun onDismiss() {
-            updateTimelineColumns { it.copy(addDialogVisible = false) }
+            updateTimelineColumns { it.copy(editor = null) }
         }
     }
 
@@ -399,10 +420,36 @@ internal class HomeScreenViewModel(
         viewModelStateFlow.update { it.copy(timelineColumns = transform(it.timelineColumns)) }
     }
 
-    private fun addTimelineColumn(column: TimelineColumnSetting) {
-        val settings = viewModelStateFlow.value.timelineColumns.settings ?: return
-        updateTimelineColumns { it.copy(selected = column, addDialogVisible = false) }
-        saveTimelineColumns(settings + column)
+    private fun updateTimelineColumnEditor(transform: (TimelineColumnEditorState) -> TimelineColumnEditorState) {
+        updateTimelineColumns { state ->
+            val editor = state.editor
+            if (editor == null) state else state.copy(editor = transform(editor))
+        }
+    }
+
+    private fun editTimelineColumn(column: TimelineColumnSetting) {
+        updateTimelineColumns {
+            it.copy(editor = TimelineColumnEditorState(editingId = column.id, name = column.name, sources = column.sources))
+        }
+        // 別の画面でグループを作っていることがあるので、候補を出す前に読み直す
+        loadFollowingGroups()
+    }
+
+    private fun saveEditingTimelineColumn() {
+        val state = viewModelStateFlow.value.timelineColumns
+        val settings = state.settings ?: return
+        val editor = state.editor ?: return
+        if (!state.editorSaveEnabled()) return
+        val editingColumn = settings.firstOrNull { it.id == editor.editingId }
+        val savedColumn = TimelineColumnSetting(
+            id = editingColumn?.id ?: Uuid.random().toString(),
+            name = editor.name.trim(),
+            sources = editor.sources,
+        )
+        updateTimelineColumns { it.copy(selectedId = savedColumn.id, editor = null) }
+        saveTimelineColumns(
+            if (editingColumn == null) settings + savedColumn else settings.map { if (it.id == savedColumn.id) savedColumn else it },
+        )
     }
 
     /**
@@ -411,31 +458,23 @@ internal class HomeScreenViewModel(
     private fun removeTimelineColumn(column: TimelineColumnSetting) {
         val state = viewModelStateFlow.value.timelineColumns
         val settings = state.settings ?: return
-        val visibleColumns = state.visibleColumns()
-        if (state.selectedColumn() == column) {
-            val removedIndex = visibleColumns.indexOf(column)
-            val remaining = visibleColumns - column
-            updateTimelineColumns { it.copy(selected = remaining.getOrNull(removedIndex.coerceAtMost(remaining.lastIndex))) }
+        if (state.selectedColumn()?.id == column.id) {
+            val removedIndex = settings.indexOfFirst { it.id == column.id }
+            val remaining = settings.filterNot { it.id == column.id }
+            updateTimelineColumns { it.copy(selectedId = remaining.getOrNull(removedIndex.coerceAtMost(remaining.lastIndex))?.id) }
         }
-        saveTimelineColumns(settings - column)
+        saveTimelineColumns(settings.filterNot { it.id == column.id })
     }
 
-    /**
-     * 名前を読めていないグループのカラムは出していないので、出しているカラムでの位置を保存する並びでの位置に直して動かす
-     */
     private fun moveTimelineColumn(fromIndex: Int, toIndex: Int) {
         val state = viewModelStateFlow.value.timelineColumns
         val settings = state.settings ?: return
-        val visibleColumns = state.visibleColumns()
-        val movedColumn = visibleColumns.getOrNull(fromIndex) ?: return
-        val targetColumn = visibleColumns.getOrNull(toIndex) ?: return
-        if (movedColumn == targetColumn) return
-        val withoutMoved = settings - movedColumn
-        val targetIndex = withoutMoved.indexOf(targetColumn)
-        val insertIndex = if (fromIndex < toIndex) targetIndex + 1 else targetIndex
+        val movedColumn = settings.getOrNull(fromIndex) ?: return
+        if (settings.getOrNull(toIndex) == null || fromIndex == toIndex) return
         // 選んでいないときは先頭を選んでいる扱いなので、並びが変わっても見ているタブが変わらないよう選んだことにする
-        updateTimelineColumns { it.copy(selected = state.selectedColumn()) }
-        saveTimelineColumns(withoutMoved.take(insertIndex) + movedColumn + withoutMoved.drop(insertIndex))
+        updateTimelineColumns { it.copy(selectedId = state.selectedColumn()?.id) }
+        val withoutMoved = settings.filterIndexed { index, _ -> index != fromIndex }
+        saveTimelineColumns(withoutMoved.take(toIndex) + movedColumn + withoutMoved.drop(toIndex))
     }
 
     /**
@@ -846,8 +885,8 @@ internal class HomeScreenViewModel(
             selectedTab = viewModelState.selectedTab,
             timelineColumns = createTimelineColumns(viewModelState),
             timelineColumnsEmptyMessage = if (viewModelState.timelineColumns.settings?.isEmpty() == true) TIMELINE_COLUMNS_EMPTY_MESSAGE else null,
-            addTimelineColumnButtonEnabled = viewModelState.timelineColumns.addableColumns().isNotEmpty(),
-            addTimelineColumnDialog = createAddTimelineColumnDialog(viewModelState.timelineColumns),
+            addTimelineColumnButtonEnabled = viewModelState.timelineColumns.settings != null,
+            timelineColumnEditDialog = createTimelineColumnEditDialog(viewModelState.timelineColumns),
             timelineRefreshing = viewModelState.timeline.loading == TimelineLoading.PullToRefresh,
             timelineFooter = createTimelineFooter(viewModelState.timeline.loading),
             timelineStreamStatus = viewModelState.timelineStream.status(),
@@ -967,26 +1006,30 @@ internal class HomeScreenViewModel(
     private fun createTimelineColumns(viewModelState: ViewModelState): List<HomeScreenUiState.TimelineColumn> {
         val columnsState = viewModelState.timelineColumns
         val selectedColumn = columnsState.selectedColumn()
-        return columnsState.visibleColumns().map { column ->
+        return columnsState.settings.orEmpty().map { column ->
             HomeScreenUiState.TimelineColumn(
-                title = columnsState.titleOf(column),
-                listStateKey = column.listStateKey,
+                title = column.name,
+                listStateKey = column.id,
                 items = createTimelineItems(viewModelState, column),
-                selected = column == selectedColumn,
+                selected = column.id == selectedColumn?.id,
                 listener = object : HomeScreenUiState.TimelineColumnListener {
                     override fun onClickTab() {
-                        if (viewModelStateFlow.value.timelineColumns.selectedColumn() == column) {
-                            viewModelScope.launch { events.send { it.scrollTimelineColumnToTop(column.listStateKey) } }
+                        if (viewModelStateFlow.value.timelineColumns.selectedColumn()?.id == column.id) {
+                            viewModelScope.launch { events.send { it.scrollTimelineColumnToTop(column.id) } }
                         } else {
-                            updateTimelineColumns { it.copy(selected = column) }
+                            updateTimelineColumns { it.copy(selectedId = column.id) }
                         }
                     }
 
                     override fun onClickHeader() {
-                        viewModelScope.launch { events.send { it.scrollTimelineColumnToTop(column.listStateKey) } }
+                        viewModelScope.launch { events.send { it.scrollTimelineColumnToTop(column.id) } }
                     }
 
-                    override fun onClickRemove() {
+                    override fun onClickEdit() {
+                        editTimelineColumn(column)
+                    }
+
+                    override fun onClickDelete() {
                         removeTimelineColumn(column)
                     }
                 },
@@ -994,21 +1037,31 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun createAddTimelineColumnDialog(columnsState: TimelineColumnsState): HomeScreenUiState.AddTimelineColumnDialog? {
-        if (!columnsState.addDialogVisible) return null
-        return HomeScreenUiState.AddTimelineColumnDialog(
-            items = columnsState.addableColumns().map { column ->
-                HomeScreenUiState.AddTimelineColumnDialog.Item(
-                    name = columnsState.titleOf(column),
-                    listener = object : HomeScreenUiState.AddTimelineColumnDialog.ItemListener {
+    private fun createTimelineColumnEditDialog(columnsState: TimelineColumnsState): HomeScreenUiState.TimelineColumnEditDialog? {
+        val editor = columnsState.editor ?: return null
+        val selectableSources = columnsState.selectableSources()
+        val checkedCount = selectableSources.count { it in editor.sources }
+        return HomeScreenUiState.TimelineColumnEditDialog(
+            title = if (editor.editingId == null) ADD_TIMELINE_COLUMN_DIALOG_TITLE else EDIT_TIMELINE_COLUMN_DIALOG_TITLE,
+            name = editor.name,
+            allSourcesCheckState = when (checkedCount) {
+                0 -> ToggleableState.Off
+                selectableSources.size -> ToggleableState.On
+                else -> ToggleableState.Indeterminate
+            },
+            sources = selectableSources.map { source ->
+                HomeScreenUiState.TimelineColumnEditDialog.Source(
+                    name = columnsState.nameOf(source),
+                    checked = source in editor.sources,
+                    listener = object : HomeScreenUiState.TimelineColumnEditDialog.SourceListener {
                         override fun onClick() {
-                            addTimelineColumn(column)
+                            updateTimelineColumnEditor { it.copy(sources = if (source in it.sources) it.sources - source else it.sources + source) }
                         }
                     },
                 )
             },
-            emptyMessage = if (columnsState.addableColumns().isEmpty()) ADDABLE_TIMELINE_COLUMNS_EMPTY_MESSAGE else null,
-            listener = addTimelineColumnDialogListener,
+            saveButtonEnabled = columnsState.editorSaveEnabled(),
+            listener = timelineColumnEditDialogListener,
         )
     }
 
@@ -1154,10 +1207,10 @@ internal class HomeScreenViewModel(
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
         const val MY_POSTS_NOT_FOUND_MESSAGE = "投稿を読み込めませんでした"
         const val TIMELINE_STREAM_DISCONNECTED_MESSAGE = "新着投稿の受信が切れました"
-        const val TIMELINE_COLUMNS_EMPTY_MESSAGE = "表示する購読先がありません"
-        const val ADDABLE_TIMELINE_COLUMNS_EMPTY_MESSAGE = "追加できる購読先がありません"
-        const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "表示する購読先を端末に保存できませんでした"
-        const val ALL_COLUMN_TITLE = "全て"
+        const val TIMELINE_COLUMNS_EMPTY_MESSAGE = "表示するカラムがありません"
+        const val ADD_TIMELINE_COLUMN_DIALOG_TITLE = "カラムを追加"
+        const val EDIT_TIMELINE_COLUMN_DIALOG_TITLE = "カラムを編集"
+        const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "カラムの設定を端末に保存できませんでした"
     }
 
     private enum class TimelineLoadTrigger {
@@ -1188,48 +1241,49 @@ internal class HomeScreenViewModel(
 
     /**
      * @param settings 端末から読み終えるまでは null
-     * @param followingGroups 読めていないグループのカラムは名前を出せないので、読めるまで並べない
-     * @param selected 小さい画面で選んでいるタブ。消えていれば先頭を選んでいるものとして扱う
+     * @param followingGroups 読めていないグループは名前を出せないので、編集のダイアログに並べない
+     * @param selectedId 小さい画面で選んでいるタブ。消えていれば先頭を選んでいるものとして扱う
+     * @param editor 編集のダイアログを出していなければ null
      */
     private data class TimelineColumnsState(
         val settings: List<TimelineColumnSetting>?,
         val homeName: String,
         val followingGroups: List<UserFollowingGroup>,
-        val selected: TimelineColumnSetting?,
-        val addDialogVisible: Boolean,
+        val selectedId: String?,
+        val editor: TimelineColumnEditorState?,
     ) {
-        fun visibleColumns(): List<TimelineColumnSetting> =
-            settings.orEmpty().filter { column ->
-                when (column) {
-                    TimelineColumnSetting.All,
-                    TimelineColumnSetting.Home,
-                    -> true
-
-                    is TimelineColumnSetting.FollowingGroup -> followingGroups.any { it.id == column.groupId }
-                }
-            }
-
         fun selectedColumn(): TimelineColumnSetting? {
-            val visibleColumns = visibleColumns()
-            return selected?.takeIf { it in visibleColumns } ?: visibleColumns.firstOrNull()
+            val columns = settings.orEmpty()
+            return columns.firstOrNull { it.id == selectedId } ?: columns.firstOrNull()
         }
+
+        fun selectableSources(): List<TimelineSource> =
+            listOf(TimelineSource.Home) + followingGroups.map { TimelineSource.FollowingGroup(it.id) }
+
+        fun nameOf(source: TimelineSource): String =
+            when (source) {
+                TimelineSource.Home -> homeName
+                is TimelineSource.FollowingGroup -> followingGroups.firstOrNull { it.id == source.groupId }?.name.orEmpty()
+            }
 
         /**
-         * 端末から読み終えるまでは、足した結果で読み終えた内容を上書きしないよう何も足せない
+         * 端末から読み終えるまでは、保存した結果で読み終えた内容を上書きしないよう保存できない
          */
-        fun addableColumns(): List<TimelineColumnSetting> {
-            val currentSettings = settings ?: return listOf()
-            val candidates = listOf(TimelineColumnSetting.All, TimelineColumnSetting.Home) + followingGroups.map { TimelineColumnSetting.FollowingGroup(it.id) }
-            return candidates - currentSettings.toSet()
+        fun editorSaveEnabled(): Boolean {
+            val currentEditor = editor ?: return false
+            return settings != null && currentEditor.name.isNotBlank() && currentEditor.sources.isNotEmpty()
         }
-
-        fun titleOf(column: TimelineColumnSetting): String =
-            when (column) {
-                TimelineColumnSetting.All -> ALL_COLUMN_TITLE
-                TimelineColumnSetting.Home -> homeName
-                is TimelineColumnSetting.FollowingGroup -> followingGroups.firstOrNull { it.id == column.groupId }?.name.orEmpty()
-            }
     }
+
+    /**
+     * @param editingId 新しく足すときは null
+     * @param sources 名前を読めていないグループはチェックを出さないが、外したことにはせずここに残す
+     */
+    private data class TimelineColumnEditorState(
+        val editingId: String?,
+        val name: String,
+        val sources: Set<TimelineSource>,
+    )
 
     /**
      * @param postsArrivedSinceRefresh 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
@@ -1328,16 +1382,7 @@ internal class HomeScreenViewModel(
     }
 }
 
-private fun TimelineColumnSetting.contains(post: UserHomeTimelineResult.Post): Boolean =
-    when (this) {
-        TimelineColumnSetting.All -> true
-        TimelineColumnSetting.Home -> post.followingGroupId == null
-        is TimelineColumnSetting.FollowingGroup -> post.followingGroupId == groupId
-    }
-
-private val TimelineColumnSetting.listStateKey: String
-    get() = when (this) {
-        TimelineColumnSetting.All -> "all"
-        TimelineColumnSetting.Home -> "home"
-        is TimelineColumnSetting.FollowingGroup -> "group:$groupId"
-    }
+private fun TimelineColumnSetting.contains(post: UserHomeTimelineResult.Post): Boolean {
+    val groupId = post.followingGroupId
+    return if (groupId == null) TimelineSource.Home in sources else TimelineSource.FollowingGroup(groupId) in sources
+}
