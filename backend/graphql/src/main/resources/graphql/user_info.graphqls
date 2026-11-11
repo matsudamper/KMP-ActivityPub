@@ -14,6 +14,22 @@ type UserInfo {
     isAdmin: Boolean!
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
+    "他のサーバーのユーザーのプロフィールを取り直す処理の進み具合。管理者でないか、一度も始めていなければ null"
+    remoteProfileRefresh: RemoteProfileRefreshProgress @lazy
+}
+
+type RemoteProfileRefreshProgress {
+    running: Boolean!
+    "始めたときに保存していた他のサーバーのユーザーの数"
+    total: Int!
+    refreshed: Int!
+    "取りに行ったが取れなかった数"
+    failed: Int!
+    "相手のサーバーが続けて失敗したので取りに行かなかった数"
+    skipped: Int!
+    startedAt: String!
+    "終わっていなければ null"
+    finishedAt: String
 }
 
 "フォローを仕分けるグループの識別子"

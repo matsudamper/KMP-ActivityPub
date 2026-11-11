@@ -13,6 +13,7 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
@@ -67,4 +68,8 @@ class DiContainer(
      * DOMAIN が無いと OGP 画像の中継 URL を作れないので null
      */
     val linkPreviewService: LinkPreviewService?,
+    /**
+     * DOMAIN が無いと相手のサーバーに取りに行けないので null
+     */
+    val remoteProfileRefreshService: RemoteProfileRefreshService?,
 )

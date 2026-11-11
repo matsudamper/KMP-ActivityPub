@@ -129,4 +129,17 @@ internal class SqliteRemoteActorRepository(
             )
         }
     }
+
+    override fun listActorUris(after: String?, limit: Int): List<String> = jooq.withConnection { dsl ->
+        dsl.select(REMOTE_ACTORS.ACTOR_URI)
+            .from(REMOTE_ACTORS)
+            .where(if (after == null) DSL.noCondition() else REMOTE_ACTORS.ACTOR_URI.gt(after))
+            .orderBy(REMOTE_ACTORS.ACTOR_URI)
+            .limit(limit)
+            .fetch { checkNotNull(it.value1()) }
+    }
+
+    override fun count(): Long = jooq.withConnection { dsl ->
+        dsl.fetchCount(REMOTE_ACTORS).toLong()
+    }
 }

@@ -45,6 +45,24 @@ type UserMutation {
     postId は HomeTimelinePost.id か ProfilePostLike.postId。既に望んだ状態なら何も積まずに成功する
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
+    """
+    保存している他のサーバーのユーザー全員のプロフィールを、相手のサーバーから取り直し始める。管理者だけ。
+    終わるのを待たずに返す。進み具合は UserInfo.remoteProfileRefresh で見る
+    """
+    startRemoteProfileRefresh: StartRemoteProfileRefreshResult! @lazy
+}
+
+type StartRemoteProfileRefreshResult {
+    "始められたら null"
+    failure: StartRemoteProfileRefreshFailure
+}
+
+enum StartRemoteProfileRefreshFailure {
+    NOT_LOGGED_IN
+    NOT_ADMIN
+    "DOMAIN が無いので他のサーバーに取りに行けない"
+    FEDERATION_DISABLED
+    ALREADY_RUNNING
 }
 
 type CreateFollowingGroupResult {

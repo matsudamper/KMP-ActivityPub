@@ -21,6 +21,13 @@ interface RemoteActorRepository {
         after: RemoteActorSearchCursor?,
         limit: Int,
     ): List<RemoteActorSearchRecord>
+
+    /**
+     * 保存しているアクターの URL を URL 順に、[after] より後ろから [limit] 件まで返す
+     */
+    fun listActorUris(after: String?, limit: Int): List<String>
+
+    fun count(): Long
 }
 
 /**

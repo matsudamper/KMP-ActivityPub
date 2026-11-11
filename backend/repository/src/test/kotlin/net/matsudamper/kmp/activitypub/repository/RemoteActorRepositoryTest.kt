@@ -17,6 +17,27 @@ class RemoteActorRepositoryTest {
     private val dbPath: Path = tempDir.resolve("test.db")
 
     @Test
+    fun listActorUrisPagesInUriOrder() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val existingCount = repositories.remoteActorRepository.count()
+            val actorUris = listOf("https://c.example/users/c", "https://a.example/users/a", "https://b.example/users/b")
+            actorUris.forEach { actorUri ->
+                repositories.remoteActorRepository.save(
+                    RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+                    NOW,
+                )
+            }
+
+            val firstPage = repositories.remoteActorRepository.listActorUris(after = null, limit = 2)
+            val secondPage = repositories.remoteActorRepository.listActorUris(after = firstPage.last(), limit = 2)
+
+            assertEquals(listOf("https://a.example/users/a", "https://b.example/users/b"), firstPage)
+            assertEquals(listOf("https://c.example/users/c"), secondPage)
+            assertEquals(existingCount + 3, repositories.remoteActorRepository.count())
+        }
+    }
+
+    @Test
     fun savingActorStoresAndUpdatesHeaderUrl() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val actorUri = "https://remote.example/users/alice"
