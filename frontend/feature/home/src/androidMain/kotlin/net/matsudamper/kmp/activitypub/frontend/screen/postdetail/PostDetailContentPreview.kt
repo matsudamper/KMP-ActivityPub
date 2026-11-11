@@ -1,9 +1,22 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.ColorImage
+import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImagePreviewHandler
+import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.screen.PostDetailDialogFrame
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
@@ -23,58 +36,82 @@ private fun PostDetailContentDeleteNoteDialogPreview() = PostDetailLoadedPreview
 private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) {
     MaterialTheme {
         PostDetailContent(
-            uiState = PostDetailScreenUiState(
-                content = PostDetailScreenUiState.Content.Loaded(
-                    post = PostItemUiState(
-                        boostedBy = null,
-                        iconUrl = null,
-                        displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
-                        acct = "@alice@example.social",
-                        body = createPostBodyText(content = "個別の投稿の画面です。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
-                        postedAt = "2026-11-01T12:00:00Z",
-                        linkPreviews = listOf(
-                            PostItemUiState.LinkPreview(
-                                title = "Kotlin Programming Language",
-                                siteName = "Kotlin",
-                                imageUrl = null,
-                                faviconUrl = null,
-                                listener = AndroidPreviewLinkPreviewListener,
-                            ),
-                        ),
-                        images = listOf(
-                            PostItemUiState.Image(
-                                url = "https://example.social/image1.png",
-                                description = null,
-                                blurToggleButtonVisible = false,
-                                blurred = false,
-                                listener = AndroidPreviewImageListener,
-                            ),
-                            PostItemUiState.Image(
-                                url = "https://example.social/image2.png",
-                                description = null,
-                                blurToggleButtonVisible = false,
-                                blurred = false,
-                                listener = AndroidPreviewImageListener,
-                            ),
-                        ),
-                        favouriteCountText = "12",
-                        boostCountText = "4",
-                        favouriteButton = null,
-                        stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
-                        authorListener = null,
-                        postListener = null,
-                        shareListener = null,
-                        menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
-                        listener = AndroidPreviewPostItemListener,
-                    ),
-                ),
-                deleteNoteDialog = deleteNoteDialog,
-                listener = AndroidPreviewPostDetailListener,
-            ),
+            uiState = createLoadedUiState(images = listOf(previewImage(index = 1), previewImage(index = 2)), deleteNoteDialog = deleteNoteDialog),
             snackbarHostState = SnackbarHostState(),
         )
     }
 }
+
+private fun createLoadedUiState(
+    images: List<PostItemUiState.Image>,
+    deleteNoteDialog: DeleteNoteDialogUiState?,
+): PostDetailScreenUiState {
+    return PostDetailScreenUiState(
+        content = PostDetailScreenUiState.Content.Loaded(
+            post = PostItemUiState(
+                boostedBy = null,
+                iconUrl = null,
+                displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
+                acct = "@alice@example.social",
+                body = createPostBodyText(content = "個別の投稿の画面です。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
+                postedAt = "2026-11-01T12:00:00Z",
+                linkPreviews = listOf(
+                    PostItemUiState.LinkPreview(
+                        title = "Kotlin Programming Language",
+                        siteName = "Kotlin",
+                        imageUrl = null,
+                        faviconUrl = null,
+                        listener = AndroidPreviewLinkPreviewListener,
+                    ),
+                ),
+                images = images,
+                favouriteCountText = "12",
+                boostCountText = "4",
+                favouriteButton = null,
+                stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
+                authorListener = null,
+                postListener = null,
+                shareListener = null,
+                menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
+                listener = AndroidPreviewPostItemListener,
+            ),
+        ),
+        deleteNoteDialog = deleteNoteDialog,
+        listener = AndroidPreviewPostDetailListener,
+    )
+}
+
+@OptIn(ExperimentalCoilApi::class)
+@Preview(widthDp = 1200, heightDp = 900)
+@Composable
+private fun PostDetailDialogPreview() {
+    MaterialTheme {
+        CompositionLocalProvider(
+            LocalInspectionMode provides true,
+            LocalAsyncImagePreviewHandler provides AsyncImagePreviewHandler { ColorImage(0xFF5C6BC0.toInt()) },
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                PostDetailDialogFrame {
+                    PostDetailContent(
+                        uiState = createLoadedUiState(images = (1..6).map { previewImage(index = it) }, deleteNoteDialog = null),
+                        snackbarHostState = SnackbarHostState(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun previewImage(index: Int) = PostItemUiState.Image(
+    url = "https://example.social/image$index.png",
+    description = null,
+    blurToggleButtonVisible = false,
+    blurred = false,
+    listener = AndroidPreviewImageListener,
+)
 
 @Preview
 @Composable

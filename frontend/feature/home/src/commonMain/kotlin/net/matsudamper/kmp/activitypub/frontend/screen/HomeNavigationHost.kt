@@ -58,7 +58,7 @@ fun HomeNavigationHost(
 ) {
     val navigator = remember(backStack) { Navigator(backStack) }
     BoxWithConstraints(modifier = modifier) {
-        val userProfileAsDialog = maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH
+        val openAsDialog = maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH
         NavDisplay(
             backStack = backStack,
             modifier = Modifier.fillMaxSize().clearPostBodySelectionOnPress(),
@@ -76,13 +76,22 @@ fun HomeNavigationHost(
                     contentKey = if (key is Screen.Home) Screen.Home.Timeline.path else (key as Screen).path,
                     metadata = when {
                         key is Screen.Image -> ImageViewerDialogMetadata
-                        key is Screen.UserProfile && userProfileAsDialog -> UserProfileDialogMetadata
+                        key is Screen.UserProfile && openAsDialog -> UserProfileDialogMetadata
+                        key is Screen.PostDetail && openAsDialog -> PostDetailDialogMetadata
                         else -> mapOf()
                     },
                 ) { screenKey ->
                     val screen = screenKey as Screen
-                    if (screen is Screen.UserProfile && userProfileAsDialog) {
+                    if (screen is Screen.UserProfile && openAsDialog) {
                         UserProfileDialogFrame {
+                            ScreenEntryContent(
+                                screen = screen,
+                                navigator = navigator,
+                                serverSettingUiState = serverSettingUiState,
+                            )
+                        }
+                    } else if (screen is Screen.PostDetail && openAsDialog) {
+                        PostDetailDialogFrame {
                             ScreenEntryContent(
                                 screen = screen,
                                 navigator = navigator,
@@ -108,6 +117,22 @@ internal fun UserProfileDialogFrame(content: @Composable () -> Unit) {
         modifier = Modifier
             .widthIn(max = USER_PROFILE_DIALOG_MAX_WIDTH)
             .fillMaxWidth()
+            .fillMaxHeight(0.9f),
+        shape = MaterialTheme.shapes.large,
+    ) {
+        content()
+    }
+}
+
+/**
+ * 画像を大きく並べられるよう、プロフィールより広くする
+ */
+@Composable
+internal fun PostDetailDialogFrame(content: @Composable () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .widthIn(max = POST_DETAIL_DIALOG_MAX_WIDTH)
+            .fillMaxWidth(0.9f)
             .fillMaxHeight(0.9f),
         shape = MaterialTheme.shapes.large,
     ) {
@@ -219,6 +244,11 @@ private fun ScreenContent(
 }
 
 private val USER_PROFILE_DIALOG_MAX_WIDTH = 600.dp
+
+private val POST_DETAIL_DIALOG_MAX_WIDTH = 1000.dp
+
+private val PostDetailDialogMetadata: Map<String, Any> =
+    DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false))
 
 private val UserProfileDialogMetadata: Map<String, Any> =
     DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false))
