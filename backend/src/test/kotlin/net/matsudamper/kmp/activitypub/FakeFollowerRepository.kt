@@ -34,7 +34,7 @@ internal class FakeFollowerRepository : FollowerRepository {
 
     override fun removeAccount(username: String): Int = 0
 
-    override fun removeRemoteActor(actorUri: String): Int = 0
+    override fun removeRemoteActor(actorUri: String, now: Instant): Int = 0
 
     override fun findPublicKeyPem(actorUri: String): String? = null
 

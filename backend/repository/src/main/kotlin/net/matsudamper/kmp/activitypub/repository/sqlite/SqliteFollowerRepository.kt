@@ -7,9 +7,11 @@ import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWERS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
@@ -126,8 +128,13 @@ internal class SqliteFollowerRepository(
             .execute()
     }
 
-    override fun removeRemoteActor(actorUri: String): Int = jooq.transaction { dsl ->
+    override fun removeRemoteActor(actorUri: String, now: Instant): Int = jooq.transaction { dsl ->
         val remoteActorId = dsl.findRemoteActorId(actorUri) ?: return@transaction 0
+        // アクターを消すと投稿もブーストの記録も連鎖して消え、Undo を積めなくなるので、先に外す
+        dsl.undoAccountBoosts(
+            ACCOUNT_BOOSTS.REMOTE_NOTE_ID.`in`(dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(remoteActorId))),
+            now,
+        )
         val removedFollows = dsl.deleteFrom(ACCOUNT_FOLLOWERS)
             .where(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(remoteActorId))
             .execute()

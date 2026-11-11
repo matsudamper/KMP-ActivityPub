@@ -236,6 +236,19 @@ class AccountBoostRepositoryTest {
     }
 
     @Test
+    fun removingTheAuthorUndoesBoostsOfTheirNotes() = withRepository { repositories, alice, _ ->
+        val member = receiveNote(repositories, "public", alice)
+        val queue = repositories.deliveryQueueRepository
+        repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1"))
+        queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
+
+        repositories.followerRepository.removeRemoteActor(ACTOR, NOW)
+
+        assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
+        assertFalse(repositories.timelineRepository.hasRemoteNote("$ACTOR/notes/public"))
+    }
+
+    @Test
     fun outboxListsBoostsNewestFirstAndContinuesAfterThePosition() = withRepository { repositories, alice, _ ->
         val public = receiveNote(repositories, "public", alice)
         val unlisted = assertNotNull(repositories.timelineRepository.receive(note("unlisted"))).member
