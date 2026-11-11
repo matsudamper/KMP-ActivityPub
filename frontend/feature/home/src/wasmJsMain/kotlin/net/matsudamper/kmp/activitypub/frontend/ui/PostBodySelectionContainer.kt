@@ -37,8 +37,8 @@ private object LastPressedPostBody {
 
 @Composable
 internal actual fun PostBodySelectionContainer(
-    modifier: Modifier,
     contentPadding: PaddingValues,
+    modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
     val owner = remember { Any() }

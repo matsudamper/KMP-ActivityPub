@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
  */
 @Composable
 internal actual fun PostBodySelectionContainer(
-    modifier: Modifier,
     contentPadding: PaddingValues,
+    modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
     Box(modifier = modifier.padding(contentPadding)) {

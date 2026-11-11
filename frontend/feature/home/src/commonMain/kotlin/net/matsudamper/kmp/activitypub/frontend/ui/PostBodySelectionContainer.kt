@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
  */
 @Composable
 internal expect fun PostBodySelectionContainer(
-    modifier: Modifier,
     contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 )
