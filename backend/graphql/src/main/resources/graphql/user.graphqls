@@ -7,6 +7,8 @@ type User {
 
 type UserProfile {
     user: SearchedUser!
+    "ヘッダー画像の URL。未設定か、このサーバーのユーザーなら null"
+    headerUrl: String
     "プロフィールの説明文。プレーンテキスト"
     biography: String
     "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"

@@ -56,6 +56,7 @@ class UserProfileService(
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, listOf(), null),
                 following = false,
+                headerUrl = null,
                 biography = detail?.summary,
                 links = detail?.links.orEmpty(),
                 posts = localNotes.map {
@@ -89,6 +90,7 @@ class UserProfileService(
             return UserProfile(
                 user = SearchedUser(actor.actorUri, actor.preferredUsername, host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.emojis, actor.updatedAt),
                 following = true,
+                headerUrl = remoteActors.findByUri(actor.actorUri)?.profile?.headerUrl,
                 biography = null,
                 links = listOf(),
                 posts = storedPosts(checkNotNull(viewer), actor.actorUri),
@@ -112,6 +114,7 @@ class UserProfileService(
                 null,
             ),
             following = remoteFollowed,
+            headerUrl = remote.headerUrl,
             biography = remote.biography?.let { htmlToPlainText(it) },
             links = listOf(),
             posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else profiles.recentPosts(remote.user.actorUri),
@@ -183,18 +186,24 @@ interface RemoteUserProfiles {
     suspend fun recentPosts(actorUri: String): List<ProfilePost>
 }
 
+/**
+ * @param headerUrl ヘッダー画像の取得元。中継する前の相手の URL
+ */
 data class RemoteUserProfile(
     val user: RemoteUser,
+    val headerUrl: String?,
     val biography: String?,
 )
 
 /**
+ * @param headerUrl ヘッダー画像の取得元。中継する前の相手の URL。このサーバーのユーザーは設定できないので null
  * @param biography プレーンテキスト
  * @param links 他のサーバーのユーザーのものは受け取っていないので空
  */
 data class UserProfile(
     val user: SearchedUser,
     val following: Boolean,
+    val headerUrl: String?,
     val biography: String?,
     val links: List<ProfileLink>,
     val posts: List<ProfilePost>,

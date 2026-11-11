@@ -5,6 +5,7 @@ import kotlin.time.Instant
 sealed interface UserProfileResult {
     /**
      * @param iconUrl プロフィール画像が無ければ null
+     * @param headerUrl ヘッダー画像が無ければ null
      * @param actorUri フォローできない相手（このサーバーのユーザー）は null
      */
     data class Found(
@@ -16,6 +17,7 @@ sealed interface UserProfileResult {
         val iconUrl: String?,
         val following: Boolean,
         val followingGroupId: String?,
+        val headerUrl: String?,
         val biography: String?,
         val links: List<UserProfileLink>,
         val posts: List<Post>,

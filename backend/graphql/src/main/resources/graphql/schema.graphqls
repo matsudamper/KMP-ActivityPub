@@ -69,6 +69,13 @@ type Subscription {
     購読より前に載った投稿は流さないので、homeTimeline で読む。ログインしていなければエラー
     """
     homeTimelinePosts: HomeTimelinePost!
+    """
+    他のサーバーのユーザー全員のプロフィールを相手のサーバーから取り直す処理の進み具合。
+    購読した時点の状態を流し、その後は変わるたびに流す。購読を切っても取り直しは止まらない。
+    start が true なら、走っていなければ取り直しを始める。既に走っていれば、それの進み具合を流す。
+    管理者でないか、サーバーに DOMAIN が無ければエラー
+    """
+    remoteProfileRefresh(start: Boolean!): RemoteProfileRefreshState!
 }
 
 type HomeTimeline {

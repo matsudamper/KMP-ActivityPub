@@ -162,6 +162,7 @@ internal fun Application.module(deps: AppDependencies) {
                 noteShareUrls = federation?.noteShareUrls,
                 remoteImageProxy = federation?.remoteImageProxy,
                 linkPreviewService = federation?.linkPreviewService,
+                remoteProfileRefreshService = federation?.remoteProfileRefreshService,
             ),
         )
 

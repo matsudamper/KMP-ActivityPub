@@ -285,6 +285,7 @@ internal class UserProfileScreenViewModel(
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
             iconUrl = profile.iconUrl,
+            headerUrl = profile.headerUrl,
             displayName = createTextWithEmojis(text = profile.displayName, emojis = profile.displayNameEmojis),
             biography = profile.biography,
             links = profile.links.map { link ->

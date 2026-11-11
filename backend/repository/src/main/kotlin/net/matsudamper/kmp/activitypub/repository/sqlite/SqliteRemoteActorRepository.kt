@@ -25,6 +25,7 @@ internal class SqliteRemoteActorRepository(
                     it.displayName,
                     it.profileUrl,
                     it.iconUrl,
+                    it.headerUrl,
                     dsl.remoteActorEmojisByUri(listOf(actorUri))[actorUri].orEmpty(),
                 ),
             )
@@ -42,6 +43,7 @@ internal class SqliteRemoteActorRepository(
                 .set(REMOTE_ACTORS.DISPLAY_NAME, actor.profile.displayName)
                 .set(REMOTE_ACTORS.PROFILE_URL, actor.profile.profileUrl)
                 .set(REMOTE_ACTORS.ICON_URL, actor.profile.iconUrl)
+                .set(REMOTE_ACTORS.HEADER_URL, actor.profile.headerUrl)
                 .set(REMOTE_ACTORS.UPDATED_AT, StoredInstant.format(updatedAt))
                 .onConflict(REMOTE_ACTORS.ACTOR_URI)
                 .doUpdate()
@@ -49,6 +51,7 @@ internal class SqliteRemoteActorRepository(
                 .set(REMOTE_ACTORS.DISPLAY_NAME, actor.profile.displayName)
                 .set(REMOTE_ACTORS.PROFILE_URL, actor.profile.profileUrl)
                 .set(REMOTE_ACTORS.ICON_URL, actor.profile.iconUrl)
+                .set(REMOTE_ACTORS.HEADER_URL, actor.profile.headerUrl)
                 .set(REMOTE_ACTORS.UPDATED_AT, StoredInstant.format(updatedAt))
                 .execute()
             dsl.replaceRemoteActorEmojis(actor.actorUri, actor.profile.emojis)
@@ -125,5 +128,18 @@ internal class SqliteRemoteActorRepository(
                 updatedAt = StoredInstant.parse(checkNotNull(record.get(REMOTE_ACTORS.UPDATED_AT))),
             )
         }
+    }
+
+    override fun listActorUris(after: String?, limit: Int): List<String> = jooq.withConnection { dsl ->
+        dsl.select(REMOTE_ACTORS.ACTOR_URI)
+            .from(REMOTE_ACTORS)
+            .where(if (after == null) DSL.noCondition() else REMOTE_ACTORS.ACTOR_URI.gt(after))
+            .orderBy(REMOTE_ACTORS.ACTOR_URI)
+            .limit(limit)
+            .fetch { checkNotNull(it.value1()) }
+    }
+
+    override fun count(): Long = jooq.withConnection { dsl ->
+        dsl.fetchCount(REMOTE_ACTORS).toLong()
     }
 }
