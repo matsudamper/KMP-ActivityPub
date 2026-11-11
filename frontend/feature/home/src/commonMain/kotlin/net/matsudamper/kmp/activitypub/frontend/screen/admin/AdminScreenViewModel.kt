@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.frontend.screen.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -81,16 +83,29 @@ internal class AdminScreenViewModel(
     }
 
     /**
-     * 画面を開いた時点で走っている取り直しがあれば、その進み具合から受け取る
+     * 画面を開いた時点で走っている取り直しがあれば、その進み具合から受け取る。
+     * 切れても取り直しはサーバーで続いているので、直前の進み具合を出したまま張り直す
      */
     private suspend fun collectRemoteProfileRefresh() {
-        api.remoteProfileRefreshStream().collect { result ->
-            val refresh =
+        var disconnectNotified = false
+        while (true) {
+            api.remoteProfileRefreshStream().collect { result ->
                 when (result) {
-                    is UserRemoteProfileRefreshResult.Success -> RefreshState.Loaded(result.progress)
-                    is UserRemoteProfileRefreshResult.Failure -> RefreshState.Error(result.message)
+                    is UserRemoteProfileRefreshResult.Success -> {
+                        disconnectNotified = false
+                        viewModelStateFlow.update { it.copy(refresh = RefreshState.Loaded(result.progress)) }
+                    }
+
+                    is UserRemoteProfileRefreshResult.Failure -> {
+                        // 張り直しのたびに同じ知らせを重ねない
+                        if (!disconnectNotified) {
+                            disconnectNotified = true
+                            events.send { it.showMessage("進み具合を受け取れませんでした。つなぎ直します: ${result.message}") }
+                        }
+                    }
                 }
-            viewModelStateFlow.update { it.copy(refresh = refresh) }
+            }
+            delay(RECONNECT_INTERVAL)
         }
     }
 
@@ -114,7 +129,6 @@ internal class AdminScreenViewModel(
             statusText =
             when (refresh) {
                 RefreshState.Loading -> "状態を読み込み中"
-                is RefreshState.Error -> refresh.message
                 is RefreshState.Loaded -> refresh.progress.toStatusText()
             },
             startButtonEnabled = refresh is RefreshState.Loaded && !running && !viewModelState.starting,
@@ -166,9 +180,9 @@ internal class AdminScreenViewModel(
         data class Loaded(
             val progress: UserRemoteProfileRefreshResult.Progress?,
         ) : RefreshState
+    }
 
-        data class Error(
-            val message: String,
-        ) : RefreshState
+    private companion object {
+        val RECONNECT_INTERVAL = 5.seconds
     }
 }
