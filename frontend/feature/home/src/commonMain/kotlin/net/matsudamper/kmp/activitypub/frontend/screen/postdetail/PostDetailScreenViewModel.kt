@@ -198,13 +198,24 @@ internal class PostDetailScreenViewModel(
         return PostDetailScreenUiState(
             content = when (val post = viewModelState.post) {
                 PostState.Loading -> PostDetailScreenUiState.Content.Loading
-                is PostState.Loaded -> PostDetailScreenUiState.Content.Loaded(post = createPostItem(post.post, viewModelState))
+
+                is PostState.Loaded -> PostDetailScreenUiState.Content.Loaded(
+                    post = createPostItem(post.post, viewModelState),
+                    mentionBoxPlaceholder = "${createAcct(post.post)} へメンション",
+                )
+
                 PostState.NotFound -> PostDetailScreenUiState.Content.NotFound
+
                 PostState.Failed -> PostDetailScreenUiState.Content.Error
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             listener = listener,
         )
+    }
+
+    private fun createAcct(post: UserHomeTimelineResult.Post): String {
+        val host = post.host
+        return if (host == null) "@${post.username}" else "@${post.username}@$host"
     }
 
     private fun createPostItem(
@@ -221,7 +232,7 @@ internal class PostDetailScreenViewModel(
             iconUrl = post.iconUrl,
             displayName = post.displayName,
             displayNameEmojis = post.displayNameEmojis,
-            acct = if (host == null) "@${post.username}" else "@${post.username}@$host",
+            acct = createAcct(post),
             body = post.body,
             linkPreviews = viewModelState.linkPreviews,
             sensitiveImagesBlurred = true,

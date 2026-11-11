@@ -21,10 +21,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,8 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -52,7 +57,7 @@ import org.koin.core.parameter.parametersOf
 internal fun PostDetailScreen(
     postId: String,
     navigator: Navigator,
-    heightFitsContent: Boolean,
+    layout: PostDetailLayout,
 ) {
     val viewModel = koinViewModel<PostDetailScreenViewModel>(key = postId) { parametersOf(postId) }
     val uiState by viewModel.uiStateFlow.collectAsState()
@@ -89,21 +94,29 @@ internal fun PostDetailScreen(
             }
         })
     }
-    PostDetailContent(uiState = uiState, snackbarHostState = snackbarHostState, heightFitsContent = heightFitsContent)
+    PostDetailContent(uiState = uiState, snackbarHostState = snackbarHostState, layout = layout)
 }
 
-/**
- * @param heightFitsContent ダイアログで開いたときに、投稿が短くても下に空きを残さない
- */
+internal enum class PostDetailLayout {
+    FullScreen,
+
+    /** 投稿が短くても下に空きを残さず、投稿を大きく見せる */
+    Dialog,
+}
+
 @Composable
 internal fun PostDetailContent(
     uiState: PostDetailScreenUiState,
     snackbarHostState: SnackbarHostState,
-    heightFitsContent: Boolean,
+    layout: PostDetailLayout,
 ) {
+    val fillsScreen = when (layout) {
+        PostDetailLayout.FullScreen -> true
+        PostDetailLayout.Dialog -> false
+    }
     Box(
         modifier = Modifier
-            .then(if (heightFitsContent) Modifier else Modifier.fillMaxSize())
+            .then(if (fillsScreen) Modifier.fillMaxSize() else Modifier)
             .background(MaterialTheme.colorScheme.background),
     ) {
         Column {
@@ -116,41 +129,53 @@ internal fun PostDetailContent(
                 }
                 Text(text = "投稿", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             }
-            Box(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = !heightFitsContent)
-                    .heightIn(min = ContentMinHeight)
+                    .weight(1f, fill = fillsScreen)
                     .windowInsetsPadding(contentWindowInsets),
             ) {
-                when (val content = uiState.content) {
-                    PostDetailScreenUiState.Content.Loading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = fillsScreen)
+                        .heightIn(min = ContentMinHeight),
+                ) {
+                    when (val content = uiState.content) {
+                        PostDetailScreenUiState.Content.Loading -> {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
 
-                    is PostDetailScreenUiState.Content.Loaded -> {
-                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                            item {
-                                PostItem(uiState = content.post, imageLayout = PostImageLayout.Grid)
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        is PostDetailScreenUiState.Content.Loaded -> {
+                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                item {
+                                    PostItemScale(layout = layout) {
+                                        PostItem(uiState = content.post, imageLayout = PostImageLayout.Grid)
+                                    }
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                }
+                            }
+                        }
+
+                        PostDetailScreenUiState.Content.NotFound -> {
+                            Text(text = "投稿が見つかりません", modifier = Modifier.align(Alignment.Center))
+                        }
+
+                        PostDetailScreenUiState.Content.Error -> {
+                            Column(
+                                modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text(text = "投稿を読み込めませんでした")
+                                Button(onClick = uiState.listener::onClickRetry) { Text("再読み込み") }
                             }
                         }
                     }
-
-                    PostDetailScreenUiState.Content.NotFound -> {
-                        Text(text = "投稿が見つかりません", modifier = Modifier.align(Alignment.Center))
-                    }
-
-                    PostDetailScreenUiState.Content.Error -> {
-                        Column(
-                            modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text(text = "投稿を読み込めませんでした")
-                            Button(onClick = uiState.listener::onClickRetry) { Text("再読み込み") }
-                        }
-                    }
+                }
+                val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
+                if (loadedContent != null) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    DummyMentionBox(placeholder = loadedContent.mentionBoxPlaceholder)
                 }
             }
         }
@@ -164,6 +189,53 @@ internal fun PostDetailContent(
         DeleteNoteDialog(uiState = deleteNoteDialog)
     }
 }
+
+/**
+ * 文字もボタンも画像も同じ割合で大きくするため、大きさを個別に持たずに密度ごと上げる
+ */
+@Composable
+private fun PostItemScale(
+    layout: PostDetailLayout,
+    content: @Composable () -> Unit,
+) {
+    when (layout) {
+        PostDetailLayout.FullScreen -> content()
+
+        PostDetailLayout.Dialog -> {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density = density.density * DialogPostScale, fontScale = density.fontScale),
+                content = content,
+            )
+        }
+    }
+}
+
+/**
+ * 送信はまだできないので、入力も送信も押せない見た目だけの欄
+ */
+@Composable
+private fun DummyMentionBox(placeholder: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            modifier = Modifier.weight(1f),
+            enabled = false,
+            singleLine = true,
+            placeholder = { Text(text = placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        )
+        Button(onClick = {}, enabled = false) {
+            Text(text = "送信")
+        }
+    }
+}
+
+private const val DialogPostScale = 1.25f
 
 private val contentWindowInsets: WindowInsets
     @Composable

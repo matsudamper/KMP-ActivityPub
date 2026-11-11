@@ -38,7 +38,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
         PostDetailContent(
             uiState = createLoadedUiState(images = listOf(previewImage(index = 1), previewImage(index = 2)), deleteNoteDialog = deleteNoteDialog),
             snackbarHostState = SnackbarHostState(),
-            heightFitsContent = false,
+            layout = PostDetailLayout.FullScreen,
         )
     }
 }
@@ -76,6 +76,7 @@ private fun createLoadedUiState(
                 menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
                 listener = AndroidPreviewPostItemListener,
             ),
+            mentionBoxPlaceholder = "@alice@example.social へメンション",
         ),
         deleteNoteDialog = deleteNoteDialog,
         listener = AndroidPreviewPostDetailListener,
@@ -106,7 +107,7 @@ private fun PostDetailDialogPreviewContent(imageCount: Int) {
                     PostDetailContent(
                         uiState = createLoadedUiState(images = (1..imageCount).map { previewImage(index = it) }, deleteNoteDialog = null),
                         snackbarHostState = SnackbarHostState(),
-                        heightFitsContent = true,
+                        layout = PostDetailLayout.Dialog,
                     )
                 }
             }
@@ -133,7 +134,7 @@ private fun PostDetailContentNotFoundPreview() {
                 listener = AndroidPreviewPostDetailListener,
             ),
             snackbarHostState = SnackbarHostState(),
-            heightFitsContent = false,
+            layout = PostDetailLayout.FullScreen,
         )
     }
 }

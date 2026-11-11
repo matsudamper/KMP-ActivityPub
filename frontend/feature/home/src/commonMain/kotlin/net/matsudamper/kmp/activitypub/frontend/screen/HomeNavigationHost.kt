@@ -49,6 +49,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewMo
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailLayout
 import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.security.SecurityScreen
@@ -279,7 +280,11 @@ private fun ScreenContent(
         }
 
         is Screen.PostDetail -> {
-            PostDetailScreen(postId = screen.postId, navigator = navigator, heightFitsContent = inDialog)
+            PostDetailScreen(
+                postId = screen.postId,
+                navigator = navigator,
+                layout = if (inDialog) PostDetailLayout.Dialog else PostDetailLayout.FullScreen,
+            )
         }
 
         is Screen.Image -> {
