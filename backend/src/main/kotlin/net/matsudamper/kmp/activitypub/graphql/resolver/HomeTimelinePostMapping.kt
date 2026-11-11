@@ -44,9 +44,10 @@ private fun TimelinePost.toQlHomeTimelinePost(accountId: AccountId, pinnedNoteId
         images = body.images,
         emojis = emojis.toQlCustomEmojis(diContainer),
         displayNameEmojis = actorEmojis.toQlCustomEmojis(diContainer),
-        deletableNoteId = localPublicId?.value,
-        pinnableNoteId = localPublicId,
-        pinned = localPublicId in pinnedNoteIds,
+        // ブーストとして載せた投稿は他のアカウントの投稿のこともあり、ブーストされた元の投稿を消したり固定したりする場所ではない
+        deletableNoteId = if (boostedBy == null) localPublicId?.value else null,
+        pinnableNoteId = if (boostedBy == null) localPublicId else null,
+        pinned = boostedBy == null && localPublicId in pinnedNoteIds,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
         url = diContainer.noteShareUrls?.url(noteRef),
