@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +36,11 @@ private object LastPressedPostBody {
 }
 
 @Composable
-internal actual fun PostBodySelectionContainer(content: @Composable () -> Unit) {
+internal actual fun PostBodySelectionContainer(
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+    content: @Composable () -> Unit,
+) {
     val owner = remember { Any() }
     var selectionGeneration by remember { mutableIntStateOf(0) }
     LaunchedEffect(owner) {
@@ -50,7 +56,7 @@ internal actual fun PostBodySelectionContainer(content: @Composable () -> Unit) 
             }
     }
     Box(
-        modifier = Modifier.pointerInput(owner) {
+        modifier = modifier.pointerInput(owner) {
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -62,7 +68,11 @@ internal actual fun PostBodySelectionContainer(content: @Composable () -> Unit) 
         },
     ) {
         key(selectionGeneration) {
-            SelectionContainer(content = content)
+            SelectionContainer {
+                Box(modifier = Modifier.padding(contentPadding)) {
+                    content()
+                }
+            }
         }
     }
 }
