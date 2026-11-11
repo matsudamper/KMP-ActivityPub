@@ -21,6 +21,7 @@ private fun SettingsContentDarkPreview() {
         SettingsContent(
             uiState = previewSettingsUiState.copy(
                 themeOptions = previewThemeOptions(selected = 2),
+                adminItemVisible = true,
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -39,6 +40,7 @@ private fun previewThemeOptions(selected: Int): List<SettingsScreenUiState.Theme
 private val previewSettingsUiState = SettingsScreenUiState(
     themeOptions = previewThemeOptions(selected = 0),
     logoutButtonEnabled = true,
+    adminItemVisible = false,
     listener = AndroidPreviewSettingsListener,
 )
 
@@ -50,6 +52,8 @@ private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
     override fun onClickSecurity() = Unit
 
     override fun onClickFollowingGroups() = Unit
+
+    override fun onClickAdmin() = Unit
 
     override fun onClickGitHubRelease() = Unit
 

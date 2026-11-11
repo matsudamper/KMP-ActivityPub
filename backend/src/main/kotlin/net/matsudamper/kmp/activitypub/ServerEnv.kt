@@ -7,6 +7,7 @@ import kotlin.io.path.Path
 import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorageConfig
 import net.matsudamper.kmp.activitypub.oidc.OidcIssuer
 import net.matsudamper.kmp.activitypub.passkey.PasskeyRelyingParty
+import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
  * 値は書かれたまま使い、前後の空白も削らない。空のときの扱いは変数ごとに決める
@@ -81,6 +82,20 @@ class ServerEnv(
      */
     val passkeyRelyingParty: PasskeyRelyingParty? =
         if (enablePasskey) createPasskeyRelyingParty() else null
+
+    /**
+     * 管理画面に入れるユーザー。UserInfo.id の値をカンマ区切りで書く。未設定なら誰も入れない
+     */
+    val adminAccountIds: Set<AccountId> =
+        env["ADMIN_USER_IDS"]
+            ?.split(',')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.map { raw ->
+                AccountId(requireNotNull(raw.toLongOrNull()) { "ADMIN_USER_IDS は数字をカンマ区切りで書くこと: $raw" })
+            }
+            ?.toSet()
+            .orEmpty()
 
     val enableS3: Boolean = requireNotNull(booleanOf("ENABLE_S3")) { "ENABLE_S3 を true か false で設定すること" }
 

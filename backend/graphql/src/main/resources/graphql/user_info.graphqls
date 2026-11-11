@@ -10,6 +10,8 @@ type UserInfo {
     "ホームタイムラインの投稿を 1 件。id には HomeTimelinePost.id を渡す。読めない投稿なら null"
     post(id: ID!): HomeTimelinePost @lazy
     id: UserId!
+    "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
+    isAdmin: Boolean!
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
     "どのグループにも入れていないフォローを入れるホームの名前"
