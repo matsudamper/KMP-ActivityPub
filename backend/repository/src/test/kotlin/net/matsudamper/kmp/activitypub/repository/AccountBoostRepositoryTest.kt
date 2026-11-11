@@ -250,10 +250,16 @@ class AccountBoostRepositoryTest {
 
     @Test
     fun fetchedNoteWhoseIdIsOnAnotherHostIsNotStored() = withRepository { repositories, alice, _ ->
-        val stored = repositories.timelineRepository.storeFetchedNotes(alice, listOf(note("public").copy(objectUri = "https://other.example/notes/1")))
+        val otherHost = "https://other.example/notes/1"
+        val otherPort = "https://remote.example:8443/notes/1"
+        val stored = repositories.timelineRepository.storeFetchedNotes(
+            alice,
+            listOf(note("public").copy(objectUri = otherHost), note("public").copy(objectUri = otherPort)),
+        )
 
         assertTrue(stored.isEmpty())
-        assertFalse(repositories.timelineRepository.hasRemoteNote("https://other.example/notes/1"))
+        assertFalse(repositories.timelineRepository.hasRemoteNote(otherHost))
+        assertFalse(repositories.timelineRepository.hasRemoteNote(otherPort))
     }
 
     @Test

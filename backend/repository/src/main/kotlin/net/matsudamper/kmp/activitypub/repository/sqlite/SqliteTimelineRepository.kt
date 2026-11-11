@@ -57,7 +57,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val addressed = dsl.select(ACCOUNTS.ID).from(ACCOUNTS).where(ACCOUNTS.USERNAME.`in`(note.localRecipients)).fetch(ACCOUNTS.ID)
         if (followers.isEmpty() && addressed.isEmpty()) return@transaction null
         val id = insertRemoteNote(dsl, note, actorId, minOf(note.publishedAt, note.receivedAt).toEpochMilli(), viaBoost = false)
-            ?: takeOverBoostedNote(dsl, note.objectUri)
+            ?: takeOverBoostedNote(dsl, note.objectUri, actorId)
             ?: return@transaction null
         // ブーストで先に保存していた投稿は、そのときの位置に揃える
         val score = checkNotNull(dsl.select(REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(id)).fetchOne(REMOTE_NOTES.SCORE_MS))
@@ -515,9 +515,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
      *
      * @return ブーストで保存しただけの投稿だったらその id。通常の受信で保存済みなら null
      */
-    private fun takeOverBoostedNote(dsl: DSLContext, objectUri: String): Long? {
+    private fun takeOverBoostedNote(dsl: DSLContext, objectUri: String, authorId: Long): Long? {
+        // 別の投稿者が先に同じ id で保存させた投稿は引き継がない
         val updated = dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.VIA_BOOST, 0L)
             .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).and(REMOTE_NOTES.VIA_BOOST.eq(1L))
+            .and(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(authorId))
             .execute()
         if (updated == 0) return null
         return dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).fetchOne(REMOTE_NOTES.ID)
@@ -625,11 +627,26 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 }
 
 /**
- * 投稿の id が投稿者と同じホストにあるか。outbox の中に埋め込まれた投稿は取りに行かずに読むので、
+ * 投稿の id が投稿者と同じサーバー（スキーム・ホスト・ポート）にあるか。outbox の中に埋め込まれた投稿は取りに行かずに読むので、
  * 他のサーバーの投稿の id を名乗る投稿を保存すると、後で本物の投稿が届いたときに取り違える
  */
 private fun RemoteNoteInput.isOnAuthorsHost(): Boolean {
-    val noteHost = runCatching { URI(objectUri).host }.getOrNull() ?: return false
-    val actorHost = runCatching { URI(actorUri).host }.getOrNull() ?: return false
-    return noteHost.equals(actorHost, ignoreCase = true)
+    val noteOrigin = originOf(objectUri) ?: return false
+    return noteOrigin == originOf(actorUri)
+}
+
+/**
+ * スキーム・ホスト・ポートの組。同じホストでもポートが違えば別のサーバーとして扱う
+ */
+private fun originOf(uri: String): Triple<String, String, Int>? {
+    val parsed = runCatching { URI(uri) }.getOrNull() ?: return null
+    val scheme = parsed.scheme?.lowercase() ?: return null
+    val host = parsed.host?.lowercase() ?: return null
+    val port = when {
+        parsed.port != -1 -> parsed.port
+        scheme == "https" -> 443
+        scheme == "http" -> 80
+        else -> return null
+    }
+    return Triple(scheme, host, port)
 }
