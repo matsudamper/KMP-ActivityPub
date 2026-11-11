@@ -28,12 +28,14 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFirstPage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.Boost
@@ -42,6 +44,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
+import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
@@ -124,6 +127,11 @@ internal class HomeScreenViewModel(
      * 返事を待たずに表示を切り替えるので、押している間かどうかは表示に使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChangingPostIds = setOf<String>()
+
+    /**
+     * 続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var pinChangingNoteIds = setOf<String>()
 
     private val listener = object : HomeScreenUiState.Listener {
         override fun onClickPost() {
@@ -320,6 +328,28 @@ internal class HomeScreenViewModel(
     init {
         viewModelScope.launch {
             userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
+        }
+        viewModelScope.launch {
+            // プロフィール画面や個別投稿画面で変えた固定もここで反映する
+            userApi.pinChanges.collect { change ->
+                timelinePaging.updateCache { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
+                updateTimeline { timeline ->
+                    timeline.copy(
+                        postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.map { post ->
+                            if (post.pinnableNoteId == change.noteId) post.copy(pinned = change.pinned) else post
+                        },
+                    )
+                }
+                val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
+                if (myPosts != null && myPosts.profile.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
+                    loadMyPosts(myPosts.profile.username)
+                } else {
+                    viewModelStateFlow.update {
+                        val loaded = it.myPosts as? MyPostsState.Loaded ?: return@update it
+                        it.copy(myPosts = MyPostsState.Loaded(loaded.profile.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned)))
+                    }
+                }
+            }
         }
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
@@ -748,6 +778,19 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private fun setPinned(pinnableNoteId: String, pinned: Boolean) {
+        if (pinnableNoteId in pinChangingNoteIds) return
+        pinChangingNoteIds = pinChangingNoteIds + pinnableNoteId
+        viewModelScope.launch {
+            try {
+                val error = userApi.setPinned(noteId = pinnableNoteId, pinned = pinned)
+                if (error != null) events.send { it.showMessage(error) }
+            } finally {
+                pinChangingNoteIds = pinChangingNoteIds - pinnableNoteId
+            }
+        }
+    }
+
     private suspend fun applyLiked(postId: String, liked: Boolean) {
         timelinePaging.updateCache { it.withLiked(postId = postId, liked = liked) }
         viewModelStateFlow.update {
@@ -880,6 +923,7 @@ internal class HomeScreenViewModel(
                     items = profile.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
                         createPostItemUiState(
+                            pinned = post.pinned,
                             boostedBy = null,
                             iconUrl = profile.iconUrl,
                             displayName = profile.displayName,
@@ -890,7 +934,7 @@ internal class HomeScreenViewModel(
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
-                            menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                            menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
@@ -971,6 +1015,7 @@ internal class HomeScreenViewModel(
     private fun createTimelineItems(viewModelState: ViewModelState, column: TimelineColumnSetting): List<PostItemUiState> {
         return viewModelState.timeline.posts.filter { column.contains(it) }.map { post ->
             createPostItemUiState(
+                pinned = false,
                 boostedBy = post.boostedBy?.let { booster ->
                     Boost(booster = booster) { username ->
                         viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
@@ -990,7 +1035,7 @@ internal class HomeScreenViewModel(
                         events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
                     }
                 },
-                menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                 postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },

@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
+import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
@@ -61,6 +62,11 @@ internal class PostDetailScreenViewModel(
      */
     private var likeChanging = false
 
+    /**
+     * 続けて押されたときに送り違えないよう、返事までは受け付けない
+     */
+    private var pinChanging = false
+
     private val listener = object : PostDetailScreenUiState.Listener {
         override fun onClickRetry() {
             load()
@@ -96,6 +102,16 @@ internal class PostDetailScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            // ほかの画面で変えた固定もここで反映する
+            api.pinChanges.collect { change ->
+                viewModelStateFlow.update { state ->
+                    val loaded = state.post as? PostState.Loaded ?: return@update state
+                    if (loaded.post.pinnableNoteId != change.noteId) return@update state
+                    state.copy(post = PostState.Loaded(loaded.post.copy(pinned = change.pinned)))
+                }
+            }
+        }
         load()
     }
 
@@ -164,6 +180,19 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private fun setPinned(pinnableNoteId: String, pinned: Boolean) {
+        if (pinChanging) return
+        pinChanging = true
+        viewModelScope.launch {
+            try {
+                val error = api.setPinned(noteId = pinnableNoteId, pinned = pinned)
+                if (error != null) events.send { it.showMessage(error) }
+            } finally {
+                pinChanging = false
+            }
+        }
+    }
+
     private fun updateLiked(liked: Boolean) {
         viewModelStateFlow.update { state ->
             val post = state.post as? PostState.Loaded ?: return@update state
@@ -213,6 +242,7 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
+            pinned = false,
             boostedBy = post.boostedBy?.let { booster ->
                 Boost(booster = booster) { username ->
                     viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
@@ -230,7 +260,7 @@ internal class PostDetailScreenViewModel(
                 val username = if (host == null) post.username else "${post.username}@$host"
                 viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
             },
-            menuItems = createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+            menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },

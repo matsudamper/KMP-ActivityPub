@@ -42,6 +42,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubs
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.SetPinnedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -55,6 +56,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetPinnedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -89,6 +91,12 @@ class UserApi(
      * [deleteNote] で消せた投稿の id。どの画面で消しても、投稿を出している画面がここで外す
      */
     val deletedNoteIds = deletedNoteIdsFlow.asSharedFlow()
+    private val pinChangesFlow = MutableSharedFlow<PinChange>()
+
+    /**
+     * [setPinned] で変えられた固定。どの画面で変えても、プロフィールの投稿を出している画面がここで並べ直す
+     */
+    val pinChanges = pinChangesFlow.asSharedFlow()
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
@@ -175,6 +183,8 @@ class UserApi(
                     )
                 },
                 deletableNoteId = post.deletableNoteId,
+                pinnableNoteId = post.pinnableNoteId,
+                pinned = post.pinned,
                 followingGroupId = post.followingGroupId,
             ),
         )
@@ -329,6 +339,31 @@ class UserApi(
         }
     }
 
+    /**
+     * @param noteId [UserProfileResult.Post.pinnableNoteId]
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun setPinned(noteId: String, pinned: Boolean): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(SetPinnedMutation(noteId = noteId, pinned = pinned)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.setPinned ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> {
+                pinChangesFlow.emit(PinChange(noteId = noteId, pinned = pinned))
+                null
+            }
+
+            SetPinnedFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            SetPinnedFailure.NOT_FOUND -> "投稿が見つかりません"
+
+            SetPinnedFailure.TOO_MANY_PINS -> "ピン留めできる投稿は 5 件までです"
+
+            SetPinnedFailure.UNKNOWN__ -> "ピン留めを変更できませんでした"
+        }
+    }
+
     fun followingUsersPaging(): CursorPagingModel<FollowingUsersQuery.Data> {
         return CursorPagingModel(
             clients = clients,
@@ -480,6 +515,8 @@ class UserApi(
                     linkPreviewId = it.linkPreviewId,
                     postId = it.postId,
                     deletableNoteId = it.deletableNoteId,
+                    pinned = it.pinned,
+                    pinnableNoteId = it.pinnableNoteId,
                     likePostId = it.like?.postId,
                     body = UserPostBody(
                         content = it.content,
@@ -726,6 +763,11 @@ class UserApi(
     /**
      * @param groupId 購読を入れたグループ。購読をやめたか、ホームに入れたなら null
      */
+    data class PinChange(
+        val noteId: String,
+        val pinned: Boolean,
+    )
+
     data class FollowingChange(
         val actorUri: String,
         val following: Boolean,
@@ -771,6 +813,8 @@ class UserApi(
                                 )
                             },
                             deletableNoteId = post.deletableNoteId,
+                            pinnableNoteId = post.pinnableNoteId,
+                            pinned = post.pinned,
                             followingGroupId = post.followingGroupId,
                         ),
                     ),

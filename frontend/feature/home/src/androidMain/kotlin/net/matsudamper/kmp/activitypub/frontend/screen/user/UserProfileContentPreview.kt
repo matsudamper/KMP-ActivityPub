@@ -47,6 +47,7 @@ private fun UserProfileContentPreview() {
                         selectedTab = ProfileContentTab.Posts,
                         posts = listOf(
                             PostItemUiState(
+                                pinnedLabelVisible = true,
                                 boostedBy = null,
                                 iconUrl = null,
                                 displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
