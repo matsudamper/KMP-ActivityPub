@@ -74,12 +74,15 @@ class BoostService(
     }
 
     /**
-     * 投稿者が消した他のサーバーの投稿を消し、その投稿へのこのサーバーのアカウントのブーストを外して Undo を積む。
+     * 投稿者が消した他のサーバーの投稿に削除済みの印を付け、その投稿へのこのサーバーのアカウントのブーストを外して Undo を積む。
      * 投稿者の Delete はこちらのフォロワーのサーバーに届くとは限らず、届かないと消えた投稿のブーストが残る
+     *
+     * @return 削除済みになったタイムラインの member
      */
-    fun deleteRemoteNote(actorUri: String, objectUri: String) {
-        val removed = boosts.deleteRemoteNoteAndUndoBoosts(actorUri = actorUri, objectUri = objectUri, now = clock.instant())
-        if (removed > 0) onEnqueued()
+    fun deleteRemoteNote(actorUri: String, objectUri: String): List<String> {
+        val deletion = boosts.deleteRemoteNoteAndUndoBoosts(actorUri = actorUri, objectUri = objectUri, now = clock.instant())
+        if (deletion.undoneBoostCount > 0) onEnqueued()
+        return deletion.deletedTimelineMembers
     }
 
     /**

@@ -38,7 +38,7 @@ class AccountBoostRepositoryTest {
         val member = receiveNote(repositories, "public", alice)
         val position = assertNotNull(repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1")))
 
-        assertTrue(repositories.timelineRepository.rebuild(alice, 10).none { it.member == position.member })
+        assertTrue(repositories.timelineRepository.rebuild(alice, null, 10).none { it.member == position.member })
         val post = repositories.timelineRepository.hydrate(alice, listOf(position.member)).single()
         assertEquals("alice", post.boostedBy?.username)
         assertNull(post.boostedBy?.actorUri)
@@ -159,7 +159,7 @@ class AccountBoostRepositoryTest {
         assertNotNull(boosts.target(alice, reactionMember))
         assertNotNull(boosts.boostAndEnqueue(boost(alice, reactionMember, "announce-1")))
         queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
-        assertTrue(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1"))
+        assertNotNull(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW))
 
         assertTrue(boosts.unboostAndEnqueueUndo(alice, reactionMember, NOW))
         assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).map { it.inbox }.toSet())
@@ -173,13 +173,16 @@ class AccountBoostRepositoryTest {
         boosts.boostAndEnqueue(boost(alice, member, "announce-1"))
         queue.claim(NOW, 10).forEach { queue.markDelivered(it.id, NOW) }
 
-        assertEquals(0, boosts.deleteRemoteNoteAndUndoBoosts("https://other.example/actor", "$ACTOR/notes/public", NOW))
+        assertEquals(RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf()), boosts.deleteRemoteNoteAndUndoBoosts("https://other.example/actor", "$ACTOR/notes/public", NOW))
         assertTrue(queue.claim(NOW, 10).isEmpty())
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(member)).single().boostedByMe)
 
-        assertEquals(1, boosts.deleteRemoteNoteAndUndoBoosts(ACTOR, "$ACTOR/notes/public", NOW))
+        assertEquals(RemoteNoteDeletion(undoneBoostCount = 1, deletedTimelineMembers = listOf(member)), boosts.deleteRemoteNoteAndUndoBoosts(ACTOR, "$ACTOR/notes/public", NOW))
         assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
-        assertFalse(repositories.timelineRepository.hasRemoteNote("$ACTOR/notes/public"))
+        assertTrue(repositories.timelineRepository.hydrate(alice, listOf(member)).single().deleted)
+        // 削除済みと出すために残した行には、新しくブーストもいいねも付けられない
+        assertNull(boosts.target(alice, member))
+        assertNull(repositories.likeRepository.target(alice, member))
     }
 
     @Test
@@ -209,7 +212,7 @@ class AccountBoostRepositoryTest {
         assertNotNull(repositories.likeRepository.target(alice, member))
         assertNotNull(repositories.accountBoostRepository.target(bob, member))
         assertNotNull(repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1")))
-        assertTrue(repositories.timelineRepository.rebuild(bob, 10).none { it.member == member })
+        assertTrue(repositories.timelineRepository.rebuild(bob, null, 10).none { it.member == member })
 
         val storedAgain = repositories.timelineRepository.storeFetchedNotes(alice, listOf(note("public")))
         assertEquals(member, storedAgain["$ACTOR/notes/public"]?.reactionMember)

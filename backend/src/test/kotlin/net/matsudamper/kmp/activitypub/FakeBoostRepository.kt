@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.BoostRemoval
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -18,7 +19,9 @@ internal class FakeBoostRepository : BoostRepository {
     override fun remove(
         actorUri: String,
         activityUri: String,
-    ): Boolean = boosts.entries.removeAll { it.key.second == actorUri && it.value.second == activityUri }
+        undoneAt: Instant,
+    ): BoostRemoval? =
+        if (boosts.entries.removeAll { it.key.second == actorUri && it.value.second == activityUri }) BoostRemoval(undoneTimelineMember = null) else null
 
     override fun removeActor(actorUri: String): Int {
         val keys = boosts.keys.filter { it.second == actorUri }

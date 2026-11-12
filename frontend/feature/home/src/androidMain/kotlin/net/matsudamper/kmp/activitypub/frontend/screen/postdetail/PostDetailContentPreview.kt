@@ -54,7 +54,8 @@ private fun createLoadedUiState(
         content = PostDetailScreenUiState.Content.Loaded(
             post = PostItemUiState(
                 pinnedLabelVisible = false,
-                boostedBy = null,
+                deletedLabelVisible = false,
+                actorLabel = null,
                 iconUrl = null,
                 displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                 acct = "@alice@example.social",

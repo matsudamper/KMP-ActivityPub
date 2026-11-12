@@ -12,14 +12,16 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
- * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手
+ * @param actorLabel 投稿の上に出す「〜がブースト」「〜がお気に入り」の行の元。出さなければ null
  * @param pinned プロフィールの先頭に固定されている投稿か
+ * @param deleted 投稿者が投稿を消したか、ブーストした相手がブーストを取り消した後か
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
  */
 internal fun createPostItemUiState(
-    boostedBy: Boost?,
+    actorLabel: PostActorLabel?,
     pinned: Boolean,
+    deleted: Boolean,
     iconUrl: String?,
     displayName: String,
     displayNameEmojis: List<UserCustomEmoji>,
@@ -42,22 +44,33 @@ internal fun createPostItemUiState(
     val shareUrl = body.shareUrl
     val imageUrls = body.images.map { it.url }
     return PostItemUiState(
-        boostedBy = boostedBy?.let { boosted ->
-            val booster = boosted.booster
-            PostItemUiState.BoostedBy(
-                text = createTextWithEmojis(text = "${booster.displayName} がブースト", emojis = booster.displayNameEmojis),
-                iconUrl = booster.iconUrl,
-                cancelledLabelVisible = boosted.byViewer && body.boostedByMe == false,
-                listener = boosted.navigateToProfile?.let { navigateToProfile ->
-                    object : PostItemUiState.BoostedByListener {
+        actorLabel = actorLabel?.let { label ->
+            val actor = label.actor
+            PostItemUiState.ActorLabel(
+                icon = when (label) {
+                    is PostActorLabel.Boost, is PostActorLabel.BoostNotification -> PostItemUiState.ActorLabelIcon.Boost
+                    is PostActorLabel.FavouriteNotification -> PostItemUiState.ActorLabelIcon.Favourite
+                },
+                text = createTextWithEmojis(
+                    text = when (label) {
+                        is PostActorLabel.Boost, is PostActorLabel.BoostNotification -> "${actor.displayName} がブースト"
+                        is PostActorLabel.FavouriteNotification -> "${actor.displayName} がお気に入り"
+                    },
+                    emojis = actor.displayNameEmojis,
+                ),
+                iconUrl = actor.iconUrl,
+                cancelledLabelVisible = label is PostActorLabel.Boost && label.byViewer && body.boostedByMe == false,
+                listener = label.navigateToProfile?.let { navigateToProfile ->
+                    object : PostItemUiState.ActorLabelListener {
                         override fun onClick() {
-                            navigateToProfile(booster.host?.let { host -> "${booster.username}@$host" } ?: booster.username)
+                            navigateToProfile(actor.host?.let { host -> "${actor.username}@$host" } ?: actor.username)
                         }
                     }
                 },
             )
         },
         pinnedLabelVisible = pinned,
+        deletedLabelVisible = deleted,
         iconUrl = iconUrl,
         displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,
@@ -178,11 +191,40 @@ internal sealed interface AuthorTapAction {
 }
 
 /**
- * @param navigateToProfile username はブーストした相手の user@host。このサーバーのアカウントなら user だけ。ブーストした相手のプロフィールを見ているときは null
- * @param byViewer ログイン中のアカウントのブーストか。外した後は取り消しのラベルを出す
+ * 投稿の上に出す「〜がブースト」「〜がお気に入り」の行の元
  */
-internal class Boost(
-    val booster: UserHomeTimelineResult.Booster,
-    val byViewer: Boolean,
-    val navigateToProfile: ((username: String) -> Unit)?,
-)
+internal sealed interface PostActorLabel {
+    val actor: UserHomeTimelineResult.Actor
+
+    /**
+     * username は相手の user@host。このサーバーのアカウントなら user だけ。その相手のプロフィールを見ているときは null
+     */
+    val navigateToProfile: ((username: String) -> Unit)?
+
+    /**
+     * フォローしている相手か自分のブーストとして載った投稿
+     *
+     * @param byViewer ログイン中のアカウントのブーストか。外した後は取り消しのラベルを出す
+     */
+    class Boost(
+        override val actor: UserHomeTimelineResult.Actor,
+        val byViewer: Boolean,
+        override val navigateToProfile: ((username: String) -> Unit)?,
+    ) : PostActorLabel
+
+    /**
+     * 自分の投稿がブーストされた通知
+     */
+    class BoostNotification(
+        override val actor: UserHomeTimelineResult.Actor,
+        override val navigateToProfile: ((username: String) -> Unit)?,
+    ) : PostActorLabel
+
+    /**
+     * 自分の投稿がお気に入りされた通知
+     */
+    class FavouriteNotification(
+        override val actor: UserHomeTimelineResult.Actor,
+        override val navigateToProfile: ((username: String) -> Unit)?,
+    ) : PostActorLabel
+}

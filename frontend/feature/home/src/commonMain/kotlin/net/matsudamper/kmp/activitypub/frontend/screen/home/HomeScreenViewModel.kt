@@ -26,29 +26,26 @@ import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseRes
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
-import net.matsudamper.kmp.activitypub.frontend.logic.user.HomeTimelineStreamEvent
+import net.matsudamper.kmp.activitypub.frontend.logic.user.AccountStreamEvent
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowingGroup
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
-import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
-import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
-import net.matsudamper.kmp.activitypub.frontend.logic.user.withFirstPage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
-import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
-import net.matsudamper.kmp.activitypub.frontend.screen.Boost
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
@@ -83,10 +80,6 @@ internal class HomeScreenViewModel(
                 selectedTab = selectedTab,
                 openedColumn = null,
                 timeline = TimelineState(
-                    posts = listOf(),
-                    nextCursor = null,
-                    postsArrivedSinceRefresh = listOf(),
-                    loading = TimelineLoading.None,
                     pullToRefreshIndicatorShowing = false,
                 ),
                 timelineStream = TimelineStreamState(
@@ -116,13 +109,14 @@ internal class HomeScreenViewModel(
                 ),
             ),
         )
-    private val timelinePaging = userApi.homeTimelinePaging()
+    private val timelineFeeds = TimelineFeeds(scope = viewModelScope, userApi = userApi)
     private var searchPaging: CursorPagingModel<HomeScreenSearchUsersQuery.Data>? = null
     private var searchJob: Job? = null
     private var searchWatchJob: Job? = null
     private var profileJob: Job? = null
     private var myPostsRetryJob: Job? = null
     private var timelineJob: Job? = null
+    private var timelineLoadRequested = false
     private var pullToRefreshIndicatorJob: Job? = null
     private var timelineArrivalsJob: Job? = null
     private val followMenuController = FollowMenuController(
@@ -208,15 +202,6 @@ internal class HomeScreenViewModel(
         override fun onRefreshTimeline() {
             loadFollowingGroups()
             loadTimeline(TimelineLoadTrigger.PullToRefresh)
-        }
-
-        override fun onScrolledToTimelineEnd() {
-            if (viewModelStateFlow.value.timeline.loading is TimelineLoading.AppendFailed) return
-            loadTimeline(TimelineLoadTrigger.Append)
-        }
-
-        override fun onClickRetryTimelineLoadMore() {
-            loadTimeline(TimelineLoadTrigger.Append)
         }
 
         override fun onClickTimelineStreamStatus() {
@@ -358,14 +343,15 @@ internal class HomeScreenViewModel(
     }
 
     val uiStateFlow: StateFlow<HomeScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value, followMenuController.initialSnapshot)).also { uiStateFlow ->
+        MutableStateFlow(createUiState(viewModelStateFlow.value, followMenuController.initialSnapshot, timelineFeeds.feeds.value)).also { uiStateFlow ->
             viewModelScope.launch {
                 combine(
                     viewModelStateFlow,
                     followMenuController.snapshots,
+                    timelineFeeds.feeds,
                     postedAtRefreshTicker.ticks.onStart { emit(Unit) },
-                ) { viewModelState, followMenu, _ ->
-                    createUiState(viewModelState, followMenu)
+                ) { viewModelState, followMenu, feeds, _ ->
+                    createUiState(viewModelState, followMenu, feeds)
                 }.collect { uiState ->
                     uiStateFlow.value = uiState
                 }
@@ -388,14 +374,7 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             // プロフィール画面や個別投稿画面で変えた固定もここで反映する
             userApi.pinChanges.collect { change ->
-                timelinePaging.updateCache { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
-                updateTimeline { timeline ->
-                    timeline.copy(
-                        postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.map { post ->
-                            if (post.pinnableNoteId == change.noteId) post.copy(pinned = change.pinned) else post
-                        },
-                    )
-                }
+                timelineFeeds.updatePosts { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
                 val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
                 if (myPosts != null && myPosts.profile.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
                     loadMyPosts(myPosts.profile.username)
@@ -428,11 +407,9 @@ internal class HomeScreenViewModel(
             }
         }
         viewModelScope.launch {
-            timelinePaging.watch().collect { applyTimeline(it.toUserHomeTimelineResult()) }
-        }
-        viewModelScope.launch {
             timelineColumnSettingStore.columnsFlow.collect { settings ->
                 updateTimelineColumns { it.copy(settings = settings) }
+                retainTimelineSources(settings)
             }
         }
         viewModelScope.launch {
@@ -517,6 +494,7 @@ internal class HomeScreenViewModel(
      */
     private fun saveTimelineColumns(settings: List<TimelineColumnSetting>) {
         updateTimelineColumns { it.copy(settings = settings) }
+        retainTimelineSources(settings)
         viewModelScope.launch {
             if (!timelineColumnSettingStore.save(settings)) {
                 events.send { it.showMessage(TIMELINE_COLUMNS_NOT_SAVED_MESSAGE) }
@@ -627,20 +605,21 @@ internal class HomeScreenViewModel(
     private fun collectTimelineArrivals() {
         if (timelineArrivalsJob?.isActive == true) return
         timelineArrivalsJob = viewModelScope.launch {
-            userApi.homeTimelineStream().collect { event ->
+            userApi.accountEventStream().collect { event ->
                 when (event) {
-                    HomeTimelineStreamEvent.Subscribing -> updateTimelineStreamConnection(TimelineStreamConnection.Receiving)
+                    AccountStreamEvent.Subscribing -> updateTimelineStreamConnection(TimelineStreamConnection.Receiving)
 
-                    is HomeTimelineStreamEvent.Arrived -> {
-                        updateTimeline { it.copy(postsArrivedSinceRefresh = listOf(event.post) + it.postsArrivedSinceRefresh) }
-                        timelinePaging.updateCache { it.withArrivedPosts(listOf(event.post)) }
-                    }
+                    is AccountStreamEvent.PostArrived -> timelineFeeds.onPostArrived(event.post)
 
-                    HomeTimelineStreamEvent.WaitingToReconnect -> {
+                    is AccountStreamEvent.PostsDeleted -> timelineFeeds.onPostsDeleted(event.postIds)
+
+                    is AccountStreamEvent.NotificationArrived -> timelineFeeds.onNotificationArrived(event.notification)
+
+                    AccountStreamEvent.WaitingToReconnect -> {
                         updateTimelineStreamConnection(TimelineStreamConnection.WaitingToReconnect)
                     }
 
-                    HomeTimelineStreamEvent.GaveUp -> {
+                    AccountStreamEvent.GaveUp -> {
                         updateTimelineStreamConnection(TimelineStreamConnection.GaveUp)
                         // 受け手が居ないと送り終わらず購読の Job が残り、再接続で始め直せなくなる
                         viewModelScope.launch { events.send { it.showMessage(TIMELINE_STREAM_DISCONNECTED_MESSAGE) } }
@@ -725,70 +704,54 @@ internal class HomeScreenViewModel(
         }
     }
 
+    /**
+     * カラムに流している購読先をすべて先頭から読み直す
+     */
     private fun loadTimeline(trigger: TimelineLoadTrigger) {
-        val append = trigger == TimelineLoadTrigger.Append
-        if (append && timelineJob?.isActive == true) return
-        if (append && viewModelStateFlow.value.timeline.nextCursor == null) return
         timelineJob?.cancel()
-        // 追加読み込みでは取り消さない。リフレッシュ表示の最低時間は取得の種類と関係なく守る
-        if (!append) pullToRefreshIndicatorJob?.cancel()
+        pullToRefreshIndicatorJob?.cancel()
         // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
-        if (!append) updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
-        updateTimeline {
-            it.copy(
-                pullToRefreshIndicatorShowing = if (append) it.pullToRefreshIndicatorShowing else trigger == TimelineLoadTrigger.PullToRefresh,
-                loading = when (trigger) {
-                    TimelineLoadTrigger.Append -> TimelineLoading.Append
-
-                    TimelineLoadTrigger.PullToRefresh,
-                    TimelineLoadTrigger.ScreenShown,
-                    TimelineLoadTrigger.FollowingChanged,
-                    TimelineLoadTrigger.Reconnect,
-                    -> TimelineLoading.None
-                },
-                postsArrivedSinceRefresh = if (append) it.postsArrivedSinceRefresh else listOf(),
-            )
-        }
+        updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
+        updateTimeline { it.copy(pullToRefreshIndicatorShowing = trigger == TimelineLoadTrigger.PullToRefresh) }
+        // カラムの設定を読み終える前なら空。読み終えたときに retainTimelineSources が読むので、ここで待って二重に読まない
+        val sources = viewModelStateFlow.value.timelineColumns.shownSources()
+        timelineLoadRequested = true
+        timelineFeeds.prepareRefresh(sources)
         timelineJob = viewModelScope.launch {
             val startMark = TimeSource.Monotonic.markNow()
             try {
-                val result = when (trigger) {
-                    TimelineLoadTrigger.Append -> timelinePaging.fetchNext()
-
+                val failure = timelineFeeds.refresh(
+                    sources = sources,
                     // 1 ページ目だけにすると、続きまで読んでいたカラムが戻ってきたときに位置を保てず、読み直しからやり直しになる
-                    TimelineLoadTrigger.ScreenShown -> timelinePaging.refreshKeepingLoadedPages { loaded, firstPage -> loaded.withFirstPage(firstPage) }
-
-                    TimelineLoadTrigger.PullToRefresh,
-                    TimelineLoadTrigger.FollowingChanged,
-                    TimelineLoadTrigger.Reconnect,
-                    -> timelinePaging.refresh()
-                }
-                when (result) {
-                    is UpdateOperationResponseResult.Success -> {
-                        val timeline = result.result.data?.toUserHomeTimelineResult()
-                        if (timeline != null) applyTimeline(timeline)
-                        val postsArrivedSinceRefresh = viewModelStateFlow.value.timeline.postsArrivedSinceRefresh
-                        if (!append && postsArrivedSinceRefresh.isNotEmpty()) {
-                            timelinePaging.updateCache { it.withArrivedPosts(postsArrivedSinceRefresh) }
-                        }
-                        if (timeline == UserHomeTimelineResult.NotLoggedIn) {
-                            timelineFailed(append, NOT_LOGGED_IN_MESSAGE)
-                        }
-                    }
-
-                    is UpdateOperationResponseResult.Error -> timelineFailed(append, result.e?.message ?: NETWORK_ERROR_MESSAGE)
-
-                    is UpdateOperationResponseResult.NoHasMore -> Unit
-                }
+                    keepLoadedPages = trigger == TimelineLoadTrigger.ScreenShown,
+                )
+                showTimelineRefreshFailure(failure)
             } finally {
                 if (currentCoroutineContext().isActive) {
-                    updateTimeline {
-                        if (it.loading is TimelineLoading.AppendFailed) it else it.copy(loading = TimelineLoading.None)
-                    }
                     if (trigger == TimelineLoadTrigger.PullToRefresh) keepPullToRefreshIndicator(startMark)
                     if (trigger == TimelineLoadTrigger.Reconnect) updateTimelineCatchingUpAfterReconnect(false)
                 }
             }
+        }
+    }
+
+    /**
+     * カラムの購読先が変わったら、読む購読先を合わせる。足された購読先はまだ何も読んでいないので、ここで読む
+     */
+    private fun retainTimelineSources(settings: List<TimelineColumnSetting>) {
+        val addedSources = timelineFeeds.retain(settings.flatMap { it.sources }.toSet())
+        // 画面を出す前は、出したときの loadTimeline がまとめて読むので、二重に読まない
+        if (addedSources.isEmpty() || !timelineLoadRequested) return
+        viewModelScope.launch {
+            showTimelineRefreshFailure(timelineFeeds.refresh(sources = addedSources, keepLoadedPages = false))
+        }
+    }
+
+    private suspend fun showTimelineRefreshFailure(failure: TimelineFeeds.RefreshFailure?) {
+        when (failure) {
+            null -> Unit
+            TimelineFeeds.RefreshFailure.NotLoggedIn -> events.send { it.showMessage(NOT_LOGGED_IN_MESSAGE) }
+            is TimelineFeeds.RefreshFailure.Failed -> events.send { it.showMessage(failure.message ?: NETWORK_ERROR_MESSAGE) }
         }
     }
 
@@ -800,24 +763,6 @@ internal class HomeScreenViewModel(
             val remaining = PULL_TO_REFRESH_MIN_DURATION - startMark.elapsedNow()
             if (remaining.isPositive()) delay(remaining)
             updateTimeline { it.copy(pullToRefreshIndicatorShowing = false) }
-        }
-    }
-
-    /**
-     * 同じ内容を書き込んだときは watch が流れないので、取得結果はここでも反映する
-     */
-    private fun applyTimeline(result: UserHomeTimelineResult) {
-        val posts =
-            when (result) {
-                is UserHomeTimelineResult.Success -> result.posts
-                UserHomeTimelineResult.NotLoggedIn -> listOf()
-            }
-        updateTimeline {
-            it.copy(
-                nextCursor = (result as? UserHomeTimelineResult.Success)?.nextCursor,
-                // ページの境目で同じ投稿が両方のページに入ることがある
-                posts = posts.distinctBy { post -> post.id },
-            )
         }
     }
 
@@ -881,7 +826,7 @@ internal class HomeScreenViewModel(
     }
 
     private suspend fun applyLiked(postId: String, liked: Boolean) {
-        timelinePaging.updateCache { it.withLiked(reactionPostId = postId, liked = liked) }
+        timelineFeeds.updatePosts { it.withLiked(reactionPostId = postId, liked = liked) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withLiked(likePostId = postId, liked = liked)))
@@ -909,26 +854,10 @@ internal class HomeScreenViewModel(
     }
 
     private suspend fun applyBoosted(postId: String, boosted: Boolean) {
-        timelinePaging.updateCache { it.withBoosted(reactionPostId = postId, boosted = boosted) }
-        // 読み直しの後に到着した投稿を足し直すので、そちらも合わせないと変える前の状態に戻る
-        updateTimeline { timeline ->
-            timeline.copy(
-                postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.map { post ->
-                    if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post
-                },
-            )
-        }
+        timelineFeeds.updatePosts { it.withBoosted(reactionPostId = postId, boosted = boosted) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(reactionPostId = postId, boosted = boosted)))
-        }
-    }
-
-    private suspend fun timelineFailed(append: Boolean, message: String) {
-        if (append) {
-            updateTimeline { it.copy(loading = TimelineLoading.AppendFailed(message)) }
-        } else {
-            events.send { it.showMessage(message) }
         }
     }
 
@@ -954,10 +883,7 @@ internal class HomeScreenViewModel(
      * 個別投稿画面など、ほかの画面で消した投稿もここで外す
      */
     private suspend fun removeDeletedNote(noteId: String) {
-        timelinePaging.updateCache { it.withoutNote(noteId) }
-        updateTimeline { timeline ->
-            timeline.copy(postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.filterNot { it.deletableNoteId == noteId })
-        }
+        timelineFeeds.removeNote(noteId)
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             val profile = myPosts.profile
@@ -965,17 +891,20 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun createUiState(viewModelState: ViewModelState, followMenu: FollowMenuController.Snapshot): HomeScreenUiState {
+    private fun createUiState(
+        viewModelState: ViewModelState,
+        followMenu: FollowMenuController.Snapshot,
+        feeds: Map<TimelineSource, TimelineFeeds.Feed>,
+    ): HomeScreenUiState {
         val profile = viewModelState.profile
         return HomeScreenUiState(
             selectedTab = viewModelState.selectedTab,
-            timelineColumns = createTimelineColumns(viewModelState),
+            timelineColumns = createTimelineColumns(viewModelState, feeds),
             timelineColumnsEmptyMessage = if (viewModelState.timelineColumns.settings?.isEmpty() == true) TIMELINE_COLUMNS_EMPTY_MESSAGE else null,
             addTimelineColumnButtonEnabled = viewModelState.timelineColumns.settings != null,
             timelineColumnEditDialog = createTimelineColumnEditDialog(viewModelState.timelineColumns),
             timelineColumnDeleteDialog = createTimelineColumnDeleteDialog(viewModelState.timelineColumns),
             timelineRefreshing = viewModelState.timeline.pullToRefreshIndicatorShowing,
-            timelineFooter = createTimelineFooter(viewModelState.timeline.loading),
             timelineStreamStatus = viewModelState.timelineStream.status(),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
             search = HomeScreenUiState.Search(
@@ -996,11 +925,11 @@ internal class HomeScreenViewModel(
         )
     }
 
-    private fun createTimelineFooter(loading: TimelineLoading): HomeScreenUiState.TimelineFooter {
-        return when (loading) {
-            is TimelineLoading.AppendFailed -> HomeScreenUiState.TimelineFooter.Error(loading.message)
-            TimelineLoading.Append -> HomeScreenUiState.TimelineFooter.Loading
-            TimelineLoading.None -> HomeScreenUiState.TimelineFooter.None
+    private fun createTimelineFooter(append: TimelineFeeds.Append): HomeScreenUiState.TimelineFooter {
+        return when (append) {
+            is TimelineFeeds.Append.Failed -> HomeScreenUiState.TimelineFooter.Error(append.message ?: NETWORK_ERROR_MESSAGE)
+            TimelineFeeds.Append.Loading -> HomeScreenUiState.TimelineFooter.Loading
+            TimelineFeeds.Append.None -> HomeScreenUiState.TimelineFooter.None
         }
     }
 
@@ -1048,11 +977,12 @@ internal class HomeScreenViewModel(
                         val boostedNoteAuthor = post.boostedNoteAuthor
                         createPostItemUiState(
                             pinned = post.pinned,
-                            boostedBy = if (boostedNoteAuthor == null) {
+                            deleted = false,
+                            actorLabel = if (boostedNoteAuthor == null) {
                                 null
                             } else {
-                                Boost(
-                                    booster = UserHomeTimelineResult.Booster(
+                                PostActorLabel.Boost(
+                                    actor = UserHomeTimelineResult.Actor(
                                         username = profile.username,
                                         host = null,
                                         displayName = profile.displayName,
@@ -1118,14 +1048,15 @@ internal class HomeScreenViewModel(
         viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
     }
 
-    private fun createTimelineColumns(viewModelState: ViewModelState): List<HomeScreenUiState.TimelineColumn> {
+    private fun createTimelineColumns(viewModelState: ViewModelState, feeds: Map<TimelineSource, TimelineFeeds.Feed>): List<HomeScreenUiState.TimelineColumn> {
         val columnsState = viewModelState.timelineColumns
         val selectedColumn = columnsState.selectedColumn()
         return columnsState.settings.orEmpty().map { column ->
             HomeScreenUiState.TimelineColumn(
                 title = column.name,
                 listStateKey = column.id,
-                items = createTimelineItems(viewModelState, column),
+                items = feeds.mergedEntries(column.sources).map { entry -> createTimelineItem(viewModelState, entry) },
+                footer = createTimelineFooter(feeds.appendOf(column.sources)),
                 selected = column.id == selectedColumn?.id,
                 listener = object : HomeScreenUiState.TimelineColumnListener {
                     override fun onClickTab() {
@@ -1146,6 +1077,16 @@ internal class HomeScreenViewModel(
 
                     override fun onClickDelete() {
                         updateTimelineColumns { it.copy(deletingId = column.id) }
+                    }
+
+                    override fun onScrolledToEnd() {
+                        // 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押すまで続きを読まない
+                        if (timelineFeeds.feeds.value.appendOf(column.sources) is TimelineFeeds.Append.Failed) return
+                        timelineFeeds.loadMore(column.sources)
+                    }
+
+                    override fun onClickRetryLoadMore() {
+                        timelineFeeds.loadMore(column.sources)
                     }
                 },
             )
@@ -1188,54 +1129,80 @@ internal class HomeScreenViewModel(
         )
     }
 
-    private fun createTimelineItems(viewModelState: ViewModelState, column: TimelineColumnSetting): List<PostItemUiState> {
-        return viewModelState.timeline.posts.filter { column.contains(it) }.map { post ->
-            createPostItemUiState(
-                pinned = false,
-                boostedBy = post.boostedBy?.let { booster ->
+    private fun createTimelineItem(viewModelState: ViewModelState, entry: TimelineFeeds.Entry): PostItemUiState {
+        val navigateToProfile: (username: String) -> Unit = { username ->
+            viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
+        }
+        return when (entry) {
+            is TimelineFeeds.Entry.Post -> createTimelinePostItem(
+                viewModelState = viewModelState,
+                post = entry.post,
+                actorLabel = entry.post.boostedBy?.let { booster ->
                     // このサーバーのアカウントのブーストでタイムラインに載るのは、自分のブーストだけ
-                    Boost(booster = booster, byViewer = booster.host == null) { username ->
-                        viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
-                    }
-                },
-                iconUrl = post.iconUrl,
-                displayName = post.displayName,
-                displayNameEmojis = post.displayNameEmojis,
-                acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
-                body = post.body,
-                linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
-                sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
-                blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
-                authorTapAction = AuthorTapAction.OpenProfile {
-                    val host = post.host
-                    viewModelScope.launch {
-                        events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
-                    }
-                },
-                menuItems =
-                createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
-                    createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                    createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
-                postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
-                onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
-                onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
-                onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
-                onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
-                onToggleLike = {
-                    val likedByMe = post.body.likedByMe
-                    if (likedByMe != null) toggleLike(postId = post.reactionPostId, likedByMe = likedByMe)
-                },
-                onToggleBoost = {
-                    val boostedByMe = post.body.boostedByMe
-                    if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
-                },
-                onVisible = {
-                    if (post.body.linkUrls.isNotEmpty()) {
-                        loadLinkPreviews(post.id)
-                    }
+                    PostActorLabel.Boost(actor = booster, byViewer = booster.host == null, navigateToProfile = navigateToProfile)
                 },
             )
+
+            is TimelineFeeds.Entry.Notification -> {
+                val notification = entry.notification
+                createTimelinePostItem(
+                    viewModelState = viewModelState,
+                    post = notification.post,
+                    actorLabel = when (notification.kind) {
+                        UserNotificationsResult.Kind.Favourite -> PostActorLabel.FavouriteNotification(actor = notification.actor, navigateToProfile = navigateToProfile)
+                        UserNotificationsResult.Kind.Boost -> PostActorLabel.BoostNotification(actor = notification.actor, navigateToProfile = navigateToProfile)
+                    },
+                )
+            }
         }
+    }
+
+    private fun createTimelinePostItem(
+        viewModelState: ViewModelState,
+        post: UserHomeTimelineResult.Post,
+        actorLabel: PostActorLabel?,
+    ): PostItemUiState {
+        return createPostItemUiState(
+            pinned = false,
+            deleted = post.deleted,
+            actorLabel = actorLabel,
+            iconUrl = post.iconUrl,
+            displayName = post.displayName,
+            displayNameEmojis = post.displayNameEmojis,
+            acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
+            body = post.body,
+            linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
+            sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+            blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
+            authorTapAction = AuthorTapAction.OpenProfile {
+                val host = post.host
+                viewModelScope.launch {
+                    events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
+                }
+            },
+            menuItems =
+            createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
+                createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
+                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+            postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
+            onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
+            onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
+            onToggleLike = {
+                val likedByMe = post.body.likedByMe
+                if (likedByMe != null) toggleLike(postId = post.reactionPostId, likedByMe = likedByMe)
+            },
+            onToggleBoost = {
+                val boostedByMe = post.body.boostedByMe
+                if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
+            },
+            onVisible = {
+                if (post.body.linkUrls.isNotEmpty()) {
+                    loadLinkPreviews(post.id)
+                }
+            },
+        )
     }
 
     private fun confirmNoteDeletion(noteId: String) {
@@ -1343,6 +1310,7 @@ internal class HomeScreenViewModel(
         const val ADD_TIMELINE_COLUMN_DIALOG_TITLE = "カラムを追加"
         const val EDIT_TIMELINE_COLUMN_DIALOG_TITLE = "カラムを編集"
         const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "カラムの設定を端末に保存できませんでした"
+        const val NOTIFICATIONS_SOURCE_NAME = "通知"
     }
 
     private enum class TimelineLoadTrigger {
@@ -1350,7 +1318,6 @@ internal class HomeScreenViewModel(
         ScreenShown,
         FollowingChanged,
         Reconnect,
-        Append,
     }
 
     private data class ViewModelState(
@@ -1392,13 +1359,19 @@ internal class HomeScreenViewModel(
         }
 
         fun selectableSources(): List<TimelineSource> =
-            listOf(TimelineSource.MainGroup) + followingGroups.map { TimelineSource.FollowingGroup(it.id) }
+            listOf(TimelineSource.MainGroup) + followingGroups.map { TimelineSource.FollowingGroup(it.id) } + TimelineSource.Notifications
 
         fun nameOf(source: TimelineSource): String =
             when (source) {
                 TimelineSource.MainGroup -> mainGroupName
                 is TimelineSource.FollowingGroup -> followingGroups.firstOrNull { it.id == source.groupId }?.name.orEmpty()
+                TimelineSource.Notifications -> NOTIFICATIONS_SOURCE_NAME
             }
+
+        /**
+         * どれかのカラムに流している購読先
+         */
+        fun shownSources(): Set<TimelineSource> = settings.orEmpty().flatMap { it.sources }.toSet()
 
         /**
          * 端末から読み終えるまでは、保存した結果で読み終えた内容を上書きしないよう保存できない
@@ -1419,32 +1392,9 @@ internal class HomeScreenViewModel(
         val sources: Set<TimelineSource>,
     )
 
-    /**
-     * @param postsArrivedSinceRefresh 読み直しの結果は要求した時点のものなので、その間に流れてきた投稿を先頭に足し直す
-     */
     private data class TimelineState(
-        val posts: List<UserHomeTimelineResult.Post>,
-        val nextCursor: String?,
-        val postsArrivedSinceRefresh: List<UserHomeTimelineResult.Post>,
-        val loading: TimelineLoading,
         val pullToRefreshIndicatorShowing: Boolean,
     )
-
-    /**
-     * 画面に出ない読み直し（画面表示時・再接続時）は None
-     */
-    private sealed interface TimelineLoading {
-        data object None : TimelineLoading
-
-        data object Append : TimelineLoading
-
-        /**
-         * 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押すまで続きを読まない
-         */
-        data class AppendFailed(
-            val message: String,
-        ) : TimelineLoading
-    }
 
     private data class TimelineStreamState(
         val connection: TimelineStreamConnection,
@@ -1513,9 +1463,4 @@ internal class HomeScreenViewModel(
             val username: String,
         ) : MyPostsState
     }
-}
-
-private fun TimelineColumnSetting.contains(post: UserHomeTimelineResult.Post): Boolean {
-    val groupId = post.followingGroupId
-    return if (groupId == null) TimelineSource.MainGroup in sources else TimelineSource.FollowingGroup(groupId) in sources
 }

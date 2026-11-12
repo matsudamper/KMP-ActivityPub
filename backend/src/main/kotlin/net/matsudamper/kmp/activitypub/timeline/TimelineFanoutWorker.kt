@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
 class TimelineFanoutWorker(
     private val repository: TimelineRepository,
     private val store: TimelineStore,
-    private val arrivals: HomeTimelineArrivals,
+    private val events: AccountEvents,
     private val clock: Clock,
     openTelemetry: OpenTelemetry = OpenTelemetryInitializer.get(),
 ) {
@@ -84,13 +84,13 @@ class TimelineFanoutWorker(
         var skipped = 0L
         do {
             val recipients = repository.recipients(job.position.member, clock.instant().minusSeconds(TimelineCachePolicy.FANOUT_ACTIVE_WINDOW_SECONDS), after, 1000)
-            val distributed = store.distribute(recipients, job.position)
-            arrivals.publish(recipients, job.position)
+            val distributed = store.distribute(recipients.map { TimelineFeed(it.accountId, it.groupId) }, job.position)
+            events.publishArrival(recipients.map { it.accountId }, job.position)
             delivered += distributed
             skipped += recipients.size - distributed
             span.setAttribute(TimelineSpan.DELIVERED_COUNT, delivered)
             span.setAttribute(TimelineSpan.SKIPPED_COUNT, skipped)
-            after = recipients.lastOrNull()
+            after = recipients.lastOrNull()?.accountId
         } while (recipients.size == 1000)
     }
 }

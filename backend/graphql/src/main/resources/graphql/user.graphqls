@@ -30,8 +30,8 @@ type ProfilePost {
     sensitive: Boolean!
     "OGP を UserInfo.linkPreviews で取るときに postId に渡す id。取れない投稿は null"
     linkPreviewId: ID
-    "UserInfo.post で個別投稿画面を開くときの id。開けない投稿は null"
-    postId: ID
+    "UserInfo.timelinePost で個別投稿画面を開くときの id。開けない投稿は null"
+    postId: TimelinePostId
     "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
     deletableNoteId: ID
     "プロフィールの先頭に固定されているか。固定した投稿は posts の先頭に固定した新しい順で並ぶ。他のサーバーの投稿は固定を受け取らないので false"

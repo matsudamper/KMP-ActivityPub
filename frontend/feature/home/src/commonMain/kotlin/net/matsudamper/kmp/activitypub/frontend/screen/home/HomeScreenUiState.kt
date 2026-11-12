@@ -31,7 +31,6 @@ data class HomeScreenUiState(
      */
     val timelineColumnDeleteDialog: TimelineColumnDeleteDialog?,
     val timelineRefreshing: Boolean,
-    val timelineFooter: TimelineFooter,
     val timelineStreamStatus: TimelineStreamStatus,
     val sensitiveImagesBlurred: Boolean,
     val search: Search,
@@ -67,12 +66,14 @@ data class HomeScreenUiState(
 
     /**
      * @param listStateKey カラムを足し引きしても、それぞれのスクロール位置を取り違えないための鍵
+     * @param footer 続きの読み込みの状態。カラムごとに流す購読先が違うので、カラムごとに持つ
      * @param selected 小さい画面で選んでいるタブ
      */
     data class TimelineColumn(
         val title: String,
         val listStateKey: String,
         val items: List<PostItemUiState>,
+        val footer: TimelineFooter,
         val selected: Boolean,
         val listener: TimelineColumnListener,
     )
@@ -86,6 +87,10 @@ data class HomeScreenUiState(
         fun onClickEdit()
 
         fun onClickDelete()
+
+        fun onScrolledToEnd()
+
+        fun onClickRetryLoadMore()
     }
 
     /**
@@ -252,10 +257,6 @@ data class HomeScreenUiState(
          * タブやカラムの見出しを長押しして動かしたとき。どちらも [timelineColumns] での位置
          */
         fun onMoveTimelineColumn(fromIndex: Int, toIndex: Int)
-
-        fun onScrolledToTimelineEnd()
-
-        fun onClickRetryTimelineLoadMore()
 
         fun onClickTimelineStreamStatus()
 
