@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option java_package = "net.matsudamper.kmp.activitypub.android.timeline";
+option java_multiple_files = true;
+
+message ColumnWidthSettingProto {
+  // カラムの鍵ごとの幅（dp）
+  map<string, float> widths = 1;
+}

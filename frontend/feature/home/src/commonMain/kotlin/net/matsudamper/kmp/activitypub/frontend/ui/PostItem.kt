@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,7 +94,6 @@ private class PostItemSizes(
     val iconSize: Dp,
     val actionIconSize: Dp,
     val actionSlotWidth: Dp,
-    val menuButtonSize: Dp,
     val stampImageHeight: Dp,
 )
 
@@ -109,7 +109,6 @@ private fun PostItemStyle.sizes(): PostItemSizes {
             iconSize = 46.dp,
             actionIconSize = 24.dp,
             actionSlotWidth = 76.dp,
-            menuButtonSize = 32.dp,
             stampImageHeight = 18.dp,
         )
 
@@ -121,7 +120,6 @@ private fun PostItemStyle.sizes(): PostItemSizes {
             iconSize = 56.dp,
             actionIconSize = 28.dp,
             actionSlotWidth = 88.dp,
-            menuButtonSize = 40.dp,
             stampImageHeight = 22.dp,
         )
     }
@@ -502,7 +500,7 @@ private fun PostActions(
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 狭い画面で操作が並びきらなくても、メニュー（削除・ピン留め）を押せるよう、残りの幅だけを操作に使う
@@ -511,21 +509,19 @@ private fun PostActions(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val boostButton = uiState.boostButton
-            Row(
+            TextButton(
+                onClick = { boostButton?.listener?.onClick() },
+                enabled = boostButton != null,
                 modifier = Modifier
-                    .width(sizes.actionSlotWidth)
+                    .weight(1f, fill = false).width(sizes.actionSlotWidth)
                     .then(
                         if (boostButton == null) {
                             Modifier
                         } else {
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { boostButton.listener.onClick() }
-                                .semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
+                            Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
                         },
                     ),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                contentPadding = ActionButtonContentPadding,
             ) {
                 Icon(
                     imageVector = AppIcons.Repeat,
@@ -539,26 +535,18 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.boostCountText.orEmpty(),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
                 )
             }
             val favouriteButton = uiState.favouriteButton
-            Row(
-                modifier = Modifier
-                    .width(sizes.actionSlotWidth)
-                    .then(
-                        if (favouriteButton == null) {
-                            Modifier
-                        } else {
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { favouriteButton.listener.onClick() }
-                        },
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            TextButton(
+                onClick = { favouriteButton?.listener?.onClick() },
+                enabled = favouriteButton != null,
+                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
+                contentPadding = ActionButtonContentPadding,
             ) {
                 Icon(
                     imageVector = AppIcons.Star,
@@ -568,12 +556,13 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.favouriteCountText.orEmpty(),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
                 )
             }
-            Box(modifier = Modifier.width(sizes.actionSlotWidth)) {
+            Box(modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth)) {
                 Icon(
                     imageVector = AppIcons.Emoticon,
                     contentDescription = "スタンプ",
@@ -582,21 +571,25 @@ private fun PostActions(
                 )
             }
             val shareListener = uiState.shareListener
-            Icon(
-                imageVector = AppIcons.Share,
-                contentDescription = "共有",
-                modifier = Modifier
-                    .size(sizes.actionIconSize)
-                    .clip(CircleShape)
-                    .clickable(enabled = shareListener != null) { shareListener?.onClick() },
-                tint = if (shareListener == null) disabledIconColor else iconColor,
-            )
+            IconButton(
+                onClick = { shareListener?.onClick() },
+                enabled = shareListener != null,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Share,
+                    contentDescription = "共有",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = if (shareListener == null) disabledIconColor else iconColor,
+                )
+            }
         }
         if (uiState.menuItems.isNotEmpty()) {
             PostMenu(menuItems = uiState.menuItems, sizes = sizes)
         }
     }
 }
+
+private val ActionButtonContentPadding = PaddingValues(horizontal = 8.dp)
 
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
 
@@ -611,7 +604,6 @@ private fun PostMenu(
     Box {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(sizes.menuButtonSize),
         ) {
             Icon(
                 imageVector = AppIcons.MoreVert,

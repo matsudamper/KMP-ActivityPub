@@ -38,6 +38,7 @@ import com.apollographql.apollo.network.NetworkTransport
 import com.apollographql.apollo.network.http.HttpEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
@@ -525,6 +526,7 @@ class HomeScreenViewModelTest {
             },
             CreateOpenOriginalMenuItemsUseCase(),
             columnSettingStore,
+            FakeColumnWidthStore(),
         )
         try {
             block(viewModel, engine)
@@ -585,6 +587,12 @@ class HomeScreenViewModelTest {
             this.columns.value = columns
             return true
         }
+    }
+
+    private class FakeColumnWidthStore : ColumnWidthStore {
+        override val widthsFlow: Flow<Map<String, Float>> = MutableStateFlow(mapOf())
+
+        override suspend fun save(widths: Map<String, Float>): Boolean = true
     }
 
     private fun response(json: String): HttpResponse = HttpResponse.Builder(200).body(Buffer().writeUtf8(json)).build()
