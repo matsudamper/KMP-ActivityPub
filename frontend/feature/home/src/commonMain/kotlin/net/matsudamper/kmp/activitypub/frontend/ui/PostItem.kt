@@ -240,7 +240,7 @@ internal fun PostItem(
                 val attachmentListState = rememberLazyListState()
                 val layoutDirection = LocalLayoutDirection.current
                 val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
-                val mouseWheelScrollStopper = remember { MouseWheelHorizontalScrollStopper() }
+                val mouseWheelScrollStopper = remember(attachmentListState) { MouseWheelHorizontalScrollStopper(attachmentListState) }
                 LazyRow(
                     state = attachmentListState,
                     modifier = Modifier
@@ -641,13 +641,19 @@ private val PostIconHeaderSpacing = 12.dp
 
 /**
  * 横スクロールの外側にはカラムの並びの横スクロールがあり、端まで行ったあとのホイールがそちらへ伝わってカラムが動いてしまう。
- * マウスのときだけ止め、タッチで端まで動かしたときは外側へ引き継ぐ
+ * マウスのときだけ止め、タッチで端まで動かしたときは外側へ引き継ぐ。
+ * 画像が収まっていて横に送れないときは、カラムの並びを動かせるよう止めない
  */
-private class MouseWheelHorizontalScrollStopper : NestedScrollConnection {
+private class MouseWheelHorizontalScrollStopper(
+    private val state: LazyListState,
+) : NestedScrollConnection {
     var latestPointerIsMouse = false
 
+    val stopsHorizontalWheel: Boolean
+        get() = latestPointerIsMouse && (state.canScrollForward || state.canScrollBackward)
+
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-        return if (latestPointerIsMouse) Offset(x = available.x, y = 0f) else Offset.Zero
+        return if (stopsHorizontalWheel) Offset(x = available.x, y = 0f) else Offset.Zero
     }
 }
 
@@ -658,7 +664,7 @@ private fun Modifier.stopHorizontalMouseWheelScrollAtEdge(stopper: MouseWheelHor
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 stopper.latestPointerIsMouse = event.changes.any { it.type == PointerType.Mouse }
-                if (event.type == PointerEventType.Scroll) {
+                if (event.type == PointerEventType.Scroll && stopper.stopsHorizontalWheel) {
                     // 内側が端で受け取らなかったホイールを、外側のスクロールが受け取らないよう使い切る
                     val mainPassEvent = awaitPointerEvent(PointerEventPass.Main)
                     val horizontalWheelChanges = mainPassEvent.changes.filter { abs(it.scrollDelta.x) > abs(it.scrollDelta.y) }
