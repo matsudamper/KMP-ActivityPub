@@ -48,6 +48,7 @@ kotlin {
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose.viewmodel)
                 implementation(libs.coil.compose)
+                implementation(libs.compose.ui.tooling.preview)
             }
         }
 
@@ -62,7 +63,6 @@ kotlin {
 
         androidMain {
             dependencies {
-                implementation(libs.androidx.compose.ui.tooling.preview)
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.exifinterface)
                 implementation(libs.coil.network.okhttp)
@@ -70,4 +70,9 @@ kotlin {
             }
         }
     }
+}
+
+// Android Studio の Compose Preview 描画用実装は実行時にのみ追加する
+dependencies {
+    add("androidRuntimeClasspath", libs.compose.ui.tooling)
 }

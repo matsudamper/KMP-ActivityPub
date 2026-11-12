@@ -102,6 +102,8 @@ slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 slf4j-nop = { module = "org.slf4j:slf4j-nop", version.ref = "slf4j" }
 graalvm-native-plugin = { module = "org.graalvm.buildtools:native-gradle-plugin", version.ref = "graalvmBuildtools" }
+compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose" }
+compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "androidxComposeUiToolingPreview" }
 androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
 paparazzi = { module = "app.cash.paparazzi:paparazzi", version.ref = "paparazzi" }
