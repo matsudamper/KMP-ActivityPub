@@ -11,6 +11,7 @@ import kotlinx.serialization.json.JsonNames
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.DEFAULT_TIMELINE_COLUMNS
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineFontSize
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 
 internal class WebTimelineColumnSettingStore : TimelineColumnSettingStore {
@@ -51,7 +52,16 @@ private data class StoredTimelineColumn(
     val followingGroupIds: List<String>,
     // 通知を選べるようになる前に保存した値には無いので、読めずに既定のカラムへ戻さないよう既定値を持つ
     val notifications: Boolean = false,
+    // 文字の大きさを選べるようになる前に保存した値には無いので、既定値を持つ
+    val fontSize: StoredTimelineFontSize = StoredTimelineFontSize.Medium,
 )
+
+@Serializable
+private enum class StoredTimelineFontSize {
+    Small,
+    Medium,
+    Large,
+}
 
 private fun TimelineColumnSetting.toStored(): StoredTimelineColumn =
     StoredTimelineColumn(
@@ -60,6 +70,11 @@ private fun TimelineColumnSetting.toStored(): StoredTimelineColumn =
         mainGroup = TimelineSource.MainGroup in sources,
         followingGroupIds = sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId },
         notifications = TimelineSource.Notifications in sources,
+        fontSize = when (fontSize) {
+            TimelineFontSize.Small -> StoredTimelineFontSize.Small
+            TimelineFontSize.Medium -> StoredTimelineFontSize.Medium
+            TimelineFontSize.Large -> StoredTimelineFontSize.Large
+        },
     )
 
 private fun StoredTimelineColumn.toTimelineColumnSetting(): TimelineColumnSetting =
@@ -70,6 +85,11 @@ private fun StoredTimelineColumn.toTimelineColumnSetting(): TimelineColumnSettin
             if (mainGroup) add(TimelineSource.MainGroup)
             followingGroupIds.forEach { add(TimelineSource.FollowingGroup(it)) }
             if (notifications) add(TimelineSource.Notifications)
+        },
+        fontSize = when (fontSize) {
+            StoredTimelineFontSize.Small -> TimelineFontSize.Small
+            StoredTimelineFontSize.Medium -> TimelineFontSize.Medium
+            StoredTimelineFontSize.Large -> TimelineFontSize.Large
         },
     )
 

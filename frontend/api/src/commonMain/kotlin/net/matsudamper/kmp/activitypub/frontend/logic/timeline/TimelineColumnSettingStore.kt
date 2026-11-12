@@ -25,7 +25,14 @@ data class TimelineColumnSetting(
     val id: String,
     val name: String,
     val sources: Set<TimelineSource>,
+    val fontSize: TimelineFontSize,
 )
+
+enum class TimelineFontSize {
+    Small,
+    Medium,
+    Large,
+}
 
 sealed interface TimelineSource {
     data object MainGroup : TimelineSource
@@ -39,5 +46,5 @@ sealed interface TimelineSource {
 }
 
 val DEFAULT_TIMELINE_COLUMNS: List<TimelineColumnSetting> = listOf(
-    TimelineColumnSetting(id = "main", name = "メイン", sources = setOf(TimelineSource.MainGroup)),
+    TimelineColumnSetting(id = "main", name = "メイン", sources = setOf(TimelineSource.MainGroup), fontSize = TimelineFontSize.Medium),
 )

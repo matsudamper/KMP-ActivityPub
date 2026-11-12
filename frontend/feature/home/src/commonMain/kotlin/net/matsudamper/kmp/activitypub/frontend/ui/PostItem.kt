@@ -70,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 import kotlinx.coroutines.coroutineScope
@@ -238,13 +239,13 @@ internal fun PostItem(
                 val attachmentListState = rememberLazyListState()
                 val layoutDirection = LocalLayoutDirection.current
                 val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
-                val mouseWheelScrollStopper = remember(attachmentListState) { MouseWheelHorizontalScrollStopper(attachmentListState) }
+                val horizontalScrollStopper = remember(attachmentListState) { HorizontalScrollStopper(attachmentListState) }
                 LazyRow(
                     state = attachmentListState,
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
-                        .stopHorizontalMouseWheelScrollAtEdge(mouseWheelScrollStopper)
+                        .stopHorizontalScrollAtEdge(horizontalScrollStopper)
                         .scrollHorizontallyByMouseDrag(
                             state = attachmentListState,
                             flingBehavior = attachmentFlingBehavior,
@@ -632,31 +633,32 @@ private const val PostImageGridCellAspectRatio = 4f / 3f
 private val PostIconHeaderSpacing = 12.dp
 
 /**
- * 横スクロールの外側にはカラムの並びの横スクロールがあり、端まで行ったあとのホイールがそちらへ伝わってカラムが動いてしまう。
- * マウスのときだけ止め、タッチで端まで動かしたときは外側へ引き継ぐ。
+ * 横スクロールの外側にはカラムの並び（ページャーや横スクロール）があり、端まで行ったあとのスクロールがそちらへ伝わってカラムが動いてしまう。
+ * 指のスワイプ・慣性・ホイールのどれでも外側へ渡さない。
  * 画像が収まっていて横に送れないときは、カラムの並びを動かせるよう止めない
  */
-private class MouseWheelHorizontalScrollStopper(
+private class HorizontalScrollStopper(
     private val state: LazyListState,
 ) : NestedScrollConnection {
-    var latestPointerIsMouse = false
-
-    val stopsHorizontalWheel: Boolean
-        get() = latestPointerIsMouse && (state.canScrollForward || state.canScrollBackward)
+    val stopsHorizontalScroll: Boolean
+        get() = state.canScrollForward || state.canScrollBackward
 
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-        return if (stopsHorizontalWheel) Offset(x = available.x, y = 0f) else Offset.Zero
+        return if (stopsHorizontalScroll) Offset(x = available.x, y = 0f) else Offset.Zero
+    }
+
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+        return if (stopsHorizontalScroll) Velocity(x = available.x, y = 0f) else Velocity.Zero
     }
 }
 
-private fun Modifier.stopHorizontalMouseWheelScrollAtEdge(stopper: MouseWheelHorizontalScrollStopper): Modifier = this
+private fun Modifier.stopHorizontalScrollAtEdge(stopper: HorizontalScrollStopper): Modifier = this
     .nestedScroll(stopper)
     .pointerInput(stopper) {
         awaitPointerEventScope {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
-                stopper.latestPointerIsMouse = event.changes.any { it.type == PointerType.Mouse }
-                if (event.type == PointerEventType.Scroll && stopper.stopsHorizontalWheel) {
+                if (event.type == PointerEventType.Scroll && stopper.stopsHorizontalScroll) {
                     // 内側が端で受け取らなかったホイールを、外側のスクロールが受け取らないよう使い切る
                     val mainPassEvent = awaitPointerEvent(PointerEventPass.Main)
                     val horizontalWheelChanges = mainPassEvent.changes.filter { abs(it.scrollDelta.x) > abs(it.scrollDelta.y) }
