@@ -339,6 +339,27 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun postDeletedWhileItsPageIsBeingLoadedGetsTheDeletedLabel() = withViewModel { viewModel, engine ->
+        engine.responses.send { page(listOf("a"), "next") }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 1 }
+        val pending = CompletableDeferred<HttpResponse>()
+        engine.responses.send { pending.await() }
+        viewModel.uiStateFlow.value.timelineColumns.first().listener.onScrolledToEnd()
+        runCurrent()
+        engine.started.first { it == 2 }
+        // まだ読み込んでいない行の削除が先に届く。後から届く続きのページは削除より前の内容
+        arrivals.send(postsDeleted(listOf("b")))
+        arrivals.send(postArrived("marker"))
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }
+        pending.complete(page(listOf("b"), null))
+
+        val items = viewModel.uiStateFlow.first { uiState -> uiState.mainColumnItems().size == 3 && uiState.mainColumnItems().last().deletedLabelVisible }.mainColumnItems()
+        assertEquals(listOf("marker", "a", "b"), items.map { it.body.text.text })
+        assertEquals(listOf(false, false, true), items.map { it.deletedLabelVisible })
+    }
+
+    @Test
     fun notificationsColumnShowsLoadedAndArrivedNotificationsWithTheActor() = withViewModel { viewModel, engine ->
         columnSettingStore.columns.value = listOf(TimelineColumnSetting(id = "notifications", name = "通知", sources = setOf(TimelineSource.Notifications)))
         engine.notificationResponses.send {

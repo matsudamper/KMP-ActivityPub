@@ -211,7 +211,9 @@ internal class TimelineFeeds(
             return when (result) {
                 is UpdateOperationResponseResult.Success -> {
                     val data = result.result.data
-                    if (data != null && apply(data)) null else RefreshFailure.NotLoggedIn
+                    val loggedIn = data != null && apply(data)
+                    markDeletedPosts()
+                    if (loggedIn) null else RefreshFailure.NotLoggedIn
                 }
 
                 is UpdateOperationResponseResult.Error -> RefreshFailure.Failed(result.e?.message)
@@ -228,7 +230,9 @@ internal class TimelineFeeds(
                 val append = when (val result = paging.fetchNext()) {
                     is UpdateOperationResponseResult.Success -> {
                         val data = result.result.data
-                        if (data != null && apply(data)) Append.None else Append.Failed(null)
+                        val loggedIn = data != null && apply(data)
+                        markDeletedPosts()
+                        if (loggedIn) Append.None else Append.Failed(null)
                     }
 
                     is UpdateOperationResponseResult.Error -> Append.Failed(result.e?.message)
@@ -273,6 +277,15 @@ internal class TimelineFeeds(
 
         suspend fun removeNote(deletableNoteId: String) {
             paging.updateCache { withoutNote(it, deletableNoteId) }
+        }
+
+        /**
+         * 取得した結果は要求した時点のものなので、取得を待つ間に購読で削除済みになった行に印を付け直す。
+         * 読み直しは読み込み済みの内容と突き合わせるときに付けるが、最初の取得と続きの取得はそこを通らない
+         */
+        private suspend fun markDeletedPosts() {
+            val deletedIds = deletedPostIds
+            if (deletedIds.isNotEmpty()) updatePosts { it.withDeleted(deletedIds) }
         }
 
         fun close() {
