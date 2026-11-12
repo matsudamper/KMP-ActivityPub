@@ -170,6 +170,22 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun postArrivedDuringTheFirstLoadIsShownAboveTheLoadedPage() = withViewModel { viewModel, engine ->
+        val pending = CompletableDeferred<HttpResponse>()
+        engine.responses.send { pending.await() }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        runCurrent()
+        engine.started.first { it == 1 }
+        // まだ何も読み込んでいない間に届く。後から届く 1 ページ目はこの投稿より前の内容
+        arrivals.send(postArrived("b"))
+        runCurrent()
+        pending.complete(page(listOf("a"), null))
+
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }
+        assertEquals(listOf("b", "a"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
+    }
+
+    @Test
     fun appendHasItsOwnLoadingIndicatorAndDeduplicatesPageBoundary() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a", "b"), "next") }
         viewModel.uiStateFlow.value.listener.onRefreshTimeline()

@@ -198,9 +198,15 @@ internal class TimelineFeeds(
          */
         private var arrivedIdsSinceRefresh = setOf<String>()
 
+        /**
+         * 最初の取得を待つ間は書き込む先がまだ無く、届いた行を足せない。取得が終わってから足し直せるよう、足す操作を覚えておく
+         */
+        private var arrivalsSinceRefresh = listOf<(D) -> D>()
+
         suspend fun refresh(keepLoadedPages: Boolean): RefreshFailure? {
             prepareRefresh()
             arrivedIdsSinceRefresh = setOf()
+            arrivalsSinceRefresh = listOf()
             val result = try {
                 paging.refreshKeepingLoadedPages { loaded, firstPage ->
                     refreshedWith(loaded, firstPage, keepLoadedPages, arrivedIdsSinceRefresh, deletedPostIds)
@@ -212,6 +218,8 @@ internal class TimelineFeeds(
                 is UpdateOperationResponseResult.Success -> {
                     val data = result.result.data
                     val loggedIn = data != null && apply(data)
+                    val arrivals = arrivalsSinceRefresh
+                    if (arrivals.isNotEmpty()) paging.updateCache { loaded -> arrivals.fold(loaded) { merged, addArrival -> addArrival(merged) } }
                     markDeletedPosts()
                     if (loggedIn) null else RefreshFailure.NotLoggedIn
                 }
@@ -252,12 +260,14 @@ internal class TimelineFeeds(
         suspend fun onPostArrived(post: UserHomeTimelineResult.Post) {
             if (isInUnreadPages(Entry.Post(post))) return
             arrivedIdsSinceRefresh = arrivedIdsSinceRefresh + post.id
+            arrivalsSinceRefresh = arrivalsSinceRefresh + { data: D -> withArrivedPost(data, post) }
             paging.updateCache { withArrivedPost(it, post) }
         }
 
         suspend fun onNotificationArrived(notification: UserNotificationsResult.Notification) {
             if (isInUnreadPages(Entry.Notification(notification))) return
             arrivedIdsSinceRefresh = arrivedIdsSinceRefresh + notification.id
+            arrivalsSinceRefresh = arrivalsSinceRefresh + { data: D -> withArrivedNotification(data, notification) }
             paging.updateCache { withArrivedNotification(it, notification) }
         }
 
