@@ -404,6 +404,15 @@ class TimelineRepositoryTest {
         assertEquals(BOOSTER, post.boostedBy?.actorUri)
         assertTrue(repository.actorPosts(alice, ACTOR, 10).isEmpty())
         assertTrue(repository.actorPosts(accounts.getValue("bob"), BOOSTER, 10).isEmpty())
+
+        // 取り消されたブーストも消された投稿も、タイムラインには削除済みと出すが、プロフィールには出さない
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val note = assertNotNull(repository.receive(note("own", "public", setOf())))
+        assertEquals(listOf(note.member), repository.actorPosts(alice, ACTOR, 10).map { it.position.member }.filter { it == note.member })
+        repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW)
+        repository.deleteRemote(ACTOR, "$ACTOR/notes/own", NOW)
+        assertTrue(repository.actorPosts(alice, BOOSTER, 10).isEmpty())
+        assertTrue(repository.actorPosts(alice, ACTOR, 10).none { it.position.member == note.member })
     }
 
     @Test

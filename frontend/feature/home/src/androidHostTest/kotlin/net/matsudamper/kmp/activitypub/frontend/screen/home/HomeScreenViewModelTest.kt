@@ -410,6 +410,31 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun scrollingToTheEndDuringRefreshDoesNotLoadMoreFromTheOldTail() = withViewModel { viewModel, engine ->
+        engine.responses.send { page(listOf("a"), "next") }
+        viewModel.uiStateFlow.value.listener.onRefreshTimeline()
+        viewModel.uiStateFlow.first { it.mainColumnItems().isNotEmpty() && !it.timelineRefreshing }
+
+        val pending = CompletableDeferred<HttpResponse>()
+        engine.responses.send { pending.await() }
+        viewModel.uiStateFlow.value.listener.onRefreshTimeline()
+        runCurrent()
+        engine.started.first { it == 2 }
+        viewModel.uiStateFlow.value.timelineColumns.first().listener.onScrolledToEnd()
+        runCurrent()
+        assertEquals(2, engine.requests)
+        assertEquals(HomeScreenUiState.TimelineFooter.None, viewModel.uiStateFlow.value.mainColumnFooter())
+
+        pending.complete(page(listOf("fresh"), "next"))
+        viewModel.uiStateFlow.first { it.mainColumnItems().singleOrNull()?.body?.text?.text == "fresh" && !it.timelineRefreshing }
+        // 読み直しが終われば続きを読める
+        engine.responses.send { page(listOf("older"), null) }
+        viewModel.uiStateFlow.value.timelineColumns.first().listener.onScrolledToEnd()
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }
+        assertEquals(listOf("fresh", "older"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
+    }
+
+    @Test
     fun pressingSelectedTabAgainScrollsToTopInsteadOfNavigating() = withViewModel { viewModel, _ ->
         val receivedEvents = Channel<String>(Channel.UNLIMITED)
         val collectJob = backgroundScope.launch {

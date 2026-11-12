@@ -714,7 +714,7 @@ internal class HomeScreenViewModel(
         // カラムの設定を読み終える前なら空。読み終えたときに retainTimelineSources が読むので、ここで待って二重に読まない
         val sources = viewModelStateFlow.value.timelineColumns.shownSources()
         timelineLoadRequested = true
-        timelineFeeds.stopLoadingMore(sources)
+        timelineFeeds.prepareRefresh(sources)
         timelineJob = viewModelScope.launch {
             val startMark = TimeSource.Monotonic.markNow()
             try {

@@ -61,10 +61,10 @@ internal class TimelineFeeds(
     }
 
     /**
-     * 読み直す前に呼ぶ。読み直した結果で続きの位置が変わるので、読みかけの続きは捨てる
+     * [refresh] を頼むその場で呼ぶ。読み直した結果で続きの位置が変わるので、読みかけの続きは捨て、読み直しが終わるまで続きを読ませない
      */
-    fun stopLoadingMore(sources: Set<TimelineSource>) {
-        sources.forEach { readers[it]?.stopLoadingMore() }
+    fun prepareRefresh(sources: Set<TimelineSource>) {
+        sources.forEach { readers[it]?.prepareRefresh() }
     }
 
     /**
@@ -191,6 +191,7 @@ internal class TimelineFeeds(
     ) {
         private val watchJob: Job = scope.launch { paging.watch().collect { apply(it) } }
         private var loadMoreJob: Job? = null
+        private var refreshing = false
 
         /**
          * 読み直しの結果は要求した時点のものなので、その間に購読で届いた行を、読み直しの結果に引き継ぐ
@@ -198,9 +199,14 @@ internal class TimelineFeeds(
         private var arrivedIdsSinceRefresh = setOf<String>()
 
         suspend fun refresh(keepLoadedPages: Boolean): RefreshFailure? {
+            prepareRefresh()
             arrivedIdsSinceRefresh = setOf()
-            val result = paging.refreshKeepingLoadedPages { loaded, firstPage ->
-                refreshedWith(loaded, firstPage, keepLoadedPages, arrivedIdsSinceRefresh, deletedPostIds)
+            val result = try {
+                paging.refreshKeepingLoadedPages { loaded, firstPage ->
+                    refreshedWith(loaded, firstPage, keepLoadedPages, arrivedIdsSinceRefresh, deletedPostIds)
+                }
+            } finally {
+                refreshing = false
             }
             return when (result) {
                 is UpdateOperationResponseResult.Success -> {
@@ -215,7 +221,8 @@ internal class TimelineFeeds(
         }
 
         fun loadMore() {
-            if (loadMoreJob?.isActive == true) return
+            // 読み直しの前の末尾から続きを読むと、読み直した 1 ページ目との間の行が抜ける
+            if (refreshing || loadMoreJob?.isActive == true) return
             updateFeed(source) { it.copy(append = Append.Loading) }
             loadMoreJob = scope.launch {
                 val append = when (val result = paging.fetchNext()) {
@@ -232,7 +239,8 @@ internal class TimelineFeeds(
             }
         }
 
-        fun stopLoadingMore() {
+        fun prepareRefresh() {
+            refreshing = true
             loadMoreJob?.cancel()
             updateFeed(source) { it.copy(append = Append.None) }
         }
