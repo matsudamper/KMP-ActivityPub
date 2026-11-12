@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
@@ -68,6 +69,7 @@ internal class HomeScreenViewModel(
     @InjectedParam private val selectedTab: HomeScreenUiState.Tab,
     private val userApi: UserApi,
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
+    private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
     private val timelineColumnSettingStore: TimelineColumnSettingStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
@@ -1008,7 +1010,10 @@ internal class HomeScreenViewModel(
                                     }
                                 }
                             },
-                            menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                            menuItems =
+                            createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
+                                createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
+                                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
@@ -1175,7 +1180,10 @@ internal class HomeScreenViewModel(
                     events.send { it.navigateToUserProfile(if (host == null) post.username else "${post.username}@$host") }
                 }
             },
-            menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+            menuItems =
+            createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
+                createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
+                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
