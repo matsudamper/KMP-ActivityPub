@@ -54,6 +54,7 @@ private fun UserProfileContentPreview() {
                                 acct = "@alice@example.social",
                                 body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
                                 postedAt = "2026-11-01T12:00:00Z",
+                                fullPostedAt = "2026/11/01 21:00",
                                 linkPreviews = listOf(
                                     PostItemUiState.LinkPreview(
                                         title = "Kotlin Programming Language",

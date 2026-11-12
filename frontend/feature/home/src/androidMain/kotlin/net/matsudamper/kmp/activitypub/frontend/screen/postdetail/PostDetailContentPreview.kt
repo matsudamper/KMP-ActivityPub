@@ -60,6 +60,7 @@ private fun createLoadedUiState(
                 acct = "@alice@example.social",
                 body = createPostBodyText(content = "個別の投稿の画面です。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
                 postedAt = "2026-11-01T12:00:00Z",
+                fullPostedAt = "2026/11/01 21:00",
                 linkPreviews = listOf(
                     PostItemUiState.LinkPreview(
                         title = "Kotlin Programming Language",
