@@ -26,6 +26,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
@@ -946,6 +947,8 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         items = items,
         footer = footer,
         selected = true,
+        fontSize = AppFontSize.Medium,
+        fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "中"),
         width = 400.dp,
         listener = AndroidPreviewTimelineColumnListener,
     ),
@@ -955,10 +958,17 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         items = items.take(1),
         footer = HomeScreenUiState.TimelineFooter.None,
         selected = false,
+        fontSize = AppFontSize.Large,
+        fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "大"),
         width = 400.dp,
         listener = AndroidPreviewTimelineColumnListener,
     ),
 )
+
+private fun previewFontSizeMenuItems(checkedLabel: String): List<HomeScreenUiState.FontSizeMenuItem> =
+    listOf("小", "中", "大").map { label ->
+        HomeScreenUiState.FontSizeMenuItem(label = label, checked = label == checkedLabel, listener = AndroidPreviewFontSizeMenuItemListener)
+    }
 
 private object AndroidPreviewTimelineColumnListener : HomeScreenUiState.TimelineColumnListener {
     override fun onClickTab() = Unit
@@ -995,5 +1005,9 @@ private object AndroidPreviewTimelineColumnDeleteDialogListener : HomeScreenUiSt
 }
 
 private object AndroidPreviewTimelineColumnEditDialogSourceListener : HomeScreenUiState.TimelineColumnEditDialog.SourceListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewFontSizeMenuItemListener : HomeScreenUiState.FontSizeMenuItemListener {
     override fun onClick() = Unit
 }

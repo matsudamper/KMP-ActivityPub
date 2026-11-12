@@ -16,6 +16,7 @@ import com.google.protobuf.InvalidProtocolBufferException
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.DEFAULT_TIMELINE_COLUMNS
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineFontSize
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 import org.koin.core.annotation.Singleton
 
@@ -66,6 +67,15 @@ private fun TimelineColumnProto.toTimelineColumnSetting(): TimelineColumnSetting
             followingGroupIdsList.forEach { add(TimelineSource.FollowingGroup(it)) }
             if (notifications) add(TimelineSource.Notifications)
         },
+        fontSize = when (fontSize) {
+            TimelineFontSizeProto.TIMELINE_FONT_SIZE_PROTO_SMALL -> TimelineFontSize.Small
+
+            TimelineFontSizeProto.TIMELINE_FONT_SIZE_PROTO_LARGE -> TimelineFontSize.Large
+
+            TimelineFontSizeProto.TIMELINE_FONT_SIZE_PROTO_MEDIUM,
+            TimelineFontSizeProto.UNRECOGNIZED,
+            -> TimelineFontSize.Medium
+        },
     )
 
 private fun TimelineColumnSetting.toProto(): TimelineColumnProto =
@@ -75,6 +85,13 @@ private fun TimelineColumnSetting.toProto(): TimelineColumnProto =
         .setMainGroup(TimelineSource.MainGroup in sources)
         .addAllFollowingGroupIds(sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId })
         .setNotifications(TimelineSource.Notifications in sources)
+        .setFontSize(
+            when (fontSize) {
+                TimelineFontSize.Small -> TimelineFontSizeProto.TIMELINE_FONT_SIZE_PROTO_SMALL
+                TimelineFontSize.Medium -> TimelineFontSizeProto.TIMELINE_FONT_SIZE_PROTO_MEDIUM
+                TimelineFontSize.Large -> TimelineFontSizeProto.TIMELINE_FONT_SIZE_PROTO_LARGE
+            },
+        )
         .build()
 
 private object TimelineColumnSettingSerializer : Serializer<TimelineColumnSettingProto> {

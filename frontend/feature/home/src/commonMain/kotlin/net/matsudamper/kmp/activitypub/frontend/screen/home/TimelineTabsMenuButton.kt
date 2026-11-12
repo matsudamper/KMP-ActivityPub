@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
- * 小さい画面のタブ行の端に置き、押すとタブの追加と、選んでいるタブの編集・削除を選べる
+ * 小さい画面のタブ行の端に置き、押すとタブの追加と、選んでいるタブの購読設定・削除・文字の大きさを選べる
  */
 @Composable
 internal fun TimelineTabsMenuButton(
@@ -66,7 +66,7 @@ internal fun TimelineTabsMenuItems(
         )
         if (selectedColumn != null) {
             DropdownMenuItem(
-                text = { Text("編集") },
+                text = { Text("購読設定") },
                 leadingIcon = { Icon(imageVector = AppIcons.Edit, contentDescription = null) },
                 onClick = {
                     onItemClick()
@@ -80,6 +80,10 @@ internal fun TimelineTabsMenuItems(
                     onItemClick()
                     selectedColumn.listener.onClickDelete()
                 },
+            )
+            TimelineColumnFontSizeMenuItem(
+                column = selectedColumn,
+                onItemClick = onItemClick,
             )
         }
     }
