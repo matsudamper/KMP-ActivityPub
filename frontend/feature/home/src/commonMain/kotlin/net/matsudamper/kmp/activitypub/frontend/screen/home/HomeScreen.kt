@@ -717,7 +717,7 @@ internal fun SensitiveImagesVisibilityButton(
 
 /**
  * 先頭から離れている間は、購読で届いた新しい投稿が上に足されて見えないので、見出しとの境の線を青くして知らせる。
- * 太い線で一覧を押し下げないよう、太さは元の線のまま、はみ出して一覧の上に重ねて描く
+ * 青から透明へぼかした帯で一覧を押し下げないよう、場所は元の線の太さのまま取り、帯ははみ出して一覧の上に重ねて描く
  */
 @Composable
 internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
@@ -728,9 +728,13 @@ internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
                 .height(DividerDefaults.Thickness)
                 .zIndex(1f)
                 .drawBehind {
+                    val gradientHeight = NewPostsHiddenGradientHeight.toPx()
                     drawRect(
-                        brush = Brush.horizontalGradient(NewPostsHiddenDividerColors),
-                        size = Size(width = size.width, height = NewPostsHiddenDividerThickness.toPx()),
+                        brush = Brush.verticalGradient(
+                            colors = listOf(NewPostsHiddenGradientColor, Color.Transparent),
+                            endY = gradientHeight,
+                        ),
+                        size = Size(width = size.width, height = gradientHeight),
                     )
                 },
         )
@@ -739,8 +743,8 @@ internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
     }
 }
 
-private val NewPostsHiddenDividerColors = listOf(Color(0xFF1565C0), Color(0xFF42A5F5), Color(0xFF80DEEA))
-private val NewPostsHiddenDividerThickness = 3.dp
+private val NewPostsHiddenGradientColor = Color(0xFF1E88E5)
+private val NewPostsHiddenGradientHeight = 8.dp
 
 @Composable
 internal fun TimelineTabContent(
