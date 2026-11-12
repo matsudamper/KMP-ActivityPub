@@ -4,8 +4,10 @@ import kotlinx.browser.localStorage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNames
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.DEFAULT_TIMELINE_COLUMNS
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
@@ -38,11 +40,14 @@ internal class WebTimelineColumnSettingStore : TimelineColumnSettingStore {
     }
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 private data class StoredTimelineColumn(
     val id: String,
     val name: String,
-    val home: Boolean,
+    /** メインをホームと呼んでいた頃に保存したカラムも読めるようにする */
+    @JsonNames("home")
+    val mainGroup: Boolean,
     val followingGroupIds: List<String>,
 )
 
@@ -50,7 +55,7 @@ private fun TimelineColumnSetting.toStored(): StoredTimelineColumn =
     StoredTimelineColumn(
         id = id,
         name = name,
-        home = TimelineSource.Home in sources,
+        mainGroup = TimelineSource.MainGroup in sources,
         followingGroupIds = sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId },
     )
 
@@ -59,7 +64,7 @@ private fun StoredTimelineColumn.toTimelineColumnSetting(): TimelineColumnSettin
         id = id,
         name = name,
         sources = buildSet {
-            if (home) add(TimelineSource.Home)
+            if (mainGroup) add(TimelineSource.MainGroup)
             followingGroupIds.forEach { add(TimelineSource.FollowingGroup(it)) }
         },
     )

@@ -14,12 +14,12 @@ interface FollowingRepository {
     fun remove(accountId: AccountId, actorUri: String): Boolean
 
     /**
-     * 購読していないか、ホームに入っていれば null
+     * 購読していないか、メインに入っていれば null
      */
     fun groupIdOf(accountId: AccountId, actorUri: String): FollowingGroupId?
 
     /**
-     * @param groupId null ならホームに戻す
+     * @param groupId null ならメインに戻す
      * @return 購読していなければ false
      */
     fun setGroup(accountId: AccountId, actorUri: String, groupId: FollowingGroupId?): Boolean

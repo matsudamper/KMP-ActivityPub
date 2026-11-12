@@ -91,10 +91,10 @@ internal class FakeRepositories : Repositories {
             rows[index] = accountId to FollowingGroup(id = groupId, name = name)
             return FollowingGroupRenameResult.Renamed
         }
-        private val homeNames = mutableMapOf<AccountId, String>()
-        override fun homeName(accountId: AccountId): String? = homeNames[accountId]
-        override fun setHomeName(accountId: AccountId, name: String) {
-            homeNames[accountId] = name
+        private val mainGroupNames = mutableMapOf<AccountId, String>()
+        override fun mainGroupName(accountId: AccountId): String? = mainGroupNames[accountId]
+        override fun setMainGroupName(accountId: AccountId, name: String) {
+            mainGroupNames[accountId] = name
         }
     }
     override val accountRepository: FakeAccountRepository = FakeAccountRepository(hasPasskey = { passkeyRepository.passkeys(it).isNotEmpty() })
