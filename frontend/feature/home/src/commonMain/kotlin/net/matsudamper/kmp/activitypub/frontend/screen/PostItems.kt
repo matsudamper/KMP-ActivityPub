@@ -65,6 +65,7 @@ internal fun createPostItemUiState(
             now = Clock.System.now(),
             timeZone = TimeZone.currentSystemDefault(),
         ),
+        fullPostedAt = createFullPostedAtText(publishedAt = body.publishedAt, timeZone = TimeZone.currentSystemDefault()),
         linkPreviews = body.linkUrls.map { url ->
             createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
         },

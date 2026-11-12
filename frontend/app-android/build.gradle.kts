@@ -103,6 +103,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.datastore)
+    implementation(libs.androidx.browser)
     implementation(libs.protobuf.javalite)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.play.services)

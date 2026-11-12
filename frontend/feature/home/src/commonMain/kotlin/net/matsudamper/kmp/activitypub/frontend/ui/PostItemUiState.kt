@@ -17,6 +17,10 @@ data class PostItemUiState(
     val body: TextWithEmojis,
     val postedAt: String,
     /**
+     * 投稿の単体画面で、添付の下に出す年月日と時刻
+     */
+    val fullPostedAt: String,
+    /**
      * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく
      */
     val linkPreviews: List<LinkPreview>,

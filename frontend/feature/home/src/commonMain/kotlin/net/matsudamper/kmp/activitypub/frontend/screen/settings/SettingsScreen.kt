@@ -121,8 +121,12 @@ internal fun SettingsContent(
             modifier = Modifier.fillMaxWidth().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ThemeSection(themeOptions = uiState.themeOptions)
+            RadioOptionSection(title = "テーマ", options = uiState.themeOptions)
             HorizontalDivider()
+            if (uiState.linkOpenSectionVisible) {
+                RadioOptionSection(title = "リンクの開き方", options = uiState.linkOpenOptions)
+                HorizontalDivider()
+            }
             FollowingGroupsItem(listener = uiState.listener)
             HorizontalDivider()
             SecurityItem(listener = uiState.listener)
@@ -146,17 +150,18 @@ internal fun SettingsContent(
 }
 
 @Composable
-private fun ThemeSection(
-    themeOptions: List<SettingsScreenUiState.ThemeOption>,
+private fun RadioOptionSection(
+    title: String,
+    options: List<SettingsScreenUiState.RadioOption>,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "テーマ",
+            text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
         )
         Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
-            themeOptions.forEach { option ->
+            options.forEach { option ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
