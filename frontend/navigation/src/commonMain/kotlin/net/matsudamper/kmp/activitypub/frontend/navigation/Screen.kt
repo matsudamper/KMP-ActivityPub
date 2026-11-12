@@ -41,6 +41,7 @@ sealed interface Screen : NavKey {
             val pathPattern: PathPattern,
         ) {
             Timeline(PathPattern("/home")),
+            Notifications(PathPattern("/notifications")),
             Search(PathPattern("/search")),
             User(PathPattern("/profile")),
         }
