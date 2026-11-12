@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.link.LinkOpenMode
+import net.matsudamper.kmp.activitypub.frontend.logic.link.LinkOpenSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeMode
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserAdminAccessResult
@@ -22,6 +24,7 @@ import org.koin.core.annotation.KoinViewModel
 internal class SettingsScreenViewModel(
     private val api: UserApi,
     private val themeSettingStore: ThemeSettingStore,
+    private val linkOpenSettingStore: LinkOpenSettingStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -34,6 +37,8 @@ internal class SettingsScreenViewModel(
         )
     private val themeModeStateFlow: StateFlow<ThemeMode> =
         themeSettingStore.themeModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, ThemeMode.System)
+    private val linkOpenModeStateFlow: StateFlow<LinkOpenMode> =
+        linkOpenSettingStore.linkOpenModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, LinkOpenMode.CustomTab)
 
     private val listener =
         object : SettingsScreenUiState.Listener {
@@ -72,9 +77,9 @@ internal class SettingsScreenViewModel(
             }
         }
 
-    private val themeOptionListeners: Map<ThemeMode, SettingsScreenUiState.ThemeOptionListener> =
+    private val themeOptionListeners: Map<ThemeMode, SettingsScreenUiState.RadioOptionListener> =
         ThemeMode.entries.associateWith { themeMode ->
-            object : SettingsScreenUiState.ThemeOptionListener {
+            object : SettingsScreenUiState.RadioOptionListener {
                 override fun onClick() {
                     viewModelScope.launch {
                         val saved = themeSettingStore.save(themeMode)
@@ -86,10 +91,26 @@ internal class SettingsScreenViewModel(
             }
         }
 
+    private val linkOpenOptionListeners: Map<LinkOpenMode, SettingsScreenUiState.RadioOptionListener> =
+        LinkOpenMode.entries.associateWith { linkOpenMode ->
+            object : SettingsScreenUiState.RadioOptionListener {
+                override fun onClick() {
+                    viewModelScope.launch {
+                        val saved = linkOpenSettingStore.save(linkOpenMode)
+                        if (saved.not()) {
+                            events.send { it.showMessage("リンクの開き方を保存できなかった") }
+                        }
+                    }
+                }
+            }
+        }
+
     val uiStateFlow: StateFlow<SettingsScreenUiState> =
-        MutableStateFlow(createUiState(viewModelStateFlow.value, themeModeStateFlow.value)).also { uiStateFlow ->
+        MutableStateFlow(
+            createUiState(viewModelStateFlow.value, themeModeStateFlow.value, linkOpenModeStateFlow.value),
+        ).also { uiStateFlow ->
             viewModelScope.launch {
-                combine(viewModelStateFlow, themeModeStateFlow, ::createUiState).collect { uiState ->
+                combine(viewModelStateFlow, themeModeStateFlow, linkOpenModeStateFlow, ::createUiState).collect { uiState ->
                     uiStateFlow.value = uiState
                 }
             }
@@ -127,11 +148,12 @@ internal class SettingsScreenViewModel(
     private fun createUiState(
         viewModelState: ViewModelState,
         themeMode: ThemeMode,
+        linkOpenMode: LinkOpenMode,
     ): SettingsScreenUiState {
         return SettingsScreenUiState(
             themeOptions =
             ThemeMode.entries.map { option ->
-                SettingsScreenUiState.ThemeOption(
+                SettingsScreenUiState.RadioOption(
                     label =
                     when (option) {
                         ThemeMode.System -> "端末の設定に合わせる"
@@ -140,6 +162,19 @@ internal class SettingsScreenViewModel(
                     },
                     selected = option == themeMode,
                     listener = themeOptionListeners.getValue(option),
+                )
+            },
+            linkOpenSectionVisible = linkOpenSettingStore.selectableModes.isNotEmpty(),
+            linkOpenOptions =
+            linkOpenSettingStore.selectableModes.map { option ->
+                SettingsScreenUiState.RadioOption(
+                    label =
+                    when (option) {
+                        LinkOpenMode.ExternalBrowser -> "外部ブラウザ"
+                        LinkOpenMode.CustomTab -> "アプリ内（カスタムタブ）"
+                    },
+                    selected = option == linkOpenMode,
+                    listener = linkOpenOptionListeners.getValue(option),
                 )
             },
             logoutButtonEnabled = viewModelState.loggingOut.not(),
