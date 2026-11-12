@@ -13,10 +13,10 @@ import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
 import io.opentelemetry.sdk.trace.SdkTracerProvider
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
+import net.matsudamper.kmp.activitypub.repository.TimelineRecipient
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.telemetry.FilteringSpanExporter
-import net.matsudamper.kmp.activitypub.repository.TimelineRecipient
 
 class TimelineFanoutOpenTelemetryTest {
     @Test

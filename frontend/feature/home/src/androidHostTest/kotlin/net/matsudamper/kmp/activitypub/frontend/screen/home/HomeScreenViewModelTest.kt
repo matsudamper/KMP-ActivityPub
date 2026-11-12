@@ -375,9 +375,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.value.listener.onScreenShown()
 
         // グループの続きに h1 より新しい投稿があるかもしれないので、h1 はまだ出さない
-        viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }
-        advanceUntilIdle()
-        assertEquals(listOf("h3", "g2"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
+        viewModel.uiStateFlow.first { uiState -> uiState.mainColumnItems().map { it.body.text.text } == listOf("h3", "g2") }
 
         engine.groupResponses.send { timelinePage(listOf(post(id = "g0", followingGroupId = "1", sortedAt = "2026-11-01T00:00:00Z")), null) }
         viewModel.uiStateFlow.value.timelineColumns.first().listener.onScrolledToEnd()

@@ -31,8 +31,8 @@ import net.matsudamper.kmp.activitypub.session.ValkeyUserSessionStore
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.timeline.AccountEvents
-import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineFanoutWorker
+import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineStore
 import net.matsudamper.kmp.activitypub.timeline.ValkeyTimelineStore
 

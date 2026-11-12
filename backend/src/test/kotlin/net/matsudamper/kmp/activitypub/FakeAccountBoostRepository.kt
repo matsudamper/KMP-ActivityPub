@@ -6,10 +6,10 @@ import net.matsudamper.kmp.activitypub.repository.AccountBoostRecord
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
-import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
 
 /**
  * @param targets member ごとのブーストできる投稿

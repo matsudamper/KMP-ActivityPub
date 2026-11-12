@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -24,6 +26,8 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
@@ -158,6 +162,44 @@ private fun HomeContentPreviewTimelineColumnDeleteDialog() = HomeTimelinePreview
         listener = AndroidPreviewTimelineColumnDeleteDialogListener,
     ),
 )
+
+@Preview
+@Composable
+private fun TimelineNotificationAndDeletedItemsPreview() {
+    HomePreviewTheme {
+        Surface {
+            Column {
+                val posts = previewTimelinePosts()
+                val notifiedPost = posts.first()
+                listOf(
+                    notifiedPost.copy(
+                        actorLabel = PostItemUiState.ActorLabel(
+                            icon = PostItemUiState.ActorLabelIcon.Favourite,
+                            text = createTextWithEmojis(text = "Alice :kotlin: がお気に入り", emojis = PreviewEmojis),
+                            iconUrl = null,
+                            cancelledLabelVisible = false,
+                            listener = AndroidPreviewActorLabelListener,
+                        ),
+                    ),
+                    notifiedPost.copy(
+                        actorLabel = PostItemUiState.ActorLabel(
+                            icon = PostItemUiState.ActorLabelIcon.Boost,
+                            text = createTextWithEmojis(text = "Bob がブースト", emojis = listOf()),
+                            iconUrl = null,
+                            cancelledLabelVisible = false,
+                            listener = AndroidPreviewActorLabelListener,
+                        ),
+                    ),
+                    notifiedPost.copy(deletedLabelVisible = true),
+                    posts[1].copy(deletedLabelVisible = true),
+                ).forEach { item ->
+                    PostItem(uiState = item, style = PostItemStyle.Timeline)
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
 
 /**
  * @param timelineColumnsEmptyMessage null でなければカラムを全部消した状態にする

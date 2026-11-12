@@ -61,6 +61,13 @@ internal class TimelineFeeds(
     }
 
     /**
+     * 読み直す前に呼ぶ。読み直した結果で続きの位置が変わるので、読みかけの続きは捨てる
+     */
+    fun stopLoadingMore(sources: Set<TimelineSource>) {
+        sources.forEach { readers[it]?.stopLoadingMore() }
+    }
+
+    /**
      * [sources] を先頭から読み直す
      *
      * @param keepLoadedPages 読み込み済みの続きのページを残すか
@@ -191,9 +198,6 @@ internal class TimelineFeeds(
         private var arrivedIdsSinceRefresh = setOf<String>()
 
         suspend fun refresh(keepLoadedPages: Boolean): RefreshFailure? {
-            // 読み直した結果で続きの位置が変わるので、読みかけの続きは捨てる
-            loadMoreJob?.cancel()
-            updateFeed(source) { it.copy(append = Append.None) }
             arrivedIdsSinceRefresh = setOf()
             val result = paging.refreshKeepingLoadedPages { loaded, firstPage ->
                 refreshedWith(loaded, firstPage, keepLoadedPages, arrivedIdsSinceRefresh, deletedPostIds)
@@ -226,6 +230,11 @@ internal class TimelineFeeds(
                 }
                 updateFeed(source) { it.copy(append = append) }
             }
+        }
+
+        fun stopLoadingMore() {
+            loadMoreJob?.cancel()
+            updateFeed(source) { it.copy(append = Append.None) }
         }
 
         suspend fun onPostArrived(post: UserHomeTimelineResult.Post) {

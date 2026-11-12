@@ -114,7 +114,7 @@ internal class HomeScreenViewModel(
     private var profileJob: Job? = null
     private var myPostsRetryJob: Job? = null
     private var timelineJob: Job? = null
-    private var timelineShown = false
+    private var timelineLoadRequested = false
     private var pullToRefreshIndicatorJob: Job? = null
     private var timelineArrivalsJob: Job? = null
     private val followMenuController = FollowMenuController(
@@ -288,7 +288,6 @@ internal class HomeScreenViewModel(
             if (viewModelStateFlow.value.timelineStream.connection != TimelineStreamConnection.StoppedByUser) {
                 collectTimelineArrivals()
             }
-            timelineShown = true
             loadTimeline(TimelineLoadTrigger.ScreenShown)
         }
     }
@@ -712,11 +711,15 @@ internal class HomeScreenViewModel(
         // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
         updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
         updateTimeline { it.copy(pullToRefreshIndicatorShowing = trigger == TimelineLoadTrigger.PullToRefresh) }
+        // カラムの設定を読み終える前なら空。読み終えたときに retainTimelineSources が読むので、ここで待って二重に読まない
+        val sources = viewModelStateFlow.value.timelineColumns.shownSources()
+        timelineLoadRequested = true
+        timelineFeeds.stopLoadingMore(sources)
         timelineJob = viewModelScope.launch {
             val startMark = TimeSource.Monotonic.markNow()
             try {
                 val failure = timelineFeeds.refresh(
-                    sources = viewModelStateFlow.value.timelineColumns.shownSources(),
+                    sources = sources,
                     // 1 ページ目だけにすると、続きまで読んでいたカラムが戻ってきたときに位置を保てず、読み直しからやり直しになる
                     keepLoadedPages = trigger == TimelineLoadTrigger.ScreenShown,
                 )
@@ -735,8 +738,8 @@ internal class HomeScreenViewModel(
      */
     private fun retainTimelineSources(settings: List<TimelineColumnSetting>) {
         val addedSources = timelineFeeds.retain(settings.flatMap { it.sources }.toSet())
-        // 画面を出す前は onScreenShown がまとめて読むので、二重に読まない
-        if (addedSources.isEmpty() || !timelineShown) return
+        // 画面を出す前は、出したときの loadTimeline がまとめて読むので、二重に読まない
+        if (addedSources.isEmpty() || !timelineLoadRequested) return
         viewModelScope.launch {
             showTimelineRefreshFailure(timelineFeeds.refresh(sources = addedSources, keepLoadedPages = false))
         }

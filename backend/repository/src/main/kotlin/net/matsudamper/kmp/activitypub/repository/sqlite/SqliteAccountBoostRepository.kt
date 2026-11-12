@@ -4,9 +4,9 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountBoostPosition
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRecord
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
-import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
