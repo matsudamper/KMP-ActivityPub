@@ -5,6 +5,7 @@ import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlinx.coroutines.CoroutineStart
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
+import net.matsudamper.kmp.activitypub.repository.TimelineRecipient
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
@@ -21,11 +23,11 @@ class TimelineFanoutWorkerTest {
     fun deletedGroupIsRecreatedAndRemainingJobsAreDistributedOnNextIteration() {
         val account = AccountId(1)
         val repository = object : TimelineRepository by FakeTimelineRepository() {
-            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = listOf(account)
+            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> = listOf(TimelineRecipient(account, null))
         }
         val cache = FakeTimelineStore(mutableListOf())
         val store = RecoverableGroupStore(cache)
-        val worker = TimelineFanoutWorker(repository, store, HomeTimelineArrivals(repository), Clock.systemUTC())
+        val worker = TimelineFanoutWorker(repository, store, AccountEvents(repository), Clock.systemUTC())
         store.initializeGroup()
         assertEquals(0, worker.runOnce(false))
         val position = TimelinePosition(1, "r1")
@@ -33,7 +35,7 @@ class TimelineFanoutWorkerTest {
         store.remainingJobs = listOf(FanoutJob("1-0", position))
         assertEquals(1, worker.runOnce(false))
         assertEquals(2, store.initializations)
-        assertEquals(listOf(position), cache.read(account, null, 10))
+        assertEquals(listOf(position), cache.read(TimelineFeed(account, null), null, 10))
         assertEquals(listOf("1-0"), store.acknowledged)
         assertEquals(0, worker.runOnce(false))
         assertEquals(2, store.initializations)
@@ -47,19 +49,19 @@ class TimelineFanoutWorkerTest {
         val stored = FakeTimelineRepository()
         stored.positions.add(position)
         val repository = object : TimelineRepository by stored {
-            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = listOf(recipient)
+            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> = listOf(TimelineRecipient(recipient, null))
         }
-        val arrivals = HomeTimelineArrivals(repository)
+        val arrivals = AccountEvents(repository)
         val store = object : TimelineStore by FakeTimelineStore(mutableListOf()) {
             override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = listOf(FanoutJob("1-0", position))
             override fun acknowledge(id: String) = Unit
         }
-        val recipientPosts = async(start = CoroutineStart.UNDISPATCHED) { arrivals.posts(recipient).first() }
-        val otherPosts = async(start = CoroutineStart.UNDISPATCHED) { withTimeoutOrNull(100) { arrivals.posts(other).first() } }
+        val recipientPosts = async(start = CoroutineStart.UNDISPATCHED) { arrivals.events(recipient).first() }
+        val otherPosts = async(start = CoroutineStart.UNDISPATCHED) { withTimeoutOrNull(100) { arrivals.events(other).first() } }
 
         TimelineFanoutWorker(repository, store, arrivals, Clock.systemUTC()).runOnce(false)
 
-        assertEquals(position, recipientPosts.await().position)
+        assertEquals(position, assertIs<AccountEvent.PostArrived>(recipientPosts.await()).post.position)
         assertNull(otherPosts.await())
     }
 
@@ -70,7 +72,7 @@ class TimelineFanoutWorkerTest {
             override fun jobs(consumer: String, block: Boolean): List<FanoutJob> = throw failure
             override fun initializeGroup() = error("再作成してはいけない")
         }
-        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, HomeTimelineArrivals(FakeTimelineRepository()), Clock.systemUTC())
+        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, AccountEvents(FakeTimelineRepository()), Clock.systemUTC())
         assertSame(failure, assertFailsWith<IllegalStateException> { worker.runOnce(false) })
     }
 

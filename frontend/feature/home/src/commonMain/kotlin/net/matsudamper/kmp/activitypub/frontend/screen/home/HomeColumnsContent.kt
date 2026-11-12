@@ -128,9 +128,10 @@ internal fun HomeColumnsContent(
                                     listState = tabListStates.timeline(timelineColumn.listStateKey),
                                     timelineItems = timelineColumn.items,
                                     refreshing = uiState.timelineRefreshing,
-                                    footer = uiState.timelineFooter,
+                                    footer = timelineColumn.footer,
                                     loadMoreAtEndEnabled = true,
                                     listener = uiState.listener,
+                                    columnListener = timelineColumn.listener,
                                     modifier = contentModifier,
                                 )
                             }

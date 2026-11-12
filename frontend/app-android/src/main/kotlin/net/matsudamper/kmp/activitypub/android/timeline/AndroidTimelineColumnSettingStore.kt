@@ -64,6 +64,7 @@ private fun TimelineColumnProto.toTimelineColumnSetting(): TimelineColumnSetting
         sources = buildSet {
             if (mainGroup) add(TimelineSource.MainGroup)
             followingGroupIdsList.forEach { add(TimelineSource.FollowingGroup(it)) }
+            if (notifications) add(TimelineSource.Notifications)
         },
     )
 
@@ -73,6 +74,7 @@ private fun TimelineColumnSetting.toProto(): TimelineColumnProto =
         .setName(name)
         .setMainGroup(TimelineSource.MainGroup in sources)
         .addAllFollowingGroupIds(sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId })
+        .setNotifications(TimelineSource.Notifications in sources)
         .build()
 
 private object TimelineColumnSettingSerializer : Serializer<TimelineColumnSettingProto> {

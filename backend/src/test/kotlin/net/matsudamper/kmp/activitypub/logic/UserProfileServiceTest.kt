@@ -391,6 +391,7 @@ class UserProfileServiceTest {
             boostedBy = null,
             actorEmojis = listOf(),
             emojis = listOf(),
+            deleted = false,
         )
 
     private companion object {

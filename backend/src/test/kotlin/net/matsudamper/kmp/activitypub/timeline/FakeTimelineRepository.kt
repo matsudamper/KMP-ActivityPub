@@ -7,8 +7,10 @@ import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
+import net.matsudamper.kmp.activitypub.repository.TimelineRecipient
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 internal class FakeTimelineRepository : TimelineRepository {
@@ -34,16 +36,16 @@ internal class FakeTimelineRepository : TimelineRepository {
         return TimelinePosition(1, "b1")
     }
 
-    override fun deleteRemote(actorUri: String, objectUri: String) = Unit
+    override fun deleteRemote(actorUri: String, objectUri: String, deletedAt: Instant): List<String> = listOf()
     override fun hasRemoteNote(objectUri: String): Boolean = received.any { it.objectUri == objectUri }
-    override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> = listOf()
+    override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> = listOf()
     override fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long) = Unit
-    override fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition> {
+    override fun rebuild(accountId: AccountId, groupId: FollowingGroupId?, limit: Int): List<TimelinePosition> {
         events.add("rebuild")
         return sorted().take(limit)
     }
 
-    override fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition> {
+    override fun page(accountId: AccountId, groupId: FollowingGroupId?, after: TimelinePosition?, limit: Int): List<TimelinePosition> {
         pageRequests.add(after)
         return sorted().filter { after == null || it.score < after.score || (it.score == after.score && it.member < after.member) }.take(limit)
     }
@@ -54,7 +56,7 @@ internal class FakeTimelineRepository : TimelineRepository {
             TimelineNoteRef.Local(
                 PublicNoteId(it.member),
             ),
-            null, null,
+            null, null, false,
         )
     }
 

@@ -13,6 +13,7 @@ import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
+import net.matsudamper.kmp.activitypub.shared.NotificationId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -64,6 +65,16 @@ object GraphQlScalars {
             .newScalar()
             .name("TimelinePostId")
             .coercing(StringIdCoercing(name = "TimelinePostId", type = TimelinePostId::class.java, wrap = ::TimelinePostId, unwrap = TimelinePostId::value))
+            .build()
+
+    /**
+     * JavaScript の数値に収まらない桁でも崩れないよう、文字列でやり取りする
+     */
+    val notificationId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("NotificationId")
+            .coercing(LongIdCoercing(name = "NotificationId", type = NotificationId::class.java, wrap = ::NotificationId, unwrap = NotificationId::value))
             .build()
 
     /**

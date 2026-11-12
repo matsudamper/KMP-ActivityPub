@@ -1,0 +1,22 @@
+query Notifications($after: String, $limit: Int!) {
+    userInfo {
+        notifications(after: $after, limit: $limit) {
+            notifications {
+                ...NotificationFields
+            }
+            nextCursor
+        }
+    }
+}
+
+fragment NotificationFields on Notification {
+    id
+    kind
+    actor {
+        ...ActorFields
+    }
+    post {
+        ...TimelinePostFields
+    }
+    receivedAt
+}

@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.repository.AccountBoostRecord
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
@@ -42,6 +43,8 @@ internal class SqliteAccountBoostRepository(
                     .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
                     .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                     .where(REMOTE_BOOSTS.ID.eq(boostId))
+                    // 消された投稿は削除済みと出すために行を残しているだけなので、新しく付けられないようにする
+                    .and(REMOTE_NOTES.DELETED_AT.isNull)
                     .and(dsl.remoteBoostReadableBy(accountId))
                     .and(REMOTE_NOTES.VISIBILITY.eq(BOOSTABLE_REMOTE_NOTE_VISIBILITY))
                     .fetchOne { it.toRemoteTarget() }
@@ -53,6 +56,8 @@ internal class SqliteAccountBoostRepository(
                 .from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.eq(remoteNoteId))
+                // 消された投稿は削除済みと出すために行を残しているだけなので、新しく付けられないようにする
+                .and(REMOTE_NOTES.DELETED_AT.isNull)
                 // 公開している投稿は誰でも読めるので、保存していればフォローしていなくてもブーストできる
                 .and(REMOTE_NOTES.VISIBILITY.eq(BOOSTABLE_REMOTE_NOTE_VISIBILITY))
                 .fetchOne { it.toRemoteTarget() }
@@ -102,7 +107,7 @@ internal class SqliteAccountBoostRepository(
         }
     }
 
-    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): Int {
+    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion {
         return jooq.transaction { dsl ->
             val remoteNoteIds = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
@@ -110,10 +115,12 @@ internal class SqliteAccountBoostRepository(
                 .and(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
                 .fetch(REMOTE_NOTES.ID)
                 .filterNotNull()
-            if (remoteNoteIds.isEmpty()) return@transaction 0
+            if (remoteNoteIds.isEmpty()) return@transaction RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf())
             val undone = dsl.undoAccountBoosts(ACCOUNT_BOOSTS.REMOTE_NOTE_ID.`in`(remoteNoteIds), now)
-            dsl.deleteFrom(REMOTE_NOTES).where(REMOTE_NOTES.ID.`in`(remoteNoteIds)).execute()
-            undone
+            RemoteNoteDeletion(
+                undoneBoostCount = undone,
+                deletedTimelineMembers = dsl.markRemoteNoteDeleted(actorUri = actorUri, objectUri = objectUri, deletedAt = now),
+            )
         }
     }
 

@@ -142,8 +142,9 @@ internal fun Application.module(deps: AppDependencies) {
                 )
             },
             diContainer = DiContainer(
-                homeTimelineService = deps.homeTimelineService,
-                homeTimelineArrivals = deps.homeTimelineArrivals,
+                timelineService = deps.timelineService,
+                accountEvents = deps.accountEvents,
+                notificationService = deps.notificationService,
                 accountService = deps.accountService,
                 userSearchService = deps.userSearchService,
                 userProfileService = deps.userProfileService,
