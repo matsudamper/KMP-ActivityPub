@@ -401,7 +401,10 @@ internal class UserProfileScreenViewModel(
                             }
                         }
                     },
-                    menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                    menuItems =
+                    createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
+                        createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
+                        createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },

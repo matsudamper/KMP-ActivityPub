@@ -308,7 +308,11 @@ internal class PostDetailScreenViewModel(
                 val username = if (host == null) post.username else "${post.username}@$host"
                 viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
             },
-            menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+            menuItems =
+            createOpenOriginalMenuItems(post.body.shareUrl) { url ->
+                viewModelScope.launch { events.send { it.openUrl(url) } }
+            } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
+                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
