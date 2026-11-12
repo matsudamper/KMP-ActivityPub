@@ -3,7 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.followinggroups
 import androidx.compose.runtime.Immutable
 
 data class FollowingGroupsScreenUiState(
-    val home: Item,
+    val mainGroup: Item,
     /**
      * 作った順
      */

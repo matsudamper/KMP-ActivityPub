@@ -19,7 +19,7 @@ internal fun previewFollowMenu(destinationName: String?): FollowMenuUiState {
         },
         items = listOf(
             FollowMenuUiState.Item.Unfollow(text = "購読解除", listener = AndroidPreviewFollowMenuItemListener),
-            FollowMenuUiState.Item.Destination(text = "ホーム", selected = destinationName == "ホーム", listener = AndroidPreviewFollowMenuItemListener),
+            FollowMenuUiState.Item.Destination(text = "メイン", selected = destinationName == "メイン", listener = AndroidPreviewFollowMenuItemListener),
             FollowMenuUiState.Item.Destination(text = "ニュース", selected = destinationName == "ニュース", listener = AndroidPreviewFollowMenuItemListener),
             FollowMenuUiState.Item.AddDestination(text = "購読先を追加", listener = AndroidPreviewFollowMenuItemListener),
         ),

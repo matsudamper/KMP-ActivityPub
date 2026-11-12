@@ -183,8 +183,8 @@ CREATE TABLE following_groups (
 
 CREATE UNIQUE INDEX following_groups_account_id_name ON following_groups (account_id, name);
 
--- グループに入れていない購読を入れるホームの名前。行が無ければ既定の名前
-CREATE TABLE following_home_groups (
+-- グループに入れていない購読を入れるメインの名前。行が無ければ既定の名前
+CREATE TABLE following_main_groups ( -- @renamed from=following_home_groups
     account_id INTEGER PRIMARY KEY REFERENCES accounts (id) ON DELETE CASCADE,
     name TEXT NOT NULL
 );

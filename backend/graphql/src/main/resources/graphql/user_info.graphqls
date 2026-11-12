@@ -12,8 +12,8 @@ type UserInfo {
     isAdmin: Boolean!
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
-    "どのグループにも入れていないフォローを入れるホームの名前"
-    homeGroupName: String! @lazy
+    "どのグループにも入れていないフォローを入れるメインの名前"
+    mainGroupName: String! @lazy
 }
 
 type RemoteProfileRefreshState {
@@ -35,7 +35,7 @@ type RemoteProfileRefreshProgress {
     finishedAt: String
 }
 
-"フォローを仕分けるグループ。どのグループにも入れていないフォローはホームに入る"
+"フォローを仕分けるグループ。どのグループにも入れていないフォローはメインに入る"
 type FollowingGroup {
     id: FollowingGroupId!
     name: String!

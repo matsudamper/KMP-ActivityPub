@@ -14,6 +14,6 @@ message TimelineColumnSettingProto {
 message TimelineColumnProto {
   string id = 1;
   string name = 2;
-  bool home = 3;
+  bool main_group = 3;
   repeated string following_group_ids = 4;
 }
