@@ -326,6 +326,7 @@ private fun HomeUserContentPreview() {
                             acct = "@user1",
                             body = createPostBodyText(content = "はじめての投稿", emojis = listOf(), onOpenUrl = {}),
                             postedAt = "3分前",
+                            fullPostedAt = "2026/11/05 12:00",
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
@@ -447,6 +448,7 @@ private fun HomeUserMediaContentPreview() {
                             acct = "@user1",
                             body = createPostBodyText(content = "はじめての投稿", emojis = listOf(), onOpenUrl = {}),
                             postedAt = "3分前",
+                            fullPostedAt = "2026/11/05 12:00",
                             linkPreviews = listOf(),
                             images = listOf(),
                             favouriteCountText = null,
@@ -716,6 +718,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         acct = "@kotlin@example.com",
         body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
         postedAt = "1分前",
+        fullPostedAt = "2026/11/05 12:00",
         linkPreviews = listOf(
             PostItemUiState.LinkPreview(
                 title = "Kotlin Programming Language",
@@ -763,6 +766,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         acct = "@compose@example.com",
         body = createPostBodyText(content = "Compose Multiplatform :compose: で Web と Android の画面を共有している :kotlin:", emojis = PreviewEmojis, onOpenUrl = {}),
         postedAt = "5分前",
+        fullPostedAt = "2026/11/05 12:00",
         linkPreviews = listOf(),
         images = listOf(
             PostItemUiState.Image(
@@ -815,6 +819,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         acct = "@kotlin@example.com",
         body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
         postedAt = "1分前",
+        fullPostedAt = "2026/11/05 12:00",
         linkPreviews = listOf(),
         images = listOf(),
         favouriteCountText = null,

@@ -3,9 +3,13 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.compose.ui.state.ToggleableState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,6 +84,7 @@ internal class HomeScreenViewModel(
                     nextCursor = null,
                     postsArrivedSinceRefresh = listOf(),
                     loading = TimelineLoading.None,
+                    pullToRefreshIndicatorShowing = false,
                 ),
                 timelineStream = TimelineStreamState(
                     connection = TimelineStreamConnection.Receiving,
@@ -115,6 +120,7 @@ internal class HomeScreenViewModel(
     private var profileJob: Job? = null
     private var myPostsRetryJob: Job? = null
     private var timelineJob: Job? = null
+    private var pullToRefreshIndicatorJob: Job? = null
     private var timelineArrivalsJob: Job? = null
     private val followMenuController = FollowMenuController(
         scope = viewModelScope,
@@ -711,15 +717,17 @@ internal class HomeScreenViewModel(
         if (append && timelineJob?.isActive == true) return
         if (append && viewModelStateFlow.value.timeline.nextCursor == null) return
         timelineJob?.cancel()
+        // 追加読み込みでは取り消さない。リフレッシュ表示の最低時間は取得の種類と関係なく守る
+        if (!append) pullToRefreshIndicatorJob?.cancel()
         // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
         if (!append) updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
         updateTimeline {
             it.copy(
+                pullToRefreshIndicatorShowing = if (append) it.pullToRefreshIndicatorShowing else trigger == TimelineLoadTrigger.PullToRefresh,
                 loading = when (trigger) {
-                    TimelineLoadTrigger.PullToRefresh -> TimelineLoading.PullToRefresh
-
                     TimelineLoadTrigger.Append -> TimelineLoading.Append
 
+                    TimelineLoadTrigger.PullToRefresh,
                     TimelineLoadTrigger.ScreenShown,
                     TimelineLoadTrigger.FollowingChanged,
                     TimelineLoadTrigger.Reconnect,
@@ -729,6 +737,7 @@ internal class HomeScreenViewModel(
             )
         }
         timelineJob = viewModelScope.launch {
+            val startMark = TimeSource.Monotonic.markNow()
             try {
                 val result = when (trigger) {
                     TimelineLoadTrigger.Append -> timelinePaging.fetchNext()
@@ -763,9 +772,21 @@ internal class HomeScreenViewModel(
                     updateTimeline {
                         if (it.loading is TimelineLoading.AppendFailed) it else it.copy(loading = TimelineLoading.None)
                     }
+                    if (trigger == TimelineLoadTrigger.PullToRefresh) keepPullToRefreshIndicator(startMark)
                     if (trigger == TimelineLoadTrigger.Reconnect) updateTimelineCatchingUpAfterReconnect(false)
                 }
             }
+        }
+    }
+
+    /**
+     * 取得ジョブの中で待つと、その間の追加読み込みが取得中として破棄されるので、表示の維持は取得と別のジョブ・状態で行う
+     */
+    private fun keepPullToRefreshIndicator(startMark: TimeMark) {
+        pullToRefreshIndicatorJob = viewModelScope.launch {
+            val remaining = PULL_TO_REFRESH_MIN_DURATION - startMark.elapsedNow()
+            if (remaining.isPositive()) delay(remaining)
+            updateTimeline { it.copy(pullToRefreshIndicatorShowing = false) }
         }
     }
 
@@ -904,7 +925,7 @@ internal class HomeScreenViewModel(
             addTimelineColumnButtonEnabled = viewModelState.timelineColumns.settings != null,
             timelineColumnEditDialog = createTimelineColumnEditDialog(viewModelState.timelineColumns),
             timelineColumnDeleteDialog = createTimelineColumnDeleteDialog(viewModelState.timelineColumns),
-            timelineRefreshing = viewModelState.timeline.loading == TimelineLoading.PullToRefresh,
+            timelineRefreshing = viewModelState.timeline.pullToRefreshIndicatorShowing,
             timelineFooter = createTimelineFooter(viewModelState.timeline.loading),
             timelineStreamStatus = viewModelState.timelineStream.status(),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
@@ -929,12 +950,8 @@ internal class HomeScreenViewModel(
     private fun createTimelineFooter(loading: TimelineLoading): HomeScreenUiState.TimelineFooter {
         return when (loading) {
             is TimelineLoading.AppendFailed -> HomeScreenUiState.TimelineFooter.Error(loading.message)
-
             TimelineLoading.Append -> HomeScreenUiState.TimelineFooter.Loading
-
-            TimelineLoading.None,
-            TimelineLoading.PullToRefresh,
-            -> HomeScreenUiState.TimelineFooter.None
+            TimelineLoading.None -> HomeScreenUiState.TimelineFooter.None
         }
     }
 
@@ -1228,6 +1245,7 @@ internal class HomeScreenViewModel(
     }
 
     private companion object {
+        val PULL_TO_REFRESH_MIN_DURATION = 600.milliseconds
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
         const val MY_POSTS_NOT_FOUND_MESSAGE = "投稿を読み込めませんでした"
@@ -1320,6 +1338,7 @@ internal class HomeScreenViewModel(
         val nextCursor: String?,
         val postsArrivedSinceRefresh: List<UserHomeTimelineResult.Post>,
         val loading: TimelineLoading,
+        val pullToRefreshIndicatorShowing: Boolean,
     )
 
     /**
@@ -1327,8 +1346,6 @@ internal class HomeScreenViewModel(
      */
     private sealed interface TimelineLoading {
         data object None : TimelineLoading
-
-        data object PullToRefresh : TimelineLoading
 
         data object Append : TimelineLoading
 
