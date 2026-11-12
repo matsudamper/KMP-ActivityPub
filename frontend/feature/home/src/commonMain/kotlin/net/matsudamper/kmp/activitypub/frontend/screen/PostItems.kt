@@ -57,7 +57,7 @@ internal fun createPostItemUiState(
                     is PostActorLabel.FavouriteNotification -> "がお気に入り"
                 },
                 iconUrl = actor.iconUrl,
-                cancelledLabelVisible = label is PostActorLabel.Boost && (deleted || label.byViewer && body.boostedByMe == false),
+                cancelledLabelVisible = label is PostActorLabel.Boost && (deleted || (label.byViewer && body.boostedByMe == false)),
                 listener = label.navigateToProfile?.let { navigateToProfile ->
                     object : PostItemUiState.ActorLabelListener {
                         override fun onClick() {
