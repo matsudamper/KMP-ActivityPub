@@ -47,7 +47,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -64,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
@@ -230,11 +237,13 @@ internal fun PostItem(
                 val attachmentListState = rememberLazyListState()
                 val layoutDirection = LocalLayoutDirection.current
                 val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
+                val mouseWheelScrollStopper = remember { MouseWheelHorizontalScrollStopper() }
                 LazyRow(
                     state = attachmentListState,
                     modifier = Modifier
                         .padding(top = 8.dp)
                         .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
+                        .stopHorizontalMouseWheelScrollAtEdge(mouseWheelScrollStopper)
                         .scrollHorizontallyByMouseDrag(
                             state = attachmentListState,
                             flingBehavior = attachmentFlingBehavior,
@@ -604,6 +613,35 @@ private val PostImageGridSpacing = 8.dp
 private const val PostImageGridMaxColumnCount = 3
 private const val PostImageGridCellAspectRatio = 4f / 3f
 private val PostIconHeaderSpacing = 12.dp
+
+/**
+ * 横スクロールの外側にはカラムの並びの横スクロールがあり、端まで行ったあとのホイールがそちらへ伝わってカラムが動いてしまう。
+ * マウスのときだけ止め、タッチで端まで動かしたときは外側へ引き継ぐ
+ */
+private class MouseWheelHorizontalScrollStopper : NestedScrollConnection {
+    var latestPointerIsMouse = false
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        return if (latestPointerIsMouse) Offset(x = available.x, y = 0f) else Offset.Zero
+    }
+}
+
+private fun Modifier.stopHorizontalMouseWheelScrollAtEdge(stopper: MouseWheelHorizontalScrollStopper): Modifier = this
+    .nestedScroll(stopper)
+    .pointerInput(stopper) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                stopper.latestPointerIsMouse = event.changes.any { it.type == PointerType.Mouse }
+                if (event.type == PointerEventType.Scroll) {
+                    // 内側が端で受け取らなかったホイールを、外側のスクロールが受け取らないよう使い切る
+                    val mainPassEvent = awaitPointerEvent(PointerEventPass.Main)
+                    val horizontalWheelChanges = mainPassEvent.changes.filter { abs(it.scrollDelta.x) > abs(it.scrollDelta.y) }
+                    horizontalWheelChanges.forEach { it.consume() }
+                }
+            }
+        }
+    }
 
 /**
  * スクロールの部品はマウスのドラッグでは動かないので、画面に収まらない画像をマウスで送れるようにする。
