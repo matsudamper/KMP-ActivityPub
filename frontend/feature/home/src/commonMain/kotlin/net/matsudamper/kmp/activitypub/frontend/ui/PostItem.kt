@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -503,22 +503,19 @@ private fun PostActions(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val boostButton = uiState.boostButton
-            Row(
+            TextButton(
+                onClick = { boostButton?.listener?.onClick() },
+                enabled = boostButton != null,
                 modifier = Modifier
                     .width(sizes.actionSlotWidth)
-                    .heightIn(min = ActionTouchTargetSize)
                     .then(
                         if (boostButton == null) {
                             Modifier
                         } else {
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { boostButton.listener.onClick() }
-                                .semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
+                            Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
                         },
                     ),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                contentPadding = ActionButtonContentPadding,
             ) {
                 Icon(
                     imageVector = AppIcons.Repeat,
@@ -532,27 +529,18 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.boostCountText.orEmpty(),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
                 )
             }
             val favouriteButton = uiState.favouriteButton
-            Row(
-                modifier = Modifier
-                    .width(sizes.actionSlotWidth)
-                    .heightIn(min = ActionTouchTargetSize)
-                    .then(
-                        if (favouriteButton == null) {
-                            Modifier
-                        } else {
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { favouriteButton.listener.onClick() }
-                        },
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            TextButton(
+                onClick = { favouriteButton?.listener?.onClick() },
+                enabled = favouriteButton != null,
+                modifier = Modifier.width(sizes.actionSlotWidth),
+                contentPadding = ActionButtonContentPadding,
             ) {
                 Icon(
                     imageVector = AppIcons.Star,
@@ -562,6 +550,7 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.favouriteCountText.orEmpty(),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
@@ -576,12 +565,9 @@ private fun PostActions(
                 )
             }
             val shareListener = uiState.shareListener
-            Box(
-                modifier = Modifier
-                    .size(ActionTouchTargetSize)
-                    .clip(CircleShape)
-                    .clickable(enabled = shareListener != null) { shareListener?.onClick() },
-                contentAlignment = Alignment.Center,
+            IconButton(
+                onClick = { shareListener?.onClick() },
+                enabled = shareListener != null,
             ) {
                 Icon(
                     imageVector = AppIcons.Share,
@@ -597,8 +583,7 @@ private fun PostActions(
     }
 }
 
-/** M3 の最小タッチターゲット */
-private val ActionTouchTargetSize = 48.dp
+private val ActionButtonContentPadding = PaddingValues(horizontal = 8.dp)
 
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
 
