@@ -242,7 +242,7 @@ internal class Federation(
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
-    val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, null)
+    val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory = directory, notes = notes, boosts = NoOutboxBoosts, webPages = null)
 
     val featuredEndpoint: FeaturedEndpoint =
         FeaturedEndpoint(directory = directory, featuredNotes = RepositoryFeaturedNoteStore(pins = notePinRepository, notes = notes), webPages = null)
