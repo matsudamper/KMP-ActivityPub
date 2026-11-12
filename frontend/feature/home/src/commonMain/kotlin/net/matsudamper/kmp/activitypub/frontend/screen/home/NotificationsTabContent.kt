@@ -14,7 +14,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -25,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import net.matsudamper.kmp.activitypub.frontend.ui.AppPullToRefreshBox
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 
@@ -85,17 +85,16 @@ private fun LoadedNotifications(
             .filter { nearEnd -> nearEnd }
             .collect { listener.onScrolledToNotificationsEnd() }
     }
-    val wheelPullToRefreshBlocker = remember { WheelPullToRefreshBlocker() }
-    PullToRefreshBox(
-        isRefreshing = notifications.refreshing,
+    AppPullToRefreshBox(
+        refreshing = notifications.refreshing,
         onRefresh = listener::onRefreshNotifications,
         modifier = Modifier.fillMaxSize(),
-    ) {
+    ) { scrollableModifier ->
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .then(wheelPullToRefreshBlocker.modifier),
+                .then(scrollableModifier),
         ) {
             val emptyMessage = notifications.emptyMessage
             if (emptyMessage != null) {

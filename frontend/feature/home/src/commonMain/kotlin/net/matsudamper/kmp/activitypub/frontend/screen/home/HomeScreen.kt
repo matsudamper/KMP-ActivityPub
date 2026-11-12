@@ -58,7 +58,6 @@ import androidx.compose.material3.TabPosition
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -123,6 +122,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUi
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
+import net.matsudamper.kmp.activitypub.frontend.ui.AppPullToRefreshBox
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.EmojiText
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
@@ -806,17 +806,16 @@ internal fun TimelineTabContent(
             .filter { (nearEnd, _) -> nearEnd }
             .collect { columnListener.onScrolledToEnd() }
     }
-    val wheelPullToRefreshBlocker = remember { WheelPullToRefreshBlocker() }
-    PullToRefreshBox(
-        isRefreshing = refreshing,
+    AppPullToRefreshBox(
+        refreshing = refreshing,
         onRefresh = listener::onRefreshTimeline,
         modifier = modifier,
-    ) {
+    ) { scrollableModifier ->
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .then(wheelPullToRefreshBlocker.modifier),
+                .then(scrollableModifier),
         ) {
             items(timelineItems) { item ->
                 PostItem(uiState = item, style = PostItemStyle.Timeline)
@@ -1234,34 +1233,6 @@ private val HomeScreenUiState.Tab.label: String
         HomeScreenUiState.Tab.Search -> "検索"
         HomeScreenUiState.Tab.User -> "ユーザー"
     }
-
-/**
- * ドラッグの移動量は指を離した後にまとめて処理されることがあるため、離した時点では判定を切り替えない。
- * 次にホイールが回るか押下されるまで、直前の入力の種類を保つ
- */
-internal class WheelPullToRefreshBlocker : NestedScrollConnection {
-    val modifier: Modifier = Modifier
-        .pointerInput(Unit) {
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    when (event.type) {
-                        PointerEventType.Scroll -> lastScrollInputIsWheel = true
-                        PointerEventType.Press -> lastScrollInputIsWheel = false
-                        else -> Unit
-                    }
-                }
-            }
-        }
-        .nestedScroll(this)
-
-    private var lastScrollInputIsWheel = false
-
-    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-        val pullOverscrollByWheel = source == NestedScrollSource.UserInput && lastScrollInputIsWheel && available.y > 0f
-        return if (pullOverscrollByWheel) Offset(x = 0f, y = available.y) else Offset.Zero
-    }
-}
 
 /**
  * レールとタイムラインに加えて、投稿などのカラムを 1 つ並べられる幅

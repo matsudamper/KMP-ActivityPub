@@ -5,13 +5,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -131,7 +127,6 @@ internal class HomeScreenViewModel(
     private var myPostsRetryJob: Job? = null
     private var timelineJob: Job? = null
     private var timelineLoadRequested = false
-    private var pullToRefreshIndicatorJob: Job? = null
     private var timelineArrivalsJob: Job? = null
     private var notificationsJob: Job? = null
     private val followMenuController = FollowMenuController(
@@ -879,7 +874,6 @@ internal class HomeScreenViewModel(
      */
     private fun loadTimeline(trigger: TimelineLoadTrigger) {
         timelineJob?.cancel()
-        pullToRefreshIndicatorJob?.cancel()
         // 読み直しを別の読み直しで打ち切ったときに、再接続中の表示が残らないようにする
         updateTimelineCatchingUpAfterReconnect(trigger == TimelineLoadTrigger.Reconnect)
         updateTimeline { it.copy(pullToRefreshIndicatorShowing = trigger == TimelineLoadTrigger.PullToRefresh) }
@@ -888,7 +882,6 @@ internal class HomeScreenViewModel(
         timelineLoadRequested = true
         timelineFeeds.prepareRefresh(sources)
         timelineJob = viewModelScope.launch {
-            val startMark = TimeSource.Monotonic.markNow()
             try {
                 val failure = timelineFeeds.refresh(
                     sources = sources,
@@ -898,7 +891,7 @@ internal class HomeScreenViewModel(
                 showTimelineRefreshFailure(failure)
             } finally {
                 if (currentCoroutineContext().isActive) {
-                    if (trigger == TimelineLoadTrigger.PullToRefresh) keepPullToRefreshIndicator(startMark)
+                    if (trigger == TimelineLoadTrigger.PullToRefresh) updateTimeline { it.copy(pullToRefreshIndicatorShowing = false) }
                     if (trigger == TimelineLoadTrigger.Reconnect) updateTimelineCatchingUpAfterReconnect(false)
                 }
             }
@@ -922,17 +915,6 @@ internal class HomeScreenViewModel(
             null -> Unit
             TimelineFeeds.RefreshFailure.NotLoggedIn -> events.send { it.showMessage(NOT_LOGGED_IN_MESSAGE) }
             is TimelineFeeds.RefreshFailure.Failed -> events.send { it.showMessage(failure.message ?: NETWORK_ERROR_MESSAGE) }
-        }
-    }
-
-    /**
-     * 取得ジョブの中で待つと、その間の追加読み込みが取得中として破棄されるので、表示の維持は取得と別のジョブ・状態で行う
-     */
-    private fun keepPullToRefreshIndicator(startMark: TimeMark) {
-        pullToRefreshIndicatorJob = viewModelScope.launch {
-            val remaining = PULL_TO_REFRESH_MIN_DURATION - startMark.elapsedNow()
-            if (remaining.isPositive()) delay(remaining)
-            updateTimeline { it.copy(pullToRefreshIndicatorShowing = false) }
         }
     }
 
@@ -1501,7 +1483,6 @@ internal class HomeScreenViewModel(
     }
 
     private companion object {
-        val PULL_TO_REFRESH_MIN_DURATION = 600.milliseconds
         val COLUMN_DEFAULT_WIDTH = 400.dp
         val COLUMN_MIN_WIDTH = 240.dp
         val COLUMN_MAX_WIDTH = 800.dp
