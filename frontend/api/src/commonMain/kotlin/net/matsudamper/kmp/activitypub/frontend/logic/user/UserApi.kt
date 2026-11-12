@@ -811,10 +811,16 @@ class UserApi(
             .mapNotNull { response -> response.data?.accountEvents }
             .onEach { event ->
                 val arrivedPost = event.timelinePostArrived?.timelinePostFields?.toPost()
-                val deletedPostIds = event.timelinePostsDeleted?.postIds
+                val removedPosts = event.timelinePostsDeleted
                 val arrivedNotification = event.notificationArrived?.notificationFields?.toNotification()
                 if (arrivedPost != null) emit(AccountStreamEvent.PostArrived(arrivedPost))
-                if (deletedPostIds != null) emit(AccountStreamEvent.PostsDeleted(deletedPostIds))
+                if (removedPosts != null) {
+                    emit(
+                        AccountStreamEvent.PostsRemoved(
+                            PostRemovals(deletedPostIds = removedPosts.postIds.toSet(), boostUndonePostIds = removedPosts.boostUndonePostIds.toSet()),
+                        ),
+                    )
+                }
                 if (arrivedNotification != null) emit(AccountStreamEvent.NotificationArrived(arrivedNotification))
             }
             .count()

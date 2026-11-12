@@ -279,6 +279,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 record.value13(),
                 null,
                 record.value16() != null,
+                false,
             )
         }
     }
@@ -617,7 +618,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     emojis = emojisByActor[boosterUri].orEmpty(),
                     updatedAt = StoredInstant.parse(checkNotNull(record.value17())),
                 ),
-                deleted = record.value20() != null || record.value21() != null,
+                deleted = record.value20() != null,
+                boostUndone = record.value21() != null,
             )
         }
     }

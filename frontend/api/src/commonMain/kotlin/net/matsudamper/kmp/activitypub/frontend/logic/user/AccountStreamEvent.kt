@@ -7,10 +7,8 @@ sealed interface AccountStreamEvent {
 
     /**
      * 投稿者が投稿を消したか、ブーストした相手がブーストを取り消した
-     *
-     * @param postIds 削除済みになった [UserHomeTimelineResult.Post.id]
      */
-    data class PostsDeleted(val postIds: List<String>) : AccountStreamEvent
+    data class PostsRemoved(val removals: PostRemovals) : AccountStreamEvent
 
     data class NotificationArrived(val notification: UserNotificationsResult.Notification) : AccountStreamEvent
 

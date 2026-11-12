@@ -611,7 +611,7 @@ internal class HomeScreenViewModel(
 
                     is AccountStreamEvent.PostArrived -> timelineFeeds.onPostArrived(event.post)
 
-                    is AccountStreamEvent.PostsDeleted -> timelineFeeds.onPostsDeleted(event.postIds)
+                    is AccountStreamEvent.PostsRemoved -> timelineFeeds.onPostsRemoved(event.removals)
 
                     is AccountStreamEvent.NotificationArrived -> timelineFeeds.onNotificationArrived(event.notification)
 
@@ -978,6 +978,7 @@ internal class HomeScreenViewModel(
                         createPostItemUiState(
                             pinned = post.pinned,
                             deleted = false,
+                            boostUndone = false,
                             actorLabel = if (boostedNoteAuthor == null) {
                                 null
                             } else {
@@ -1165,6 +1166,7 @@ internal class HomeScreenViewModel(
         return createPostItemUiState(
             pinned = false,
             deleted = post.deleted,
+            boostUndone = post.boostUndone,
             actorLabel = actorLabel,
             iconUrl = post.iconUrl,
             displayName = post.displayName,

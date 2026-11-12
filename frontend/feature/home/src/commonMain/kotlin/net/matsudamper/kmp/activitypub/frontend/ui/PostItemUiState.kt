@@ -12,7 +12,7 @@ data class PostItemUiState(
     val actorLabel: ActorLabel?,
     val pinnedLabelVisible: Boolean,
     /**
-     * 投稿者が投稿を消した後か。一覧は消える前の内容のまま出すので、消えたことを示す。ブーストの取り消しは actorLabel で示す
+     * 投稿者が投稿を消した後か。一覧は消える前の内容のまま出すので、消えたことを示す
      */
     val deletedLabelVisible: Boolean,
     val iconUrl: String?,

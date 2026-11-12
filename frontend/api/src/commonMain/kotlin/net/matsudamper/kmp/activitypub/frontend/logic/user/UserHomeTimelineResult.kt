@@ -7,9 +7,13 @@ sealed interface UserHomeTimelineResult {
     data class Post(
         val id: String,
         /**
-         * 投稿者が投稿を消したか、ブーストした相手がブーストを取り消したか。ほかの項目は消される前のまま
+         * 投稿者が投稿を消したか。ほかの項目は消される前のまま
          */
         val deleted: Boolean,
+        /**
+         * ブーストした相手がブーストを取り消したか。ほかの項目は取り消される前のまま
+         */
+        val boostUndone: Boolean,
         /**
          * タイムラインに並べる時刻。複数の購読先を 1 つのカラムに混ぜるときに、新しい順に並べるのに使う
          */

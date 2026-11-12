@@ -5,6 +5,7 @@ subscription AccountEvents {
         }
         timelinePostsDeleted {
             postIds
+            boostUndonePostIds
         }
         notificationArrived {
             ...NotificationFields

@@ -34,6 +34,7 @@ private fun TimelinePost.toQlTimelinePost(accountId: AccountId, pinnedNoteIds: S
     return QlTimelinePost(
         id = TimelinePostId(position.member),
         deleted = deleted,
+        boostUndone = boostUndone,
         sortedAt = Instant.ofEpochMilli(position.score).toString(),
         content = body.content,
         publishedAt = publishedAt.toString(),

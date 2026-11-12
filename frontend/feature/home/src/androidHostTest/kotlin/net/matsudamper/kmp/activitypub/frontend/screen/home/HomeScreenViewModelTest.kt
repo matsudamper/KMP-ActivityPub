@@ -549,7 +549,7 @@ class HomeScreenViewModelTest {
 
     private fun post(id: String, followingGroupId: String?, sortedAt: String): String {
         val groupId = if (followingGroupId == null) "null" else "\"$followingGroupId\""
-        return """{"__typename":"TimelinePost","id":"$id","deleted":false,"sortedAt":"$sortedAt","content":"$id","publishedAt":"2026-11-01",""" +
+        return """{"__typename":"TimelinePost","id":"$id","deleted":false,"boostUndone":false,"sortedAt":"$sortedAt","content":"$id","publishedAt":"2026-11-01",""" +
             """"author":${actor("Alice")},"summary":null,"sensitive":false,"linkUrls":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,""" +
             """"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,""" +
             """"boostedByMe":null,"reactionPostId":"$id","followingGroupId":$groupId}"""
@@ -568,7 +568,8 @@ class HomeScreenViewModelTest {
 
     private fun postsDeleted(ids: List<String>): String {
         val postIds = ids.joinToString(",") { "\"$it\"" }
-        return """{"__typename":"AccountEvent","timelinePostArrived":null,"timelinePostsDeleted":{"__typename":"TimelinePostsDeleted","postIds":[$postIds]},"notificationArrived":null}"""
+        return """{"__typename":"AccountEvent","timelinePostArrived":null,""" +
+            """"timelinePostsDeleted":{"__typename":"TimelinePostsDeleted","postIds":[$postIds],"boostUndonePostIds":[]},"notificationArrived":null}"""
     }
 
     private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()
