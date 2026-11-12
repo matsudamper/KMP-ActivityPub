@@ -1,15 +1,11 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
- * タイムラインのカラムやタブの見出しに置き、押すと編集と削除、文字の大きさを選べる
+ * タイムラインのカラムやタブの見出しに置き、押すと購読設定と削除、文字の大きさを選べる
  */
 @Composable
 internal fun TimelineColumnSettingsButton(
@@ -40,7 +36,7 @@ internal fun TimelineColumnSettingsButton(
             onDismissRequest = { menuExpanded = false },
         ) {
             DropdownMenuItem(
-                text = { Text("編集") },
+                text = { Text("購読設定") },
                 leadingIcon = { Icon(imageVector = AppIcons.Edit, contentDescription = null) },
                 onClick = {
                     menuExpanded = false
@@ -55,7 +51,7 @@ internal fun TimelineColumnSettingsButton(
                     column.listener.onClickDelete()
                 },
             )
-            TimelineColumnFontSizeMenuItems(
+            TimelineColumnFontSizeMenuItem(
                 column = column,
                 onItemClick = { menuExpanded = false },
             )
@@ -63,35 +59,44 @@ internal fun TimelineColumnSettingsButton(
     }
 }
 
+/**
+ * 押すと小・中・大を選ぶメニューを重ねて開く
+ */
 @Composable
-internal fun TimelineColumnFontSizeMenuItems(
+internal fun TimelineColumnFontSizeMenuItem(
     column: HomeScreenUiState.TimelineColumn,
     onItemClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier) {
-        HorizontalDivider()
-        Text(
-            text = "文字の大きさ",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+    var subMenuExpanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        DropdownMenuItem(
+            text = { Text("文字の大きさ") },
+            leadingIcon = { Box(modifier = Modifier.size(24.dp)) },
+            trailingIcon = { Icon(imageVector = AppIcons.ArrowDropDown, contentDescription = null) },
+            onClick = { subMenuExpanded = true },
         )
-        column.fontSizeMenuItems.forEach { item ->
-            DropdownMenuItem(
-                text = { Text(item.label) },
-                leadingIcon = {
-                    if (item.checked) {
-                        Icon(imageVector = AppIcons.Check, contentDescription = "選択中")
-                    } else {
-                        Box(modifier = Modifier.size(24.dp))
-                    }
-                },
-                onClick = {
-                    onItemClick()
-                    item.listener.onClick()
-                },
-            )
+        DropdownMenu(
+            expanded = subMenuExpanded,
+            onDismissRequest = { subMenuExpanded = false },
+        ) {
+            column.fontSizeMenuItems.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item.label) },
+                    leadingIcon = {
+                        if (item.checked) {
+                            Icon(imageVector = AppIcons.Check, contentDescription = "選択中")
+                        } else {
+                            Box(modifier = Modifier.size(24.dp))
+                        }
+                    },
+                    onClick = {
+                        subMenuExpanded = false
+                        onItemClick()
+                        item.listener.onClick()
+                    },
+                )
+            }
         }
     }
 }
