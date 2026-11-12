@@ -3,19 +3,21 @@ package net.matsudamper.kmp.activitypub.frontend.screen.settings
 import androidx.compose.runtime.Immutable
 
 data class SettingsScreenUiState(
-    val themeOptions: List<ThemeOption>,
+    val themeOptions: List<RadioOption>,
+    val linkOpenSectionVisible: Boolean,
+    val linkOpenOptions: List<RadioOption>,
     val logoutButtonEnabled: Boolean,
     val adminItemVisible: Boolean,
     val listener: Listener,
 ) {
-    data class ThemeOption(
+    data class RadioOption(
         val label: String,
         val selected: Boolean,
-        val listener: ThemeOptionListener,
+        val listener: RadioOptionListener,
     )
 
     @Immutable
-    interface ThemeOptionListener {
+    interface RadioOptionListener {
         fun onClick()
     }
 

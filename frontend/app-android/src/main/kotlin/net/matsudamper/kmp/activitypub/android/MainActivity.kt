@@ -14,14 +14,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import net.matsudamper.kmp.activitypub.android.link.rememberLinkOpenUriHandler
 import net.matsudamper.kmp.activitypub.android.passkey.ForegroundActivityHolder
 import net.matsudamper.kmp.activitypub.android.server.rememberServerSettingUiState
+import net.matsudamper.kmp.activitypub.frontend.logic.link.LinkOpenSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeMode
 import net.matsudamper.kmp.activitypub.frontend.logic.theme.ThemeSettingStore
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -67,19 +71,22 @@ private fun AndroidNavigation(modifier: Modifier = Modifier) {
     val themeSettingStore = koinInject<ThemeSettingStore>()
     val themeMode by themeSettingStore.themeModeFlow.collectAsState(initial = ThemeMode.System)
     val darkTheme = themeMode.isDarkTheme()
+    val linkOpenUriHandler = rememberLinkOpenUriHandler(linkOpenSettingStore = koinInject<LinkOpenSettingStore>())
     SystemBarStyleEffect(darkTheme = darkTheme)
-    AppTheme(darkTheme = darkTheme) {
-        // 各画面が上下のバーの裏まで自分の色で塗り、システムバーの分は画面側で避ける
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .imePadding(),
-        ) {
-            HomeNavigationHost(
-                backStack = backStack,
-                serverSettingUiState = { rememberServerSettingUiState() },
-            )
+    CompositionLocalProvider(LocalUriHandler provides linkOpenUriHandler) {
+        AppTheme(darkTheme = darkTheme) {
+            // 各画面が上下のバーの裏まで自分の色で塗り、システムバーの分は画面側で避ける
+            Box(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .imePadding(),
+            ) {
+                HomeNavigationHost(
+                    backStack = backStack,
+                    serverSettingUiState = { rememberServerSettingUiState() },
+                )
+            }
         }
     }
 }
