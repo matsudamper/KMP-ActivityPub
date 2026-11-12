@@ -89,6 +89,7 @@ private fun UserProfileContentPreview() {
                                 acct = "@bob@remote.example",
                                 body = createPostBodyText(content = "フォローしていない人の投稿もブーストできます", emojis = listOf(), onOpenUrl = {}),
                                 postedAt = "2026-11-01T13:00:00Z",
+                                fullPostedAt = "2026/11/01 22:00",
                                 linkPreviews = listOf(),
                                 images = listOf(),
                                 favouriteCountText = null,
