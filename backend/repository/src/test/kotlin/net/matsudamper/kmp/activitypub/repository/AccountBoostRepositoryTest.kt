@@ -324,6 +324,8 @@ class AccountBoostRepositoryTest {
                 images = listOf(),
                 body = "create",
                 inboxes = listOf(),
+                inReplyTo = null,
+                mentions = listOf(),
             ),
         )
         return checkNotNull(repositories.timelineRepository.localPosition("bob-note")).member

@@ -9,6 +9,8 @@ object NoteComposer {
      */
     const val MAX_LENGTH: Int = 500
 
+    private const val PARAGRAPH_START = "<p>"
+
     fun compose(body: String): ComposeResult {
         val text = body.trim()
         if (text.isEmpty()) return ComposeResult.Empty
@@ -16,6 +18,27 @@ object NoteComposer {
         if (text.codePointCount(0, text.length) > MAX_LENGTH) return ComposeResult.TooLong
 
         return ComposeResult.Composed(toHtml(text))
+    }
+
+    /**
+     * 宛てたアカウントへのリンクを本文の先頭に置く。Mastodon が出すメンションと同じ形にすると、相手側でも同じ見た目になる
+     *
+     * @param contentHtml [compose] で作った HTML。画像だけの投稿なら空
+     * @param href 宛てたアカウントのプロフィールの URL
+     * @param username `@` を付けない名前
+     */
+    fun prependMention(
+        contentHtml: String,
+        href: String,
+        username: String,
+    ): String {
+        val mention =
+            "<span class=\"h-card\" translate=\"no\"><a href=\"${escapeHtml(href)}\" class=\"u-url mention\">@<span>${escapeHtml(username)}</span></a></span>"
+        return if (contentHtml.startsWith(PARAGRAPH_START)) {
+            "$PARAGRAPH_START$mention ${contentHtml.removePrefix(PARAGRAPH_START)}"
+        } else {
+            "$PARAGRAPH_START$mention</p>$contentHtml"
+        }
     }
 
     /**
@@ -29,7 +52,7 @@ object NoteComposer {
             .filter { it.isNotBlank() }
             .joinToString("") { paragraph ->
                 val lines = paragraph.trim().split("\n").joinToString("<br>") { linkifyLine(it) }
-                "<p>$lines</p>"
+                "$PARAGRAPH_START$lines</p>"
             }
 
     private fun linkifyLine(line: String): String =

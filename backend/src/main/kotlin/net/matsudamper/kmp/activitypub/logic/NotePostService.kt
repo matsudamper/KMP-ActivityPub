@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.io.InputStream
+import java.net.URI
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -12,15 +13,19 @@ import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NoteImage
+import net.matsudamper.kmp.activitypub.repository.NoteMention
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.ReplyTarget
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.actor.ActorDirectory
+import net.matsudamper.kotpub.actor.ActorUrls
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
 import net.matsudamper.kotpub.note.NoteAttachment
+import net.matsudamper.kotpub.note.NoteMention as KotpubNoteMention
 import net.matsudamper.kotpub.note.NotePublisher
 import net.matsudamper.kotpub.note.NoteUrls
 import org.slf4j.LoggerFactory
@@ -107,12 +112,14 @@ class NotePostService(
      *
      * @param requestId 画面が送信ごとに作る ID。同じ ID で送り直されたら、新しく作らずに前の投稿を返す
      * @param imageIds [uploadImage] で置いた画像。付けた順に並ぶ
+     * @param replyToPostId 返信するタイムラインの投稿の id。投稿者に宛てて、投稿者の inbox にも積む。返信でなければ null
      */
     fun post(
         username: String,
         body: String,
         requestId: String,
         imageIds: List<NoteImagePublicId>,
+        replyToPostId: String?,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
         val contentHtml =
@@ -132,15 +139,30 @@ class NotePostService(
         if (imageIds.distinct().size != imageIds.size) return PostNoteResult.ImageNotFound
         val images = noteRepository.findUploadedImages(ownerAccountId = account.id, publicIds = imageIds, now = clock.instant())
         if (images.size != imageIds.size) return PostNoteResult.ImageNotFound
+        val reply =
+            if (replyToPostId == null) {
+                null
+            } else {
+                resolveReply(sender = sender, accountId = account.id, replyToPostId = replyToPostId) ?: return PostNoteResult.ReplyTargetNotFound
+            }
+        val mention = reply?.mention
+        val replyContentHtml =
+            if (mention == null) {
+                contentHtml
+            } else {
+                NoteComposer.prependMention(contentHtml = contentHtml, href = mention.href, username = mention.username)
+            }
 
         val prepared =
             publisher.prepare(
                 sender = sender,
-                contentHtml = contentHtml,
+                contentHtml = replyContentHtml,
                 attachments =
                 images.map { image ->
                     NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
                 },
+                inReplyTo = reply?.inReplyTo,
+                mentions = listOfNotNull(mention).map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
             )
         val enqueued =
             deliveryQueueRepository.enqueueNote(
@@ -152,7 +174,9 @@ class NotePostService(
                     publishedAt = prepared.publishedAt,
                     images = images,
                     body = prepared.activityJson,
-                    inboxes = followerRepository.findDeliveryInboxes(sender.username),
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + listOfNotNull(mention?.record?.inbox),
+                    inReplyTo = reply?.inReplyTo,
+                    mentions = listOfNotNull(mention?.record),
                 ),
             )
         return when (enqueued) {
@@ -210,7 +234,8 @@ class NotePostService(
                     publicId = publicId,
                     deletedAt = clock.instant(),
                     body = prepared.activityJson,
-                    inboxes = followerRepository.findDeliveryInboxes(sender.username),
+                    // 宛てた相手にも届けているので、消したことも伝える
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + note.mentions.mapNotNull { it.inbox },
                 ),
             )
         if (!deleted) return DeleteNoteResult.NotFound
@@ -219,10 +244,74 @@ class NotePostService(
         return DeleteNoteResult.Deleted
     }
 
+    /**
+     * @return 返信できない投稿なら null
+     */
+    private fun resolveReply(
+        sender: ActorUrls,
+        accountId: AccountId,
+        replyToPostId: String,
+    ): Reply? =
+        when (val target = noteRepository.replyTarget(accountId = accountId, member = replyToPostId)) {
+            null -> null
+
+            is ReplyTarget.Remote -> {
+                // 名前が無いと宛先の表示も acct も作れない
+                val preferredUsername = target.preferredUsername ?: return null
+                val host = URI(target.actorUri).host ?: return null
+                Reply(
+                    inReplyTo = target.objectUri,
+                    mention =
+                    ReplyMention(
+                        record = NoteMention(actorUri = target.actorUri, acct = "$preferredUsername@$host", inbox = target.inbox),
+                        href = target.profileUrl ?: target.actorUri,
+                        username = preferredUsername,
+                    ),
+                )
+            }
+
+            is ReplyTarget.Local -> {
+                val author = directory.resolve(target.username) ?: return null
+                Reply(
+                    inReplyTo = NoteUrls(author.domain, KotpubPublicNoteId(target.publicId.value)).noteUrl,
+                    // 自分の投稿への返信は、自分に宛てない
+                    mention =
+                    if (author.username.equals(sender.username, ignoreCase = true)) {
+                        null
+                    } else {
+                        ReplyMention(
+                            // このサーバーのアカウントには配らないので inbox は要らない
+                            record = NoteMention(actorUri = author.actorId, acct = "${author.username}@${author.domain}", inbox = null),
+                            href = author.actorId,
+                            username = author.username,
+                        )
+                    },
+                )
+            }
+        }
+
     private fun noteUrl(
         domain: String,
         publicId: PublicNoteId,
     ): String = NoteUrls(domain, KotpubPublicNoteId(publicId.value)).noteUrl
+
+    /**
+     * @param mention 宛てるアカウント。宛てなければ null
+     */
+    private class Reply(
+        val inReplyTo: String,
+        val mention: ReplyMention?,
+    )
+
+    /**
+     * @param href 本文のリンク先
+     * @param username 本文に出す `@` を付けない名前
+     */
+    private class ReplyMention(
+        val record: NoteMention,
+        val href: String,
+        val username: String,
+    )
 
     companion object {
         /**
@@ -309,6 +398,11 @@ sealed interface PostNoteResult {
      * 置いていないか、期限を過ぎたか、もう別の投稿に付けた画像がある
      */
     data object ImageNotFound : PostNoteResult
+
+    /**
+     * 返信先の投稿が無いか、読めないか、消された
+     */
+    data object ReplyTargetNotFound : PostNoteResult
 
     /**
      * アカウントが無いか、鍵が無くてアクターとして扱えない

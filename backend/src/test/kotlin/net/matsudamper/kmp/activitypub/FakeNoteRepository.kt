@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.ReplyTarget
 import net.matsudamper.kmp.activitypub.repository.StoredNoteImage
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -18,6 +19,13 @@ internal class FakeNoteRepository : NoteRepository {
     val notes = mutableListOf<Note>()
     val requestIds = mutableMapOf<Pair<String, String>, PublicNoteId>()
     val uploadedImages = mutableListOf<UploadedNoteImage>()
+
+    /**
+     * タイムラインの投稿の id ごとの返信先。読めるかは区別しない
+     */
+    val replyTargets = mutableMapOf<String, ReplyTarget>()
+
+    override fun replyTarget(accountId: AccountId, member: String): ReplyTarget? = replyTargets[member]
 
     override fun find(publicId: PublicNoteId): Note? = notes.firstOrNull { it.publicId == publicId }
 

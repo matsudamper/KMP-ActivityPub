@@ -15,6 +15,14 @@ interface NoteRepository {
 
     fun findImage(publicId: NoteImagePublicId): StoredNoteImage?
 
+    /**
+     * タイムラインの投稿を、[accountId] が返信する先として引く
+     *
+     * @param member タイムラインの投稿の id
+     * @return 無いか、[accountId] が読めないか、消された投稿なら null
+     */
+    fun replyTarget(accountId: AccountId, member: String): ReplyTarget?
+
     fun addUploadedImage(upload: UploadedNoteImage)
 
     /**
@@ -102,6 +110,8 @@ data class NotePosition(
 
 /**
  * @param images 付けた順
+ * @param inReplyTo 返信先の投稿の id。返信でなければ null
+ * @param mentions 宛てた順
  */
 data class Note(
     val publicId: PublicNoteId,
@@ -109,7 +119,45 @@ data class Note(
     val contentHtml: String,
     val publishedAt: Instant,
     val images: List<NoteImage>,
+    val inReplyTo: String?,
+    val mentions: List<NoteMention>,
 )
+
+/**
+ * 投稿で宛てたアカウント
+ *
+ * @param acct `user@example.com` の形
+ * @param inbox 投稿を消したときの Delete もここへ送る。このサーバーのアカウントなら null
+ */
+data class NoteMention(
+    val actorUri: String,
+    val acct: String,
+    val inbox: String?,
+)
+
+sealed interface ReplyTarget {
+    /**
+     * @param objectUri 返信先の投稿の id
+     * @param preferredUsername 投稿者の preferredUsername。届いていなければ null
+     * @param profileUrl 投稿者のプロフィールの URL。無ければ null
+     * @param inbox 投稿者の inbox
+     */
+    data class Remote(
+        val objectUri: String,
+        val actorUri: String,
+        val preferredUsername: String?,
+        val profileUrl: String?,
+        val inbox: String,
+    ) : ReplyTarget
+
+    /**
+     * @param username 投稿したこのサーバーのアカウント
+     */
+    data class Local(
+        val username: String,
+        val publicId: PublicNoteId,
+    ) : ReplyTarget
+}
 
 /**
  * @param path 画像の置き場の中での場所

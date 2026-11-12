@@ -190,7 +190,7 @@ class UserProfileServiceTest {
 
     @Test
     fun localProfileUsesStoredPosts() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
         val profile = assertNotNull(service.profile("alice", viewer))
         assertEquals(listOf(), requests)
         val post = profile.posts.single()
@@ -202,8 +202,8 @@ class UserProfileServiceTest {
     @Test
     fun ownLocalPostsHaveDeletableNoteIdButOthersDoNot() = runBlocking {
         repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.EPOCH, listOf()))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
 
         assertEquals("note-alice", assertNotNull(service.profile("alice", viewer)).posts.single().deletableNoteId)
         assertNull(assertNotNull(service.profile("carol", viewer)).posts.single().deletableNoteId)
@@ -211,7 +211,7 @@ class UserProfileServiceTest {
 
     @Test
     fun localProfileShowsOwnBoostsAtTheTimeTheyWereBoosted() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.ofEpochMilli(1_000), listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.ofEpochMilli(1_000), listOf(), null, listOf()))
         repositories.timelineRepository.accountBoosts.add(
             storedPost("<p>ブーストした投稿</p>", summary = null, sensitive = false).copy(
                 position = TimelinePosition(2_000, "a1"),
@@ -244,8 +244,8 @@ class UserProfileServiceTest {
 
     @Test
     fun pinnedPostsComeFirstWithoutDuplicates() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", Instant.EPOCH, listOf()))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", Instant.EPOCH.plusSeconds(1), listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", Instant.EPOCH.plusSeconds(1), listOf(), null, listOf()))
         repositories.notePinRepository.pin(viewer, PublicNoteId("old"), Instant.EPOCH, NotePinService.MAX_PINS)
 
         val posts = assertNotNull(service.profile("alice", viewer)).posts
@@ -257,7 +257,7 @@ class UserProfileServiceTest {
     @Test
     fun onlyOwnProfilePostsHavePinnableNoteId() = runBlocking {
         val carol = repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
 
         assertEquals(listOf(null), assertNotNull(service.profile("carol", viewer)).posts.map { it.pinnableNoteId })
         assertEquals(listOf(PublicNoteId("note-carol")), assertNotNull(service.profile("carol", carol)).posts.map { it.pinnableNoteId })

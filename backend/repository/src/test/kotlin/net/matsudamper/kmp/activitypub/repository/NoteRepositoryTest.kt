@@ -283,6 +283,8 @@ class NoteRepositoryTest {
             images = listOf(),
             body = "create-$publicId",
             inboxes = inboxes,
+            inReplyTo = null,
+            mentions = listOf(),
         )
 
     private fun noteDeletion(

@@ -101,7 +101,9 @@ CREATE TABLE notes (
     content_html TEXT NOT NULL,
     published_at TEXT NOT NULL,
     -- 画面が送信ごとに作る ID。応答だけ失われて送り直されても 2 つ目を作らない
-    request_id TEXT
+    request_id TEXT,
+    -- 返信先の投稿の id。返信でなければ NULL
+    in_reply_to TEXT
 );
 
 CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, public_id);
@@ -118,6 +120,18 @@ CREATE TABLE note_images (
     path TEXT NOT NULL,
     content_type TEXT NOT NULL,
     description TEXT,
+    PRIMARY KEY (note_id, position)
+);
+
+-- 投稿で宛てたアカウント。配り直しでも同じ宛先にするため投稿と一緒に記録する。position は宛てた順
+CREATE TABLE note_mentions (
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    actor_uri TEXT NOT NULL,
+    -- user@example.com の形
+    acct TEXT NOT NULL,
+    -- 投稿を消したときの Delete もここへ送る。このサーバーのアカウントなら NULL
+    inbox TEXT,
     PRIMARY KEY (note_id, position)
 );
 
