@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -609,7 +610,8 @@ class HomeScreenViewModelTest {
             if (body.contains("\"operationName\":\"FollowingGroups\"")) {
                 return HttpResponse.Builder(200).body(Buffer().writeUtf8(followingGroupsResponse)).build()
             }
-            started.value++
+            // メインとグループは別のスレッドから同時に届くので、取りこぼさないよう不可分に足す
+            started.update { it + 1 }
             val queue = when {
                 body.contains("\"operationName\":\"Notifications\"") -> notificationResponses
                 body.contains("\"followingGroupId\":\"1\"") -> groupResponses
