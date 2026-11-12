@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
@@ -142,6 +143,11 @@ private fun HomeContentPreviewTimelineColumnEditDialog() = HomeTimelinePreview(
             HomeScreenUiState.TimelineColumnEditDialog.Source(name = "メイン", checked = false, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
             HomeScreenUiState.TimelineColumnEditDialog.Source(name = "技術", checked = true, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
             HomeScreenUiState.TimelineColumnEditDialog.Source(name = "友達", checked = true, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
+        ),
+        fontSizes = listOf(
+            HomeScreenUiState.TimelineColumnEditDialog.FontSizeOption(label = "小", selected = false, listener = AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener),
+            HomeScreenUiState.TimelineColumnEditDialog.FontSizeOption(label = "中", selected = true, listener = AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener),
+            HomeScreenUiState.TimelineColumnEditDialog.FontSizeOption(label = "大", selected = false, listener = AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener),
         ),
         saveButtonEnabled = true,
         listener = AndroidPreviewTimelineColumnEditDialogListener,
@@ -916,6 +922,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         items = items,
         footer = footer,
         selected = true,
+        fontSize = AppFontSize.Medium,
         listener = AndroidPreviewTimelineColumnListener,
     ),
     HomeScreenUiState.TimelineColumn(
@@ -924,6 +931,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         items = items.take(1),
         footer = HomeScreenUiState.TimelineFooter.None,
         selected = false,
+        fontSize = AppFontSize.Large,
         listener = AndroidPreviewTimelineColumnListener,
     ),
 )
@@ -959,5 +967,9 @@ private object AndroidPreviewTimelineColumnDeleteDialogListener : HomeScreenUiSt
 }
 
 private object AndroidPreviewTimelineColumnEditDialogSourceListener : HomeScreenUiState.TimelineColumnEditDialog.SourceListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener : HomeScreenUiState.TimelineColumnEditDialog.FontSizeOptionListener {
     override fun onClick() = Unit
 }

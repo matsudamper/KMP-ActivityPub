@@ -15,6 +15,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TriStateCheckbox
@@ -67,6 +70,23 @@ internal fun TimelineColumnEditDialog(uiState: HomeScreenUiState.TimelineColumnE
                         checkboxState = ToggleableState(source.checked),
                         onClick = source.listener::onClick,
                     )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "文字の大きさ",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    uiState.fontSizes.forEachIndexed { index, option ->
+                        SegmentedButton(
+                            selected = option.selected,
+                            onClick = option.listener::onClick,
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = uiState.fontSizes.size),
+                        ) {
+                            Text(option.label)
+                        }
+                    }
                 }
             }
         },

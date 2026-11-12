@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.state.ToggleableState
+import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuUiState
@@ -75,6 +76,7 @@ data class HomeScreenUiState(
         val items: List<PostItemUiState>,
         val footer: TimelineFooter,
         val selected: Boolean,
+        val fontSize: AppFontSize,
         val listener: TimelineColumnListener,
     )
 
@@ -103,9 +105,21 @@ data class HomeScreenUiState(
         val name: String,
         val allSourcesCheckState: ToggleableState,
         val sources: List<Source>,
+        val fontSizes: List<FontSizeOption>,
         val saveButtonEnabled: Boolean,
         val listener: Listener,
     ) {
+        data class FontSizeOption(
+            val label: String,
+            val selected: Boolean,
+            val listener: FontSizeOptionListener,
+        )
+
+        @Immutable
+        interface FontSizeOptionListener {
+            fun onClick()
+        }
+
         data class Source(
             val name: String,
             val checked: Boolean,

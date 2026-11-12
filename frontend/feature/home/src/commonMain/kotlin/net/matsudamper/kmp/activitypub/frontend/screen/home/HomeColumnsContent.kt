@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
@@ -124,16 +125,18 @@ internal fun HomeColumnsContent(
                                     .horizontalReorderItem(state = reorderState, index = index, dropIndicatorColor = MaterialTheme.colorScheme.primary)
                                     .background(MaterialTheme.colorScheme.background),
                             ) { contentModifier ->
-                                TimelineTabContent(
-                                    listState = tabListStates.timeline(timelineColumn.listStateKey),
-                                    timelineItems = timelineColumn.items,
-                                    refreshing = uiState.timelineRefreshing,
-                                    footer = timelineColumn.footer,
-                                    loadMoreAtEndEnabled = true,
-                                    listener = uiState.listener,
-                                    columnListener = timelineColumn.listener,
-                                    modifier = contentModifier,
-                                )
+                                FontSizeTheme(fontSize = timelineColumn.fontSize) {
+                                    TimelineTabContent(
+                                        listState = tabListStates.timeline(timelineColumn.listStateKey),
+                                        timelineItems = timelineColumn.items,
+                                        refreshing = uiState.timelineRefreshing,
+                                        footer = timelineColumn.footer,
+                                        loadMoreAtEndEnabled = true,
+                                        listener = uiState.listener,
+                                        columnListener = timelineColumn.listener,
+                                        modifier = contentModifier,
+                                    )
+                                }
                             }
                             ColumnResizeDivider(state = columnWidthState, columnKey = timelineColumn.listStateKey)
                         }
