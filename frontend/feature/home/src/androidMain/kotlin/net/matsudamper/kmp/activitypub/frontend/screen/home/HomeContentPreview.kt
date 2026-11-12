@@ -7,6 +7,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
@@ -162,6 +163,23 @@ private fun HomeContentPreviewTimelineColumnDeleteDialog() = HomeTimelinePreview
         listener = AndroidPreviewTimelineColumnDeleteDialogListener,
     ),
 )
+
+@Preview
+@Composable
+private fun TimelineHeaderDividerNewPostsHiddenAbovePreview() {
+    HomePreviewTheme {
+        Surface {
+            Column {
+                Text(text = "先頭にいる", modifier = Modifier.padding(16.dp))
+                TimelineHeaderDivider(newPostsHiddenAbove = false)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+                Text(text = "先頭から離れている", modifier = Modifier.padding(16.dp))
+                TimelineHeaderDivider(newPostsHiddenAbove = true)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+            }
+        }
+    }
+}
 
 @Preview
 @Composable

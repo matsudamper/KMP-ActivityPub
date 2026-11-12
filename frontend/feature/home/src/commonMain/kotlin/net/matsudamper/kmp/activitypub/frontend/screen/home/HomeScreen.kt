@@ -78,6 +78,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -518,7 +524,8 @@ private fun TimelineTabsContent(
                 onClickAdd = uiState.listener::onClickAddTimelineColumn,
             )
         }
-        HorizontalDivider()
+        val selectedListState = uiState.timelineColumns.getOrNull(selectedIndex)?.let { tabListStates.timeline(it.listStateKey) }
+        TimelineHeaderDivider(newPostsHiddenAbove = selectedListState?.canScrollBackward == true)
         val emptyMessage = uiState.timelineColumnsEmptyMessage
         val contentModifier = Modifier.fillMaxWidth().weight(1f)
         if (selectedIndex >= 0) {
@@ -707,6 +714,33 @@ internal fun SensitiveImagesVisibilityButton(
         }
     }
 }
+
+/**
+ * 先頭から離れている間は、購読で届いた新しい投稿が上に足されて見えないので、見出しとの境の線を青くして知らせる。
+ * 太い線で一覧を押し下げないよう、太さは元の線のまま、はみ出して一覧の上に重ねて描く
+ */
+@Composable
+internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
+    if (newPostsHiddenAbove) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(DividerDefaults.Thickness)
+                .zIndex(1f)
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.horizontalGradient(NewPostsHiddenDividerColors),
+                        size = Size(width = size.width, height = NewPostsHiddenDividerThickness.toPx()),
+                    )
+                },
+        )
+    } else {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+private val NewPostsHiddenDividerColors = listOf(Color(0xFF1565C0), Color(0xFF42A5F5), Color(0xFF80DEEA))
+private val NewPostsHiddenDividerThickness = 3.dp
 
 @Composable
 internal fun TimelineTabContent(
