@@ -386,6 +386,30 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun lateArrivalOfAnOlderPostIsPlacedByItsTimeInsteadOfAtTheTop() = withViewModel { viewModel, engine ->
+        engine.responses.send {
+            timelinePage(
+                listOf(
+                    post(id = "a", followingGroupId = null, sortedAt = "2026-11-01T00:00:03Z"),
+                    post(id = "b", followingGroupId = null, sortedAt = "2026-11-01T00:00:01Z"),
+                ),
+                "next",
+            )
+        }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }
+
+        arrivals.send(postArrivedEvent(post(id = "c", followingGroupId = null, sortedAt = "2026-11-01T00:00:02Z")))
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 3 }
+        assertEquals(listOf("a", "c", "b"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
+
+        // 読み込み済みの末尾より古い投稿が届いても、読み込み済みの投稿は出したままにする
+        arrivals.send(postArrivedEvent(post(id = "old", followingGroupId = null, sortedAt = "2026-11-01T00:00:00Z")))
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 4 }
+        assertEquals(listOf("a", "c", "b", "old"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
+    }
+
+    @Test
     fun pressingSelectedTabAgainScrollsToTopInsteadOfNavigating() = withViewModel { viewModel, _ ->
         val receivedEvents = Channel<String>(Channel.UNLIMITED)
         val collectJob = backgroundScope.launch {
@@ -488,8 +512,10 @@ class HomeScreenViewModelTest {
     private fun notification(id: String, kind: String, actorName: String, postId: String): String =
         """{"__typename":"Notification","id":"$id","kind":"$kind","actor":${actor(actorName)},"post":${post(postId)},"receivedAt":"2026-11-01T00:00:0${id}Z"}"""
 
-    private fun postArrived(id: String): String =
-        """{"__typename":"AccountEvent","timelinePostArrived":${post(id)},"timelinePostsDeleted":null,"notificationArrived":null}"""
+    private fun postArrived(id: String): String = postArrivedEvent(post(id))
+
+    private fun postArrivedEvent(post: String): String =
+        """{"__typename":"AccountEvent","timelinePostArrived":$post,"timelinePostsDeleted":null,"notificationArrived":null}"""
 
     private fun postsDeleted(ids: List<String>): String {
         val postIds = ids.joinToString(",") { "\"$it\"" }

@@ -269,8 +269,9 @@ internal class TimelineFeeds(
             val page = pageOf(data)
             updateFeed(source) { feed ->
                 feed.copy(
-                    // ページの境目で同じ行が両方のページに入ることがある
-                    entries = page?.entries.orEmpty().distinctBy { it.key },
+                    // ページの境目で同じ行が両方のページに入ることがある。
+                    // 購読で届いた行は先頭に足されるが、遅れて届いた古い投稿のこともあるので、並べる時刻の順に入れ直す。同じ時刻の行は元の順のまま
+                    entries = page?.entries.orEmpty().distinctBy { it.key }.sortedByDescending { it.sortKey },
                     nextCursor = page?.nextCursor,
                 )
             }
