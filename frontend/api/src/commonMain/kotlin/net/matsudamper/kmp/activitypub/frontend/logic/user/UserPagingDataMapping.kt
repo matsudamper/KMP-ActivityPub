@@ -169,6 +169,23 @@ fun TimelineQuery.Data.withFirstPage(firstPage: TimelineQuery.Data): TimelineQue
 }
 
 /**
+ * 続きのページを後ろにつなぐ。どちらかが読めていなければ null
+ */
+fun NotificationsQuery.Data.withNextPage(page: NotificationsQuery.Data): NotificationsQuery.Data? {
+    val beforeUserInfo = userInfo ?: return null
+    val pageNotifications = page.userInfo?.notifications ?: return null
+    val beforeNotifications = beforeUserInfo.notifications ?: return null
+    return copy(
+        userInfo = beforeUserInfo.copy(
+            notifications = beforeNotifications.copy(
+                notifications = beforeNotifications.notifications + pageNotifications.notifications,
+                nextCursor = pageNotifications.nextCursor,
+            ),
+        ),
+    )
+}
+
+/**
  * 取り直した 1 ページ目を、読み込み済みの通知の先頭へつなぐ。
  * 1 ページ目の最後の通知が読み込み済みに無いと、その間の通知が抜けるので null
  */
