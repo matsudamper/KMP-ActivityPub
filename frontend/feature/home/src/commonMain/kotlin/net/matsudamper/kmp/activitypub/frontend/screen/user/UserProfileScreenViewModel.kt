@@ -22,12 +22,12 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.Boost
+import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
-import net.matsudamper.kmp.activitypub.frontend.screen.createOpenOriginalMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
@@ -47,6 +47,7 @@ internal class UserProfileScreenViewModel(
     @InjectedParam private val username: String,
     private val api: UserApi,
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
+    private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
