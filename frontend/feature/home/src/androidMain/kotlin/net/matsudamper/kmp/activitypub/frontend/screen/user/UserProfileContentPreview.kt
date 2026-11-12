@@ -48,7 +48,8 @@ private fun UserProfileContentPreview() {
                         posts = listOf(
                             PostItemUiState(
                                 pinnedLabelVisible = true,
-                                boostedBy = null,
+                                deletedLabelVisible = false,
+                                actorLabel = null,
                                 iconUrl = null,
                                 displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                                 acct = "@alice@example.social",
@@ -78,7 +79,9 @@ private fun UserProfileContentPreview() {
                             ),
                             PostItemUiState(
                                 pinnedLabelVisible = false,
-                                boostedBy = PostItemUiState.BoostedBy(
+                                deletedLabelVisible = false,
+                                actorLabel = PostItemUiState.ActorLabel(
+                                    icon = PostItemUiState.ActorLabelIcon.Boost,
                                     text = createTextWithEmojis(text = "Alice がブースト", emojis = listOf()),
                                     iconUrl = null,
                                     cancelledLabelVisible = true,
@@ -89,6 +92,7 @@ private fun UserProfileContentPreview() {
                                 acct = "@bob@remote.example",
                                 body = createPostBodyText(content = "フォローしていない人の投稿もブーストできます", emojis = listOf(), onOpenUrl = {}),
                                 postedAt = "2026-11-01T13:00:00Z",
+                                fullPostedAt = "2026/11/01 22:00",
                                 linkPreviews = listOf(),
                                 images = listOf(),
                                 favouriteCountText = null,

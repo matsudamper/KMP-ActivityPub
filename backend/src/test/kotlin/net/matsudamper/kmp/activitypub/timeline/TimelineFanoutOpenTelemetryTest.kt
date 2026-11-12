@@ -16,20 +16,21 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.telemetry.FilteringSpanExporter
+import net.matsudamper.kmp.activitypub.repository.TimelineRecipient
 
 class TimelineFanoutOpenTelemetryTest {
     @Test
     fun jobOwnsDatabasePipelineAndAcknowledgementSpansAndCounts() = withTelemetry { telemetry, exporter ->
         val tracer = telemetry.getTracer("fake-instrumentation")
         val repository = object : TimelineRepository by FakeTimelineRepository() {
-            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId> {
+            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> {
                 tracer.spanBuilder("SQL recipients").startSpan().end()
-                return listOf(AccountId(1), AccountId(2))
+                return listOf(TimelineRecipient(AccountId(1), null), TimelineRecipient(AccountId(2), null))
             }
         }
         val store = InstrumentedStore(tracer)
         store.pending = listOf(FanoutJob("1-0", TimelinePosition(1, "r1")))
-        val worker = TimelineFanoutWorker(repository, store, HomeTimelineArrivals(repository), Clock.systemUTC(), telemetry)
+        val worker = TimelineFanoutWorker(repository, store, AccountEvents(repository), Clock.systemUTC(), telemetry)
         assertEquals(1, worker.runOnce(false))
         val spans = exporter.finishedSpanItems
         val job = spans.single { it.name == "TimelineFanout.distribute" }
@@ -50,7 +51,7 @@ class TimelineFanoutOpenTelemetryTest {
     fun emptyPollingAndGroupInitializationDoNotExportSpans() = withTelemetry { telemetry, exporter ->
         val store = InstrumentedStore(telemetry.getTracer("fake-instrumentation"))
         store.initializeGroup()
-        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, HomeTimelineArrivals(FakeTimelineRepository()), Clock.systemUTC(), telemetry)
+        val worker = TimelineFanoutWorker(FakeTimelineRepository(), store, AccountEvents(FakeTimelineRepository()), Clock.systemUTC(), telemetry)
         repeat(3) { assertEquals(0, worker.runOnce(true)) }
         assertTrue(exporter.finishedSpanItems.isEmpty())
     }
@@ -75,7 +76,7 @@ class TimelineFanoutOpenTelemetryTest {
             return pending
         }
 
-        override fun distribute(accountIds: List<AccountId>, position: TimelinePosition): Int {
+        override fun distribute(feeds: List<TimelineFeed>, position: TimelinePosition): Int {
             redis("ZRANGE")
             redis("ZADD")
             return 1

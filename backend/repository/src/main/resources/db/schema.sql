@@ -214,7 +214,9 @@ CREATE TABLE remote_notes (
     received_at TEXT NOT NULL,
     score_ms INTEGER NOT NULL,
     -- ブーストで知っただけの投稿は 1。後から Create が届いたら宛先を登録して 0 にする
-    via_boost INTEGER NOT NULL DEFAULT 0
+    via_boost INTEGER NOT NULL DEFAULT 0,
+    -- 投稿者が消した時刻。タイムラインに削除済みと出すために行は残す
+    deleted_at TEXT
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);
@@ -321,12 +323,31 @@ CREATE TABLE remote_boosts (
     activity_uri TEXT NOT NULL UNIQUE,
     remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
     remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
-    score_ms INTEGER NOT NULL
+    score_ms INTEGER NOT NULL,
+    -- ブーストが取り消された時刻。タイムラインに取り消し済みと出すために行は残す
+    undone_at TEXT
 );
 
 CREATE UNIQUE INDEX remote_boosts_actor_note ON remote_boosts (remote_actor_id, remote_note_id);
 
 CREATE INDEX remote_boosts_actor_score ON remote_boosts (remote_actor_id, score_ms DESC, id DESC);
+
+-- 他のサーバーから届いた、こちらの投稿へのお気に入りとブーストの通知。取り消されたら行ごと消す
+CREATE TABLE notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    -- favourite か boost
+    kind TEXT NOT NULL,
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    received_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX notifications_kind_note_actor ON notifications (kind, note_id, remote_actor_id);
+
+CREATE INDEX notifications_account_id ON notifications (account_id, id DESC);
+
+CREATE INDEX notifications_remote_actor_id ON notifications (remote_actor_id);
 
 CREATE INDEX remote_boosts_remote_note_id ON remote_boosts (remote_note_id);
 

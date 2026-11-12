@@ -4,6 +4,7 @@ import java.time.Instant
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -45,7 +46,7 @@ class TimelineRepositoryTest {
         val position = assertNotNull(repository.receive(note("activity-boundary", "public", setOf())))
         assertEquals(
             listOf(accounts.getValue("alice"), accounts.getValue("bob")),
-            repository.recipients(position.member, NOW.minusSeconds(TimelineCachePolicy.FANOUT_ACTIVE_WINDOW_SECONDS), null, 1000),
+            repository.recipients(position.member, NOW.minusSeconds(TimelineCachePolicy.FANOUT_ACTIVE_WINDOW_SECONDS), null, 1000).map { it.accountId },
         )
     }
 
@@ -57,14 +58,16 @@ class TimelineRepositoryTest {
         val saved = assertNotNull(repository.receive(note("1", "public", setOf())))
         assertTrue(repository.hasRemoteNote("$ACTOR/notes/1"))
         assertNull(repository.receive(note("1", "public", setOf())))
-        assertEquals(listOf(saved), repository.page(accounts.getValue("alice"), null, 10))
-        assertTrue(repository.page(accounts.getValue("bob"), null, 10).isEmpty())
+        assertEquals(listOf(saved), repository.page(accounts.getValue("alice"), null, null, 10))
+        assertTrue(repository.page(accounts.getValue("bob"), null, null, 10).isEmpty())
         assertNotNull(repository.receive(note("2", "direct", setOf("bob"))))
-        repository.deleteRemote("https://other.example/actor", "$ACTOR/notes/1")
-        assertEquals(1, repository.page(accounts.getValue("alice"), null, 10).size)
-        repository.deleteRemote(ACTOR, "$ACTOR/notes/1")
-        assertEquals(false, repository.hasRemoteNote("$ACTOR/notes/1"))
-        assertTrue(repository.hydrate(accounts.getValue("alice"), listOf(saved.member)).isEmpty())
+        assertTrue(repository.deleteRemote("https://other.example/actor", "$ACTOR/notes/1", NOW).isEmpty())
+        assertFalse(repository.hydrate(accounts.getValue("alice"), listOf(saved.member)).single().deleted)
+        assertEquals(listOf(saved.member), repository.deleteRemote(ACTOR, "$ACTOR/notes/1", NOW))
+        // 削除済みと出すために行は残す
+        assertTrue(repository.hydrate(accounts.getValue("alice"), listOf(saved.member)).single().deleted)
+        assertEquals(listOf(saved), repository.page(accounts.getValue("alice"), null, null, 10))
+        assertTrue(repository.deleteRemote(ACTOR, "$ACTOR/notes/1", NOW).isEmpty())
     }
 
     @Test
@@ -124,16 +127,16 @@ class TimelineRepositoryTest {
         repository.touch(accounts.getValue("bob"), NOW.minusSeconds(604800), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
         repository.touch(accounts.getValue("carol"), NOW.minusSeconds(604801), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
         val public = assertNotNull(repository.receive(note("public", "public", setOf("dave"))))
-        assertEquals(listOf("alice", "bob", "dave").map { accounts.getValue(it) }, repository.recipients(public.member, NOW.minusSeconds(604800), null, 1000))
+        assertEquals(listOf("alice", "bob", "dave").map { accounts.getValue(it) }, repository.recipients(public.member, NOW.minusSeconds(604800), null, 1000).map { it.accountId })
         listOf("alice", "bob", "carol").forEach { username ->
             val account = accounts.getValue(username)
             repositories.followingRepository.recordActivity(account, ACTOR, username)
             repositories.followingRepository.respondToFollow(ACTOR, username, NOW)
         }
         val followers = assertNotNull(repository.receive(note("followers", "followers", setOf())))
-        assertEquals(listOf("alice", "bob").map { accounts.getValue(it) }, repository.recipients(followers.member, NOW.minusSeconds(604800), null, 1000))
+        assertEquals(listOf("alice", "bob").map { accounts.getValue(it) }, repository.recipients(followers.member, NOW.minusSeconds(604800), null, 1000).map { it.accountId })
         val direct = assertNotNull(repository.receive(note("direct", "direct", setOf("dave"))))
-        assertEquals(listOf(accounts.getValue("dave")), repository.recipients(direct.member, NOW.minusSeconds(604800), null, 1000))
+        assertEquals(listOf(accounts.getValue("dave")), repository.recipients(direct.member, NOW.minusSeconds(604800), null, 1000).map { it.accountId })
         assertTrue(repository.hydrate(accounts.getValue("alice"), listOf(direct.member)).isEmpty())
         repositories.followingRepository.remove(accounts.getValue("alice"), ACTOR)
         assertTrue(repository.hydrate(accounts.getValue("alice"), listOf(followers.member)).isEmpty())
@@ -152,32 +155,32 @@ class TimelineRepositoryTest {
         }
         following.respondToFollow(ACTOR, "follow-${alice.value}", NOW)
         val first = assertNotNull(repository.receive(note("first-private", "followers", setOf())))
-        assertEquals(listOf(alice), repository.recipients(first.member, NOW, null, 1000))
-        assertEquals(listOf(first), repository.page(alice, null, 10))
-        assertEquals(listOf(first), repository.rebuild(alice, 400))
+        assertEquals(listOf(alice), repository.recipients(first.member, NOW, null, 1000).map { it.accountId })
+        assertEquals(listOf(first), repository.page(alice, null, null, 10))
+        assertEquals(listOf(first), repository.rebuild(alice, null, 400))
         assertEquals(listOf(first), repository.hydrate(alice, listOf(first.member)).map { it.position })
-        assertTrue(repository.page(bob, null, 10).isEmpty())
-        assertTrue(repository.rebuild(bob, 400).isEmpty())
+        assertTrue(repository.page(bob, null, null, 10).isEmpty())
+        assertTrue(repository.rebuild(bob, null, 400).isEmpty())
         assertTrue(repository.hydrate(bob, listOf(first.member)).isEmpty())
 
         following.respondToFollow(ACTOR, "follow-${bob.value}", NOW)
         val second = assertNotNull(repository.receive(note("second-private", "followers", setOf())))
-        assertEquals(listOf(alice, bob), repository.recipients(second.member, NOW, null, 1000))
-        assertEquals(listOf(second), repository.page(bob, null, 10))
-        assertEquals(listOf(second), repository.rebuild(bob, 400))
+        assertEquals(listOf(alice, bob), repository.recipients(second.member, NOW, null, 1000).map { it.accountId })
+        assertEquals(listOf(second), repository.page(bob, null, null, 10))
+        assertEquals(listOf(second), repository.rebuild(bob, null, 400))
         assertEquals(listOf(second), repository.hydrate(bob, listOf(first.member, second.member)).map { it.position })
 
         following.remove(bob, ACTOR)
         following.add(bob, ACTOR, NOW)
-        assertEquals(listOf(alice), repository.recipients(second.member, NOW, null, 1000))
-        assertTrue(repository.page(bob, null, 10).isEmpty())
-        assertTrue(repository.rebuild(bob, 400).isEmpty())
+        assertEquals(listOf(alice), repository.recipients(second.member, NOW, null, 1000).map { it.accountId })
+        assertTrue(repository.page(bob, null, null, 10).isEmpty())
+        assertTrue(repository.rebuild(bob, null, 400).isEmpty())
         assertTrue(repository.hydrate(bob, listOf(first.member, second.member)).isEmpty())
         listOf("public", "unlisted").forEach { visibility ->
             val position = assertNotNull(repository.receive(note(visibility, visibility, setOf())))
-            assertEquals(listOf(alice, bob), repository.recipients(position.member, NOW, null, 1000))
+            assertEquals(listOf(alice, bob), repository.recipients(position.member, NOW, null, 1000).map { it.accountId })
             assertEquals(listOf(position), repository.hydrate(bob, listOf(position.member)).map { it.position })
-            assertTrue(position in repository.page(bob, null, 10))
+            assertTrue(position in repository.page(bob, null, null, 10))
         }
     }
 
@@ -187,10 +190,10 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         repositories.followingRepository.add(account, ACTOR, NOW)
         val positions = (1..430).map { assertNotNull(repository.receive(note(it.toString(), "public", setOf()))) }
-        assertEquals(20, repository.rebuild(account, 400).size)
+        assertEquals(20, repository.rebuild(account, null, 400).size)
         val expected = positions.sortedByDescending { it.member }
-        val first = repository.page(account, null, 400)
-        val rest = repository.page(account, first.last(), 100)
+        val first = repository.page(account, null, null, 400)
+        val rest = repository.page(account, null, first.last(), 100)
         assertEquals(expected, first + rest)
         assertEquals(30, rest.size)
         assertEquals(400, repository.hydrate(account, first.map { it.member }).size)
@@ -240,9 +243,9 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
         assertEquals(time.toEpochMilli(), position.score)
-        assertEquals(listOf(accounts.getValue("alice")), repository.recipients(position.member, NOW, null, 1000))
-        assertEquals(listOf(position), repository.rebuild(accounts.getValue("alice"), 400))
-        assertEquals(listOf(position), repository.page(accounts.getValue("alice"), null, 10))
+        assertEquals(listOf(accounts.getValue("alice")), repository.recipients(position.member, NOW, null, 1000).map { it.accountId })
+        assertEquals(listOf(position), repository.rebuild(accounts.getValue("alice"), null, 400))
+        assertEquals(listOf(position), repository.page(accounts.getValue("alice"), null, null, 10))
         assertEquals("alice", repository.hydrate(accounts.getValue("alice"), listOf(position.member)).single().username)
         assertTrue(repository.hydrate(accounts.getValue("bob"), listOf(position.member)).isEmpty())
     }
@@ -264,13 +267,13 @@ class TimelineRepositoryTest {
         (1..120).forEach { index ->
             repository.receive(note("private-$index", "direct", setOf("bob")))
         }
-        assertEquals(positions.reversed().take(20), repository.rebuild(alice, 400))
-        val first = repository.page(alice, null, 7)
-        val second = repository.page(alice, first.last(), 7)
+        assertEquals(positions.reversed().take(20), repository.rebuild(alice, null, 400))
+        val first = repository.page(alice, null, null, 7)
+        val second = repository.page(alice, null, first.last(), 7)
         assertEquals(positions.reversed().take(14), first + second)
         val ownDirect = checkNotNull(repository.receive(note("own-direct", "direct", setOf("alice"))))
-        assertEquals(positions.reversed().take(20), repository.rebuild(alice, 400))
-        assertTrue(ownDirect in repository.page(alice, positions.reversed()[19], 100))
+        assertEquals(positions.reversed().take(20), repository.rebuild(alice, null, 400))
+        assertTrue(ownDirect in repository.page(alice, null, positions.reversed()[19], 100))
         assertEquals(false, repository.shouldReceive("https://unknown.example/actor", setOf()))
         assertTrue(repository.shouldReceive("https://unknown.example/actor", setOf("alice")))
         assertTrue(repository.shouldReceive(ACTOR, setOf()))
@@ -283,8 +286,8 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repository.touch(alice, NOW, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
         val position = checkNotNull(repository.receive(note("recipient-union", "public", setOf("alice", "dave"))))
-        val first = repository.recipients(position.member, NOW.minusSeconds(604800), null, 1)
-        val second = repository.recipients(position.member, NOW.minusSeconds(604800), first.single(), 1)
+        val first = repository.recipients(position.member, NOW.minusSeconds(604800), null, 1).map { it.accountId }
+        val second = repository.recipients(position.member, NOW.minusSeconds(604800), first.single(), 1).map { it.accountId }
         assertEquals(listOf(alice, accounts.getValue("dave")), first + second)
         assertTrue(repository.recipients(position.member, NOW.minusSeconds(604800), second.single(), 1).isEmpty())
     }
@@ -294,11 +297,11 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val positions = (1..45).map { index -> checkNotNull(repository.receive(note("address-$index", "direct", setOf("alice")))) }
         val expected = positions.sortedByDescending { it.member }
-        val first = repository.page(accounts.getValue("alice"), null, 12)
-        val second = repository.page(accounts.getValue("alice"), first.last(), 12)
+        val first = repository.page(accounts.getValue("alice"), null, null, 12)
+        val second = repository.page(accounts.getValue("alice"), null, first.last(), 12)
         assertEquals(expected.take(24), first + second)
-        assertEquals(expected, repository.rebuild(accounts.getValue("alice"), 400))
-        assertTrue(repository.page(accounts.getValue("bob"), null, 100).isEmpty())
+        assertEquals(expected, repository.rebuild(accounts.getValue("alice"), null, 400))
+        assertTrue(repository.page(accounts.getValue("bob"), null, null, 100).isEmpty())
     }
 
     @Test
@@ -326,7 +329,7 @@ class TimelineRepositoryTest {
                 ),
             )
         }
-        val rebuilt = repository.rebuild(account, 400)
+        val rebuilt = repository.rebuild(account, null, 400)
         assertEquals(newer.take(20), rebuilt)
         val allPages = buildList {
             var cursor: TimelinePosition? = null
@@ -336,13 +339,13 @@ class TimelineRepositoryTest {
                     pageCursor == null || position.score < pageCursor.score ||
                         (position.score == pageCursor.score && position.member < pageCursor.member)
                 }.take(7)
-                val page = cached + repository.page(account, cached.lastOrNull() ?: pageCursor, 7 - cached.size)
+                val page = cached + repository.page(account, null, cached.lastOrNull() ?: pageCursor, 7 - cached.size)
                 addAll(page)
                 cursor = page.lastOrNull()
             } while (cursor != null)
         }
         assertEquals(newer + older, allPages)
-        assertEquals(newer + older, repository.page(account, null, 100))
+        assertEquals(newer + older, repository.page(account, null, null, 100))
     }
 
     @Test
@@ -359,9 +362,9 @@ class TimelineRepositoryTest {
         assertNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
         assertNull(repository.receiveBoost(boost("2", note("private", "followers", setOf()))))
 
-        assertEquals(listOf(position), repository.page(alice, null, 10))
+        assertEquals(listOf(position), repository.page(alice, null, null, 10))
         repository.touch(alice, NOW, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
-        assertEquals(listOf(alice), repository.recipients(position.member, NOW.minusSeconds(1), null, 10))
+        assertEquals(listOf(alice), repository.recipients(position.member, NOW.minusSeconds(1), null, 10).map { it.accountId })
         val post = repository.hydrate(alice, listOf(position.member)).single()
         assertEquals(ACTOR, post.actorUri)
         assertEquals("<p>本文</p>", post.contentHtml)
@@ -369,9 +372,18 @@ class TimelineRepositoryTest {
         assertEquals("booster", post.boostedBy?.username)
         assertTrue(repository.hydrate(accounts.getValue("bob"), listOf(position.member)).isEmpty())
         // 投稿者をフォローしていなくても、ブーストされた投稿だけがタイムラインに載ることはない
-        assertTrue(repository.page(accounts.getValue("bob"), null, 10).isEmpty())
+        assertTrue(repository.page(accounts.getValue("bob"), null, null, 10).isEmpty())
 
-        assertTrue(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1"))
+        assertFalse(repository.hydrate(alice, listOf(position.member)).single().deleted)
+        assertEquals(BoostRemoval(undoneTimelineMember = position.member), repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW))
+        // 取り消し済みと出すために行は残す
+        assertTrue(repository.hydrate(alice, listOf(position.member)).single().deleted)
+        assertNull(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW))
+
+        // 取り消した Announce の届き直しでは戻さず、新しい Announce なら載せ直す
+        assertNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+        val reboosted = assertNotNull(repository.receiveBoost(boost("2", note("boosted", "public", setOf()))))
+        assertFalse(repository.hydrate(alice, listOf(reboosted.member)).single().deleted)
         assertTrue(repository.hydrate(alice, listOf(position.member)).isEmpty())
     }
 
@@ -395,7 +407,7 @@ class TimelineRepositoryTest {
     }
 
     @Test
-    fun boostIsRemovedWithTheBoostedNote() = withRepository { repositories, accounts ->
+    fun boostIsMarkedDeletedWithTheBoostedNote() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
@@ -404,9 +416,37 @@ class TimelineRepositoryTest {
         )
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         val position = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
-        repository.deleteRemote(ACTOR, "$ACTOR/notes/boosted")
-        assertTrue(repository.hydrate(alice, listOf(position.member)).isEmpty())
-        assertTrue(repository.page(alice, null, 10).isEmpty())
+        val deleted = repository.deleteRemote(ACTOR, "$ACTOR/notes/boosted", NOW)
+        assertEquals(setOf(position.member), deleted.filter { it.startsWith("b") }.toSet())
+        assertEquals(2, deleted.size)
+        assertTrue(repository.hydrate(alice, listOf(position.member)).single().deleted)
+        assertEquals(listOf(position), repository.page(alice, null, null, 10))
+    }
+
+    @Test
+    fun pageReturnsOnlyTheRequestedFollowingGroup() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            NOW,
+        )
+        val group = repositories.followingGroupRepository.create(alice, "グループ", NOW)
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        repositories.followingRepository.setGroup(alice, BOOSTER, group.id)
+        repository.touch(alice, NOW, TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
+        val homeNote = assertNotNull(repository.receive(note("home", "public", setOf())))
+        val groupBoost = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+
+        // ブーストは投稿者ではなく、ブーストした相手の購読先に載せる
+        assertEquals(listOf(groupBoost), repository.page(alice, group.id, null, 10))
+        assertEquals(listOf(groupBoost), repository.rebuild(alice, group.id, 10))
+        val home = repository.page(alice, null, null, 10)
+        assertTrue(homeNote in home)
+        assertFalse(groupBoost in home)
+        assertEquals(listOf(TimelineRecipient(alice, group.id)), repository.recipients(groupBoost.member, NOW.minusSeconds(60), null, 10))
+        assertEquals(listOf(TimelineRecipient(alice, null)), repository.recipients(homeNote.member, NOW.minusSeconds(60), null, 10))
     }
 
     @Test
@@ -419,7 +459,7 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
         assertNotNull(repository.receiveBoost(boost("1", note("mention", "public", setOf()))))
         val position = assertNotNull(repository.receive(note("mention", "public", setOf("dave"))))
-        assertEquals(listOf(position), repository.page(accounts.getValue("dave"), null, 10))
+        assertEquals(listOf(position), repository.page(accounts.getValue("dave"), null, null, 10))
         assertNull(repository.receive(note("mention", "public", setOf("dave"))))
     }
 

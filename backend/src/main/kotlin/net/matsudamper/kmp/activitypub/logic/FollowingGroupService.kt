@@ -18,6 +18,7 @@ class FollowingGroupService(
     private val groups: FollowingGroupRepository,
     private val following: FollowingRepository,
     private val followingService: FollowingService,
+    private val invalidator: TimelineInvalidator,
     private val clock: Clock,
 ) {
     fun groups(accountId: AccountId): List<FollowingGroup> = groups.list(accountId)
@@ -74,7 +75,11 @@ class FollowingGroupService(
     suspend fun setFollowing(accountId: AccountId?, actorUri: String, followed: Boolean, groupId: FollowingGroupId?): Boolean {
         if (followed && accountId != null && groupId != null && !groups.exists(accountId, groupId)) return false
         if (!followingService.setFollowing(accountId, actorUri, followed)) return false
-        if (followed && accountId != null) following.setGroup(accountId, actorUri, groupId)
+        if (followed && accountId != null && following.groupIdOf(accountId, actorUri) != groupId) {
+            following.setGroup(accountId, actorUri, groupId)
+            // 購読先ごとに組み立てたタイムラインから、移した相手の投稿を入れ替える
+            invalidator.invalidate(accountId)
+        }
         return true
     }
 

@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountBoostPosition
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRecord
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
@@ -102,7 +103,7 @@ internal class SqliteAccountBoostRepository(
         }
     }
 
-    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): Int {
+    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion {
         return jooq.transaction { dsl ->
             val remoteNoteIds = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
@@ -110,10 +111,12 @@ internal class SqliteAccountBoostRepository(
                 .and(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
                 .fetch(REMOTE_NOTES.ID)
                 .filterNotNull()
-            if (remoteNoteIds.isEmpty()) return@transaction 0
+            if (remoteNoteIds.isEmpty()) return@transaction RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf())
             val undone = dsl.undoAccountBoosts(ACCOUNT_BOOSTS.REMOTE_NOTE_ID.`in`(remoteNoteIds), now)
-            dsl.deleteFrom(REMOTE_NOTES).where(REMOTE_NOTES.ID.`in`(remoteNoteIds)).execute()
-            undone
+            RemoteNoteDeletion(
+                undoneBoostCount = undone,
+                deletedTimelineMembers = dsl.markRemoteNoteDeleted(actorUri = actorUri, objectUri = objectUri, deletedAt = now),
+            )
         }
     }
 

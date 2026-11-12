@@ -113,7 +113,7 @@ private fun TimelineTabsMenuItemsPreview() {
     MaterialTheme {
         Surface(tonalElevation = 3.dp, shadowElevation = 3.dp) {
             TimelineTabsMenuItems(
-                selectedColumn = previewTimelineColumns(items = listOf()).first(),
+                selectedColumn = previewTimelineColumns(items = listOf(), footer = HomeScreenUiState.TimelineFooter.None).first(),
                 addItemEnabled = true,
                 onClickAdd = {},
                 onItemClick = {},
@@ -175,13 +175,12 @@ private fun HomeTimelinePreview(
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewTimelinePosts()) else listOf(),
+                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewTimelinePosts(), footer) else listOf(),
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = timelineColumnEditDialog,
                 timelineColumnDeleteDialog = timelineColumnDeleteDialog,
                 timelineRefreshing = false,
-                timelineFooter = footer,
                 timelineStreamStatus = streamStatus,
                 sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
@@ -217,7 +216,6 @@ private fun HomeSearchContentPreview() {
                 timelineColumnEditDialog = null,
                 timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
-                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
@@ -278,7 +276,6 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineColumnEditDialog = null,
                 timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
-                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
@@ -317,7 +314,6 @@ private fun HomeUserContentPreview() {
                 timelineColumnEditDialog = null,
                 timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
-                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
@@ -340,7 +336,8 @@ private fun HomeUserContentPreview() {
                     items = listOf(
                         PostItemUiState(
                             pinnedLabelVisible = false,
-                            boostedBy = null,
+                            deletedLabelVisible = false,
+                            actorLabel = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
                             acct = "@user1",
@@ -391,7 +388,6 @@ private fun HomeUserMediaEmptyContentPreview() {
                 timelineColumnEditDialog = null,
                 timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
-                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
@@ -442,7 +438,6 @@ private fun HomeUserMediaContentPreview() {
                 timelineColumnEditDialog = null,
                 timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
-                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
@@ -463,7 +458,8 @@ private fun HomeUserMediaContentPreview() {
                     items = listOf(
                         PostItemUiState(
                             pinnedLabelVisible = false,
-                            boostedBy = null,
+                            deletedLabelVisible = false,
+                            actorLabel = null,
                             iconUrl = "https://example.com/icon.png",
                             displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
                             acct = "@user1",
@@ -532,13 +528,12 @@ private fun HomeColumnsPreview(
         HomeColumnsContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewColumnsPosts()) else listOf(),
+                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewColumnsPosts(), HomeScreenUiState.TimelineFooter.None) else listOf(),
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
                 timelineColumnDeleteDialog = null,
                 timelineRefreshing = false,
-                timelineFooter = HomeScreenUiState.TimelineFooter.None,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
                 search = HomeScreenUiState.Search(
@@ -633,8 +628,6 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickAddTimelineColumn() = Unit
 
     override fun onMoveTimelineColumn(fromIndex: Int, toIndex: Int) = Unit
-    override fun onScrolledToTimelineEnd() = Unit
-    override fun onClickRetryTimelineLoadMore() = Unit
 
     override fun onClickTimelineStreamStatus() = Unit
 
@@ -679,7 +672,7 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
     override fun onClick() = Unit
 }
 
-private object AndroidPreviewBoostedByListener : PostItemUiState.BoostedByListener {
+private object AndroidPreviewActorLabelListener : PostItemUiState.ActorLabelListener {
     override fun onClick() = Unit
 }
 
@@ -738,7 +731,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
         pinnedLabelVisible = false,
-        boostedBy = null,
+        deletedLabelVisible = false,
+        actorLabel = null,
         iconUrl = "https://example.com/kotlin.png",
         displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
         acct = "@kotlin@example.com",
@@ -786,11 +780,13 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
     ),
     PostItemUiState(
         pinnedLabelVisible = false,
-        boostedBy = PostItemUiState.BoostedBy(
+        deletedLabelVisible = false,
+        actorLabel = PostItemUiState.ActorLabel(
+            icon = PostItemUiState.ActorLabelIcon.Boost,
             text = createTextWithEmojis(text = "Alice :kotlin: がブースト", emojis = PreviewEmojis),
             iconUrl = null,
             cancelledLabelVisible = true,
-            listener = AndroidPreviewBoostedByListener,
+            listener = AndroidPreviewActorLabelListener,
         ),
         iconUrl = null,
         displayName = createTextWithEmojis(text = "Compose :compose:", emojis = PreviewEmojis),
@@ -848,7 +844,8 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
 private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
         pinnedLabelVisible = false,
-        boostedBy = null,
+        deletedLabelVisible = false,
+        actorLabel = null,
         iconUrl = "https://example.com/kotlin.png",
         displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
         acct = "@kotlin@example.com",
@@ -870,11 +867,12 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
     ),
 )
 
-private fun previewTimelineColumns(items: List<PostItemUiState>): List<HomeScreenUiState.TimelineColumn> = listOf(
+private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScreenUiState.TimelineFooter): List<HomeScreenUiState.TimelineColumn> = listOf(
     HomeScreenUiState.TimelineColumn(
         title = "ホーム",
         listStateKey = "home",
         items = items,
+        footer = footer,
         selected = true,
         listener = AndroidPreviewTimelineColumnListener,
     ),
@@ -882,6 +880,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>): List<HomeScree
         title = "ニュース",
         listStateKey = "news",
         items = items.take(1),
+        footer = HomeScreenUiState.TimelineFooter.None,
         selected = false,
         listener = AndroidPreviewTimelineColumnListener,
     ),
@@ -895,6 +894,10 @@ private object AndroidPreviewTimelineColumnListener : HomeScreenUiState.Timeline
     override fun onClickEdit() = Unit
 
     override fun onClickDelete() = Unit
+
+    override fun onScrolledToEnd() = Unit
+
+    override fun onClickRetryLoadMore() = Unit
 }
 
 private object AndroidPreviewTimelineColumnEditDialogListener : HomeScreenUiState.TimelineColumnEditDialog.Listener {

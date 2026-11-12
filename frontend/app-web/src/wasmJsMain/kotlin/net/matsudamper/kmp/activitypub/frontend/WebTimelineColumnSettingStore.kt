@@ -44,6 +44,8 @@ private data class StoredTimelineColumn(
     val name: String,
     val home: Boolean,
     val followingGroupIds: List<String>,
+    // 通知を選べるようになる前に保存した値には無いので、読めずに既定のカラムへ戻さないよう既定値を持つ
+    val notifications: Boolean = false,
 )
 
 private fun TimelineColumnSetting.toStored(): StoredTimelineColumn =
@@ -52,6 +54,7 @@ private fun TimelineColumnSetting.toStored(): StoredTimelineColumn =
         name = name,
         home = TimelineSource.Home in sources,
         followingGroupIds = sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId },
+        notifications = TimelineSource.Notifications in sources,
     )
 
 private fun StoredTimelineColumn.toTimelineColumnSetting(): TimelineColumnSetting =
@@ -61,6 +64,7 @@ private fun StoredTimelineColumn.toTimelineColumnSetting(): TimelineColumnSettin
         sources = buildSet {
             if (home) add(TimelineSource.Home)
             followingGroupIds.forEach { add(TimelineSource.FollowingGroup(it)) }
+            if (notifications) add(TimelineSource.Notifications)
         },
     )
 

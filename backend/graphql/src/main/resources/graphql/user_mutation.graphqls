@@ -32,7 +32,7 @@ type UserMutation {
     uploadNoteImage(image: Upload!, description: String): UploadNoteImageResult! @lazy
     """
     ログインしているアカウントの投稿を消し、フォロワーへの Delete を積む。付けた画像も消す。
-    noteId には HomeTimelinePost.deletableNoteId を渡す
+    noteId には TimelinePost.deletableNoteId を渡す
     """
     deleteNote(noteId: ID!): DeleteNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
@@ -44,13 +44,13 @@ type UserMutation {
     updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
     """
     ログインしているアカウントで、投稿にいいねを付けるか外す。他のサーバーの投稿なら投稿者への Like か Undo を積む。
-    postId は HomeTimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
+    postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
     外すときは今読めない投稿でも、付けたいいねを外す
     """
     setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
     """
     ログインしているアカウントで、このサーバーの投稿か、他のサーバーの公開の投稿をブーストするか外す。公開範囲に制限のある投稿はブーストできない。フォロワーと投稿者への Announce か Undo を積む。
-    postId は HomeTimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
+    postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
     外すときは今読めない投稿でも、付けたブーストを外す
     """
     setBoosted(postId: TimelinePostId!, boosted: Boolean!): SetBoostedResult! @lazy

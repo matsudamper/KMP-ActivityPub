@@ -1,0 +1,13 @@
+subscription AccountEvents {
+    accountEvents {
+        timelinePostArrived {
+            ...TimelinePostFields
+        }
+        timelinePostsDeleted {
+            postIds
+        }
+        notificationArrived {
+            ...NotificationFields
+        }
+    }
+}

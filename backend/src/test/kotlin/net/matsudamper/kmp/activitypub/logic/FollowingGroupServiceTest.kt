@@ -14,10 +14,12 @@ import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 class FollowingGroupServiceTest {
     private val repositories = FakeRepositories()
+    private val invalidatedAccounts = mutableListOf<AccountId>()
     private val followingService = FollowingService(
         repositories.accountRepository,
         repositories.followingRepository,
@@ -31,6 +33,7 @@ class FollowingGroupServiceTest {
         groups = repositories.followingGroupRepository,
         following = repositories.followingRepository,
         followingService = followingService,
+        invalidator = TimelineInvalidator { invalidatedAccounts += it },
         clock = Clock.systemUTC(),
     )
     private val actorUri = "https://remote.example/users/bob"
@@ -76,8 +79,13 @@ class FollowingGroupServiceTest {
         assertTrue(followingService.isFollowing(alice, actorUri))
         assertEquals(news.id, service.groupIdOf(alice, actorUri))
 
+        invalidatedAccounts.clear()
         assertTrue(service.setFollowing(alice, actorUri, true, null))
         assertNull(service.groupIdOf(alice, actorUri))
+        // 購読先ごとに組み立てたタイムラインを作り直させる
+        assertEquals(listOf(alice), invalidatedAccounts)
+        assertTrue(service.setFollowing(alice, actorUri, true, null))
+        assertEquals(listOf(alice), invalidatedAccounts)
 
         assertTrue(service.setFollowing(alice, actorUri, false, null))
         assertFalse(followingService.isFollowing(alice, actorUri))
@@ -130,5 +138,6 @@ class FollowingGroupServiceTest {
         noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
         boostCount = null,
         boostedBy = boosterActorUri?.let { TimelineBooster(it, "booster", null, null, listOf(), Instant.EPOCH) },
+        deleted = false,
     )
 }

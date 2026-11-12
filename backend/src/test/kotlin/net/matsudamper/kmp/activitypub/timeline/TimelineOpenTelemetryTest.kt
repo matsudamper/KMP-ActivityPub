@@ -15,8 +15,10 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
+import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
-class HomeTimelineOpenTelemetryTest {
+class TimelineOpenTelemetryTest {
     @Test
     fun rebuiltCachedAndSqlReadsKeepTheRequestParentAndDescribeTheirSource() {
         val exporter = InMemorySpanExporter.create()
@@ -26,9 +28,9 @@ class HomeTimelineOpenTelemetryTest {
             val repository = FakeTimelineRepository()
             repository.positions.addAll((1..20).map { TimelinePosition(it.toLong(), "r$it") })
             val tracedRepository = object : TimelineRepository by repository {
-                override fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition> {
+                override fun rebuild(accountId: AccountId, groupId: FollowingGroupId?, limit: Int): List<TimelinePosition> {
                     tracer.spanBuilder("SQL rebuild").startSpan().end()
-                    return repository.rebuild(accountId, limit)
+                    return repository.rebuild(accountId, groupId, limit)
                 }
                 override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> {
                     tracer.spanBuilder("SQL hydrate").startSpan().end()
@@ -37,15 +39,15 @@ class HomeTimelineOpenTelemetryTest {
             }
             val store = FakeTimelineStore(repository.events)
             val tracedStore = TracedStore(store, tracer)
-            val service = HomeTimelineService(tracedRepository, tracedStore, Clock.systemUTC(), telemetry)
+            val service = TimelineService(tracedRepository, FakeRepositories().followingGroupRepository, tracedStore, AccountEvents(tracedRepository), Clock.systemUTC(), telemetry)
             val request = tracer.spanBuilder("GraphQL homeTimeline").startSpan()
             request.makeCurrent().use {
                 runBlocking {
                     withOpenTelemetryContext {
-                        service.page(AccountId(1), null, 2)
-                        service.page(AccountId(1), null, 2)
+                        service.page(AccountId(1), null, null, 2)
+                        service.page(AccountId(1), null, null, 2)
                         store.unavailable = true
-                        service.page(AccountId(1), null, 2)
+                        service.page(AccountId(1), null, null, 2)
                     }
                 }
             }
@@ -63,17 +65,17 @@ class HomeTimelineOpenTelemetryTest {
     }
 
     private class TracedStore(private val store: TimelineStore, private val tracer: Tracer) : TimelineStore by store {
-        override fun ready(accountId: AccountId): Boolean {
+        override fun ready(feed: TimelineFeed): Boolean {
             redis("MGET")
-            return store.ready(accountId)
+            return store.ready(feed)
         }
-        override fun appendRebuilt(accountId: AccountId, positions: List<TimelinePosition>) {
+        override fun appendRebuilt(feed: TimelineFeed, positions: List<TimelinePosition>) {
             redis("ZADD")
-            store.appendRebuilt(accountId, positions)
+            store.appendRebuilt(feed, positions)
         }
-        override fun read(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition> {
+        override fun read(feed: TimelineFeed, after: TimelinePosition?, limit: Int): List<TimelinePosition> {
             redis("ZRANGE")
-            return store.read(accountId, after, limit)
+            return store.read(feed, after, limit)
         }
         private fun redis(operation: String) {
             tracer.spanBuilder(operation).setAttribute("db.system.name", "redis").setAttribute("db.operation.name", operation).startSpan().end()

@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
 
 /**
  * @param targets member ごとのブーストできる投稿
@@ -32,7 +33,8 @@ internal class FakeAccountBoostRepository(
         return boosts.removeIf { it.accountId == accountId && it.member == member }
     }
 
-    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): Int = 0
+    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion =
+        RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf())
 
     override fun listForOutbox(username: String, after: AccountBoostPosition?, limit: Int): List<AccountBoostRecord> = listOf()
 

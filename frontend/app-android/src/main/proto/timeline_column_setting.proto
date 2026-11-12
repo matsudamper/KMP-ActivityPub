@@ -16,4 +16,5 @@ message TimelineColumnProto {
   string name = 2;
   bool home = 3;
   repeated string following_group_ids = 4;
+  bool notifications = 5;
 }

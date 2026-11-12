@@ -24,7 +24,8 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kmp.activitypub.timeline.FakeTimelineStore
-import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.AccountEvents
+import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineSpan
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.RemoteActor
@@ -116,7 +117,7 @@ class RemoteNoteReceptionTest {
             override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
                 RemoteNoteReceptionInterest(if (fixture.repositories.followingRepository.contains(fixture.accountId, actorUri)) 1 else 0, localRecipients.size.toLong())
         }
-        val receiver = ReceivedRemoteNotes(repository, fixture.remote, fixture.repositories.remoteActorRepository, fixture.directory, fixture.timeline, Clock.systemUTC(), repository::deleteRemote)
+        val receiver = ReceivedRemoteNotes(repository, fixture.remote, fixture.repositories.remoteActorRepository, fixture.directory, fixture.timeline, Clock.systemUTC(), { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) })
         receiver.save(note(listOf()))
         assertTrue(stored.received.isEmpty())
         assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
@@ -174,7 +175,7 @@ class RemoteNoteReceptionTest {
                 fixture.directory,
                 fixture.timeline,
                 Clock.systemUTC(),
-                repository::deleteRemote,
+                { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
                 telemetry,
             )
             val request = telemetry.getTracer("test").spanBuilder("inbox request").startSpan()
@@ -331,7 +332,7 @@ class RemoteNoteReceptionTest {
                 override fun finds(usernames: Set<String>): Map<String, String> = usernames.filter { it == "alice" }.associateWith { it }
             },
         )
-        val timeline = HomeTimelineService(repositories.timelineRepository, FakeTimelineStore(mutableListOf()), Clock.systemUTC())
+        val timeline = TimelineService(repositories.timelineRepository, repositories.followingGroupRepository, FakeTimelineStore(mutableListOf()), AccountEvents(repositories.timelineRepository), Clock.systemUTC())
         val receiver =
             ReceivedRemoteNotes(
                 repositories.timelineRepository,
@@ -340,7 +341,7 @@ class RemoteNoteReceptionTest {
                 directory,
                 timeline,
                 Clock.systemUTC(),
-                repositories.timelineRepository::deleteRemote,
+                { actorUri, objectUri -> repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now()) },
                 openTelemetry,
             )
         val delivery = QueuedFollowDelivery(

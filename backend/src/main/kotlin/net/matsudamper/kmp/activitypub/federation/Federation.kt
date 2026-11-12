@@ -34,10 +34,12 @@ import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
-import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.AccountEvents
+import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorIconEndpoint
@@ -78,7 +80,9 @@ internal class Federation(
     noteRepository: NoteRepository,
     notePinRepository: NotePinRepository,
     timelineRepository: TimelineRepository,
-    timeline: HomeTimelineService,
+    timeline: TimelineService,
+    accountEvents: AccountEvents,
+    notificationRepository: NotificationRepository,
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
     likeRepository: LikeRepository,
@@ -100,7 +104,8 @@ internal class Federation(
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
-    private val favourites = RecordedFavourites(favouriteRepository)
+    private val receivedNotifications = ReceivedNotifications(notificationRepository, accountEvents)
+    private val favourites = RecordedFavourites(favouriteRepository, receivedNotifications)
     private val stamps = RecordedStamps(stampRepository)
     private val receivedNotes = ReceivedRemoteNotes(
         timelineRepository,
@@ -111,7 +116,7 @@ internal class Federation(
         Clock.systemUTC(),
         deleteRemoteNote = { actorUri, objectUri -> boostService.deleteRemoteNote(actorUri, objectUri) },
     )
-    private val boosts = RecordedBoosts(boostRepository, receivedNotes)
+    private val boosts = RecordedBoosts(boostRepository, receivedNotes, receivedNotifications, timeline, Clock.systemUTC())
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(

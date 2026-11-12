@@ -1,12 +1,18 @@
 type UserInfo {
-    homeTimeline(cursor: String, limit: Int!): HomeTimeline @lazy
     """
-    投稿の本文にあるリンク先の OGP。postId には HomeTimelinePost.id か ProfilePost.linkPreviewId を渡す。
+    購読先 1 つの行を新しい順に返す。followingGroupId が null ならホーム（グループに入れていないフォローと自分の投稿）。
+    after には前回の nextCursor を渡す。消された投稿も deleted を立てて返す
+    """
+    timeline(followingGroupId: FollowingGroupId, after: String, limit: Int!): TimelinePage @lazy
+    "自分の投稿に届いたお気に入りとブーストを新しい順に返す。after には前回の nextCursor を渡す"
+    notifications(after: String, limit: Int!): NotificationPage @lazy
+    """
+    投稿の本文にあるリンク先の OGP。postId には TimelinePost.id か ProfilePost.linkPreviewId を渡す。
     リンク先へ取りに行くので遅い。読めない投稿か、サーバーに DOMAIN が無ければ空
     """
     linkPreviews(postId: ID!): [LinkPreview!]! @lazy
-    "ホームタイムラインの投稿を 1 件。id には HomeTimelinePost.id を渡す。読めない投稿なら null"
-    post(id: ID!): HomeTimelinePost @lazy
+    "タイムラインの投稿を 1 件。id には TimelinePost.id を渡す。読めない投稿なら null"
+    timelinePost(id: TimelinePostId!): TimelinePost @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!

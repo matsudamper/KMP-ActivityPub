@@ -6,6 +6,14 @@ sealed interface UserHomeTimelineResult {
 
     data class Post(
         val id: String,
+        /**
+         * 投稿者が投稿を消したか、ブーストした相手がブーストを取り消したか。ほかの項目は消される前のまま
+         */
+        val deleted: Boolean,
+        /**
+         * タイムラインに並べる時刻。複数の購読先を 1 つのカラムに混ぜるときに、新しい順に並べるのに使う
+         */
+        val sortedAt: String,
         val username: String,
         val host: String?,
         val displayName: String,
@@ -34,14 +42,17 @@ sealed interface UserHomeTimelineResult {
         /**
          * フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null
          */
-        val boostedBy: Booster?,
+        val boostedBy: Actor?,
         /**
          * 投稿が載った購読先のグループ。ホームなら null
          */
         val followingGroupId: String?,
     )
 
-    data class Booster(
+    /**
+     * ブーストした相手や、通知を送ってきた相手
+     */
+    data class Actor(
         val username: String,
         /**
          * このサーバーのアカウントなら null
@@ -50,7 +61,7 @@ sealed interface UserHomeTimelineResult {
         val displayName: String,
         val displayNameEmojis: List<UserCustomEmoji>,
         /**
-         * ブーストした相手のプロフィール画像が無ければ null
+         * プロフィール画像が無ければ null
          */
         val iconUrl: String?,
     )

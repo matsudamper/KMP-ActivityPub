@@ -2,10 +2,12 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
+import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.EARLY_UNDONE_LIKES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_FAVOURITES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTIFICATIONS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
@@ -20,25 +22,35 @@ internal class SqliteFavouriteRepository(
         val noteId = dsl.findNoteId(notePublicId) ?: return@transaction false
         val remoteActorId = dsl.upsertRemoteActor(actor, updatedAt = receivedAt)
 
-        dsl.insertInto(NOTE_FAVOURITES)
+        val inserted = dsl.insertInto(NOTE_FAVOURITES)
             .set(NOTE_FAVOURITES.NOTE_ID, noteId)
             .set(NOTE_FAVOURITES.REMOTE_ACTOR_ID, remoteActorId)
             .set(NOTE_FAVOURITES.RECEIVED_AT, StoredInstant.format(receivedAt))
             .onConflictDoNothing()
             .execute() > 0
+        if (inserted) dsl.insertNotification(NotificationKind.FAVOURITE, noteId, remoteActorId, receivedAt)
+        inserted
     }
 
     override fun remove(
         notePublicId: PublicNoteId,
         actorUri: String,
-    ): Boolean = jooq.withConnection { dsl ->
+    ): Boolean = jooq.transaction { dsl ->
+        val noteId = dsl.findNoteId(notePublicId) ?: return@transaction false
+        val remoteActorId = dsl.select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).fetchOne(REMOTE_ACTORS.ID)
+            ?: return@transaction false
+        dsl.deleteNotification(NotificationKind.FAVOURITE, noteId, remoteActorId)
         dsl.deleteFrom(NOTE_FAVOURITES)
-            .where(NOTE_FAVOURITES.NOTE_ID.eq(dsl.select(NOTES.ID).from(NOTES).where(NOTES.PUBLIC_ID.eq(notePublicId.value))))
-            .and(NOTE_FAVOURITES.REMOTE_ACTOR_ID.eq(dsl.select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))))
+            .where(NOTE_FAVOURITES.NOTE_ID.eq(noteId))
+            .and(NOTE_FAVOURITES.REMOTE_ACTOR_ID.eq(remoteActorId))
             .execute() > 0
     }
 
-    override fun removeActor(actorUri: String): Int = jooq.withConnection { dsl ->
+    override fun removeActor(actorUri: String): Int = jooq.transaction { dsl ->
+        dsl.deleteFrom(NOTIFICATIONS)
+            .where(NOTIFICATIONS.REMOTE_ACTOR_ID.eq(dsl.select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))))
+            .and(NOTIFICATIONS.KIND.eq(NotificationKind.FAVOURITE.stored))
+            .execute()
         dsl.deleteFrom(NOTE_FAVOURITES)
             .where(NOTE_FAVOURITES.REMOTE_ACTOR_ID.eq(dsl.select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))))
             .execute()

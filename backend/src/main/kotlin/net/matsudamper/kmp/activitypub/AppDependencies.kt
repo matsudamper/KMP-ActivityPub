@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.NotePinService
+import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
@@ -29,8 +30,8 @@ import net.matsudamper.kmp.activitypub.session.ValkeyPasskeyChallengeStore
 import net.matsudamper.kmp.activitypub.session.ValkeyUserSessionStore
 import net.matsudamper.kmp.activitypub.staticfiles.StaticFiles
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
-import net.matsudamper.kmp.activitypub.timeline.HomeTimelineArrivals
-import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.AccountEvents
+import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineFanoutWorker
 import net.matsudamper.kmp.activitypub.timeline.TimelineStore
 import net.matsudamper.kmp.activitypub.timeline.ValkeyTimelineStore
@@ -46,8 +47,18 @@ class AppDependencies(
     val staticFiles: StaticFiles? = env.staticSrcDir?.let { StaticFiles(it) }?.takeIf { it.isAvailable() }
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
-    val homeTimelineService = HomeTimelineService(repositories.timelineRepository, timelineStore, Clock.systemUTC())
-    val homeTimelineArrivals = HomeTimelineArrivals(repositories.timelineRepository)
+    val accountEvents = AccountEvents(repositories.timelineRepository)
+    val timelineService = TimelineService(
+        repository = repositories.timelineRepository,
+        groups = repositories.followingGroupRepository,
+        store = timelineStore,
+        events = accountEvents,
+        clock = Clock.systemUTC(),
+    )
+    val notificationService = NotificationService(
+        notifications = repositories.notificationRepository,
+        timeline = repositories.timelineRepository,
+    )
     val followListService: FollowListService = FollowListService(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
@@ -93,7 +104,9 @@ class AppDependencies(
                 noteRepository = repositories.noteRepository,
                 notePinRepository = repositories.notePinRepository,
                 timelineRepository = repositories.timelineRepository,
-                timeline = homeTimelineService,
+                timeline = timelineService,
+                accountEvents = accountEvents,
+                notificationRepository = repositories.notificationRepository,
                 remoteActorRepository = repositories.remoteActorRepository,
                 favouriteRepository = repositories.favouriteRepository,
                 likeRepository = repositories.likeRepository,
@@ -110,7 +123,7 @@ class AppDependencies(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
         delivery = checkNotNull(federation).followDelivery,
-        invalidator = homeTimelineService,
+        invalidator = timelineService,
         localDomain = checkNotNull(env.domain),
         clock = Clock.systemUTC(),
     )
@@ -120,6 +133,7 @@ class AppDependencies(
         groups = repositories.followingGroupRepository,
         following = repositories.followingRepository,
         followingService = followingService,
+        invalidator = timelineService,
         clock = Clock.systemUTC(),
     )
 
@@ -177,7 +191,7 @@ class AppDependencies(
         lockDuration = 30.days,
     )
 
-    val timelineWorker = TimelineFanoutWorker(repositories.timelineRepository, timelineStore, homeTimelineArrivals, Clock.systemUTC())
+    val timelineWorker = TimelineFanoutWorker(repositories.timelineRepository, timelineStore, accountEvents, Clock.systemUTC())
 
     /**
      * 順に閉じると、どれかの close が返らないときに後ろが閉じられない。

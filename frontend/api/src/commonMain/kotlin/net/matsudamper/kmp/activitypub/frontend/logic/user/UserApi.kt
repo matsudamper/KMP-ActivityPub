@@ -24,6 +24,7 @@ import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
 import com.apollographql.cache.normalized.apolloStore
+import net.matsudamper.kmp.activitypub.frontend.graphql.AccountEventsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.AdminAccessQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
@@ -33,10 +34,9 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineLinkPreviewsQuery
-import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelinePostsSubscription
-import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
@@ -44,6 +44,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.SetBoostedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetPinnedMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -109,21 +110,46 @@ class UserApi(
 
     fun isReady(): Boolean = clients.client.value != null
 
-    fun homeTimelinePaging(): CursorPagingModel<HomeTimelineQuery.Data> {
+    /**
+     * @param followingGroupId 読む購読先。null ならホーム
+     */
+    fun timelinePaging(followingGroupId: String?): CursorPagingModel<TimelineQuery.Data> {
         return CursorPagingModel(
             clients = clients,
-            firstQuery = HomeTimelineQuery(cursor = Optional.present(null), limit = HOME_TIMELINE_PAGE_SIZE),
-            queryAfter = { cursor -> HomeTimelineQuery(cursor = Optional.present(cursor), limit = HOME_TIMELINE_PAGE_SIZE) },
-            nextCursorOf = { it.userInfo?.homeTimeline?.nextCursor },
+            firstQuery = TimelineQuery(followingGroupId = Optional.present(followingGroupId), after = Optional.present(null), limit = TIMELINE_PAGE_SIZE),
+            queryAfter = { cursor -> TimelineQuery(followingGroupId = Optional.present(followingGroupId), after = Optional.present(cursor), limit = TIMELINE_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.timeline?.nextCursor },
             appendPage = { before, page ->
                 val beforeUserInfo = before.userInfo ?: return@CursorPagingModel null
-                val pageTimeline = page.userInfo?.homeTimeline ?: return@CursorPagingModel null
-                val beforeTimeline = beforeUserInfo.homeTimeline ?: return@CursorPagingModel null
+                val pageTimeline = page.userInfo?.timeline ?: return@CursorPagingModel null
+                val beforeTimeline = beforeUserInfo.timeline ?: return@CursorPagingModel null
                 before.copy(
                     userInfo = beforeUserInfo.copy(
-                        homeTimeline = beforeTimeline.copy(
+                        timeline = beforeTimeline.copy(
                             posts = beforeTimeline.posts + pageTimeline.posts,
                             nextCursor = pageTimeline.nextCursor,
+                        ),
+                    ),
+                )
+            },
+        )
+    }
+
+    fun notificationsPaging(): CursorPagingModel<NotificationsQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = NotificationsQuery(after = Optional.present(null), limit = TIMELINE_PAGE_SIZE),
+            queryAfter = { cursor -> NotificationsQuery(after = Optional.present(cursor), limit = TIMELINE_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.notifications?.nextCursor },
+            appendPage = { before, page ->
+                val beforeUserInfo = before.userInfo ?: return@CursorPagingModel null
+                val pageNotifications = page.userInfo?.notifications ?: return@CursorPagingModel null
+                val beforeNotifications = beforeUserInfo.notifications ?: return@CursorPagingModel null
+                before.copy(
+                    userInfo = beforeUserInfo.copy(
+                        notifications = beforeNotifications.copy(
+                            notifications = beforeNotifications.notifications + pageNotifications.notifications,
+                            nextCursor = pageNotifications.nextCursor,
                         ),
                     ),
                 )
@@ -156,68 +182,28 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
         val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
-        val post = userInfo.post ?: return UserPostDetailResult.NotFound
-        return UserPostDetailResult.Found(
-            UserHomeTimelineResult.Post(
-                id = post.id,
-                username = post.username,
-                host = post.host,
-                displayName = post.displayName,
-                displayNameEmojis = post.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
-                iconUrl = post.iconUrl,
-                body = UserPostBody(
-                    content = post.content,
-                    publishedAt = post.publishedAt,
-                    summary = post.summary,
-                    sensitive = post.sensitive,
-                    linkUrls = post.linkUrls,
-                    images = post.images.map { UserPostImage(url = it.url, thumbnailUrl = it.thumbnailUrl, description = it.description) },
-                    favouriteCount = post.favouriteCount,
-                    boostCount = post.boostCount,
-                    stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
-                    emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
-                    shareUrl = post.url,
-                    likedByMe = post.likedByMe,
-                    boostedByMe = post.boostedByMe,
-                ),
-                boostedBy = post.boostedBy?.let {
-                    UserHomeTimelineResult.Booster(
-                        username = it.username,
-                        host = it.host,
-                        displayName = it.displayName,
-                        displayNameEmojis = it.displayNameEmojis.map { emoji ->
-                            UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
-                        },
-                        iconUrl = it.iconUrl,
-                    )
-                },
-                reactionPostId = post.reactionPostId,
-                deletableNoteId = post.deletableNoteId,
-                pinnableNoteId = post.pinnableNoteId,
-                pinned = post.pinned,
-                followingGroupId = post.followingGroupId,
-            ),
-        )
+        val post = userInfo.timelinePost ?: return UserPostDetailResult.NotFound
+        return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
     /**
-     * ホームタイムラインに新しく載った投稿を流し続ける。
-     * 切れたら間隔を倍に延ばしながらつなぎ直し、続けて失敗したら [HomeTimelineStreamEvent.GaveUp] を流して終わる
+     * ログイン中のアカウントに起きた変化（新着・削除・通知）を流し続ける。
+     * 切れたら間隔を倍に延ばしながらつなぎ直し、続けて失敗したら [AccountStreamEvent.GaveUp] を流して終わる
      */
-    fun homeTimelineStream(): Flow<HomeTimelineStreamEvent> = flow {
+    fun accountEventStream(): Flow<AccountStreamEvent> = flow {
         var consecutiveFailureCount = 0
         while (true) {
-            emit(HomeTimelineStreamEvent.Subscribing)
+            emit(AccountStreamEvent.Subscribing)
             val client = clients.awaitLoadedClient()
             val connectedAt = TimeSource.Monotonic.markNow()
-            val receivedPostCount = if (client == null) 0 else collectHomeTimelinePosts(client)
-            val connectionWasHealthy = receivedPostCount > 0 || connectedAt.elapsedNow() >= HOME_TIMELINE_HEALTHY_CONNECTION_DURATION
+            val receivedEventCount = if (client == null) 0 else collectAccountEvents(client)
+            val connectionWasHealthy = receivedEventCount > 0 || connectedAt.elapsedNow() >= ACCOUNT_EVENT_HEALTHY_CONNECTION_DURATION
             consecutiveFailureCount = if (connectionWasHealthy) 0 else consecutiveFailureCount + 1
-            if (consecutiveFailureCount >= HOME_TIMELINE_MAX_CONSECUTIVE_FAILURES) break
-            emit(HomeTimelineStreamEvent.WaitingToReconnect)
-            delay(HOME_TIMELINE_RECONNECT_BASE_DELAY * (1 shl (consecutiveFailureCount - 1).coerceAtLeast(0)))
+            if (consecutiveFailureCount >= ACCOUNT_EVENT_MAX_CONSECUTIVE_FAILURES) break
+            emit(AccountStreamEvent.WaitingToReconnect)
+            delay(ACCOUNT_EVENT_RECONNECT_BASE_DELAY * (1 shl (consecutiveFailureCount - 1).coerceAtLeast(0)))
         }
-        emit(HomeTimelineStreamEvent.GaveUp)
+        emit(AccountStreamEvent.GaveUp)
     }
 
     /**
@@ -820,58 +806,21 @@ class UserApi(
         val groupId: String?,
     )
 
-    private suspend fun FlowCollector<HomeTimelineStreamEvent>.collectHomeTimelinePosts(client: ApolloClient): Int {
-        val receivedPostCount = client.subscription(HomeTimelinePostsSubscription()).toFlow()
-            .mapNotNull { response -> response.data?.homeTimelinePosts }
-            .onEach { post ->
-                emit(
-                    HomeTimelineStreamEvent.Arrived(
-                        UserHomeTimelineResult.Post(
-                            id = post.id,
-                            username = post.username,
-                            host = post.host,
-                            displayName = post.displayName,
-                            displayNameEmojis = post.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
-                            iconUrl = post.iconUrl,
-                            body = UserPostBody(
-                                content = post.content,
-                                publishedAt = post.publishedAt,
-                                summary = post.summary,
-                                sensitive = post.sensitive,
-                                linkUrls = post.linkUrls,
-                                images = post.images.map { UserPostImage(url = it.url, thumbnailUrl = it.thumbnailUrl, description = it.description) },
-                                favouriteCount = post.favouriteCount,
-                                boostCount = post.boostCount,
-                                stamps = post.stamps.map { UserPostStamp(emoji = it.emoji, imageUrl = it.imageUrl, count = it.count) },
-                                emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
-                                shareUrl = post.url,
-                                likedByMe = post.likedByMe,
-                                boostedByMe = post.boostedByMe,
-                            ),
-                            boostedBy = post.boostedBy?.let {
-                                UserHomeTimelineResult.Booster(
-                                    username = it.username,
-                                    host = it.host,
-                                    displayName = it.displayName,
-                                    displayNameEmojis = it.displayNameEmojis.map { emoji ->
-                                        UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl)
-                                    },
-                                    iconUrl = it.iconUrl,
-                                )
-                            },
-                            reactionPostId = post.reactionPostId,
-                            deletableNoteId = post.deletableNoteId,
-                            pinnableNoteId = post.pinnableNoteId,
-                            pinned = post.pinned,
-                            followingGroupId = post.followingGroupId,
-                        ),
-                    ),
-                )
+    private suspend fun FlowCollector<AccountStreamEvent>.collectAccountEvents(client: ApolloClient): Int {
+        val receivedEventCount = client.subscription(AccountEventsSubscription()).toFlow()
+            .mapNotNull { response -> response.data?.accountEvents }
+            .onEach { event ->
+                val arrivedPost = event.timelinePostArrived?.timelinePostFields?.toPost()
+                val deletedPostIds = event.timelinePostsDeleted?.postIds
+                val arrivedNotification = event.notificationArrived?.notificationFields?.toNotification()
+                if (arrivedPost != null) emit(AccountStreamEvent.PostArrived(arrivedPost))
+                if (deletedPostIds != null) emit(AccountStreamEvent.PostsDeleted(deletedPostIds))
+                if (arrivedNotification != null) emit(AccountStreamEvent.NotificationArrived(arrivedNotification))
             }
             .count()
         // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
         client.closeSubscriptionConnection()
-        return receivedPostCount
+        return receivedEventCount
     }
 
     private fun ApolloResponse<RemoteProfileRefreshSubscription.Data>.toRemoteProfileRefreshResult(): UserRemoteProfileRefreshResult {
@@ -895,8 +844,8 @@ class UserApi(
         copy(users = users + page.users, nextCursor = page.nextCursor)
 
     private companion object {
-        const val HOME_TIMELINE_PAGE_SIZE = 40
-        const val HOME_TIMELINE_MAX_CONSECUTIVE_FAILURES = 5
+        const val TIMELINE_PAGE_SIZE = 40
+        const val ACCOUNT_EVENT_MAX_CONSECUTIVE_FAILURES = 5
 
         /**
          * 読めるまでと読めなかったときに出す。サーバーの既定と合わせる
@@ -906,11 +855,11 @@ class UserApi(
         /**
          * 失敗の回数に応じて倍にしていく。5 回続けて失敗すると、諦めるまでに 5 + 10 + 20 + 40 秒待つ
          */
-        val HOME_TIMELINE_RECONNECT_BASE_DELAY = 5.seconds
+        val ACCOUNT_EVENT_RECONNECT_BASE_DELAY = 5.seconds
 
         /**
          * 投稿が来なくても、これだけ切れずにいられたなら接続できていたとみなし、失敗の回数を数え直す
          */
-        val HOME_TIMELINE_HEALTHY_CONNECTION_DURATION = 1.minutes
+        val ACCOUNT_EVENT_HEALTHY_CONNECTION_DURATION = 1.minutes
     }
 }
