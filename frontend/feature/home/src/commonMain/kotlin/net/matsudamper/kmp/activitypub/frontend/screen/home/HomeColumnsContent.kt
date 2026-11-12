@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -67,10 +66,9 @@ internal fun HomeColumnsContent(
                 Row(
                     modifier = Modifier.fillMaxHeight().weight(1f).horizontalScroll(rememberScrollState()),
                 ) {
-                    val columnWidthState = rememberColumnWidthState(defaultWidth = COLUMN_WIDTH, minWidth = COLUMN_MIN_WIDTH, maxWidth = COLUMN_MAX_WIDTH)
                     val column = uiState.openedColumn
                     if (column != null) {
-                        val columnModifier = Modifier.width(columnWidthState.width(OPENED_COLUMN_WIDTH_KEY)).fillMaxHeight()
+                        val columnModifier = Modifier.width(uiState.openedColumnWidth).fillMaxHeight()
                         when (column) {
                             HomeScreenUiState.Column.Post -> postColumn(columnModifier)
 
@@ -78,6 +76,7 @@ internal fun HomeColumnsContent(
                                 title = "検索",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Search) },
                                 headerActions = { ColumnCloseButton(title = "検索", onClick = { uiState.listener.onClickCloseColumn(column) }) },
+                                newPostsHiddenAbove = false,
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 SearchTabContent(
@@ -92,6 +91,7 @@ internal fun HomeColumnsContent(
                                 title = "ユーザー",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.User) },
                                 headerActions = { ColumnCloseButton(title = "ユーザー", onClick = { uiState.listener.onClickCloseColumn(column) }) },
+                                newPostsHiddenAbove = false,
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 UserTabContent(
@@ -104,30 +104,35 @@ internal fun HomeColumnsContent(
                                 )
                             }
                         }
-                        ColumnResizeDivider(state = columnWidthState, columnKey = OPENED_COLUMN_WIDTH_KEY)
+                        ColumnResizeDivider(
+                            onResize = uiState.listener::onResizeOpenedColumn,
+                            onResizeEnd = uiState.listener::onResizeOpenedColumnEnd,
+                        )
                     }
                     val reorderState = rememberHorizontalReorderState()
                     SideEffect { reorderState.retainItems(uiState.timelineColumns.size) }
                     uiState.timelineColumns.forEachIndexed { index, timelineColumn ->
                         key(timelineColumn.listStateKey) {
+                            val listState = tabListStates.timeline(timelineColumn.listStateKey)
                             HomeColumn(
                                 title = timelineColumn.title,
                                 onClickHeader = timelineColumn.listener::onClickHeader,
                                 headerActions = { TimelineColumnSettingsButton(column = timelineColumn) },
+                                newPostsHiddenAbove = listState.canScrollBackward,
                                 headerModifier = Modifier.horizontalReorderHandle(
                                     state = reorderState,
                                     index = index,
                                     onMove = uiState.listener::onMoveTimelineColumn,
                                 ),
                                 modifier = Modifier
-                                    .width(columnWidthState.width(timelineColumn.listStateKey))
+                                    .width(timelineColumn.width)
                                     .fillMaxHeight()
                                     .horizontalReorderItem(state = reorderState, index = index, dropIndicatorColor = MaterialTheme.colorScheme.primary)
                                     .background(MaterialTheme.colorScheme.background),
                             ) { contentModifier ->
                                 FontSizeTheme(fontSize = timelineColumn.fontSize) {
                                     TimelineTabContent(
-                                        listState = tabListStates.timeline(timelineColumn.listStateKey),
+                                        listState = listState,
                                         timelineItems = timelineColumn.items,
                                         refreshing = uiState.timelineRefreshing,
                                         footer = timelineColumn.footer,
@@ -138,7 +143,10 @@ internal fun HomeColumnsContent(
                                     )
                                 }
                             }
-                            ColumnResizeDivider(state = columnWidthState, columnKey = timelineColumn.listStateKey)
+                            ColumnResizeDivider(
+                                onResize = timelineColumn.listener::onResize,
+                                onResizeEnd = timelineColumn.listener::onResizeEnd,
+                            )
                         }
                     }
                     val emptyMessage = uiState.timelineColumnsEmptyMessage
@@ -274,6 +282,7 @@ private fun HomeColumn(
     title: String,
     onClickHeader: () -> Unit,
     headerActions: @Composable () -> Unit,
+    newPostsHiddenAbove: Boolean,
     modifier: Modifier = Modifier,
     headerModifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
@@ -296,7 +305,7 @@ private fun HomeColumn(
             )
             headerActions()
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        TimelineHeaderDivider(newPostsHiddenAbove = newPostsHiddenAbove)
         content(Modifier.fillMaxWidth().weight(1f))
     }
 }
@@ -319,11 +328,4 @@ private val HomeScreenUiState.Column.label: String
     }
 
 private val COLUMN_WIDTH = 400.dp
-private val COLUMN_MIN_WIDTH = 240.dp
-private val COLUMN_MAX_WIDTH = 800.dp
-
-/**
- * 投稿・検索・ユーザーは同じ場所に 1 つずつしか開かないので、幅を共有する
- */
-private const val OPENED_COLUMN_WIDTH_KEY = "opened"
 private val RAIL_BUTTON_WIDTH = 72.dp

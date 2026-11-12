@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.time.Duration.Companion.milliseconds
@@ -23,6 +25,7 @@ import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineFontSize
@@ -73,6 +76,7 @@ internal class HomeScreenViewModel(
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
     private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
     private val timelineColumnSettingStore: TimelineColumnSettingStore,
+    private val columnWidthStore: ColumnWidthStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -81,6 +85,7 @@ internal class HomeScreenViewModel(
             ViewModelState(
                 selectedTab = selectedTab,
                 openedColumn = null,
+                columnWidths = mapOf(),
                 timeline = TimelineState(
                     pullToRefreshIndicatorShowing = false,
                 ),
@@ -181,6 +186,14 @@ internal class HomeScreenViewModel(
 
         override fun onClickCloseColumn(column: HomeScreenUiState.Column) {
             viewModelStateFlow.update { if (it.openedColumn == column) it.copy(openedColumn = null) else it }
+        }
+
+        override fun onResizeOpenedColumn(delta: Dp) {
+            resizeColumn(columnKey = OPENED_COLUMN_WIDTH_KEY, delta = delta)
+        }
+
+        override fun onResizeOpenedColumnEnd() {
+            saveColumnWidths()
         }
 
         override fun onClickColumnHeader(tab: HomeScreenUiState.Tab) {
@@ -409,6 +422,11 @@ internal class HomeScreenViewModel(
             }
         }
         viewModelScope.launch {
+            columnWidthStore.widthsFlow.collect { widths ->
+                viewModelStateFlow.update { it.copy(columnWidths = widths) }
+            }
+        }
+        viewModelScope.launch {
             timelineColumnSettingStore.columnsFlow.collect { settings ->
                 updateTimelineColumns { it.copy(settings = settings) }
                 retainTimelineSources(settings)
@@ -506,6 +524,27 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             if (!timelineColumnSettingStore.save(settings)) {
                 events.send { it.showMessage(TIMELINE_COLUMNS_NOT_SAVED_MESSAGE) }
+            }
+        }
+    }
+
+    private fun resizeColumn(columnKey: String, delta: Dp) {
+        viewModelStateFlow.update { state ->
+            val resized = (state.columnWidth(columnKey) + delta).coerceIn(COLUMN_MIN_WIDTH, COLUMN_MAX_WIDTH)
+            state.copy(columnWidths = state.columnWidths + (columnKey to resized.value))
+        }
+    }
+
+    /**
+     * 動かしている間に毎回書き込むと重いので、離したときにまとめて書き込む。消したカラムの幅は残さない
+     */
+    private fun saveColumnWidths() {
+        val state = viewModelStateFlow.value
+        val existingKeys = state.timelineColumns.settings.orEmpty().map { it.id }.toSet() + OPENED_COLUMN_WIDTH_KEY
+        val widths = state.columnWidths.filterKeys { it in existingKeys }
+        viewModelScope.launch {
+            if (!columnWidthStore.save(widths)) {
+                events.send { it.showMessage(COLUMN_WIDTHS_NOT_SAVED_MESSAGE) }
             }
         }
     }
@@ -924,6 +963,7 @@ internal class HomeScreenViewModel(
             userPosts = createUserPosts(viewModelState),
             userTabIconUrl = (profile as? ProfileState.Loaded)?.profile?.iconUrl,
             openedColumn = viewModelState.openedColumn,
+            openedColumnWidth = viewModelState.columnWidth(OPENED_COLUMN_WIDTH_KEY),
             railItems = HomeScreenUiState.Column.entries.map { column ->
                 HomeScreenUiState.RailItem(column = column, selected = column == viewModelState.openedColumn)
             },
@@ -1082,7 +1122,16 @@ internal class HomeScreenViewModel(
                         },
                     )
                 },
+                width = viewModelState.columnWidth(column.id),
                 listener = object : HomeScreenUiState.TimelineColumnListener {
+                    override fun onResize(delta: Dp) {
+                        resizeColumn(columnKey = column.id, delta = delta)
+                    }
+
+                    override fun onResizeEnd() {
+                        saveColumnWidths()
+                    }
+
                     override fun onClickTab() {
                         if (viewModelStateFlow.value.timelineColumns.selectedColumn()?.id == column.id) {
                             viewModelScope.launch { events.send { it.scrollTimelineColumnToTop(column.id) } }
@@ -1326,6 +1375,15 @@ internal class HomeScreenViewModel(
 
     private companion object {
         val PULL_TO_REFRESH_MIN_DURATION = 600.milliseconds
+        val COLUMN_DEFAULT_WIDTH = 400.dp
+        val COLUMN_MIN_WIDTH = 240.dp
+        val COLUMN_MAX_WIDTH = 800.dp
+
+        /**
+         * 投稿・検索・ユーザーは同じ場所に 1 つずつしか開かないので、幅を共有する。タイムラインのカラムの id と重ならない
+         */
+        const val OPENED_COLUMN_WIDTH_KEY = "opened"
+        const val COLUMN_WIDTHS_NOT_SAVED_MESSAGE = "カラムの幅を端末に保存できませんでした"
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
         const val MY_POSTS_NOT_FOUND_MESSAGE = "投稿を読み込めませんでした"
@@ -1350,6 +1408,10 @@ internal class HomeScreenViewModel(
          * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null
          */
         val openedColumn: HomeScreenUiState.Column?,
+        /**
+         * カラムの鍵ごとの幅（dp）。幅を変えていないカラムは含まない
+         */
+        val columnWidths: Map<String, Float>,
         val timeline: TimelineState,
         val timelineStream: TimelineStreamState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
@@ -1360,7 +1422,9 @@ internal class HomeScreenViewModel(
         val noteDeletion: NoteDeletionState,
         val userContentTab: ProfileContentTab,
         val timelineColumns: TimelineColumnsState,
-    )
+    ) {
+        fun columnWidth(columnKey: String): Dp = columnWidths[columnKey]?.dp ?: COLUMN_DEFAULT_WIDTH
+    }
 
     /**
      * @param settings 端末から読み終えるまでは null

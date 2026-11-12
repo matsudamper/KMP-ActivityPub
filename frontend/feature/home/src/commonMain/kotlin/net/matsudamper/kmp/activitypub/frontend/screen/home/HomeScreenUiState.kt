@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.unit.Dp
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
@@ -43,6 +44,7 @@ data class HomeScreenUiState(
      * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null
      */
     val openedColumn: Column?,
+    val openedColumnWidth: Dp,
     val railItems: List<RailItem>,
     /**
      * 出していなければ null
@@ -76,6 +78,10 @@ data class HomeScreenUiState(
         val items: List<PostItemUiState>,
         val footer: TimelineFooter,
         val selected: Boolean,
+        /**
+         * 横に広い画面で並べるときの幅
+         */
+        val width: Dp,
         val fontSize: AppFontSize,
         val fontSizeMenuItems: List<FontSizeMenuItem>,
         val listener: TimelineColumnListener,
@@ -105,6 +111,13 @@ data class HomeScreenUiState(
         fun onScrolledToEnd()
 
         fun onClickRetryLoadMore()
+
+        /**
+         * 横に広い画面で、カラムの右の仕切りを動かしている間
+         */
+        fun onResize(delta: Dp)
+
+        fun onResizeEnd()
     }
 
     /**
@@ -255,6 +268,13 @@ data class HomeScreenUiState(
         fun onClickCloseColumn(column: Column)
 
         fun onClickColumnHeader(tab: Tab)
+
+        /**
+         * [openedColumn] の右の仕切りを動かしている間
+         */
+        fun onResizeOpenedColumn(delta: Dp)
+
+        fun onResizeOpenedColumnEnd()
 
         /**
          * 投稿カラムでの投稿や戻る操作が終わったとき。投稿カラムを閉じている間にも呼ばれる

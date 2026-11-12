@@ -7,12 +7,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
@@ -166,6 +168,23 @@ private fun HomeContentPreviewTimelineColumnDeleteDialog() = HomeTimelinePreview
 
 @Preview
 @Composable
+private fun TimelineHeaderDividerNewPostsHiddenAbovePreview() {
+    HomePreviewTheme {
+        Surface {
+            Column {
+                Text(text = "先頭にいる", modifier = Modifier.padding(16.dp))
+                TimelineHeaderDivider(newPostsHiddenAbove = false)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+                Text(text = "先頭から離れている", modifier = Modifier.padding(16.dp))
+                TimelineHeaderDivider(newPostsHiddenAbove = true)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
 private fun TimelineNotificationAndDeletedItemsPreview() {
     HomePreviewTheme {
         Surface {
@@ -235,6 +254,7 @@ private fun HomeTimelinePreview(
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = deleteNoteDialog,
                 addFollowingGroupDialog = null,
@@ -295,6 +315,7 @@ private fun HomeSearchContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -333,6 +354,7 @@ private fun HomeSearchEmptyContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -407,6 +429,7 @@ private fun HomeUserContentPreview() {
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -457,6 +480,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -536,6 +560,7 @@ private fun HomeUserMediaContentPreview() {
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -601,6 +626,7 @@ private fun HomeColumnsPreview(
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
                 openedColumn = openedColumn,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Post, selected = openedColumn == HomeScreenUiState.Column.Post),
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Search, selected = false),
@@ -661,6 +687,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickCloseColumn(column: HomeScreenUiState.Column) = Unit
 
     override fun onClickColumnHeader(tab: HomeScreenUiState.Tab) = Unit
+
+    override fun onResizeOpenedColumn(delta: Dp) = Unit
+
+    override fun onResizeOpenedColumnEnd() = Unit
 
     override fun onPostColumnFinished() = Unit
 
@@ -919,6 +949,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         selected = true,
         fontSize = AppFontSize.Medium,
         fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "中"),
+        width = 400.dp,
         listener = AndroidPreviewTimelineColumnListener,
     ),
     HomeScreenUiState.TimelineColumn(
@@ -929,6 +960,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         selected = false,
         fontSize = AppFontSize.Large,
         fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "大"),
+        width = 400.dp,
         listener = AndroidPreviewTimelineColumnListener,
     ),
 )
@@ -950,6 +982,10 @@ private object AndroidPreviewTimelineColumnListener : HomeScreenUiState.Timeline
     override fun onScrolledToEnd() = Unit
 
     override fun onClickRetryLoadMore() = Unit
+
+    override fun onResize(delta: Dp) = Unit
+
+    override fun onResizeEnd() = Unit
 }
 
 private object AndroidPreviewTimelineColumnEditDialogListener : HomeScreenUiState.TimelineColumnEditDialog.Listener {
