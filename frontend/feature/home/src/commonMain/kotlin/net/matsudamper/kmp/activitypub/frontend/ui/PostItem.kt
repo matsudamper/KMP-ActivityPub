@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -86,7 +87,6 @@ private class PostItemSizes(
     val iconSize: Dp,
     val actionIconSize: Dp,
     val actionSlotWidth: Dp,
-    val menuButtonSize: Dp,
     val stampImageHeight: Dp,
 )
 
@@ -102,7 +102,6 @@ private fun PostItemStyle.sizes(): PostItemSizes {
             iconSize = 46.dp,
             actionIconSize = 24.dp,
             actionSlotWidth = 76.dp,
-            menuButtonSize = 32.dp,
             stampImageHeight = 18.dp,
         )
 
@@ -114,7 +113,6 @@ private fun PostItemStyle.sizes(): PostItemSizes {
             iconSize = 56.dp,
             actionIconSize = 28.dp,
             actionSlotWidth = 88.dp,
-            menuButtonSize = 40.dp,
             stampImageHeight = 22.dp,
         )
     }
@@ -487,7 +485,7 @@ private fun PostActions(
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 狭い画面で操作が並びきらなくても、メニュー（削除・ピン留め）を押せるよう、残りの幅だけを操作に使う
@@ -499,6 +497,7 @@ private fun PostActions(
             Row(
                 modifier = Modifier
                     .width(sizes.actionSlotWidth)
+                    .heightIn(min = ActionTouchTargetSize)
                     .then(
                         if (boostButton == null) {
                             Modifier
@@ -533,6 +532,7 @@ private fun PostActions(
             Row(
                 modifier = Modifier
                     .width(sizes.actionSlotWidth)
+                    .heightIn(min = ActionTouchTargetSize)
                     .then(
                         if (favouriteButton == null) {
                             Modifier
@@ -567,21 +567,29 @@ private fun PostActions(
                 )
             }
             val shareListener = uiState.shareListener
-            Icon(
-                imageVector = AppIcons.Share,
-                contentDescription = "共有",
+            Box(
                 modifier = Modifier
-                    .size(sizes.actionIconSize)
+                    .size(ActionTouchTargetSize)
                     .clip(CircleShape)
                     .clickable(enabled = shareListener != null) { shareListener?.onClick() },
-                tint = if (shareListener == null) disabledIconColor else iconColor,
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Share,
+                    contentDescription = "共有",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = if (shareListener == null) disabledIconColor else iconColor,
+                )
+            }
         }
         if (uiState.menuItems.isNotEmpty()) {
             PostMenu(menuItems = uiState.menuItems, sizes = sizes)
         }
     }
 }
+
+/** M3 の最小タッチターゲット */
+private val ActionTouchTargetSize = 48.dp
 
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
 
@@ -596,7 +604,6 @@ private fun PostMenu(
     Box {
         IconButton(
             onClick = { expanded = true },
-            modifier = Modifier.size(sizes.menuButtonSize),
         ) {
             Icon(
                 imageVector = AppIcons.MoreVert,
