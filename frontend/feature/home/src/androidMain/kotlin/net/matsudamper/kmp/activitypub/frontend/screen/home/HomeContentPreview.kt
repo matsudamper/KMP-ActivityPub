@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
@@ -234,6 +235,7 @@ private fun HomeTimelinePreview(
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = deleteNoteDialog,
                 addFollowingGroupDialog = null,
@@ -294,6 +296,7 @@ private fun HomeSearchContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -332,6 +335,7 @@ private fun HomeSearchEmptyContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -406,6 +410,7 @@ private fun HomeUserContentPreview() {
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -456,6 +461,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -535,6 +541,7 @@ private fun HomeUserMediaContentPreview() {
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -600,6 +607,7 @@ private fun HomeColumnsPreview(
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
                 openedColumn = openedColumn,
+                openedColumnWidth = 400.dp,
                 railItems = listOf(
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Post, selected = openedColumn == HomeScreenUiState.Column.Post),
                     HomeScreenUiState.RailItem(column = HomeScreenUiState.Column.Search, selected = false),
@@ -660,6 +668,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickCloseColumn(column: HomeScreenUiState.Column) = Unit
 
     override fun onClickColumnHeader(tab: HomeScreenUiState.Tab) = Unit
+
+    override fun onResizeOpenedColumn(delta: Dp) = Unit
+
+    override fun onResizeOpenedColumnEnd() = Unit
 
     override fun onPostColumnFinished() = Unit
 
@@ -916,6 +928,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         items = items,
         footer = footer,
         selected = true,
+        width = 400.dp,
         listener = AndroidPreviewTimelineColumnListener,
     ),
     HomeScreenUiState.TimelineColumn(
@@ -924,6 +937,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         items = items.take(1),
         footer = HomeScreenUiState.TimelineFooter.None,
         selected = false,
+        width = 400.dp,
         listener = AndroidPreviewTimelineColumnListener,
     ),
 )
@@ -940,6 +954,10 @@ private object AndroidPreviewTimelineColumnListener : HomeScreenUiState.Timeline
     override fun onScrolledToEnd() = Unit
 
     override fun onClickRetryLoadMore() = Unit
+
+    override fun onResize(delta: Dp) = Unit
+
+    override fun onResizeEnd() = Unit
 }
 
 private object AndroidPreviewTimelineColumnEditDialogListener : HomeScreenUiState.TimelineColumnEditDialog.Listener {

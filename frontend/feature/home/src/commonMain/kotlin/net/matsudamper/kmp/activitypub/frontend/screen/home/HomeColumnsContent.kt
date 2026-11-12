@@ -66,10 +66,9 @@ internal fun HomeColumnsContent(
                 Row(
                     modifier = Modifier.fillMaxHeight().weight(1f).horizontalScroll(rememberScrollState()),
                 ) {
-                    val columnWidthState = rememberColumnWidthState(defaultWidth = COLUMN_WIDTH, minWidth = COLUMN_MIN_WIDTH, maxWidth = COLUMN_MAX_WIDTH)
                     val column = uiState.openedColumn
                     if (column != null) {
-                        val columnModifier = Modifier.width(columnWidthState.width(OPENED_COLUMN_WIDTH_KEY)).fillMaxHeight()
+                        val columnModifier = Modifier.width(uiState.openedColumnWidth).fillMaxHeight()
                         when (column) {
                             HomeScreenUiState.Column.Post -> postColumn(columnModifier)
 
@@ -103,7 +102,10 @@ internal fun HomeColumnsContent(
                                 )
                             }
                         }
-                        ColumnResizeDivider(state = columnWidthState, columnKey = OPENED_COLUMN_WIDTH_KEY)
+                        ColumnResizeDivider(
+                            onResize = uiState.listener::onResizeOpenedColumn,
+                            onResizeEnd = uiState.listener::onResizeOpenedColumnEnd,
+                        )
                     }
                     val reorderState = rememberHorizontalReorderState()
                     SideEffect { reorderState.retainItems(uiState.timelineColumns.size) }
@@ -119,7 +121,7 @@ internal fun HomeColumnsContent(
                                     onMove = uiState.listener::onMoveTimelineColumn,
                                 ),
                                 modifier = Modifier
-                                    .width(columnWidthState.width(timelineColumn.listStateKey))
+                                    .width(timelineColumn.width)
                                     .fillMaxHeight()
                                     .horizontalReorderItem(state = reorderState, index = index, dropIndicatorColor = MaterialTheme.colorScheme.primary)
                                     .background(MaterialTheme.colorScheme.background),
@@ -135,7 +137,10 @@ internal fun HomeColumnsContent(
                                     modifier = contentModifier,
                                 )
                             }
-                            ColumnResizeDivider(state = columnWidthState, columnKey = timelineColumn.listStateKey)
+                            ColumnResizeDivider(
+                                onResize = timelineColumn.listener::onResize,
+                                onResizeEnd = timelineColumn.listener::onResizeEnd,
+                            )
                         }
                     }
                     val emptyMessage = uiState.timelineColumnsEmptyMessage
@@ -316,11 +321,4 @@ private val HomeScreenUiState.Column.label: String
     }
 
 private val COLUMN_WIDTH = 400.dp
-private val COLUMN_MIN_WIDTH = 240.dp
-private val COLUMN_MAX_WIDTH = 800.dp
-
-/**
- * 投稿・検索・ユーザーは同じ場所に 1 つずつしか開かないので、幅を共有する
- */
-private const val OPENED_COLUMN_WIDTH_KEY = "opened"
 private val RAIL_BUTTON_WIDTH = 72.dp
