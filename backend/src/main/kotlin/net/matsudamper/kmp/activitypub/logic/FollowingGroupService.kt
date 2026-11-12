@@ -33,10 +33,12 @@ class FollowingGroupService(
     }
 
     /**
-     * 投稿を載せた購読先。ブーストならブーストした相手の購読先。自分の投稿などメインに入るものは null
+     * 投稿を載せた購読先。ブーストならブーストした相手の購読先。自分の投稿や自分のブーストなどメインに入るものは null
      */
-    fun groupIdOfPost(accountId: AccountId, post: TimelinePost): FollowingGroupId? =
-        groupIdOf(accountId, post.boostedBy?.actorUri ?: post.actorUri)
+    fun groupIdOfPost(accountId: AccountId, post: TimelinePost): FollowingGroupId? {
+        val booster = post.boostedBy ?: return groupIdOf(accountId, post.actorUri)
+        return groupIdOf(accountId, booster.actorUri)
+    }
 
     fun createGroup(accountId: AccountId?, name: String): CreateFollowingGroupResult {
         if (accountId == null || accounts.findById(accountId) == null) return CreateFollowingGroupResult.NotLoggedIn

@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
@@ -37,19 +38,19 @@ class UserProfileServiceTest {
      * 固定した投稿はどの経路でも取りに行くので、[requests] とは分けて数える
      */
     private val featuredRequests = mutableListOf<String>()
-    private var featured: suspend () -> List<ProfilePost> = { listOf() }
+    private var featured: suspend () -> List<RemoteNoteInput> = { listOf() }
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile {
             requests.add("profile")
             return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
         }
 
-        override suspend fun recentPosts(actorUri: String): List<ProfilePost> {
+        override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> {
             requests.add("posts")
-            return listOf(remotePost("<p>最新の投稿</p>", "https://remote.example/notes/1", pinned = false))
+            return listOf(remoteNote("<p>最新の投稿</p>", "https://remote.example/notes/1"))
         }
 
-        override suspend fun featuredPosts(actorUri: String): List<ProfilePost> {
+        override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> {
             featuredRequests.add(actorUri)
             return featured()
         }
@@ -67,6 +68,7 @@ class UserProfileServiceTest {
         stamps = repositories.stampRepository,
         likes = repositories.likeRepository,
         boosts = repositories.boostRepository,
+        accountBoosts = repositories.accountBoostRepository,
         timeline = repositories.timelineRepository,
         pins = repositories.notePinRepository,
         following = following,
@@ -82,6 +84,30 @@ class UserProfileServiceTest {
         assertEquals("https://remote.example/header.png", profile.headerUrl)
         assertEquals("<p>最新の投稿</p>", profile.posts.single().contentHtml)
         assertEquals(false, profile.following)
+    }
+
+    @Test
+    fun unfollowedUserPostsCanBeLikedAndBoostedOnceStored() = runBlocking {
+        repositories.timelineRepository.storedFetchedNotes["https://remote.example/notes/1"] =
+            storedPost("<p>保存した投稿</p>", summary = null, sensitive = false).copy(boostedByMe = false)
+
+        val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
+
+        assertEquals("<p>保存した投稿</p>", post.contentHtml)
+        assertEquals("r1", post.reactionPostId)
+        assertEquals(ProfilePostLike(postId = "r1", likedByMe = false), post.like)
+        assertEquals(false, post.boostedByMe)
+        assertNull(post.postId)
+    }
+
+    @Test
+    fun unfollowedUserPostsThatCannotBeStoredHaveNoReactions() = runBlocking {
+        val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
+
+        assertEquals("<p>最新の投稿</p>", post.contentHtml)
+        assertNull(post.reactionPostId)
+        assertNull(post.like)
+        assertNull(post.boostedByMe)
     }
 
     @Test
@@ -184,6 +210,39 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun localProfileShowsOwnBoostsAtTheTimeTheyWereBoosted() = runBlocking {
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.ofEpochMilli(1_000), listOf()))
+        repositories.timelineRepository.accountBoosts.add(
+            storedPost("<p>ブーストした投稿</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(2_000, "a1"),
+                boostedBy = TimelineBooster(actorUri = null, username = "alice", displayName = null, iconUrl = null, updatedAt = null, emojis = listOf()),
+            ),
+        )
+        repositories.timelineRepository.accountBoosts.add(
+            storedPost("<p>古いブースト</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(500, "a2"),
+                actorUri = null,
+                username = "carol",
+                reactionMember = "l9",
+                noteRef = TimelineNoteRef.Local(PublicNoteId("note-carol")),
+                boostedBy = TimelineBooster(actorUri = null, username = "alice", displayName = null, iconUrl = null, updatedAt = null, emojis = listOf()),
+            ),
+        )
+
+        val ownPosts = assertNotNull(service.profile("alice", viewer)).posts
+        assertEquals(listOf("<p>ブーストした投稿</p>", "<p>自分の投稿</p>", "<p>古いブースト</p>"), ownPosts.map { it.contentHtml })
+        assertEquals(listOf("a1", null, "a2"), ownPosts.map { it.postId })
+        assertEquals(listOf("remote.example", null, "local.example"), ownPosts.map { it.boostedNoteAuthor?.host })
+        assertEquals(listOf("r1", "l9"), listOf(ownPosts[0].reactionPostId, ownPosts[2].reactionPostId))
+        assertEquals(listOf(null, null), listOf(ownPosts[0].deletableNoteId, ownPosts[2].deletableNoteId))
+
+        val anonymousPosts = assertNotNull(service.profile("alice", null)).posts
+        assertEquals(listOf(null, null, null), anonymousPosts.map { it.reactionPostId })
+        assertNull(anonymousPosts.first().postId)
+        assertNull(anonymousPosts.first().like)
+    }
+
+    @Test
     fun pinnedPostsComeFirstWithoutDuplicates() = runBlocking {
         repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", Instant.EPOCH, listOf()))
         repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", Instant.EPOCH.plusSeconds(1), listOf()))
@@ -231,8 +290,8 @@ class UserProfileServiceTest {
     fun unfollowedUserFeaturedPostsComeFirstWithoutDuplicates() = runBlocking {
         featured = {
             listOf(
-                remotePost("<p>固定した投稿</p>", "https://remote.example/notes/pinned", pinned = true),
-                remotePost("<p>最新の投稿</p>", "https://remote.example/notes/1", pinned = true),
+                remoteNote("<p>固定した投稿</p>", "https://remote.example/notes/pinned"),
+                remoteNote("<p>最新の投稿</p>", "https://remote.example/notes/1"),
             )
         }
 
@@ -248,7 +307,7 @@ class UserProfileServiceTest {
         repositories.timelineRepository.actorPosts.add(storedPost("<p>受け取った投稿</p>", summary = null, sensitive = false))
         repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
         following.setFollowing(viewer, actorUri, true)
-        featured = { listOf(remotePost("<p>相手のサーバーの本文</p>", "https://remote.example/notes/1", pinned = true)) }
+        featured = { listOf(remoteNote("<p>相手のサーバーの本文</p>", "https://remote.example/notes/1")) }
 
         val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
 
@@ -285,7 +344,7 @@ class UserProfileServiceTest {
     fun slowFeaturedRequestDoesNotHoldProfile() = runBlocking {
         featured = {
             delay(1.minutes)
-            listOf(remotePost("<p>固定した投稿</p>", "https://remote.example/notes/pinned", pinned = true))
+            listOf(remoteNote("<p>固定した投稿</p>", "https://remote.example/notes/pinned"))
         }
 
         val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
@@ -293,24 +352,19 @@ class UserProfileServiceTest {
         assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
     }
 
-    private fun remotePost(contentHtml: String, noteUri: String, pinned: Boolean): ProfilePost =
-        ProfilePost(
+    private fun remoteNote(contentHtml: String, noteUri: String): RemoteNoteInput =
+        RemoteNoteInput(
+            objectUri = noteUri,
+            actorUri = actorUri,
             contentHtml = contentHtml,
-            publishedAt = Instant.EPOCH.toString(),
+            visibility = "public",
+            localRecipients = setOf(),
+            inReplyTo = null,
             summary = null,
             sensitive = false,
-            linkPreviewId = null,
-            postId = null,
-            deletableNoteId = null,
-            pinned = pinned,
-            pinnableNoteId = null,
+            publishedAt = Instant.EPOCH,
+            receivedAt = Instant.EPOCH,
             images = listOf(),
-            favouriteCount = null,
-            stamps = listOf(),
-            like = null,
-            noteRef = TimelineNoteRef.Remote(noteUri),
-            boostCount = null,
-            boostedNoteAuthor = null,
             emojis = listOf(),
         )
 
@@ -330,6 +384,8 @@ class UserProfileServiceTest {
             favouriteCount = null,
             stamps = listOf(),
             likedByMe = false,
+            boostedByMe = null,
+            reactionMember = "r1",
             noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
             boostCount = null,
             boostedBy = null,

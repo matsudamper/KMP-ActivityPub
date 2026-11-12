@@ -30,6 +30,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                     emojis = it.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                     shareUrl = it.url,
                     likedByMe = it.likedByMe,
+                    boostedByMe = it.boostedByMe,
                 ),
                 boostedBy = it.boostedBy?.let { booster ->
                     UserHomeTimelineResult.Booster(
@@ -42,6 +43,7 @@ fun HomeTimelineQuery.Data.toUserHomeTimelineResult(): UserHomeTimelineResult {
                         iconUrl = booster.iconUrl,
                     )
                 },
+                reactionPostId = it.reactionPostId,
                 deletableNoteId = it.deletableNoteId,
                 pinnableNoteId = it.pinnableNoteId,
                 pinned = it.pinned,
@@ -116,6 +118,8 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
             stamps = it.body.stamps.map { stamp -> HomeTimelineQuery.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
             url = it.body.shareUrl,
             likedByMe = it.body.likedByMe == true,
+            boostedByMe = it.body.boostedByMe,
+            reactionPostId = it.reactionPostId,
             followingGroupId = it.followingGroupId,
         )
     }
@@ -124,24 +128,47 @@ fun HomeTimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.P
 
 /**
  * いいねを変えた結果を、取得し直さずに反映する。
- * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、いいねは元の投稿に付くので、投稿の URL が同じものもまとめて切り替える
+ * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、いいねは元の投稿に付くので、[reactionPostId] が同じものをまとめて切り替える
  */
-fun HomeTimelineQuery.Data.withLiked(postId: String, liked: Boolean): HomeTimelineQuery.Data {
+fun HomeTimelineQuery.Data.withLiked(reactionPostId: String, liked: Boolean): HomeTimelineQuery.Data {
     val info = userInfo ?: return this
     val timeline = info.homeTimeline ?: return this
-    val likedUrl = timeline.posts.firstOrNull { it.id == postId }?.url
     return copy(
         userInfo = info.copy(
             homeTimeline = timeline.copy(
                 posts = timeline.posts.map { post ->
-                    val samePost = post.id == postId || (likedUrl != null && post.url == likedUrl)
-                    if (!samePost || post.likedByMe == liked) {
+                    if (post.reactionPostId != reactionPostId || post.likedByMe == liked) {
                         post
                     } else {
                         // 数は自分のいいねの分だけ増減させる。他の人のいいねは取り直すまで分からない
                         post.copy(
                             likedByMe = liked,
                             favouriteCount = post.favouriteCount?.let { count -> if (liked) count + 1 else (count - 1).coerceAtLeast(0) },
+                        )
+                    }
+                },
+            ),
+        ),
+    )
+}
+
+/**
+ * ブーストを変えた結果を、取得し直さずに反映する。
+ * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、ブーストは元の投稿に付くので、[reactionPostId] が同じものをまとめて切り替える
+ */
+fun HomeTimelineQuery.Data.withBoosted(reactionPostId: String, boosted: Boolean): HomeTimelineQuery.Data {
+    val info = userInfo ?: return this
+    val timeline = info.homeTimeline ?: return this
+    return copy(
+        userInfo = info.copy(
+            homeTimeline = timeline.copy(
+                posts = timeline.posts.map { post ->
+                    if (post.reactionPostId != reactionPostId || post.boostedByMe == null || post.boostedByMe == boosted) {
+                        post
+                    } else {
+                        post.copy(
+                            boostedByMe = boosted,
+                            boostCount = post.boostCount?.let { count -> if (boosted) count + 1 else (count - 1).coerceAtLeast(0) },
                         )
                     }
                 },

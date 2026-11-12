@@ -1,11 +1,11 @@
 package net.matsudamper.kmp.activitypub.federation
 
-import net.matsudamper.kmp.activitypub.logic.ProfilePost
+import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.RemoteUser
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
-import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.RemoteOutboxNote
@@ -27,32 +27,25 @@ internal class KotpubRemoteUserProfiles(
         return profileFor(user)
     }
 
-    override suspend fun recentPosts(actorUri: String): List<ProfilePost> =
-        outbox.recent(actorUri, limit = 20).map { it.toProfilePost(pinned = false) }
+    override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> =
+        outbox.recent(actorUri, limit = 20).map { it.toInput(actorUri, Instant.now()) }
 
-    override suspend fun featuredPosts(actorUri: String): List<ProfilePost> =
-        outbox.featured(actorUri, limit = 20).map { it.toProfilePost(pinned = true) }
+    override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> =
+        outbox.featured(actorUri, limit = 20).map { it.toInput(actorUri, Instant.now()) }
 
-    private fun RemoteOutboxNote.toProfilePost(pinned: Boolean): ProfilePost = ProfilePost(
-        contentHtml = contentHtml,
-        publishedAt = publishedAt,
+    private fun RemoteOutboxNote.toInput(actorUri: String, fetchedAt: Instant): RemoteNoteInput = RemoteNoteInput(
+        objectUri = id,
+        actorUri = actorUri,
+        contentHtml = Jsoup.clean(contentHtml, Safelist.basic()),
+        visibility = if (unlisted) "unlisted" else "public",
+        localRecipients = setOf(),
+        inReplyTo = null,
         summary = summary?.let { Jsoup.clean(it, Safelist.none()) },
         sensitive = sensitive,
-        // 保存していない投稿なので、後から OGP を取りに行く元も個別投稿画面で開く元も無い
-        linkPreviewId = null,
-        postId = null,
-        deletableNoteId = null,
-        pinned = pinned,
-        pinnableNoteId = null,
+        publishedAt = Instant.parse(publishedAt),
+        receivedAt = fetchedAt,
         images = attachments.mapNotNull { attachment -> attachment.toImage() },
         emojis = emojis.toRecords(),
-        favouriteCount = null,
-        stamps = listOf(),
-        // 保存していない投稿なので、いいねする投稿を指せない
-        like = null,
-        noteRef = TimelineNoteRef.Remote(id),
-        boostCount = null,
-        boostedNoteAuthor = null,
     )
 
     private suspend fun profileFor(user: RemoteUser): RemoteUserProfile? {

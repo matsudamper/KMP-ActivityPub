@@ -56,6 +56,7 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
             "NoteImageId" to "net.matsudamper.kmp.activitypub.shared.NoteImagePublicId",
             "PublicNoteId" to "net.matsudamper.kmp.activitypub.shared.PublicNoteId",
             "FollowingGroupId" to "net.matsudamper.kmp.activitypub.shared.FollowingGroupId",
+            "TimelinePostId" to "net.matsudamper.kmp.activitypub.shared.TimelinePostId",
             "Upload" to "net.matsudamper.kmp.activitypub.graphql.GraphQlUpload",
         )
     generateImmutableModels = true

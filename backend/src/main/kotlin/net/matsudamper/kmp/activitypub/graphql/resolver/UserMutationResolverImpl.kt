@@ -22,6 +22,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlRenameFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRenameFollowingGroupResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetBoostedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedFailure
@@ -50,6 +52,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
 import net.matsudamper.kmp.activitypub.logic.RenameFollowingGroupResult
+import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.SetPinnedResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
@@ -61,6 +64,7 @@ import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
 
 class UserMutationResolverImpl : UserMutationResolver {
@@ -331,6 +335,16 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun setBoosted(
+        userMutation: QlUserMutation,
+        postId: TimelinePostId,
+        boosted: Boolean,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlSetBoostedResult>> {
+        val result = setBoosted(postId = postId, boosted = boosted, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     override fun setPinned(
         userMutation: QlUserMutation,
         noteId: PublicNoteId,
@@ -476,6 +490,24 @@ class UserMutationResolverImpl : UserMutationResolver {
                 SetLikedResult.PostNotFound -> QlSetLikedFailure.POST_NOT_FOUND
             }
         return QlSetLikedResult(failure = failure)
+    }
+
+    private fun setBoosted(
+        postId: TimelinePostId,
+        boosted: Boolean,
+        env: DataFetchingEnvironment,
+    ): QlSetBoostedResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val boostService =
+            diContainer.boostService
+                ?: return QlSetBoostedResult(failure = QlSetBoostedFailure.FEDERATION_DISABLED)
+        val failure =
+            when (boostService.setBoosted(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), postId = postId.value, boosted = boosted)) {
+                SetBoostedResult.Updated -> null
+                SetBoostedResult.NotLoggedIn -> QlSetBoostedFailure.NOT_LOGGED_IN
+                SetBoostedResult.PostNotFound -> QlSetBoostedFailure.POST_NOT_FOUND
+            }
+        return QlSetBoostedResult(failure = failure)
     }
 
     private fun setPinned(

@@ -30,6 +30,7 @@ internal class ReceivedRemoteNotes(
     private val directory: ActorDirectory,
     private val timeline: HomeTimelineService,
     private val clock: Clock,
+    private val deleteRemoteNote: (actorUri: String, objectUri: String) -> Unit,
     openTelemetry: OpenTelemetry = OpenTelemetryInitializer.get(),
 ) : RemoteNoteStore {
     private val tracer = openTelemetry.getTracer("activitypub-inbox")
@@ -39,7 +40,7 @@ internal class ReceivedRemoteNotes(
     }
 
     override suspend fun delete(actorId: String, objectId: String) {
-        repository.deleteRemote(actorId, objectId)
+        deleteRemoteNote(actorId, objectId)
     }
 
     suspend fun saveBoost(boost: ReceivedRemoteBoost) {

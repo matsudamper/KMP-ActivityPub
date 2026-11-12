@@ -56,6 +56,8 @@ import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -374,6 +376,7 @@ private fun BoostedByLabel(
                     .clip(CircleShape),
             )
             EmojiText(
+                modifier = Modifier.weight(1f, fill = false),
                 text = boostedBy.text,
                 style = sizes.secondaryTextStyle,
                 color = color,
@@ -381,6 +384,17 @@ private fun BoostedByLabel(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (boostedBy.cancelledLabelVisible) {
+                Text(
+                    text = "取り消し",
+                    modifier = Modifier
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                    style = sizes.secondaryTextStyle,
+                    color = color,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -438,7 +452,7 @@ private fun StampEmoji(
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。ブースト・スタンプはまだ押せないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。スタンプはまだ押せないので、押せないアイコンだけを置く
  */
 @Composable
 private fun PostActions(
@@ -456,8 +470,20 @@ private fun PostActions(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val boostButton = uiState.boostButton
             Row(
-                modifier = Modifier.width(sizes.actionSlotWidth),
+                modifier = Modifier
+                    .width(sizes.actionSlotWidth)
+                    .then(
+                        if (boostButton == null) {
+                            Modifier
+                        } else {
+                            Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { boostButton.listener.onClick() }
+                                .semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
+                        },
+                    ),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -465,7 +491,11 @@ private fun PostActions(
                     imageVector = AppIcons.Repeat,
                     contentDescription = "ブースト",
                     modifier = Modifier.size(sizes.actionIconSize),
-                    tint = disabledIconColor,
+                    tint = when {
+                        boostButton == null -> disabledIconColor
+                        boostButton.iconHighlighted -> BoostHighlightedColor
+                        else -> iconColor
+                    },
                 )
                 Text(
                     text = uiState.boostCountText.orEmpty(),
@@ -529,6 +559,8 @@ private fun PostActions(
 }
 
 private val FavouriteHighlightedColor = Color(0xFFF5B400)
+
+private val BoostHighlightedColor = Color(0xFF2E9E5B)
 
 @Composable
 private fun PostMenu(

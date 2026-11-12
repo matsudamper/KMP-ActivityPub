@@ -37,6 +37,10 @@ data class PostItemUiState(
      * いいねできない投稿は null で、お気に入りのアイコンを押せなくする
      */
     val favouriteButton: FavouriteButton?,
+    /**
+     * ブーストできない投稿は null で、ブーストのアイコンを押せなくする
+     */
+    val boostButton: BoostButton?,
     val stamps: List<Stamp>,
     /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
@@ -59,10 +63,12 @@ data class PostItemUiState(
     /**
      * @param iconUrl ブーストした相手のプロフィール画像が無ければ null
      * @param listener ブーストした相手のプロフィールを見ているときは押せないので null
+     * @param cancelledLabelVisible 自分のブーストを外した後か。一覧は読み直すまでそのまま出すので、外したことを示す
      */
     data class BoostedBy(
         val text: TextWithEmojis,
         val iconUrl: String?,
+        val cancelledLabelVisible: Boolean,
         val listener: BoostedByListener?,
     )
 
@@ -86,6 +92,11 @@ data class PostItemUiState(
     data class FavouriteButton(
         val iconHighlighted: Boolean,
         val listener: FavouriteButtonListener,
+    )
+
+    data class BoostButton(
+        val iconHighlighted: Boolean,
+        val listener: BoostButtonListener,
     )
 
     /**
@@ -118,6 +129,11 @@ data class PostItemUiState(
 
     @Immutable
     interface FavouriteButtonListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface BoostButtonListener {
         fun onClick()
     }
 

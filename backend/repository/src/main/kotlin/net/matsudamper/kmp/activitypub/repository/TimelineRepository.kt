@@ -30,6 +30,22 @@ interface TimelineRepository {
      */
     fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
+
+    /**
+     * [booster] が付けたブーストを新しい順に返す。ブーストした時点で読めていたので、[viewer] が今読めるかは問わない
+     *
+     * @param viewer いいねやブーストの有無を見るアカウント。ログインしていなければ null
+     */
+    fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost>
+
+    /**
+     * フォローしていない相手のプロフィールで取った投稿を、いいねやブーストできるように保存する。タイムラインには載せない。
+     * 公開と、公開タイムラインに載せない公開の投稿だけを保存する。投稿の id が投稿者と別のホストにあるものは保存しない。投稿者のアクターは記録済みであること
+     *
+     * @param viewer いいねやブーストの有無を見るアカウント
+     * @return 投稿の id ごとの、保存した投稿。保存できなかった投稿は含まない
+     */
+    fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost>
 }
 
 data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val localRecipientCount: Long) {
@@ -44,11 +60,15 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param favouriteCount 他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿の数は受け取らないので null
  * @param stamps 他のサーバーから届いたスタンプ。他のサーバーの投稿は受け取らないので空
  * @param likedByMe 読んでいるアカウントがいいねしているか。ブーストで載った投稿は、ブーストされた元の投稿へのいいね
+ * @param boostedByMe 読んでいるアカウントがブーストしているか。ブーストできない投稿（フォロワー限定など、公開でも公開タイムラインに載せないものでもない投稿）は null。
+ *   ブーストで載った投稿は、ブーストされた元の投稿のブースト
+ * @param reactionMember いいねやブーストを付け外しするときに指す member。ブーストで載った投稿は、ブーストされた元の投稿を指す。
+ *   受け取ったブーストが取り消されても同じ投稿を指し続ける
  * @param noteRef 投稿を外から指すための元。URL はこのサーバーのドメインで決まるので、ここでは作らない
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿の数は受け取らないので null
  * @param emojis 本文と注意書きに入るカスタム絵文字。このサーバーの投稿は空
  * @param actorEmojis 他のサーバーの投稿者の表示名に入るカスタム絵文字。このサーバーの投稿は空
- * @param boostedBy フォローしている相手のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
+ * @param boostedBy フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
  */
 data class TimelinePost(
@@ -68,6 +88,8 @@ data class TimelinePost(
     val favouriteCount: Long?,
     val stamps: List<StampCount>,
     val likedByMe: Boolean,
+    val boostedByMe: Boolean?,
+    val reactionMember: String,
     val noteRef: TimelineNoteRef,
     val boostCount: Long?,
     val boostedBy: TimelineBooster?,
@@ -85,17 +107,18 @@ sealed interface TimelineNoteRef {
 }
 
 /**
+ * @param actorUri ブーストした他のサーバーのアクター。このサーバーのアカウントのブーストは null
  * @param username 相手の preferredUsername。無ければアクターの URI
- * @param iconUrl プロフィール画像の URL。無ければ null
- * @param updatedAt 相手の情報を最後に受け取った時刻
+ * @param iconUrl 他のサーバーのアクターのプロフィール画像の URL。このサーバーのアカウントは null
+ * @param updatedAt 他のサーバーのアクターの情報を最後に受け取った時刻。このサーバーのアカウントは null
  */
 data class TimelineBooster(
-    val actorUri: String,
+    val actorUri: String?,
     val username: String,
     val displayName: String?,
     val iconUrl: String?,
     val emojis: List<CustomEmojiRecord>,
-    val updatedAt: Instant,
+    val updatedAt: Instant?,
 )
 
 sealed interface TimelinePostImage {

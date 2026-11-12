@@ -45,6 +45,8 @@ subscription HomeTimelinePosts {
         }
         url
         likedByMe
+        boostedByMe
+        reactionPostId
         followingGroupId
     }
 }

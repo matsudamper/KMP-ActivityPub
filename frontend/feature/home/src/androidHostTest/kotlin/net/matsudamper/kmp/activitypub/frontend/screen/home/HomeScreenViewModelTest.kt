@@ -94,6 +94,9 @@ class HomeScreenViewModelTest {
         followingGroupsResponse = NEWS_GROUP_RESPONSE
         val home = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }.timelineColumns.single()
         home.listener.onClickDelete()
+        val deleteDialog = viewModel.uiStateFlow.first { it.timelineColumnDeleteDialog != null }
+        assertEquals(1, deleteDialog.timelineColumns.size)
+        deleteDialog.timelineColumnDeleteDialog?.listener?.onClickDelete()
         val emptied = viewModel.uiStateFlow.first { it.timelineColumns.isEmpty() }
         assertEquals(listOf(), columnSettingStore.columns.value)
         assertTrue(emptied.timelineColumnsEmptyMessage != null)
@@ -400,7 +403,7 @@ class HomeScreenViewModelTest {
     private fun postInGroup(id: String, followingGroupId: String?): String {
         val groupId = if (followingGroupId == null) "null" else "\"$followingGroupId\""
         return """{"__typename":"HomeTimelinePost","id":"$id","content":"$id","publishedAt":"2026-11-01","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],""" +
-            """"summary":null,"sensitive":false,"linkUrls":[],"images":[],"emojis":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false,"pinned":false,"followingGroupId":$groupId}"""
+            """"summary":null,"sensitive":false,"linkUrls":[],"images":[],"emojis":[],"favouriteCount":null,"stamps":[],"url":null,"likedByMe":false,"pinned":false,"boostedByMe":null,"reactionPostId":"$id","followingGroupId":$groupId}"""
     }
 
     private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()

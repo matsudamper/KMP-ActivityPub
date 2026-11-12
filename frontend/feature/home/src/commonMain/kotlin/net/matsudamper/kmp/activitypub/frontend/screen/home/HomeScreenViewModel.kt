@@ -39,6 +39,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFirstPage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
@@ -109,6 +110,7 @@ internal class HomeScreenViewModel(
                     followingGroups = listOf(),
                     selectedId = null,
                     editor = null,
+                    deletingId = null,
                 ),
             ),
         )
@@ -136,6 +138,7 @@ internal class HomeScreenViewModel(
      * 返事を待たずに表示を切り替えるので、押している間かどうかは表示に使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChangingPostIds = setOf<String>()
+    private var boostChangingPostIds = setOf<String>()
 
     /**
      * 続けて押されたときに送り違えないよう、返事までは受け付けない
@@ -327,6 +330,21 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private val timelineColumnDeleteDialogListener = object : HomeScreenUiState.TimelineColumnDeleteDialog.Listener {
+        override fun onClickDelete() {
+            val state = viewModelStateFlow.value.timelineColumns
+            val column = state.settings.orEmpty().firstOrNull { it.id == state.deletingId }
+            updateTimelineColumns { it.copy(deletingId = null) }
+            if (column != null) {
+                removeTimelineColumn(column)
+            }
+        }
+
+        override fun onDismiss() {
+            updateTimelineColumns { it.copy(deletingId = null) }
+        }
+    }
+
     private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
         override fun onClickDelete() {
             deleteNote()
@@ -355,6 +373,15 @@ internal class HomeScreenViewModel(
     init {
         viewModelScope.launch {
             userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
+        }
+        viewModelScope.launch {
+            // プロフィール画面や個別投稿画面で変えたブーストもここで反映する
+            userApi.boostChanges.collect { change ->
+                applyBoosted(postId = change.reactionPostId, boosted = change.boosted)
+                // 自分のブーストは自分の投稿に並ぶので、付けたら読み直して加える
+                val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
+                if (change.boosted && myPosts != null) loadMyPosts(myPosts.profile.username)
+            }
         }
         viewModelScope.launch {
             // プロフィール画面や個別投稿画面で変えた固定もここで反映する
@@ -852,10 +879,46 @@ internal class HomeScreenViewModel(
     }
 
     private suspend fun applyLiked(postId: String, liked: Boolean) {
-        timelinePaging.updateCache { it.withLiked(postId = postId, liked = liked) }
+        timelinePaging.updateCache { it.withLiked(reactionPostId = postId, liked = liked) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withLiked(likePostId = postId, liked = liked)))
+        }
+    }
+
+    /**
+     * @param boostedByMe 押す前の状態
+     */
+    private fun toggleBoost(postId: String, boostedByMe: Boolean) {
+        if (postId in boostChangingPostIds) return
+        boostChangingPostIds = boostChangingPostIds + postId
+        viewModelScope.launch {
+            try {
+                applyBoosted(postId = postId, boosted = !boostedByMe)
+                val error = userApi.setBoosted(postId = postId, boosted = !boostedByMe)
+                if (error != null) {
+                    applyBoosted(postId = postId, boosted = boostedByMe)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                boostChangingPostIds = boostChangingPostIds - postId
+            }
+        }
+    }
+
+    private suspend fun applyBoosted(postId: String, boosted: Boolean) {
+        timelinePaging.updateCache { it.withBoosted(reactionPostId = postId, boosted = boosted) }
+        // 読み直しの後に到着した投稿を足し直すので、そちらも合わせないと変える前の状態に戻る
+        updateTimeline { timeline ->
+            timeline.copy(
+                postsArrivedSinceRefresh = timeline.postsArrivedSinceRefresh.map { post ->
+                    if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post
+                },
+            )
+        }
+        viewModelStateFlow.update {
+            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(reactionPostId = postId, boosted = boosted)))
         }
     }
 
@@ -908,6 +971,7 @@ internal class HomeScreenViewModel(
             timelineColumnsEmptyMessage = if (viewModelState.timelineColumns.settings?.isEmpty() == true) TIMELINE_COLUMNS_EMPTY_MESSAGE else null,
             addTimelineColumnButtonEnabled = viewModelState.timelineColumns.settings != null,
             timelineColumnEditDialog = createTimelineColumnEditDialog(viewModelState.timelineColumns),
+            timelineColumnDeleteDialog = createTimelineColumnDeleteDialog(viewModelState.timelineColumns),
             timelineRefreshing = viewModelState.timeline.pullToRefreshIndicatorShowing,
             timelineFooter = createTimelineFooter(viewModelState.timeline.loading),
             timelineStreamStatus = viewModelState.timelineStream.status(),
@@ -974,22 +1038,46 @@ internal class HomeScreenViewModel(
 
             is MyPostsState.Loaded -> {
                 val profile = myPosts.profile
-                val media = createProfileMedia(profile.posts, ::navigateToPostDetail)
+                // ブーストした他の人の投稿の画像は、自分のメディアに含めない
+                val media = createProfileMedia(profile.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
                 HomeScreenUiState.UserPosts.Loaded(
                     items = profile.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
+                        val boostedNoteAuthor = post.boostedNoteAuthor
                         createPostItemUiState(
                             pinned = post.pinned,
-                            boostedBy = null,
-                            iconUrl = profile.iconUrl,
-                            displayName = profile.displayName,
-                            displayNameEmojis = profile.displayNameEmojis,
-                            acct = "@${profile.username}",
+                            boostedBy = if (boostedNoteAuthor == null) {
+                                null
+                            } else {
+                                Boost(
+                                    booster = UserHomeTimelineResult.Booster(
+                                        username = profile.username,
+                                        host = null,
+                                        displayName = profile.displayName,
+                                        displayNameEmojis = profile.displayNameEmojis,
+                                        iconUrl = profile.iconUrl,
+                                    ),
+                                    byViewer = true,
+                                    navigateToProfile = null,
+                                )
+                            },
+                            iconUrl = if (boostedNoteAuthor == null) profile.iconUrl else boostedNoteAuthor.iconUrl,
+                            displayName = boostedNoteAuthor?.displayName ?: profile.displayName,
+                            displayNameEmojis = boostedNoteAuthor?.displayNameEmojis ?: profile.displayNameEmojis,
+                            acct = if (boostedNoteAuthor == null) "@${profile.username}" else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                             body = post.body,
                             linkPreviews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty(),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
-                            authorTapAction = AuthorTapAction.AlreadyOnAuthorProfile,
+                            authorTapAction = if (boostedNoteAuthor == null) {
+                                AuthorTapAction.AlreadyOnAuthorProfile
+                            } else {
+                                AuthorTapAction.OpenProfile {
+                                    viewModelScope.launch {
+                                        events.send { it.navigateToUserProfile("${boostedNoteAuthor.username}@${boostedNoteAuthor.host}") }
+                                    }
+                                }
+                            },
                             menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
@@ -1000,6 +1088,11 @@ internal class HomeScreenViewModel(
                                 val likePostId = post.likePostId
                                 val likedByMe = post.body.likedByMe
                                 if (likePostId != null && likedByMe != null) toggleLike(postId = likePostId, likedByMe = likedByMe)
+                            },
+                            onToggleBoost = {
+                                val reactionPostId = post.reactionPostId
+                                val boostedByMe = post.body.boostedByMe
+                                if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                             },
                             onVisible = {
                                 if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
@@ -1047,11 +1140,19 @@ internal class HomeScreenViewModel(
                     }
 
                     override fun onClickDelete() {
-                        removeTimelineColumn(column)
+                        updateTimelineColumns { it.copy(deletingId = column.id) }
                     }
                 },
             )
         }
+    }
+
+    private fun createTimelineColumnDeleteDialog(columnsState: TimelineColumnsState): HomeScreenUiState.TimelineColumnDeleteDialog? {
+        val column = columnsState.settings.orEmpty().firstOrNull { it.id == columnsState.deletingId } ?: return null
+        return HomeScreenUiState.TimelineColumnDeleteDialog(
+            message = "「${column.name}」のカラムを削除する",
+            listener = timelineColumnDeleteDialogListener,
+        )
     }
 
     private fun createTimelineColumnEditDialog(columnsState: TimelineColumnsState): HomeScreenUiState.TimelineColumnEditDialog? {
@@ -1087,7 +1188,8 @@ internal class HomeScreenViewModel(
             createPostItemUiState(
                 pinned = false,
                 boostedBy = post.boostedBy?.let { booster ->
-                    Boost(booster = booster) { username ->
+                    // このサーバーのアカウントのブーストでタイムラインに載るのは、自分のブーストだけ
+                    Boost(booster = booster, byViewer = booster.host == null) { username ->
                         viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
                     }
                 },
@@ -1113,7 +1215,11 @@ internal class HomeScreenViewModel(
                 onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                 onToggleLike = {
                     val likedByMe = post.body.likedByMe
-                    if (likedByMe != null) toggleLike(postId = post.id, likedByMe = likedByMe)
+                    if (likedByMe != null) toggleLike(postId = post.reactionPostId, likedByMe = likedByMe)
+                },
+                onToggleBoost = {
+                    val boostedByMe = post.body.boostedByMe
+                    if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
                 },
                 onVisible = {
                     if (post.body.linkUrls.isNotEmpty()) {
@@ -1262,6 +1368,7 @@ internal class HomeScreenViewModel(
      * @param followingGroups 読めていないグループは名前を出せないので、編集のダイアログに並べない
      * @param selectedId 小さい画面で選んでいるタブ。消えていれば先頭を選んでいるものとして扱う
      * @param editor 編集のダイアログを出していなければ null
+     * @param deletingId 削除を確かめるダイアログを出していなければ null
      */
     private data class TimelineColumnsState(
         val settings: List<TimelineColumnSetting>?,
@@ -1269,6 +1376,7 @@ internal class HomeScreenViewModel(
         val followingGroups: List<UserFollowingGroup>,
         val selectedId: String?,
         val editor: TimelineColumnEditorState?,
+        val deletingId: String?,
     ) {
         fun selectedColumn(): TimelineColumnSetting? {
             val columns = settings.orEmpty()
