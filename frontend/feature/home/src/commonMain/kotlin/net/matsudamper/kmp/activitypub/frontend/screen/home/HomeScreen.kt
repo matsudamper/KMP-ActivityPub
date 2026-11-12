@@ -82,8 +82,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -717,7 +721,8 @@ internal fun SensitiveImagesVisibilityButton(
 
 /**
  * 先頭から離れている間は、購読で届いた新しい投稿が上に足されて見えないので、見出しとの境の線を青くして知らせる。
- * 太い線で一覧を押し下げないよう、太さは元の線のまま、はみ出して一覧の上に重ねて描く
+ * 青は左右対称に両端へ、また一覧側へ薄れて透明になる。
+ * 帯で一覧を押し下げないよう、場所は元の線の太さのまま取り、帯ははみ出して一覧の上に重ねて描く
  */
 @Composable
 internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
@@ -728,12 +733,22 @@ internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
                 .height(DividerDefaults.Thickness)
                 .zIndex(1f)
                 .drawBehind {
+                    val gradientSize = Size(width = size.width, height = NewPostsHiddenGradientHeight.toPx())
+                    // 縦の濃さに横の濃さを掛け合わせるため、2 つ目の塗りを 1 つ目の透明度として使う。重ねる先を一覧と分けておかないと一覧まで消える
+                    drawIntoCanvas { canvas -> canvas.saveLayer(gradientSize.toRect(), Paint()) }
                     drawRect(
-                        brush = Brush.horizontalGradient(
-                            listOf(Color.Transparent, NewPostsHiddenDividerColor, Color.Transparent),
+                        brush = Brush.verticalGradient(
+                            colors = listOf(NewPostsHiddenGradientColor, Color.Transparent),
+                            endY = gradientSize.height,
                         ),
-                        size = Size(width = size.width, height = NewPostsHiddenDividerThickness.toPx()),
+                        size = gradientSize,
                     )
+                    drawRect(
+                        brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.Black, Color.Transparent)),
+                        size = gradientSize,
+                        blendMode = BlendMode.DstIn,
+                    )
+                    drawIntoCanvas { canvas -> canvas.restore() }
                 },
         )
     } else {
@@ -741,8 +756,8 @@ internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
     }
 }
 
-private val NewPostsHiddenDividerColor = Color(0xFF1E88E5)
-private val NewPostsHiddenDividerThickness = 3.dp
+private val NewPostsHiddenGradientColor = Color(0xFF1E88E5)
+private val NewPostsHiddenGradientHeight = 8.dp
 
 @Composable
 internal fun TimelineTabContent(
