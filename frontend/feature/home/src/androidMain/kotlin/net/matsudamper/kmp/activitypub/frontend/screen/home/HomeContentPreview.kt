@@ -135,7 +135,7 @@ private fun HomeContentPreviewTimelineColumnEditDialog() = HomeTimelinePreview(
         name = "技術と友達",
         allSourcesCheckState = ToggleableState.Indeterminate,
         sources = listOf(
-            HomeScreenUiState.TimelineColumnEditDialog.Source(name = "ホーム", checked = false, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
+            HomeScreenUiState.TimelineColumnEditDialog.Source(name = "メイン", checked = false, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
             HomeScreenUiState.TimelineColumnEditDialog.Source(name = "技術", checked = true, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
             HomeScreenUiState.TimelineColumnEditDialog.Source(name = "友達", checked = true, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
         ),
@@ -869,7 +869,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
 
 private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScreenUiState.TimelineFooter): List<HomeScreenUiState.TimelineColumn> = listOf(
     HomeScreenUiState.TimelineColumn(
-        title = "ホーム",
+        title = "メイン",
         listStateKey = "home",
         items = items,
         footer = footer,

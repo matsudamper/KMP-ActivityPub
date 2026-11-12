@@ -29,7 +29,7 @@ class TimelineService(
     private val logger = LoggerFactory.getLogger(TimelineService::class.java)
 
     /**
-     * @param groupId 読む購読先。null ならホーム
+     * @param groupId 読む購読先。null ならメイン
      */
     fun page(accountId: AccountId, groupId: FollowingGroupId?, cursor: String?, limit: Int): TimelinePage = inOpenTelemetrySpan(tracer, "HomeTimeline.page", false) { span ->
         val feed = TimelineFeed(accountId, groupId)

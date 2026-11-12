@@ -88,7 +88,7 @@ internal class TimelineFeeds(
 
     suspend fun onPostArrived(post: UserHomeTimelineResult.Post) {
         val groupId = post.followingGroupId
-        readers[if (groupId == null) TimelineSource.Home else TimelineSource.FollowingGroup(groupId)]?.onPostArrived(post)
+        readers[if (groupId == null) TimelineSource.MainGroup else TimelineSource.FollowingGroup(groupId)]?.onPostArrived(post)
     }
 
     suspend fun onNotificationArrived(notification: UserNotificationsResult.Notification) {
@@ -119,7 +119,7 @@ internal class TimelineFeeds(
     }
 
     private fun createReader(source: TimelineSource): FeedReader<*> = when (source) {
-        TimelineSource.Home -> createPostReader(source, followingGroupId = null)
+        TimelineSource.MainGroup -> createPostReader(source, followingGroupId = null)
 
         is TimelineSource.FollowingGroup -> createPostReader(source, followingGroupId = source.groupId)
 

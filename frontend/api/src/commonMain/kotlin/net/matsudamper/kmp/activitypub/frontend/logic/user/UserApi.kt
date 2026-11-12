@@ -77,7 +77,7 @@ class UserApi(
 ) {
     private val followingChangesFlow = MutableSharedFlow<FollowingChange>()
     val followingChanges = followingChangesFlow.asSharedFlow()
-    private val followingGroupsStateFlow = MutableStateFlow(FollowingGroupsState(homeName = DEFAULT_HOME_GROUP_NAME, groups = listOf(), version = 0))
+    private val followingGroupsStateFlow = MutableStateFlow(FollowingGroupsState(mainGroupName = DEFAULT_MAIN_GROUP_NAME, groups = listOf(), version = 0))
 
     /**
      * 購読を仕分けるグループ。作った順。[loadFollowingGroups] で読み直す
@@ -85,9 +85,9 @@ class UserApi(
     val followingGroups: Flow<List<UserFollowingGroup>> = followingGroupsStateFlow.map { it.groups }.distinctUntilChanged()
 
     /**
-     * グループに入れていない購読を入れるホームの名前。[loadFollowingGroups] で読み直す
+     * グループに入れていない購読を入れるメインの名前。[loadFollowingGroups] で読み直す
      */
-    val homeGroupName: Flow<String> = followingGroupsStateFlow.map { it.homeName }.distinctUntilChanged()
+    val mainGroupName: Flow<String> = followingGroupsStateFlow.map { it.mainGroupName }.distinctUntilChanged()
     private val deletedNoteIdsFlow = MutableSharedFlow<String>()
 
     /**
@@ -111,7 +111,7 @@ class UserApi(
     fun isReady(): Boolean = clients.client.value != null
 
     /**
-     * @param followingGroupId 読む購読先。null ならホーム
+     * @param followingGroupId 読む購読先。null ならメイン
      */
     fun timelinePaging(followingGroupId: String?): CursorPagingModel<TimelineQuery.Data> {
         return CursorPagingModel(
@@ -207,7 +207,7 @@ class UserApi(
     }
 
     /**
-     * @param groupId 購読するときに入れるグループ。null ならホーム。購読済みならグループだけ入れ直す
+     * @param groupId 購読するときに入れるグループ。null ならメイン。購読済みならグループだけ入れ直す
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun setFollowing(actorUri: String, followed: Boolean, groupId: String?): String? {
@@ -221,7 +221,7 @@ class UserApi(
 
     fun currentFollowingGroups(): List<UserFollowingGroup> = followingGroupsStateFlow.value.groups
 
-    fun currentHomeGroupName(): String = followingGroupsStateFlow.value.homeName
+    fun currentMainGroupName(): String = followingGroupsStateFlow.value.mainGroupName
 
     /**
      * 読めなかったときは空にする。ここを通らずにアカウントが変わることもあり、前の内容が別のアカウントのものかもしれない。
@@ -234,9 +234,9 @@ class UserApi(
         val groups = userInfo?.followingGroups
             .orEmpty()
             .map { UserFollowingGroup(id = it.id, name = it.name) }
-        val homeName = userInfo?.homeGroupName ?: DEFAULT_HOME_GROUP_NAME
+        val mainGroupName = userInfo?.mainGroupName ?: DEFAULT_MAIN_GROUP_NAME
         followingGroupsStateFlow.update { state ->
-            if (state.version == startedVersion) FollowingGroupsState(homeName = homeName, groups = groups, version = state.version + 1) else state
+            if (state.version == startedVersion) FollowingGroupsState(mainGroupName = mainGroupName, groups = groups, version = state.version + 1) else state
         }
     }
 
@@ -244,7 +244,7 @@ class UserApi(
      * ログインしているアカウントが変わったときに、前のアカウントのグループを出さないよう呼ぶ
      */
     fun forgetFollowingGroups() {
-        followingGroupsStateFlow.update { FollowingGroupsState(homeName = DEFAULT_HOME_GROUP_NAME, groups = listOf(), version = it.version + 1) }
+        followingGroupsStateFlow.update { FollowingGroupsState(mainGroupName = DEFAULT_MAIN_GROUP_NAME, groups = listOf(), version = it.version + 1) }
     }
 
     suspend fun createFollowingGroup(name: String): UserCreateFollowingGroupResult {
@@ -273,7 +273,7 @@ class UserApi(
     /**
      * 変えたら読み直す。送っている間に始まった読み込みや、アカウントの切り替えで捨てられた内容を取り戻すため
      *
-     * @param groupId null ならホームの名前を変える
+     * @param groupId null ならメインの名前を変える
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun renameFollowingGroup(groupId: String?, name: String): String? {
@@ -289,7 +289,7 @@ class UserApi(
                     when {
                         state.version != startedVersion -> state
 
-                        groupId == null -> state.copy(homeName = trimmedName, version = state.version + 1)
+                        groupId == null -> state.copy(mainGroupName = trimmedName, version = state.version + 1)
 
                         else -> state.copy(
                             groups = state.groups.map { if (it.id == groupId) it.copy(name = trimmedName) else it },
@@ -779,7 +779,7 @@ class UserApi(
      * @param version 読み込みを始めてから変わったかを見分けるため、書き換えるたびに増やす
      */
     private data class FollowingGroupsState(
-        val homeName: String,
+        val mainGroupName: String,
         val groups: List<UserFollowingGroup>,
         val version: Long,
     )
@@ -793,7 +793,7 @@ class UserApi(
     )
 
     /**
-     * @param groupId 購読を入れたグループ。購読をやめたか、ホームに入れたなら null
+     * @param groupId 購読を入れたグループ。購読をやめたか、メインに入れたなら null
      */
     data class PinChange(
         val noteId: String,
@@ -850,7 +850,7 @@ class UserApi(
         /**
          * 読めるまでと読めなかったときに出す。サーバーの既定と合わせる
          */
-        const val DEFAULT_HOME_GROUP_NAME = "ホーム"
+        const val DEFAULT_MAIN_GROUP_NAME = "メイン"
 
         /**
          * 失敗の回数に応じて倍にしていく。5 回続けて失敗すると、諦めるまでに 5 + 10 + 20 + 40 秒待つ

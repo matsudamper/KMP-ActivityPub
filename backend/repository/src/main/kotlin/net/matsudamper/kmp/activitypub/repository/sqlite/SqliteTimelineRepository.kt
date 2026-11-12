@@ -110,7 +110,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> = jooq.withConnection { dsl ->
         val id = member.drop(1).toLong()
         if (member.startsWith("l")) {
-            // 自分の投稿はホームに載せる
+            // 自分の投稿はメインに載せる
             return@withConnection dsl.select(NOTES.ACCOUNT_ID).from(NOTES).where(NOTES.ID.eq(id))
                 .and(NOTES.ACCOUNT_ID.gt(after?.value ?: 0L)).limit(limit)
                 .fetch { TimelineRecipient(AccountId(checkNotNull(it.value1())), null) }
@@ -393,7 +393,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         } else {
             null
         }
-        // 宛先に入った投稿は、投稿者をフォローしていればその購読先に、していなければホームに載せる
+        // 宛先に入った投稿は、投稿者をフォローしていればその購読先に、していなければメインに載せる
         val authorGroupId = DSL.field(
             dsl.select(ACCOUNT_FOLLOWING.GROUP_ID).from(ACCOUNT_FOLLOWING)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ACTOR_URI.eq(ACCOUNT_FOLLOWING.ACTOR_URI))
@@ -406,7 +406,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .and(olderThan(REMOTE_NOTE_RECIPIENTS.SCORE_MS, REMOTE_NOTE_RECIPIENTS.MEMBER, after))
             .orderBy(REMOTE_NOTE_RECIPIENTS.SCORE_MS.desc(), REMOTE_NOTE_RECIPIENTS.MEMBER.desc()).limit(limit)
             .fetch { TimelinePosition(checkNotNull(it.value1()), checkNotNull(it.value2())) }
-        // 自分の投稿はホームに載せる
+        // 自分の投稿はメインに載せる
         val own = if (groupId == null) localPositions(dsl, accountId, after, limit) else listOf()
         (perActor.flatten() + addressed + own).distinctBy { it.member }
             .filter { cutoff == null || newestFirst.compare(it, cutoff) <= 0 }

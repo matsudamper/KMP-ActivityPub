@@ -28,7 +28,7 @@ data class TimelineColumnSetting(
 )
 
 sealed interface TimelineSource {
-    data object Home : TimelineSource
+    data object MainGroup : TimelineSource
 
     data class FollowingGroup(val groupId: String) : TimelineSource
 
@@ -39,5 +39,5 @@ sealed interface TimelineSource {
 }
 
 val DEFAULT_TIMELINE_COLUMNS: List<TimelineColumnSetting> = listOf(
-    TimelineColumnSetting(id = "home", name = "ホーム", sources = setOf(TimelineSource.Home)),
+    TimelineColumnSetting(id = "main", name = "メイン", sources = setOf(TimelineSource.MainGroup)),
 )

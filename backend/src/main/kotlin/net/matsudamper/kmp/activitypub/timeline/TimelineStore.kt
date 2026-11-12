@@ -23,7 +23,7 @@ interface TimelineStore : AutoCloseable {
 /**
  * アカウントの購読先 1 つ分のタイムライン
  *
- * @param groupId null ならホーム
+ * @param groupId null ならメイン
  */
 data class TimelineFeed(val accountId: AccountId, val groupId: FollowingGroupId?)
 

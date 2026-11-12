@@ -34,12 +34,12 @@ interface TimelineRepository {
     fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long)
 
     /**
-     * @param groupId 読む購読先。null ならホーム
+     * @param groupId 読む購読先。null ならメイン
      */
     fun rebuild(accountId: AccountId, groupId: FollowingGroupId?, limit: Int): List<TimelinePosition>
 
     /**
-     * @param groupId 読む購読先。null ならホーム
+     * @param groupId 読む購読先。null ならメイン
      */
     fun page(accountId: AccountId, groupId: FollowingGroupId?, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
@@ -74,7 +74,7 @@ data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val loca
 data class TimelinePosition(val score: Long, val member: String)
 
 /**
- * @param groupId 投稿を載せる購読先。ホームなら null
+ * @param groupId 投稿を載せる購読先。メインなら null
  */
 data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGroupId?)
 

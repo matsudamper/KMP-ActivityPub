@@ -30,12 +30,12 @@ internal class FollowMenuController(
         ),
     )
 
-    val snapshots: Flow<Snapshot> = combine(stateFlow, userApi.homeGroupName, userApi.followingGroups) { state, homeName, groups ->
-        Snapshot(state = state, homeName = homeName, groups = groups)
+    val snapshots: Flow<Snapshot> = combine(stateFlow, userApi.mainGroupName, userApi.followingGroups) { state, mainGroupName, groups ->
+        Snapshot(state = state, mainGroupName = mainGroupName, groups = groups)
     }
 
     val initialSnapshot: Snapshot
-        get() = Snapshot(state = stateFlow.value, homeName = userApi.currentHomeGroupName(), groups = userApi.currentFollowingGroups())
+        get() = Snapshot(state = stateFlow.value, mainGroupName = userApi.currentMainGroupName(), groups = userApi.currentFollowingGroups())
 
     private val addGroupDialogListener = object : AddFollowingGroupDialogUiState.Listener {
         override fun onClickAdd(name: String) {
@@ -62,7 +62,7 @@ internal class FollowMenuController(
      * 送った変更は返事や画面のデータの書き換えを待たずに出す。待つ間にボタンが一度戻ったり押せなくなったりしてちらつかないようにする
      *
      * @param receivedFollowing 画面が受け取っている購読状態
-     * @param receivedGroupId 画面が受け取っている購読先のグループ。購読していないか、ホームなら null
+     * @param receivedGroupId 画面が受け取っている購読先のグループ。購読していないか、メインなら null
      */
     fun menu(snapshot: Snapshot, actorUri: String, receivedFollowing: Boolean, receivedGroupId: String?): FollowMenuUiState {
         val known = snapshot.state.knownStates[actorUri]
@@ -71,14 +71,14 @@ internal class FollowMenuController(
         return FollowMenuUiState(
             button = when {
                 !following -> FollowMenuUiState.Button.Follow(text = "購読")
-                groupId == null -> FollowMenuUiState.Button.Following(destinationName = snapshot.homeName)
+                groupId == null -> FollowMenuUiState.Button.Following(destinationName = snapshot.mainGroupName)
                 else -> FollowMenuUiState.Button.Following(destinationName = snapshot.groups.firstOrNull { it.id == groupId }?.name ?: "購読中")
             },
             items = buildList {
                 if (following) {
                     add(FollowMenuUiState.Item.Unfollow(text = "購読解除", listener = itemListener { change(actorUri = actorUri, followed = false, groupId = null) }))
                 }
-                add(destination(text = snapshot.homeName, selected = following && groupId == null) { change(actorUri = actorUri, followed = true, groupId = null) })
+                add(destination(text = snapshot.mainGroupName, selected = following && groupId == null) { change(actorUri = actorUri, followed = true, groupId = null) })
                 snapshot.groups.forEach { group ->
                     add(destination(text = group.name, selected = following && groupId == group.id) { change(actorUri = actorUri, followed = true, groupId = group.id) })
                 }
@@ -166,7 +166,7 @@ internal class FollowMenuController(
 
     data class Snapshot(
         val state: State,
-        val homeName: String,
+        val mainGroupName: String,
         val groups: List<UserFollowingGroup>,
     )
 
@@ -183,7 +183,7 @@ internal class FollowMenuController(
     )
 
     /**
-     * @param groupId 購読先のグループ。購読していないか、ホームなら null
+     * @param groupId 購読先のグループ。購読していないか、メインなら null
      */
     data class KnownState(
         val following: Boolean,

@@ -62,7 +62,7 @@ private fun TimelineColumnProto.toTimelineColumnSetting(): TimelineColumnSetting
         id = id,
         name = name,
         sources = buildSet {
-            if (home) add(TimelineSource.Home)
+            if (mainGroup) add(TimelineSource.MainGroup)
             followingGroupIdsList.forEach { add(TimelineSource.FollowingGroup(it)) }
             if (notifications) add(TimelineSource.Notifications)
         },
@@ -72,7 +72,7 @@ private fun TimelineColumnSetting.toProto(): TimelineColumnProto =
     TimelineColumnProto.newBuilder()
         .setId(id)
         .setName(name)
-        .setHome(TimelineSource.Home in sources)
+        .setMainGroup(TimelineSource.MainGroup in sources)
         .addAllFollowingGroupIds(sources.filterIsInstance<TimelineSource.FollowingGroup>().map { it.groupId })
         .setNotifications(TimelineSource.Notifications in sources)
         .build()

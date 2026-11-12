@@ -137,7 +137,7 @@ type TimelinePost {
     boostCount: Int
     "フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。author などほかの項目はブーストされた投稿のもの"
     boostedBy: Actor
-    "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。ホームなら null"
+    "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。メインなら null"
     followingGroupId: FollowingGroupId
 }
 

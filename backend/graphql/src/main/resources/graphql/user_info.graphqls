@@ -1,6 +1,6 @@
 type UserInfo {
     """
-    購読先 1 つの行を新しい順に返す。followingGroupId が null ならホーム（グループに入れていないフォローと自分の投稿）。
+    購読先 1 つの行を新しい順に返す。followingGroupId が null ならメイン（グループに入れていないフォローと自分の投稿）。
     after には前回の nextCursor を渡す。消された投稿も deleted を立てて返す
     """
     timeline(followingGroupId: FollowingGroupId, after: String, limit: Int!): TimelinePage @lazy
@@ -18,8 +18,8 @@ type UserInfo {
     isAdmin: Boolean!
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
-    "どのグループにも入れていないフォローを入れるホームの名前"
-    homeGroupName: String! @lazy
+    "どのグループにも入れていないフォローを入れるメインの名前"
+    mainGroupName: String! @lazy
 }
 
 type RemoteProfileRefreshState {
@@ -41,7 +41,7 @@ type RemoteProfileRefreshProgress {
     finishedAt: String
 }
 
-"フォローを仕分けるグループ。どのグループにも入れていないフォローはホームに入る"
+"フォローを仕分けるグループ。どのグループにも入れていないフォローはメインに入る"
 type FollowingGroup {
     id: FollowingGroupId!
     name: String!

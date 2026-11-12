@@ -11,7 +11,7 @@ query FollowingGroups {
             id
             name
         }
-        homeGroupName
+        mainGroupName
     }
 }
 

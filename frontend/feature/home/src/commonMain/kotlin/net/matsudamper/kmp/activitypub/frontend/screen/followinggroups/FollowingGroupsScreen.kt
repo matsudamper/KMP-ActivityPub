@@ -110,10 +110,10 @@ internal fun FollowingGroupsContent(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Section(
-                title = "ホーム",
+                title = "メイン",
                 description = "どのグループにも入れていない購読が入ります",
             ) {
-                GroupRow(item = uiState.home, icon = AppIcons.Home)
+                GroupRow(item = uiState.mainGroup, icon = AppIcons.Home)
             }
             Section(
                 title = "グループ",
