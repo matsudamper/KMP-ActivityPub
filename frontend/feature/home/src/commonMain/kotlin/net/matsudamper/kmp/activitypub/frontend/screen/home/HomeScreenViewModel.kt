@@ -275,7 +275,7 @@ internal class HomeScreenViewModel(
 
         override fun onClickAddTimelineColumn() {
             if (viewModelStateFlow.value.timelineColumns.settings == null) return
-            updateTimelineColumns { it.copy(editor = TimelineColumnEditorState(editingId = null, name = "", sources = setOf(), fontSize = TimelineFontSize.Medium)) }
+            updateTimelineColumns { it.copy(editor = TimelineColumnEditorState(editingId = null, name = "", sources = setOf())) }
             // 別の画面でグループを作っていることがあるので、候補を出す前に読み直す
             loadFollowingGroups()
         }
@@ -443,7 +443,7 @@ internal class HomeScreenViewModel(
 
     private fun editTimelineColumn(column: TimelineColumnSetting) {
         updateTimelineColumns {
-            it.copy(editor = TimelineColumnEditorState(editingId = column.id, name = column.name, sources = column.sources, fontSize = column.fontSize))
+            it.copy(editor = TimelineColumnEditorState(editingId = column.id, name = column.name, sources = column.sources))
         }
         // 別の画面でグループを作っていることがあるので、候補を出す前に読み直す
         loadFollowingGroups()
@@ -459,7 +459,7 @@ internal class HomeScreenViewModel(
             id = editingColumn?.id ?: Uuid.random().toString(),
             name = editor.name.trim(),
             sources = editor.sources,
-            fontSize = editor.fontSize,
+            fontSize = editingColumn?.fontSize ?: TimelineFontSize.Medium,
         )
         updateTimelineColumns { it.copy(selectedId = savedColumn.id, editor = null) }
         saveTimelineColumns(
@@ -490,6 +490,11 @@ internal class HomeScreenViewModel(
         updateTimelineColumns { it.copy(selectedId = state.selectedColumn()?.id) }
         val withoutMoved = settings.filterIndexed { index, _ -> index != fromIndex }
         saveTimelineColumns(withoutMoved.take(toIndex) + movedColumn + withoutMoved.drop(toIndex))
+    }
+
+    private fun changeTimelineColumnFontSize(columnId: String, fontSize: TimelineFontSize) {
+        val settings = viewModelStateFlow.value.timelineColumns.settings ?: return
+        saveTimelineColumns(settings.map { if (it.id == columnId) it.copy(fontSize = fontSize) else it })
     }
 
     /**
@@ -1062,6 +1067,21 @@ internal class HomeScreenViewModel(
                 footer = createTimelineFooter(feeds.appendOf(column.sources)),
                 selected = column.id == selectedColumn?.id,
                 fontSize = column.fontSize.toAppFontSize(),
+                fontSizeMenuItems = TimelineFontSize.entries.map { fontSize ->
+                    HomeScreenUiState.FontSizeMenuItem(
+                        label = when (fontSize) {
+                            TimelineFontSize.Small -> "小"
+                            TimelineFontSize.Medium -> "中"
+                            TimelineFontSize.Large -> "大"
+                        },
+                        checked = fontSize == column.fontSize,
+                        listener = object : HomeScreenUiState.FontSizeMenuItemListener {
+                            override fun onClick() {
+                                changeTimelineColumnFontSize(columnId = column.id, fontSize = fontSize)
+                            }
+                        },
+                    )
+                },
                 listener = object : HomeScreenUiState.TimelineColumnListener {
                     override fun onClickTab() {
                         if (viewModelStateFlow.value.timelineColumns.selectedColumn()?.id == column.id) {
@@ -1124,21 +1144,6 @@ internal class HomeScreenViewModel(
                     listener = object : HomeScreenUiState.TimelineColumnEditDialog.SourceListener {
                         override fun onClick() {
                             updateTimelineColumnEditor { it.copy(sources = if (source in it.sources) it.sources - source else it.sources + source) }
-                        }
-                    },
-                )
-            },
-            fontSizes = TimelineFontSize.entries.map { fontSize ->
-                HomeScreenUiState.TimelineColumnEditDialog.FontSizeOption(
-                    label = when (fontSize) {
-                        TimelineFontSize.Small -> "小"
-                        TimelineFontSize.Medium -> "中"
-                        TimelineFontSize.Large -> "大"
-                    },
-                    selected = fontSize == editor.fontSize,
-                    listener = object : HomeScreenUiState.TimelineColumnEditDialog.FontSizeOptionListener {
-                        override fun onClick() {
-                            updateTimelineColumnEditor { it.copy(fontSize = fontSize) }
                         }
                     },
                 )
@@ -1409,7 +1414,6 @@ internal class HomeScreenViewModel(
         val editingId: String?,
         val name: String,
         val sources: Set<TimelineSource>,
-        val fontSize: TimelineFontSize,
     )
 
     private data class TimelineState(

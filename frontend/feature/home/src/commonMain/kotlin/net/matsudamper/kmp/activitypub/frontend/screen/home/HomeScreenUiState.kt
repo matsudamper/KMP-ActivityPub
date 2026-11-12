@@ -77,8 +77,20 @@ data class HomeScreenUiState(
         val footer: TimelineFooter,
         val selected: Boolean,
         val fontSize: AppFontSize,
+        val fontSizeMenuItems: List<FontSizeMenuItem>,
         val listener: TimelineColumnListener,
     )
+
+    data class FontSizeMenuItem(
+        val label: String,
+        val checked: Boolean,
+        val listener: FontSizeMenuItemListener,
+    )
+
+    @Immutable
+    interface FontSizeMenuItemListener {
+        fun onClick()
+    }
 
     @Immutable
     interface TimelineColumnListener {
@@ -105,21 +117,9 @@ data class HomeScreenUiState(
         val name: String,
         val allSourcesCheckState: ToggleableState,
         val sources: List<Source>,
-        val fontSizes: List<FontSizeOption>,
         val saveButtonEnabled: Boolean,
         val listener: Listener,
     ) {
-        data class FontSizeOption(
-            val label: String,
-            val selected: Boolean,
-            val listener: FontSizeOptionListener,
-        )
-
-        @Immutable
-        interface FontSizeOptionListener {
-            fun onClick()
-        }
-
         data class Source(
             val name: String,
             val checked: Boolean,

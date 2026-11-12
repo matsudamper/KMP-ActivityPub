@@ -144,11 +144,6 @@ private fun HomeContentPreviewTimelineColumnEditDialog() = HomeTimelinePreview(
             HomeScreenUiState.TimelineColumnEditDialog.Source(name = "技術", checked = true, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
             HomeScreenUiState.TimelineColumnEditDialog.Source(name = "友達", checked = true, listener = AndroidPreviewTimelineColumnEditDialogSourceListener),
         ),
-        fontSizes = listOf(
-            HomeScreenUiState.TimelineColumnEditDialog.FontSizeOption(label = "小", selected = false, listener = AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener),
-            HomeScreenUiState.TimelineColumnEditDialog.FontSizeOption(label = "中", selected = true, listener = AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener),
-            HomeScreenUiState.TimelineColumnEditDialog.FontSizeOption(label = "大", selected = false, listener = AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener),
-        ),
         saveButtonEnabled = true,
         listener = AndroidPreviewTimelineColumnEditDialogListener,
     ),
@@ -923,6 +918,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         footer = footer,
         selected = true,
         fontSize = AppFontSize.Medium,
+        fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "中"),
         listener = AndroidPreviewTimelineColumnListener,
     ),
     HomeScreenUiState.TimelineColumn(
@@ -932,9 +928,15 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         footer = HomeScreenUiState.TimelineFooter.None,
         selected = false,
         fontSize = AppFontSize.Large,
+        fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "大"),
         listener = AndroidPreviewTimelineColumnListener,
     ),
 )
+
+private fun previewFontSizeMenuItems(checkedLabel: String): List<HomeScreenUiState.FontSizeMenuItem> =
+    listOf("小", "中", "大").map { label ->
+        HomeScreenUiState.FontSizeMenuItem(label = label, checked = label == checkedLabel, listener = AndroidPreviewFontSizeMenuItemListener)
+    }
 
 private object AndroidPreviewTimelineColumnListener : HomeScreenUiState.TimelineColumnListener {
     override fun onClickTab() = Unit
@@ -970,6 +972,6 @@ private object AndroidPreviewTimelineColumnEditDialogSourceListener : HomeScreen
     override fun onClick() = Unit
 }
 
-private object AndroidPreviewTimelineColumnEditDialogFontSizeOptionListener : HomeScreenUiState.TimelineColumnEditDialog.FontSizeOptionListener {
+private object AndroidPreviewFontSizeMenuItemListener : HomeScreenUiState.FontSizeMenuItemListener {
     override fun onClick() = Unit
 }
