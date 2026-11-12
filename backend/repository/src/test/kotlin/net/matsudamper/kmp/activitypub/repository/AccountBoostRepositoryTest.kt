@@ -180,6 +180,9 @@ class AccountBoostRepositoryTest {
         assertEquals(RemoteNoteDeletion(undoneBoostCount = 1, deletedTimelineMembers = listOf(member)), boosts.deleteRemoteNoteAndUndoBoosts(ACTOR, "$ACTOR/notes/public", NOW))
         assertEquals(INBOXES.toSet(), queue.claim(NOW, 10).onEach { assertEquals(undoBody("announce-1"), it.body) }.map { it.inbox }.toSet())
         assertTrue(repositories.timelineRepository.hydrate(alice, listOf(member)).single().deleted)
+        // 削除済みと出すために残した行には、新しくブーストもいいねも付けられない
+        assertNull(boosts.target(alice, member))
+        assertNull(repositories.likeRepository.target(alice, member))
     }
 
     @Test

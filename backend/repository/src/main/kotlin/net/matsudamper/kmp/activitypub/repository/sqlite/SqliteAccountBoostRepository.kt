@@ -43,6 +43,8 @@ internal class SqliteAccountBoostRepository(
                     .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
                     .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                     .where(REMOTE_BOOSTS.ID.eq(boostId))
+                    // 消された投稿は削除済みと出すために行を残しているだけなので、新しく付けられないようにする
+                    .and(REMOTE_NOTES.DELETED_AT.isNull)
                     .and(dsl.remoteBoostReadableBy(accountId))
                     .and(REMOTE_NOTES.VISIBILITY.eq(BOOSTABLE_REMOTE_NOTE_VISIBILITY))
                     .fetchOne { it.toRemoteTarget() }
@@ -54,6 +56,8 @@ internal class SqliteAccountBoostRepository(
                 .from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_NOTES.ID.eq(remoteNoteId))
+                // 消された投稿は削除済みと出すために行を残しているだけなので、新しく付けられないようにする
+                .and(REMOTE_NOTES.DELETED_AT.isNull)
                 // 公開している投稿は誰でも読めるので、保存していればフォローしていなくてもブーストできる
                 .and(REMOTE_NOTES.VISIBILITY.eq(BOOSTABLE_REMOTE_NOTE_VISIBILITY))
                 .fetchOne { it.toRemoteTarget() }
