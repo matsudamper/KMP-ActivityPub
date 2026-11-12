@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.Boost
+import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
@@ -39,6 +40,7 @@ internal class PostDetailScreenViewModel(
     @InjectedParam private val postId: String,
     private val api: UserApi,
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
+    private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -307,7 +309,11 @@ internal class PostDetailScreenViewModel(
                 val username = if (host == null) post.username else "${post.username}@$host"
                 viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
             },
-            menuItems = createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) + createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+            menuItems =
+            createOpenOriginalMenuItems(post.body.shareUrl) { url ->
+                viewModelScope.launch { events.send { it.openUrl(url) } }
+            } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
+                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },

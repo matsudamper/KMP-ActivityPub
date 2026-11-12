@@ -42,6 +42,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSet
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import okio.Buffer
@@ -381,6 +382,7 @@ class HomeScreenViewModelTest {
             object : PostedAtRefreshTicker {
                 override val ticks: Flow<Unit> = emptyFlow()
             },
+            CreateOpenOriginalMenuItemsUseCase(),
             columnSettingStore,
         )
         try {
