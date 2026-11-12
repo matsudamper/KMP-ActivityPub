@@ -47,7 +47,7 @@ class FollowingGroupServiceTest {
     }
 
     @Test
-    fun renameGroupAndHome() {
+    fun renameGroupAndMainGroup() {
         val alice = repositories.accountRepository.add("alice", "hash", "type")
         val bob = repositories.accountRepository.add("bob", "hash", "type")
         val news = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "ニュース")).group
@@ -61,14 +61,14 @@ class FollowingGroupServiceTest {
         assertEquals(listOf("技術", "友人"), service.groups(alice).map { it.name })
         assertEquals(friends, service.groups(alice).last())
 
-        assertEquals("ホーム", service.homeName(alice))
+        assertEquals("メイン", service.mainGroupName(alice))
         assertEquals(RenameFollowingGroupResult.Renamed, service.renameGroup(alice, null, "すべて"))
-        assertEquals("すべて", service.homeName(alice))
-        assertEquals("ホーム", service.homeName(bob))
+        assertEquals("すべて", service.mainGroupName(alice))
+        assertEquals("メイン", service.mainGroupName(bob))
     }
 
     @Test
-    fun followingIntoGroupAndMovingBackToHome() = runBlocking {
+    fun followingIntoGroupAndMovingBackToMainGroup() = runBlocking {
         val alice = repositories.accountRepository.add("alice", "hash", "type")
         val news = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "ニュース")).group
 
@@ -95,7 +95,7 @@ class FollowingGroupServiceTest {
     }
 
     @Test
-    fun postGoesToBoosterGroupOrAuthorGroupOrHome() = runBlocking {
+    fun postGoesToBoosterGroupOrAuthorGroupOrMainGroup() = runBlocking {
         val alice = repositories.accountRepository.add("alice", "hash", "type")
         val news = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "ニュース")).group
         val homeActorUri = "https://remote.example/users/dave"

@@ -38,8 +38,8 @@ class UserInfoResolverImpl : UserInfoResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(groups).build())
     }
 
-    override fun homeGroupName(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<String>> {
-        val name = GraphQlEngine.diContainer(env).followingGroupService.homeName(userInfo.id)
+    override fun mainGroupName(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<String>> {
+        val name = GraphQlEngine.diContainer(env).followingGroupService.mainGroupName(userInfo.id)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(name).build())
     }
 

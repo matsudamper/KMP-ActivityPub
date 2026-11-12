@@ -30,7 +30,7 @@ private fun FollowListContentPreview() {
                                 emojis = listOf(UserCustomEmoji(name = ":kotlin:", imageUrl = "https://example.com/kotlin.png")),
                             ),
                             acct = "@kotlinweekly@remote.example",
-                            followMenu = previewFollowMenu(destinationName = "ホーム"),
+                            followMenu = previewFollowMenu(destinationName = "メイン"),
                             clickable = true,
                             listener = AndroidPreviewAccountListener,
                         ),

@@ -29,11 +29,11 @@ internal class FollowingGroupsScreenViewModel(
             ),
         )
     private val followingGroupsStateFlow: StateFlow<FollowingGroupsState> =
-        combine(api.homeGroupName, api.followingGroups, ::FollowingGroupsState)
+        combine(api.mainGroupName, api.followingGroups, ::FollowingGroupsState)
             .stateIn(
                 viewModelScope,
                 SharingStarted.Eagerly,
-                FollowingGroupsState(homeName = api.currentHomeGroupName(), groups = api.currentFollowingGroups()),
+                FollowingGroupsState(mainGroupName = api.currentMainGroupName(), groups = api.currentFollowingGroups()),
             )
 
     private val listener =
@@ -79,7 +79,7 @@ internal class FollowingGroupsScreenViewModel(
         viewModelScope.launch {
             val groupId =
                 when (target) {
-                    RenameTarget.Home -> null
+                    RenameTarget.MainGroup -> null
                     is RenameTarget.Group -> target.groupId
                 }
             val error =
@@ -123,7 +123,7 @@ internal class FollowingGroupsScreenViewModel(
         followingGroups: FollowingGroupsState,
     ): FollowingGroupsScreenUiState {
         return FollowingGroupsScreenUiState(
-            home = item(name = followingGroups.homeName, target = RenameTarget.Home, viewModelState = viewModelState),
+            mainGroup = item(name = followingGroups.mainGroupName, target = RenameTarget.MainGroup, viewModelState = viewModelState),
             groups = followingGroups.groups.map { group ->
                 item(name = group.name, target = RenameTarget.Group(group.id), viewModelState = viewModelState)
             },
@@ -147,12 +147,12 @@ internal class FollowingGroupsScreenViewModel(
     )
 
     private data class FollowingGroupsState(
-        val homeName: String,
+        val mainGroupName: String,
         val groups: List<UserFollowingGroup>,
     )
 
     private sealed interface RenameTarget {
-        data object Home : RenameTarget
+        data object MainGroup : RenameTarget
 
         data class Group(val groupId: String) : RenameTarget
     }

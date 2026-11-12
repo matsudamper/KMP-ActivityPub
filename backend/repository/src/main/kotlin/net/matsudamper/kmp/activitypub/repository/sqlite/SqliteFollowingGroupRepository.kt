@@ -5,7 +5,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOWING_GROUPS
-import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOWING_HOME_GROUPS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.FOLLOWING_MAIN_GROUPS
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
@@ -56,19 +56,19 @@ internal class SqliteFollowingGroupRepository(
         FollowingGroupRenameResult.Renamed
     }
 
-    override fun homeName(accountId: AccountId): String? = jooq.withConnection { dsl ->
-        dsl.select(FOLLOWING_HOME_GROUPS.NAME).from(FOLLOWING_HOME_GROUPS)
-            .where(FOLLOWING_HOME_GROUPS.ACCOUNT_ID.eq(accountId.value))
-            .fetchOne(FOLLOWING_HOME_GROUPS.NAME)
+    override fun mainGroupName(accountId: AccountId): String? = jooq.withConnection { dsl ->
+        dsl.select(FOLLOWING_MAIN_GROUPS.NAME).from(FOLLOWING_MAIN_GROUPS)
+            .where(FOLLOWING_MAIN_GROUPS.ACCOUNT_ID.eq(accountId.value))
+            .fetchOne(FOLLOWING_MAIN_GROUPS.NAME)
     }
 
-    override fun setHomeName(accountId: AccountId, name: String) {
+    override fun setMainGroupName(accountId: AccountId, name: String) {
         jooq.withConnection { dsl ->
-            dsl.insertInto(FOLLOWING_HOME_GROUPS)
-                .set(FOLLOWING_HOME_GROUPS.ACCOUNT_ID, accountId.value)
-                .set(FOLLOWING_HOME_GROUPS.NAME, name)
-                .onConflict(FOLLOWING_HOME_GROUPS.ACCOUNT_ID).doUpdate()
-                .set(FOLLOWING_HOME_GROUPS.NAME, name)
+            dsl.insertInto(FOLLOWING_MAIN_GROUPS)
+                .set(FOLLOWING_MAIN_GROUPS.ACCOUNT_ID, accountId.value)
+                .set(FOLLOWING_MAIN_GROUPS.NAME, name)
+                .onConflict(FOLLOWING_MAIN_GROUPS.ACCOUNT_ID).doUpdate()
+                .set(FOLLOWING_MAIN_GROUPS.NAME, name)
                 .execute()
         }
     }
