@@ -245,6 +245,7 @@ private fun HomeTimelinePreview(
                 timelineRefreshing = false,
                 timelineStreamStatus = streamStatus,
                 sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -281,6 +282,7 @@ private fun HomeSearchContentPreview() {
                 timelineRefreshing = false,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -329,6 +331,48 @@ private fun HomeSearchContentPreview() {
 
 @Preview
 @Composable
+private fun HomeNotificationsContentPreview() {
+    HomePreviewTheme {
+        HomeContent(
+            uiState = HomeScreenUiState(
+                selectedTab = HomeScreenUiState.Tab.Notifications,
+                timelineColumns = listOf(),
+                timelineColumnsEmptyMessage = null,
+                addTimelineColumnButtonEnabled = true,
+                timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
+                timelineRefreshing = false,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loaded(
+                    items = previewTimelinePosts(),
+                    emptyMessage = null,
+                    refreshing = false,
+                    footer = HomeScreenUiState.TimelineFooter.None,
+                ),
+                search = HomeScreenUiState.Search(
+                    query = "",
+                    result = HomeScreenUiState.SearchResult.NotSearched,
+                ),
+                profile = HomeScreenUiState.Profile.Loading,
+                userContentTab = ProfileContentTab.Posts,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
+                userTabIconUrl = null,
+                openedColumn = null,
+                openedColumnWidth = 400.dp,
+                railItems = listOf(),
+                deleteNoteDialog = null,
+                addFollowingGroupDialog = null,
+                listener = AndroidPreviewHomeListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
+        )
+    }
+}
+
+@Preview
+@Composable
 private fun HomeSearchEmptyContentPreview() {
     HomePreviewTheme {
         HomeContent(
@@ -342,6 +386,7 @@ private fun HomeSearchEmptyContentPreview() {
                 timelineRefreshing = false,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -381,6 +426,7 @@ private fun HomeUserContentPreview() {
                 timelineRefreshing = false,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -456,6 +502,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                 timelineRefreshing = false,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -507,6 +554,7 @@ private fun HomeUserMediaContentPreview() {
                 timelineRefreshing = false,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
                     result = HomeScreenUiState.SearchResult.NotSearched,
@@ -604,6 +652,7 @@ private fun HomeColumnsPreview(
                 timelineRefreshing = false,
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
                     result = HomeScreenUiState.SearchResult.Loaded(
@@ -705,6 +754,14 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickTimelineStreamStatus() = Unit
 
     override fun onClickSensitiveImagesVisibility() = Unit
+
+    override fun onRefreshNotifications() = Unit
+
+    override fun onClickRetryNotifications() = Unit
+
+    override fun onScrolledToNotificationsEnd() = Unit
+
+    override fun onClickRetryLoadMoreNotifications() = Unit
 
     override fun onSearchQueryChanged(query: String) = Unit
 

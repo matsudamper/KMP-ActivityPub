@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
@@ -36,16 +37,21 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowingGroup
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsPageResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
+import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withNextPage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withPosts
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
@@ -98,6 +104,7 @@ internal class HomeScreenViewModel(
                     sensitiveImagesBlurred = true,
                     toggledImageUrls = setOf(),
                 ),
+                notifications = NotificationsState.Loading,
                 search = SearchState(
                     query = "",
                     result = SearchResultState.NotSearched,
@@ -126,6 +133,7 @@ internal class HomeScreenViewModel(
     private var timelineLoadRequested = false
     private var pullToRefreshIndicatorJob: Job? = null
     private var timelineArrivalsJob: Job? = null
+    private var notificationsJob: Job? = null
     private val followMenuController = FollowMenuController(
         scope = viewModelScope,
         userApi = userApi,
@@ -182,6 +190,7 @@ internal class HomeScreenViewModel(
 
         override fun onClickRailItem(column: HomeScreenUiState.Column) {
             viewModelStateFlow.update { it.copy(openedColumn = if (it.openedColumn == column) null else column) }
+            if (viewModelStateFlow.value.openedColumn == HomeScreenUiState.Column.Notifications) loadNotifications()
         }
 
         override fun onClickCloseColumn(column: HomeScreenUiState.Column) {
@@ -212,6 +221,7 @@ internal class HomeScreenViewModel(
 
         override fun onTabChanged(tab: HomeScreenUiState.Tab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
+            if (tab == HomeScreenUiState.Tab.Notifications) loadNotifications()
         }
 
         override fun onRefreshTimeline() {
@@ -242,6 +252,23 @@ internal class HomeScreenViewModel(
                     ),
                 )
             }
+        }
+
+        override fun onRefreshNotifications() {
+            loadNotifications()
+        }
+
+        override fun onClickRetryNotifications() {
+            loadNotifications()
+        }
+
+        override fun onScrolledToNotificationsEnd() {
+            loadMoreNotifications()
+        }
+
+        override fun onClickRetryLoadMoreNotifications() {
+            updateLoadedNotifications { it.copy(append = TimelineFeeds.Append.None) }
+            loadMoreNotifications()
         }
 
         override fun onSearchQueryChanged(query: String) {
@@ -306,6 +333,10 @@ internal class HomeScreenViewModel(
                 collectTimelineArrivals()
             }
             loadTimeline(TimelineLoadTrigger.ScreenShown)
+            val state = viewModelStateFlow.value
+            if (state.selectedTab == HomeScreenUiState.Tab.Notifications || state.openedColumn == HomeScreenUiState.Column.Notifications) {
+                loadNotifications()
+            }
         }
     }
 
@@ -390,6 +421,7 @@ internal class HomeScreenViewModel(
             // プロフィール画面や個別投稿画面で変えた固定もここで反映する
             userApi.pinChanges.collect { change ->
                 timelineFeeds.updatePosts { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
+                updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }) }
                 val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
                 if (myPosts != null && myPosts.profile.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
                     loadMyPosts(myPosts.profile.username)
@@ -602,6 +634,97 @@ internal class HomeScreenViewModel(
             if (it.myPosts is MyPostsState.Loaded) it else it.copy(myPosts = MyPostsState.LoadFailed(username))
         }
         events.send { it.showMessage(message) }
+    }
+
+    /**
+     * 新着を購読しないので、開くたびに 1 ページ目から読み直す。読み込み済みの通知は読み終えるまで出したままにする
+     */
+    private fun loadNotifications() {
+        notificationsJob?.cancel()
+        viewModelStateFlow.update {
+            val notifications = it.notifications
+            it.copy(
+                notifications = if (notifications is NotificationsState.Loaded) {
+                    notifications.copy(refreshing = true, append = TimelineFeeds.Append.None)
+                } else {
+                    NotificationsState.Loading
+                },
+            )
+        }
+        notificationsJob = viewModelScope.launch {
+            when (val result = userApi.fetchNotificationsPage(after = null)) {
+                is UserNotificationsPageResult.Success -> {
+                    viewModelStateFlow.update { it.copy(notifications = result.data.toNotificationsState()) }
+                }
+
+                is UserNotificationsPageResult.Failure -> {
+                    val loaded = viewModelStateFlow.value.notifications as? NotificationsState.Loaded
+                    if (loaded == null) {
+                        viewModelStateFlow.update { it.copy(notifications = NotificationsState.Failed(result.message)) }
+                    } else {
+                        updateLoadedNotifications { it.copy(refreshing = false) }
+                        events.send { it.showMessage(result.message) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadMoreNotifications() {
+        val loaded = viewModelStateFlow.value.notifications as? NotificationsState.Loaded ?: return
+        if (loaded.refreshing || loaded.append != TimelineFeeds.Append.None) return
+        val cursor = loaded.data.userInfo?.notifications?.nextCursor ?: return
+        updateLoadedNotifications { it.copy(append = TimelineFeeds.Append.Loading) }
+        notificationsJob = viewModelScope.launch {
+            when (val result = userApi.fetchNotificationsPage(after = cursor)) {
+                is UserNotificationsPageResult.Success -> updateLoadedNotifications { current ->
+                    val joined = current.data.withNextPage(result.data)
+                    if (joined == null) {
+                        current.copy(append = TimelineFeeds.Append.Failed(NOT_LOGGED_IN_MESSAGE))
+                    } else {
+                        current.copy(data = joined, append = TimelineFeeds.Append.None)
+                    }
+                }
+
+                is UserNotificationsPageResult.Failure -> updateLoadedNotifications { it.copy(append = TimelineFeeds.Append.Failed(result.message)) }
+            }
+        }
+    }
+
+    private fun updateLoadedNotifications(transform: (NotificationsState.Loaded) -> NotificationsState.Loaded) {
+        viewModelStateFlow.update {
+            val loaded = it.notifications as? NotificationsState.Loaded ?: return@update it
+            it.copy(notifications = transform(loaded))
+        }
+    }
+
+    private fun NotificationsQuery.Data.toNotificationsState(): NotificationsState {
+        if (userInfo?.notifications == null) return NotificationsState.Failed(NOT_LOGGED_IN_MESSAGE)
+        return NotificationsState.Loaded(data = this, refreshing = false, append = TimelineFeeds.Append.None)
+    }
+
+    private fun createNotifications(viewModelState: ViewModelState): HomeScreenUiState.Notifications {
+        return when (val notifications = viewModelState.notifications) {
+            NotificationsState.Loading -> HomeScreenUiState.Notifications.Loading
+
+            is NotificationsState.Failed -> HomeScreenUiState.Notifications.Error(notifications.message)
+
+            is NotificationsState.Loaded -> {
+                val items = when (val result = notifications.data.toUserNotificationsResult()) {
+                    is UserNotificationsResult.Success -> result.notifications.map { notification ->
+                        createTimelineItem(viewModelState, TimelineFeeds.Entry.Notification(notification))
+                    }
+
+                    UserNotificationsResult.NotLoggedIn -> listOf()
+                }
+                HomeScreenUiState.Notifications.Loaded(
+                    items = items,
+                    emptyMessage = if (items.isEmpty()) NOTIFICATIONS_EMPTY_MESSAGE else null,
+                    refreshing = notifications.refreshing,
+                    footer = createTimelineFooter(notifications.append),
+                )
+            }
+        }
     }
 
     private fun search(query: String) {
@@ -874,6 +997,7 @@ internal class HomeScreenViewModel(
 
     private suspend fun applyLiked(postId: String, liked: Boolean) {
         timelineFeeds.updatePosts { it.withLiked(reactionPostId = postId, liked = liked) }
+        updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withLiked(reactionPostId = postId, liked = liked) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withLiked(likePostId = postId, liked = liked)))
@@ -902,6 +1026,7 @@ internal class HomeScreenViewModel(
 
     private suspend fun applyBoosted(postId: String, boosted: Boolean) {
         timelineFeeds.updatePosts { it.withBoosted(reactionPostId = postId, boosted = boosted) }
+        updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withBoosted(reactionPostId = postId, boosted = boosted) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(reactionPostId = postId, boosted = boosted)))
@@ -931,6 +1056,7 @@ internal class HomeScreenViewModel(
      */
     private suspend fun removeDeletedNote(noteId: String) {
         timelineFeeds.removeNote(noteId)
+        updateLoadedNotifications { it.copy(data = it.data.withoutNote(noteId)) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             val profile = myPosts.profile
@@ -954,6 +1080,7 @@ internal class HomeScreenViewModel(
             timelineRefreshing = viewModelState.timeline.pullToRefreshIndicatorShowing,
             timelineStreamStatus = viewModelState.timelineStream.status(),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+            notifications = createNotifications(viewModelState),
             search = HomeScreenUiState.Search(
                 query = viewModelState.search.query,
                 result = createSearchResult(viewModelState.search, followMenu),
@@ -1393,6 +1520,7 @@ internal class HomeScreenViewModel(
         const val EDIT_TIMELINE_COLUMN_DIALOG_TITLE = "カラムを編集"
         const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "カラムの設定を端末に保存できませんでした"
         const val NOTIFICATIONS_SOURCE_NAME = "通知"
+        const val NOTIFICATIONS_EMPTY_MESSAGE = "通知はありません"
     }
 
     private enum class TimelineLoadTrigger {
@@ -1416,6 +1544,7 @@ internal class HomeScreenViewModel(
         val timelineStream: TimelineStreamState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         val imageBlur: ImageBlurState,
+        val notifications: NotificationsState,
         val search: SearchState,
         val profile: ProfileState,
         val myPosts: MyPostsState,
@@ -1507,6 +1636,23 @@ internal class HomeScreenViewModel(
         val sensitiveImagesBlurred: Boolean,
         val toggledImageUrls: Set<String>,
     )
+
+    private sealed interface NotificationsState {
+        data object Loading : NotificationsState
+
+        data class Failed(
+            val message: String,
+        ) : NotificationsState
+
+        /**
+         * @param refreshing 開き直して 1 ページ目を読み直している間
+         */
+        data class Loaded(
+            val data: NotificationsQuery.Data,
+            val refreshing: Boolean,
+            val append: TimelineFeeds.Append,
+        ) : NotificationsState
+    }
 
     private data class SearchState(
         val query: String,

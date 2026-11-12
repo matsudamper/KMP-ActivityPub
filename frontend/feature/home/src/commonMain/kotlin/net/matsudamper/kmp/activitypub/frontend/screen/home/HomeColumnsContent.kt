@@ -72,6 +72,21 @@ internal fun HomeColumnsContent(
                         when (column) {
                             HomeScreenUiState.Column.Post -> postColumn(columnModifier)
 
+                            HomeScreenUiState.Column.Notifications -> HomeColumn(
+                                title = "通知",
+                                onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Notifications) },
+                                headerActions = { ColumnCloseButton(title = "通知", onClick = { uiState.listener.onClickCloseColumn(column) }) },
+                                newPostsHiddenAbove = false,
+                                modifier = columnModifier,
+                            ) { contentModifier ->
+                                NotificationsTabContent(
+                                    listState = tabListStates.notifications,
+                                    notifications = uiState.notifications,
+                                    listener = uiState.listener,
+                                    modifier = contentModifier,
+                                )
+                            }
+
                             HomeScreenUiState.Column.Search -> HomeColumn(
                                 title = "検索",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Search) },
@@ -255,6 +270,11 @@ private fun ColumnToggleButton(
                     contentDescription = null,
                 )
 
+                HomeScreenUiState.Column.Notifications -> Icon(
+                    imageVector = AppIcons.Notifications,
+                    contentDescription = null,
+                )
+
                 HomeScreenUiState.Column.Search -> Icon(
                     imageVector = AppIcons.Search,
                     contentDescription = null,
@@ -323,6 +343,7 @@ private fun ColumnCloseButton(title: String, onClick: () -> Unit) {
 private val HomeScreenUiState.Column.label: String
     get() = when (this) {
         HomeScreenUiState.Column.Post -> "投稿"
+        HomeScreenUiState.Column.Notifications -> "通知"
         HomeScreenUiState.Column.Search -> "検索"
         HomeScreenUiState.Column.User -> "ユーザー"
     }

@@ -260,6 +260,7 @@ internal fun HomeScreen(
  */
 @Stable
 internal class HomeTabListStates(
+    val notifications: LazyListState,
     val search: LazyListState,
     val user: LazyGridState,
     private val timelineListStates: TimelineListStates,
@@ -271,6 +272,8 @@ internal class HomeTabListStates(
             // 出ていないカラムのリストはスクロールが終わらないので、タイムラインは scrollTimelineColumnToTop でカラムを選んで戻す
             HomeScreenUiState.Tab.Home -> Unit
 
+            HomeScreenUiState.Tab.Notifications -> notifications.animateScrollToItem(0)
+
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
 
             HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
@@ -280,10 +283,13 @@ internal class HomeTabListStates(
 
 @Composable
 internal fun rememberHomeTabListStates(): HomeTabListStates {
+    val notifications = rememberLazyListState()
     val search = rememberLazyListState()
     val user = rememberLazyGridState()
     val timeline = rememberSaveable(saver = TimelineListStates.Saver) { TimelineListStates(initialPositions = mapOf()) }
-    return remember(search, user, timeline) { HomeTabListStates(search = search, user = user, timelineListStates = timeline) }
+    return remember(notifications, search, user, timeline) {
+        HomeTabListStates(notifications = notifications, search = search, user = user, timelineListStates = timeline)
+    }
 }
 
 /**
@@ -373,6 +379,11 @@ internal fun HomeContent(
                                     contentDescription = null,
                                 )
 
+                                HomeScreenUiState.Tab.Notifications -> Icon(
+                                    imageVector = AppIcons.Notifications,
+                                    contentDescription = null,
+                                )
+
                                 HomeScreenUiState.Tab.Search -> Icon(
                                     imageVector = AppIcons.Search,
                                     contentDescription = null,
@@ -413,6 +424,15 @@ internal fun HomeContent(
                     TimelineTabsContent(
                         uiState = uiState,
                         tabListStates = tabListStates,
+                        modifier = contentModifier,
+                    )
+                }
+
+                HomeScreenUiState.Tab.Notifications -> {
+                    NotificationsTabContent(
+                        listState = tabListStates.notifications,
+                        notifications = uiState.notifications,
+                        listener = uiState.listener,
                         modifier = contentModifier,
                     )
                 }
@@ -1192,6 +1212,7 @@ private fun SearchAccountItem(
 private fun Screen.Home.Tab.toUiStateTab(): HomeScreenUiState.Tab {
     return when (this) {
         Screen.Home.Tab.Timeline -> HomeScreenUiState.Tab.Home
+        Screen.Home.Tab.Notifications -> HomeScreenUiState.Tab.Notifications
         Screen.Home.Tab.Search -> HomeScreenUiState.Tab.Search
         Screen.Home.Tab.User -> HomeScreenUiState.Tab.User
     }
@@ -1200,6 +1221,7 @@ private fun Screen.Home.Tab.toUiStateTab(): HomeScreenUiState.Tab {
 private fun HomeScreenUiState.Tab.toScreenTab(): Screen.Home.Tab {
     return when (this) {
         HomeScreenUiState.Tab.Home -> Screen.Home.Tab.Timeline
+        HomeScreenUiState.Tab.Notifications -> Screen.Home.Tab.Notifications
         HomeScreenUiState.Tab.Search -> Screen.Home.Tab.Search
         HomeScreenUiState.Tab.User -> Screen.Home.Tab.User
     }
@@ -1208,6 +1230,7 @@ private fun HomeScreenUiState.Tab.toScreenTab(): Screen.Home.Tab {
 private val HomeScreenUiState.Tab.label: String
     get() = when (this) {
         HomeScreenUiState.Tab.Home -> "ホーム"
+        HomeScreenUiState.Tab.Notifications -> "通知"
         HomeScreenUiState.Tab.Search -> "検索"
         HomeScreenUiState.Tab.User -> "ユーザー"
     }
@@ -1216,7 +1239,7 @@ private val HomeScreenUiState.Tab.label: String
  * ドラッグの移動量は指を離した後にまとめて処理されることがあるため、離した時点では判定を切り替えない。
  * 次にホイールが回るか押下されるまで、直前の入力の種類を保つ
  */
-private class WheelPullToRefreshBlocker : NestedScrollConnection {
+internal class WheelPullToRefreshBlocker : NestedScrollConnection {
     val modifier: Modifier = Modifier
         .pointerInput(Unit) {
             awaitPointerEventScope {
