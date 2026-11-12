@@ -26,6 +26,10 @@ data class HomeScreenUiState(
      * 出していなければ null
      */
     val timelineColumnEditDialog: TimelineColumnEditDialog?,
+    /**
+     * 出していなければ null
+     */
+    val timelineColumnDeleteDialog: TimelineColumnDeleteDialog?,
     val timelineRefreshing: Boolean,
     val timelineFooter: TimelineFooter,
     val timelineStreamStatus: TimelineStreamStatus,
@@ -115,6 +119,21 @@ data class HomeScreenUiState(
             fun onClickAllSources()
 
             fun onClickSave()
+
+            fun onDismiss()
+        }
+    }
+
+    /**
+     * カラムを消す前に確かめるダイアログ
+     */
+    data class TimelineColumnDeleteDialog(
+        val message: String,
+        val listener: Listener,
+    ) {
+        @Immutable
+        interface Listener {
+            fun onClickDelete()
 
             fun onDismiss()
         }
