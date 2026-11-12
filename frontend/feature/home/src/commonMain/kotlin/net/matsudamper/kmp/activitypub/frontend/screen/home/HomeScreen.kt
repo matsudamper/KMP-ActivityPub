@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -38,6 +39,7 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -76,9 +78,16 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -98,6 +107,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.zIndex
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -518,7 +528,8 @@ private fun TimelineTabsContent(
                 onClickAdd = uiState.listener::onClickAddTimelineColumn,
             )
         }
-        HorizontalDivider()
+        val selectedListState = uiState.timelineColumns.getOrNull(selectedIndex)?.let { tabListStates.timeline(it.listStateKey) }
+        TimelineHeaderDivider(newPostsHiddenAbove = selectedListState?.canScrollBackward == true)
         val emptyMessage = uiState.timelineColumnsEmptyMessage
         val contentModifier = Modifier.fillMaxWidth().weight(1f)
         if (selectedIndex >= 0) {
@@ -707,6 +718,46 @@ internal fun SensitiveImagesVisibilityButton(
         }
     }
 }
+
+/**
+ * 先頭から離れている間は、購読で届いた新しい投稿が上に足されて見えないので、見出しとの境の線を青くして知らせる。
+ * 青は左右対称に両端へ、また一覧側へ薄れて透明になる。
+ * 帯で一覧を押し下げないよう、場所は元の線の太さのまま取り、帯ははみ出して一覧の上に重ねて描く
+ */
+@Composable
+internal fun TimelineHeaderDivider(newPostsHiddenAbove: Boolean) {
+    if (newPostsHiddenAbove) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(DividerDefaults.Thickness)
+                .zIndex(1f)
+                .drawBehind {
+                    val gradientSize = Size(width = size.width, height = NewPostsHiddenGradientHeight.toPx())
+                    // 縦の濃さに横の濃さを掛け合わせるため、2 つ目の塗りを 1 つ目の透明度として使う。重ねる先を一覧と分けておかないと一覧まで消える
+                    drawIntoCanvas { canvas -> canvas.saveLayer(gradientSize.toRect(), Paint()) }
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(NewPostsHiddenGradientColor, Color.Transparent),
+                            endY = gradientSize.height,
+                        ),
+                        size = gradientSize,
+                    )
+                    drawRect(
+                        brush = Brush.horizontalGradient(listOf(Color.Transparent, Color.Black, Color.Transparent)),
+                        size = gradientSize,
+                        blendMode = BlendMode.DstIn,
+                    )
+                    drawIntoCanvas { canvas -> canvas.restore() }
+                },
+        )
+    } else {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+private val NewPostsHiddenGradientColor = Color(0xFF1E88E5)
+private val NewPostsHiddenGradientHeight = 8.dp
 
 @Composable
 internal fun TimelineTabContent(
