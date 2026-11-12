@@ -21,6 +21,7 @@ private fun SettingsContentDarkPreview() {
         SettingsContent(
             uiState = previewSettingsUiState.copy(
                 themeOptions = previewThemeOptions(selected = 2),
+                linkOpenOptions = previewLinkOpenOptions(selected = 1),
                 adminItemVisible = true,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -28,23 +29,31 @@ private fun SettingsContentDarkPreview() {
     }
 }
 
-private fun previewThemeOptions(selected: Int): List<SettingsScreenUiState.ThemeOption> =
-    listOf("端末の設定に合わせる", "ライト", "ダーク").mapIndexed { index, label ->
-        SettingsScreenUiState.ThemeOption(
+private fun previewThemeOptions(selected: Int): List<SettingsScreenUiState.RadioOption> =
+    previewRadioOptions(labels = listOf("端末の設定に合わせる", "ライト", "ダーク"), selected = selected)
+
+private fun previewLinkOpenOptions(selected: Int): List<SettingsScreenUiState.RadioOption> =
+    previewRadioOptions(labels = listOf("アプリ内（カスタムタブ）", "外部ブラウザ"), selected = selected)
+
+private fun previewRadioOptions(labels: List<String>, selected: Int): List<SettingsScreenUiState.RadioOption> =
+    labels.mapIndexed { index, label ->
+        SettingsScreenUiState.RadioOption(
             label = label,
             selected = index == selected,
-            listener = AndroidPreviewThemeOptionListener,
+            listener = AndroidPreviewRadioOptionListener,
         )
     }
 
 private val previewSettingsUiState = SettingsScreenUiState(
     themeOptions = previewThemeOptions(selected = 0),
+    linkOpenSectionVisible = true,
+    linkOpenOptions = previewLinkOpenOptions(selected = 0),
     logoutButtonEnabled = true,
     adminItemVisible = false,
     listener = AndroidPreviewSettingsListener,
 )
 
-private object AndroidPreviewThemeOptionListener : SettingsScreenUiState.ThemeOptionListener {
+private object AndroidPreviewRadioOptionListener : SettingsScreenUiState.RadioOptionListener {
     override fun onClick() = Unit
 }
 

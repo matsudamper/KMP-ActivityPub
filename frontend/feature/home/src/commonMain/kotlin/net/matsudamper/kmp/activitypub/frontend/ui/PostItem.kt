@@ -187,12 +187,16 @@ internal fun PostItem(
                     )
                 }
             }
-            Text(
-                text = uiState.postedAt,
-                style = sizes.secondaryTextStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
+            when (style) {
+                PostItemStyle.Timeline -> Text(
+                    text = uiState.postedAt,
+                    style = sizes.secondaryTextStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+
+                PostItemStyle.Detail -> Unit
+            }
         }
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -250,6 +254,14 @@ internal fun PostItem(
                         )
                     }
                 }
+            }
+            if (style == PostItemStyle.Detail) {
+                Text(
+                    text = uiState.fullPostedAt,
+                    modifier = Modifier.padding(top = 8.dp),
+                    style = sizes.secondaryTextStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             PostActions(uiState = uiState, sizes = sizes)
             if (uiState.stamps.isNotEmpty()) {

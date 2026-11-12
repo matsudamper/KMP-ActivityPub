@@ -22,8 +22,22 @@ class PostedAtTextTest {
     }
 
     @Test
-    fun sameYearShowsMonthAndDay() {
-        assertEquals("11/04", text("2026-11-04T12:00:00Z"))
+    fun underOneWeekShowsDays() {
+        assertEquals("1日前", text("2026-11-04T12:00:00Z"))
+        assertEquals("6日前", text("2026-10-29T12:00:01Z"))
+    }
+
+    @Test
+    fun underFourWeeksShowsWeeks() {
+        assertEquals("1週間前", text("2026-10-29T12:00:00Z"))
+        assertEquals("2週間前", text("2026-10-22T12:00:00Z"))
+        assertEquals("3週間前", text("2026-10-15T12:00:00Z"))
+        assertEquals("3週間前", text("2026-10-08T12:00:01Z"))
+    }
+
+    @Test
+    fun fourWeeksOrMoreShowsMonthAndDay() {
+        assertEquals("10/08", text("2026-10-08T12:00:00Z"))
     }
 
     @Test
@@ -36,6 +50,12 @@ class PostedAtTextTest {
     @Test
     fun unparsableIsReturnedAsIs() {
         assertEquals("2026-11-01", text("2026-11-01"))
+    }
+
+    @Test
+    fun fullTextIsZeroPaddedInTimeZone() {
+        assertEquals("2026/01/02 03:04", createFullPostedAtText("2026-01-01T18:04:00Z", timeZone))
+        assertEquals("2026-01-01", createFullPostedAtText("2026-01-01", timeZone))
     }
 
     private fun text(publishedAt: String): String = createPostedAtText(publishedAt = publishedAt, now = now, timeZone = timeZone)
