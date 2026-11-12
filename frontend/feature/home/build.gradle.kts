@@ -48,6 +48,7 @@ kotlin {
                 implementation(libs.koin.annotations)
                 implementation(libs.koin.compose.viewmodel)
                 implementation(libs.coil.compose)
+                implementation("org.jetbrains.compose.ui:ui-tooling-preview:${libs.versions.compose.get()}")
             }
         }
 
@@ -62,7 +63,6 @@ kotlin {
 
         androidMain {
             dependencies {
-                implementation(libs.androidx.compose.ui.tooling.preview)
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.exifinterface)
                 implementation(libs.coil.network.okhttp)
@@ -70,4 +70,9 @@ kotlin {
             }
         }
     }
+}
+
+// Android Studio の Compose Preview に必要な実行時クラスを提供する。
+dependencies {
+    add("androidRuntimeClasspath", "org.jetbrains.compose.ui:ui-tooling:${libs.versions.compose.get()}")
 }
