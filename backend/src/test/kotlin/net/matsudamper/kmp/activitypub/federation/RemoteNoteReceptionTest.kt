@@ -116,7 +116,7 @@ class RemoteNoteReceptionTest {
             override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
                 RemoteNoteReceptionInterest(if (fixture.repositories.followingRepository.contains(fixture.accountId, actorUri)) 1 else 0, localRecipients.size.toLong())
         }
-        val receiver = ReceivedRemoteNotes(repository, fixture.remote, fixture.repositories.remoteActorRepository, fixture.directory, fixture.timeline, Clock.systemUTC())
+        val receiver = ReceivedRemoteNotes(repository, fixture.remote, fixture.repositories.remoteActorRepository, fixture.directory, fixture.timeline, Clock.systemUTC(), repository::deleteRemote)
         receiver.save(note(listOf()))
         assertTrue(stored.received.isEmpty())
         assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
@@ -174,6 +174,7 @@ class RemoteNoteReceptionTest {
                 fixture.directory,
                 fixture.timeline,
                 Clock.systemUTC(),
+                repository::deleteRemote,
                 telemetry,
             )
             val request = telemetry.getTracer("test").spanBuilder("inbox request").startSpan()
@@ -331,7 +332,17 @@ class RemoteNoteReceptionTest {
             },
         )
         val timeline = HomeTimelineService(repositories.timelineRepository, FakeTimelineStore(mutableListOf()), Clock.systemUTC())
-        val receiver = ReceivedRemoteNotes(repositories.timelineRepository, remote, repositories.remoteActorRepository, directory, timeline, Clock.systemUTC(), openTelemetry)
+        val receiver =
+            ReceivedRemoteNotes(
+                repositories.timelineRepository,
+                remote,
+                repositories.remoteActorRepository,
+                directory,
+                timeline,
+                Clock.systemUTC(),
+                repositories.timelineRepository::deleteRemote,
+                openTelemetry,
+            )
         val delivery = QueuedFollowDelivery(
             AccountService(repositories.accountRepository),
             directory,

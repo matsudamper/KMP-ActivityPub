@@ -7,6 +7,7 @@ sealed interface UserProfileResult {
      * @param iconUrl プロフィール画像が無ければ null
      * @param headerUrl ヘッダー画像が無ければ null
      * @param actorUri フォローできない相手（このサーバーのユーザー）は null
+     * @param viewerIsOwner ログイン中のアカウント本人のプロフィールか
      */
     data class Found(
         val actorUri: String?,
@@ -21,6 +22,7 @@ sealed interface UserProfileResult {
         val biography: String?,
         val links: List<UserProfileLink>,
         val posts: List<Post>,
+        val viewerIsOwner: Boolean,
     ) : UserProfileResult
 
     data object NotFound : UserProfileResult
@@ -32,6 +34,7 @@ sealed interface UserProfileResult {
      * @param pinned プロフィールの先頭に固定されているか
      * @param pinnableNoteId ログイン中のアカウントのプロフィールの投稿なら [UserApi.setPinned] に渡す id。固定できない投稿は null
      * @param likePostId [UserApi.setLiked] に渡す id。いいねできない投稿は null
+     * @param reactionPostId [UserApi.setBoosted] に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。付け外しできない投稿は null
      * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
      */
     data class Post(
@@ -41,6 +44,7 @@ sealed interface UserProfileResult {
         val pinned: Boolean,
         val pinnableNoteId: String?,
         val likePostId: String?,
+        val reactionPostId: String?,
         val body: UserPostBody,
         val boostedNoteAuthor: Author?,
     )
@@ -66,6 +70,13 @@ sealed interface UserProfileResult {
  */
 fun UserProfileResult.Found.withLiked(likePostId: String, liked: Boolean): UserProfileResult.Found {
     return copy(posts = posts.map { if (it.likePostId == likePostId) it.copy(body = it.body.withLiked(liked)) else it })
+}
+
+/**
+ * ブーストを変えた結果を、取得し直さずに反映する
+ */
+fun UserProfileResult.Found.withBoosted(reactionPostId: String, boosted: Boolean): UserProfileResult.Found {
+    return copy(posts = posts.map { if (it.reactionPostId == reactionPostId) it.copy(body = it.body.withBoosted(boosted)) else it })
 }
 
 /**

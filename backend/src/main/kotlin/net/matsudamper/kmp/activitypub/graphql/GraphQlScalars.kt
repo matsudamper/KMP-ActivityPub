@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 object GraphQlScalars {
     /**
@@ -56,6 +57,13 @@ object GraphQlScalars {
             .newScalar()
             .name("FollowingGroupId")
             .coercing(LongIdCoercing(name = "FollowingGroupId", type = FollowingGroupId::class.java, wrap = ::FollowingGroupId, unwrap = FollowingGroupId::value))
+            .build()
+
+    val timelinePostId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("TimelinePostId")
+            .coercing(StringIdCoercing(name = "TimelinePostId", type = TimelinePostId::class.java, wrap = ::TimelinePostId, unwrap = TimelinePostId::value))
             .build()
 
     /**

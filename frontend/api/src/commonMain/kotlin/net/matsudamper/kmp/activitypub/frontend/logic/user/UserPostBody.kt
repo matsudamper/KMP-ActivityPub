@@ -10,6 +10,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * @param emojis [content] と [summary] に入るカスタム絵文字
  * @param shareUrl 共有するときに渡す投稿の URL。作れなければ null
  * @param likedByMe ログイン中のアカウントがいいねしているか。いいねできない投稿は null
+ * @param boostedByMe ログイン中のアカウントがブーストしているか。ブーストできない投稿は null
  */
 data class UserPostBody(
     val content: String,
@@ -24,6 +25,7 @@ data class UserPostBody(
     val emojis: List<UserCustomEmoji>,
     val shareUrl: String?,
     val likedByMe: Boolean?,
+    val boostedByMe: Boolean?,
 )
 
 /**
@@ -43,5 +45,16 @@ fun UserPostBody.withLiked(liked: Boolean): UserPostBody {
     return copy(
         likedByMe = liked,
         favouriteCount = favouriteCount?.let { count -> if (liked) count + 1 else (count - 1).coerceAtLeast(0) },
+    )
+}
+
+/**
+ * 数は自分のブーストの分だけ増減させる。他の人のブーストは取り直すまで分からない
+ */
+fun UserPostBody.withBoosted(boosted: Boolean): UserPostBody {
+    if (boostedByMe == boosted) return this
+    return copy(
+        boostedByMe = boosted,
+        boostCount = boostCount?.let { count -> if (boosted) count + 1 else (count - 1).coerceAtLeast(0) },
     )
 }

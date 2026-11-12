@@ -11,5 +11,8 @@ scalar PublicNoteId
 "フォローを仕分けるグループの識別子"
 scalar FollowingGroupId
 
+"タイムラインに並ぶ投稿の識別子"
+scalar TimelinePostId
+
 "multipart で送るファイル。GraphQL multipart request の形で送る"
 scalar Upload

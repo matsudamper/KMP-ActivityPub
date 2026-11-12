@@ -40,9 +40,13 @@ interface FollowerRepository {
     fun removeAccount(username: String): Int
 
     /**
+     * 消えた相手のアクターと、その相手の投稿を消す。相手の投稿へのこのサーバーのアカウントのブーストも外し、Announce を届けた宛先に Undo を積む。
+     * 相手の削除がこちらのフォロワーのサーバーに届くとは限らないので、ブーストを届けた宛先にはこちらから取り消しを送る
+     *
+     * @param now Undo を積む時刻
      * @return 外れたフォローの数
      */
-    fun removeRemoteActor(actorUri: String): Int
+    fun removeRemoteActor(actorUri: String, now: Instant): Int
 
     fun findPublicKeyPem(actorUri: String): String?
 

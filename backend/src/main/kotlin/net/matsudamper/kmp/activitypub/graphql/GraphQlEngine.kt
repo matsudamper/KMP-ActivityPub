@@ -155,7 +155,15 @@ class GraphQlEngine private constructor(
                     .newParser()
                     .schemaString(readSchema())
                     .resolvers(resolvers)
-                    .scalars(GraphQlScalars.userId, GraphQlScalars.passkeyCredentialId, GraphQlScalars.noteImageId, GraphQlScalars.publicNoteId, GraphQlScalars.followingGroupId, GraphQlScalars.upload)
+                    .scalars(
+                        GraphQlScalars.userId,
+                        GraphQlScalars.passkeyCredentialId,
+                        GraphQlScalars.noteImageId,
+                        GraphQlScalars.publicNoteId,
+                        GraphQlScalars.followingGroupId,
+                        GraphQlScalars.timelinePostId,
+                        GraphQlScalars.upload,
+                    )
                     .build()
                     .makeExecutableSchema()
 

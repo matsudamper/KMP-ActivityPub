@@ -67,8 +67,35 @@ private fun UserProfileContentPreview() {
                                 images = listOf(),
                                 favouriteCountText = "12",
                                 boostCountText = "4",
-                                favouriteButton = null,
+                                favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = true, listener = AndroidPreviewFavouriteButtonListener),
+                                boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
                                 stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
+                                authorListener = null,
+                                menuItems = listOf(),
+                                postListener = null,
+                                shareListener = null,
+                                listener = AndroidPreviewPostItemListener,
+                            ),
+                            PostItemUiState(
+                                pinnedLabelVisible = false,
+                                boostedBy = PostItemUiState.BoostedBy(
+                                    text = createTextWithEmojis(text = "Alice がブースト", emojis = listOf()),
+                                    iconUrl = null,
+                                    cancelledLabelVisible = true,
+                                    listener = null,
+                                ),
+                                iconUrl = null,
+                                displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+                                acct = "@bob@remote.example",
+                                body = createPostBodyText(content = "フォローしていない人の投稿もブーストできます", emojis = listOf(), onOpenUrl = {}),
+                                postedAt = "2026-11-01T13:00:00Z",
+                                linkPreviews = listOf(),
+                                images = listOf(),
+                                favouriteCountText = null,
+                                boostCountText = null,
+                                favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
+                                boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+                                stamps = listOf(),
                                 authorListener = null,
                                 menuItems = listOf(),
                                 postListener = null,
@@ -221,5 +248,13 @@ private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewLi
 }
 
 private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
     override fun onClick() = Unit
 }

@@ -59,7 +59,7 @@ internal class AccountFollowerStore(
 
     override fun removeAccount(username: String): Int = followerRepository.removeAccount(username)
 
-    override fun removeRemoteActor(actorUri: String): Int = followerRepository.removeRemoteActor(actorUri)
+    override fun removeRemoteActor(actorUri: String): Int = followerRepository.removeRemoteActor(actorUri, Instant.now())
 
     override fun findPublicKeyPem(actorUri: String): String? = followerRepository.findPublicKeyPem(actorUri)
 

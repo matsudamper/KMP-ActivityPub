@@ -185,7 +185,7 @@ class FollowerRepositoryTest {
             val followers = repositories.followerRepository
             followers.recordFollow(FOLLOWER)
 
-            assertEquals(1, followers.removeRemoteActor(FOLLOWER.actorUri))
+            assertEquals(1, followers.removeRemoteActor(FOLLOWER.actorUri, NOW))
 
             assertNull(followers.findPublicKeyPem(FOLLOWER.actorUri))
             assertEquals(listOf(), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10))

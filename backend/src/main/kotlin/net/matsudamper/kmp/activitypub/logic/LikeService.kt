@@ -25,19 +25,26 @@ class LikeService(
 ) {
     /**
      * @param postId タイムラインの投稿の id。他のサーバーの投稿もこのサーバーの投稿も受け付ける
+     * @return 外すときは、いいねしていない投稿でも [SetLikedResult.Updated]
      */
     fun setLiked(accountId: AccountId?, postId: String, liked: Boolean): SetLikedResult {
         if (accountId == null) return SetLikedResult.NotLoggedIn
         val account = accountService.account(accountId) ?: return SetLikedResult.NotLoggedIn
         val sender = directory.resolve(account.username) ?: return SetLikedResult.NotLoggedIn
-        val enqueued = when (val target = likes.target(accountId, postId) ?: return SetLikedResult.PostNotFound) {
-            // このサーバーの投稿は配らずに記録だけする
-            LikeTarget.Local -> {
-                if (liked) likes.likeLocal(accountId, postId, clock.instant()) else likes.unlikeLocal(accountId, postId)
-                false
-            }
+        val enqueued = if (liked) {
+            when (val target = likes.target(accountId, postId) ?: return SetLikedResult.PostNotFound) {
+                // このサーバーの投稿は配らずに記録だけする
+                LikeTarget.Local -> {
+                    likes.likeLocal(accountId, postId, clock.instant())
+                    false
+                }
 
-            is LikeTarget.Remote -> setRemoteLiked(accountId = accountId, senderActorId = sender.actorId, postId = postId, target = target, liked = liked)
+                is LikeTarget.Remote -> likeRemote(accountId = accountId, senderActorId = sender.actorId, postId = postId, target = target)
+            }
+        } else {
+            // 外すときは今読めるかを問わない。投稿者のフォローを外した後でも、付けたいいねを外せるようにする
+            val unlikedLocal = likes.unlikeLocal(accountId, postId)
+            !unlikedLocal && unlikeRemote(accountId = accountId, senderActorId = sender.actorId, postId = postId)
         }
         if (enqueued) onEnqueued()
         return SetLikedResult.Updated
@@ -46,29 +53,32 @@ class LikeService(
     /**
      * @return 配信を積んだら true
      */
-    private fun setRemoteLiked(accountId: AccountId, senderActorId: String, postId: String, target: LikeTarget.Remote, liked: Boolean): Boolean {
-        return if (liked) {
-            val like = LikeActivities.like(
-                id = "$senderActorId/likes/${UUID.randomUUID()}",
-                actor = senderActorId,
-                objectUri = target.objectUri,
-            )
-            likes.likeAndEnqueue(
-                OutgoingLike(
-                    accountId = accountId,
-                    member = postId,
-                    likeId = like.id,
-                    inbox = target.inbox,
-                    body = AppJson.encodeToString(OutgoingActivity.serializer(), like),
-                    likedAt = clock.instant(),
-                ),
-            )
-        } else {
-            likes.unlikeAndEnqueueUndo(accountId = accountId, member = postId, inbox = target.inbox, now = clock.instant()) { likeId ->
-                val like = LikeActivities.like(id = likeId, actor = senderActorId, objectUri = target.objectUri)
-                val undo = LikeActivities.undo(id = "$senderActorId/undo/${UUID.randomUUID()}", like = like)
-                AppJson.encodeToString(OutgoingActivity.serializer(), undo)
-            }
+    private fun likeRemote(accountId: AccountId, senderActorId: String, postId: String, target: LikeTarget.Remote): Boolean {
+        val like = LikeActivities.like(
+            id = "$senderActorId/likes/${UUID.randomUUID()}",
+            actor = senderActorId,
+            objectUri = target.objectUri,
+        )
+        return likes.likeAndEnqueue(
+            OutgoingLike(
+                accountId = accountId,
+                member = postId,
+                likeId = like.id,
+                inbox = target.inbox,
+                body = AppJson.encodeToString(OutgoingActivity.serializer(), like),
+                likedAt = clock.instant(),
+            ),
+        )
+    }
+
+    /**
+     * @return 外したら true
+     */
+    private fun unlikeRemote(accountId: AccountId, senderActorId: String, postId: String): Boolean {
+        return likes.unlikeAndEnqueueUndo(accountId = accountId, member = postId, now = clock.instant()) { likeId, objectUri ->
+            val like = LikeActivities.like(id = likeId, actor = senderActorId, objectUri = objectUri)
+            val undo = LikeActivities.undo(id = "$senderActorId/undo/${UUID.randomUUID()}", like = like)
+            AppJson.encodeToString(OutgoingActivity.serializer(), undo)
         }
     }
 }

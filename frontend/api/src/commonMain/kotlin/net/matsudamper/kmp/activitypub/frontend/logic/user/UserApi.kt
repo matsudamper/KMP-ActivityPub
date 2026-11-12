@@ -40,6 +40,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.SetBoostedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetPinnedMutation
@@ -55,6 +56,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGrou
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetBoostedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetPinnedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
@@ -97,6 +99,12 @@ class UserApi(
      * [setPinned] で変えられた固定。どの画面で変えても、プロフィールの投稿を出している画面がここで並べ直す
      */
     val pinChanges = pinChangesFlow.asSharedFlow()
+    private val boostChangesFlow = MutableSharedFlow<BoostChange>()
+
+    /**
+     * [setBoosted] で変えられたブースト。どの画面で変えても、同じ投稿を出している画面がここで表示を合わせる
+     */
+    val boostChanges = boostChangesFlow.asSharedFlow()
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
@@ -170,6 +178,7 @@ class UserApi(
                     emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                     shareUrl = post.url,
                     likedByMe = post.likedByMe,
+                    boostedByMe = post.boostedByMe,
                 ),
                 boostedBy = post.boostedBy?.let {
                     UserHomeTimelineResult.Booster(
@@ -182,6 +191,7 @@ class UserApi(
                         iconUrl = it.iconUrl,
                     )
                 },
+                reactionPostId = post.reactionPostId,
                 deletableNoteId = post.deletableNoteId,
                 pinnableNoteId = post.pinnableNoteId,
                 pinned = post.pinned,
@@ -318,7 +328,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.likePostId]
+     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.likePostId]
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun setLiked(postId: String, liked: Boolean): String? {
@@ -336,6 +346,31 @@ class UserApi(
             SetLikedFailure.FEDERATION_DISABLED,
             SetLikedFailure.UNKNOWN__,
             -> "いいねを変更できませんでした"
+        }
+    }
+
+    /**
+     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.reactionPostId]
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun setBoosted(postId: String, boosted: Boolean): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(SetBoostedMutation(postId = postId, boosted = boosted)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.setBoosted ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> {
+                boostChangesFlow.emit(BoostChange(reactionPostId = postId, boosted = boosted))
+                null
+            }
+
+            SetBoostedFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            SetBoostedFailure.POST_NOT_FOUND -> "この投稿はブーストできません"
+
+            SetBoostedFailure.FEDERATION_DISABLED,
+            SetBoostedFailure.UNKNOWN__,
+            -> "ブーストを変更できませんでした"
         }
     }
 
@@ -510,6 +545,7 @@ class UserApi(
             headerUrl = profile.headerUrl,
             biography = profile.biography,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
+            viewerIsOwner = profile.viewerIsOwner,
             posts = profile.posts.map {
                 UserProfileResult.Post(
                     linkPreviewId = it.linkPreviewId,
@@ -518,6 +554,7 @@ class UserApi(
                     pinned = it.pinned,
                     pinnableNoteId = it.pinnableNoteId,
                     likePostId = it.like?.postId,
+                    reactionPostId = it.reactionPostId,
                     body = UserPostBody(
                         content = it.content,
                         publishedAt = it.publishedAt,
@@ -531,6 +568,7 @@ class UserApi(
                         emojis = it.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                         shareUrl = it.url,
                         likedByMe = it.like?.likedByMe,
+                        boostedByMe = it.boostedByMe,
                     ),
                     boostedNoteAuthor = it.boostedNoteAuthor?.let { author ->
                         UserProfileResult.Author(
@@ -761,6 +799,14 @@ class UserApi(
     )
 
     /**
+     * @param reactionPostId [UserHomeTimelineResult.Post.reactionPostId]
+     */
+    data class BoostChange(
+        val reactionPostId: String,
+        val boosted: Boolean,
+    )
+
+    /**
      * @param groupId 購読を入れたグループ。購読をやめたか、ホームに入れたなら null
      */
     data class PinChange(
@@ -800,6 +846,7 @@ class UserApi(
                                 emojis = post.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                                 shareUrl = post.url,
                                 likedByMe = post.likedByMe,
+                                boostedByMe = post.boostedByMe,
                             ),
                             boostedBy = post.boostedBy?.let {
                                 UserHomeTimelineResult.Booster(
@@ -812,6 +859,7 @@ class UserApi(
                                     iconUrl = it.iconUrl,
                                 )
                             },
+                            reactionPostId = post.reactionPostId,
                             deletableNoteId = post.deletableNoteId,
                             pinnableNoteId = post.pinnableNoteId,
                             pinned = post.pinned,

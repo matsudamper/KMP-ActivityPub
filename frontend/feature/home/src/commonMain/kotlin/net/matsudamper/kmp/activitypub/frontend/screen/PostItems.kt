@@ -36,6 +36,7 @@ internal fun createPostItemUiState(
     onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
     onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
+    onToggleBoost: () -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     val shareUrl = body.shareUrl
@@ -46,10 +47,11 @@ internal fun createPostItemUiState(
             PostItemUiState.BoostedBy(
                 text = createTextWithEmojis(text = "${booster.displayName} がブースト", emojis = booster.displayNameEmojis),
                 iconUrl = booster.iconUrl,
+                cancelledLabelVisible = boosted.byViewer && body.boostedByMe == false,
                 listener = boosted.navigateToProfile?.let { navigateToProfile ->
                     object : PostItemUiState.BoostedByListener {
                         override fun onClick() {
-                            navigateToProfile("${booster.username}@${booster.host}")
+                            navigateToProfile(booster.host?.let { host -> "${booster.username}@$host" } ?: booster.username)
                         }
                     }
                 },
@@ -87,6 +89,16 @@ internal fun createPostItemUiState(
                 listener = object : PostItemUiState.FavouriteButtonListener {
                     override fun onClick() {
                         onToggleLike()
+                    }
+                },
+            )
+        },
+        boostButton = body.boostedByMe?.let { boosted ->
+            PostItemUiState.BoostButton(
+                iconHighlighted = boosted,
+                listener = object : PostItemUiState.BoostButtonListener {
+                    override fun onClick() {
+                        onToggleBoost()
                     }
                 },
             )
@@ -166,9 +178,11 @@ internal sealed interface AuthorTapAction {
 }
 
 /**
- * @param navigateToProfile username はブーストした相手の user@host。ブーストした相手のプロフィールを見ているときは null
+ * @param navigateToProfile username はブーストした相手の user@host。このサーバーのアカウントなら user だけ。ブーストした相手のプロフィールを見ているときは null
+ * @param byViewer ログイン中のアカウントのブーストか。外した後は取り消しのラベルを出す
  */
 internal class Boost(
     val booster: UserHomeTimelineResult.Booster,
+    val byViewer: Boolean,
     val navigateToProfile: ((username: String) -> Unit)?,
 )

@@ -18,6 +18,8 @@ internal class FakeTimelineRepository : TimelineRepository {
     val received = mutableListOf<RemoteNoteInput>()
     val receivedBoosts = mutableListOf<RemoteBoostInput>()
     val actorPosts = mutableListOf<TimelinePost>()
+    val accountBoosts = mutableListOf<TimelinePost>()
+    val storedFetchedNotes = mutableMapOf<String, TimelinePost>()
 
     var interested = true
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
@@ -48,7 +50,7 @@ internal class FakeTimelineRepository : TimelineRepository {
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
         TimelinePost(
-            it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), listOf(), listOf(), null, listOf(), false,
+            it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), listOf(), listOf(), null, listOf(), false, null, it.member,
             TimelineNoteRef.Local(
                 PublicNoteId(it.member),
             ),
@@ -60,6 +62,11 @@ internal class FakeTimelineRepository : TimelineRepository {
         actorPosts.filter { (it.boostedBy?.actorUri ?: it.actorUri) == actorUri }.take(limit)
 
     override fun localPosition(publicId: String): TimelinePosition? = null
+
+    override fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost> = accountBoosts.toList()
+
+    override fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost> =
+        storedFetchedNotes.filterKeys { objectUri -> notes.any { it.objectUri == objectUri } }
 
     private fun sorted(): List<TimelinePosition> = positions.sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })
 }

@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
@@ -69,6 +70,7 @@ internal class UserProfileScreenViewModel(
      * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChangingPostIds = setOf<String>()
+    private var boostChangingPostIds = setOf<String>()
 
     /**
      * 続けて押されたときに送り違えないよう、返事までは受け付けない
@@ -138,6 +140,10 @@ internal class UserProfileScreenViewModel(
                     }
                 }
             }
+        }
+        viewModelScope.launch {
+            // ほかの画面で変えたブーストもここで反映する
+            api.boostChanges.collect { change -> applyBoosted(postId = change.reactionPostId, boosted = change.boosted) }
         }
         viewModelScope.launch {
             // 固定の変更はこの画面のものも他の画面のものもここで届く
@@ -219,6 +225,26 @@ internal class UserProfileScreenViewModel(
         }
     }
 
+    /**
+     * @param boostedByMe 押す前の状態
+     */
+    private fun toggleBoost(postId: String, boostedByMe: Boolean) {
+        if (postId in boostChangingPostIds) return
+        boostChangingPostIds = boostChangingPostIds + postId
+        viewModelScope.launch {
+            try {
+                applyBoosted(postId = postId, boosted = !boostedByMe)
+                val error = api.setBoosted(postId = postId, boosted = !boostedByMe)
+                if (error != null) {
+                    applyBoosted(postId = postId, boosted = boostedByMe)
+                    events.send { it.showMessage(error) }
+                }
+            } finally {
+                boostChangingPostIds = boostChangingPostIds - postId
+            }
+        }
+    }
+
     private fun setPinned(pinnableNoteId: String, pinned: Boolean) {
         if (pinnableNoteId in pinChangingNoteIds) return
         pinChangingNoteIds = pinChangingNoteIds + pinnableNoteId
@@ -229,6 +255,12 @@ internal class UserProfileScreenViewModel(
             } finally {
                 pinChangingNoteIds = pinChangingNoteIds - pinnableNoteId
             }
+        }
+    }
+
+    private fun applyBoosted(postId: String, boosted: Boolean) {
+        updateProfile { profile ->
+            if (profile is ProfileState.Loaded) profile.copy(profile = profile.profile.withBoosted(reactionPostId = postId, boosted = boosted)) else profile
         }
     }
 
@@ -347,6 +379,7 @@ internal class UserProfileScreenViewModel(
                                 displayNameEmojis = profile.displayNameEmojis,
                                 iconUrl = profile.iconUrl,
                             ),
+                            byViewer = profile.viewerIsOwner,
                             navigateToProfile = null,
                         )
                     },
@@ -377,6 +410,11 @@ internal class UserProfileScreenViewModel(
                         val likePostId = post.likePostId
                         val likedByMe = post.body.likedByMe
                         if (likePostId != null && likedByMe != null) toggleLike(likePostId = likePostId, likedByMe = likedByMe)
+                    },
+                    onToggleBoost = {
+                        val reactionPostId = post.reactionPostId
+                        val boostedByMe = post.body.boostedByMe
+                        if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                     },
                     onVisible = {
                         if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {

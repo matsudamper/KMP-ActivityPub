@@ -1,0 +1,7 @@
+mutation SetBoosted($postId: TimelinePostId!, $boosted: Boolean!) {
+    user {
+        setBoosted(postId: $postId, boosted: $boosted) {
+            failure
+        }
+    }
+}

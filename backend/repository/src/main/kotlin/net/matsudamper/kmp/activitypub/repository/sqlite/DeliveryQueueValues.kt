@@ -18,6 +18,19 @@ internal object DeliveryQueueValues {
      */
     const val KIND_CANCELLED_LIKE = "cancelled_like"
 
+    const val KIND_ANNOUNCE = "announce"
+    const val KIND_UNDO_ANNOUNCE = "undo_announce"
+
+    /**
+     * 送っている途中にブーストを外した Announce。送れなかったら送り直さずに消す
+     */
+    const val KIND_CANCELLED_ANNOUNCE = "cancelled_announce"
+
+    /**
+     * 送れなかったら送り直さずに消す種別
+     */
+    val CANCELLED_KINDS = listOf(KIND_CANCELLED_LIKE, KIND_CANCELLED_ANNOUNCE)
+
     const val STATE_PENDING = "pending"
     const val STATE_DELIVERING = "delivering"
     const val STATE_FAILED = "failed"
