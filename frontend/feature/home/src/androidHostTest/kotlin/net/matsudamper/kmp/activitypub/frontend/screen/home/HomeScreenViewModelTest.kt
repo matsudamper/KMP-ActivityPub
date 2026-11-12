@@ -94,6 +94,9 @@ class HomeScreenViewModelTest {
         followingGroupsResponse = NEWS_GROUP_RESPONSE
         val home = viewModel.uiStateFlow.first { it.timelineColumns.isNotEmpty() }.timelineColumns.single()
         home.listener.onClickDelete()
+        val deleteDialog = viewModel.uiStateFlow.first { it.timelineColumnDeleteDialog != null }
+        assertEquals(1, deleteDialog.timelineColumns.size)
+        deleteDialog.timelineColumnDeleteDialog?.listener?.onClickDelete()
         val emptied = viewModel.uiStateFlow.first { it.timelineColumns.isEmpty() }
         assertEquals(listOf(), columnSettingStore.columns.value)
         assertTrue(emptied.timelineColumnsEmptyMessage != null)
