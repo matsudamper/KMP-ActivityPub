@@ -21,9 +21,9 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
-import net.matsudamper.kmp.activitypub.frontend.screen.Boost
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
@@ -370,11 +370,12 @@ internal class UserProfileScreenViewModel(
                 val boostedNoteAuthor = post.boostedNoteAuthor
                 createPostItemUiState(
                     pinned = post.pinned,
-                    boostedBy = if (boostedNoteAuthor == null) {
+                    deleted = false,
+                    actorLabel = if (boostedNoteAuthor == null) {
                         null
                     } else {
-                        Boost(
-                            booster = UserHomeTimelineResult.Booster(
+                        PostActorLabel.Boost(
+                            actor = UserHomeTimelineResult.Actor(
                                 username = profile.username,
                                 host = profile.host,
                                 displayName = profile.displayName,

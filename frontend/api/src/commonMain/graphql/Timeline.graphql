@@ -1,0 +1,62 @@
+query Timeline($followingGroupId: FollowingGroupId, $after: String, $limit: Int!) {
+    userInfo {
+        timeline(followingGroupId: $followingGroupId, after: $after, limit: $limit) {
+            posts {
+                ...TimelinePostFields
+            }
+            nextCursor
+        }
+    }
+}
+
+fragment TimelinePostFields on TimelinePost {
+    id
+    deleted
+    sortedAt
+    content
+    publishedAt
+    author {
+        ...ActorFields
+    }
+    summary
+    sensitive
+    linkUrls
+    deletableNoteId
+    pinnableNoteId
+    pinned
+    images {
+        url
+        thumbnailUrl
+        description
+    }
+    emojis {
+        name
+        imageUrl
+    }
+    favouriteCount
+    boostCount
+    boostedBy {
+        ...ActorFields
+    }
+    stamps {
+        emoji
+        imageUrl
+        count
+    }
+    url
+    likedByMe
+    boostedByMe
+    reactionPostId
+    followingGroupId
+}
+
+fragment ActorFields on Actor {
+    username
+    host
+    displayName
+    displayNameEmojis {
+        name
+        imageUrl
+    }
+    iconUrl
+}

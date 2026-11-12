@@ -20,14 +20,15 @@ interface BoostRepository {
     ): Boolean
 
     /**
-     * こちらの投稿のブーストも、タイムラインに出したブーストも消す
+     * こちらの投稿のブーストは消す。タイムラインに出したブーストは、取り消し済みと出すので印を付けて残す
      *
-     * @return 消したら true
+     * @return 取り消したブースト。該当するブーストが無いか、既に取り消されていれば null
      */
     fun remove(
         actorUri: String,
         activityUri: String,
-    ): Boolean
+        undoneAt: Instant,
+    ): BoostRemoval?
 
     /**
      * @return 消えたブーストの数
@@ -41,3 +42,8 @@ interface BoostRepository {
      */
     fun counts(notePublicIds: Set<PublicNoteId>): Map<PublicNoteId, Long>
 }
+
+/**
+ * @param undoneTimelineMember タイムラインに出していたブーストなら、その member。こちらの投稿のブーストだけなら null
+ */
+data class BoostRemoval(val undoneTimelineMember: String?)

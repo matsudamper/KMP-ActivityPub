@@ -31,13 +31,11 @@ interface AccountBoostRepository {
     fun unboostAndEnqueueUndo(accountId: AccountId, member: String, now: Instant): Boolean
 
     /**
-     * 投稿者が消した他のサーバーの投稿を消す。その投稿へのこのサーバーのアカウントのブーストもすべて外し、[unboostAndEnqueueUndo] と同じく Undo を積む。
+     * 投稿者が消した他のサーバーの投稿に削除済みの印を付ける。その投稿へのこのサーバーのアカウントのブーストもすべて外し、[unboostAndEnqueueUndo] と同じく Undo を積む。
      * 投稿者の Delete がこちらのフォロワーのサーバーに届くとは限らないので、ブーストを届けた宛先にはこちらから取り消しを送る。
-     * 投稿を消すとブーストの記録も消えるので、ブーストの取り消しと投稿の削除は分けずに行う。投稿が [actorUri] のものでなければ何もしない
-     *
-     * @return 外したブーストの数
+     * 投稿が [actorUri] のものでなければ何もしない
      */
-    fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): Int
+    fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion
 
     /**
      * outbox に出すブースト。新しい順で、同じ時刻なら Announce の id の大きい順
@@ -117,3 +115,9 @@ data class AccountBoostRecord(
     val unlisted: Boolean,
     val boostedAt: Instant,
 )
+
+/**
+ * @param undoneBoostCount 外したこのサーバーのアカウントのブーストの数
+ * @param deletedTimelineMembers 削除済みになったタイムラインの member。投稿そのものと、それをブーストした行。既に消されていれば空
+ */
+data class RemoteNoteDeletion(val undoneBoostCount: Int, val deletedTimelineMembers: List<String>)

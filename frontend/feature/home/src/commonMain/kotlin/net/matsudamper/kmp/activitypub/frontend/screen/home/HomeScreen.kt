@@ -594,10 +594,11 @@ private fun TimelineColumnsPager(
             listState = tabListStates.timeline(column.listStateKey),
             timelineItems = column.items,
             refreshing = uiState.timelineRefreshing,
-            footer = uiState.timelineFooter,
+            footer = column.footer,
             // 隣のページはスワイプの途中から作られるので、見ていないカラムのために続きを読まない
             loadMoreAtEndEnabled = column.selected,
             listener = uiState.listener,
+            columnListener = column.listener,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -715,20 +716,21 @@ internal fun TimelineTabContent(
     footer: HomeScreenUiState.TimelineFooter,
     loadMoreAtEndEnabled: Boolean,
     listener: HomeScreenUiState.Listener,
+    columnListener: HomeScreenUiState.TimelineColumnListener,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(listState, listener, timelineItems.size, footer, loadMoreAtEndEnabled) {
+    LaunchedEffect(listState, columnListener, timelineItems.size, footer, loadMoreAtEndEnabled) {
         if (!loadMoreAtEndEnabled) return@LaunchedEffect
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            // 購読先で振り分けたカラムは、読んだページにその購読先の投稿が無いと空になる。空でも続きを読まないと止まる
+            // 混ぜた購読先のうち続きを読み終えていないものがあると、読み込み済みの行を出し切れずに空になる。空でも続きを読まないと止まる
             val nearEnd = lastVisibleIndex == null || lastVisibleIndex >= layoutInfo.totalItemsCount - 5
             nearEnd to layoutInfo.totalItemsCount
         }
             .distinctUntilChanged()
             .filter { (nearEnd, _) -> nearEnd }
-            .collect { listener.onScrolledToTimelineEnd() }
+            .collect { columnListener.onScrolledToEnd() }
     }
     val wheelPullToRefreshBlocker = remember { WheelPullToRefreshBlocker() }
     PullToRefreshBox(
@@ -762,7 +764,7 @@ internal fun TimelineTabContent(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(footer.message, color = MaterialTheme.colorScheme.error)
-                        Button(onClick = listener::onClickRetryTimelineLoadMore) { Text("再読み込み") }
+                        Button(onClick = columnListener::onClickRetryLoadMore) { Text("再読み込み") }
                     }
                 }
             }

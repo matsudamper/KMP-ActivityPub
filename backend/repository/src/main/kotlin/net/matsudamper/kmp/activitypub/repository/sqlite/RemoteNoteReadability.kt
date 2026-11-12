@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
+import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_BOOSTS
@@ -58,3 +59,19 @@ internal fun DSLContext.remoteNoteReadableOrBoostedTo(accountId: AccountId): Con
     remoteNoteReadableBy(accountId).orExists(
         selectOne().from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(REMOTE_NOTES.ID)).and(remoteBoostReadableBy(accountId)),
     )
+
+/**
+ * 投稿者が消した投稿に印を付ける。タイムラインに削除済みと出すので行は残す。投稿が [actorUri] のものでなければ何もしない
+ *
+ * @return 削除済みになったタイムラインの member。投稿そのものと、それをブーストした行。保存していないか、既に消されていれば空
+ */
+internal fun DSLContext.markRemoteNoteDeleted(actorUri: String, objectUri: String, deletedAt: Instant): List<String> {
+    val noteId = select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
+        .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+        .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).and(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(REMOTE_NOTES.DELETED_AT.isNull)
+        .fetchOne(REMOTE_NOTES.ID) ?: return listOf()
+    update(REMOTE_NOTES).set(REMOTE_NOTES.DELETED_AT, StoredInstant.format(deletedAt)).where(REMOTE_NOTES.ID.eq(noteId)).execute()
+    val boostMembers = select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(noteId))
+        .fetch { "b${it.value1()}" }
+    return listOf("r$noteId") + boostMembers
+}

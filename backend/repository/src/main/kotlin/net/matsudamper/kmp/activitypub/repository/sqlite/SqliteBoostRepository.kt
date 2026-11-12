@@ -1,11 +1,14 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.BoostRemoval
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
+import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_BOOSTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTIFICATIONS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -24,33 +27,50 @@ internal class SqliteBoostRepository(
         val noteId = dsl.findNoteId(notePublicId) ?: return@transaction false
         val remoteActorId = dsl.upsertRemoteActor(actor, updatedAt = receivedAt)
 
-        dsl.insertInto(NOTE_BOOSTS)
+        val inserted = dsl.insertInto(NOTE_BOOSTS)
             .set(NOTE_BOOSTS.NOTE_ID, noteId)
             .set(NOTE_BOOSTS.REMOTE_ACTOR_ID, remoteActorId)
             .set(NOTE_BOOSTS.ACTIVITY_URI, activityUri)
             .set(NOTE_BOOSTS.RECEIVED_AT, StoredInstant.format(receivedAt))
             .onConflictDoNothing()
             .execute() > 0
+        if (inserted) dsl.insertNotification(NotificationKind.BOOST, noteId, remoteActorId, receivedAt)
+        inserted
     }
 
     override fun remove(
         actorUri: String,
         activityUri: String,
-    ): Boolean = jooq.transaction { dsl ->
-        val remoteActorId = dsl.remoteActorId(actorUri) ?: return@transaction false
-        val removedLocal = dsl.deleteFrom(NOTE_BOOSTS)
+        undoneAt: Instant,
+    ): BoostRemoval? = jooq.transaction { dsl ->
+        val remoteActorId = dsl.remoteActorId(actorUri) ?: return@transaction null
+        val boostedNoteIds = dsl.select(NOTE_BOOSTS.NOTE_ID).from(NOTE_BOOSTS)
+            .where(NOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId))
+            .and(NOTE_BOOSTS.ACTIVITY_URI.eq(activityUri))
+            .fetch(NOTE_BOOSTS.NOTE_ID)
+        dsl.deleteFrom(NOTE_BOOSTS)
             .where(NOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId))
             .and(NOTE_BOOSTS.ACTIVITY_URI.eq(activityUri))
             .execute()
-        val removedRemote = dsl.deleteFrom(REMOTE_BOOSTS)
+        boostedNoteIds.forEach { noteId -> dsl.deleteNotification(NotificationKind.BOOST, checkNotNull(noteId), remoteActorId) }
+        val undoneBoostId = dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS)
             .where(REMOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId))
             .and(REMOTE_BOOSTS.ACTIVITY_URI.eq(activityUri))
-            .execute()
-        removedLocal + removedRemote > 0
+            .and(REMOTE_BOOSTS.UNDONE_AT.isNull)
+            .fetchOne(REMOTE_BOOSTS.ID)
+        if (undoneBoostId != null) {
+            dsl.update(REMOTE_BOOSTS).set(REMOTE_BOOSTS.UNDONE_AT, StoredInstant.format(undoneAt)).where(REMOTE_BOOSTS.ID.eq(undoneBoostId)).execute()
+        }
+        if (boostedNoteIds.isEmpty() && undoneBoostId == null) {
+            null
+        } else {
+            BoostRemoval(undoneTimelineMember = undoneBoostId?.let { "b$it" })
+        }
     }
 
     override fun removeActor(actorUri: String): Int = jooq.transaction { dsl ->
         val remoteActorId = dsl.remoteActorId(actorUri) ?: return@transaction 0
+        dsl.deleteFrom(NOTIFICATIONS).where(NOTIFICATIONS.REMOTE_ACTOR_ID.eq(remoteActorId)).and(NOTIFICATIONS.KIND.eq(NotificationKind.BOOST.stored)).execute()
         dsl.deleteFrom(NOTE_BOOSTS).where(NOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId)).execute() +
             dsl.deleteFrom(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId)).execute()
     }

@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePinService
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
+import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
@@ -20,12 +21,13 @@ import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
 import net.matsudamper.kmp.activitypub.shared.AccountId
-import net.matsudamper.kmp.activitypub.timeline.HomeTimelineArrivals
-import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.AccountEvents
+import net.matsudamper.kmp.activitypub.timeline.TimelineService
 
 class DiContainer(
-    val homeTimelineService: HomeTimelineService,
-    val homeTimelineArrivals: HomeTimelineArrivals,
+    val timelineService: TimelineService,
+    val accountEvents: AccountEvents,
+    val notificationService: NotificationService,
     val accountService: AccountService,
     val followingService: FollowingService,
     val followingGroupService: FollowingGroupService,

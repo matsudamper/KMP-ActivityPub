@@ -7,10 +7,14 @@ import androidx.compose.runtime.Immutable
  */
 data class PostItemUiState(
     /**
-     * フォローしている相手のブーストとして載った投稿なら、投稿の上に出す「〜がブースト」の行。それ以外は null
+     * 投稿の上に出す「〜がブースト」「〜がお気に入り」の行。フォローしている相手のブーストとして載った投稿と、通知で使う。それ以外は null
      */
-    val boostedBy: BoostedBy?,
+    val actorLabel: ActorLabel?,
     val pinnedLabelVisible: Boolean,
+    /**
+     * 投稿者が投稿を消したか、ブーストした相手がブーストを取り消した後か。一覧は消える前の内容のまま出すので、消えたことを示す
+     */
+    val deletedLabelVisible: Boolean,
     val iconUrl: String?,
     val displayName: TextWithEmojis,
     val acct: String,
@@ -61,16 +65,22 @@ data class PostItemUiState(
     val listener: Listener,
 ) {
     /**
-     * @param iconUrl ブーストした相手のプロフィール画像が無ければ null
-     * @param listener ブーストした相手のプロフィールを見ているときは押せないので null
+     * @param iconUrl 相手のプロフィール画像が無ければ null
+     * @param listener その相手のプロフィールを見ているときは押せないので null
      * @param cancelledLabelVisible 自分のブーストを外した後か。一覧は読み直すまでそのまま出すので、外したことを示す
      */
-    data class BoostedBy(
+    data class ActorLabel(
+        val icon: ActorLabelIcon,
         val text: TextWithEmojis,
         val iconUrl: String?,
         val cancelledLabelVisible: Boolean,
-        val listener: BoostedByListener?,
+        val listener: ActorLabelListener?,
     )
+
+    enum class ActorLabelIcon {
+        Boost,
+        Favourite,
+    }
 
     data class MenuItem(
         val label: String,
@@ -138,7 +148,7 @@ data class PostItemUiState(
     }
 
     @Immutable
-    interface BoostedByListener {
+    interface ActorLabelListener {
         fun onClick()
     }
 

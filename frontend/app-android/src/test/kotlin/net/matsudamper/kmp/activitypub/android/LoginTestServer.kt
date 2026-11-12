@@ -99,10 +99,10 @@ internal class LoginTestServer : Closeable {
                         """{"data":{"profile":{"__typename":"Profile","username":"alice","displayName":null,"iconUrl":null,"summary":null,"links":[],"followingCount":0,"followersCount":0}}}""",
                     )
 
-                    "HomeTimeline" -> {
+                    "Timeline" -> {
                         check(loggedIn)
                         MockResponse.Builder().body(
-                            """{"data":{"userInfo":{"__typename":"UserInfo","homeTimeline":{"__typename":"HomeTimeline","posts":[{"__typename":"HomeTimelinePost","id":"post-a","content":"ログイン後のテスト投稿 https://example.com/","publishedAt":"2026-11-03T10:00:00Z","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],"summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,"pinned":false,"boostedByMe":null,"reactionPostId":"post-a"}],"nextCursor":null}}}}""",
+                            """{"data":{"userInfo":{"__typename":"UserInfo","timeline":{"__typename":"TimelinePage","posts":[{"__typename":"TimelinePost","id":"post-a","deleted":false,"sortedAt":"2026-11-03T10:00:00Z","content":"ログイン後のテスト投稿 https://example.com/","publishedAt":"2026-11-03T10:00:00Z","author":{"__typename":"Actor","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],"iconUrl":null},"summary":null,"sensitive":false,"linkUrls":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,"boostedByMe":null,"reactionPostId":"post-a","followingGroupId":null}],"nextCursor":null}}}}""",
                         )
                     }
 
@@ -121,7 +121,7 @@ internal class LoginTestServer : Closeable {
             val subscriptionId = JSONObject.quote(id)
             check(
                 webSocket.send(
-                    """{"type":"next","id":$subscriptionId,"payload":{"data":{"homeTimelinePosts":{"__typename":"HomeTimelinePost","id":"post-after-recreation","content":"Activity 再生成後の新着投稿","publishedAt":"2026-11-03T10:01:00Z","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],"summary":null,"sensitive":false,"linkUrls":[],"iconUrl":null,"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,"pinned":false,"boostedByMe":null,"reactionPostId":"post-after-recreation"}}}}""",
+                    """{"type":"next","id":$subscriptionId,"payload":{"data":{"accountEvents":{"__typename":"AccountEvent","timelinePostArrived":{"__typename":"TimelinePost","id":"post-after-recreation","deleted":false,"sortedAt":"2026-11-03T10:01:00Z","content":"Activity 再生成後の新着投稿","publishedAt":"2026-11-03T10:01:00Z","author":{"__typename":"Actor","username":"alice","host":null,"displayName":"Alice","displayNameEmojis":[],"iconUrl":null},"summary":null,"sensitive":false,"linkUrls":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,"boostedByMe":null,"reactionPostId":"post-after-recreation","followingGroupId":null},"timelinePostsDeleted":null,"notificationArrived":null}}}}""",
                 ),
             ) { "新着投稿を送信できない: $connectionEvents" }
         }

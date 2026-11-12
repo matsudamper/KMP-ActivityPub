@@ -70,9 +70,9 @@ class BoostRepositoryTest {
             boosts.add(NOTE_1, actor(ALICE), "$ALICE/announces/1", NOW)
             boosts.add(NOTE_1, actor(BOB), "$BOB/announces/1", NOW)
 
-            assertFalse(boosts.remove(BOB, "$ALICE/announces/1"))
-            assertFalse(boosts.remove(ALICE, "$ALICE/announces/2"))
-            assertTrue(boosts.remove(ALICE, "$ALICE/announces/1"))
+            assertNull(boosts.remove(BOB, "$ALICE/announces/1", NOW))
+            assertNull(boosts.remove(ALICE, "$ALICE/announces/2", NOW))
+            assertEquals(BoostRemoval(undoneTimelineMember = null), boosts.remove(ALICE, "$ALICE/announces/1", NOW))
 
             assertEquals(mapOf(NOTE_1 to 1L), boosts.counts(setOf(NOTE_1)))
         }

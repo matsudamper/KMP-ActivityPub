@@ -31,6 +31,11 @@ sealed interface TimelineSource {
     data object MainGroup : TimelineSource
 
     data class FollowingGroup(val groupId: String) : TimelineSource
+
+    /**
+     * 自分の投稿に届いたお気に入りとブースト
+     */
+    data object Notifications : TimelineSource
 }
 
 val DEFAULT_TIMELINE_COLUMNS: List<TimelineColumnSetting> = listOf(

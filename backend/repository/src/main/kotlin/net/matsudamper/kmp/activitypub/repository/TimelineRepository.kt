@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
@@ -18,11 +19,29 @@ interface TimelineRepository {
      */
     fun receiveBoost(boost: RemoteBoostInput): TimelinePosition?
     fun hasRemoteNote(objectUri: String): Boolean
-    fun deleteRemote(actorUri: String, objectUri: String)
-    fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<AccountId>
+
+    /**
+     * 投稿者が消した投稿に印を付ける。タイムラインに削除済みと出すので行は残す
+     *
+     * @return 削除済みになったタイムラインの member。投稿そのものと、それをブーストした行。保存していないか、既に消されていれば空
+     */
+    fun deleteRemote(actorUri: String, objectUri: String, deletedAt: Instant): List<String>
+
+    /**
+     * [member] を載せるアカウントを、アカウントの id 順に [after] より後ろから返す
+     */
+    fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient>
     fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long)
-    fun rebuild(accountId: AccountId, limit: Int): List<TimelinePosition>
-    fun page(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>
+
+    /**
+     * @param groupId 読む購読先。null ならメイン
+     */
+    fun rebuild(accountId: AccountId, groupId: FollowingGroupId?, limit: Int): List<TimelinePosition>
+
+    /**
+     * @param groupId 読む購読先。null ならメイン
+     */
+    fun page(accountId: AccountId, groupId: FollowingGroupId?, after: TimelinePosition?, limit: Int): List<TimelinePosition>
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
 
     /**
@@ -55,6 +74,11 @@ data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val loca
 data class TimelinePosition(val score: Long, val member: String)
 
 /**
+ * @param groupId 投稿を載せる購読先。メインなら null
+ */
+data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGroupId?)
+
+/**
  * @param actorIconUrl 他のサーバーの投稿者のプロフィール画像の URL。このサーバーの投稿や、画像の無い相手は null
  * @param actorUpdatedAt 他のサーバーの投稿者の情報を最後に受け取った時刻。このサーバーの投稿は null
  * @param favouriteCount 他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿の数は受け取らないので null
@@ -70,6 +94,7 @@ data class TimelinePosition(val score: Long, val member: String)
  * @param actorEmojis 他のサーバーの投稿者の表示名に入るカスタム絵文字。このサーバーの投稿は空
  * @param boostedBy フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
+ * @param deleted 投稿者が投稿を消したか、ブーストした相手がブーストを取り消したか。ほかの項目は消される前のまま
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -93,6 +118,7 @@ data class TimelinePost(
     val noteRef: TimelineNoteRef,
     val boostCount: Long?,
     val boostedBy: TimelineBooster?,
+    val deleted: Boolean,
 ) {
     /**
      * このサーバーの投稿の公開 id。他のサーバーの投稿は null

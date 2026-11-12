@@ -151,9 +151,12 @@ internal fun PostItem(
         if (uiState.pinnedLabelVisible) {
             PinnedLabel(sizes = sizes)
         }
-        val boostedBy = uiState.boostedBy
-        if (boostedBy != null) {
-            BoostedByLabel(boostedBy = boostedBy, sizes = sizes)
+        if (uiState.deletedLabelVisible) {
+            DeletedLabel(sizes = sizes)
+        }
+        val actorLabel = uiState.actorLabel
+        if (actorLabel != null) {
+            ActorLabel(actorLabel = actorLabel, sizes = sizes)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -339,15 +342,34 @@ private fun PinnedLabel(sizes: PostItemSizes) {
 }
 
 /**
+ * ピン留めの行と同じく、本文の列に揃えて出す
+ */
+@Composable
+private fun DeletedLabel(sizes: PostItemSizes) {
+    Row(horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing)) {
+        Spacer(modifier = Modifier.width(sizes.iconSize))
+        Text(
+            text = "削除",
+            modifier = Modifier
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 1.dp),
+            style = sizes.secondaryTextStyle,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
  * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
  */
 @Composable
-private fun BoostedByLabel(
-    boostedBy: PostItemUiState.BoostedBy,
+private fun ActorLabel(
+    actorLabel: PostItemUiState.ActorLabel,
     sizes: PostItemSizes,
 ) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
-    val listener = boostedBy.listener
+    val listener = actorLabel.listener
     Row(
         modifier = Modifier
             .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
@@ -358,7 +380,10 @@ private fun BoostedByLabel(
     ) {
         Box(modifier = Modifier.width(sizes.iconSize), contentAlignment = Alignment.CenterEnd) {
             Icon(
-                imageVector = AppIcons.Repeat,
+                imageVector = when (actorLabel.icon) {
+                    PostItemUiState.ActorLabelIcon.Boost -> AppIcons.Repeat
+                    PostItemUiState.ActorLabelIcon.Favourite -> AppIcons.Star
+                },
                 contentDescription = null,
                 modifier = Modifier.size(sizes.actionIconSize),
                 tint = color,
@@ -369,22 +394,22 @@ private fun BoostedByLabel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProfileIcon(
-                iconUrl = boostedBy.iconUrl,
+                iconUrl = actorLabel.iconUrl,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(BoostedByIconSize)
+                    .size(ActorLabelIconSize)
                     .clip(CircleShape),
             )
             EmojiText(
                 modifier = Modifier.weight(1f, fill = false),
-                text = boostedBy.text,
+                text = actorLabel.text,
                 style = sizes.secondaryTextStyle,
                 color = color,
                 fontWeight = null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (boostedBy.cancelledLabelVisible) {
+            if (actorLabel.cancelledLabelVisible) {
                 Text(
                     text = "取り消し",
                     modifier = Modifier
@@ -399,7 +424,7 @@ private fun BoostedByLabel(
     }
 }
 
-private val BoostedByIconSize = 20.dp
+private val ActorLabelIconSize = 20.dp
 
 @Composable
 private fun ReactionCount(

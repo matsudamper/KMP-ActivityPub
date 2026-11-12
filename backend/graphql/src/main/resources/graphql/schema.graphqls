@@ -65,10 +65,10 @@ type Mutation {
 
 type Subscription {
     """
-    ログイン中のアカウントのホームタイムラインに新しく載った投稿を、載った順に流す。
-    購読より前に載った投稿は流さないので、homeTimeline で読む。ログインしていなければエラー
+    ログイン中のアカウントに起きた変化を、起きた順に流す。購読より前の変化は流さない。
+    詰まると古いものから捨てるので、取りこぼしたら UserInfo.timeline と UserInfo.notifications で読み直す。ログインしていなければエラー
     """
-    homeTimelinePosts: HomeTimelinePost!
+    accountEvents: AccountEvent!
     """
     他のサーバーのユーザー全員のプロフィールを相手のサーバーから取り直す処理の進み具合。
     購読した時点の状態を流し、その後は変わるたびに流す。購読を切っても取り直しは止まらない。
@@ -78,30 +78,43 @@ type Subscription {
     remoteProfileRefresh(start: Boolean!): RemoteProfileRefreshState!
 }
 
-type HomeTimeline {
-    posts: [HomeTimelinePost!]!
+"項目のうち、null でないものが必ず 1 つだけある。どれも id で上書きすればよく、何度当てても同じ結果になる"
+type AccountEvent {
+    "タイムラインに新しく載った行。どの購読先かは followingGroupId で分かる"
+    timelinePostArrived: TimelinePost
+    "消された行。投稿の削除とブーストの取り消しの両方"
+    timelinePostsDeleted: TimelinePostsDeleted
+    "自分の投稿に届いたお気に入りかブースト"
+    notificationArrived: Notification
+}
+
+type TimelinePostsDeleted {
+    "元の投稿が消されたら、それをブーストした行の id もまとめて入れる"
+    postIds: [TimelinePostId!]!
+}
+
+type TimelinePage {
+    posts: [TimelinePost!]!
     nextCursor: String
 }
 
-type HomeTimelinePost {
-    id: ID!
+type TimelinePost {
+    id: TimelinePostId!
+    "投稿者が投稿を消したか、ブーストした相手がブーストを取り消したら true。ほかの項目は消される前のまま返す"
+    deleted: Boolean!
+    "タイムラインに並べる時刻。新しい順に並ぶ。複数の購読先を 1 つのカラムに混ぜるときに使う"
+    sortedAt: String!
     content: String!
     publishedAt: String!
-    username: String!
-    host: String
-    displayName: String!
+    author: Actor!
     summary: String
     sensitive: Boolean!
     "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び。取りに行かないので速い"
     linkUrls: [String!]!
-    "投稿者のプロフィール画像の URL。無ければ null"
-    iconUrl: String
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
     "本文と summary に入るカスタム絵文字。画像を中継できなければ空"
     emojis: [CustomEmoji!]!
-    "displayName に入るカスタム絵文字。画像を中継できなければ空"
-    displayNameEmojis: [CustomEmoji!]!
     "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
     deletableNoteId: ID
     "ログイン中のアカウントの投稿なら setPinned に渡す id。固定できない投稿は null"
@@ -122,13 +135,14 @@ type HomeTimelinePost {
     reactionPostId: TimelinePostId!
     "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
     boostCount: Int
-    "フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。投稿者などほかの項目はブーストされた投稿のもの"
-    boostedBy: PostBooster
+    "フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。author などほかの項目はブーストされた投稿のもの"
+    boostedBy: Actor
     "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。メインなら null"
     followingGroupId: FollowingGroupId
 }
 
-type PostBooster {
+"投稿者、ブーストした相手、通知を送ってきた相手"
+type Actor {
     username: String!
     "このサーバーのアカウントなら null"
     host: String
@@ -137,6 +151,25 @@ type PostBooster {
     displayNameEmojis: [CustomEmoji!]!
     "プロフィール画像の URL。無ければ null"
     iconUrl: String
+}
+
+type NotificationPage {
+    notifications: [Notification!]!
+    nextCursor: String
+}
+
+type Notification {
+    id: NotificationId!
+    kind: NotificationKind!
+    actor: Actor!
+    "お気に入りかブーストをされた、自分の投稿"
+    post: TimelinePost!
+    receivedAt: String!
+}
+
+enum NotificationKind {
+    FAVOURITE
+    BOOST
 }
 
 "他のサーバーのカスタム絵文字。文字列の中の name を imageUrl の画像に置き換えて見せる"

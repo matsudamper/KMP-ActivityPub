@@ -12,7 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.inOpenTelemetrySuspendSpan
-import net.matsudamper.kmp.activitypub.timeline.HomeTimelineService
+import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineSpan
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.RemoteActors
@@ -28,9 +28,9 @@ internal class ReceivedRemoteNotes(
     private val actors: RemoteActors,
     private val storedActors: RemoteActorRepository,
     private val directory: ActorDirectory,
-    private val timeline: HomeTimelineService,
+    private val timeline: TimelineService,
     private val clock: Clock,
-    private val deleteRemoteNote: (actorUri: String, objectUri: String) -> Unit,
+    private val deleteRemoteNote: (actorUri: String, objectUri: String) -> List<String>,
     openTelemetry: OpenTelemetry = OpenTelemetryInitializer.get(),
 ) : RemoteNoteStore {
     private val tracer = openTelemetry.getTracer("activitypub-inbox")
@@ -40,7 +40,7 @@ internal class ReceivedRemoteNotes(
     }
 
     override suspend fun delete(actorId: String, objectId: String) {
-        deleteRemoteNote(actorId, objectId)
+        timeline.publishDeleted(deleteRemoteNote(actorId, objectId))
     }
 
     suspend fun saveBoost(boost: ReceivedRemoteBoost) {

@@ -1,29 +1,38 @@
 package net.matsudamper.kmp.activitypub.timeline
 
 import java.time.Clock
+import java.time.Instant
 import java.util.Base64
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
+import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.inOpenTelemetrySpan
 import org.slf4j.LoggerFactory
 
-class HomeTimelineService(
+class TimelineService(
     private val repository: TimelineRepository,
+    private val groups: FollowingGroupRepository,
     private val store: TimelineStore,
+    private val events: AccountEvents,
     private val clock: Clock,
     openTelemetry: OpenTelemetry = OpenTelemetryInitializer.get(),
 ) : TimelineInvalidator {
     private val tracer = openTelemetry.getTracer("activitypub-timeline")
-    private val logger = LoggerFactory.getLogger(HomeTimelineService::class.java)
+    private val logger = LoggerFactory.getLogger(TimelineService::class.java)
 
-    fun page(accountId: AccountId, cursor: String?, limit: Int): TimelinePage = inOpenTelemetrySpan(tracer, "HomeTimeline.page", false) { span ->
+    /**
+     * @param groupId 読む購読先。null ならメイン
+     */
+    fun page(accountId: AccountId, groupId: FollowingGroupId?, cursor: String?, limit: Int): TimelinePage = inOpenTelemetrySpan(tracer, "HomeTimeline.page", false) { span ->
+        val feed = TimelineFeed(accountId, groupId)
         span.setAttribute(TimelineSpan.CACHE_READ, false)
         span.setAttribute(TimelineSpan.SQL_READ, false)
         span.setAttribute(TimelineSpan.REBUILT, false)
@@ -35,13 +44,13 @@ class HomeTimelineService(
             var positionCursor = after
             while (size < pageSize + 1) {
                 val remaining = pageSize + 1 - size
-                val cached = runCatching { cachedPositions(accountId, positionCursor, remaining) }
+                val cached = runCatching { cachedPositions(feed, positionCursor, remaining) }
                     .onFailure { logger.warn("Valkey を使えないので DB からタイムラインを読む", it) }.getOrNull()
                 val positions = if (cached != null) {
                     cached
                 } else {
                     span.setAttribute(TimelineSpan.SQL_READ, true)
-                    repository.page(accountId, positionCursor, remaining)
+                    repository.page(accountId, groupId, positionCursor, remaining)
                 }
                 if (positions.isEmpty()) break
                 val hydrated = repository.hydrate(accountId, positions.map { it.member }).associateBy { it.position.member }
@@ -71,32 +80,52 @@ class HomeTimelineService(
         runCatching { store.enqueue(position) }.onFailure { logger.warn("タイムライン配布ジョブを積めなかった", it) }
     }
 
-    override fun invalidate(accountId: AccountId) {
-        runCatching { store.invalidate(accountId) }.onFailure { logger.warn("タイムラインの組み立て済みフラグを消せなかった", it) }
+    /**
+     * 削除済みになった行を、それを載せているアカウントへ知らせる
+     *
+     * @param members 削除済みになったタイムラインの member
+     */
+    fun publishDeleted(members: List<String>) {
+        members.forEach { member ->
+            var after: AccountId? = null
+            do {
+                // 配布と違い、しばらく開いていなかったアカウントも今つながっていれば知らせる
+                val recipients = repository.recipients(member, Instant.EPOCH, after, 1000).map { it.accountId }
+                events.publishDeletion(recipients, listOf(member))
+                after = recipients.lastOrNull()
+            } while (recipients.size == 1000)
+        }
     }
 
-    private fun cachedPositions(accountId: AccountId, after: TimelinePosition?, limit: Int): List<TimelinePosition>? {
-        if (!store.ready(accountId)) {
-            if (!store.lock(accountId)) return null
+    override fun invalidate(accountId: AccountId) {
+        val feeds = listOf(TimelineFeed(accountId, null)) + groups.list(accountId).map { TimelineFeed(accountId, it.id) }
+        feeds.forEach { feed ->
+            runCatching { store.invalidate(feed) }.onFailure { logger.warn("タイムラインの組み立て済みフラグを消せなかった", it) }
+        }
+    }
+
+    private fun cachedPositions(feed: TimelineFeed, after: TimelinePosition?, limit: Int): List<TimelinePosition>? {
+        if (!store.ready(feed)) {
+            if (!store.lock(feed)) return null
             try {
-                store.markBuilt(accountId)
+                store.markBuilt(feed)
                 Span.current().setAttribute(TimelineSpan.REBUILT, true)
                 Span.current().setAttribute(TimelineSpan.SQL_READ, true)
-                store.appendRebuilt(accountId, repository.rebuild(accountId, 400))
+                store.appendRebuilt(feed, repository.rebuild(feed.accountId, feed.groupId, 400))
             } catch (failure: Exception) {
-                runCatching { store.invalidate(accountId) }
+                runCatching { store.invalidate(feed) }
                 throw failure
             } finally {
-                store.unlock(accountId)
+                store.unlock(feed)
             }
         }
-        store.expire(accountId)
-        val positions = store.read(accountId, after, limit)
+        store.expire(feed)
+        val positions = store.read(feed, after, limit)
         Span.current().setAttribute(TimelineSpan.CACHE_READ, true)
         if (positions.size >= limit) return positions
         val tail = positions.lastOrNull() ?: after
         Span.current().setAttribute(TimelineSpan.SQL_READ, true)
-        return positions + repository.page(accountId, tail, limit - positions.size)
+        return positions + repository.page(feed.accountId, feed.groupId, tail, limit - positions.size)
     }
 }
 

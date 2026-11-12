@@ -76,7 +76,7 @@ class QueryResolverImpl : QueryResolver {
                                 summary = body.summary,
                                 sensitive = body.sensitive,
                                 linkPreviewId = post.linkPreviewId,
-                                postId = post.postId,
+                                postId = post.postId?.let(::TimelinePostId),
                                 deletableNoteId = post.deletableNoteId,
                                 pinned = post.pinned,
                                 pinnableNoteId = post.pinnableNoteId,

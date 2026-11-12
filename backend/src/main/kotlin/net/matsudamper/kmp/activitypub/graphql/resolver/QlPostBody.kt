@@ -11,7 +11,7 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
- * HomeTimelinePost と ProfilePost で投稿の中身の返し方を揃えるため、両方ここを通す。
+ * TimelinePost と ProfilePost で投稿の中身の返し方を揃えるため、両方ここを通す。
  * 閲覧注意でも本文・リンク・画像は隠さない。どう見せるかはクライアントが summary と sensitive で決める
  */
 internal class QlPostBody(
