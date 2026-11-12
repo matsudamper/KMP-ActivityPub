@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -76,6 +75,7 @@ internal fun HomeColumnsContent(
                                 title = "検索",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.Search) },
                                 headerActions = { ColumnCloseButton(title = "検索", onClick = { uiState.listener.onClickCloseColumn(column) }) },
+                                newPostsHiddenAbove = false,
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 SearchTabContent(
@@ -90,6 +90,7 @@ internal fun HomeColumnsContent(
                                 title = "ユーザー",
                                 onClickHeader = { uiState.listener.onClickColumnHeader(HomeScreenUiState.Tab.User) },
                                 headerActions = { ColumnCloseButton(title = "ユーザー", onClick = { uiState.listener.onClickCloseColumn(column) }) },
+                                newPostsHiddenAbove = false,
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 UserTabContent(
@@ -111,10 +112,12 @@ internal fun HomeColumnsContent(
                     SideEffect { reorderState.retainItems(uiState.timelineColumns.size) }
                     uiState.timelineColumns.forEachIndexed { index, timelineColumn ->
                         key(timelineColumn.listStateKey) {
+                            val listState = tabListStates.timeline(timelineColumn.listStateKey)
                             HomeColumn(
                                 title = timelineColumn.title,
                                 onClickHeader = timelineColumn.listener::onClickHeader,
                                 headerActions = { TimelineColumnSettingsButton(column = timelineColumn) },
+                                newPostsHiddenAbove = listState.canScrollBackward,
                                 headerModifier = Modifier.horizontalReorderHandle(
                                     state = reorderState,
                                     index = index,
@@ -127,7 +130,7 @@ internal fun HomeColumnsContent(
                                     .background(MaterialTheme.colorScheme.background),
                             ) { contentModifier ->
                                 TimelineTabContent(
-                                    listState = tabListStates.timeline(timelineColumn.listStateKey),
+                                    listState = listState,
                                     timelineItems = timelineColumn.items,
                                     refreshing = uiState.timelineRefreshing,
                                     footer = timelineColumn.footer,
@@ -276,6 +279,7 @@ private fun HomeColumn(
     title: String,
     onClickHeader: () -> Unit,
     headerActions: @Composable () -> Unit,
+    newPostsHiddenAbove: Boolean,
     modifier: Modifier = Modifier,
     headerModifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
@@ -298,7 +302,7 @@ private fun HomeColumn(
             )
             headerActions()
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        TimelineHeaderDivider(newPostsHiddenAbove = newPostsHiddenAbove)
         content(Modifier.fillMaxWidth().weight(1f))
     }
 }
