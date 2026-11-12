@@ -74,7 +74,8 @@ private fun LoadedNotifications(
     notifications: HomeScreenUiState.Notifications.Loaded,
     listener: HomeScreenUiState.Listener,
 ) {
-    LaunchedEffect(listState, listener, notifications.items.size, notifications.footer) {
+    // 読み直しの間は続きを読まないので、読み直しが終わったときにも末尾にいるかを確かめ直す
+    LaunchedEffect(listState, listener, notifications.items.size, notifications.footer, notifications.refreshing) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: return@snapshotFlow false
