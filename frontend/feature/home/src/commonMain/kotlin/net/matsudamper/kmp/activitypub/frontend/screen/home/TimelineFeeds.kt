@@ -246,13 +246,25 @@ internal class TimelineFeeds(
         }
 
         suspend fun onPostArrived(post: UserHomeTimelineResult.Post) {
+            if (isInUnreadPages(Entry.Post(post))) return
             arrivedIdsSinceRefresh = arrivedIdsSinceRefresh + post.id
             paging.updateCache { withArrivedPost(it, post) }
         }
 
         suspend fun onNotificationArrived(notification: UserNotificationsResult.Notification) {
+            if (isInUnreadPages(Entry.Notification(notification))) return
             arrivedIdsSinceRefresh = arrivedIdsSinceRefresh + notification.id
             paging.updateCache { withArrivedNotification(it, notification) }
+        }
+
+        /**
+         * 遅れて届いた行が、まだ読んでいない続きのページに入る古さか。
+         * 足すと読み込み済みの末尾がその行まで下がり、間のまだ読んでいない行を飛ばして、ほかの購読先の古い行まで出してしまう。続きを読めば届くので足さない
+         */
+        private fun isInUnreadPages(arrived: Entry): Boolean {
+            val feed = feedsFlow.value[source] ?: return false
+            val tail = feed.entries.lastOrNull() ?: return false
+            return feed.nextCursor != null && arrived.sortKey < tail.sortKey
         }
 
         suspend fun updatePosts(transform: (TimelinePostFields) -> TimelinePostFields) {

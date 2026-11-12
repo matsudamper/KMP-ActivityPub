@@ -403,10 +403,11 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.first { it.mainColumnItems().size == 3 }
         assertEquals(listOf("a", "c", "b"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
 
-        // 読み込み済みの末尾より古い投稿が届いても、読み込み済みの投稿は出したままにする
+        // 読み込み済みの末尾より古い投稿は、まだ読んでいない続きのページに入るので足さない。足すと間の行を飛ばすことになる
         arrivals.send(postArrivedEvent(post(id = "old", followingGroupId = null, sortedAt = "2026-11-01T00:00:00Z")))
+        arrivals.send(postArrivedEvent(post(id = "d", followingGroupId = null, sortedAt = "2026-11-01T00:00:04Z")))
         viewModel.uiStateFlow.first { it.mainColumnItems().size == 4 }
-        assertEquals(listOf("a", "c", "b", "old"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
+        assertEquals(listOf("d", "a", "c", "b"), viewModel.uiStateFlow.value.mainColumnItems().map { it.body.text.text })
     }
 
     @Test
