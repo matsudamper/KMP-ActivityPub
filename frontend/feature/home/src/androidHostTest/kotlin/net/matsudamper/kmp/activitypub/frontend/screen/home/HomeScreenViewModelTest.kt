@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -41,6 +42,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineFontSize
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
@@ -52,9 +54,9 @@ import okio.Buffer
 class HomeScreenViewModelTest {
     private val arrivals = Channel<String>(Channel.UNLIMITED)
     private val subscriptionRejected = MutableStateFlow(false)
-    private val mainColumn = TimelineColumnSetting(id = "main", name = "メイン", sources = setOf(TimelineSource.MainGroup))
-    private val newsColumn = TimelineColumnSetting(id = "news", name = "ニュース", sources = setOf(TimelineSource.FollowingGroup("1")))
-    private val allColumn = TimelineColumnSetting(id = "all", name = "全部", sources = setOf(TimelineSource.MainGroup, TimelineSource.FollowingGroup("1")))
+    private val mainColumn = TimelineColumnSetting(id = "main", name = "メイン", sources = setOf(TimelineSource.MainGroup), fontSize = TimelineFontSize.Medium)
+    private val newsColumn = TimelineColumnSetting(id = "news", name = "ニュース", sources = setOf(TimelineSource.FollowingGroup("1")), fontSize = TimelineFontSize.Medium)
+    private val allColumn = TimelineColumnSetting(id = "all", name = "全部", sources = setOf(TimelineSource.MainGroup, TimelineSource.FollowingGroup("1")), fontSize = TimelineFontSize.Medium)
     private val columnSettingStore = FakeTimelineColumnSettingStore(listOf(mainColumn))
     private var followingGroupsResponse = """{"errors":[{"message":"購読の仕分け先は見ない"}]}"""
 
@@ -363,7 +365,7 @@ class HomeScreenViewModelTest {
 
     @Test
     fun notificationsColumnShowsLoadedAndArrivedNotificationsWithTheActor() = withViewModel { viewModel, engine ->
-        columnSettingStore.columns.value = listOf(TimelineColumnSetting(id = "notifications", name = "通知", sources = setOf(TimelineSource.Notifications)))
+        columnSettingStore.columns.value = listOf(TimelineColumnSetting(id = "notifications", name = "通知", sources = setOf(TimelineSource.Notifications), fontSize = TimelineFontSize.Medium))
         engine.notificationResponses.send {
             response(
                 """{"data":{"userInfo":{"__typename":"UserInfo","notifications":{"__typename":"NotificationPage",""" +
@@ -617,7 +619,8 @@ class HomeScreenViewModelTest {
             if (body.contains("\"operationName\":\"FollowingGroups\"")) {
                 return HttpResponse.Builder(200).body(Buffer().writeUtf8(followingGroupsResponse)).build()
             }
-            started.value++
+            // メインとグループは別のスレッドから同時に届くので、取りこぼさないよう不可分に足す
+            started.update { it + 1 }
             val queue = when {
                 body.contains("\"operationName\":\"Notifications\"") -> notificationResponses
                 body.contains("\"followingGroupId\":\"1\"") -> groupResponses

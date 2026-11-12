@@ -17,4 +17,12 @@ message TimelineColumnProto {
   bool main_group = 3;
   repeated string following_group_ids = 4;
   bool notifications = 5;
+  TimelineFontSizeProto font_size = 6;
+}
+
+// 選べるようになる前に保存したカラムは 0 になるので、0 を中にする
+enum TimelineFontSizeProto {
+  TIMELINE_FONT_SIZE_PROTO_MEDIUM = 0;
+  TIMELINE_FONT_SIZE_PROTO_SMALL = 1;
+  TIMELINE_FONT_SIZE_PROTO_LARGE = 2;
 }

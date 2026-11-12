@@ -120,6 +120,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImageInput
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
@@ -601,17 +602,19 @@ private fun TimelineColumnsPager(
         ),
     ) { page ->
         val column = columns[page]
-        TimelineTabContent(
-            listState = tabListStates.timeline(column.listStateKey),
-            timelineItems = column.items,
-            refreshing = uiState.timelineRefreshing,
-            footer = column.footer,
-            // 隣のページはスワイプの途中から作られるので、見ていないカラムのために続きを読まない
-            loadMoreAtEndEnabled = column.selected,
-            listener = uiState.listener,
-            columnListener = column.listener,
-            modifier = Modifier.fillMaxSize(),
-        )
+        FontSizeTheme(fontSize = column.fontSize) {
+            TimelineTabContent(
+                listState = tabListStates.timeline(column.listStateKey),
+                timelineItems = column.items,
+                refreshing = uiState.timelineRefreshing,
+                footer = column.footer,
+                // 隣のページはスワイプの途中から作られるので、見ていないカラムのために続きを読まない
+                loadMoreAtEndEnabled = column.selected,
+                listener = uiState.listener,
+                columnListener = column.listener,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 

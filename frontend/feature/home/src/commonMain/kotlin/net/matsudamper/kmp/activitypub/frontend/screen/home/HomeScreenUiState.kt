@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
+import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuUiState
@@ -81,8 +82,21 @@ data class HomeScreenUiState(
          * 横に広い画面で並べるときの幅
          */
         val width: Dp,
+        val fontSize: AppFontSize,
+        val fontSizeMenuItems: List<FontSizeMenuItem>,
         val listener: TimelineColumnListener,
     )
+
+    data class FontSizeMenuItem(
+        val label: String,
+        val checked: Boolean,
+        val listener: FontSizeMenuItemListener,
+    )
+
+    @Immutable
+    interface FontSizeMenuItemListener {
+        fun onClick()
+    }
 
     @Immutable
     interface TimelineColumnListener {

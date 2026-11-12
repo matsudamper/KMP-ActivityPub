@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseRes
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineFontSize
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
 import net.matsudamper.kmp.activitypub.frontend.logic.user.AccountStreamEvent
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
@@ -58,6 +59,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
@@ -475,6 +477,7 @@ internal class HomeScreenViewModel(
             id = editingColumn?.id ?: Uuid.random().toString(),
             name = editor.name.trim(),
             sources = editor.sources,
+            fontSize = editingColumn?.fontSize ?: TimelineFontSize.Medium,
         )
         updateTimelineColumns { it.copy(selectedId = savedColumn.id, editor = null) }
         saveTimelineColumns(
@@ -505,6 +508,11 @@ internal class HomeScreenViewModel(
         updateTimelineColumns { it.copy(selectedId = state.selectedColumn()?.id) }
         val withoutMoved = settings.filterIndexed { index, _ -> index != fromIndex }
         saveTimelineColumns(withoutMoved.take(toIndex) + movedColumn + withoutMoved.drop(toIndex))
+    }
+
+    private fun changeTimelineColumnFontSize(columnId: String, fontSize: TimelineFontSize) {
+        val settings = viewModelStateFlow.value.timelineColumns.settings ?: return
+        saveTimelineColumns(settings.map { if (it.id == columnId) it.copy(fontSize = fontSize) else it })
     }
 
     /**
@@ -1099,6 +1107,22 @@ internal class HomeScreenViewModel(
                 items = feeds.mergedEntries(column.sources).map { entry -> createTimelineItem(viewModelState, entry) },
                 footer = createTimelineFooter(feeds.appendOf(column.sources)),
                 selected = column.id == selectedColumn?.id,
+                fontSize = column.fontSize.toAppFontSize(),
+                fontSizeMenuItems = TimelineFontSize.entries.map { fontSize ->
+                    HomeScreenUiState.FontSizeMenuItem(
+                        label = when (fontSize) {
+                            TimelineFontSize.Small -> "小"
+                            TimelineFontSize.Medium -> "中"
+                            TimelineFontSize.Large -> "大"
+                        },
+                        checked = fontSize == column.fontSize,
+                        listener = object : HomeScreenUiState.FontSizeMenuItemListener {
+                            override fun onClick() {
+                                changeTimelineColumnFontSize(columnId = column.id, fontSize = fontSize)
+                            }
+                        },
+                    )
+                },
                 width = viewModelState.columnWidth(column.id),
                 listener = object : HomeScreenUiState.TimelineColumnListener {
                     override fun onResize(delta: Dp) {
@@ -1530,3 +1554,10 @@ internal class HomeScreenViewModel(
         ) : MyPostsState
     }
 }
+
+private fun TimelineFontSize.toAppFontSize(): AppFontSize =
+    when (this) {
+        TimelineFontSize.Small -> AppFontSize.Small
+        TimelineFontSize.Medium -> AppFontSize.Medium
+        TimelineFontSize.Large -> AppFontSize.Large
+    }
