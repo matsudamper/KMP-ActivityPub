@@ -156,9 +156,12 @@ class ValkeyTimelineStore(uri: String) : TimelineStore {
         check(failures.isEmpty()) { "タイムラインへの配布に失敗した" }
     }
 
+    /**
+     * 購読先を混ぜて 1 本で持っていた頃の `home:{id}` とは別の名前にする。同じ名前だと、残っていた混ざった中身をメインとして読んでしまう
+     */
     private fun key(feed: TimelineFeed): String {
-        val group = feed.groupId?.let { ":group:${it.value}" }.orEmpty()
-        return "home:{${feed.accountId.value}}$group"
+        val source = feed.groupId?.let { "group:${it.value}" } ?: "main"
+        return "timeline:{${feed.accountId.value}}:$source"
     }
 
     private fun StreamMessage<String, String>.toJob(): FanoutJob =
