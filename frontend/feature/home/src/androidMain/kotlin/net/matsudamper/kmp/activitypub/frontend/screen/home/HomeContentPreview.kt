@@ -175,7 +175,8 @@ private fun TimelineNotificationAndDeletedItemsPreview() {
                     notifiedPost.copy(
                         actorLabel = PostItemUiState.ActorLabel(
                             icon = PostItemUiState.ActorLabelIcon.Favourite,
-                            text = createTextWithEmojis(text = "Alice :kotlin: がお気に入り", emojis = PreviewEmojis),
+                            actorName = createTextWithEmojis(text = "Alice :kotlin:", emojis = PreviewEmojis),
+                            actionText = "がお気に入り",
                             iconUrl = null,
                             cancelledLabelVisible = false,
                             listener = AndroidPreviewActorLabelListener,
@@ -184,7 +185,8 @@ private fun TimelineNotificationAndDeletedItemsPreview() {
                     notifiedPost.copy(
                         actorLabel = PostItemUiState.ActorLabel(
                             icon = PostItemUiState.ActorLabelIcon.Boost,
-                            text = createTextWithEmojis(text = "Bob がブースト", emojis = listOf()),
+                            actorName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+                            actionText = "がブースト",
                             iconUrl = null,
                             cancelledLabelVisible = false,
                             listener = AndroidPreviewActorLabelListener,
@@ -825,7 +827,8 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         deletedLabelVisible = false,
         actorLabel = PostItemUiState.ActorLabel(
             icon = PostItemUiState.ActorLabelIcon.Boost,
-            text = createTextWithEmojis(text = "Alice :kotlin: がブースト", emojis = PreviewEmojis),
+            actorName = createTextWithEmojis(text = "Alice :kotlin: とても長い名前のユーザーとても長い名前のユーザー", emojis = PreviewEmojis),
+            actionText = "がブースト",
             iconUrl = null,
             cancelledLabelVisible = true,
             listener = AndroidPreviewActorLabelListener,

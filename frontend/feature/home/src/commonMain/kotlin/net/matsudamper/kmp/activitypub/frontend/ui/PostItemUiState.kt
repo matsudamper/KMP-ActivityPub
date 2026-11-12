@@ -12,7 +12,7 @@ data class PostItemUiState(
     val actorLabel: ActorLabel?,
     val pinnedLabelVisible: Boolean,
     /**
-     * 投稿者が投稿を消したか、ブーストした相手がブーストを取り消した後か。一覧は消える前の内容のまま出すので、消えたことを示す
+     * 投稿者が投稿を消した後か。一覧は消える前の内容のまま出すので、消えたことを示す。ブーストの取り消しは actorLabel で示す
      */
     val deletedLabelVisible: Boolean,
     val iconUrl: String?,
@@ -67,11 +67,13 @@ data class PostItemUiState(
     /**
      * @param iconUrl 相手のプロフィール画像が無ければ null
      * @param listener その相手のプロフィールを見ているときは押せないので null
-     * @param cancelledLabelVisible 自分のブーストを外した後か。一覧は読み直すまでそのまま出すので、外したことを示す
+     * @param actionText actorName に続ける「がブースト」など。行に収まらないときは actorName だけを省略する
+     * @param cancelledLabelVisible ブーストが取り消された後か。一覧は読み直すまでそのまま出すので、取り消されたことを示す
      */
     data class ActorLabel(
         val icon: ActorLabelIcon,
-        val text: TextWithEmojis,
+        val actorName: TextWithEmojis,
+        val actionText: String,
         val iconUrl: String?,
         val cancelledLabelVisible: Boolean,
         val listener: ActorLabelListener?,

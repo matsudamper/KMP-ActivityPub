@@ -402,12 +402,18 @@ private fun ActorLabel(
             )
             EmojiText(
                 modifier = Modifier.weight(1f, fill = false),
-                text = actorLabel.text,
+                text = actorLabel.actorName,
                 style = sizes.secondaryTextStyle,
                 color = color,
                 fontWeight = null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = actorLabel.actionText,
+                style = sizes.secondaryTextStyle,
+                color = color,
+                maxLines = 1,
             )
             if (actorLabel.cancelledLabelVisible) {
                 Text(

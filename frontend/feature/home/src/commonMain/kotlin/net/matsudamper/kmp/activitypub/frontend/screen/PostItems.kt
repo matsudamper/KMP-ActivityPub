@@ -14,7 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param actorLabel 投稿の上に出す「〜がブースト」「〜がお気に入り」の行の元。出さなければ null
  * @param pinned プロフィールの先頭に固定されている投稿か
- * @param deleted 投稿者が投稿を消したか、ブーストした相手がブーストを取り消した後か
+ * @param deleted 投稿者が投稿を消したか、ブーストした相手がブーストを取り消した後か。ブーストの行があれば取り消しとしてそこに示す
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
  */
@@ -51,15 +51,13 @@ internal fun createPostItemUiState(
                     is PostActorLabel.Boost, is PostActorLabel.BoostNotification -> PostItemUiState.ActorLabelIcon.Boost
                     is PostActorLabel.FavouriteNotification -> PostItemUiState.ActorLabelIcon.Favourite
                 },
-                text = createTextWithEmojis(
-                    text = when (label) {
-                        is PostActorLabel.Boost, is PostActorLabel.BoostNotification -> "${actor.displayName} がブースト"
-                        is PostActorLabel.FavouriteNotification -> "${actor.displayName} がお気に入り"
-                    },
-                    emojis = actor.displayNameEmojis,
-                ),
+                actorName = createTextWithEmojis(text = actor.displayName, emojis = actor.displayNameEmojis),
+                actionText = when (label) {
+                    is PostActorLabel.Boost, is PostActorLabel.BoostNotification -> "がブースト"
+                    is PostActorLabel.FavouriteNotification -> "がお気に入り"
+                },
                 iconUrl = actor.iconUrl,
-                cancelledLabelVisible = label is PostActorLabel.Boost && label.byViewer && body.boostedByMe == false,
+                cancelledLabelVisible = label is PostActorLabel.Boost && (deleted || label.byViewer && body.boostedByMe == false),
                 listener = label.navigateToProfile?.let { navigateToProfile ->
                     object : PostItemUiState.ActorLabelListener {
                         override fun onClick() {
@@ -70,7 +68,7 @@ internal fun createPostItemUiState(
             )
         },
         pinnedLabelVisible = pinned,
-        deletedLabelVisible = deleted,
+        deletedLabelVisible = deleted && actorLabel !is PostActorLabel.Boost,
         iconUrl = iconUrl,
         displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,

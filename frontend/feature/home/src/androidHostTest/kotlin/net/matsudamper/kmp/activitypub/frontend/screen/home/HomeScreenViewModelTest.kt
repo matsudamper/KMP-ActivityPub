@@ -377,7 +377,7 @@ class HomeScreenViewModelTest {
         )
 
         val items = viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }.mainColumnItems()
-        assertEquals(listOf("Carol がブースト", "Bob がお気に入り"), items.map { it.actorLabel?.text?.text?.text })
+        assertEquals(listOf("Carol がブースト", "Bob がお気に入り"), items.map { item -> item.actorLabel?.let { "${it.actorName.text.text} ${it.actionText}" } })
         assertEquals(listOf("mine", "mine"), items.map { it.body.text.text })
     }
 
