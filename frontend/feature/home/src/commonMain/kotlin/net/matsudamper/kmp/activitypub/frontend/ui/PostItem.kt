@@ -507,7 +507,7 @@ private fun PostActions(
                 onClick = { boostButton?.listener?.onClick() },
                 enabled = boostButton != null,
                 modifier = Modifier
-                    .width(sizes.actionSlotWidth)
+                    .weight(1f, fill = false).width(sizes.actionSlotWidth)
                     .then(
                         if (boostButton == null) {
                             Modifier
@@ -539,7 +539,7 @@ private fun PostActions(
             TextButton(
                 onClick = { favouriteButton?.listener?.onClick() },
                 enabled = favouriteButton != null,
-                modifier = Modifier.width(sizes.actionSlotWidth),
+                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
                 contentPadding = ActionButtonContentPadding,
             ) {
                 Icon(
@@ -556,7 +556,7 @@ private fun PostActions(
                     maxLines = 1,
                 )
             }
-            Box(modifier = Modifier.width(sizes.actionSlotWidth)) {
+            Box(modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth)) {
                 Icon(
                     imageVector = AppIcons.Emoticon,
                     contentDescription = "スタンプ",
