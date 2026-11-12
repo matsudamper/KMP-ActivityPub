@@ -611,13 +611,17 @@ class UserApi(
         )
     }
 
+    /**
+     * @param replyToPostId 返信する [UserHomeTimelineResult.Post.id]。投稿者へのメンションが本文の先頭に付く。返信でなければ null
+     */
     suspend fun postNote(
         body: String,
         requestId: String,
         imageIds: List<String>,
+        replyToPostId: String?,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
-        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId, imageIds = imageIds)).execute()
+        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = Optional.present(replyToPostId))).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
         val postNote = response.data?.user?.postNote ?: return UserPostNoteResult.Failure(response.failureMessage())
 
@@ -629,6 +633,7 @@ class UserApi(
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
+            UserPostNoteFailure.REPLY_TARGET_NOT_FOUND -> UserPostNoteResult.ReplyTargetNotFound
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
         }
     }

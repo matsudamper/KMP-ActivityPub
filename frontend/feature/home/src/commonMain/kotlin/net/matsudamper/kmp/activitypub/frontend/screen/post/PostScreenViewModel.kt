@@ -155,6 +155,7 @@ internal class PostScreenViewModel(
                             body = state.body,
                             requestId = requestId(),
                             images = state.images.map { it.image },
+                            replyToPostId = null,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -203,6 +204,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
             UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
+            UserPostNoteResult.ReplyTargetNotFound -> "返信先の投稿が見つかりません"
             is UserPostNoteResult.Failure -> result.message
         }
 

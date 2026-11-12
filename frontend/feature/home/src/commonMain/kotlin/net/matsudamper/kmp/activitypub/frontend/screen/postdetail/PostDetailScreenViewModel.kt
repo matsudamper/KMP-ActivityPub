@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
@@ -28,6 +30,8 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNoteSubmitResult
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNoteSubmitter
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
@@ -41,6 +45,7 @@ internal class PostDetailScreenViewModel(
     private val api: UserApi,
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
     private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
+    private val postNoteSubmitter: PostNoteSubmitter,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
@@ -51,6 +56,8 @@ internal class PostDetailScreenViewModel(
                 linkPreviews = listOf(),
                 blurToggledImageUrls = setOf(),
                 noteDeletion = NoteDeletionState.None,
+                mentionText = "",
+                mentionSending = false,
             ),
         )
     private var loadJob: Job? = null
@@ -71,6 +78,11 @@ internal class PostDetailScreenViewModel(
      */
     private var pinChanging = false
 
+    /**
+     * 応答が失われて送り直すときだけ同じ ID にし、書き直したメンションは別の投稿として扱う
+     */
+    private var mentionRequestId = newRequestId()
+
     private val listener = object : PostDetailScreenUiState.Listener {
         override fun onClickRetry() {
             load()
@@ -78,6 +90,18 @@ internal class PostDetailScreenViewModel(
 
         override fun onClickBack() {
             viewModelScope.launch { events.send { it.navigateBack() } }
+        }
+    }
+
+    private val mentionBoxListener = object : PostDetailScreenUiState.MentionBox.Listener {
+        override fun onTextChange(text: String) {
+            if (viewModelStateFlow.value.mentionSending) return
+            mentionRequestId = newRequestId()
+            viewModelStateFlow.update { it.copy(mentionText = text) }
+        }
+
+        override fun onClickSend() {
+            sendMention()
         }
     }
 
@@ -210,6 +234,61 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private fun sendMention() {
+        val state = viewModelStateFlow.value
+        if (!state.mentionSendable()) return
+        val body = state.mentionText
+        viewModelStateFlow.update { it.copy(mentionSending = true) }
+        viewModelScope.launch {
+            val error =
+                try {
+                    val result =
+                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = postId)
+                    when (result) {
+                        // 画像を付けないので置けないことは無い
+                        is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"
+
+                        is PostNoteSubmitResult.Submitted -> mentionErrorMessage(result.result)
+                    }
+                } finally {
+                    viewModelStateFlow.update { it.copy(mentionSending = false) }
+                }
+            if (error != null) {
+                events.send { it.showMessage(error) }
+                return@launch
+            }
+            mentionRequestId = newRequestId()
+            viewModelStateFlow.update { it.copy(mentionText = "") }
+            events.send { it.showMessage("メンションを送りました") }
+        }
+    }
+
+    /**
+     * 送れたら null
+     */
+    private fun mentionErrorMessage(result: UserPostNoteResult): String? =
+        when (result) {
+            UserPostNoteResult.Success -> null
+
+            UserPostNoteResult.NotLoggedIn -> "ログインしていません"
+
+            UserPostNoteResult.EmptyBody -> "本文が空です"
+
+            UserPostNoteResult.TooLong -> "本文が長すぎます"
+
+            UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
+
+            UserPostNoteResult.ReplyTargetNotFound -> "この投稿にはメンションできません"
+
+            UserPostNoteResult.TooManyImages,
+            UserPostNoteResult.ImageNotFound,
+            -> "メンションを送れませんでした"
+
+            is UserPostNoteResult.Failure -> result.message
+        }
+
+    private fun newRequestId(): String = Uuid.random().toString()
+
     private fun setPinned(pinnableNoteId: String, pinned: Boolean) {
         if (pinChanging) return
         pinChanging = true
@@ -267,7 +346,13 @@ internal class PostDetailScreenViewModel(
 
                 is PostState.Loaded -> PostDetailScreenUiState.Content.Loaded(
                     post = createPostItem(post.post, viewModelState),
-                    mentionBoxPlaceholder = "${createAcct(post.post)} へメンション",
+                    mentionBox = PostDetailScreenUiState.MentionBox(
+                        text = viewModelState.mentionText,
+                        placeholder = "${createAcct(post.post)} へメンション",
+                        textFieldEnabled = !viewModelState.mentionSending,
+                        sendButtonEnabled = viewModelState.mentionSendable(),
+                        listener = mentionBoxListener,
+                    ),
                 )
 
                 PostState.NotFound -> PostDetailScreenUiState.Content.NotFound
@@ -349,7 +434,11 @@ internal class PostDetailScreenViewModel(
         val linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
         val blurToggledImageUrls: Set<String>,
         val noteDeletion: NoteDeletionState,
-    )
+        val mentionText: String,
+        val mentionSending: Boolean,
+    ) {
+        fun mentionSendable(): Boolean = !mentionSending && mentionText.isNotBlank()
+    }
 
     private sealed interface PostState {
         data object Loading : PostState

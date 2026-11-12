@@ -171,7 +171,7 @@ internal fun PostDetailContent(
                     val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
                     if (loadedContent != null) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        DummyMentionBox(placeholder = loadedContent.mentionBoxPlaceholder)
+                        MentionBox(uiState = loadedContent.mentionBox)
                     }
                 }
             }
@@ -187,29 +187,31 @@ internal fun PostDetailContent(
     }
 }
 
-/**
- * 送信はまだできないので、入力も送信も押せない見た目だけの欄
- */
 @Composable
-private fun DummyMentionBox(placeholder: String) {
+private fun MentionBox(uiState: PostDetailScreenUiState.MentionBox) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = uiState.text,
+            onValueChange = uiState.listener::onTextChange,
             modifier = Modifier.weight(1f),
-            enabled = false,
-            singleLine = true,
-            placeholder = { Text(text = placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            enabled = uiState.textFieldEnabled,
+            maxLines = MENTION_BOX_MAX_LINES,
+            placeholder = { Text(text = uiState.placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         )
-        Button(onClick = {}, enabled = false) {
+        Button(onClick = uiState.listener::onClickSend, enabled = uiState.sendButtonEnabled) {
             Text(text = "送信")
         }
     }
 }
+
+/**
+ * 長く書いても投稿が隠れないよう、入力欄の伸びを抑える
+ */
+private const val MENTION_BOX_MAX_LINES = 4
 
 private val contentWindowInsets: WindowInsets
     @Composable
