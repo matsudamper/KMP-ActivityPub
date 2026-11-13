@@ -34,12 +34,24 @@ class FollowingGroupService(
     }
 
     /**
-     * 投稿を載せた購読先。ブーストならブーストした相手の購読先。自分の投稿や自分のブーストなどメインに入るものは null
+     * 投稿を載せた購読先を、投稿の member ごとに返す。ブーストならブーストした相手の購読先。自分の投稿や自分のブーストなどメインに入るものは含まない
      */
-    fun groupIdOfPost(accountId: AccountId, post: TimelinePost): FollowingGroupId? {
-        val booster = post.boostedBy ?: return groupIdOf(accountId, post.actorUri)
-        return groupIdOf(accountId, booster.actorUri)
+    fun groupIdsOfPosts(accountId: AccountId, posts: List<TimelinePost>): Map<String, FollowingGroupId> {
+        val carrierUris = posts.mapNotNull { post -> post.carrierActorUri()?.let { post.position.member to it } }.toMap()
+        val groupIds = following.groupIdsAmong(accountId, carrierUris.values.toSet())
+        return carrierUris.mapNotNull { (member, carrierUri) -> groupIds[carrierUri]?.let { member to it } }.toMap()
     }
+
+    private fun TimelinePost.carrierActorUri(): String? {
+        val booster = boostedBy ?: return actorUri
+        return booster.actorUri
+    }
+
+    /**
+     * [actorUris] のうち [accountId] が購読している相手と、その購読先
+     */
+    fun followedAmong(accountId: AccountId?, actorUris: Set<String>): FollowedActors =
+        FollowedActors(if (accountId == null) mapOf() else following.groupIdsAmong(accountId, actorUris))
 
     fun createGroup(accountId: AccountId?, name: String): CreateFollowingGroupResult {
         if (accountId == null || accounts.findById(accountId) == null) return CreateFollowingGroupResult.NotLoggedIn
@@ -113,4 +125,13 @@ sealed interface RenameFollowingGroupResult {
      */
     data object NotFound : RenameFollowingGroupResult
     data object DuplicateName : RenameFollowingGroupResult
+}
+
+class FollowedActors(private val groupIdsByActorUri: Map<String, FollowingGroupId?>) {
+    fun isFollowing(actorUri: String?): Boolean = actorUri in groupIdsByActorUri
+
+    /**
+     * 購読していないか、メインに入っていれば null
+     */
+    fun groupIdOf(actorUri: String?): FollowingGroupId? = groupIdsByActorUri[actorUri]
 }

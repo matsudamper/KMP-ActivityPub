@@ -7,22 +7,38 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotification
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationKind
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
+import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
+import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.shared.AccountId
-import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 /**
- * 投稿ごとに固定を引くと件数分問い合わせることになるので、並べる投稿の分をまとめて引く
+ * 投稿ごとに固定や購読先を引くと件数分問い合わせることになるので、並べる投稿の分をまとめて引く
  */
 internal fun List<TimelinePost>.toQlTimelinePosts(accountId: AccountId, diContainer: DiContainer): List<QlTimelinePost> {
     val pinnedNoteIds = diContainer.notePinService.pinnedAmong(mapNotNull { it.localPublicId }.toSet())
-    return map { it.toQlTimelinePost(accountId, pinnedNoteIds, diContainer) }
+    val groupIdsByMember = diContainer.followingGroupService.groupIdsOfPosts(accountId, this)
+    val localIconUrls = diContainer.profileIconUrls?.memoized()
+    return map { post ->
+        post.toQlTimelinePost(
+            pinned = post.boostedBy == null && post.localPublicId in pinnedNoteIds,
+            followingGroupId = groupIdsByMember[post.position.member],
+            localIconUrls = localIconUrls,
+            diContainer = diContainer,
+        )
+    }
 }
 
-private fun TimelinePost.toQlTimelinePost(accountId: AccountId, pinnedNoteIds: Set<PublicNoteId>, diContainer: DiContainer): QlTimelinePost {
+private fun TimelinePost.toQlTimelinePost(
+    pinned: Boolean,
+    followingGroupId: FollowingGroupId?,
+    localIconUrls: ProfileIconUrls?,
+    diContainer: DiContainer,
+): QlTimelinePost {
     val body = createQlPostBody(
         contentHtml = contentHtml,
         summary = summary,
@@ -44,7 +60,7 @@ private fun TimelinePost.toQlTimelinePost(accountId: AccountId, pinnedNoteIds: S
             displayName = displayName ?: username,
             displayNameEmojis = actorEmojis.toQlCustomEmojis(diContainer),
             iconUrl = if (actorUri == null) {
-                diContainer.profileIconUrls?.find(username)
+                localIconUrls?.find(username)
             } else {
                 actorIconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = actorUpdatedAt) }
             },
@@ -57,7 +73,7 @@ private fun TimelinePost.toQlTimelinePost(accountId: AccountId, pinnedNoteIds: S
         // ブーストとして載せた投稿は他のアカウントの投稿のこともあり、ブーストされた元の投稿を消したり固定したりする場所ではない
         deletableNoteId = if (boostedBy == null) localPublicId?.value else null,
         pinnableNoteId = if (boostedBy == null) localPublicId else null,
-        pinned = boostedBy == null && localPublicId in pinnedNoteIds,
+        pinned = pinned,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
         url = diContainer.noteShareUrls?.url(noteRef),
@@ -72,13 +88,13 @@ private fun TimelinePost.toQlTimelinePost(accountId: AccountId, pinnedNoteIds: S
                 displayName = booster.displayName ?: booster.username,
                 displayNameEmojis = booster.emojis.toQlCustomEmojis(diContainer),
                 iconUrl = if (booster.actorUri == null) {
-                    diContainer.profileIconUrls?.find(booster.username)
+                    localIconUrls?.find(booster.username)
                 } else {
                     booster.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = booster.updatedAt) }
                 },
             )
         },
-        followingGroupId = diContainer.followingGroupService.groupIdOfPost(accountId, this),
+        followingGroupId = followingGroupId,
     )
 }
 

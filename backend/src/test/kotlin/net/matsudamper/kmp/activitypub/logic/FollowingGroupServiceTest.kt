@@ -110,14 +110,21 @@ class FollowingGroupServiceTest {
         assertTrue(service.setFollowing(alice, actorUri, true, news.id))
         assertTrue(service.setFollowing(alice, homeActorUri, true, null))
 
-        assertEquals(news.id, service.groupIdOfPost(alice, timelinePost(actorUri = actorUri, boosterActorUri = null)))
-        assertEquals(news.id, service.groupIdOfPost(alice, timelinePost(actorUri = homeActorUri, boosterActorUri = actorUri)))
-        assertNull(service.groupIdOfPost(alice, timelinePost(actorUri = actorUri, boosterActorUri = homeActorUri)))
-        assertNull(service.groupIdOfPost(alice, timelinePost(actorUri = null, boosterActorUri = null)))
+        val groupIds = service.groupIdsOfPosts(
+            alice,
+            listOf(
+                timelinePost(member = "author", actorUri = actorUri, boosterActorUri = null),
+                timelinePost(member = "booster", actorUri = homeActorUri, boosterActorUri = actorUri),
+                timelinePost(member = "boosterInMain", actorUri = actorUri, boosterActorUri = homeActorUri),
+                timelinePost(member = "own", actorUri = null, boosterActorUri = null),
+            ),
+        )
+
+        assertEquals(mapOf("author" to news.id, "booster" to news.id), groupIds)
     }
 
-    private fun timelinePost(actorUri: String?, boosterActorUri: String?) = TimelinePost(
-        position = TimelinePosition(0, "1"),
+    private fun timelinePost(member: String, actorUri: String?, boosterActorUri: String?) = TimelinePost(
+        position = TimelinePosition(0, member),
         contentHtml = "本文",
         publishedAt = Instant.EPOCH,
         actorUri = actorUri,

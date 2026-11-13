@@ -27,11 +27,14 @@ import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
+import net.matsudamper.kmp.activitypub.logic.FollowedActors
+import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfilePost
 import net.matsudamper.kmp.activitypub.logic.ProfilePostCursor
 import net.matsudamper.kmp.activitypub.logic.ProfilePostsResult
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
+import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -170,7 +173,7 @@ class QueryResolverImpl : QueryResolver {
         return CompletableFuture.completedFuture(
             DataFetcherResult.Builder(
                 QlUserSearchResult(
-                    users = result.users.map { it.toQlSearchedUser(env, accountId) },
+                    users = result.users.toQlSearchedUsers(env, accountId),
                     nextCursor = result.nextCursor?.encode(),
                 ),
             ).build(),
@@ -221,12 +224,13 @@ class QueryResolverImpl : QueryResolver {
     private fun ActorListPage.toQlActorList(env: DataFetchingEnvironment): QlActorList {
         val diContainer = GraphQlEngine.diContainer(env)
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val followed = diContainer.followingGroupService.followedAmong(accountId, users.map { it.actorUri }.toSet())
         return QlActorList(
             users = users.map { user ->
                 QlListedActor(
                     actorUri = user.actorUri,
-                    following = diContainer.followingService.isFollowing(accountId, user.actorUri),
-                    followingGroupId = diContainer.followingGroupService.groupIdOf(accountId, user.actorUri),
+                    following = followed.isFollowing(user.actorUri),
+                    followingGroupId = followed.groupIdOf(user.actorUri),
                     username = user.username,
                     host = user.host,
                     displayName = user.displayName,
@@ -238,15 +242,24 @@ class QueryResolverImpl : QueryResolver {
         )
     }
 
-    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment, accountId: AccountId?): QlSearchedUser {
+    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment, accountId: AccountId?): QlSearchedUser =
+        listOf(this).toQlSearchedUsers(env, accountId).single()
+
+    /**
+     * 1 人ずつフォローや購読先を引くと人数分問い合わせることになるので、並べる人の分をまとめて引く
+     */
+    private fun List<SearchedUser>.toQlSearchedUsers(env: DataFetchingEnvironment, accountId: AccountId?): List<QlSearchedUser> {
         val diContainer = GraphQlEngine.diContainer(env)
+        val followed = diContainer.followingGroupService.followedAmong(accountId, mapNotNull { it.actorUri }.toSet())
+        val localIconUrls = diContainer.profileIconUrls?.memoized()
+        return map { user -> user.toQlSearchedUser(followed, localIconUrls, diContainer) }
+    }
+
+    private fun SearchedUser.toQlSearchedUser(followed: FollowedActors, localIconUrls: ProfileIconUrls?, diContainer: DiContainer): QlSearchedUser {
         return QlSearchedUser(
             actorUri = actorUri,
-            following = diContainer.followingService.isFollowing(
-                accountId,
-                actorUri,
-            ),
-            followingGroupId = diContainer.followingGroupService.groupIdOf(accountId, actorUri),
+            following = followed.isFollowing(actorUri),
+            followingGroupId = followed.groupIdOf(actorUri),
             username = username,
             host = host,
             isLocal = isLocal,
@@ -254,7 +267,7 @@ class QueryResolverImpl : QueryResolver {
             displayNameEmojis = displayNameEmojis.toQlCustomEmojis(diContainer),
             iconUrl =
             if (isLocal) {
-                diContainer.profileIconUrls?.find(username)
+                localIconUrls?.find(username)
             } else {
                 iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = updatedAt) }
             },
