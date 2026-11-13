@@ -127,7 +127,7 @@ type TimelinePost {
     "本文と summary に入るカスタム絵文字。画像を中継できなければ空"
     emojis: [CustomEmoji!]!
     "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
-    deletableNoteId: ID
+    deletableNoteId: PublicNoteId
     "ログイン中のアカウントの投稿なら setPinned に渡す id。固定できない投稿は null"
     pinnableNoteId: PublicNoteId
     "プロフィールの先頭に固定されているか。他のサーバーの投稿は false"

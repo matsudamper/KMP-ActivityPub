@@ -10,7 +10,7 @@ type UserInfo {
     投稿の本文にあるリンク先の OGP。postId には TimelinePost.id か ProfilePost.linkPreviewId を渡す。
     リンク先へ取りに行くので遅い。読めない投稿か、サーバーに DOMAIN が無ければ空
     """
-    linkPreviews(postId: ID!): [LinkPreview!]! @lazy
+    linkPreviews(postId: LinkPreviewPostId!): [LinkPreview!]! @lazy
     "タイムラインの投稿を 1 件。id には TimelinePost.id を渡す。読めない投稿なら null"
     timelinePost(id: TimelinePostId!): TimelinePost @lazy
     id: UserId!

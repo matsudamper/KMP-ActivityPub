@@ -174,6 +174,7 @@ class GraphQlEngine private constructor(
                         GraphQlScalars.publicNoteId,
                         GraphQlScalars.followingGroupId,
                         GraphQlScalars.timelinePostId,
+                        GraphQlScalars.linkPreviewPostId,
                         GraphQlScalars.notificationId,
                         GraphQlScalars.upload,
                     )
