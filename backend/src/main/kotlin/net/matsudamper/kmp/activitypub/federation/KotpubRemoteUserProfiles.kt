@@ -3,12 +3,10 @@ package net.matsudamper.kmp.activitypub.federation
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.OutboxPosition
 import net.matsudamper.kmp.activitypub.logic.RemoteNotesPage
-import net.matsudamper.kmp.activitypub.logic.RemoteUser
-import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
+import net.matsudamper.kmp.activitypub.logic.RemoteProfilePostSources
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
-import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.RemoteOutboxCursor
 import net.matsudamper.kotpub.note.RemoteOutboxNote
@@ -19,27 +17,36 @@ import org.jsoup.safety.Safelist
 import org.slf4j.LoggerFactory
 
 internal class KotpubRemoteUserProfiles(
-    private val users: RemoteUserLookup,
-    private val actors: RemoteActors,
+    private val users: KotpubRemoteUserLookup,
     private val outbox: HttpRemoteOutbox,
 ) : RemoteUserProfiles {
     private val logger = LoggerFactory.getLogger(KotpubRemoteUserProfiles::class.java)
 
-    override suspend fun find(username: String, host: String): RemoteUserProfile? {
-        val user = users.findByAcct(username, host) ?: return null
-        return profileFor(user)
-    }
+    override suspend fun find(username: String, host: String): RemoteUserProfile? = users.findWithActorByAcct(username, host)?.toProfile()
 
-    override suspend fun findByActorUri(actorUri: String): RemoteUserProfile? {
-        val user = users.findByUrl(actorUri) ?: return null
-        return profileFor(user)
-    }
+    override suspend fun findByActorUri(actorUri: String): RemoteUserProfile? = users.findWithActorByUrl(actorUri)?.toProfile()
 
     override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
-        when (val result = outbox.recentPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) })) {
+        outbox.recentPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) }).toNotesPage(actorUri, from)
+
+    override suspend fun postSources(actorUri: String): RemoteProfilePostSources? {
+        val actor = outbox.collectionsOf(actorUri)
+        if (actor == null) {
+            logger.warn("outbox と featured を読むためのアクターを取れなかった: $actorUri")
+            return null
+        }
+        return object : RemoteProfilePostSources {
+            override suspend fun firstNotesPage(): RemoteNotesPage? = outbox.recentPage(actor, null).toNotesPage(actorUri, from = null)
+
+            override suspend fun featuredNotes(): List<RemoteNoteInput> = outbox.featured(actor, limit = 20).notesOrEmpty(actorUri, kind = "featured")
+        }
+    }
+
+    private fun RemoteOutboxPageResult.toNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
+        when (this) {
             is RemoteOutboxPageResult.Found -> RemoteNotesPage(
-                notes = result.page.notes.map { it.toInput(actorUri, Instant.now()) },
-                next = result.page.next?.let { OutboxPosition(pageId = it.pageId, itemOffset = it.itemOffset) },
+                notes = page.notes.map { it.toInput(actorUri, Instant.now()) },
+                next = page.next?.let { OutboxPosition(pageId = it.pageId, itemOffset = it.itemOffset) },
             )
 
             RemoteOutboxPageResult.Unavailable -> {
@@ -47,9 +54,6 @@ internal class KotpubRemoteUserProfiles(
                 null
             }
         }
-
-    override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> =
-        outbox.featured(actorUri, limit = 20).notesOrEmpty(actorUri, kind = "featured")
 
     private fun RemoteOutboxResult.notesOrEmpty(actorUri: String, kind: String): List<RemoteNoteInput> =
         when (this) {
@@ -76,8 +80,6 @@ internal class KotpubRemoteUserProfiles(
         emojis = emojis.toRecords(),
     )
 
-    private suspend fun profileFor(user: RemoteUser): RemoteUserProfile? {
-        val actor = actors.findActor(user.actorUri) ?: return null
-        return RemoteUserProfile(user = user, headerUrl = actor.profile.headerUrl, biography = actor.profile.summary)
-    }
+    private fun FoundRemoteUser.toProfile(): RemoteUserProfile =
+        RemoteUserProfile(user = user, headerUrl = actor.profile.headerUrl, biography = actor.profile.summary)
 }

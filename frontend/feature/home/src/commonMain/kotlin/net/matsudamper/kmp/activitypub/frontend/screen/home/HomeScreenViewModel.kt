@@ -39,6 +39,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsPageResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfilePostsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
@@ -415,7 +416,7 @@ internal class HomeScreenViewModel(
                 applyBoosted(postId = change.reactionPostId, boosted = change.boosted)
                 // 自分のブーストは自分の投稿に並ぶので、付けたら読み直して加える
                 val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
-                if (change.boosted && myPosts != null) loadMyPosts(myPosts.profile.username)
+                if (change.boosted && myPosts != null) loadMyPosts(myPosts.owner)
             }
         }
         viewModelScope.launch {
@@ -424,20 +425,20 @@ internal class HomeScreenViewModel(
                 timelineFeeds.updatePosts { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
                 updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }) }
                 val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
-                if (myPosts != null && myPosts.profile.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
-                    loadMyPosts(myPosts.profile.username)
+                if (myPosts != null && myPosts.posts.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
+                    loadMyPosts(myPosts.owner)
                 } else {
                     viewModelStateFlow.update {
                         val loaded = it.myPosts as? MyPostsState.Loaded ?: return@update it
-                        it.copy(myPosts = MyPostsState.Loaded(loaded.profile.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned)))
+                        it.copy(myPosts = loaded.copy(posts = loaded.posts.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned)))
                     }
                 }
             }
         }
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
-                // 購読の数が変わる
-                loadProfile()
+                // 購読の数が変わる。自分の投稿は変わらないので読み直さない
+                loadProfile(reloadsMyPosts = false)
                 // 読み込み済みの投稿は前の購読先のまま振り分けられるので、読み直して今の購読先に振り分ける
                 loadTimeline(TimelineLoadTrigger.FollowingChanged)
                 searchPaging?.updateCache { it.withFollowing(change) }
@@ -583,6 +584,10 @@ internal class HomeScreenViewModel(
     }
 
     private fun loadProfile() {
+        loadProfile(reloadsMyPosts = true)
+    }
+
+    private fun loadProfile(reloadsMyPosts: Boolean) {
         profileJob?.cancel()
         // 出している内容は読み直しの間も残す。戻るたびに読み込み中へ切り替わると画面がちらつく
         viewModelStateFlow.update {
@@ -592,7 +597,7 @@ internal class HomeScreenViewModel(
             when (val result = userApi.myProfile()) {
                 is UserMyProfileResult.Found -> {
                     viewModelStateFlow.update { it.copy(profile = ProfileState.Loaded(result)) }
-                    loadMyPosts(result.username)
+                    if (reloadsMyPosts || viewModelStateFlow.value.myPosts !is MyPostsState.Loaded) loadMyPosts(result)
                 }
 
                 UserMyProfileResult.NotLoggedIn -> {
@@ -609,30 +614,29 @@ internal class HomeScreenViewModel(
     private fun retryMyPosts() {
         val failed = viewModelStateFlow.value.myPosts as? MyPostsState.LoadFailed ?: return
         if (profileJob?.isActive == true || myPostsRetryJob?.isActive == true) return
-        myPostsRetryJob = viewModelScope.launch { loadMyPosts(failed.username) }
+        myPostsRetryJob = viewModelScope.launch { loadMyPosts(failed.owner) }
     }
 
-    private suspend fun loadMyPosts(username: String) {
+    private suspend fun loadMyPosts(owner: UserMyProfileResult.Found) {
         viewModelStateFlow.update {
             if (it.myPosts is MyPostsState.LoadFailed) it.copy(myPosts = MyPostsState.Loading) else it
         }
-        when (val result = userApi.userProfile(username = username)) {
-            is UserProfileResult.Found -> {
-                viewModelStateFlow.update { it.copy(myPosts = MyPostsState.Loaded(result)) }
+        // 名前やアイコンは自分のプロフィールで読んでいるので、投稿だけを読む
+        when (val result = userApi.userProfilePosts(acct = owner.username, after = null)) {
+            is UserProfilePostsResult.Success -> {
+                viewModelStateFlow.update { it.copy(myPosts = MyPostsState.Loaded(owner = owner, posts = result.posts)) }
             }
 
-            UserProfileResult.NotFound -> myPostsFailed(username, MY_POSTS_NOT_FOUND_MESSAGE)
-
-            is UserProfileResult.Failure -> myPostsFailed(username, result.message)
+            is UserProfilePostsResult.Failure -> myPostsFailed(owner, result.message)
         }
     }
 
     /**
      * 出している投稿は読み直しに失敗しても残す
      */
-    private suspend fun myPostsFailed(username: String, message: String) {
+    private suspend fun myPostsFailed(owner: UserMyProfileResult.Found, message: String) {
         viewModelStateFlow.update {
-            if (it.myPosts is MyPostsState.Loaded) it else it.copy(myPosts = MyPostsState.LoadFailed(username))
+            if (it.myPosts is MyPostsState.Loaded) it else it.copy(myPosts = MyPostsState.LoadFailed(owner))
         }
         events.send { it.showMessage(message) }
     }
@@ -1001,7 +1005,7 @@ internal class HomeScreenViewModel(
         updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withLiked(reactionPostId = postId, liked = liked) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withLiked(likePostId = postId, liked = liked)))
+            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.withLiked(likePostId = postId, liked = liked)))
         }
     }
 
@@ -1030,7 +1034,7 @@ internal class HomeScreenViewModel(
         updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withBoosted(reactionPostId = postId, boosted = boosted) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(myPosts = MyPostsState.Loaded(myPosts.profile.withBoosted(reactionPostId = postId, boosted = boosted)))
+            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.withBoosted(reactionPostId = postId, boosted = boosted)))
         }
     }
 
@@ -1060,8 +1064,7 @@ internal class HomeScreenViewModel(
         updateLoadedNotifications { it.copy(data = it.data.withoutNote(noteId)) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            val profile = myPosts.profile
-            it.copy(myPosts = MyPostsState.Loaded(profile.copy(posts = profile.posts.filterNot { post -> post.deletableNoteId == noteId })))
+            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.filterNot { post -> post.deletableNoteId == noteId }))
         }
     }
 
@@ -1144,11 +1147,12 @@ internal class HomeScreenViewModel(
             is MyPostsState.LoadFailed -> HomeScreenUiState.UserPosts.LoadFailed
 
             is MyPostsState.Loaded -> {
-                val profile = myPosts.profile
+                val profile = myPosts.owner
+                val displayName = profile.displayName ?: profile.username
                 // ブーストした他の人の投稿の画像は、自分のメディアに含めない
-                val media = createProfileMedia(profile.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
+                val media = createProfileMedia(myPosts.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
                 HomeScreenUiState.UserPosts.Loaded(
-                    items = profile.posts.map { post ->
+                    items = myPosts.posts.map { post ->
                         val linkPreviewId = post.linkPreviewId
                         val boostedNoteAuthor = post.boostedNoteAuthor
                         createPostItemUiState(
@@ -1162,8 +1166,8 @@ internal class HomeScreenViewModel(
                                     actor = UserHomeTimelineResult.Actor(
                                         username = profile.username,
                                         host = null,
-                                        displayName = profile.displayName,
-                                        displayNameEmojis = profile.displayNameEmojis,
+                                        displayName = displayName,
+                                        displayNameEmojis = listOf(),
                                         iconUrl = profile.iconUrl,
                                     ),
                                     byViewer = true,
@@ -1171,8 +1175,8 @@ internal class HomeScreenViewModel(
                                 )
                             },
                             iconUrl = if (boostedNoteAuthor == null) profile.iconUrl else boostedNoteAuthor.iconUrl,
-                            displayName = boostedNoteAuthor?.displayName ?: profile.displayName,
-                            displayNameEmojis = boostedNoteAuthor?.displayNameEmojis ?: profile.displayNameEmojis,
+                            displayName = boostedNoteAuthor?.displayName ?: displayName,
+                            displayNameEmojis = boostedNoteAuthor?.displayNameEmojis.orEmpty(),
                             acct = if (boostedNoteAuthor == null) "@${profile.username}" else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                             body = post.body,
                             linkPreviews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty(),
@@ -1213,7 +1217,7 @@ internal class HomeScreenViewModel(
                             },
                         )
                     },
-                    emptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
+                    emptyMessage = if (myPosts.posts.isEmpty()) "表示できる投稿はありません" else null,
                     media = media,
                     mediaEmptyMessage = if (media.isEmpty()) "表示できるメディアはありません" else null,
                 )
@@ -1522,7 +1526,6 @@ internal class HomeScreenViewModel(
         const val COLUMN_WIDTHS_NOT_SAVED_MESSAGE = "カラムの幅を端末に保存できませんでした"
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
-        const val MY_POSTS_NOT_FOUND_MESSAGE = "投稿を読み込めませんでした"
         const val TIMELINE_STREAM_DISCONNECTED_MESSAGE = "新着投稿の受信が切れました"
         const val TIMELINE_COLUMNS_EMPTY_MESSAGE = "表示するカラムがありません"
         const val ADD_TIMELINE_COLUMN_DIALOG_TITLE = "カラムを追加"
@@ -1695,15 +1698,19 @@ internal class HomeScreenViewModel(
     private sealed interface MyPostsState {
         data object Loading : MyPostsState
 
+        /**
+         * @param owner 投稿の主。名前やアイコンを出す
+         */
         data class Loaded(
-            val profile: UserProfileResult.Found,
+            val owner: UserMyProfileResult.Found,
+            val posts: List<UserProfileResult.Post>,
         ) : MyPostsState
 
         /**
-         * @param username 再試行で読み直す相手
+         * @param owner 再試行で読み直す相手
          */
         data class LoadFailed(
-            val username: String,
+            val owner: UserMyProfileResult.Found,
         ) : MyPostsState
     }
 }

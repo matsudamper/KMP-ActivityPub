@@ -20,15 +20,11 @@ query UserProfile($username: String!) {
             name
             url
         }
-        posts {
-            ...ProfilePostFields
-        }
-        postsNextCursor
     }
 }
 
-query UserProfilePosts($after: String!) {
-    userProfilePosts(after: $after) {
+query UserProfilePosts($acct: String!, $after: String) {
+    userProfilePosts(acct: $acct, after: $after) {
         posts {
             ...ProfilePostFields
         }

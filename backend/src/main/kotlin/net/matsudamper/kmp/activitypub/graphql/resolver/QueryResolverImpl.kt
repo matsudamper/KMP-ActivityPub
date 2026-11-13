@@ -54,20 +54,23 @@ class QueryResolverImpl : QueryResolver {
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
                         viewerIsOwner = profile.viewerIsOwner,
-                        posts = profile.posts.map { post -> post.toQlProfilePost(diContainer) },
-                        postsNextCursor = profile.postsNextCursor?.encode(),
                     )
                 }
             DataFetcherResult.Builder<QlUserProfile?>(result).build()
         }
     }
 
-    override fun userProfilePosts(after: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfilePostPage?>> {
-        val cursor = ProfilePostCursor.decode(after) ?: throw GraphQlClientException("after が読めない")
+    override fun userProfilePosts(acct: String, after: String?, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfilePostPage?>> {
+        val cursor = after?.let { ProfilePostCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
-            val page = when (val result = diContainer.userProfileService.morePosts(viewer = accountId, cursor = cursor)) {
+            val result = if (cursor == null) {
+                diContainer.userProfileService.firstPosts(acct = acct, viewer = accountId)
+            } else {
+                diContainer.userProfileService.morePosts(viewer = accountId, cursor = cursor)
+            }
+            val page = when (result) {
                 is ProfilePostsResult.Found -> QlProfilePostPage(
                     posts = result.page.posts.map { post -> post.toQlProfilePost(diContainer) },
                     nextCursor = result.page.nextCursor?.encode(),
