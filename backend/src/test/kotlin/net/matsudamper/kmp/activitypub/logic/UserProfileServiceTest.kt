@@ -244,6 +244,33 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun storedPostsOlderThanTheEndOfOutboxAreReadInPagesWithoutDuplicates() = runBlocking {
+        outbox = { RemoteNotesPage(notes = listOf(remoteNote("<p>outbox</p>", "https://remote.example/notes/outbox", publishedAt = Instant.ofEpochSecond(100))), next = null) }
+        // outbox に載らないブーストが 1 ページより多くある
+        (1..25).reversed().forEach { index ->
+            repositories.timelineRepository.actorPosts.add(
+                storedPost("<p>ブースト $index</p>", summary = null, sensitive = false).copy(
+                    position = TimelinePosition(index * 1_000L, "b$index"),
+                    reactionMember = "r$index",
+                    noteRef = TimelineNoteRef.Remote("https://other.example/notes/$index"),
+                    boostedBy = TimelineBooster(actorUri = actorUri, username = "bob", displayName = "Bob", iconUrl = null, updatedAt = Instant.EPOCH, emojis = listOf()),
+                ),
+            )
+        }
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        assertEquals(21, profile.posts.size)
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, assertNotNull(profile.postsNextCursor))).page
+        val all = (profile.posts + next.posts).map { it.contentHtml }
+
+        assertEquals(26, all.size)
+        assertEquals(all.toSet().size, all.size)
+        assertNull(next.nextCursor)
+    }
+
+    @Test
     fun remotePostsContinuationNeedsLoginAndReportsUnreadableOutbox() = runBlocking {
         val cursor = ProfilePostCursor.Remote(actorUri = actorUri, outbox = OutboxPosition(pageId = "page-2", itemOffset = 0), storedBefore = null)
         assertEquals(ProfilePostsResult.NotLoggedIn, service.morePosts(null, cursor))

@@ -273,31 +273,34 @@ class UserProfileService(
         detached(OUTBOX_TIMEOUT, "outbox", actorUri) { it.recentNotesPage(actorUri, from) }
 
     /**
-     * outbox の 1 ページに、そのページの範囲にある保存済みの投稿を混ぜる
+     * outbox の 1 ページに、そのページの範囲にある保存済みの投稿を混ぜる。
+     * outbox を最後まで読んだら、それより古い保存済みの投稿は outbox に載らないものだけなので、[PROFILE_POST_LIMIT] 件ずつ保存済みから続ける
      *
      * @param storedBefore 保存済みの投稿をここより古い方から混ぜる。最初のページなら null
      */
     private fun mergedRemotePage(viewer: AccountId, actorUri: String, followed: Boolean, outboxPage: RemoteNotesPage, storedBefore: TimelinePosition?): ProfilePostPage {
         val outboxPosts = withStored(viewer, followed, outboxPage.notes)
-        val next = outboxPage.next
-        // 続きがあるときは、このページの outbox より古い保存済みの投稿を次のページに回す
-        val lowestScore = if (next == null) null else outboxPage.notes.minOfOrNull { it.publishedAt.toEpochMilli() } ?: storedBefore?.score
         val outboxNoteRefs = outboxPosts.map { it.second.noteRef }.toSet()
-        val storedOnly = storedPostsDownTo(viewer = viewer, actorUri = actorUri, before = storedBefore, lowestScore = lowestScore)
+        val lowestScore = outboxPage.notes.minOfOrNull { it.publishedAt.toEpochMilli() }
+        // このページには lowestScore ちょうどの投稿まで入れるので、続きはそれより古いものだけ。member を空にすると時刻だけで区切れる
+        val belowPage = lowestScore?.let { TimelinePosition(score = it, member = "") } ?: storedBefore
+        val inPageRange = if (lowestScore == null) listOf() else storedPostsDownTo(viewer, actorUri, before = storedBefore, lowestScore = lowestScore)
+        val next = outboxPage.next
+        val olderThanOutbox = if (next == null) timeline.actorPosts(viewer, actorUri, before = belowPage, limit = PROFILE_POST_LIMIT) else listOf()
+        val storedOnly = (inPageRange + olderThanOutbox)
             .filterNot { it.boostedBy == null && it.noteRef in outboxNoteRefs }
             .mapNotNull { post -> post.toActorProfilePost(viewer)?.let { post.position.score to it } }
         val posts = (outboxPosts + storedOnly).sortedByDescending { it.first }.map { it.second }
+        val lastOlder = olderThanOutbox.lastOrNull()?.position
         return ProfilePostPage(
             posts = posts,
-            nextCursor = if (next == null) {
-                null
-            } else {
-                ProfilePostCursor.Remote(
-                    actorUri = actorUri,
-                    outbox = next,
-                    // このページには lowestScore ちょうどの投稿まで入れたので、続きはそれより古いものだけ。member を空にすると時刻だけで区切れる
-                    storedBefore = lowestScore?.let { StoredTimelinePosition(score = it, member = "") } ?: storedBefore?.let { StoredTimelinePosition(it.score, it.member) },
-                )
+            nextCursor = when {
+                next != null -> ProfilePostCursor.Remote(actorUri = actorUri, outbox = next, storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) })
+
+                olderThanOutbox.size == PROFILE_POST_LIMIT && lastOlder != null ->
+                    ProfilePostCursor.Stored(actorUri = actorUri, before = StoredTimelinePosition(score = lastOlder.score, member = lastOlder.member))
+
+                else -> null
             },
         )
     }
@@ -319,15 +322,17 @@ class UserProfileService(
     }
 
     /**
-     * [before] より古く、[lowestScore] 以上の保存済みの投稿を全部。[lowestScore] が null なら最後まで
+     * [before] より古く、[lowestScore] 以上の保存済みの投稿。outbox の 1 ページの範囲に収まる分だけを読む
      */
-    private fun storedPostsDownTo(viewer: AccountId, actorUri: String, before: TimelinePosition?, lowestScore: Long?): List<TimelinePost> {
-        val chunk = timeline.actorPosts(viewer, actorUri, before = before, limit = PROFILE_POST_LIMIT)
-        val inRange = chunk.filter { lowestScore == null || it.position.score >= lowestScore }
-        val last = chunk.lastOrNull()?.position
-        if (chunk.size < PROFILE_POST_LIMIT || inRange.size < chunk.size || last == null) return inRange
-        return inRange + storedPostsDownTo(viewer, actorUri, last, lowestScore)
-    }
+    private fun storedPostsDownTo(viewer: AccountId, actorUri: String, before: TimelinePosition?, lowestScore: Long): List<TimelinePost> =
+        generateSequence(timeline.actorPosts(viewer, actorUri, before = before, limit = PROFILE_POST_LIMIT)) { previous ->
+            val last = previous.lastOrNull()?.position
+            if (previous.size < PROFILE_POST_LIMIT || last == null || last.score < lowestScore) {
+                null
+            } else {
+                timeline.actorPosts(viewer, actorUri, before = last, limit = PROFILE_POST_LIMIT)
+            }
+        }.flatten().takeWhile { it.position.score >= lowestScore }.toList()
 
     /**
      * 相手のサーバーから取った投稿を、保存済みならいいねなどが付いた保存済みの方に替える。保存していなければ保存せずに出し、
