@@ -40,6 +40,11 @@ class UserProfileServiceTest {
      * 固定した投稿はどの経路でも取りに行くので、[requests] とは分けて数える
      */
     private val featuredRequests = mutableListOf<String>()
+
+    /**
+     * 最初のページで outbox と固定した投稿を読むために、相手のアクターを取りに行った回数
+     */
+    private val actorRequests = mutableListOf<String>()
     private var featured: suspend () -> List<RemoteNoteInput> = { listOf() }
     private var outbox: suspend (from: OutboxPosition?) -> RemoteNotesPage? = {
         RemoteNotesPage(notes = listOf(remoteNote("<p>最新の投稿</p>", "https://remote.example/notes/1")), next = null)
@@ -57,9 +62,19 @@ class UserProfileServiceTest {
             return outbox(from)
         }
 
-        override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> {
-            featuredRequests.add(actorUri)
-            return featured()
+        override suspend fun postSources(actorUri: String): RemoteProfilePostSources {
+            actorRequests.add(actorUri)
+            return object : RemoteProfilePostSources {
+                override suspend fun firstNotesPage(): RemoteNotesPage? {
+                    requests.add("posts")
+                    return outbox(null)
+                }
+
+                override suspend fun featuredNotes(): List<RemoteNoteInput> {
+                    featuredRequests.add(actorUri)
+                    return featured()
+                }
+            }
         }
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
@@ -576,6 +591,18 @@ class UserProfileServiceTest {
         assertEquals(listOf(actorUri), featuredRequests)
         assertEquals(listOf("<p>固定した投稿</p>", "<p>最新の投稿</p>"), posts.map { it.contentHtml })
         assertEquals(listOf(true, true), posts.map { it.pinned })
+    }
+
+    @Test
+    fun firstRemotePageFetchesActorOnceForOutboxAndFeaturedPosts() = runBlocking {
+        featured = { listOf(remoteNote("<p>固定した投稿</p>", "https://remote.example/notes/pinned")) }
+
+        val posts = firstPage("bob@remote.example", viewer).posts
+
+        assertEquals(listOf(actorUri), actorRequests)
+        assertEquals(listOf(actorUri), featuredRequests)
+        assertEquals(listOf("profile", "posts"), requests)
+        assertEquals(listOf("<p>固定した投稿</p>", "<p>最新の投稿</p>"), posts.map { it.contentHtml })
     }
 
     @Test

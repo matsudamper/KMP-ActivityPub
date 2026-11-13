@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.federation
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.OutboxPosition
 import net.matsudamper.kmp.activitypub.logic.RemoteNotesPage
+import net.matsudamper.kmp.activitypub.logic.RemoteProfilePostSources
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
@@ -26,10 +27,26 @@ internal class KotpubRemoteUserProfiles(
     override suspend fun findByActorUri(actorUri: String): RemoteUserProfile? = users.findWithActorByUrl(actorUri)?.toProfile()
 
     override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
-        when (val result = outbox.recentPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) })) {
+        outbox.recentPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) }).toNotesPage(actorUri, from)
+
+    override suspend fun postSources(actorUri: String): RemoteProfilePostSources? {
+        val actor = outbox.collectionsOf(actorUri)
+        if (actor == null) {
+            logger.warn("outbox と featured を読むためのアクターを取れなかった: $actorUri")
+            return null
+        }
+        return object : RemoteProfilePostSources {
+            override suspend fun firstNotesPage(): RemoteNotesPage? = outbox.recentPage(actor, null).toNotesPage(actorUri, from = null)
+
+            override suspend fun featuredNotes(): List<RemoteNoteInput> = outbox.featured(actor, limit = 20).notesOrEmpty(actorUri, kind = "featured")
+        }
+    }
+
+    private fun RemoteOutboxPageResult.toNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
+        when (this) {
             is RemoteOutboxPageResult.Found -> RemoteNotesPage(
-                notes = result.page.notes.map { it.toInput(actorUri, Instant.now()) },
-                next = result.page.next?.let { OutboxPosition(pageId = it.pageId, itemOffset = it.itemOffset) },
+                notes = page.notes.map { it.toInput(actorUri, Instant.now()) },
+                next = page.next?.let { OutboxPosition(pageId = it.pageId, itemOffset = it.itemOffset) },
             )
 
             RemoteOutboxPageResult.Unavailable -> {
@@ -37,9 +54,6 @@ internal class KotpubRemoteUserProfiles(
                 null
             }
         }
-
-    override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> =
-        outbox.featured(actorUri, limit = 20).notesOrEmpty(actorUri, kind = "featured")
 
     private fun RemoteOutboxResult.notesOrEmpty(actorUri: String, kind: String): List<RemoteNoteInput> =
         when (this) {

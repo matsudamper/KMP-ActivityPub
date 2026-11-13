@@ -265,12 +265,18 @@ class UserProfileService(
     /**
      * 他のサーバーのユーザーの投稿は、開くたびに相手のサーバーの outbox から取り、保存はしない。保存済みの投稿は、いいねなどが付いた保存済みの方を使い、
      * outbox に載らないブーストやフォロワー限定の投稿は保存済みから補う。outbox を読めなければ、保存済みの投稿だけを出す。
-     * 固定した投稿も保存していないので、開くたびに取りに行き、相手が並べた順で先頭に置く
+     * 固定した投稿も保存していないので、開くたびに取りに行き、相手が並べた順で先頭に置く。
+     * outbox と固定した投稿は、1 回だけ取った相手のアクターから読む
      */
     private suspend fun firstRemotePostsPage(viewer: AccountId, actorUri: String, followed: Boolean): ProfilePostPage = coroutineScope {
-        val featured = async { detached(FEATURED_POSTS_TIMEOUT, "固定した投稿", actorUri) { it.featuredNotes(actorUri) }.orEmpty() }
-        val outboxPage = outboxPage(actorUri = actorUri, from = null)
-        val featuredNotes = featured.await()
+        // detached と同じく、取得が取り消しに応じなくても期限で戻れるよう、このコルーチンの外で取る
+        val postSources = remoteFetchScope.async { remoteProfiles?.postSources(actorUri) }
+        val (outboxPage, featuredNotes) = try {
+            val featured = async { detached(FEATURED_POSTS_TIMEOUT, "固定した投稿", actorUri) { postSources.await()?.featuredNotes() }.orEmpty() }
+            detached(OUTBOX_TIMEOUT, "outbox", actorUri) { postSources.await()?.firstNotesPage() } to featured.await()
+        } finally {
+            postSources.cancel()
+        }
         val pinnedObjectUris = featuredNotes.map { it.objectUri }
         val page = if (outboxPage == null) {
             storedOnlyPage(viewer = viewer, actorUri = actorUri, before = null, pinnedObjectUris = pinnedObjectUris)
@@ -569,9 +575,26 @@ interface RemoteUserProfiles {
     suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage?
 
     /**
+     * 相手のアクターを 1 回だけ取り、outbox の最初のページと固定した投稿をそこから読めるようにする
+     *
+     * @return アクターを読めなければ null
+     */
+    suspend fun postSources(actorUri: String): RemoteProfilePostSources?
+}
+
+/**
+ * [RemoteUserProfiles.postSources] で取った相手のアクターから、プロフィールの最初のページに出す投稿を読む
+ */
+interface RemoteProfilePostSources {
+    /**
+     * @return 読めなければ null
+     */
+    suspend fun firstNotesPage(): RemoteNotesPage?
+
+    /**
      * 相手がプロフィールに固定した投稿。相手が並べた順
      */
-    suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput>
+    suspend fun featuredNotes(): List<RemoteNoteInput>
 }
 
 /**
