@@ -171,6 +171,8 @@ internal class FakeAccountRepository(
     override fun findById(id: AccountId): Account? =
         rows.firstOrNull { it.id == id }?.toAccount()
 
+    override fun countAll(): Long = rows.size.toLong()
+
     override fun findByUsername(username: String): Account? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.toAccount()
 
