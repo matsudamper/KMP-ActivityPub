@@ -9,14 +9,18 @@ import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.RemoteOutboxNote
+import net.matsudamper.kotpub.note.RemoteOutboxResult
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
+import org.slf4j.LoggerFactory
 
 internal class KotpubRemoteUserProfiles(
     private val users: RemoteUserLookup,
     private val actors: RemoteActors,
     private val outbox: HttpRemoteOutbox,
 ) : RemoteUserProfiles {
+    private val logger = LoggerFactory.getLogger(KotpubRemoteUserProfiles::class.java)
+
     override suspend fun find(username: String, host: String): RemoteUserProfile? {
         val user = users.findByAcct(username, host) ?: return null
         return profileFor(user)
@@ -28,10 +32,19 @@ internal class KotpubRemoteUserProfiles(
     }
 
     override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> =
-        outbox.recent(actorUri, limit = 20).map { it.toInput(actorUri, Instant.now()) }
+        outbox.recent(actorUri, limit = 20).notesOrEmpty(actorUri, kind = "outbox")
 
     override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> =
-        outbox.featured(actorUri, limit = 20).map { it.toInput(actorUri, Instant.now()) }
+        outbox.featured(actorUri, limit = 20).notesOrEmpty(actorUri, kind = "featured")
+
+    private fun RemoteOutboxResult.notesOrEmpty(actorUri: String, kind: String): List<RemoteNoteInput> =
+        when (this) {
+            is RemoteOutboxResult.Found -> notes.map { it.toInput(actorUri, Instant.now()) }
+            RemoteOutboxResult.Unavailable -> {
+                logger.warn("$kind を取れなかった: $actorUri")
+                listOf()
+            }
+        }
 
     private fun RemoteOutboxNote.toInput(actorUri: String, fetchedAt: Instant): RemoteNoteInput = RemoteNoteInput(
         objectUri = id,
