@@ -89,6 +89,8 @@ interface NoteRepository {
 
     fun count(username: String): Long
 
+    fun countAll(): Long
+
     fun counts(usernames: Set<String>): Map<String, Long>
 }
 

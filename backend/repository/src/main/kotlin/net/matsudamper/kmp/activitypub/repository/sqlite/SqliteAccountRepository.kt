@@ -33,6 +33,12 @@ internal class SqliteAccountRepository(
             }
     }
 
+    override fun countAll(): Long = jooq.withConnection { dsl ->
+        dsl.selectCount()
+            .from(ACCOUNTS)
+            .fetchOne(0, Long::class.java) ?: 0L
+    }
+
     override fun findByUsername(username: String): Account? = jooq.withConnection { dsl ->
         dsl
             .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH)
