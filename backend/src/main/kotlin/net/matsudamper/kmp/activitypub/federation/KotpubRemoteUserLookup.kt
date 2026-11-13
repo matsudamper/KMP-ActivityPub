@@ -25,9 +25,11 @@ internal class KotpubRemoteUserLookup(
         val actorId =
             when (val result = webFinger.findActorId("$username@$host")) {
                 is WebFingerResult.Found -> result.actorId
+
                 WebFingerResult.NotFound,
                 WebFingerResult.InvalidAcct,
                 -> return null
+
                 WebFingerResult.Unavailable -> {
                     logger.warn("WebFinger を引けなかった: $username@$host")
                     return null

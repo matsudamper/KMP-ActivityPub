@@ -40,6 +40,7 @@ internal class KotpubRemoteUserProfiles(
     private fun RemoteOutboxResult.notesOrEmpty(actorUri: String, kind: String): List<RemoteNoteInput> =
         when (this) {
             is RemoteOutboxResult.Found -> notes.map { it.toInput(actorUri, Instant.now()) }
+
             RemoteOutboxResult.Unavailable -> {
                 logger.warn("$kind を取れなかった: $actorUri")
                 listOf()

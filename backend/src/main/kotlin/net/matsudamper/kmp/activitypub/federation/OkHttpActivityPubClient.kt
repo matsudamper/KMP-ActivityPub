@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.federation
 
-import io.opentelemetry.api.trace.Span
 import java.io.IOException
 import java.net.InetAddress
 import java.net.Proxy
@@ -8,6 +7,7 @@ import java.time.Duration
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kotpub.http.ActivityPubClientResponse
 import net.matsudamper.kotpub.http.ActivityPubHttpClient
