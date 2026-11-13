@@ -67,6 +67,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.profileContentTabSwipe
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -171,7 +172,12 @@ internal fun UserProfileContent(
                     LazyVerticalGrid(
                         columns = ProfileGridCells,
                         state = gridState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .profileContentTabSwipe(
+                                selectedTab = content.selectedTab,
+                                onSwipeToTab = uiState.listener::onClickTab,
+                            ),
                     ) {
                         val headerUrl = content.headerUrl
                         if (headerUrl != null) {
