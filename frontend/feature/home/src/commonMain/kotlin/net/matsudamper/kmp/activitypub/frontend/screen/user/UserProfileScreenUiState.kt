@@ -42,6 +42,7 @@ data class UserProfileScreenUiState(
             val selectedTab: ProfileContentTab,
             val posts: List<PostItemUiState>,
             val postsEmptyMessage: String?,
+            val postsFooter: PostsFooter,
             val media: List<ProfileMediaUiState>,
             val mediaEmptyMessage: String?,
         ) : Content
@@ -53,6 +54,19 @@ data class UserProfileScreenUiState(
         ) : Content
     }
 
+    /**
+     * 投稿の一覧の末尾。続きの読み込みの状態を出す
+     */
+    sealed interface PostsFooter {
+        data object None : PostsFooter
+
+        data object Loading : PostsFooter
+
+        data class Error(
+            val message: String,
+        ) : PostsFooter
+    }
+
     @Immutable
     interface Listener {
         fun onClickRetry()
@@ -62,5 +76,9 @@ data class UserProfileScreenUiState(
         fun onClickTab(tab: ProfileContentTab)
 
         fun onClickOpenOriginal()
+
+        fun onScrolledToEnd()
+
+        fun onClickRetryLoadMore()
     }
 }

@@ -4,6 +4,7 @@ import java.time.Clock
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -39,15 +40,18 @@ class UserProfileServiceTest {
      */
     private val featuredRequests = mutableListOf<String>()
     private var featured: suspend () -> List<RemoteNoteInput> = { listOf() }
+    private var outbox: suspend (from: OutboxPosition?) -> RemoteNotesPage? = {
+        RemoteNotesPage(notes = listOf(remoteNote("<p>最新の投稿</p>", "https://remote.example/notes/1")), next = null)
+    }
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile {
             requests.add("profile")
             return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
         }
 
-        override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> {
+        override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? {
             requests.add("posts")
-            return listOf(remoteNote("<p>最新の投稿</p>", "https://remote.example/notes/1"))
+            return outbox(from)
         }
 
         override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> {
@@ -87,13 +91,13 @@ class UserProfileServiceTest {
     }
 
     @Test
-    fun unfollowedUserPostsCanBeLikedAndBoostedOnceStored() = runBlocking {
+    fun storedPostKeepsReactionsButShowsTheLatestFetchedContent() = runBlocking {
         repositories.timelineRepository.storedFetchedNotes["https://remote.example/notes/1"] =
             storedPost("<p>保存した投稿</p>", summary = null, sensitive = false).copy(boostedByMe = false)
 
         val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
 
-        assertEquals("<p>保存した投稿</p>", post.contentHtml)
+        assertEquals("<p>最新の投稿</p>", post.contentHtml)
         assertEquals("r1", post.reactionPostId)
         assertEquals(ProfilePostLike(postId = "r1", likedByMe = false), post.like)
         assertEquals(false, post.boostedByMe)
@@ -101,13 +105,16 @@ class UserProfileServiceTest {
     }
 
     @Test
-    fun unfollowedUserPostsThatCannotBeStoredHaveNoReactions() = runBlocking {
+    fun unsavedPostsAreNotStoredButCanBeLikedAndBoostedLater() = runBlocking {
         val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
 
+        val unsavedId = UnsavedRemoteNoteId.of("https://remote.example/notes/1")
         assertEquals("<p>最新の投稿</p>", post.contentHtml)
-        assertNull(post.reactionPostId)
-        assertNull(post.like)
-        assertNull(post.boostedByMe)
+        assertEquals(unsavedId, post.reactionPostId)
+        assertEquals(ProfilePostLike(postId = unsavedId, likedByMe = false), post.like)
+        assertEquals(false, post.boostedByMe)
+        assertNull(post.postId)
+        assertTrue(repositories.timelineRepository.storeRequests.isEmpty())
     }
 
     @Test
@@ -120,7 +127,7 @@ class UserProfileServiceTest {
 
         val profile = assertNotNull(service.profile("bob@remote.example", viewer))
 
-        assertEquals(listOf(), requests)
+        assertEquals(listOf("posts"), requests)
         assertEquals("https://remote.example/stored-header.png", profile.headerUrl)
     }
 
@@ -135,13 +142,15 @@ class UserProfileServiceTest {
     }
 
     @Test
-    fun followedUserUsesStoredProfileWithoutRemoteRequests() = runBlocking {
+    fun followedUserFallsBackToStoredPostsWhenOutboxCannotBeRead() = runBlocking {
+        outbox = { null }
         repositories.timelineRepository.actorPosts.add(storedPost("<p>受け取った投稿</p>", summary = null, sensitive = false))
         repositories.timelineRepository.actorPosts.add(storedPost("<p>閲覧注意の本文</p>", summary = "注意書き", sensitive = true))
         repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
         following.setFollowing(viewer, actorUri, true)
         val profile = assertNotNull(service.profile("bob@remote.example", viewer))
-        assertEquals(listOf(), requests)
+        assertEquals(listOf("posts"), requests)
+        assertNull(profile.postsNextCursor)
         assertEquals("保存済みの Bob", profile.user.displayName)
         assertEquals(true, profile.following)
         assertEquals(listOf("<p>受け取った投稿</p>", "<p>閲覧注意の本文</p>"), profile.posts.map { it.contentHtml })
@@ -180,12 +189,182 @@ class UserProfileServiceTest {
     }
 
     @Test
-    fun canonicalActorFollowingPreventsOutboxRequest() = runBlocking {
+    fun canonicalActorFollowingStillReadsOutbox() = runBlocking {
         following.setFollowing(viewer, actorUri, true)
         val profile = assertNotNull(service.profile("bob@remote.example", viewer))
-        assertEquals(listOf("profile"), requests)
+        assertEquals(listOf("profile", "posts"), requests)
         assertEquals(true, profile.following)
-        assertEquals(listOf(), profile.posts)
+        assertEquals(listOf("<p>最新の投稿</p>"), profile.posts.map { it.contentHtml })
+    }
+
+    @Test
+    fun followedUserPostsMixOutboxAndStoredPostsAndContinueFromOutbox() = runBlocking {
+        outbox = { from ->
+            when (from) {
+                null -> RemoteNotesPage(
+                    notes = listOf(
+                        remoteNote("<p>3</p>", "https://remote.example/notes/3", publishedAt = Instant.ofEpochSecond(30)),
+                        remoteNote("<p>2</p>", "https://remote.example/notes/2", publishedAt = Instant.ofEpochSecond(20)),
+                    ),
+                    next = OutboxPosition(pageId = "page-2", itemOffset = 0),
+                )
+
+                OutboxPosition(pageId = "page-2", itemOffset = 0) -> RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>相手のサーバーの 1</p>", "https://remote.example/notes/1", publishedAt = Instant.ofEpochSecond(10))),
+                    next = null,
+                )
+
+                else -> error("知らない位置: $from")
+            }
+        }
+        // outbox に載らないフォロワー限定の投稿
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>フォロワー限定</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(25_000, "r9"),
+                reactionMember = "r9",
+                noteRef = TimelineNoteRef.Remote("https://remote.example/notes/9"),
+            ),
+        )
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>保存済みの 1</p>", summary = null, sensitive = false).copy(position = TimelinePosition(10_000, "r1")),
+        )
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        assertEquals(listOf("<p>3</p>", "<p>フォロワー限定</p>", "<p>2</p>"), profile.posts.map { it.contentHtml })
+        val cursor = assertNotNull(profile.postsNextCursor)
+        assertEquals(cursor, ProfilePostCursor.decode(cursor.encode()))
+
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, cursor)).page
+        assertEquals(listOf("<p>相手のサーバーの 1</p>"), next.posts.map { it.contentHtml })
+        assertEquals(listOf("r1"), next.posts.map { it.postId })
+        assertNull(next.nextCursor)
+        assertTrue(repositories.timelineRepository.storeRequests.isEmpty())
+    }
+
+    @Test
+    fun storedPostsOlderThanTheEndOfOutboxAreReadInPagesWithoutDuplicates() = runBlocking {
+        outbox = { RemoteNotesPage(notes = listOf(remoteNote("<p>outbox</p>", "https://remote.example/notes/outbox", publishedAt = Instant.ofEpochSecond(100))), next = null) }
+        // outbox に載らないブーストが 1 ページより多くある
+        (1..25).reversed().forEach { index ->
+            repositories.timelineRepository.actorPosts.add(
+                storedPost("<p>ブースト $index</p>", summary = null, sensitive = false).copy(
+                    position = TimelinePosition(index * 1_000L, "b$index"),
+                    reactionMember = "r$index",
+                    noteRef = TimelineNoteRef.Remote("https://other.example/notes/$index"),
+                    boostedBy = TimelineBooster(actorUri = actorUri, username = "bob", displayName = "Bob", iconUrl = null, updatedAt = Instant.EPOCH, emojis = listOf()),
+                ),
+            )
+        }
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        assertEquals(21, profile.posts.size)
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, assertNotNull(profile.postsNextCursor))).page
+        val all = (profile.posts + next.posts).map { it.contentHtml }
+
+        assertEquals(26, all.size)
+        assertEquals(all.toSet().size, all.size)
+        assertNull(next.nextCursor)
+    }
+
+    @Test
+    fun oldPinnedPostIsNotRepeatedOnLaterPages() = runBlocking {
+        featured = { listOf(remoteNote("<p>固定した古い投稿</p>", "https://remote.example/notes/old", publishedAt = Instant.ofEpochSecond(10))) }
+        outbox = { from ->
+            if (from == null) {
+                RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>新しい投稿</p>", "https://remote.example/notes/new", publishedAt = Instant.ofEpochSecond(30))),
+                    next = OutboxPosition(pageId = "page-2", itemOffset = 0),
+                )
+            } else {
+                RemoteNotesPage(notes = listOf(remoteNote("<p>固定した古い投稿</p>", "https://remote.example/notes/old", publishedAt = Instant.ofEpochSecond(10))), next = null)
+            }
+        }
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        assertEquals(listOf("<p>固定した古い投稿</p>", "<p>新しい投稿</p>"), profile.posts.map { it.contentHtml })
+        val cursor = assertNotNull(profile.postsNextCursor)
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, assertNotNull(ProfilePostCursor.decode(cursor.encode())))).page
+
+        assertEquals(listOf(), next.posts)
+    }
+
+    @Test
+    fun storedPostAtTheSameTimeAsPageBoundaryIsShownOnce() = runBlocking {
+        outbox = { from ->
+            if (from == null) {
+                RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>境目</p>", "https://remote.example/notes/boundary", publishedAt = Instant.ofEpochSecond(20))),
+                    next = OutboxPosition(pageId = "page-2", itemOffset = 0),
+                )
+            } else {
+                RemoteNotesPage(notes = listOf(remoteNote("<p>同じ時刻</p>", "https://remote.example/notes/same-time", publishedAt = Instant.ofEpochSecond(20))), next = null)
+            }
+        }
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>同じ時刻</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(20_000, "r5"),
+                reactionMember = "r5",
+                noteRef = TimelineNoteRef.Remote("https://remote.example/notes/same-time"),
+            ),
+        )
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>境目</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(20_000, "r4"),
+                reactionMember = "r4",
+                noteRef = TimelineNoteRef.Remote("https://remote.example/notes/boundary"),
+            ),
+        )
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, assertNotNull(profile.postsNextCursor))).page
+        val all = (profile.posts + next.posts).map { it.contentHtml }
+
+        assertEquals(listOf("<p>境目</p>", "<p>同じ時刻</p>"), all)
+    }
+
+    @Test
+    fun remotePostsContinuationNeedsLoginAndReportsUnreadableOutbox() = runBlocking {
+        val cursor = ProfilePostCursor.Remote(
+            actorUri = actorUri,
+            outbox = OutboxPosition(pageId = "page-2", itemOffset = 0),
+            storedBefore = null,
+            pinnedObjectUris = listOf(),
+            shownAtBoundary = listOf(),
+        )
+        assertEquals(ProfilePostsResult.NotLoggedIn, service.morePosts(null, cursor))
+
+        outbox = { null }
+        assertEquals(ProfilePostsResult.Unreachable, service.morePosts(viewer, cursor))
+    }
+
+    @Test
+    fun localProfileContinuesNotesAndBoostsWithoutGapsOrPinnedDuplicates() = runBlocking {
+        (1..25).forEach { index ->
+            repositories.noteRepository.notes.add(Note(PublicNoteId("note-$index"), "alice", "<p>投稿 $index</p>", Instant.ofEpochSecond(index * 10L), listOf()))
+        }
+        repositories.notePinRepository.pin(viewer, PublicNoteId("note-3"), Instant.EPOCH, NotePinService.MAX_PINS)
+        repositories.timelineRepository.accountBoosts.add(
+            storedPost("<p>ブースト</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(55_000, "a1"),
+                boostedBy = TimelineBooster(actorUri = null, username = "alice", displayName = null, iconUrl = null, updatedAt = null, emojis = listOf()),
+            ),
+        )
+
+        val first = assertNotNull(service.profile("alice", viewer))
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, assertNotNull(first.postsNextCursor))).page
+        val all = (first.posts + next.posts).map { it.contentHtml }
+
+        assertEquals("<p>投稿 3</p>", all.first())
+        assertEquals(26, all.size)
+        assertEquals(all.toSet().size, all.size)
+        assertTrue("<p>ブースト</p>" in all)
+        assertNull(next.nextCursor)
     }
 
     @Test
@@ -311,7 +490,7 @@ class UserProfileServiceTest {
 
         val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
 
-        assertEquals("<p>受け取った投稿</p>", post.contentHtml)
+        assertEquals("<p>相手のサーバーの本文</p>", post.contentHtml)
         assertEquals("r1", post.postId)
         assertEquals(true, post.pinned)
     }
@@ -352,7 +531,9 @@ class UserProfileServiceTest {
         assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
     }
 
-    private fun remoteNote(contentHtml: String, noteUri: String): RemoteNoteInput =
+    private fun remoteNote(contentHtml: String, noteUri: String): RemoteNoteInput = remoteNote(contentHtml, noteUri, Instant.EPOCH)
+
+    private fun remoteNote(contentHtml: String, noteUri: String, publishedAt: Instant): RemoteNoteInput =
         RemoteNoteInput(
             objectUri = noteUri,
             actorUri = actorUri,
@@ -362,8 +543,8 @@ class UserProfileServiceTest {
             inReplyTo = null,
             summary = null,
             sensitive = false,
-            publishedAt = Instant.EPOCH,
-            receivedAt = Instant.EPOCH,
+            publishedAt = publishedAt,
+            receivedAt = publishedAt,
             images = listOf(),
             emojis = listOf(),
         )

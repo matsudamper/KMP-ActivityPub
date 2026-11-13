@@ -90,16 +90,43 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun actorPostsContinueFromBeforePosition() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val oldest = assertNotNull(repository.receive(note("oldest", "public", setOf())))
+        val middle = assertNotNull(repository.receive(note("middle", "public", setOf())))
+        val newest = assertNotNull(repository.receive(note("newest", "public", setOf())))
+
+        val first = repository.actorPosts(alice, ACTOR, null, 2).map { it.position }
+        assertEquals(listOf(newest.member, middle.member), first.map { it.member })
+        assertEquals(listOf(oldest.member), repository.actorPosts(alice, ACTOR, first.last(), 2).map { it.position.member })
+    }
+
+    @Test
+    fun storedRemotePostsReturnPublicNotesWithoutFollowingButNotPrivateOnes() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repository.storeFetchedNotes(alice, listOf(note("public", "public", setOf())))
+        val addressed = assertNotNull(repository.receive(note("direct", "direct", setOf("bob"))))
+
+        val found = repository.storedRemotePosts(alice, setOf("$ACTOR/notes/public", "$ACTOR/notes/direct", "$ACTOR/notes/missing"))
+        assertEquals(listOf("$ACTOR/notes/public"), found.map { (it.noteRef as TimelineNoteRef.Remote).objectUri })
+        assertEquals(listOf(addressed.member), repository.storedRemotePosts(accounts.getValue("bob"), setOf("$ACTOR/notes/direct")).map { it.position.member })
+        assertTrue(repository.page(alice, null, null, 10).isEmpty())
+    }
+
+    @Test
     fun actorPostsReturnOnlyThatActorsReadableNotesNewestFirst() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.followingRepository.add(alice, ACTOR, NOW)
         val older = assertNotNull(repository.receive(note("older", "public", setOf())))
         val newer = assertNotNull(repository.receive(note("newer", "public", setOf())))
-        assertEquals(listOf(newer.member, older.member), repository.actorPosts(alice, ACTOR, 10).map { it.position.member })
-        assertEquals(listOf(newer.member), repository.actorPosts(alice, ACTOR, 1).map { it.position.member })
-        assertTrue(repository.actorPosts(alice, "https://other.example/actor", 10).isEmpty())
-        assertTrue(repository.actorPosts(accounts.getValue("bob"), ACTOR, 10).isEmpty())
+        assertEquals(listOf(newer.member, older.member), repository.actorPosts(alice, ACTOR, null, 10).map { it.position.member })
+        assertEquals(listOf(newer.member), repository.actorPosts(alice, ACTOR, null, 1).map { it.position.member })
+        assertTrue(repository.actorPosts(alice, "https://other.example/actor", null, 10).isEmpty())
+        assertTrue(repository.actorPosts(accounts.getValue("bob"), ACTOR, null, 10).isEmpty())
     }
 
     @Test
@@ -116,7 +143,7 @@ class TimelineRepositoryTest {
         val hydrated = repository.hydrate(alice, listOf(withImages.member, withoutImages.member)).associateBy { it.position.member }
         assertEquals(images, hydrated.getValue(withImages.member).images)
         assertTrue(hydrated.getValue(withoutImages.member).images.isEmpty())
-        assertEquals(images, repository.actorPosts(alice, ACTOR, 10).single { it.position == withImages }.images)
+        assertEquals(images, repository.actorPosts(alice, ACTOR, null, 10).single { it.position == withImages }.images)
     }
 
     @Test
@@ -400,21 +427,21 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         val boost = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
 
-        val post = repository.actorPosts(alice, BOOSTER, 10).single()
+        val post = repository.actorPosts(alice, BOOSTER, null, 10).single()
         assertEquals(boost, post.position)
         assertEquals(ACTOR, post.actorUri)
         assertEquals(BOOSTER, post.boostedBy?.actorUri)
-        assertTrue(repository.actorPosts(alice, ACTOR, 10).isEmpty())
-        assertTrue(repository.actorPosts(accounts.getValue("bob"), BOOSTER, 10).isEmpty())
+        assertTrue(repository.actorPosts(alice, ACTOR, null, 10).isEmpty())
+        assertTrue(repository.actorPosts(accounts.getValue("bob"), BOOSTER, null, 10).isEmpty())
 
         // 取り消されたブーストも消された投稿も、タイムラインには削除済みと出すが、プロフィールには出さない
         repositories.followingRepository.add(alice, ACTOR, NOW)
         val note = assertNotNull(repository.receive(note("own", "public", setOf())))
-        assertEquals(listOf(note.member), repository.actorPosts(alice, ACTOR, 10).map { it.position.member }.filter { it == note.member })
+        assertEquals(listOf(note.member), repository.actorPosts(alice, ACTOR, null, 10).map { it.position.member }.filter { it == note.member })
         repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW)
         repository.deleteRemote(ACTOR, "$ACTOR/notes/own", NOW)
-        assertTrue(repository.actorPosts(alice, BOOSTER, 10).isEmpty())
-        assertTrue(repository.actorPosts(alice, ACTOR, 10).none { it.position.member == note.member })
+        assertTrue(repository.actorPosts(alice, BOOSTER, null, 10).isEmpty())
+        assertTrue(repository.actorPosts(alice, ACTOR, null, 10).none { it.position.member == note.member })
     }
 
     @Test

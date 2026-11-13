@@ -21,49 +21,63 @@ query UserProfile($username: String!) {
             url
         }
         posts {
-            content
-            publishedAt
-            summary
-            sensitive
-            linkPreviewId
-            postId
-            deletableNoteId
-            pinned
-            pinnableNoteId
-            linkUrls
-            images {
-                url
-                thumbnailUrl
-                description
-            }
-            emojis {
-                name
-                imageUrl
-            }
-            favouriteCount
-            boostCount
-            stamps {
-                emoji
-                imageUrl
-                count
-            }
-            like {
-                postId
-                likedByMe
-            }
-            boostedByMe
-            reactionPostId
-            url
-            boostedNoteAuthor {
-                username
-                host
-                displayName
-                displayNameEmojis {
-                    name
-                    imageUrl
-                }
-                iconUrl
-            }
+            ...ProfilePostFields
         }
+        postsNextCursor
+    }
+}
+
+query UserProfilePosts($after: String!) {
+    userProfilePosts(after: $after) {
+        posts {
+            ...ProfilePostFields
+        }
+        nextCursor
+    }
+}
+
+fragment ProfilePostFields on ProfilePost {
+    content
+    publishedAt
+    summary
+    sensitive
+    linkPreviewId
+    postId
+    deletableNoteId
+    pinned
+    pinnableNoteId
+    linkUrls
+    images {
+        url
+        thumbnailUrl
+        description
+    }
+    emojis {
+        name
+        imageUrl
+    }
+    favouriteCount
+    boostCount
+    stamps {
+        emoji
+        imageUrl
+        count
+    }
+    like {
+        postId
+        likedByMe
+    }
+    boostedByMe
+    reactionPostId
+    url
+    boostedNoteAuthor {
+        username
+        host
+        displayName
+        displayNameEmojis {
+            name
+            imageUrl
+        }
+        iconUrl
     }
 }
