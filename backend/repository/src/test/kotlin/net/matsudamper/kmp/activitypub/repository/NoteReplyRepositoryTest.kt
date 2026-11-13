@@ -32,6 +32,16 @@ class NoteReplyRepositoryTest {
     }
 
     @Test
+    fun nonPublicPostCannotBeRepliedToEvenIfReadable() = withRepository { repositories, alice ->
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val followersOnly = assertNotNull(repositories.timelineRepository.receive(note("followers", "followers", setOf("alice")))).member
+        val direct = assertNotNull(repositories.timelineRepository.receive(note("direct", "direct", setOf("alice")))).member
+
+        assertNull(repositories.noteRepository.replyTarget(alice, followersOnly))
+        assertNull(repositories.noteRepository.replyTarget(alice, direct))
+    }
+
+    @Test
     fun localPostIsRepliedWithoutInbox() = withRepository { repositories, alice ->
         repositories.deliveryQueueRepository.enqueueNote(notePost(username = "bob", publicId = "bob-note"))
         val member = checkNotNull(repositories.timelineRepository.localPosition("bob-note")).member

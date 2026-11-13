@@ -73,11 +73,9 @@ internal class SqliteNoteRepository(
         val remoteNoteId = TimelineMembers.remoteNoteIdOf(member)
         if (remoteNoteId != null) {
             return jooq.withConnection { dsl ->
+                // 返信は公開で全フォロワーに配るので、非公開の会話の中身を第三者へ広めないよう公開の投稿に限る。
                 // 公開している投稿は誰でも読めるので、保存していればフォローしていなくても返信できる
-                dsl.remoteReplyTarget(
-                    REMOTE_NOTES.ID.eq(remoteNoteId)
-                        .and(dsl.remoteNoteReadableOrBoostedTo(accountId).or(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))),
-                )
+                dsl.remoteReplyTarget(REMOTE_NOTES.ID.eq(remoteNoteId).and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)))
             }
         }
         val boostId = TimelineMembers.boostIdOf(member)
