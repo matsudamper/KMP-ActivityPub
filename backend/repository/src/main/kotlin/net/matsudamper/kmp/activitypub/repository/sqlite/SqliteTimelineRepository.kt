@@ -42,6 +42,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     private val remoteMember = DSL.inline("r").concat(REMOTE_NOTES.ID.cast(String::class.java))
     private val localMember = DSL.inline("l").concat(NOTES.ID.cast(String::class.java))
     private val boostMember = DSL.inline("b").concat(REMOTE_BOOSTS.ID.cast(String::class.java))
+    private val accountBoostMember = DSL.inline("a").concat(ACCOUNT_BOOSTS.ID.cast(String::class.java))
 
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest = jooq.withConnection { dsl ->
         RemoteNoteReceptionInterest(
@@ -334,23 +335,41 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         ).associateBy { (it.noteRef as TimelineNoteRef.Remote).objectUri }
     }
 
-    override fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost> = jooq.withConnection { dsl ->
-        val boostIds = dsl.select(ACCOUNT_BOOSTS.ID).from(ACCOUNT_BOOSTS)
-            .where(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(booster.value))
-            .orderBy(ACCOUNT_BOOSTS.SCORE_MS.desc(), ACCOUNT_BOOSTS.ID.desc()).limit(limit)
-            .fetch(ACCOUNT_BOOSTS.ID)
-        accountBoostedPosts(dsl, viewer, ACCOUNT_BOOSTS.ID.`in`(boostIds))
-            .sortedWith(compareByDescending<TimelinePost> { it.position.score }.thenByDescending { TimelineMembers.accountBoostIdOf(it.position.member) })
+    override fun storedRemotePosts(viewer: AccountId, objectUris: Set<String>): List<TimelinePost> {
+        if (objectUris.isEmpty()) return listOf()
+        return jooq.withConnection { dsl ->
+            val remoteIds = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.`in`(objectUris)).fetch(REMOTE_NOTES.ID).filterNotNull()
+            hydrateNotes(
+                dsl = dsl,
+                viewer = viewer,
+                localIds = listOf(),
+                remoteIds = remoteIds,
+                localCondition = DSL.noCondition(),
+                remoteCondition = dsl.remoteNoteReadableBy(viewer).or(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)),
+            )
+        }
     }
 
-    override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> {
+    override fun accountBoosts(booster: AccountId, viewer: AccountId?, before: TimelinePosition?, limit: Int): List<TimelinePost> = jooq.withConnection { dsl ->
+        val boostIds = dsl.select(ACCOUNT_BOOSTS.ID).from(ACCOUNT_BOOSTS)
+            .where(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(booster.value))
+            .and(olderThan(ACCOUNT_BOOSTS.SCORE_MS, accountBoostMember, before))
+            // 続きを member の文字列で指すので、同じ時刻の並びも文字列で揃える
+            .orderBy(ACCOUNT_BOOSTS.SCORE_MS.desc(), accountBoostMember.desc()).limit(limit)
+            .fetch(ACCOUNT_BOOSTS.ID)
+        accountBoostedPosts(dsl, viewer, ACCOUNT_BOOSTS.ID.`in`(boostIds))
+            .sortedWith(compareByDescending<TimelinePost> { it.position.score }.thenByDescending { it.position.member })
+    }
+
+    override fun actorPosts(accountId: AccountId, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost> {
         val members = jooq.withConnection { dsl ->
             val notes = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
                 .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(dsl.remoteNoteReadableBy(accountId))
                 // プロフィールには削除済みと出す場所が無いので、消された投稿と取り消されたブーストは出さない
                 .and(REMOTE_NOTES.DELETED_AT.isNull)
-                .orderBy(REMOTE_NOTES.SCORE_MS.desc(), REMOTE_NOTES.ID.desc()).limit(limit)
+                .and(olderThan(REMOTE_NOTES.SCORE_MS, remoteMember, before))
+                .orderBy(REMOTE_NOTES.SCORE_MS.desc(), remoteMember.desc()).limit(limit)
                 .fetch { it.toRemotePosition() }
             val boosts = dsl.select(REMOTE_BOOSTS.ID, REMOTE_BOOSTS.SCORE_MS).from(REMOTE_BOOSTS)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
@@ -359,6 +378,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .andNotExists(
                     dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID)).and(REMOTE_NOTES.DELETED_AT.isNotNull),
                 )
+                .and(olderThan(REMOTE_BOOSTS.SCORE_MS, boostMember, before))
                 .orderBy(REMOTE_BOOSTS.SCORE_MS.desc(), boostMember.desc()).limit(limit)
                 .fetch { TimelinePosition(checkNotNull(it.value2()), "b${it.value1()}") }
             (notes + boosts).sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })

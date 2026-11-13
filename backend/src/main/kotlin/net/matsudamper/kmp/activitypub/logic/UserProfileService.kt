@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
 import java.time.Instant
+import java.util.Base64
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
@@ -9,14 +10,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
+import net.matsudamper.kmp.activitypub.repository.NotePosition
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -24,6 +31,7 @@ import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
+import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -47,7 +55,7 @@ class UserProfileService(
     private val localDomain: String,
 ) {
     private val logger = LoggerFactory.getLogger(UserProfileService::class.java)
-    private val featuredFetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val remoteFetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun profile(acct: String, viewer: AccountId?): UserProfile? {
         val normalizedAcct = acct.removePrefix("@")
@@ -57,13 +65,15 @@ class UserProfileService(
         if (host.equals(localDomain, ignoreCase = true)) {
             val account = accounts.findByUsername(username) ?: return null
             val detail = accounts.findProfileDetail(account.username)
+            val localPage = localProfilePosts(accountId = account.id, username = account.username, viewer = viewer, cursor = null)
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, listOf(), null),
                 following = false,
                 headerUrl = null,
                 biography = detail?.summary,
                 links = detail?.links.orEmpty(),
-                posts = localProfilePosts(account.id, account.username, viewer),
+                posts = localPage.posts,
+                postsNextCursor = localPage.nextCursor,
                 viewerIsOwner = account.id == viewer,
             )
         }
@@ -71,13 +81,15 @@ class UserProfileService(
         val followed = following.isFollowing(viewer, storedActor?.actorUri)
         if (followed) {
             val actor = checkNotNull(storedActor)
+            val page = firstRemotePostsPage(viewer = checkNotNull(viewer), actorUri = actor.actorUri, followed = true)
             return UserProfile(
                 user = SearchedUser(actor.actorUri, actor.preferredUsername, host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.emojis, actor.updatedAt),
                 following = true,
                 headerUrl = remoteActors.findByUri(actor.actorUri)?.profile?.headerUrl,
                 biography = null,
                 links = listOf(),
-                posts = withFeaturedPosts(storedPosts(checkNotNull(viewer), actor.actorUri), checkNotNull(viewer), actor.actorUri),
+                posts = page.posts,
+                postsNextCursor = page.nextCursor,
                 viewerIsOwner = false,
             )
         }
@@ -87,6 +99,7 @@ class UserProfileService(
         if (remote == null) return null
         val actorHost = URI(remote.user.actorUri).host ?: return null
         val remoteFollowed = following.isFollowing(viewer, remote.user.actorUri)
+        val page = firstRemotePostsPage(viewer = viewer, actorUri = remote.user.actorUri, followed = remoteFollowed)
         return UserProfile(
             user = SearchedUser(
                 remote.user.actorUri,
@@ -102,24 +115,63 @@ class UserProfileService(
             headerUrl = remote.headerUrl,
             biography = remote.biography?.let { htmlToPlainText(it) },
             links = listOf(),
-            posts = withFeaturedPosts(
-                posts = if (remoteFollowed) storedPosts(viewer, remote.user.actorUri) else fetchedPosts(viewer, profiles.recentNotes(remote.user.actorUri)),
-                viewer = viewer,
-                actorUri = remote.user.actorUri,
-            ),
+            posts = page.posts,
+            postsNextCursor = page.nextCursor,
             viewerIsOwner = false,
         )
     }
 
     /**
-     * このサーバーのアカウントの投稿と、そのアカウントが付けたブーストを新しい順に並べる。ブーストは、ブーストした時刻の位置に置く。
-     * 固定した投稿は、固定した順で先頭に置く
+     * プロフィールの投稿の、[UserProfile.postsNextCursor] から先
      */
-    private fun localProfilePosts(accountId: AccountId, username: String, viewer: AccountId?): List<ProfilePost> {
+    suspend fun morePosts(viewer: AccountId?, cursor: ProfilePostCursor): ProfilePostsResult = when (cursor) {
+        is ProfilePostCursor.Local -> {
+            val account = accounts.findByUsername(cursor.username)
+            if (account == null) {
+                ProfilePostsResult.NotFound
+            } else {
+                ProfilePostsResult.Found(localProfilePosts(accountId = account.id, username = account.username, viewer = viewer, cursor = cursor))
+            }
+        }
+
+        is ProfilePostCursor.Remote -> if (viewer == null) {
+            ProfilePostsResult.NotLoggedIn
+        } else {
+            val outboxPage = outboxPage(actorUri = cursor.actorUri, from = cursor.outbox)
+            if (outboxPage == null) {
+                ProfilePostsResult.Unreachable
+            } else {
+                val followed = following.isFollowing(viewer, cursor.actorUri)
+                ProfilePostsResult.Found(mergedRemotePage(viewer, cursor.actorUri, followed, outboxPage, cursor.storedBefore?.toPosition()))
+            }
+        }
+
+        is ProfilePostCursor.Stored -> if (viewer == null) {
+            ProfilePostsResult.NotLoggedIn
+        } else {
+            ProfilePostsResult.Found(storedOnlyPage(viewer, cursor.actorUri, cursor.before.toPosition()))
+        }
+    }
+
+    /**
+     * このサーバーのアカウントの投稿と、そのアカウントが付けたブーストを新しい順に並べる。ブーストは、ブーストした時刻の位置に置く。
+     * 固定した投稿は、固定した順で最初のページの先頭に置き、続きには出さない。
+     * 投稿とブーストはそれぞれ読んだところまでを続きの位置に持つので、どちらも抜けずに続きから読める
+     *
+     * @param cursor 続きの位置。最初のページなら null
+     */
+    private fun localProfilePosts(accountId: AccountId, username: String, viewer: AccountId?, cursor: ProfilePostCursor.Local?): ProfilePostPage {
         val pinnedNoteIds = pins.pinnedNotes(username)
-        val pinnedNotes = notes.findByPublicIds(pinnedNoteIds.toSet()).let { found -> pinnedNoteIds.mapNotNull { found[it] } }
+        val pinnedNotes = if (cursor == null) notes.findByPublicIds(pinnedNoteIds.toSet()).let { found -> pinnedNoteIds.mapNotNull { found[it] } } else listOf()
         val pinnedNoteIdSet = pinnedNoteIds.toSet()
-        val recentNotes = notes.list(username, after = null, limit = PROFILE_POST_LIMIT).filterNot { it.publicId in pinnedNoteIdSet }
+        val noteCandidates = notes.list(username, after = cursor?.notesAfter?.toNotePosition(), limit = PROFILE_POST_LIMIT)
+        val boostCandidates = timeline.accountBoosts(booster = accountId, viewer = viewer, before = cursor?.boostsBefore?.toPosition(), limit = PROFILE_POST_LIMIT)
+        val takenEntries = (
+            noteCandidates.map { LocalProfileEntry.OwnNote(it) } + boostCandidates.map { LocalProfileEntry.Boost(it) }
+            ).sortedByDescending { it.sortKey }.take(PROFILE_POST_LIMIT)
+        val takenNotes = takenEntries.filterIsInstance<LocalProfileEntry.OwnNote>().map { it.note }
+        val takenBoosts = takenEntries.filterIsInstance<LocalProfileEntry.Boost>().map { it.post }
+        val recentNotes = takenNotes.filterNot { it.publicId in pinnedNoteIdSet }
         val localNotes = pinnedNotes + recentNotes
         val localNoteIds = localNotes.map { it.publicId }.toSet()
         val favouriteCounts = favourites.counts(localNoteIds)
@@ -153,7 +205,7 @@ class UserProfileService(
                 boostedNoteAuthor = null,
             )
         }
-        val boostPosts = timeline.accountBoosts(booster = accountId, viewer = viewer, limit = PROFILE_POST_LIMIT).mapNotNull { post ->
+        val boostPosts = takenBoosts.mapNotNull { post ->
             val author = post.boostedNoteAuthor() ?: return@mapNotNull null
             Instant.ofEpochMilli(post.position.score) to post.toProfilePost(
                 viewer = viewer,
@@ -162,8 +214,32 @@ class UserProfileService(
             )
         }
         val timelinePosts = recentNotes.map { it.publishedAt to checkNotNull(notePosts[it.publicId]) } + boostPosts
-        return pinnedNotes.map { checkNotNull(notePosts[it.publicId]) } +
-            timelinePosts.sortedByDescending { it.first }.take(PROFILE_POST_LIMIT).map { it.second }
+        val hasMore = takenEntries.size < noteCandidates.size + boostCandidates.size ||
+            noteCandidates.size == PROFILE_POST_LIMIT || boostCandidates.size == PROFILE_POST_LIMIT
+        return ProfilePostPage(
+            posts = pinnedNotes.map { checkNotNull(notePosts[it.publicId]) } + timelinePosts.sortedByDescending { it.first }.map { it.second },
+            nextCursor = if (!hasMore) {
+                null
+            } else {
+                ProfilePostCursor.Local(
+                    username = username,
+                    notesAfter = takenNotes.lastOrNull()?.let { StoredNotePosition(publishedAt = it.publishedAt.toString(), publicId = it.publicId.value) } ?: cursor?.notesAfter,
+                    boostsBefore = takenBoosts.lastOrNull()?.position?.let { StoredTimelinePosition(score = it.score, member = it.member) } ?: cursor?.boostsBefore,
+                )
+            },
+        )
+    }
+
+    private sealed interface LocalProfileEntry {
+        val sortKey: Instant
+
+        data class OwnNote(val note: Note) : LocalProfileEntry {
+            override val sortKey: Instant get() = note.publishedAt
+        }
+
+        data class Boost(val post: TimelinePost) : LocalProfileEntry {
+            override val sortKey: Instant get() = Instant.ofEpochMilli(post.position.score)
+        }
     }
 
     /**
@@ -175,91 +251,173 @@ class UserProfileService(
     }
 
     /**
-     * 相手がプロフィールに固定した投稿を、相手が並べた順で先頭に置く。固定は受け取って保存していないので、開くたびに相手のサーバーへ取りに行く。
-     * 同じ投稿を保存していれば、いいねなどが付いた保存済みの方を使う。取れなければ固定した投稿なしで返す
+     * 他のサーバーのユーザーの投稿は、開くたびに相手のサーバーの outbox から取り、保存はしない。保存済みの投稿は、いいねなどが付いた保存済みの方を使い、
+     * outbox に載らないブーストやフォロワー限定の投稿は保存済みから補う。outbox を読めなければ、保存済みの投稿だけを出す。
+     * 固定した投稿も保存していないので、開くたびに取りに行き、相手が並べた順で先頭に置く
      */
-    private suspend fun withFeaturedPosts(posts: List<ProfilePost>, viewer: AccountId, actorUri: String): List<ProfilePost> {
-        val featured = featuredNotes(actorUri)
-        if (featured.isEmpty()) return posts
-        val postsByNoteRef = posts.filter { it.boostedNoteAuthor == null }.associateBy { it.noteRef }
-        val fetchedByNoteRef = fetchedPosts(viewer, featured.filterNot { TimelineNoteRef.Remote(it.objectUri) in postsByNoteRef }).associateBy { it.noteRef }
-        val pinnedPosts = featured.mapNotNull { note ->
-            val noteRef = TimelineNoteRef.Remote(note.objectUri)
-            (postsByNoteRef[noteRef] ?: fetchedByNoteRef[noteRef])?.copy(pinned = true)
+    private suspend fun firstRemotePostsPage(viewer: AccountId, actorUri: String, followed: Boolean): ProfilePostPage = coroutineScope {
+        val featured = async { detached(FEATURED_POSTS_TIMEOUT, "固定した投稿", actorUri) { it.featuredNotes(actorUri) }.orEmpty() }
+        val outboxPage = outboxPage(actorUri = actorUri, from = null)
+        val page = if (outboxPage == null) {
+            storedOnlyPage(viewer = viewer, actorUri = actorUri, before = null)
+        } else {
+            mergedRemotePage(viewer = viewer, actorUri = actorUri, followed = followed, outboxPage = outboxPage, storedBefore = null)
         }
+        page.copy(posts = withFeaturedPosts(posts = page.posts, featured = withStored(viewer, followed, featured.await())))
+    }
+
+    /**
+     * @return 読めなければ null
+     */
+    private suspend fun outboxPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
+        detached(OUTBOX_TIMEOUT, "outbox", actorUri) { it.recentNotesPage(actorUri, from) }
+
+    /**
+     * outbox の 1 ページに、そのページの範囲にある保存済みの投稿を混ぜる
+     *
+     * @param storedBefore 保存済みの投稿をここより古い方から混ぜる。最初のページなら null
+     */
+    private fun mergedRemotePage(viewer: AccountId, actorUri: String, followed: Boolean, outboxPage: RemoteNotesPage, storedBefore: TimelinePosition?): ProfilePostPage {
+        val outboxPosts = withStored(viewer, followed, outboxPage.notes)
+        val next = outboxPage.next
+        // 続きがあるときは、このページの outbox より古い保存済みの投稿を次のページに回す
+        val lowestScore = if (next == null) null else outboxPage.notes.minOfOrNull { it.publishedAt.toEpochMilli() } ?: storedBefore?.score
+        val outboxNoteRefs = outboxPosts.map { it.second.noteRef }.toSet()
+        val storedOnly = storedPostsDownTo(viewer = viewer, actorUri = actorUri, before = storedBefore, lowestScore = lowestScore)
+            .filterNot { it.boostedBy == null && it.noteRef in outboxNoteRefs }
+            .mapNotNull { post -> post.toActorProfilePost(viewer)?.let { post.position.score to it } }
+        val posts = (outboxPosts + storedOnly).sortedByDescending { it.first }.map { it.second }
+        return ProfilePostPage(
+            posts = posts,
+            nextCursor = if (next == null) {
+                null
+            } else {
+                ProfilePostCursor.Remote(
+                    actorUri = actorUri,
+                    outbox = next,
+                    // このページには lowestScore ちょうどの投稿まで入れたので、続きはそれより古いものだけ。member を空にすると時刻だけで区切れる
+                    storedBefore = lowestScore?.let { StoredTimelinePosition(score = it, member = "") } ?: storedBefore?.let { StoredTimelinePosition(it.score, it.member) },
+                )
+            },
+        )
+    }
+
+    /**
+     * outbox を読めないときに、保存済みの投稿だけで出す
+     */
+    private fun storedOnlyPage(viewer: AccountId, actorUri: String, before: TimelinePosition?): ProfilePostPage {
+        val stored = timeline.actorPosts(viewer, actorUri, before = before, limit = PROFILE_POST_LIMIT)
+        val last = stored.lastOrNull()?.position
+        return ProfilePostPage(
+            posts = stored.mapNotNull { it.toActorProfilePost(viewer) },
+            nextCursor = if (stored.size < PROFILE_POST_LIMIT || last == null) {
+                null
+            } else {
+                ProfilePostCursor.Stored(actorUri = actorUri, before = StoredTimelinePosition(score = last.score, member = last.member))
+            },
+        )
+    }
+
+    /**
+     * [before] より古く、[lowestScore] 以上の保存済みの投稿を全部。[lowestScore] が null なら最後まで
+     */
+    private fun storedPostsDownTo(viewer: AccountId, actorUri: String, before: TimelinePosition?, lowestScore: Long?): List<TimelinePost> {
+        val chunk = timeline.actorPosts(viewer, actorUri, before = before, limit = PROFILE_POST_LIMIT)
+        val inRange = chunk.filter { lowestScore == null || it.position.score >= lowestScore }
+        val last = chunk.lastOrNull()?.position
+        if (chunk.size < PROFILE_POST_LIMIT || inRange.size < chunk.size || last == null) return inRange
+        return inRange + storedPostsDownTo(viewer, actorUri, last, lowestScore)
+    }
+
+    /**
+     * 相手のサーバーから取った投稿を、保存済みならいいねなどが付いた保存済みの方に替える。保存していなければ保存せずに出し、
+     * いいねやブーストを押したときに保存できるよう [UnsavedRemoteNoteId] を持たせる
+     *
+     * @return 並べる時刻と投稿
+     */
+    private fun withStored(viewer: AccountId, followed: Boolean, notes: List<RemoteNoteInput>): List<Pair<Long, ProfilePost>> {
+        val storedByUri = timeline.storedRemotePosts(viewer, notes.map { it.objectUri }.toSet())
+            .associateBy { (it.noteRef as TimelineNoteRef.Remote).objectUri }
+        return notes.map { note ->
+            val stored = storedByUri[note.objectUri]
+            // 個別投稿画面はホームタイムラインに載る投稿しか開けず、フォローしていない相手の投稿は載らない
+            val post = stored?.toProfilePost(viewer = viewer, openable = followed, boostedNoteAuthor = null) ?: note.toUnsavedProfilePost()
+            note.publishedAt.toEpochMilli() to post
+        }
+    }
+
+    /**
+     * 相手が並べた順で、固定した投稿を先頭に置く。同じ投稿は一覧から外す
+     */
+    private fun withFeaturedPosts(posts: List<ProfilePost>, featured: List<Pair<Long, ProfilePost>>): List<ProfilePost> {
+        if (featured.isEmpty()) return posts
+        val pinnedPosts = featured.map { it.second.copy(pinned = true) }
         val pinnedNoteRefs = pinnedPosts.map { it.noteRef }.toSet()
         return pinnedPosts + posts.filterNot { it.boostedNoteAuthor == null && it.noteRef in pinnedNoteRefs }
     }
 
     /**
-     * フォロー中の相手は保存済みの投稿だけで出せるので、相手のサーバーが遅くてもプロフィールを待たせないよう期限を切る。
+     * 相手のサーバーが遅くてもプロフィールを待たせないよう期限を切る。
      *
      * 取得はこの呼び出しから切り離して動かす。ソケットの読み取りはスレッドの割り込みで止まらないことがあり、
      * 同じコルーチンで待つと期限を過ぎても読み取りのタイムアウトまで戻れない
+     *
+     * @return 取れないか、期限を過ぎたら null
      */
-    private suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> {
-        val profiles = remoteProfiles ?: return listOf()
-        val fetching = featuredFetchScope.async {
+    private suspend fun <T> detached(timeout: Duration, label: String, actorUri: String, fetch: suspend (RemoteUserProfiles) -> T?): T? {
+        val profiles = remoteProfiles ?: return null
+        val fetching = remoteFetchScope.async {
             try {
-                profiles.featuredNotes(actorUri)
+                fetch(profiles)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                logger.warn("固定した投稿を取れなかった: $actorUri", exception)
-                listOf()
+                logger.warn("${label}を取れなかった: $actorUri", exception)
+                null
             }
         }
-        val featured = try {
-            withTimeoutOrNull(FEATURED_POSTS_TIMEOUT) { fetching.await() }
+        val result = try {
+            withTimeoutOrNull(timeout) { fetching.await() }
         } finally {
             fetching.cancel()
         }
-        if (featured == null) logger.warn("固定した投稿の取得が期限を過ぎた: $actorUri")
-        return featured.orEmpty()
+        if (result == null) logger.warn("${label}を期限内に取れなかった: $actorUri")
+        return result
     }
 
     /**
-     * フォロー中の相手の投稿は受け取って保存しているので、相手のサーバーには取りに行かない
+     * @return 投稿者のホストが分からないブーストは、誰の投稿か示せないので null
      */
-    private fun storedPosts(viewer: AccountId, actorUri: String): List<ProfilePost> =
-        timeline.actorPosts(viewer, actorUri, limit = PROFILE_POST_LIMIT).mapNotNull { post ->
-            val author = if (post.boostedBy == null) null else post.boostedNoteAuthor() ?: return@mapNotNull null
-            post.toProfilePost(viewer = viewer, openable = true, boostedNoteAuthor = author)
-        }
-
-    /**
-     * フォローしていない相手の投稿は受け取っていないので、相手のサーバーから取ったものを保存して、いいねやブーストできるようにする。
-     * 保存できなかった投稿は、いいねもブーストもできないまま出す
-     */
-    private fun fetchedPosts(viewer: AccountId, notes: List<RemoteNoteInput>): List<ProfilePost> {
-        val stored = timeline.storeFetchedNotes(viewer, notes)
-        return notes.map { note ->
-            // 個別投稿画面はホームタイムラインに載る投稿しか開けず、フォローしていない相手の投稿は載らない
-            stored[note.objectUri]?.toProfilePost(viewer = viewer, openable = false, boostedNoteAuthor = null) ?: note.toUnstoredProfilePost()
-        }
+    private fun TimelinePost.toActorProfilePost(viewer: AccountId): ProfilePost? {
+        val author = if (boostedBy == null) null else boostedNoteAuthor() ?: return null
+        return toProfilePost(viewer = viewer, openable = true, boostedNoteAuthor = author)
     }
 
-    private fun RemoteNoteInput.toUnstoredProfilePost(): ProfilePost = ProfilePost(
-        contentHtml = contentHtml,
-        publishedAt = publishedAt.toString(),
-        summary = summary,
-        sensitive = sensitive,
-        linkPreviewId = null,
-        postId = null,
-        deletableNoteId = null,
-        pinned = false,
-        pinnableNoteId = null,
-        images = images,
-        emojis = emojis,
-        favouriteCount = null,
-        stamps = listOf(),
-        like = null,
-        boostedByMe = null,
-        reactionPostId = null,
-        noteRef = TimelineNoteRef.Remote(objectUri),
-        boostCount = null,
-        boostedNoteAuthor = null,
-    )
+    private fun RemoteNoteInput.toUnsavedProfilePost(): ProfilePost {
+        val unsavedId = UnsavedRemoteNoteId.of(objectUri)
+        return ProfilePost(
+            contentHtml = contentHtml,
+            publishedAt = publishedAt.toString(),
+            summary = summary,
+            sensitive = sensitive,
+            linkPreviewId = null,
+            postId = null,
+            deletableNoteId = null,
+            pinned = false,
+            pinnableNoteId = null,
+            images = images,
+            emojis = emojis,
+            favouriteCount = null,
+            stamps = listOf(),
+            like = ProfilePostLike(postId = unsavedId, likedByMe = false),
+            // ブーストできるのは公開の投稿だけ
+            boostedByMe = if (visibility == "public") false else null,
+            reactionPostId = unsavedId,
+            noteRef = TimelineNoteRef.Remote(objectUri),
+            boostCount = null,
+            boostedNoteAuthor = null,
+        )
+    }
 
     /**
      * @param openable 個別投稿画面で開けるか
@@ -318,6 +476,8 @@ class UserProfileService(
 
         val FEATURED_POSTS_TIMEOUT: Duration = 3.seconds
 
+        val OUTBOX_TIMEOUT: Duration = 5.seconds
+
         /**
          * このサーバーの投稿は公開されているので、タイムラインの id ではなく公開 id で OGP を引けるようにする
          */
@@ -331,9 +491,12 @@ interface RemoteUserProfiles {
     suspend fun findByActorUri(actorUri: String): RemoteUserProfile?
 
     /**
-     * 相手のサーバーから取った、公開している最近の投稿。新しい順
+     * 相手のサーバーの outbox から、公開している投稿を新しい方から少しずつ取る
+     *
+     * @param from 読み始める位置。null なら最初から
+     * @return 読めなければ null
      */
-    suspend fun recentNotes(actorUri: String): List<RemoteNoteInput>
+    suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage?
 
     /**
      * 相手がプロフィールに固定した投稿。相手が並べた順
@@ -363,8 +526,118 @@ data class UserProfile(
     val biography: String?,
     val links: List<ProfileLink>,
     val posts: List<ProfilePost>,
+    val postsNextCursor: ProfilePostCursor?,
     val viewerIsOwner: Boolean,
 )
+
+/**
+ * @param notes 新しい順
+ * @param next 続きの位置。最後まで読んだら null
+ */
+data class RemoteNotesPage(
+    val notes: List<RemoteNoteInput>,
+    val next: OutboxPosition?,
+)
+
+/**
+ * 相手の outbox のどこまで読んだか
+ *
+ * @param pageId 次に読むページ
+ * @param itemOffset そのページの何件目から読むか
+ */
+@Serializable
+data class OutboxPosition(
+    @SerialName("pageId") val pageId: String,
+    @SerialName("itemOffset") val itemOffset: Int,
+)
+
+/**
+ * @param nextCursor 続きを [UserProfileService.morePosts] で読むときに渡す。続きが無ければ null
+ */
+data class ProfilePostPage(
+    val posts: List<ProfilePost>,
+    val nextCursor: ProfilePostCursor?,
+)
+
+/**
+ * プロフィールの投稿をどこまで返したか。外には [encode] した文字列で渡す
+ */
+@Serializable
+sealed interface ProfilePostCursor {
+    /**
+     * このサーバーのアカウント。投稿とブーストを、それぞれ返したところまで持つ
+     */
+    @Serializable
+    @SerialName("local")
+    data class Local(
+        @SerialName("username") val username: String,
+        @SerialName("notesAfter") val notesAfter: StoredNotePosition?,
+        @SerialName("boostsBefore") val boostsBefore: StoredTimelinePosition?,
+    ) : ProfilePostCursor
+
+    /**
+     * 他のサーバーのユーザー。outbox の続きと、混ぜる保存済みの投稿の続きを持つ
+     */
+    @Serializable
+    @SerialName("remote")
+    data class Remote(
+        @SerialName("actorUri") val actorUri: String,
+        @SerialName("outbox") val outbox: OutboxPosition,
+        @SerialName("storedBefore") val storedBefore: StoredTimelinePosition?,
+    ) : ProfilePostCursor
+
+    /**
+     * 他のサーバーのユーザーで、outbox を読めなかったので保存済みの投稿だけを出しているとき
+     */
+    @Serializable
+    @SerialName("stored")
+    data class Stored(
+        @SerialName("actorUri") val actorUri: String,
+        @SerialName("before") val before: StoredTimelinePosition,
+    ) : ProfilePostCursor
+
+    fun encode(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(Json.encodeToString(serializer(), this).toByteArray())
+
+    companion object {
+        /**
+         * 読めなければ null
+         */
+        fun decode(encoded: String): ProfilePostCursor? =
+            runCatching { Json.decodeFromString(serializer(), Base64.getUrlDecoder().decode(encoded).decodeToString()) }.getOrNull()
+    }
+}
+
+/**
+ * @param publishedAt [Instant] の文字列。桁を落とさないよう文字列で持つ
+ */
+@Serializable
+data class StoredNotePosition(
+    @SerialName("publishedAt") val publishedAt: String,
+    @SerialName("publicId") val publicId: String,
+) {
+    fun toNotePosition(): NotePosition = NotePosition(publishedAt = Instant.parse(publishedAt), publicId = PublicNoteId(publicId))
+}
+
+@Serializable
+data class StoredTimelinePosition(
+    @SerialName("score") val score: Long,
+    @SerialName("member") val member: String,
+) {
+    fun toPosition(): TimelinePosition = TimelinePosition(score = score, member = member)
+}
+
+sealed interface ProfilePostsResult {
+    data class Found(val page: ProfilePostPage) : ProfilePostsResult
+
+    data object NotLoggedIn : ProfilePostsResult
+
+    data object NotFound : ProfilePostsResult
+
+    /**
+     * 相手のサーバーから読めなかった
+     */
+    data object Unreachable : ProfilePostsResult
+}
 
 /**
  * @param linkPreviewId UserInfo.linkPreviews に渡せる id。OGP を取れない投稿は null
@@ -377,6 +650,7 @@ data class UserProfile(
  * @param like いいねできない投稿は null
  * @param boostedByMe 見ているアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しには [reactionPostId] を渡す
  * @param reactionPostId いいねやブーストを付け外しするときに渡す、タイムラインの投稿の id。ブーストした投稿は、ブーストされた元の投稿を指す。
+ *   保存していない他のサーバーの投稿は [UnsavedRemoteNoteId] の id で、押したときに保存する。
  *   ログインしていないか、付け外しできない投稿は null
  * @param noteRef 投稿を外から指すための元
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null
@@ -421,7 +695,7 @@ data class ProfilePostAuthor(
 )
 
 /**
- * @param postId いいねを付け外しするときに渡す、タイムラインの投稿の id
+ * @param postId いいねを付け外しするときに渡す、タイムラインの投稿の id。保存していない他のサーバーの投稿は [UnsavedRemoteNoteId] の id
  */
 data class ProfilePostLike(
     val postId: String,

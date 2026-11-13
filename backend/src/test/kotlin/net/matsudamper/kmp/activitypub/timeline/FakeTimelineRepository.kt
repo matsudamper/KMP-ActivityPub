@@ -22,6 +22,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     val actorPosts = mutableListOf<TimelinePost>()
     val accountBoosts = mutableListOf<TimelinePost>()
     val storedFetchedNotes = mutableMapOf<String, TimelinePost>()
+    val storeRequests = mutableListOf<RemoteNoteInput>()
 
     var interested = true
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
@@ -60,15 +61,25 @@ internal class FakeTimelineRepository : TimelineRepository {
         )
     }
 
-    override fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost> =
-        actorPosts.filter { (it.boostedBy?.actorUri ?: it.actorUri) == actorUri }.take(limit)
+    override fun actorPosts(accountId: AccountId, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost> =
+        actorPosts.filter { (it.boostedBy?.actorUri ?: it.actorUri) == actorUri }
+            .filter { before == null || it.position.score < before.score || (it.position.score == before.score && it.position.member < before.member) }
+            .take(limit)
 
     override fun localPosition(publicId: String): TimelinePosition? = null
 
-    override fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost> = accountBoosts.toList()
+    override fun accountBoosts(booster: AccountId, viewer: AccountId?, before: TimelinePosition?, limit: Int): List<TimelinePost> =
+        accountBoosts.filter { before == null || it.position.score < before.score || (it.position.score == before.score && it.position.member < before.member) }
+            .take(limit)
 
-    override fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost> =
-        storedFetchedNotes.filterKeys { objectUri -> notes.any { it.objectUri == objectUri } }
+    override fun storedRemotePosts(viewer: AccountId, objectUris: Set<String>): List<TimelinePost> =
+        (actorPosts + storedFetchedNotes.values).filter { it.boostedBy == null && (it.noteRef as? TimelineNoteRef.Remote)?.objectUri in objectUris }
+            .distinctBy { it.position.member }
+
+    override fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost> {
+        storeRequests.addAll(notes)
+        return storedFetchedNotes.filterKeys { objectUri -> notes.any { it.objectUri == objectUri } }
+    }
 
     private fun sorted(): List<TimelinePosition> = positions.sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })
 }

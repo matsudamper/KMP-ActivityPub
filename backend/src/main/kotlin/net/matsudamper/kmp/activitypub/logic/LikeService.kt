@@ -14,23 +14,27 @@ import net.matsudamper.kotpub.json.AppJson
 /**
  * いいねを記録する。他のサーバーの投稿なら投稿者への Like / Undo も積む。送るのは配信キューのワーカー
  *
+ * @param unsavedNotes 保存していない投稿にいいねするときに、取ってきて保存する
  * @param onEnqueued 積んだ後に呼ぶ。次の巡回を待たずに送らせる
  */
 class LikeService(
     private val directory: ActorDirectory,
     private val accountService: AccountService,
     private val likes: LikeRepository,
+    private val unsavedNotes: UnsavedRemoteNotes,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
 ) {
     /**
-     * @param postId タイムラインの投稿の id。他のサーバーの投稿もこのサーバーの投稿も受け付ける
+     * @param requestedPostId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id。他のサーバーの投稿もこのサーバーの投稿も受け付ける
      * @return 外すときは、いいねしていない投稿でも [SetLikedResult.Updated]
      */
-    fun setLiked(accountId: AccountId?, postId: String, liked: Boolean): SetLikedResult {
+    suspend fun setLiked(accountId: AccountId?, requestedPostId: String, liked: Boolean): SetLikedResult {
         if (accountId == null) return SetLikedResult.NotLoggedIn
         val account = accountService.account(accountId) ?: return SetLikedResult.NotLoggedIn
         val sender = directory.resolve(account.username) ?: return SetLikedResult.NotLoggedIn
+        val postId = unsavedNotes.memberOf(viewer = accountId, postId = requestedPostId, importsMissing = liked)
+            ?: return if (liked) SetLikedResult.PostNotFound else SetLikedResult.Updated
         val enqueued = if (liked) {
             when (val target = likes.target(accountId, postId) ?: return SetLikedResult.PostNotFound) {
                 // このサーバーの投稿は配らずに記録だけする

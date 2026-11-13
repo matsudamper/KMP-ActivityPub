@@ -14,8 +14,16 @@ type UserProfile {
     "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"
     links: [ProfileLink!]!
     posts: [ProfilePost!]!
+    "posts の続きを Query.userProfilePosts で読むときに after に渡す。続きが無ければ null"
+    postsNextCursor: String
     "ログイン中のアカウント本人のプロフィールか"
     viewerIsOwner: Boolean!
+}
+
+type ProfilePostPage {
+    posts: [ProfilePost!]!
+    "続きが無ければ null"
+    nextCursor: String
 }
 
 type ProfileLink {
@@ -56,7 +64,10 @@ type ProfilePost {
     like: ProfilePostLike
     "ログイン中のアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しは UserMutation.setBoosted に postId を渡す"
     boostedByMe: Boolean
-    "setLiked と setBoosted に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。ログインしていないか、付け外しできない投稿は null"
+    """
+    setLiked と setBoosted に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。ログインしていないか、付け外しできない投稿は null。
+    他のサーバーの投稿は表示のたびに相手のサーバーから取り、保存はしない。保存していない投稿の id は、いいねやブーストを付けたときに投稿を取ってきて保存する
+    """
     reactionPostId: TimelinePostId
     "プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null"
     boostedNoteAuthor: PostAuthor
@@ -73,7 +84,7 @@ type PostAuthor {
 }
 
 type ProfilePostLike {
-    "UserMutation.setLiked の postId に渡す id"
+    "UserMutation.setLiked の postId に渡す id。保存していない他のサーバーの投稿は、いいねを付けたときに保存する"
     postId: ID!
     "ログイン中のアカウントがいいねしているか"
     likedByMe: Boolean!

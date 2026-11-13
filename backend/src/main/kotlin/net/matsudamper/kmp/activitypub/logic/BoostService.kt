@@ -26,18 +26,21 @@ class BoostService(
     private val directory: ActorDirectory,
     private val accountService: AccountService,
     private val boosts: AccountBoostRepository,
+    private val unsavedNotes: UnsavedRemoteNotes,
     private val followerRepository: FollowerRepository,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
 ) {
     /**
-     * @param postId タイムラインの投稿の id
+     * @param requestedPostId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id
      * @return 外すときは、ブーストしていない投稿でも [SetBoostedResult.Updated]
      */
-    fun setBoosted(accountId: AccountId?, postId: String, boosted: Boolean): SetBoostedResult {
+    suspend fun setBoosted(accountId: AccountId?, requestedPostId: String, boosted: Boolean): SetBoostedResult {
         if (accountId == null) return SetBoostedResult.NotLoggedIn
         val account = accountService.account(accountId) ?: return SetBoostedResult.NotLoggedIn
         val sender = directory.resolve(account.username) ?: return SetBoostedResult.NotLoggedIn
+        val postId = unsavedNotes.memberOf(viewer = accountId, postId = requestedPostId, importsMissing = boosted)
+            ?: return if (boosted) SetBoostedResult.PostNotFound else SetBoostedResult.Updated
         if (!boosted) {
             // 外すときは今読めるかを問わない。投稿者のフォローを外した後でも、記録したブーストの宛先へ Undo を届ける
             if (boosts.unboostAndEnqueueUndo(accountId = accountId, member = postId, now = clock.instant())) onEnqueued()

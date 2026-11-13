@@ -5,6 +5,7 @@ import java.util.concurrent.CompletionStage
 import kotlinx.coroutines.runBlocking
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
+import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
@@ -14,6 +15,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLink
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostLike
+import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
@@ -21,9 +23,13 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QueryResolver
+import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
+import net.matsudamper.kmp.activitypub.logic.ProfilePost
+import net.matsudamper.kmp.activitypub.logic.ProfilePostCursor
+import net.matsudamper.kmp.activitypub.logic.ProfilePostsResult
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
@@ -48,54 +54,30 @@ class QueryResolverImpl : QueryResolver {
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
                         viewerIsOwner = profile.viewerIsOwner,
-                        posts = profile.posts.map { post ->
-                            val boostedNoteAuthor = post.boostedNoteAuthor?.let { author ->
-                                QlPostAuthor(
-                                    username = author.username,
-                                    host = author.host,
-                                    displayName = author.displayName ?: author.username,
-                                    displayNameEmojis = author.displayNameEmojis.toQlCustomEmojis(diContainer),
-                                    iconUrl = if (author.actorUri == null) {
-                                        diContainer.profileIconUrls?.find(author.username)
-                                    } else {
-                                        author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) }
-                                    },
-                                )
-                            }
-                            val body = createQlPostBody(
-                                contentHtml = post.contentHtml,
-                                summary = post.summary,
-                                sensitive = post.sensitive,
-                                images = post.images,
-                                linkUrlsEnabled = post.linkPreviewId != null,
-                                diContainer = diContainer,
-                            )
-                            QlProfilePost(
-                                content = body.content,
-                                publishedAt = post.publishedAt,
-                                summary = body.summary,
-                                sensitive = body.sensitive,
-                                linkPreviewId = post.linkPreviewId,
-                                postId = post.postId?.let(::TimelinePostId),
-                                deletableNoteId = post.deletableNoteId,
-                                pinned = post.pinned,
-                                pinnableNoteId = post.pinnableNoteId,
-                                linkUrls = body.linkUrls,
-                                images = body.images,
-                                emojis = post.emojis.toQlCustomEmojis(diContainer),
-                                favouriteCount = post.favouriteCount?.toInt(),
-                                stamps = post.stamps.toQlPostStamps(diContainer),
-                                like = post.like?.let { like -> QlProfilePostLike(postId = like.postId, likedByMe = like.likedByMe) },
-                                boostedByMe = post.boostedByMe,
-                                reactionPostId = post.reactionPostId?.let(::TimelinePostId),
-                                url = diContainer.noteShareUrls?.url(post.noteRef),
-                                boostCount = post.boostCount?.toInt(),
-                                boostedNoteAuthor = boostedNoteAuthor,
-                            )
-                        },
+                        posts = profile.posts.map { post -> post.toQlProfilePost(diContainer) },
+                        postsNextCursor = profile.postsNextCursor?.encode(),
                     )
                 }
             DataFetcherResult.Builder<QlUserProfile?>(result).build()
+        }
+    }
+
+    override fun userProfilePosts(after: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfilePostPage?>> {
+        val cursor = ProfilePostCursor.decode(after) ?: throw GraphQlClientException("after が読めない")
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelFuture {
+            val page = when (val result = diContainer.userProfileService.morePosts(viewer = accountId, cursor = cursor)) {
+                is ProfilePostsResult.Found -> QlProfilePostPage(
+                    posts = result.page.posts.map { post -> post.toQlProfilePost(diContainer) },
+                    nextCursor = result.page.nextCursor?.encode(),
+                )
+
+                ProfilePostsResult.NotLoggedIn, ProfilePostsResult.NotFound -> null
+
+                ProfilePostsResult.Unreachable -> throw GraphQlClientException("相手のサーバーから投稿を読めなかった")
+            }
+            DataFetcherResult.Builder<QlProfilePostPage?>(page).build()
         }
     }
 
@@ -280,4 +262,50 @@ class QueryResolverImpl : QueryResolver {
     }
 
     private fun ProfileLink.toQlProfileLink(): QlProfileLink = QlProfileLink(name = name, url = url)
+
+    private fun ProfilePost.toQlProfilePost(diContainer: DiContainer): QlProfilePost {
+        val qlBoostedNoteAuthor = boostedNoteAuthor?.let { author ->
+            QlPostAuthor(
+                username = author.username,
+                host = author.host,
+                displayName = author.displayName ?: author.username,
+                displayNameEmojis = author.displayNameEmojis.toQlCustomEmojis(diContainer),
+                iconUrl = if (author.actorUri == null) {
+                    diContainer.profileIconUrls?.find(author.username)
+                } else {
+                    author.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = author.updatedAt) }
+                },
+            )
+        }
+        val body = createQlPostBody(
+            contentHtml = contentHtml,
+            summary = summary,
+            sensitive = sensitive,
+            images = images,
+            linkUrlsEnabled = linkPreviewId != null,
+            diContainer = diContainer,
+        )
+        return QlProfilePost(
+            content = body.content,
+            publishedAt = publishedAt,
+            summary = body.summary,
+            sensitive = body.sensitive,
+            linkPreviewId = linkPreviewId,
+            postId = postId?.let(::TimelinePostId),
+            deletableNoteId = deletableNoteId,
+            pinned = pinned,
+            pinnableNoteId = pinnableNoteId,
+            linkUrls = body.linkUrls,
+            images = body.images,
+            emojis = emojis.toQlCustomEmojis(diContainer),
+            favouriteCount = favouriteCount?.toInt(),
+            stamps = stamps.toQlPostStamps(diContainer),
+            like = like?.let { postLike -> QlProfilePostLike(postId = postLike.postId, likedByMe = postLike.likedByMe) },
+            boostedByMe = boostedByMe,
+            reactionPostId = reactionPostId?.let(::TimelinePostId),
+            url = diContainer.noteShareUrls?.url(noteRef),
+            boostCount = boostCount?.toInt(),
+            boostedNoteAuthor = qlBoostedNoteAuthor,
+        )
+    }
 }

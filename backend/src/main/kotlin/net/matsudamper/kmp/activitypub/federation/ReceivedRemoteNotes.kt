@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
+import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.inOpenTelemetrySuspendSpan
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
@@ -41,6 +42,17 @@ internal class ReceivedRemoteNotes(
 
     override suspend fun delete(actorId: String, objectId: String) {
         timeline.publishDeleted(deleteRemoteNote(actorId, objectId))
+    }
+
+    /**
+     * いいねやブーストを付ける投稿を、ホームタイムラインに配らずに保存する
+     *
+     * @return 保存した投稿の、いいねやブーストに渡すタイムラインの member。投稿者を記録できないか、保存できない投稿なら null
+     */
+    suspend fun storeForReaction(viewer: AccountId, note: ReceivedNote): String? {
+        val now = clock.instant()
+        if (storeActorIfMissing(note.attributedTo, now) != null) return null
+        return repository.storeFetchedNotes(viewer, listOf(note.toInput(localRecipients = setOf(), now = now)))[note.id]?.reactionMember
     }
 
     suspend fun saveBoost(boost: ReceivedRemoteBoost) {

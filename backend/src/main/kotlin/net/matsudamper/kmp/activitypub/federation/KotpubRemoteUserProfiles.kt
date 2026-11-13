@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.logic.OutboxPosition
+import net.matsudamper.kmp.activitypub.logic.RemoteNotesPage
 import net.matsudamper.kmp.activitypub.logic.RemoteUser
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
@@ -8,7 +10,9 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
+import net.matsudamper.kotpub.note.RemoteOutboxCursor
 import net.matsudamper.kotpub.note.RemoteOutboxNote
+import net.matsudamper.kotpub.note.RemoteOutboxPageResult
 import net.matsudamper.kotpub.note.RemoteOutboxResult
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
@@ -31,8 +35,18 @@ internal class KotpubRemoteUserProfiles(
         return profileFor(user)
     }
 
-    override suspend fun recentNotes(actorUri: String): List<RemoteNoteInput> =
-        outbox.recent(actorUri, limit = 20).notesOrEmpty(actorUri, kind = "outbox")
+    override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
+        when (val result = outbox.recentPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) })) {
+            is RemoteOutboxPageResult.Found -> RemoteNotesPage(
+                notes = result.page.notes.map { it.toInput(actorUri, Instant.now()) },
+                next = result.page.next?.let { OutboxPosition(pageId = it.pageId, itemOffset = it.itemOffset) },
+            )
+
+            RemoteOutboxPageResult.Unavailable -> {
+                logger.warn("outbox を取れなかった: $actorUri from=$from")
+                null
+            }
+        }
 
     override suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput> =
         outbox.featured(actorUri, limit = 20).notesOrEmpty(actorUri, kind = "featured")
