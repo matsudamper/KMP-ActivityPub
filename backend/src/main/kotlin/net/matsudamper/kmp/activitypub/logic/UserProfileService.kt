@@ -142,7 +142,9 @@ class UserProfileService(
                 ProfilePostsResult.Unreachable
             } else {
                 val followed = following.isFollowing(viewer, cursor.actorUri)
-                ProfilePostsResult.Found(mergedRemotePage(viewer, cursor.actorUri, followed, outboxPage, cursor.storedBefore?.toPosition(), cursor.pinnedObjectUris))
+                ProfilePostsResult.Found(
+                    mergedRemotePage(viewer, cursor.actorUri, followed, outboxPage, cursor.storedBefore?.toPosition(), cursor.pinnedObjectUris, cursor.shownAtBoundary),
+                )
             }
         }
 
@@ -263,7 +265,15 @@ class UserProfileService(
         val page = if (outboxPage == null) {
             storedOnlyPage(viewer = viewer, actorUri = actorUri, before = null, pinnedObjectUris = pinnedObjectUris)
         } else {
-            mergedRemotePage(viewer = viewer, actorUri = actorUri, followed = followed, outboxPage = outboxPage, storedBefore = null, pinnedObjectUris = pinnedObjectUris)
+            mergedRemotePage(
+                viewer = viewer,
+                actorUri = actorUri,
+                followed = followed,
+                outboxPage = outboxPage,
+                storedBefore = null,
+                pinnedObjectUris = pinnedObjectUris,
+                shownAtBoundary = listOf(),
+            )
         }
         page.copy(posts = withStored(viewer, followed, featuredNotes).map { it.second.copy(pinned = true) } + page.posts)
     }
@@ -280,6 +290,7 @@ class UserProfileService(
      *
      * @param storedBefore 保存済みの投稿をここより古い方から混ぜる。最初のページなら null
      * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。どのページでも一覧からは外す
+     * @param shownAtBoundary 前のページで出した、前のページの境目と同じ時刻の投稿
      */
     private fun mergedRemotePage(
         viewer: AccountId,
@@ -288,17 +299,27 @@ class UserProfileService(
         outboxPage: RemoteNotesPage,
         storedBefore: TimelinePosition?,
         pinnedObjectUris: List<String>,
+        shownAtBoundary: List<String>,
     ): ProfilePostPage {
         val outboxPosts = withStored(viewer, followed, outboxPage.notes)
-        val outboxNoteRefs = outboxPosts.map { it.second.noteRef }.toSet()
         val lowestScore = outboxPage.notes.minOfOrNull { it.publishedAt.toEpochMilli() }
-        // このページには lowestScore ちょうどの投稿まで入れるので、続きはそれより古いものだけ。member を空にすると時刻だけで区切れる
-        val belowPage = lowestScore?.let { TimelinePosition(score = it, member = "") } ?: storedBefore
-        val inPageRange = if (lowestScore == null) listOf() else storedPostsDownTo(viewer, actorUri, before = storedBefore, lowestScore = lowestScore)
         val next = outboxPage.next
+        val shownNoteRefs = (outboxPosts.map { it.second.noteRef } + shownAtBoundary.map { TimelineNoteRef.Remote(it) }).toSet()
+        // 続きがあるときは、境目と同じ時刻の保存済みの投稿を次のページに回す。次の outbox のページに載っていれば、そちらと重ならずに済む。
+        // member を空にすると時刻だけで区切れる
+        val belowPage = when {
+            lowestScore == null -> storedBefore
+            next != null -> TimelinePosition(score = lowestScore + 1, member = "")
+            else -> TimelinePosition(score = lowestScore, member = "")
+        }
+        val inPageRange = if (lowestScore == null) {
+            listOf()
+        } else {
+            storedPostsDownTo(viewer, actorUri, before = storedBefore, lowestScore = if (next != null) lowestScore + 1 else lowestScore)
+        }
         val olderThanOutbox = if (next == null) timeline.actorPosts(viewer, actorUri, before = belowPage, limit = PROFILE_POST_LIMIT) else listOf()
         val storedOnly = (inPageRange + olderThanOutbox)
-            .filterNot { it.boostedBy == null && it.noteRef in outboxNoteRefs }
+            .filterNot { it.boostedBy == null && it.noteRef in shownNoteRefs }
             .mapNotNull { post -> post.toActorProfilePost(viewer)?.let { post.position.score to it } }
         val posts = (outboxPosts + storedOnly).sortedByDescending { it.first }.map { it.second }.withoutPinned(pinnedObjectUris)
         val lastOlder = olderThanOutbox.lastOrNull()?.position
@@ -310,6 +331,7 @@ class UserProfileService(
                     outbox = next,
                     storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) },
                     pinnedObjectUris = pinnedObjectUris,
+                    shownAtBoundary = outboxPage.notes.filter { it.publishedAt.toEpochMilli() == lowestScore }.map { it.objectUri },
                 )
 
                 olderThanOutbox.size == PROFILE_POST_LIMIT && lastOlder != null ->
@@ -602,6 +624,7 @@ sealed interface ProfilePostCursor {
      * 他のサーバーのユーザー。outbox の続きと、混ぜる保存済みの投稿の続きを持つ
      *
      * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。続きにも同じ投稿を出さないよう持ち回る
+     * @param shownAtBoundary 前のページの outbox の境目と同じ時刻で、前のページに出した投稿。同じ時刻の保存済みの投稿を次のページに回すので、重ならないよう外す
      */
     @Serializable
     @SerialName("remote")
@@ -610,6 +633,7 @@ sealed interface ProfilePostCursor {
         @SerialName("outbox") val outbox: OutboxPosition,
         @SerialName("storedBefore") val storedBefore: StoredTimelinePosition?,
         @SerialName("pinnedObjectUris") val pinnedObjectUris: List<String>,
+        @SerialName("shownAtBoundary") val shownAtBoundary: List<String>,
     ) : ProfilePostCursor
 
     /**

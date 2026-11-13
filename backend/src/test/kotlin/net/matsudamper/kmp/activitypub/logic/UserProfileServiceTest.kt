@@ -293,8 +293,50 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun storedPostAtTheSameTimeAsPageBoundaryIsShownOnce() = runBlocking {
+        outbox = { from ->
+            if (from == null) {
+                RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>境目</p>", "https://remote.example/notes/boundary", publishedAt = Instant.ofEpochSecond(20))),
+                    next = OutboxPosition(pageId = "page-2", itemOffset = 0),
+                )
+            } else {
+                RemoteNotesPage(notes = listOf(remoteNote("<p>同じ時刻</p>", "https://remote.example/notes/same-time", publishedAt = Instant.ofEpochSecond(20))), next = null)
+            }
+        }
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>同じ時刻</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(20_000, "r5"),
+                reactionMember = "r5",
+                noteRef = TimelineNoteRef.Remote("https://remote.example/notes/same-time"),
+            ),
+        )
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>境目</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(20_000, "r4"),
+                reactionMember = "r4",
+                noteRef = TimelineNoteRef.Remote("https://remote.example/notes/boundary"),
+            ),
+        )
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, assertNotNull(profile.postsNextCursor))).page
+        val all = (profile.posts + next.posts).map { it.contentHtml }
+
+        assertEquals(listOf("<p>境目</p>", "<p>同じ時刻</p>"), all)
+    }
+
+    @Test
     fun remotePostsContinuationNeedsLoginAndReportsUnreadableOutbox() = runBlocking {
-        val cursor = ProfilePostCursor.Remote(actorUri = actorUri, outbox = OutboxPosition(pageId = "page-2", itemOffset = 0), storedBefore = null, pinnedObjectUris = listOf())
+        val cursor = ProfilePostCursor.Remote(
+            actorUri = actorUri,
+            outbox = OutboxPosition(pageId = "page-2", itemOffset = 0),
+            storedBefore = null,
+            pinnedObjectUris = listOf(),
+            shownAtBoundary = listOf(),
+        )
         assertEquals(ProfilePostsResult.NotLoggedIn, service.morePosts(null, cursor))
 
         outbox = { null }
