@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
+import net.matsudamper.kotpub.actor.RemoteActor
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.webfinger.WebFingerLookup
 import net.matsudamper.kotpub.webfinger.WebFingerResult
@@ -21,7 +22,17 @@ internal class KotpubRemoteUserLookup(
     override suspend fun findByAcct(
         username: String,
         host: String,
-    ): RemoteUser? {
+    ): RemoteUser? = findWithActorByAcct(username, host)?.user
+
+    override suspend fun findByUrl(url: String): RemoteUser? = findWithActorByUrl(url)?.user
+
+    /**
+     * [findByAcct] と同じく引き、取得したアクター文書も返す。プロフィールの表示に要る部分を、同じアクターを取り直さずに読める
+     */
+    suspend fun findWithActorByAcct(
+        username: String,
+        host: String,
+    ): FoundRemoteUser? {
         val actorId =
             when (val result = webFinger.findActorId("$username@$host")) {
                 is WebFingerResult.Found -> result.actorId
@@ -35,13 +46,14 @@ internal class KotpubRemoteUserLookup(
                     return null
                 }
             }
-        return findByUrl(actorId)
+        return findWithActorByUrl(actorId)
     }
 
     /**
+     * [findByUrl] と同じく引き、取得したアクター文書も返す。
      * acct のユーザー名は preferredUsername から決まるので、無いアクターは返さない
      */
-    override suspend fun findByUrl(url: String): RemoteUser? {
+    suspend fun findWithActorByUrl(url: String): FoundRemoteUser? {
         val actor = remoteActors.findActorByUrl(url) ?: return null
         if (url != actor.actorId) storedActors.remove(url)
         val username = actor.profile.preferredUsername ?: return null
@@ -56,12 +68,18 @@ internal class KotpubRemoteUserLookup(
             ),
             updatedAt = Instant.now(),
         )
-        return RemoteUser(
+        val user = RemoteUser(
             actorUri = actor.actorId,
             username = username,
             displayName = actor.profile.displayName,
             iconUrl = actor.profile.iconUrl,
             displayNameEmojis = emojis,
         )
+        return FoundRemoteUser(user = user, actor = actor)
     }
 }
+
+internal data class FoundRemoteUser(
+    val user: RemoteUser,
+    val actor: RemoteActor,
+)

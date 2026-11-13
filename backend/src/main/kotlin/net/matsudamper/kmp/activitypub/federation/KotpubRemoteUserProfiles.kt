@@ -3,12 +3,9 @@ package net.matsudamper.kmp.activitypub.federation
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.OutboxPosition
 import net.matsudamper.kmp.activitypub.logic.RemoteNotesPage
-import net.matsudamper.kmp.activitypub.logic.RemoteUser
-import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
-import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.RemoteOutboxCursor
 import net.matsudamper.kotpub.note.RemoteOutboxNote
@@ -19,21 +16,14 @@ import org.jsoup.safety.Safelist
 import org.slf4j.LoggerFactory
 
 internal class KotpubRemoteUserProfiles(
-    private val users: RemoteUserLookup,
-    private val actors: RemoteActors,
+    private val users: KotpubRemoteUserLookup,
     private val outbox: HttpRemoteOutbox,
 ) : RemoteUserProfiles {
     private val logger = LoggerFactory.getLogger(KotpubRemoteUserProfiles::class.java)
 
-    override suspend fun find(username: String, host: String): RemoteUserProfile? {
-        val user = users.findByAcct(username, host) ?: return null
-        return profileFor(user)
-    }
+    override suspend fun find(username: String, host: String): RemoteUserProfile? = users.findWithActorByAcct(username, host)?.toProfile()
 
-    override suspend fun findByActorUri(actorUri: String): RemoteUserProfile? {
-        val user = users.findByUrl(actorUri) ?: return null
-        return profileFor(user)
-    }
+    override suspend fun findByActorUri(actorUri: String): RemoteUserProfile? = users.findWithActorByUrl(actorUri)?.toProfile()
 
     override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? =
         when (val result = outbox.recentPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) })) {
@@ -76,8 +66,6 @@ internal class KotpubRemoteUserProfiles(
         emojis = emojis.toRecords(),
     )
 
-    private suspend fun profileFor(user: RemoteUser): RemoteUserProfile? {
-        val actor = actors.findActor(user.actorUri) ?: return null
-        return RemoteUserProfile(user = user, headerUrl = actor.profile.headerUrl, biography = actor.profile.summary)
-    }
+    private fun FoundRemoteUser.toProfile(): RemoteUserProfile =
+        RemoteUserProfile(user = user, headerUrl = actor.profile.headerUrl, biography = actor.profile.summary)
 }
