@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
@@ -17,7 +16,6 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -77,34 +75,6 @@ internal fun ProfileContentTabRow(
     }
 }
 
-/**
- * 左右にスワイプして隣のタブへ切り替える
- */
-internal fun Modifier.profileContentTabSwipe(
-    selectedTab: ProfileContentTab,
-    onSwipeToTab: (ProfileContentTab) -> Unit,
-): Modifier = pointerInput(selectedTab, onSwipeToTab) {
-    val switchThresholdPx = ProfileContentTabSwipeThreshold.toPx()
-    var totalDragPx = 0f
-    detectHorizontalDragGestures(
-        onDragStart = { totalDragPx = 0f },
-        onDragEnd = {
-            val swipedTab = when {
-                totalDragPx <= -switchThresholdPx -> ProfileContentTab.entries.getOrNull(selectedTab.ordinal + 1)
-                totalDragPx >= switchThresholdPx -> ProfileContentTab.entries.getOrNull(selectedTab.ordinal - 1)
-                else -> null
-            }
-            if (swipedTab != null) {
-                onSwipeToTab(swipedTab)
-            }
-        },
-        onHorizontalDrag = { change, dragAmountPx ->
-            change.consume()
-            totalDragPx += dragAmountPx
-        },
-    )
-}
-
 @Composable
 internal fun ProfileMediaGridItem(
     media: ProfileMediaUiState,
@@ -152,4 +122,3 @@ internal fun ProfileMediaGridItem(
 }
 
 private const val BlurredMediaLoadSizePx = 24
-private val ProfileContentTabSwipeThreshold = 56.dp

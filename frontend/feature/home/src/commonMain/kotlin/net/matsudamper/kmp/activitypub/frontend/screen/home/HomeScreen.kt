@@ -139,7 +139,6 @@ import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
-import net.matsudamper.kmp.activitypub.frontend.ui.profileContentTabSwipe
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -993,16 +992,7 @@ internal fun UserTabContent(
             }
 
             is HomeScreenUiState.Profile.Loaded -> {
-                LazyVerticalGrid(
-                    columns = ProfileGridCells,
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .profileContentTabSwipe(
-                            selectedTab = userContentTab,
-                            onSwipeToTab = listener::onClickUserContentTab,
-                        ),
-                ) {
+                LazyVerticalGrid(columns = ProfileGridCells, state = listState, modifier = Modifier.fillMaxSize()) {
                     fullLineItem {
                         UserProfileHeader(profile = profile, listener = listener)
                     }
