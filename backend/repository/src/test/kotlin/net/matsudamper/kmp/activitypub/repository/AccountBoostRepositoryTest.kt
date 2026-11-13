@@ -306,11 +306,11 @@ class AccountBoostRepositoryTest {
         val member = receiveNote(repositories, "public", alice, bob)
         repositories.accountBoostRepository.boostAndEnqueue(boost(alice, member, "announce-1"))
 
-        val seenByBob = repositories.timelineRepository.accountBoosts(booster = alice, viewer = bob, limit = 10).single()
+        val seenByBob = repositories.timelineRepository.accountBoosts(booster = alice, viewer = bob, before = null, limit = 10).single()
         assertEquals("alice", seenByBob.boostedBy?.username)
         assertEquals(false, seenByBob.boostedByMe)
-        assertEquals(1, repositories.timelineRepository.accountBoosts(booster = alice, viewer = null, limit = 10).size)
-        assertTrue(repositories.timelineRepository.accountBoosts(booster = bob, viewer = null, limit = 10).isEmpty())
+        assertEquals(1, repositories.timelineRepository.accountBoosts(booster = alice, viewer = null, before = null, limit = 10).size)
+        assertTrue(repositories.timelineRepository.accountBoosts(booster = bob, viewer = null, before = null, limit = 10).isEmpty())
     }
 
     private fun postLocalNote(repositories: Repositories): String {

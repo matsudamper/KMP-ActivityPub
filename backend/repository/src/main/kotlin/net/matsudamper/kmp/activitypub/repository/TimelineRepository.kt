@@ -46,19 +46,28 @@ interface TimelineRepository {
 
     /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す
+     *
+     * @param before この位置より古いものを返す。null なら最新から
      */
-    fun actorPosts(accountId: AccountId, actorUri: String, limit: Int): List<TimelinePost>
+    fun actorPosts(accountId: AccountId, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
 
     /**
      * [booster] が付けたブーストを新しい順に返す。ブーストした時点で読めていたので、[viewer] が今読めるかは問わない
      *
      * @param viewer いいねやブーストの有無を見るアカウント。ログインしていなければ null
+     * @param before この位置より古いものを返す。null なら最新から
      */
-    fun accountBoosts(booster: AccountId, viewer: AccountId?, limit: Int): List<TimelinePost>
+    fun accountBoosts(booster: AccountId, viewer: AccountId?, before: TimelinePosition?, limit: Int): List<TimelinePost>
 
     /**
-     * フォローしていない相手のプロフィールで取った投稿を、いいねやブーストできるように保存する。タイムラインには載せない。
+     * 保存済みの他のサーバーの投稿のうち、id が [objectUris] のもの。[viewer] が読めるものに加えて、公開と、公開タイムラインに載せない公開のものは、
+     * フォローしていなくても返す
+     */
+    fun storedRemotePosts(viewer: AccountId, objectUris: Set<String>): List<TimelinePost>
+
+    /**
+     * 他のサーバーの投稿を、いいねやブーストを付けたときに保存する。タイムラインには載せない。
      * 公開と、公開タイムラインに載せない公開の投稿だけを保存する。投稿の id が投稿者と別のホストにあるものは保存しない。投稿者のアクターは記録済みであること
      *
      * @param viewer いいねやブーストの有無を見るアカウント

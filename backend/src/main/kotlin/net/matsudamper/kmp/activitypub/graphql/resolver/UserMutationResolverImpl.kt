@@ -332,8 +332,8 @@ class UserMutationResolverImpl : UserMutationResolver {
         liked: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSetLikedResult>> {
-        val result = setLiked(postId = postId, liked = liked, env = env)
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+        // 保存していない投稿は相手のサーバーへ取りに行くので、待つ間スレッドを塞がない
+        return otelFuture { DataFetcherResult.Builder(setLiked(postId = postId, liked = liked, env = env)).build() }
     }
 
     override fun setBoosted(
@@ -342,8 +342,8 @@ class UserMutationResolverImpl : UserMutationResolver {
         boosted: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSetBoostedResult>> {
-        val result = setBoosted(postId = postId, boosted = boosted, env = env)
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+        // 保存していない投稿は相手のサーバーへ取りに行くので、待つ間スレッドを塞がない
+        return otelFuture { DataFetcherResult.Builder(setBoosted(postId = postId, boosted = boosted, env = env)).build() }
     }
 
     override fun setPinned(
@@ -478,7 +478,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         }
     }
 
-    private fun setLiked(
+    private suspend fun setLiked(
         postId: String,
         liked: Boolean,
         env: DataFetchingEnvironment,
@@ -488,7 +488,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.likeService
                 ?: return QlSetLikedResult(failure = QlSetLikedFailure.FEDERATION_DISABLED)
         val failure =
-            when (likeService.setLiked(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), postId = postId, liked = liked)) {
+            when (likeService.setLiked(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), requestedPostId = postId, liked = liked)) {
                 SetLikedResult.Updated -> null
                 SetLikedResult.NotLoggedIn -> QlSetLikedFailure.NOT_LOGGED_IN
                 SetLikedResult.PostNotFound -> QlSetLikedFailure.POST_NOT_FOUND
@@ -496,7 +496,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         return QlSetLikedResult(failure = failure)
     }
 
-    private fun setBoosted(
+    private suspend fun setBoosted(
         postId: TimelinePostId,
         boosted: Boolean,
         env: DataFetchingEnvironment,
@@ -506,7 +506,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.boostService
                 ?: return QlSetBoostedResult(failure = QlSetBoostedFailure.FEDERATION_DISABLED)
         val failure =
-            when (boostService.setBoosted(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), postId = postId.value, boosted = boosted)) {
+            when (boostService.setBoosted(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), requestedPostId = postId.value, boosted = boosted)) {
                 SetBoostedResult.Updated -> null
                 SetBoostedResult.NotLoggedIn -> QlSetBoostedFailure.NOT_LOGGED_IN
                 SetBoostedResult.PostNotFound -> QlSetBoostedFailure.POST_NOT_FOUND

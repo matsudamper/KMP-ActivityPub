@@ -151,11 +151,15 @@ internal class Federation(
             },
         )
 
+    private val remoteNotes = HttpRemoteNotes(httpClient)
+    private val unsavedRemoteNotes = FetchingUnsavedRemoteNotes(timeline = timelineRepository, remoteNotes = remoteNotes, receivedNotes = receivedNotes)
+
     val likeService: LikeService =
         LikeService(
             directory = directory,
             accountService = accountService,
             likes = likeRepository,
+            unsavedNotes = unsavedRemoteNotes,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
@@ -165,6 +169,7 @@ internal class Federation(
             directory = directory,
             accountService = accountService,
             boosts = accountBoostRepository,
+            unsavedNotes = unsavedRemoteNotes,
             followerRepository = followerRepository,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
@@ -311,7 +316,7 @@ internal class Federation(
                     AnnounceHandler(
                         domain = domain,
                         remoteActors = remoteActors,
-                        remoteNotes = HttpRemoteNotes(httpClient),
+                        remoteNotes = remoteNotes,
                         boosts = boosts,
                         earlyUndone = favourites,
                     ),

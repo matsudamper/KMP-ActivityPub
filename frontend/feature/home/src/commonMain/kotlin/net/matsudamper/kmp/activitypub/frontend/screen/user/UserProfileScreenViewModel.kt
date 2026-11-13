@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfilePostsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
@@ -62,6 +63,7 @@ internal class UserProfileScreenViewModel(
             ),
         )
     private var loadJob: Job? = null
+    private var loadMoreJob: Job? = null
     private val followMenuController = FollowMenuController(
         scope = viewModelScope,
         userApi = api,
@@ -95,6 +97,17 @@ internal class UserProfileScreenViewModel(
 
         override fun onClickTab(tab: ProfileContentTab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
+        }
+
+        override fun onScrolledToEnd() {
+            // 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押したときだけ読み直す
+            val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
+            if (loaded.loadMoreErrorMessage != null) return
+            loadMore()
+        }
+
+        override fun onClickRetryLoadMore() {
+            loadMore()
         }
 
         override fun onClickOpenOriginal() {
@@ -184,21 +197,55 @@ internal class UserProfileScreenViewModel(
      */
     private suspend fun reloadWithoutLoading() {
         val result = api.userProfile(username = username) as? UserProfileResult.Found ?: return
-        updateProfile { profile -> if (profile is ProfileState.Loaded) ProfileState.Loaded(profile = result) else profile }
+        loadMoreJob?.cancel()
+        updateProfile { profile -> if (profile is ProfileState.Loaded) ProfileState.Loaded(profile = result, loadMoreErrorMessage = null) else profile }
     }
 
     private fun load() {
         loadJob?.cancel()
+        loadMoreJob?.cancel()
         updateProfile { ProfileState.Loading }
         loadJob = viewModelScope.launch {
             val profile =
                 when (val result = api.userProfile(username = username)) {
-                    is UserProfileResult.Found -> ProfileState.Loaded(profile = result)
+                    is UserProfileResult.Found -> ProfileState.Loaded(profile = result, loadMoreErrorMessage = null)
                     UserProfileResult.NotFound -> ProfileState.NotFound
                     is UserProfileResult.Failure -> ProfileState.Failed(result.message)
                 }
             updateProfile { profile }
         }
+    }
+
+    private fun loadMore() {
+        if (loadMoreJob?.isActive == true) return
+        val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
+        val cursor = loaded.profile.postsNextCursor ?: return
+        updateProfile { loaded.copy(loadMoreErrorMessage = null) }
+        loadMoreJob = viewModelScope.launch { loadPostsAfter(cursor) }
+    }
+
+    /**
+     * 続きが空でもまだ先があれば、続けて読む。固定した投稿だけのページなどは表示が増えず、画面の末尾の見張りでは読み進められない
+     */
+    private tailrec suspend fun loadPostsAfter(cursor: String) {
+        val result = api.userProfilePosts(after = cursor)
+        updateProfile { current ->
+            // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
+            if (current !is ProfileState.Loaded || current.profile.postsNextCursor != cursor) {
+                current
+            } else {
+                when (result) {
+                    is UserProfilePostsResult.Success -> current.copy(
+                        profile = current.profile.copy(posts = current.profile.posts + result.posts, postsNextCursor = result.nextCursor),
+                    )
+
+                    is UserProfilePostsResult.Failure -> current.copy(loadMoreErrorMessage = result.message)
+                }
+            }
+        }
+        val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
+        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile?.postsNextCursor == nextCursor
+        if (applied) loadPostsAfter(nextCursor)
     }
 
     /**
@@ -430,10 +477,20 @@ internal class UserProfileScreenViewModel(
                     },
                 )
             },
-            postsEmptyMessage = if (profile.posts.isEmpty()) "表示できる投稿はありません" else null,
+            postsEmptyMessage = if (profile.posts.isEmpty() && profile.postsNextCursor == null) "表示できる投稿はありません" else null,
+            postsFooter = createPostsFooter(loaded),
             media = media,
-            mediaEmptyMessage = if (media.isEmpty()) "表示できるメディアはありません" else null,
+            mediaEmptyMessage = if (media.isEmpty() && profile.postsNextCursor == null) "表示できるメディアはありません" else null,
         )
+    }
+
+    private fun createPostsFooter(loaded: ProfileState.Loaded): UserProfileScreenUiState.PostsFooter {
+        val loadMoreErrorMessage = loaded.loadMoreErrorMessage
+        return when {
+            loadMoreErrorMessage != null -> UserProfileScreenUiState.PostsFooter.Error(loadMoreErrorMessage)
+            loaded.profile.postsNextCursor != null -> UserProfileScreenUiState.PostsFooter.Loading
+            else -> UserProfileScreenUiState.PostsFooter.None
+        }
     }
 
     internal interface Event {
@@ -463,8 +520,12 @@ internal class UserProfileScreenViewModel(
     private sealed interface ProfileState {
         data object Loading : ProfileState
 
+        /**
+         * @param loadMoreErrorMessage 続きを読めなかったときの理由。読めていれば null
+         */
         data class Loaded(
             val profile: UserProfileResult.Found,
+            val loadMoreErrorMessage: String?,
         ) : ProfileState
 
         data object NotFound : ProfileState
