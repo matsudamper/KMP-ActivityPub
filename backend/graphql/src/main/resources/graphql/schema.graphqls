@@ -89,8 +89,10 @@ type AccountEvent {
 }
 
 type TimelinePostsDeleted {
-    "元の投稿が消されたら、それをブーストした行の id もまとめて入れる"
+    "投稿者が投稿を消した行。元の投稿が消されたら、それをブーストした行の id もまとめて入れる"
     postIds: [TimelinePostId!]!
+    "ブーストした相手がブーストを取り消した行"
+    boostUndonePostIds: [TimelinePostId!]!
 }
 
 type TimelinePage {
@@ -100,8 +102,10 @@ type TimelinePage {
 
 type TimelinePost {
     id: TimelinePostId!
-    "投稿者が投稿を消したか、ブーストした相手がブーストを取り消したら true。ほかの項目は消される前のまま返す"
+    "投稿者が投稿を消したら true。ほかの項目は消される前のまま返す"
     deleted: Boolean!
+    "ブーストした相手がブーストを取り消したら true。ほかの項目は取り消される前のまま返す"
+    boostUndone: Boolean!
     "タイムラインに並べる時刻。新しい順に並ぶ。複数の購読先を 1 つのカラムに混ぜるときに使う"
     sortedAt: String!
     content: String!

@@ -12,6 +12,7 @@ query Timeline($followingGroupId: FollowingGroupId, $after: String, $limit: Int!
 fragment TimelinePostFields on TimelinePost {
     id
     deleted
+    boostUndone
     sortedAt
     content
     publishedAt

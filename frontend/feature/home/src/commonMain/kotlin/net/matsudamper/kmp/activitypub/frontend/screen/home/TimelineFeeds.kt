@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.TimelinePostFie
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineSource
+import net.matsudamper.kmp.activitypub.frontend.logic.user.PostRemovals
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
@@ -24,8 +25,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserHomeTimelineRes
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedNotifications
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
-import net.matsudamper.kmp.activitypub.frontend.logic.user.withDeleted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPosts
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withRemovals
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 
 /**
@@ -40,10 +41,10 @@ internal class TimelineFeeds(
     private var readers = mapOf<TimelineSource, FeedReader<*>>()
 
     /**
-     * 読み直しの結果は要求した時点のものなので、その間に購読で削除済みになった行を、読み直しの結果に引き継ぐ。
+     * 読み直しの結果は要求した時点のものなので、その間に購読で削除済みか取り消し済みになった行を、読み直しの結果に引き継ぐ。
      * 一度消えた行が戻ることは無いので、読み直しのたびに捨てずに持ち続ける
      */
-    private var deletedPostIds = setOf<String>()
+    private var removedPosts = PostRemovals.EMPTY
 
     val feeds: StateFlow<Map<TimelineSource, Feed>> = feedsFlow.asStateFlow()
 
@@ -102,13 +103,9 @@ internal class TimelineFeeds(
         readers[TimelineSource.Notifications]?.onNotificationArrived(notification)
     }
 
-    /**
-     * @param postIds 削除済みになった [UserHomeTimelineResult.Post.id]
-     */
-    suspend fun onPostsDeleted(postIds: List<String>) {
-        deletedPostIds = deletedPostIds + postIds
-        val deletedIds = postIds.toSet()
-        updatePosts { it.withDeleted(deletedIds) }
+    suspend fun onPostsRemoved(removals: PostRemovals) {
+        removedPosts = removedPosts + removals
+        updatePosts { it.withRemovals(removals) }
     }
 
     /**
@@ -139,8 +136,8 @@ internal class TimelineFeeds(
                     UserNotificationsResult.NotLoggedIn -> null
                 }
             },
-            refreshedWith = { loaded, firstPage, keepLoadedPages, arrivedIds, deletedPostIds ->
-                loaded.refreshedWith(firstPage, keepLoadedPages = keepLoadedPages, arrivedNotificationIds = arrivedIds, deletedPostIds = deletedPostIds)
+            refreshedWith = { loaded, firstPage, keepLoadedPages, arrivedIds, removals ->
+                loaded.refreshedWith(firstPage, keepLoadedPages = keepLoadedPages, arrivedNotificationIds = arrivedIds, removals = removals)
             },
             withArrivedPost = { data, _ -> data },
             withArrivedNotification = { data, notification -> data.withArrivedNotifications(listOf(notification)) },
@@ -158,8 +155,8 @@ internal class TimelineFeeds(
                 UserHomeTimelineResult.NotLoggedIn -> null
             }
         },
-        refreshedWith = { loaded, firstPage, keepLoadedPages, arrivedIds, deletedPostIds ->
-            loaded.refreshedWith(firstPage, keepLoadedPages = keepLoadedPages, arrivedPostIds = arrivedIds, deletedPostIds = deletedPostIds)
+        refreshedWith = { loaded, firstPage, keepLoadedPages, arrivedIds, removals ->
+            loaded.refreshedWith(firstPage, keepLoadedPages = keepLoadedPages, arrivedPostIds = arrivedIds, removals = removals)
         },
         withArrivedPost = { data, post -> data.withArrivedPosts(listOf(post)) },
         withArrivedNotification = { data, _ -> data },
@@ -183,7 +180,7 @@ internal class TimelineFeeds(
         private val source: TimelineSource,
         private val paging: CursorPagingModel<D>,
         private val pageOf: (D) -> FeedPage?,
-        private val refreshedWith: (loaded: D, firstPage: D, keepLoadedPages: Boolean, arrivedIds: Set<String>, deletedPostIds: Set<String>) -> D,
+        private val refreshedWith: (loaded: D, firstPage: D, keepLoadedPages: Boolean, arrivedIds: Set<String>, removals: PostRemovals) -> D,
         private val withArrivedPost: (D, UserHomeTimelineResult.Post) -> D,
         private val withArrivedNotification: (D, UserNotificationsResult.Notification) -> D,
         private val withPosts: (D, (TimelinePostFields) -> TimelinePostFields) -> D,
@@ -203,7 +200,7 @@ internal class TimelineFeeds(
             arrivedIdsSinceRefresh = setOf()
             val result = try {
                 paging.refreshKeepingLoadedPages { loaded, firstPage ->
-                    refreshedWith(loaded, firstPage, keepLoadedPages, arrivedIdsSinceRefresh, deletedPostIds)
+                    refreshedWith(loaded, firstPage, keepLoadedPages, arrivedIdsSinceRefresh, removedPosts)
                 }
             } finally {
                 refreshing = false
@@ -284,8 +281,8 @@ internal class TimelineFeeds(
          * 読み直しは読み込み済みの内容と突き合わせるときに付けるが、最初の取得と続きの取得はそこを通らない
          */
         private suspend fun markDeletedPosts() {
-            val deletedIds = deletedPostIds
-            if (deletedIds.isNotEmpty()) updatePosts { it.withDeleted(deletedIds) }
+            val removals = removedPosts
+            if (!removals.isEmpty()) updatePosts { it.withRemovals(removals) }
         }
 
         fun close() {

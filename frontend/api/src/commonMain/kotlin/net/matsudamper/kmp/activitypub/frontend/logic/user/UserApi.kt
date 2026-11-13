@@ -23,7 +23,10 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
+import com.apollographql.cache.normalized.FetchPolicy
 import com.apollographql.cache.normalized.apolloStore
+import com.apollographql.cache.normalized.doNotStore
+import com.apollographql.cache.normalized.fetchPolicy
 import net.matsudamper.kmp.activitypub.frontend.graphql.AccountEventsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.AdminAccessQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
@@ -141,20 +144,24 @@ class UserApi(
             firstQuery = NotificationsQuery(after = Optional.present(null), limit = TIMELINE_PAGE_SIZE),
             queryAfter = { cursor -> NotificationsQuery(after = Optional.present(cursor), limit = TIMELINE_PAGE_SIZE) },
             nextCursorOf = { it.userInfo?.notifications?.nextCursor },
-            appendPage = { before, page ->
-                val beforeUserInfo = before.userInfo ?: return@CursorPagingModel null
-                val pageNotifications = page.userInfo?.notifications ?: return@CursorPagingModel null
-                val beforeNotifications = beforeUserInfo.notifications ?: return@CursorPagingModel null
-                before.copy(
-                    userInfo = beforeUserInfo.copy(
-                        notifications = beforeNotifications.copy(
-                            notifications = beforeNotifications.notifications + pageNotifications.notifications,
-                            nextCursor = pageNotifications.nextCursor,
-                        ),
-                    ),
-                )
-            },
+            appendPage = { before, page -> before.withNextPage(page) },
         )
+    }
+
+    /**
+     * 購読で足し込むタイムラインの通知と同じクエリなので、そちらのキャッシュを書き換えないようキャッシュに入れない
+     *
+     * @param after 続きを読むときは前のページの nextCursor。1 ページ目は null
+     */
+    suspend fun fetchNotificationsPage(after: String?): UserNotificationsPageResult {
+        val client = clients.awaitLoadedClient() ?: return UserNotificationsPageResult.Failure("接続先が未設定")
+        val response = client.query(NotificationsQuery(after = Optional.present(after), limit = TIMELINE_PAGE_SIZE))
+            .fetchPolicy(FetchPolicy.NetworkOnly)
+            .doNotStore(true)
+            .execute()
+        if (response.exception != null || response.hasErrors()) return UserNotificationsPageResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserNotificationsPageResult.Failure(response.failureMessage())
+        return UserNotificationsPageResult.Success(data)
     }
 
     /**
@@ -816,10 +823,16 @@ class UserApi(
             .mapNotNull { response -> response.data?.accountEvents }
             .onEach { event ->
                 val arrivedPost = event.timelinePostArrived?.timelinePostFields?.toPost()
-                val deletedPostIds = event.timelinePostsDeleted?.postIds
+                val removedPosts = event.timelinePostsDeleted
                 val arrivedNotification = event.notificationArrived?.notificationFields?.toNotification()
                 if (arrivedPost != null) emit(AccountStreamEvent.PostArrived(arrivedPost))
-                if (deletedPostIds != null) emit(AccountStreamEvent.PostsDeleted(deletedPostIds))
+                if (removedPosts != null) {
+                    emit(
+                        AccountStreamEvent.PostsRemoved(
+                            PostRemovals(deletedPostIds = removedPosts.postIds.toSet(), boostUndonePostIds = removedPosts.boostUndonePostIds.toSet()),
+                        ),
+                    )
+                }
                 if (arrivedNotification != null) emit(AccountStreamEvent.NotificationArrived(arrivedNotification))
             }
             .count()

@@ -32,6 +32,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
     return UserHomeTimelineResult.Post(
         id = id,
         deleted = deleted,
+        boostUndone = boostUndone,
         sortedAt = sortedAt,
         username = authorFields.username,
         host = authorFields.host,
@@ -92,6 +93,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     __typename = "TimelinePost",
     id = id,
     deleted = deleted,
+    boostUndone = boostUndone,
     sortedAt = sortedAt,
     content = body.content,
     publishedAt = body.publishedAt,
@@ -169,6 +171,23 @@ fun TimelineQuery.Data.withFirstPage(firstPage: TimelineQuery.Data): TimelineQue
 }
 
 /**
+ * 続きのページを後ろにつなぐ。どちらかが読めていなければ null
+ */
+fun NotificationsQuery.Data.withNextPage(page: NotificationsQuery.Data): NotificationsQuery.Data? {
+    val beforeUserInfo = userInfo ?: return null
+    val pageNotifications = page.userInfo?.notifications ?: return null
+    val beforeNotifications = beforeUserInfo.notifications ?: return null
+    return copy(
+        userInfo = beforeUserInfo.copy(
+            notifications = beforeNotifications.copy(
+                notifications = beforeNotifications.notifications + pageNotifications.notifications,
+                nextCursor = pageNotifications.nextCursor,
+            ),
+        ),
+    )
+}
+
+/**
  * 取り直した 1 ページ目を、読み込み済みの通知の先頭へつなぐ。
  * 1 ページ目の最後の通知が読み込み済みに無いと、その間の通知が抜けるので null
  */
@@ -194,13 +213,13 @@ fun NotificationsQuery.Data.withFirstPage(firstPage: NotificationsQuery.Data): N
  *
  * @param keepLoadedPages 読み込み済みの続きのページを残すか。1 ページ目とつなげなければ残さない
  * @param arrivedPostIds 読み直しを始めてから購読で届いた [UserHomeTimelineResult.Post.id]
- * @param deletedPostIds 読み直しを始めてから購読で削除済みになった [UserHomeTimelineResult.Post.id]
+ * @param removals 読み直しを始めてから購読で削除済みか取り消し済みになった行
  */
 fun TimelineQuery.Data.refreshedWith(
     firstPage: TimelineQuery.Data,
     keepLoadedPages: Boolean,
     arrivedPostIds: Set<String>,
-    deletedPostIds: Set<String>,
+    removals: PostRemovals,
 ): TimelineQuery.Data {
     val joined = (if (keepLoadedPages) withFirstPage(firstPage) else null) ?: firstPage
     val info = joined.userInfo ?: return joined
@@ -208,7 +227,7 @@ fun TimelineQuery.Data.refreshedWith(
     val arrived = userInfo?.timeline?.posts.orEmpty().filter { it.timelinePostFields.id in arrivedPostIds }
     return joined
         .copy(userInfo = info.copy(timeline = timeline.copy(posts = (arrived + timeline.posts).distinctBy { it.timelinePostFields.id })))
-        .withPosts { it.withDeleted(deletedPostIds) }
+        .withPosts { it.withRemovals(removals) }
 }
 
 /**
@@ -220,7 +239,7 @@ fun NotificationsQuery.Data.refreshedWith(
     firstPage: NotificationsQuery.Data,
     keepLoadedPages: Boolean,
     arrivedNotificationIds: Set<String>,
-    deletedPostIds: Set<String>,
+    removals: PostRemovals,
 ): NotificationsQuery.Data {
     val joined = (if (keepLoadedPages) withFirstPage(firstPage) else null) ?: firstPage
     val info = joined.userInfo ?: return joined
@@ -232,7 +251,7 @@ fun NotificationsQuery.Data.refreshedWith(
                 notifications = page.copy(notifications = (arrived + page.notifications).distinctBy { it.notificationFields.id }),
             ),
         )
-        .withPosts { it.withDeleted(deletedPostIds) }
+        .withPosts { it.withRemovals(removals) }
 }
 
 /**
@@ -293,11 +312,12 @@ fun NotificationsQuery.Data.withPosts(transform: (TimelinePostFields) -> Timelin
 }
 
 /**
- * 削除済みになった行に印を付ける。読み込んでいない行は何もしない
- *
- * @param postIds 削除済みになった [UserHomeTimelineResult.Post.id]
+ * 削除済みか取り消し済みになった行に印を付ける。読み込んでいない行は何もしない
  */
-fun TimelinePostFields.withDeleted(postIds: Set<String>): TimelinePostFields = if (id in postIds) copy(deleted = true) else this
+fun TimelinePostFields.withRemovals(removals: PostRemovals): TimelinePostFields = copy(
+    deleted = deleted || id in removals.deletedPostIds,
+    boostUndone = boostUndone || id in removals.boostUndonePostIds,
+)
 
 /**
  * いいねを変えた結果を反映する。

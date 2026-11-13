@@ -377,6 +377,7 @@ internal class PostDetailScreenViewModel(
         return createPostItemUiState(
             pinned = false,
             deleted = post.deleted,
+            boostUndone = post.boostUndone,
             actorLabel = post.boostedBy?.let { booster ->
                 // このサーバーのアカウントのブーストでタイムラインに載るのは、自分のブーストだけ
                 PostActorLabel.Boost(actor = booster, byViewer = booster.host == null) { username ->

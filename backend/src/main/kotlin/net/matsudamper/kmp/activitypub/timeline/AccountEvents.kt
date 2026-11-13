@@ -29,11 +29,19 @@ class AccountEvents(
     }
 
     /**
-     * @param members 削除済みになったタイムラインの member
+     * @param members 投稿者が投稿を消して削除済みになったタイムラインの member
      */
     fun publishDeletion(recipients: List<AccountId>, members: List<String>) {
         if (recipients.isEmpty() || members.isEmpty()) return
-        signals.tryEmit(Signal.Deletion(recipients.toSet(), members))
+        signals.tryEmit(Signal.Deletion(recipients.toSet(), AccountEvent.PostsDeleted(deletedMembers = members, boostUndoneMembers = listOf())))
+    }
+
+    /**
+     * @param members ブーストした相手がブーストを取り消したタイムラインの member
+     */
+    fun publishBoostUndone(recipients: List<AccountId>, members: List<String>) {
+        if (recipients.isEmpty() || members.isEmpty()) return
+        signals.tryEmit(Signal.Deletion(recipients.toSet(), AccountEvent.PostsDeleted(deletedMembers = listOf(), boostUndoneMembers = members)))
     }
 
     fun publishNotification(notification: ReceivedNotification) {
@@ -50,7 +58,7 @@ class AccountEvents(
                 when (signal) {
                     is Signal.Arrival -> repository.hydrate(accountId, listOf(signal.position.member)).singleOrNull()?.let { AccountEvent.PostArrived(it) }
 
-                    is Signal.Deletion -> AccountEvent.PostsDeleted(signal.members)
+                    is Signal.Deletion -> signal.event
 
                     is Signal.Notification -> repository.hydrate(accountId, listOf(signal.notification.noteMember)).singleOrNull()
                         ?.let { AccountEvent.NotificationArrived(signal.notification, it) }
@@ -62,7 +70,7 @@ class AccountEvents(
 
         class Arrival(override val recipients: Set<AccountId>, val position: TimelinePosition) : Signal
 
-        class Deletion(override val recipients: Set<AccountId>, val members: List<String>) : Signal
+        class Deletion(override val recipients: Set<AccountId>, val event: AccountEvent.PostsDeleted) : Signal
 
         class Notification(val notification: ReceivedNotification) : Signal {
             override val recipients: Set<AccountId> = setOf(notification.accountId)
@@ -74,9 +82,10 @@ sealed interface AccountEvent {
     data class PostArrived(val post: TimelinePost) : AccountEvent
 
     /**
-     * @param members 削除済みになったタイムラインの member
+     * @param deletedMembers 投稿者が投稿を消して削除済みになったタイムラインの member
+     * @param boostUndoneMembers ブーストした相手がブーストを取り消したタイムラインの member
      */
-    data class PostsDeleted(val members: List<String>) : AccountEvent
+    data class PostsDeleted(val deletedMembers: List<String>, val boostUndoneMembers: List<String>) : AccountEvent
 
     /**
      * @param post お気に入りかブーストをされた投稿

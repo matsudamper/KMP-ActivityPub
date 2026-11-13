@@ -58,7 +58,10 @@ class SubscriptionResolverImpl : SubscriptionResolver {
 
         is AccountEvent.PostsDeleted -> QlAccountEvent(
             timelinePostArrived = null,
-            timelinePostsDeleted = QlTimelinePostsDeleted(postIds = members.map { TimelinePostId(it) }),
+            timelinePostsDeleted = QlTimelinePostsDeleted(
+                postIds = deletedMembers.map { TimelinePostId(it) },
+                boostUndonePostIds = boostUndoneMembers.map { TimelinePostId(it) },
+            ),
             notificationArrived = null,
         )
 

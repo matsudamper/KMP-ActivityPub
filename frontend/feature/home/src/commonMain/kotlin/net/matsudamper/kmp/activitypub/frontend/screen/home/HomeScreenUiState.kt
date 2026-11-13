@@ -35,6 +35,7 @@ data class HomeScreenUiState(
     val timelineRefreshing: Boolean,
     val timelineStreamStatus: TimelineStreamStatus,
     val sensitiveImagesBlurred: Boolean,
+    val notifications: Notifications,
     val search: Search,
     val profile: Profile,
     val userContentTab: ProfileContentTab,
@@ -58,6 +59,7 @@ data class HomeScreenUiState(
 ) {
     enum class Column {
         Post,
+        Notifications,
         Search,
         User,
     }
@@ -185,8 +187,27 @@ data class HomeScreenUiState(
 
     enum class Tab {
         Home,
+        Notifications,
         Search,
         User,
+    }
+
+    sealed interface Notifications {
+        data object Loading : Notifications
+
+        data class Error(
+            val message: String,
+        ) : Notifications
+
+        /**
+         * @param emptyMessage 通知があれば null
+         */
+        data class Loaded(
+            val items: List<PostItemUiState>,
+            val emptyMessage: String?,
+            val refreshing: Boolean,
+            val footer: TimelineFooter,
+        ) : Notifications
     }
 
     data class Search(
@@ -295,6 +316,14 @@ data class HomeScreenUiState(
         fun onClickTimelineStreamStatus()
 
         fun onClickSensitiveImagesVisibility()
+
+        fun onRefreshNotifications()
+
+        fun onClickRetryNotifications()
+
+        fun onScrolledToNotificationsEnd()
+
+        fun onClickRetryLoadMoreNotifications()
 
         fun onSearchQueryChanged(query: String)
 

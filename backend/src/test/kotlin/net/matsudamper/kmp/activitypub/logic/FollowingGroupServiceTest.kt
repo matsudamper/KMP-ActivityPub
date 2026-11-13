@@ -139,5 +139,6 @@ class FollowingGroupServiceTest {
         boostCount = null,
         boostedBy = boosterActorUri?.let { TimelineBooster(it, "booster", null, null, listOf(), Instant.EPOCH) },
         deleted = false,
+        boostUndone = false,
     )
 }

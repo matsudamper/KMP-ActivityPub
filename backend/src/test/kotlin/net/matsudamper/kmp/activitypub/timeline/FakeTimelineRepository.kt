@@ -56,7 +56,7 @@ internal class FakeTimelineRepository : TimelineRepository {
             TimelineNoteRef.Local(
                 PublicNoteId(it.member),
             ),
-            null, null, false,
+            null, null, false, false,
         )
     }
 

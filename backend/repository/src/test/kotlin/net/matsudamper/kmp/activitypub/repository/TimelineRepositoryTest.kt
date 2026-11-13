@@ -374,16 +374,18 @@ class TimelineRepositoryTest {
         // 投稿者をフォローしていなくても、ブーストされた投稿だけがタイムラインに載ることはない
         assertTrue(repository.page(accounts.getValue("bob"), null, null, 10).isEmpty())
 
-        assertFalse(repository.hydrate(alice, listOf(position.member)).single().deleted)
+        assertFalse(repository.hydrate(alice, listOf(position.member)).single().boostUndone)
         assertEquals(BoostRemoval(undoneTimelineMember = position.member), repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW))
-        // 取り消し済みと出すために行は残す
-        assertTrue(repository.hydrate(alice, listOf(position.member)).single().deleted)
+        // 取り消し済みと出すために行は残す。元の投稿は消されていない
+        val undone = repository.hydrate(alice, listOf(position.member)).single()
+        assertTrue(undone.boostUndone)
+        assertFalse(undone.deleted)
         assertNull(repositories.boostRepository.remove(BOOSTER, "$BOOSTER/announces/1", NOW))
 
         // 取り消した Announce の届き直しでは戻さず、新しい Announce なら載せ直す
         assertNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
         val reboosted = assertNotNull(repository.receiveBoost(boost("2", note("boosted", "public", setOf()))))
-        assertFalse(repository.hydrate(alice, listOf(reboosted.member)).single().deleted)
+        assertFalse(repository.hydrate(alice, listOf(reboosted.member)).single().boostUndone)
         assertTrue(repository.hydrate(alice, listOf(position.member)).isEmpty())
     }
 

@@ -81,26 +81,39 @@ class TimelineService(
     }
 
     /**
-     * 削除済みになった行を、それを載せているアカウントへ知らせる
+     * 投稿者が投稿を消して削除済みになった行を、それを載せているアカウントへ知らせる
      *
      * @param members 削除済みになったタイムラインの member
      */
     fun publishDeleted(members: List<String>) {
-        members.forEach { member ->
-            var after: AccountId? = null
-            do {
-                // 配布と違い、しばらく開いていなかったアカウントも今つながっていれば知らせる
-                val recipients = repository.recipients(member, Instant.EPOCH, after, 1000).map { it.accountId }
-                events.publishDeletion(recipients, listOf(member))
-                after = recipients.lastOrNull()
-            } while (recipients.size == 1000)
-        }
+        publishToRecipients(members) { recipients, member -> events.publishDeletion(recipients, listOf(member)) }
+    }
+
+    /**
+     * ブーストした相手がブーストを取り消した行を、それを載せているアカウントへ知らせる
+     *
+     * @param members 取り消されたブーストのタイムラインの member
+     */
+    fun publishBoostUndone(members: List<String>) {
+        publishToRecipients(members) { recipients, member -> events.publishBoostUndone(recipients, listOf(member)) }
     }
 
     override fun invalidate(accountId: AccountId) {
         val feeds = listOf(TimelineFeed(accountId, null)) + groups.list(accountId).map { TimelineFeed(accountId, it.id) }
         feeds.forEach { feed ->
             runCatching { store.invalidate(feed) }.onFailure { logger.warn("タイムラインの組み立て済みフラグを消せなかった", it) }
+        }
+    }
+
+    private fun publishToRecipients(members: List<String>, publish: (recipients: List<AccountId>, member: String) -> Unit) {
+        members.forEach { member ->
+            var after: AccountId? = null
+            do {
+                // 配布と違い、しばらく開いていなかったアカウントも今つながっていれば知らせる
+                val recipients = repository.recipients(member, Instant.EPOCH, after, 1000).map { it.accountId }
+                publish(recipients, member)
+                after = recipients.lastOrNull()
+            } while (recipients.size == 1000)
         }
     }
 
