@@ -82,7 +82,8 @@ private fun UserProfileContentPreview() {
                                 deletedLabelVisible = false,
                                 actorLabel = PostItemUiState.ActorLabel(
                                     icon = PostItemUiState.ActorLabelIcon.Boost,
-                                    text = createTextWithEmojis(text = "Alice がブースト", emojis = listOf()),
+                                    actorName = createTextWithEmojis(text = "Alice", emojis = listOf()),
+                                    actionText = "がブースト",
                                     iconUrl = null,
                                     cancelledLabelVisible = true,
                                     listener = null,

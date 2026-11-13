@@ -35,7 +35,7 @@ internal class RecordedBoosts(
         activityUri: String,
     ): Boolean {
         val removal = boostRepository.remove(actorUri = actorUri, activityUri = activityUri, undoneAt = clock.instant()) ?: return false
-        timeline.publishDeleted(listOfNotNull(removal.undoneTimelineMember))
+        timeline.publishBoostUndone(listOfNotNull(removal.undoneTimelineMember))
         return true
     }
 

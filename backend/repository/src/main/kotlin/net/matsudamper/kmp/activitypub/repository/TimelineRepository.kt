@@ -94,7 +94,8 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
  * @param actorEmojis 他のサーバーの投稿者の表示名に入るカスタム絵文字。このサーバーの投稿は空
  * @param boostedBy フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。それ以外は null。
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
- * @param deleted 投稿者が投稿を消したか、ブーストした相手がブーストを取り消したか。ほかの項目は消される前のまま
+ * @param deleted 投稿者が投稿を消したか。ほかの項目は消される前のまま
+ * @param boostUndone ブーストした相手がブーストを取り消したか。ほかの項目は取り消される前のまま
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -119,6 +120,7 @@ data class TimelinePost(
     val boostCount: Long?,
     val boostedBy: TimelineBooster?,
     val deleted: Boolean,
+    val boostUndone: Boolean,
 ) {
     /**
      * このサーバーの投稿の公開 id。他のサーバーの投稿は null

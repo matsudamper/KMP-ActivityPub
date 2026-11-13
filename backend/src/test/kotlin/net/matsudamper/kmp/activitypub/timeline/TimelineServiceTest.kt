@@ -386,8 +386,25 @@ class TimelineServiceTest {
 
         service.publishDeleted(listOf("r1", "b1"))
 
-        assertEquals(AccountEvent.PostsDeleted(listOf("b1")), recipientEvent.await())
+        assertEquals(AccountEvent.PostsDeleted(deletedMembers = listOf("b1"), boostUndoneMembers = listOf()), recipientEvent.await())
         assertEquals(null, otherEvent.await())
+    }
+
+    @Test
+    fun undoneBoostsAreStreamedApartFromDeletedPosts() = runBlocking {
+        val recipient = AccountId(1)
+        val repository = FakeTimelineRepository()
+        val recipientsRepository = object : TimelineRepository by repository {
+            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> =
+                if (after == null) listOf(TimelineRecipient(recipient, null)) else listOf()
+        }
+        val events = AccountEvents(recipientsRepository)
+        val service = TimelineService(recipientsRepository, FakeRepositories().followingGroupRepository, FakeTimelineStore(repository.events), events, Clock.systemUTC())
+        val recipientEvent = async(start = CoroutineStart.UNDISPATCHED) { events.events(recipient).first() }
+
+        service.publishBoostUndone(listOf("b1"))
+
+        assertEquals(AccountEvent.PostsDeleted(deletedMembers = listOf(), boostUndoneMembers = listOf("b1")), recipientEvent.await())
     }
 }
 

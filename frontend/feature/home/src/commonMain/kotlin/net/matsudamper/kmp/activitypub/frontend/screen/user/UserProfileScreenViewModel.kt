@@ -371,6 +371,7 @@ internal class UserProfileScreenViewModel(
                 createPostItemUiState(
                     pinned = post.pinned,
                     deleted = false,
+                    boostUndone = false,
                     actorLabel = if (boostedNoteAuthor == null) {
                         null
                     } else {
