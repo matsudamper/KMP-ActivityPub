@@ -96,6 +96,7 @@ internal class PostDetailScreenViewModel(
     private val mentionBoxListener = object : PostDetailScreenUiState.MentionBox.Listener {
         override fun onTextChange(text: String) {
             if (viewModelStateFlow.value.mentionSending) return
+            if (text == viewModelStateFlow.value.mentionText) return
             mentionRequestId = newRequestId()
             viewModelStateFlow.update { it.copy(mentionText = text) }
         }
