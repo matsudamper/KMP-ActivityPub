@@ -48,6 +48,17 @@ class AccountRepositoryTest {
     }
 
     @Test
+    fun `登録したアカウントの数を数える`() {
+        TestSchema.applyTo(dbPath)
+        insertAccountRow("user1")
+        insertAccountRow("user2")
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals(2, repositories.accountRepository.countAll())
+        }
+    }
+
+    @Test
     fun `いない名前のアカウントは引けない`() {
         TestSchema.applyTo(dbPath)
 

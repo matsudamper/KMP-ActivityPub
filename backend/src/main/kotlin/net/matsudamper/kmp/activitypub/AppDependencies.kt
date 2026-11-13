@@ -98,6 +98,7 @@ class AppDependencies(
             Federation(
                 domain = domain,
                 accountService = accountService,
+                accountRepository = repositories.accountRepository,
                 followerRepository = repositories.followerRepository,
                 followingRepository = repositories.followingRepository,
                 deliveryQueueRepository = repositories.deliveryQueueRepository,

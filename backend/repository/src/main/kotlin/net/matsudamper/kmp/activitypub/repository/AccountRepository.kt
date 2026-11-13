@@ -9,6 +9,8 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 interface AccountRepository {
     fun findById(id: AccountId): Account?
 
+    fun countAll(): Long
+
     fun findByUsername(username: String): Account?
 
     /**
