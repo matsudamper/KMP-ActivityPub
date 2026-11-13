@@ -8,17 +8,33 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.webfinger.WebFingerLookup
+import net.matsudamper.kotpub.webfinger.WebFingerResult
+import org.slf4j.LoggerFactory
 
 internal class KotpubRemoteUserLookup(
     private val webFinger: WebFingerLookup,
     private val remoteActors: RemoteActors,
     private val storedActors: RemoteActorRepository,
 ) : RemoteUserLookup {
+    private val logger = LoggerFactory.getLogger(KotpubRemoteUserLookup::class.java)
+
     override suspend fun findByAcct(
         username: String,
         host: String,
     ): RemoteUser? {
-        val actorId = webFinger.findActorId("$username@$host") ?: return null
+        val actorId =
+            when (val result = webFinger.findActorId("$username@$host")) {
+                is WebFingerResult.Found -> result.actorId
+
+                WebFingerResult.NotFound,
+                WebFingerResult.InvalidAcct,
+                -> return null
+
+                WebFingerResult.Unavailable -> {
+                    logger.warn("WebFinger を引けなかった: $username@$host")
+                    return null
+                }
+            }
         return findByUrl(actorId)
     }
 
