@@ -346,7 +346,7 @@ class UserProfileServiceTest {
     @Test
     fun localProfileContinuesNotesAndBoostsWithoutGapsOrPinnedDuplicates() = runBlocking {
         (1..25).forEach { index ->
-            repositories.noteRepository.notes.add(Note(PublicNoteId("note-$index"), "alice", "<p>投稿 $index</p>", Instant.ofEpochSecond(index * 10L), listOf()))
+            repositories.noteRepository.notes.add(Note(PublicNoteId("note-$index"), "alice", "<p>投稿 $index</p>", Instant.ofEpochSecond(index * 10L), listOf(), null, listOf()))
         }
         repositories.notePinRepository.pin(viewer, PublicNoteId("note-3"), Instant.EPOCH, NotePinService.MAX_PINS)
         repositories.timelineRepository.accountBoosts.add(
