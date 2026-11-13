@@ -38,6 +38,21 @@ object AppIcons {
             ).build()
     }
 
+    val ArrowRight: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "ArrowRight",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+                autoMirror = true,
+            ).addPath(
+                pathData = addPathNodes("M10,17l5,-5 -5,-5v10z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val ArrowBack: ImageVector by lazy {
         ImageVector
             .Builder(
