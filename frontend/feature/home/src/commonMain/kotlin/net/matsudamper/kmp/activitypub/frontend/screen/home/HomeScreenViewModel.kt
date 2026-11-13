@@ -437,8 +437,8 @@ internal class HomeScreenViewModel(
         }
         viewModelScope.launch {
             userApi.followingChanges.collect { change ->
-                // 購読の数が変わる
-                loadProfile()
+                // 購読の数が変わる。自分の投稿は変わらないので読み直さない
+                loadProfile(reloadsMyPosts = false)
                 // 読み込み済みの投稿は前の購読先のまま振り分けられるので、読み直して今の購読先に振り分ける
                 loadTimeline(TimelineLoadTrigger.FollowingChanged)
                 searchPaging?.updateCache { it.withFollowing(change) }
@@ -584,6 +584,10 @@ internal class HomeScreenViewModel(
     }
 
     private fun loadProfile() {
+        loadProfile(reloadsMyPosts = true)
+    }
+
+    private fun loadProfile(reloadsMyPosts: Boolean) {
         profileJob?.cancel()
         // 出している内容は読み直しの間も残す。戻るたびに読み込み中へ切り替わると画面がちらつく
         viewModelStateFlow.update {
@@ -593,7 +597,7 @@ internal class HomeScreenViewModel(
             when (val result = userApi.myProfile()) {
                 is UserMyProfileResult.Found -> {
                     viewModelStateFlow.update { it.copy(profile = ProfileState.Loaded(result)) }
-                    loadMyPosts(result)
+                    if (reloadsMyPosts || viewModelStateFlow.value.myPosts !is MyPostsState.Loaded) loadMyPosts(result)
                 }
 
                 UserMyProfileResult.NotLoggedIn -> {
