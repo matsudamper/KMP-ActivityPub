@@ -38,6 +38,7 @@ import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
 import net.matsudamper.kotpub.note.ReceivedNoteAttachment
 import net.matsudamper.kotpub.webfinger.WebFingerLookup
+import net.matsudamper.kotpub.webfinger.WebFingerResult
 
 class RemoteNoteReceptionTest {
     @Test
@@ -148,7 +149,7 @@ class RemoteNoteReceptionTest {
         fixture.repositories.followingRepository.add(fixture.accountId, profileUrl, Instant.EPOCH)
         val lookup = KotpubRemoteUserLookup(
             object : WebFingerLookup {
-                override suspend fun findActorId(acct: String): String? = error("WebFinger は不要")
+                override suspend fun findActorId(acct: String): WebFingerResult = error("WebFinger は不要")
             },
             fixture.remote,
             fixture.repositories.remoteActorRepository,
