@@ -155,7 +155,8 @@ internal fun UserProfileContent(
 
                 is UserProfileScreenUiState.Content.Loaded -> {
                     val gridState = rememberLazyGridState()
-                    LaunchedEffect(gridState, uiState.listener) {
+                    // メディアのタブでは、画像の無い続きを読んでも表示の件数が増えない。投稿の件数で見張り直し、末尾にいる間は続きを読み進める
+                    LaunchedEffect(gridState, uiState.listener, content.posts.size) {
                         // 件数も比べ、続きを読んでもまだ末尾が見えているときにもう一度知らせる
                         snapshotFlow {
                             val layoutInfo = gridState.layoutInfo
