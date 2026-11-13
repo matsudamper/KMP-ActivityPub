@@ -79,7 +79,9 @@ internal fun ProfileContentPager(
     val latestSelectedTab by rememberUpdatedState(selectedTab)
     val latestOnSelectTab by rememberUpdatedState(onSelectTab)
     LaunchedEffect(pagerState, selectedTab) {
-        if (pagerState.settledPage != selectedTab.ordinal) {
+        // 途中で止まったアニメーションのずれが残るので、ページの番号だけでなくずれも見る
+        val pageSettledOnSelected = pagerState.currentPage == selectedTab.ordinal && pagerState.currentPageOffsetFraction == 0f
+        if (!pageSettledOnSelected) {
             pagerState.animateScrollToPage(selectedTab.ordinal)
         }
     }
