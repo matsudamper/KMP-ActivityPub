@@ -69,6 +69,8 @@ internal class FakeRepositories : Repositories {
             return entries.remove(accountId to actorUri)
         }
         override fun groupIdOf(accountId: AccountId, actorUri: String): FollowingGroupId? = groups[accountId to actorUri]
+        override fun groupIdsAmong(accountId: AccountId, actorUris: Set<String>): Map<String, FollowingGroupId?> =
+            actorUris.filter { contains(accountId, it) }.associateWith { groups[accountId to it] }
         override fun setGroup(accountId: AccountId, actorUri: String, groupId: FollowingGroupId?): Boolean {
             if (!contains(accountId, actorUri)) return false
             if (groupId == null) groups.remove(accountId to actorUri) else groups[accountId to actorUri] = groupId

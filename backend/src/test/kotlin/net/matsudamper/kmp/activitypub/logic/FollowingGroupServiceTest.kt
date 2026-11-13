@@ -103,42 +103,14 @@ class FollowingGroupServiceTest {
     }
 
     @Test
-    fun postGoesToBoosterGroupOrAuthorGroupOrMainGroup() = runBlocking {
+    fun groupIdsAmongReturnsOnlyFollowedActorsWithTheirGroup() = runBlocking {
         val alice = repositories.accountRepository.add("alice", "hash", "type")
         val news = assertIs<CreateFollowingGroupResult.Created>(service.createGroup(alice, "ニュース")).group
         val homeActorUri = "https://remote.example/users/dave"
+        val notFollowedUri = "https://remote.example/users/erin"
         assertTrue(service.setFollowing(alice, actorUri, true, news.id))
         assertTrue(service.setFollowing(alice, homeActorUri, true, null))
 
-        assertEquals(news.id, service.groupIdOfPost(alice, timelinePost(actorUri = actorUri, boosterActorUri = null)))
-        assertEquals(news.id, service.groupIdOfPost(alice, timelinePost(actorUri = homeActorUri, boosterActorUri = actorUri)))
-        assertNull(service.groupIdOfPost(alice, timelinePost(actorUri = actorUri, boosterActorUri = homeActorUri)))
-        assertNull(service.groupIdOfPost(alice, timelinePost(actorUri = null, boosterActorUri = null)))
+        assertEquals(mapOf(actorUri to news.id, homeActorUri to null), service.groupIdsAmong(alice, setOf(actorUri, homeActorUri, notFollowedUri)))
     }
-
-    private fun timelinePost(actorUri: String?, boosterActorUri: String?) = TimelinePost(
-        position = TimelinePosition(0, "1"),
-        contentHtml = "本文",
-        publishedAt = Instant.EPOCH,
-        actorUri = actorUri,
-        username = "bob",
-        displayName = null,
-        summary = null,
-        sensitive = false,
-        actorIconUrl = null,
-        actorUpdatedAt = null,
-        images = listOf(),
-        emojis = listOf(),
-        actorEmojis = listOf(),
-        favouriteCount = null,
-        stamps = listOf(),
-        likedByMe = false,
-        boostedByMe = null,
-        reactionMember = "1",
-        noteRef = TimelineNoteRef.Remote("https://remote.example/notes/1"),
-        boostCount = null,
-        boostedBy = boosterActorUri?.let { TimelineBooster(it, "booster", null, null, listOf(), Instant.EPOCH) },
-        deleted = false,
-        boostUndone = false,
-    )
 }

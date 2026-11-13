@@ -56,6 +56,37 @@ class FollowingRepositoryTest {
     }
 
     @Test
+    fun groupIdsAmongReturnsOnlyFollowedActorsWithTheirGroup() {
+        val directory = createTempDirectory("following-groups-test")
+        val path = directory.resolve("test.db")
+        try {
+            TestSchema.applyTo(path)
+            listOf("alice", "bob").forEach { username ->
+                Accounts.insert(path, username, "hash", "hash-type", "public-key", "private-key", Instant.EPOCH.toString())
+            }
+            Repositories.create(DatabaseConfig(path = path)).use { repositories ->
+                val alice = checkNotNull(repositories.accountRepository.findByUsername("alice")).id
+                val bob = checkNotNull(repositories.accountRepository.findByUsername("bob")).id
+                val following = repositories.followingRepository
+                val inMain = "https://remote.example/users/main"
+                val inGroup = "https://remote.example/users/group"
+                val notFollowed = "https://remote.example/users/none"
+                val news = repositories.followingGroupRepository.create(alice, "ニュース", Instant.EPOCH)
+                following.add(alice, inMain, Instant.EPOCH)
+                following.add(alice, inGroup, Instant.EPOCH)
+                following.setGroup(alice, inGroup, news.id)
+                following.add(bob, notFollowed, Instant.EPOCH)
+
+                assertEquals(mapOf(inMain to null, inGroup to news.id), following.groupIdsAmong(alice, setOf(inMain, inGroup, notFollowed)))
+                assertEquals(mapOf(), following.groupIdsAmong(alice, setOf()))
+            }
+        } finally {
+            directory.toFile().listFiles().orEmpty().forEach { it.toPath().deleteIfExists() }
+            directory.deleteIfExists()
+        }
+    }
+
+    @Test
     fun listIsNewestFirstPagedAndFilledWithReceivedProfiles() {
         val directory = createTempDirectory("following-list-test")
         val path = directory.resolve("test.db")

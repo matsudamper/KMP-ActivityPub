@@ -29,7 +29,7 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             .events(accountId)
             // 接続はログアウトや期限切れの後も残るので、流すたびにセッションを確かめて終える
             .takeWhile { context.userAccountId() == accountId }
-            .map { event -> event.toQlAccountEvent(accountId, diContainer) }
+            .map { event -> event.toQlAccountEvent(diContainer) }
             .asPublisher(Dispatchers.IO)
     }
 
@@ -49,9 +49,9 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             .asPublisher(Dispatchers.IO)
     }
 
-    private fun AccountEvent.toQlAccountEvent(accountId: AccountId, diContainer: DiContainer): QlAccountEvent = when (this) {
+    private fun AccountEvent.toQlAccountEvent(diContainer: DiContainer): QlAccountEvent = when (this) {
         is AccountEvent.PostArrived -> QlAccountEvent(
-            timelinePostArrived = listOf(post).toQlTimelinePosts(accountId, diContainer).single(),
+            timelinePostArrived = listOf(post).toQlTimelinePosts(diContainer).single(),
             timelinePostsDeleted = null,
             notificationArrived = null,
         )
@@ -68,7 +68,7 @@ class SubscriptionResolverImpl : SubscriptionResolver {
         is AccountEvent.NotificationArrived -> QlAccountEvent(
             timelinePostArrived = null,
             timelinePostsDeleted = null,
-            notificationArrived = notification.toQlNotification(listOf(post).toQlTimelinePosts(accountId, diContainer).single(), diContainer),
+            notificationArrived = notification.toQlNotification(listOf(post).toQlTimelinePosts(diContainer).single(), diContainer),
         )
     }
 

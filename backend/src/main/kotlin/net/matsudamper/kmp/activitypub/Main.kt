@@ -22,9 +22,12 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.graphQlWebSocketRoutes
+import net.matsudamper.kmp.activitypub.graphql.resolver.ListedActorResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.SearchedUserResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.SubscriptionResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.TimelinePostResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserInfoResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
 import net.matsudamper.kmp.activitypub.oidc.oidcRoutes
@@ -132,6 +135,9 @@ internal fun Application.module(deps: AppDependencies) {
                 MutationResolverImpl(),
                 UserMutationResolverImpl(),
                 SubscriptionResolverImpl(),
+                TimelinePostResolverImpl(),
+                SearchedUserResolverImpl(),
+                ListedActorResolverImpl(),
             ),
             createContext = { call ->
                 GraphQlContext(

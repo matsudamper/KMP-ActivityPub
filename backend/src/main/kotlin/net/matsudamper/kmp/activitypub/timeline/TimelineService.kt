@@ -76,6 +76,11 @@ class TimelineService(
         return repository.hydrate(accountId, listOf(postId)).firstOrNull()
     }
 
+    fun contentHtml(accountId: AccountId, postId: String): String? {
+        if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return null
+        return repository.contentHtml(accountId, postId)
+    }
+
     fun enqueue(position: TimelinePosition) {
         runCatching { store.enqueue(position) }.onFailure { logger.warn("タイムライン配布ジョブを積めなかった", it) }
     }

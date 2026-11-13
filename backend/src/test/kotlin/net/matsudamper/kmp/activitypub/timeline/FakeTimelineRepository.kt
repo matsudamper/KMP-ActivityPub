@@ -51,6 +51,8 @@ internal class FakeTimelineRepository : TimelineRepository {
         return sorted().filter { after == null || it.score < after.score || (it.score == after.score && it.member < after.member) }.take(limit)
     }
 
+    override fun contentHtml(accountId: AccountId, member: String): String? = hydrate(accountId, listOf(member)).firstOrNull()?.contentHtml
+
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
         TimelinePost(
             it, "本文", Instant.EPOCH, null, "alice", null, null, false, null, null, listOf(), listOf(), listOf(), null, listOf(), false, null, it.member,
