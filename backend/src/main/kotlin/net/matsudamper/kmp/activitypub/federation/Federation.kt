@@ -26,6 +26,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
+import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
@@ -62,6 +63,8 @@ import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.nodeinfo.NodeInfoEndpoint
+import net.matsudamper.kotpub.nodeinfo.NodeInfoSoftware
 import net.matsudamper.kotpub.note.FeaturedEndpoint
 import net.matsudamper.kotpub.note.HttpRemoteNotes
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
@@ -74,6 +77,7 @@ import net.matsudamper.kotpub.webfinger.WebFingerEndpoint
 internal class Federation(
     domain: String,
     accountService: AccountService,
+    accountRepository: AccountRepository,
     followerRepository: FollowerRepository,
     followingRepository: FollowingRepository,
     deliveryQueueRepository: DeliveryQueueRepository,
@@ -203,6 +207,17 @@ internal class Federation(
         )
 
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
+
+    /**
+     * アカウントは CLI からしか作れないので、誰でも登録できるとは出さない
+     */
+    val nodeInfoEndpoint: NodeInfoEndpoint =
+        NodeInfoEndpoint(
+            domain = domain,
+            software = NodeInfoSoftware(name = "kmp-activitypub", version = "0.1.0", repository = "https://github.com/matsudamper/KMP-ActivityPub"),
+            openRegistrations = false,
+            usageSource = RepositoryNodeInfoUsage(accountRepository = accountRepository, noteRepository = noteRepository),
+        )
 
     val remoteUserLookup: RemoteUserLookup =
         KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors, storedActors = remoteActorRepository)

@@ -34,6 +34,16 @@ internal fun Route.federationRoutes(federation: Federation) {
         call.respondEndpoint(response)
     }
 
+    get("/.well-known/nodeinfo") {
+        call.respondEndpoint(federation.nodeInfoEndpoint.discovery())
+    }
+
+    get("/nodeinfo/2.1") {
+        // ユーザー数・投稿数を DB で数える
+        val response = withOpenTelemetryContext { federation.nodeInfoEndpoint.nodeInfo() }
+        call.respondEndpoint(response)
+    }
+
     get("/users/{username}") {
         call.respondActor(federation.actorEndpoint)
     }
