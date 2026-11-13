@@ -91,13 +91,13 @@ class UserProfileServiceTest {
     }
 
     @Test
-    fun unfollowedUserPostsCanBeLikedAndBoostedOnceStored() = runBlocking {
+    fun storedPostKeepsReactionsButShowsTheLatestFetchedContent() = runBlocking {
         repositories.timelineRepository.storedFetchedNotes["https://remote.example/notes/1"] =
             storedPost("<p>保存した投稿</p>", summary = null, sensitive = false).copy(boostedByMe = false)
 
         val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
 
-        assertEquals("<p>保存した投稿</p>", post.contentHtml)
+        assertEquals("<p>最新の投稿</p>", post.contentHtml)
         assertEquals("r1", post.reactionPostId)
         assertEquals(ProfilePostLike(postId = "r1", likedByMe = false), post.like)
         assertEquals(false, post.boostedByMe)
@@ -237,7 +237,7 @@ class UserProfileServiceTest {
         assertEquals(cursor, ProfilePostCursor.decode(cursor.encode()))
 
         val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, cursor)).page
-        assertEquals(listOf("<p>保存済みの 1</p>"), next.posts.map { it.contentHtml })
+        assertEquals(listOf("<p>相手のサーバーの 1</p>"), next.posts.map { it.contentHtml })
         assertEquals(listOf("r1"), next.posts.map { it.postId })
         assertNull(next.nextCursor)
         assertTrue(repositories.timelineRepository.storeRequests.isEmpty())
@@ -490,7 +490,7 @@ class UserProfileServiceTest {
 
         val post = assertNotNull(service.profile("bob@remote.example", viewer)).posts.single()
 
-        assertEquals("<p>受け取った投稿</p>", post.contentHtml)
+        assertEquals("<p>相手のサーバーの本文</p>", post.contentHtml)
         assertEquals("r1", post.postId)
         assertEquals(true, post.pinned)
     }

@@ -387,7 +387,7 @@ class UserProfileService(
         return notes.map { note ->
             val stored = storedByUri[note.objectUri]
             // 個別投稿画面はホームタイムラインに載る投稿しか開けず、フォローしていない相手の投稿は載らない
-            val post = stored?.toProfilePost(viewer = viewer, openable = followed, boostedNoteAuthor = null) ?: note.toUnsavedProfilePost()
+            val post = stored?.toProfilePost(viewer = viewer, openable = followed, boostedNoteAuthor = null)?.withContentOf(note) ?: note.toUnsavedProfilePost()
             note.publishedAt.toEpochMilli() to post
         }
     }
@@ -437,6 +437,18 @@ class UserProfileService(
         val author = if (boostedBy == null) null else boostedNoteAuthor() ?: return null
         return toProfilePost(viewer = viewer, openable = true, boostedNoteAuthor = author)
     }
+
+    /**
+     * 相手が後から編集していても最新の内容を出すよう、本文などは今回取った投稿から使う。いいねの状態や id は保存済みの方を残す
+     */
+    private fun ProfilePost.withContentOf(note: RemoteNoteInput): ProfilePost = copy(
+        contentHtml = note.contentHtml,
+        publishedAt = note.publishedAt.toString(),
+        summary = note.summary,
+        sensitive = note.sensitive,
+        images = note.images,
+        emojis = note.emojis,
+    )
 
     private fun RemoteNoteInput.toUnsavedProfilePost(): ProfilePost {
         val unsavedId = UnsavedRemoteNoteId.of(objectUri)
