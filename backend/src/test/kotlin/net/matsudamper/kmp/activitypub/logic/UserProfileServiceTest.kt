@@ -329,6 +329,78 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun storedPostAtTheBoundaryIsShownOnceAfterAnOutboxPageWithoutNotes() = runBlocking {
+        outbox = { from ->
+            when (from) {
+                null -> RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>境目</p>", "https://remote.example/notes/boundary", publishedAt = Instant.ofEpochSecond(20))),
+                    next = OutboxPosition(pageId = "page-2", itemOffset = 0),
+                )
+
+                // ブーストだけが並んだページは、投稿として読めるものが無い
+                OutboxPosition(pageId = "page-2", itemOffset = 0) -> RemoteNotesPage(notes = listOf(), next = OutboxPosition(pageId = "page-3", itemOffset = 0))
+
+                OutboxPosition(pageId = "page-3", itemOffset = 0) -> RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>古い投稿</p>", "https://remote.example/notes/old", publishedAt = Instant.ofEpochSecond(10))),
+                    next = null,
+                )
+
+                else -> error("知らない位置: $from")
+            }
+        }
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>境目</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(20_000, "r4"),
+                reactionMember = "r4",
+                noteRef = TimelineNoteRef.Remote("https://remote.example/notes/boundary"),
+            ),
+        )
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+
+        val all = readAllProfilePosts().map { it.contentHtml }
+
+        assertEquals(listOf("<p>境目</p>", "<p>古い投稿</p>"), all)
+    }
+
+    @Test
+    fun storedPostAtTheBoundaryIsShownOnceWhenTheNextOutboxPageEndsAtTheSameTime() = runBlocking {
+        outbox = { from ->
+            when (from) {
+                null -> RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>境目</p>", "https://remote.example/notes/boundary", publishedAt = Instant.ofEpochSecond(20))),
+                    next = OutboxPosition(pageId = "page-2", itemOffset = 0),
+                )
+
+                OutboxPosition(pageId = "page-2", itemOffset = 0) -> RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>同じ時刻</p>", "https://remote.example/notes/same-time", publishedAt = Instant.ofEpochSecond(20))),
+                    next = OutboxPosition(pageId = "page-3", itemOffset = 0),
+                )
+
+                OutboxPosition(pageId = "page-3", itemOffset = 0) -> RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>古い投稿</p>", "https://remote.example/notes/old", publishedAt = Instant.ofEpochSecond(10))),
+                    next = null,
+                )
+
+                else -> error("知らない位置: $from")
+            }
+        }
+        repositories.timelineRepository.actorPosts.add(
+            storedPost("<p>境目</p>", summary = null, sensitive = false).copy(
+                position = TimelinePosition(20_000, "r4"),
+                reactionMember = "r4",
+                noteRef = TimelineNoteRef.Remote("https://remote.example/notes/boundary"),
+            ),
+        )
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "Bob", null, listOf(), Instant.EPOCH))
+        following.setFollowing(viewer, actorUri, true)
+
+        val all = readAllProfilePosts().map { it.contentHtml }
+
+        assertEquals(listOf("<p>境目</p>", "<p>同じ時刻</p>", "<p>古い投稿</p>"), all)
+    }
+
+    @Test
     fun remotePostsContinuationNeedsLoginAndReportsUnreadableOutbox() = runBlocking {
         val cursor = ProfilePostCursor.Remote(
             actorUri = actorUri,
@@ -529,6 +601,20 @@ class UserProfileServiceTest {
         val posts = assertNotNull(service.profile("bob@remote.example", viewer)).posts
 
         assertEquals(listOf("<p>最新の投稿</p>"), posts.map { it.contentHtml })
+    }
+
+    /**
+     * bob のプロフィールを開き、続きが無くなるまで読む
+     */
+    private suspend fun readAllProfilePosts(): List<ProfilePost> {
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        return readRemainingPosts(read = profile.posts, cursor = profile.postsNextCursor)
+    }
+
+    private tailrec suspend fun readRemainingPosts(read: List<ProfilePost>, cursor: ProfilePostCursor?): List<ProfilePost> {
+        if (cursor == null) return read
+        val page = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, cursor)).page
+        return readRemainingPosts(read = read + page.posts, cursor = page.nextCursor)
     }
 
     private fun remoteNote(contentHtml: String, noteUri: String): RemoteNoteInput = remoteNote(contentHtml, noteUri, Instant.EPOCH)
