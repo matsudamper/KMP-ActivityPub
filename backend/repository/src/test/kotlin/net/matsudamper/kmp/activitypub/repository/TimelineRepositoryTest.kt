@@ -278,6 +278,27 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
+        listOf("local-1", "local-2").forEachIndexed { index, publicId ->
+            repositories.deliveryQueueRepository.enqueueNote(
+                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf()),
+            )
+        }
+        val repository = repositories.timelineRepository
+
+        val positions = repository.localPositionsByPublicId(setOf(PublicNoteId("local-1"), PublicNoteId("local-2"), PublicNoteId("missing")))
+
+        assertEquals(
+            mapOf(
+                PublicNoteId("local-1") to assertNotNull(repository.localPosition("local-1")),
+                PublicNoteId("local-2") to assertNotNull(repository.localPosition("local-2")),
+            ),
+            positions,
+        )
+        assertEquals(mapOf(), repository.localPositionsByPublicId(setOf()))
+    }
+
+    @Test
     fun boundedSourcesUseClampedScoreAndCursorBeforeTheirLimits() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
@@ -442,6 +463,27 @@ class TimelineRepositoryTest {
         repository.deleteRemote(ACTOR, "$ACTOR/notes/own", NOW)
         assertTrue(repository.actorPosts(alice, BOOSTER, null, 10).isEmpty())
         assertTrue(repository.actorPosts(alice, ACTOR, null, 10).none { it.position.member == note.member })
+    }
+
+    @Test
+    fun actorPostsDoNotStopAtBoostsTheViewerCannotSee() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            NOW,
+        )
+        // ブーストを受け取るのは bob がフォローしているから。alice はフォローしておらず、宛先に入った投稿だけを読める
+        repositories.followingRepository.add(accounts.getValue("bob"), BOOSTER, NOW)
+        val addressed = assertNotNull(
+            repository.receive(note("addressed", "direct", setOf("alice")).copy(objectUri = "$BOOSTER/notes/addressed", actorUri = BOOSTER)),
+        )
+        (1..3).forEach { index ->
+            val boostedAt = NOW.plusSeconds(index.toLong())
+            assertNotNull(repository.receiveBoost(boost(index.toString(), note("boosted-$index", "public", setOf())).copy(boostedAt = boostedAt, receivedAt = boostedAt)))
+        }
+
+        assertEquals(listOf(addressed.member), repository.actorPosts(alice, BOOSTER, null, 2).map { it.position.member })
     }
 
     @Test

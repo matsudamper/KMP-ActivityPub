@@ -58,6 +58,11 @@ interface TimelineRepository {
     fun localPosition(publicId: String): TimelinePosition?
 
     /**
+     * [localPosition] を複数の投稿でまとめて引く。無い投稿は返さない
+     */
+    fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition>
+
+    /**
      * [booster] が付けたブーストを新しい順に返す。ブーストした時点で読めていたので、[viewer] が今読めるかは問わない
      *
      * @param viewer いいねやブーストの有無を見るアカウント。ログインしていなければ null
