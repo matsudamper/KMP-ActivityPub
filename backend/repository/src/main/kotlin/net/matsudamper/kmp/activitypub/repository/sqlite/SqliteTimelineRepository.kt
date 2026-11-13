@@ -378,6 +378,15 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .andNotExists(
                     dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID)).and(REMOTE_NOTES.DELETED_AT.isNotNull),
                 )
+                // hydrate で外れるブーストを件数に数えると、limit に届かずに返り、呼び出し側が続きは無いと読んで古い投稿を飛ばす。
+                // boostedPosts と同じく、ブーストした相手をフォローしていて、公開している投稿のブーストに限る
+                .andExists(
+                    dsl.selectOne().from(ACCOUNT_FOLLOWING).where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)),
+                )
+                .andExists(
+                    dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
+                        .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)),
+                )
                 .and(olderThan(REMOTE_BOOSTS.SCORE_MS, boostMember, before))
                 .orderBy(REMOTE_BOOSTS.SCORE_MS.desc(), boostMember.desc()).limit(limit)
                 .fetch { TimelinePosition(checkNotNull(it.value2()), "b${it.value1()}") }
