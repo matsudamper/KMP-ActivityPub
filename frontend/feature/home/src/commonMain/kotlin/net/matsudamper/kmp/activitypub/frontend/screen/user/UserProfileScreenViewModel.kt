@@ -221,23 +221,31 @@ internal class UserProfileScreenViewModel(
         val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
         val cursor = loaded.profile.postsNextCursor ?: return
         updateProfile { loaded.copy(loadMoreErrorMessage = null) }
-        loadMoreJob = viewModelScope.launch {
-            val result = api.userProfilePosts(after = cursor)
-            updateProfile { current ->
-                // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
-                if (current !is ProfileState.Loaded || current.profile.postsNextCursor != cursor) {
-                    current
-                } else {
-                    when (result) {
-                        is UserProfilePostsResult.Success -> current.copy(
-                            profile = current.profile.copy(posts = current.profile.posts + result.posts, postsNextCursor = result.nextCursor),
-                        )
+        loadMoreJob = viewModelScope.launch { loadPostsAfter(cursor) }
+    }
 
-                        is UserProfilePostsResult.Failure -> current.copy(loadMoreErrorMessage = result.message)
-                    }
+    /**
+     * 続きが空でもまだ先があれば、続けて読む。固定した投稿だけのページなどは表示が増えず、画面の末尾の見張りでは読み進められない
+     */
+    private tailrec suspend fun loadPostsAfter(cursor: String) {
+        val result = api.userProfilePosts(after = cursor)
+        updateProfile { current ->
+            // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
+            if (current !is ProfileState.Loaded || current.profile.postsNextCursor != cursor) {
+                current
+            } else {
+                when (result) {
+                    is UserProfilePostsResult.Success -> current.copy(
+                        profile = current.profile.copy(posts = current.profile.posts + result.posts, postsNextCursor = result.nextCursor),
+                    )
+
+                    is UserProfilePostsResult.Failure -> current.copy(loadMoreErrorMessage = result.message)
                 }
             }
         }
+        val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
+        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile?.postsNextCursor == nextCursor
+        if (applied) loadPostsAfter(nextCursor)
     }
 
     /**
