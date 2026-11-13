@@ -191,6 +191,26 @@ private fun UserProfileContentMediaPreview() {
     }
 }
 
+/**
+ * プロフィールを先に出し、投稿を読んでいる間
+ */
+@Preview
+@Composable
+private fun UserProfileContentPostsLoadingPreview() {
+    MaterialTheme {
+        UserProfileContent(
+            uiState = LocalUserUiState.copy(
+                content = LocalUserContent.copy(
+                    postsEmptyMessage = null,
+                    postsFooter = UserProfileScreenUiState.PostsFooter.Loading,
+                    mediaEmptyMessage = null,
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 @Preview
 @Composable
 private fun UserProfileContentLoadMoreErrorPreview() {

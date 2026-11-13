@@ -13,9 +13,6 @@ type UserProfile {
     biography: String
     "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"
     links: [ProfileLink!]!
-    posts: [ProfilePost!]!
-    "posts の続きを Query.userProfilePosts で読むときに after に渡す。続きが無ければ null"
-    postsNextCursor: String
     "ログイン中のアカウント本人のプロフィールか"
     viewerIsOwner: Boolean!
 }
