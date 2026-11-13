@@ -69,7 +69,7 @@ class UserInfoResolverImpl : UserInfoResolver {
         return otelFuture {
             val linkPreviewService = diContainer.linkPreviewService
             val contentHtml = diContainer.userProfileService.localNoteContentHtml(postId)
-                ?: diContainer.timelineService.post(userInfo.id, postId)?.contentHtml
+                ?: diContainer.timelineService.contentHtml(userInfo.id, postId)
             val previews =
                 if (linkPreviewService == null || contentHtml == null) {
                     listOf()

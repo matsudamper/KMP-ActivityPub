@@ -513,6 +513,44 @@ class TimelineRepositoryTest {
         assertEquals("booster-key", repositories.boostRepository.findPublicKeyPem(BOOSTER))
     }
 
+    @Test
+    fun contentHtmlIsReturnedOnlyForPostsTheViewerCanHydrate() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        val bob = accounts.getValue("bob")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        val note = assertNotNull(repository.receive(note("content", "public", setOf())))
+        val boost = assertNotNull(repository.receiveBoost(boost("content", note("boosted-content", "public", setOf()))))
+        val accountBoost = assertNotNull(
+            repositories.accountBoostRepository.boostAndEnqueue(
+                OutgoingBoost(
+                    accountId = alice,
+                    member = note.member,
+                    announceId = "https://local.example/announces/1",
+                    announceBody = "announce",
+                    undoBody = "undo",
+                    inboxes = listOf(),
+                    objectUri = "$ACTOR/notes/content",
+                    objectAuthor = ACTOR,
+                    unlisted = false,
+                    boostedAt = NOW,
+                ),
+            ),
+        )
+
+        listOf(note, boost, accountBoost).forEach { position ->
+            assertEquals(repository.hydrate(alice, listOf(position.member)).single().contentHtml, repository.contentHtml(alice, position.member))
+            assertTrue(repository.hydrate(bob, listOf(position.member)).isEmpty())
+            assertNull(repository.contentHtml(bob, position.member))
+        }
+        assertNull(repository.contentHtml(alice, "r999"))
+    }
+
     private fun boost(id: String, note: RemoteNoteInput): RemoteBoostInput = RemoteBoostInput(
         activityUri = "$BOOSTER/announces/$id",
         boosterUri = BOOSTER,

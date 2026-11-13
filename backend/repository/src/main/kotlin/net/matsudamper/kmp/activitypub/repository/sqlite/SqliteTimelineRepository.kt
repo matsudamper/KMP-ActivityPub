@@ -198,6 +198,40 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    override fun contentHtml(accountId: AccountId, member: String): String? = jooq.withConnection { dsl ->
+        TimelineMembers.localNoteIdOf(member)?.let { noteId ->
+            return@withConnection dsl.select(NOTES.CONTENT_HTML).from(NOTES)
+                .where(NOTES.ID.eq(noteId)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
+                .fetchOne(NOTES.CONTENT_HTML)
+        }
+        TimelineMembers.remoteNoteIdOf(member)?.let { remoteNoteId ->
+            return@withConnection dsl.select(REMOTE_NOTES.CONTENT_HTML).from(REMOTE_NOTES)
+                .where(REMOTE_NOTES.ID.eq(remoteNoteId)).and(dsl.remoteNoteReadableBy(accountId))
+                .fetchOne(REMOTE_NOTES.CONTENT_HTML)
+        }
+        TimelineMembers.boostIdOf(member)?.let { boostId ->
+            val booster = REMOTE_ACTORS.`as`("booster")
+            return@withConnection dsl.select(REMOTE_NOTES.CONTENT_HTML).from(REMOTE_BOOSTS)
+                .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
+                .join(booster).on(booster.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
+                .where(REMOTE_BOOSTS.ID.eq(boostId))
+                .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
+                .andExists(
+                    dsl.selectOne().from(ACCOUNT_FOLLOWING)
+                        .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(booster.ACTOR_URI)),
+                )
+                .fetchOne(REMOTE_NOTES.CONTENT_HTML)
+        }
+        TimelineMembers.accountBoostIdOf(member)?.let { accountBoostId ->
+            return@withConnection dsl.select(DSL.coalesce(NOTES.CONTENT_HTML, REMOTE_NOTES.CONTENT_HTML)).from(ACCOUNT_BOOSTS)
+                .leftJoin(NOTES).on(NOTES.ID.eq(ACCOUNT_BOOSTS.NOTE_ID))
+                .leftJoin(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(ACCOUNT_BOOSTS.REMOTE_NOTE_ID))
+                .where(ACCOUNT_BOOSTS.ID.eq(accountBoostId)).and(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))
+                .fetchOne()?.value1()
+        }
+        null
+    }
+
     /**
      * このサーバーの投稿と他のサーバーの投稿を、member の位置のまま組み立てる
      *
