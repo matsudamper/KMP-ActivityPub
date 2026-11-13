@@ -202,6 +202,23 @@ object AppIcons {
             ).build()
     }
 
+    val Notifications: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "Notifications",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes(
+                    "M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.89,2 2,2z" +
+                        "M18,16v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z",
+                ),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val OpenInNew: ImageVector by lazy {
         ImageVector
             .Builder(
