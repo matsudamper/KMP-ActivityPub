@@ -401,6 +401,15 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         dsl.select(NOTES.ID, NOTES.PUBLISHED_AT).from(NOTES).where(NOTES.PUBLIC_ID.eq(publicId)).fetchOne()?.toLocalPosition()
     }
 
+    override fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition> {
+        if (publicIds.isEmpty()) return mapOf()
+        return jooq.withConnection { dsl ->
+            dsl.select(NOTES.ID, NOTES.PUBLIC_ID, NOTES.PUBLISHED_AT).from(NOTES).where(NOTES.PUBLIC_ID.`in`(publicIds.map { it.value }))
+                .fetch()
+                .associate { PublicNoteId(checkNotNull(it.get(NOTES.PUBLIC_ID))) to it.toLocalPosition() }
+        }
+    }
+
     private fun positions(
         accountId: AccountId,
         groupId: FollowingGroupId?,

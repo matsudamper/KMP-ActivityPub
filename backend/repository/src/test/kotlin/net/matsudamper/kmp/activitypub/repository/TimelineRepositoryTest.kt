@@ -278,6 +278,27 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
+        listOf("local-1", "local-2").forEachIndexed { index, publicId ->
+            repositories.deliveryQueueRepository.enqueueNote(
+                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf()),
+            )
+        }
+        val repository = repositories.timelineRepository
+
+        val positions = repository.localPositionsByPublicId(setOf(PublicNoteId("local-1"), PublicNoteId("local-2"), PublicNoteId("missing")))
+
+        assertEquals(
+            mapOf(
+                PublicNoteId("local-1") to assertNotNull(repository.localPosition("local-1")),
+                PublicNoteId("local-2") to assertNotNull(repository.localPosition("local-2")),
+            ),
+            positions,
+        )
+        assertEquals(mapOf(), repository.localPositionsByPublicId(setOf()))
+    }
+
+    @Test
     fun boundedSourcesUseClampedScoreAndCursorBeforeTheirLimits() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")

@@ -192,8 +192,9 @@ class UserProfileService(
         val boostCounts = boosts.counts(localNoteIds)
         // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分の投稿と自分のブーストだけ
         val ownProfile = accountId == viewer
+        val localPositions = timeline.localPositionsByPublicId(localNoteIds)
         val notePosts = localNotes.associate {
-            val member = timeline.localPosition(it.publicId.value)?.member
+            val member = localPositions[it.publicId]?.member
             it.publicId to ProfilePost(
                 contentHtml = it.contentHtml,
                 publishedAt = it.publishedAt.toString(),
