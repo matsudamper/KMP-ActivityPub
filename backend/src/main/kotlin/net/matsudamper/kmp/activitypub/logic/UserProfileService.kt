@@ -142,14 +142,14 @@ class UserProfileService(
                 ProfilePostsResult.Unreachable
             } else {
                 val followed = following.isFollowing(viewer, cursor.actorUri)
-                ProfilePostsResult.Found(mergedRemotePage(viewer, cursor.actorUri, followed, outboxPage, cursor.storedBefore?.toPosition()))
+                ProfilePostsResult.Found(mergedRemotePage(viewer, cursor.actorUri, followed, outboxPage, cursor.storedBefore?.toPosition(), cursor.pinnedObjectUris))
             }
         }
 
         is ProfilePostCursor.Stored -> if (viewer == null) {
             ProfilePostsResult.NotLoggedIn
         } else {
-            ProfilePostsResult.Found(storedOnlyPage(viewer, cursor.actorUri, cursor.before.toPosition()))
+            ProfilePostsResult.Found(storedOnlyPage(viewer, cursor.actorUri, cursor.before.toPosition(), cursor.pinnedObjectUris))
         }
     }
 
@@ -258,12 +258,14 @@ class UserProfileService(
     private suspend fun firstRemotePostsPage(viewer: AccountId, actorUri: String, followed: Boolean): ProfilePostPage = coroutineScope {
         val featured = async { detached(FEATURED_POSTS_TIMEOUT, "固定した投稿", actorUri) { it.featuredNotes(actorUri) }.orEmpty() }
         val outboxPage = outboxPage(actorUri = actorUri, from = null)
+        val featuredNotes = featured.await()
+        val pinnedObjectUris = featuredNotes.map { it.objectUri }
         val page = if (outboxPage == null) {
-            storedOnlyPage(viewer = viewer, actorUri = actorUri, before = null)
+            storedOnlyPage(viewer = viewer, actorUri = actorUri, before = null, pinnedObjectUris = pinnedObjectUris)
         } else {
-            mergedRemotePage(viewer = viewer, actorUri = actorUri, followed = followed, outboxPage = outboxPage, storedBefore = null)
+            mergedRemotePage(viewer = viewer, actorUri = actorUri, followed = followed, outboxPage = outboxPage, storedBefore = null, pinnedObjectUris = pinnedObjectUris)
         }
-        page.copy(posts = withFeaturedPosts(posts = page.posts, featured = withStored(viewer, followed, featured.await())))
+        page.copy(posts = withStored(viewer, followed, featuredNotes).map { it.second.copy(pinned = true) } + page.posts)
     }
 
     /**
@@ -277,8 +279,16 @@ class UserProfileService(
      * outbox を最後まで読んだら、それより古い保存済みの投稿は outbox に載らないものだけなので、[PROFILE_POST_LIMIT] 件ずつ保存済みから続ける
      *
      * @param storedBefore 保存済みの投稿をここより古い方から混ぜる。最初のページなら null
+     * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。どのページでも一覧からは外す
      */
-    private fun mergedRemotePage(viewer: AccountId, actorUri: String, followed: Boolean, outboxPage: RemoteNotesPage, storedBefore: TimelinePosition?): ProfilePostPage {
+    private fun mergedRemotePage(
+        viewer: AccountId,
+        actorUri: String,
+        followed: Boolean,
+        outboxPage: RemoteNotesPage,
+        storedBefore: TimelinePosition?,
+        pinnedObjectUris: List<String>,
+    ): ProfilePostPage {
         val outboxPosts = withStored(viewer, followed, outboxPage.notes)
         val outboxNoteRefs = outboxPosts.map { it.second.noteRef }.toSet()
         val lowestScore = outboxPage.notes.minOfOrNull { it.publishedAt.toEpochMilli() }
@@ -290,15 +300,24 @@ class UserProfileService(
         val storedOnly = (inPageRange + olderThanOutbox)
             .filterNot { it.boostedBy == null && it.noteRef in outboxNoteRefs }
             .mapNotNull { post -> post.toActorProfilePost(viewer)?.let { post.position.score to it } }
-        val posts = (outboxPosts + storedOnly).sortedByDescending { it.first }.map { it.second }
+        val posts = (outboxPosts + storedOnly).sortedByDescending { it.first }.map { it.second }.withoutPinned(pinnedObjectUris)
         val lastOlder = olderThanOutbox.lastOrNull()?.position
         return ProfilePostPage(
             posts = posts,
             nextCursor = when {
-                next != null -> ProfilePostCursor.Remote(actorUri = actorUri, outbox = next, storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) })
+                next != null -> ProfilePostCursor.Remote(
+                    actorUri = actorUri,
+                    outbox = next,
+                    storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) },
+                    pinnedObjectUris = pinnedObjectUris,
+                )
 
                 olderThanOutbox.size == PROFILE_POST_LIMIT && lastOlder != null ->
-                    ProfilePostCursor.Stored(actorUri = actorUri, before = StoredTimelinePosition(score = lastOlder.score, member = lastOlder.member))
+                    ProfilePostCursor.Stored(
+                        actorUri = actorUri,
+                        before = StoredTimelinePosition(score = lastOlder.score, member = lastOlder.member),
+                        pinnedObjectUris = pinnedObjectUris,
+                    )
 
                 else -> null
             },
@@ -308,15 +327,15 @@ class UserProfileService(
     /**
      * outbox を読めないときに、保存済みの投稿だけで出す
      */
-    private fun storedOnlyPage(viewer: AccountId, actorUri: String, before: TimelinePosition?): ProfilePostPage {
+    private fun storedOnlyPage(viewer: AccountId, actorUri: String, before: TimelinePosition?, pinnedObjectUris: List<String>): ProfilePostPage {
         val stored = timeline.actorPosts(viewer, actorUri, before = before, limit = PROFILE_POST_LIMIT)
         val last = stored.lastOrNull()?.position
         return ProfilePostPage(
-            posts = stored.mapNotNull { it.toActorProfilePost(viewer) },
+            posts = stored.mapNotNull { it.toActorProfilePost(viewer) }.withoutPinned(pinnedObjectUris),
             nextCursor = if (stored.size < PROFILE_POST_LIMIT || last == null) {
                 null
             } else {
-                ProfilePostCursor.Stored(actorUri = actorUri, before = StoredTimelinePosition(score = last.score, member = last.member))
+                ProfilePostCursor.Stored(actorUri = actorUri, before = StoredTimelinePosition(score = last.score, member = last.member), pinnedObjectUris = pinnedObjectUris)
             },
         )
     }
@@ -352,13 +371,12 @@ class UserProfileService(
     }
 
     /**
-     * 相手が並べた順で、固定した投稿を先頭に置く。同じ投稿は一覧から外す
+     * 先頭に固定した投稿として出す投稿を、一覧から外す。ブーストとして載った投稿は、ブーストした時刻の位置に残す
      */
-    private fun withFeaturedPosts(posts: List<ProfilePost>, featured: List<Pair<Long, ProfilePost>>): List<ProfilePost> {
-        if (featured.isEmpty()) return posts
-        val pinnedPosts = featured.map { it.second.copy(pinned = true) }
-        val pinnedNoteRefs = pinnedPosts.map { it.noteRef }.toSet()
-        return pinnedPosts + posts.filterNot { it.boostedNoteAuthor == null && it.noteRef in pinnedNoteRefs }
+    private fun List<ProfilePost>.withoutPinned(pinnedObjectUris: List<String>): List<ProfilePost> {
+        if (pinnedObjectUris.isEmpty()) return this
+        val pinned = pinnedObjectUris.toSet()
+        return filterNot { it.boostedNoteAuthor == null && (it.noteRef as? TimelineNoteRef.Remote)?.objectUri in pinned }
     }
 
     /**
@@ -582,6 +600,8 @@ sealed interface ProfilePostCursor {
 
     /**
      * 他のサーバーのユーザー。outbox の続きと、混ぜる保存済みの投稿の続きを持つ
+     *
+     * @param pinnedObjectUris 最初のページの先頭に固定した投稿として出した投稿。続きにも同じ投稿を出さないよう持ち回る
      */
     @Serializable
     @SerialName("remote")
@@ -589,6 +609,7 @@ sealed interface ProfilePostCursor {
         @SerialName("actorUri") val actorUri: String,
         @SerialName("outbox") val outbox: OutboxPosition,
         @SerialName("storedBefore") val storedBefore: StoredTimelinePosition?,
+        @SerialName("pinnedObjectUris") val pinnedObjectUris: List<String>,
     ) : ProfilePostCursor
 
     /**
@@ -599,6 +620,7 @@ sealed interface ProfilePostCursor {
     data class Stored(
         @SerialName("actorUri") val actorUri: String,
         @SerialName("before") val before: StoredTimelinePosition,
+        @SerialName("pinnedObjectUris") val pinnedObjectUris: List<String>,
     ) : ProfilePostCursor
 
     fun encode(): String = Base64.getUrlEncoder().withoutPadding().encodeToString(Json.encodeToString(serializer(), this).toByteArray())

@@ -271,8 +271,30 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun oldPinnedPostIsNotRepeatedOnLaterPages() = runBlocking {
+        featured = { listOf(remoteNote("<p>固定した古い投稿</p>", "https://remote.example/notes/old", publishedAt = Instant.ofEpochSecond(10))) }
+        outbox = { from ->
+            if (from == null) {
+                RemoteNotesPage(
+                    notes = listOf(remoteNote("<p>新しい投稿</p>", "https://remote.example/notes/new", publishedAt = Instant.ofEpochSecond(30))),
+                    next = OutboxPosition(pageId = "page-2", itemOffset = 0),
+                )
+            } else {
+                RemoteNotesPage(notes = listOf(remoteNote("<p>固定した古い投稿</p>", "https://remote.example/notes/old", publishedAt = Instant.ofEpochSecond(10))), next = null)
+            }
+        }
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+        assertEquals(listOf("<p>固定した古い投稿</p>", "<p>新しい投稿</p>"), profile.posts.map { it.contentHtml })
+        val cursor = assertNotNull(profile.postsNextCursor)
+        val next = assertIs<ProfilePostsResult.Found>(service.morePosts(viewer, assertNotNull(ProfilePostCursor.decode(cursor.encode())))).page
+
+        assertEquals(listOf(), next.posts)
+    }
+
+    @Test
     fun remotePostsContinuationNeedsLoginAndReportsUnreadableOutbox() = runBlocking {
-        val cursor = ProfilePostCursor.Remote(actorUri = actorUri, outbox = OutboxPosition(pageId = "page-2", itemOffset = 0), storedBefore = null)
+        val cursor = ProfilePostCursor.Remote(actorUri = actorUri, outbox = OutboxPosition(pageId = "page-2", itemOffset = 0), storedBefore = null, pinnedObjectUris = listOf())
         assertEquals(ProfilePostsResult.NotLoggedIn, service.morePosts(null, cursor))
 
         outbox = { null }
