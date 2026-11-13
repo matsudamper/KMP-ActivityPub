@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -60,7 +61,7 @@ internal fun TimelineColumnSettingsButton(
 }
 
 /**
- * 押すと小・中・大を選ぶメニューを重ねて開く
+ * 押すと小・中・大を選ぶメニューを項目の右に開く
  */
 @Composable
 internal fun TimelineColumnFontSizeMenuItem(
@@ -73,30 +74,52 @@ internal fun TimelineColumnFontSizeMenuItem(
         DropdownMenuItem(
             text = { Text("文字の大きさ") },
             leadingIcon = { Box(modifier = Modifier.size(24.dp)) },
-            trailingIcon = { Icon(imageVector = AppIcons.ArrowDropDown, contentDescription = null) },
+            trailingIcon = { Icon(imageVector = AppIcons.ArrowRight, contentDescription = null) },
             onClick = { subMenuExpanded = true },
         )
-        DropdownMenu(
-            expanded = subMenuExpanded,
-            onDismissRequest = { subMenuExpanded = false },
-        ) {
-            column.fontSizeMenuItems.forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(item.label) },
-                    leadingIcon = {
-                        if (item.checked) {
-                            Icon(imageVector = AppIcons.Check, contentDescription = "選択中")
-                        } else {
-                            Box(modifier = Modifier.size(24.dp))
-                        }
-                    },
-                    onClick = {
+        // DropdownMenu はアンカーの下に開くので、高さ 0 のアンカーを項目の右上に置いて右へ開かせる
+        Box(modifier = Modifier.matchParentSize()) {
+            Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                TimelineColumnFontSizeSubMenu(
+                    column = column,
+                    expanded = subMenuExpanded,
+                    onDismissRequest = { subMenuExpanded = false },
+                    onItemClick = {
                         subMenuExpanded = false
                         onItemClick()
-                        item.listener.onClick()
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun TimelineColumnFontSizeSubMenu(
+    column: HomeScreenUiState.TimelineColumn,
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    onItemClick: () -> Unit,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+    ) {
+        column.fontSizeMenuItems.forEach { item ->
+            DropdownMenuItem(
+                text = { Text(item.label) },
+                leadingIcon = {
+                    if (item.checked) {
+                        Icon(imageVector = AppIcons.Check, contentDescription = "選択中")
+                    } else {
+                        Box(modifier = Modifier.size(24.dp))
+                    }
+                },
+                onClick = {
+                    onItemClick()
+                    item.listener.onClick()
+                },
+            )
         }
     }
 }

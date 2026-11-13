@@ -1,16 +1,19 @@
 package net.matsudamper.kmp.activitypub.federation
 
+import java.io.IOException
 import java.net.InetAddress
 import java.net.Proxy
 import java.time.Duration
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kotpub.http.ActivityPubClientResponse
 import net.matsudamper.kotpub.http.ActivityPubHttpClient
 import net.matsudamper.kotpub.http.ActivityPubPostResponse
 import net.matsudamper.kotpub.http.PublicAddressDnsResolver
+import net.matsudamper.kotpub.http.ResponseBody
 import okhttp3.Dns
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
@@ -50,13 +53,16 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             val finalUrl = response.request.url.toString()
             val body =
                 if (readsBody(response.code, finalUrl)) {
-                    runCatching {
+                    try {
                         val source = response.body.source()
                         source.request(maxBodyBytes + 1L)
-                        source.buffer.readByteArray(minOf(source.buffer.size, maxBodyBytes + 1L))
+                        ResponseBody.Read(source.buffer.readByteArray(minOf(source.buffer.size, maxBodyBytes + 1L)))
+                    } catch (failure: IOException) {
+                        Span.current().recordException(failure)
+                        ResponseBody.Unreadable(failure)
                     }
                 } else {
-                    null
+                    ResponseBody.NotRead
                 }
             ActivityPubClientResponse(status = response.code, finalUrl = finalUrl, body = body)
         }
