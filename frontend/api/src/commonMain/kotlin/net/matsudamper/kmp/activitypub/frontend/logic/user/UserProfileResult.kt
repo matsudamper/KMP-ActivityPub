@@ -7,6 +7,7 @@ sealed interface UserProfileResult {
      * @param iconUrl プロフィール画像が無ければ null
      * @param headerUrl ヘッダー画像が無ければ null
      * @param actorUri フォローできない相手（このサーバーのユーザー）は null
+     * @param postsNextCursor [posts] の続きを [UserApi.userProfilePosts] で読むときに渡す。続きが無ければ null
      * @param viewerIsOwner ログイン中のアカウント本人のプロフィールか
      */
     data class Found(
@@ -22,6 +23,7 @@ sealed interface UserProfileResult {
         val biography: String?,
         val links: List<UserProfileLink>,
         val posts: List<Post>,
+        val postsNextCursor: String?,
         val viewerIsOwner: Boolean,
     ) : UserProfileResult
 
