@@ -13,9 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -59,14 +57,14 @@ import net.matsudamper.kmp.activitypub.frontend.ui.EmojiText
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentPager
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
-import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
-import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberProfileContentPagerState
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -154,12 +152,13 @@ internal fun UserProfileContent(
                 }
 
                 is UserProfileScreenUiState.Content.Loaded -> {
-                    val gridState = rememberLazyGridState()
+                    val pagerState = rememberProfileContentPagerState()
+                    val selectedGridState = pagerState.gridState(content.selectedTab)
                     // メディアのタブでは、画像の無い続きを読んでも表示の件数が増えない。投稿の件数で見張り直し、末尾にいる間は続きを読み進める
-                    LaunchedEffect(gridState, uiState.listener, content.posts.size) {
+                    LaunchedEffect(selectedGridState, uiState.listener, content.posts.size) {
                         // 件数も比べ、続きを読んでもまだ末尾が見えているときにもう一度知らせる
                         snapshotFlow {
-                            val layoutInfo = gridState.layoutInfo
+                            val layoutInfo = selectedGridState.layoutInfo
                             val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
                             val nearEnd = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - LOAD_MORE_THRESHOLD
                             nearEnd to layoutInfo.totalItemsCount
@@ -168,55 +167,53 @@ internal fun UserProfileContent(
                             .filter { (nearEnd, _) -> nearEnd }
                             .collect { uiState.listener.onScrolledToEnd() }
                     }
-                    LazyVerticalGrid(
-                        columns = ProfileGridCells,
-                        state = gridState,
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        val headerUrl = content.headerUrl
-                        if (headerUrl != null) {
-                            fullLineItem {
-                                ProfileHeaderImage(headerUrl = headerUrl)
-                            }
-                        }
-                        fullLineItem {
-                            ProfileHeader(profile = content)
-                        }
-                        fullLineItem {
-                            ProfileContentTabRow(
-                                selectedTab = content.selectedTab,
-                                onClickTab = uiState.listener::onClickTab,
-                            )
-                        }
-                        when (content.selectedTab) {
-                            ProfileContentTab.Posts -> {
-                                val postsEmptyMessage = content.postsEmptyMessage
-                                if (postsEmptyMessage != null) {
-                                    fullLineItem { EmptyMessage(text = postsEmptyMessage) }
+                    ProfileContentPager(
+                        state = pagerState,
+                        selectedTab = content.selectedTab,
+                        onSelectTab = uiState.listener::onClickTab,
+                        header = {
+                            val headerUrl = content.headerUrl
+                            if (headerUrl != null) {
+                                item {
+                                    ProfileHeaderImage(headerUrl = headerUrl)
                                 }
-                                items(
-                                    items = content.posts,
-                                    span = { GridItemSpan(maxLineSpan) },
-                                ) { post ->
-                                    Column {
-                                        PostItem(uiState = post, style = PostItemStyle.Timeline)
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+                            item {
+                                ProfileHeader(profile = content)
+                            }
+                        },
+                        page = { tab ->
+                            when (tab) {
+                                ProfileContentTab.Posts -> {
+                                    val postsEmptyMessage = content.postsEmptyMessage
+                                    if (postsEmptyMessage != null) {
+                                        fullLineItem { EmptyMessage(text = postsEmptyMessage) }
+                                    }
+                                    items(
+                                        items = content.posts,
+                                        span = { GridItemSpan(maxLineSpan) },
+                                    ) { post ->
+                                        Column {
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        }
+                                    }
+                                }
+
+                                ProfileContentTab.Media -> {
+                                    val mediaEmptyMessage = content.mediaEmptyMessage
+                                    if (mediaEmptyMessage != null) {
+                                        fullLineItem { EmptyMessage(text = mediaEmptyMessage) }
+                                    }
+                                    items(content.media) { media ->
+                                        ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
                                     }
                                 }
                             }
-
-                            ProfileContentTab.Media -> {
-                                val mediaEmptyMessage = content.mediaEmptyMessage
-                                if (mediaEmptyMessage != null) {
-                                    fullLineItem { EmptyMessage(text = mediaEmptyMessage) }
-                                }
-                                items(content.media) { media ->
-                                    ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
-                                }
-                            }
-                        }
-                        postsFooter(footer = content.postsFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
-                    }
+                            postsFooter(footer = content.postsFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
 
                 UserProfileScreenUiState.Content.NotFound -> {
