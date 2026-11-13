@@ -70,6 +70,8 @@ internal class FakeTimelineRepository : TimelineRepository {
 
     override fun localPosition(publicId: String): TimelinePosition? = null
 
+    override fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition> = mapOf()
+
     override fun accountBoosts(booster: AccountId, viewer: AccountId?, before: TimelinePosition?, limit: Int): List<TimelinePost> =
         accountBoosts.filter { before == null || it.position.score < before.score || (it.position.score == before.score && it.position.member < before.member) }
             .take(limit)

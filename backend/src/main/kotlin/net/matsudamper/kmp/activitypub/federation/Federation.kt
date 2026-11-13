@@ -204,8 +204,10 @@ internal class Federation(
 
     val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
 
-    val remoteUserLookup: RemoteUserLookup =
+    private val kotpubRemoteUserLookup =
         KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors, storedActors = remoteActorRepository)
+
+    val remoteUserLookup: RemoteUserLookup = kotpubRemoteUserLookup
 
     val remoteProfileRefreshService: RemoteProfileRefreshService =
         RemoteProfileRefreshService(
@@ -219,8 +221,7 @@ internal class Federation(
         )
 
     val remoteUserProfiles: RemoteUserProfiles = KotpubRemoteUserProfiles(
-        users = remoteUserLookup,
-        actors = remoteActors,
+        users = kotpubRemoteUserLookup,
         outbox = HttpRemoteOutbox(httpClient),
     )
 

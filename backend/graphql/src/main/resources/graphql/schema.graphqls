@@ -10,12 +10,14 @@ type Query {
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
     user(username: String!): User
+    "投稿は相手のサーバーの outbox を待つことがあるので含めない。userProfilePosts で別に読む"
     userProfile(acct: String!): UserProfile
     """
-    プロフィールの投稿の続き。after には UserProfile.postsNextCursor か、前回の nextCursor を渡す。
-    他のサーバーのユーザーはログインしていなければ null
+    プロフィールの投稿。after が null なら最初のページ、続きは前回の nextCursor を after に渡す。
+    after を渡したときは、after が指す相手の続きを返す。
+    見つからないか、他のサーバーのユーザーでログインしていなければ null
     """
-    userProfilePosts(after: String!): ProfilePostPage
+    userProfilePosts(acct: String!, after: String): ProfilePostPage
     """
     名前の一部で、このサーバーのユーザーとフォローなどで受け取った他のサーバーのユーザーをまとめて探す。
     after には前回の nextCursor を渡す

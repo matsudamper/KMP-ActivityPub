@@ -57,49 +57,41 @@ class UserProfileService(
     private val logger = LoggerFactory.getLogger(UserProfileService::class.java)
     private val remoteFetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /**
+     * プロフィールの情報だけを返す。投稿は相手のサーバーの outbox を待つことがあるので、[firstPosts] で別に読む
+     */
     suspend fun profile(acct: String, viewer: AccountId?): UserProfile? {
-        val normalizedAcct = acct.removePrefix("@")
-        val username = normalizedAcct.substringBefore('@')
-        if (username.isEmpty()) return null
-        val host = normalizedAcct.substringAfter('@', "").ifEmpty { localDomain }
-        if (host.equals(localDomain, ignoreCase = true)) {
-            val account = accounts.findByUsername(username) ?: return null
+        val target = ProfileAcct.parse(acct, localDomain) ?: return null
+        if (target.isLocal) {
+            val account = accounts.findByUsername(target.username) ?: return null
             val detail = accounts.findProfileDetail(account.username)
-            val localPage = localProfilePosts(accountId = account.id, username = account.username, viewer = viewer, cursor = null)
             return UserProfile(
                 user = SearchedUser(null, account.username, localDomain, true, account.displayName ?: account.username, null, listOf(), null),
                 following = false,
                 headerUrl = null,
                 biography = detail?.summary,
                 links = detail?.links.orEmpty(),
-                posts = localPage.posts,
-                postsNextCursor = localPage.nextCursor,
                 viewerIsOwner = account.id == viewer,
             )
         }
-        val storedActor = remoteActors.findByAcct(username, host)
+        val storedActor = remoteActors.findByAcct(target.username, target.host)
         val followed = following.isFollowing(viewer, storedActor?.actorUri)
         if (followed) {
             val actor = checkNotNull(storedActor)
-            val page = firstRemotePostsPage(viewer = checkNotNull(viewer), actorUri = actor.actorUri, followed = true)
             return UserProfile(
-                user = SearchedUser(actor.actorUri, actor.preferredUsername, host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.emojis, actor.updatedAt),
+                user = SearchedUser(actor.actorUri, actor.preferredUsername, target.host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.emojis, actor.updatedAt),
                 following = true,
                 headerUrl = remoteActors.findByUri(actor.actorUri)?.profile?.headerUrl,
                 biography = null,
                 links = listOf(),
-                posts = page.posts,
-                postsNextCursor = page.nextCursor,
                 viewerIsOwner = false,
             )
         }
         if (viewer == null) return null
         val profiles = remoteProfiles ?: return null
-        val remote = if (storedActor != null) profiles.findByActorUri(storedActor.actorUri) else profiles.find(username, host)
+        val remote = if (storedActor != null) profiles.findByActorUri(storedActor.actorUri) else profiles.find(target.username, target.host)
         if (remote == null) return null
         val actorHost = URI(remote.user.actorUri).host ?: return null
-        val remoteFollowed = following.isFollowing(viewer, remote.user.actorUri)
-        val page = firstRemotePostsPage(viewer = viewer, actorUri = remote.user.actorUri, followed = remoteFollowed)
         return UserProfile(
             user = SearchedUser(
                 remote.user.actorUri,
@@ -111,18 +103,35 @@ class UserProfileService(
                 remote.user.displayNameEmojis,
                 null,
             ),
-            following = remoteFollowed,
+            following = following.isFollowing(viewer, remote.user.actorUri),
             headerUrl = remote.headerUrl,
             biography = remote.biography?.let { htmlToPlainText(it) },
             links = listOf(),
-            posts = page.posts,
-            postsNextCursor = page.nextCursor,
             viewerIsOwner = false,
         )
     }
 
     /**
-     * プロフィールの投稿の、[UserProfile.postsNextCursor] から先
+     * プロフィールの投稿の最初のページ。続きは [morePosts] で読む。
+     *
+     * 他のサーバーのユーザーは、[profile] で引いたときに保存したアクターを使うので、普通は相手のサーバーにユーザーを引き直さない
+     */
+    suspend fun firstPosts(acct: String, viewer: AccountId?): ProfilePostsResult {
+        val target = ProfileAcct.parse(acct, localDomain) ?: return ProfilePostsResult.NotFound
+        if (target.isLocal) {
+            val account = accounts.findByUsername(target.username) ?: return ProfilePostsResult.NotFound
+            return ProfilePostsResult.Found(localProfilePosts(accountId = account.id, username = account.username, viewer = viewer, cursor = null))
+        }
+        if (viewer == null) return ProfilePostsResult.NotLoggedIn
+        val actorUri = remoteActors.findByAcct(target.username, target.host)?.actorUri
+            ?: remoteProfiles?.find(target.username, target.host)?.user?.actorUri
+            ?: return ProfilePostsResult.NotFound
+        val followed = following.isFollowing(viewer, actorUri)
+        return ProfilePostsResult.Found(firstRemotePostsPage(viewer = viewer, actorUri = actorUri, followed = followed))
+    }
+
+    /**
+     * プロフィールの投稿の、[ProfilePostPage.nextCursor] から先
      */
     suspend fun morePosts(viewer: AccountId?, cursor: ProfilePostCursor): ProfilePostsResult = when (cursor) {
         is ProfilePostCursor.Local -> {
@@ -183,8 +192,9 @@ class UserProfileService(
         val boostCounts = boosts.counts(localNoteIds)
         // 個別投稿画面はホームタイムラインに載る投稿しか開けず、このサーバーの投稿で載るのは自分の投稿と自分のブーストだけ
         val ownProfile = accountId == viewer
+        val localPositions = timeline.localPositionsByPublicId(localNoteIds)
         val notePosts = localNotes.associate {
-            val member = timeline.localPosition(it.publicId.value)?.member
+            val member = localPositions[it.publicId]?.member
             it.publicId to ProfilePost(
                 contentHtml = it.contentHtml,
                 publishedAt = it.publishedAt.toString(),
@@ -255,12 +265,18 @@ class UserProfileService(
     /**
      * 他のサーバーのユーザーの投稿は、開くたびに相手のサーバーの outbox から取り、保存はしない。保存済みの投稿は、いいねなどが付いた保存済みの方を使い、
      * outbox に載らないブーストやフォロワー限定の投稿は保存済みから補う。outbox を読めなければ、保存済みの投稿だけを出す。
-     * 固定した投稿も保存していないので、開くたびに取りに行き、相手が並べた順で先頭に置く
+     * 固定した投稿も保存していないので、開くたびに取りに行き、相手が並べた順で先頭に置く。
+     * outbox と固定した投稿は、1 回だけ取った相手のアクターから読む
      */
     private suspend fun firstRemotePostsPage(viewer: AccountId, actorUri: String, followed: Boolean): ProfilePostPage = coroutineScope {
-        val featured = async { detached(FEATURED_POSTS_TIMEOUT, "固定した投稿", actorUri) { it.featuredNotes(actorUri) }.orEmpty() }
-        val outboxPage = outboxPage(actorUri = actorUri, from = null)
-        val featuredNotes = featured.await()
+        // detached と同じく、取得が取り消しに応じなくても期限で戻れるよう、このコルーチンの外で取る
+        val postSources = remoteFetchScope.async { remoteProfiles?.postSources(actorUri) }
+        val (outboxPage, featuredNotes) = try {
+            val featured = async { detached(FEATURED_POSTS_TIMEOUT, "固定した投稿", actorUri) { postSources.await()?.featuredNotes() }.orEmpty() }
+            detached(OUTBOX_TIMEOUT, "outbox", actorUri) { postSources.await()?.firstNotesPage() } to featured.await()
+        } finally {
+            postSources.cancel()
+        }
         val pinnedObjectUris = featuredNotes.map { it.objectUri }
         val page = if (outboxPage == null) {
             storedOnlyPage(viewer = viewer, actorUri = actorUri, before = null, pinnedObjectUris = pinnedObjectUris)
@@ -323,6 +339,9 @@ class UserProfileService(
             .mapNotNull { post -> post.toActorProfilePost(viewer)?.let { post.position.score to it } }
         val posts = (outboxPosts + storedOnly).sortedByDescending { it.first }.map { it.second }.withoutPinned(pinnedObjectUris)
         val lastOlder = olderThanOutbox.lastOrNull()?.position
+        // 投稿が無いページや、境目が前のページと同じ時刻のページでは、保存済みの位置が進まない。
+        // 前のページの境目の投稿はまだ次のページの保存済みの範囲に入るので、引き継がないと 2 回出る
+        val stillAtPreviousBoundary = if (belowPage == storedBefore) shownAtBoundary else listOf()
         return ProfilePostPage(
             posts = posts,
             nextCursor = when {
@@ -331,7 +350,7 @@ class UserProfileService(
                     outbox = next,
                     storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) },
                     pinnedObjectUris = pinnedObjectUris,
-                    shownAtBoundary = outboxPage.notes.filter { it.publishedAt.toEpochMilli() == lowestScore }.map { it.objectUri },
+                    shownAtBoundary = (outboxPage.notes.filter { it.publishedAt.toEpochMilli() == lowestScore }.map { it.objectUri } + stillAtPreviousBoundary).distinct(),
                 )
 
                 olderThanOutbox.size == PROFILE_POST_LIMIT && lastOlder != null ->
@@ -556,9 +575,26 @@ interface RemoteUserProfiles {
     suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage?
 
     /**
+     * 相手のアクターを 1 回だけ取り、outbox の最初のページと固定した投稿をそこから読めるようにする
+     *
+     * @return アクターを読めなければ null
+     */
+    suspend fun postSources(actorUri: String): RemoteProfilePostSources?
+}
+
+/**
+ * [RemoteUserProfiles.postSources] で取った相手のアクターから、プロフィールの最初のページに出す投稿を読む
+ */
+interface RemoteProfilePostSources {
+    /**
+     * @return 読めなければ null
+     */
+    suspend fun firstNotesPage(): RemoteNotesPage?
+
+    /**
      * 相手がプロフィールに固定した投稿。相手が並べた順
      */
-    suspend fun featuredNotes(actorUri: String): List<RemoteNoteInput>
+    suspend fun featuredNotes(): List<RemoteNoteInput>
 }
 
 /**
@@ -582,10 +618,30 @@ data class UserProfile(
     val headerUrl: String?,
     val biography: String?,
     val links: List<ProfileLink>,
-    val posts: List<ProfilePost>,
-    val postsNextCursor: ProfilePostCursor?,
     val viewerIsOwner: Boolean,
 )
+
+/**
+ * プロフィールを開く相手。`@` は外し、ホストが無ければこのサーバーのユーザーとする
+ */
+private data class ProfileAcct(
+    val username: String,
+    val host: String,
+    val isLocal: Boolean,
+) {
+    companion object {
+        /**
+         * @return ユーザー名が無ければ null
+         */
+        fun parse(acct: String, localDomain: String): ProfileAcct? {
+            val normalizedAcct = acct.removePrefix("@")
+            val username = normalizedAcct.substringBefore('@')
+            if (username.isEmpty()) return null
+            val host = normalizedAcct.substringAfter('@', "").ifEmpty { localDomain }
+            return ProfileAcct(username = username, host = host, isLocal = host.equals(localDomain, ignoreCase = true))
+        }
+    }
+}
 
 /**
  * @param notes 新しい順
