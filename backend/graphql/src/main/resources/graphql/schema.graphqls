@@ -129,7 +129,7 @@ type TimelinePost {
     "ログイン中のアカウントの投稿なら setPinned に渡す id。固定できない投稿は null"
     pinnableNoteId: PublicNoteId
     "プロフィールの先頭に固定されているか。他のサーバーの投稿は false"
-    pinned: Boolean!
+    pinned: Boolean! @lazy
     "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
@@ -147,11 +147,13 @@ type TimelinePost {
     "フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。author などほかの項目はブーストされた投稿のもの"
     boostedBy: Actor
     "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。メインなら null"
-    followingGroupId: FollowingGroupId
+    followingGroupId: FollowingGroupId @lazy
 }
 
 "投稿者、ブーストした相手、通知を送ってきた相手"
 type Actor {
+    "他のサーバーのアクターの URI。このサーバーのアカウントなら null"
+    actorUri: String
     username: String!
     "このサーバーのアカウントなら null"
     host: String

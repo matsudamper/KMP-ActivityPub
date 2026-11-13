@@ -20,10 +20,12 @@ import io.ktor.server.application.ApplicationCall
 import io.opentelemetry.api.common.AttributeKey
 import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.metrics.DoubleHistogram
+import io.opentelemetry.context.Context
 import io.opentelemetry.instrumentation.graphql.v20_0.GraphQLTelemetry
 import net.matsudamper.kmp.activitypub.graphql.data.GraphQlRequest
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.TraceLogger
+import org.dataloader.DataLoaderRegistry
 import org.reactivestreams.Publisher
 import org.slf4j.LoggerFactory
 
@@ -101,14 +103,23 @@ class GraphQlEngine private constructor(
         request: GraphQlRequest,
         call: ApplicationCall,
         uploads: Map<String, GraphQlUpload>,
-    ): ExecutionInput =
-        ExecutionInput
+    ): ExecutionInput {
+        val dataLoaderRegistryBuilder = DataLoaderRegistry.Builder()
+        val dataLoaders = DataLoaders(
+            diContainer = diContainer,
+            dataLoaderRegistryBuilder = dataLoaderRegistryBuilder,
+            otelContext = Context.current(),
+        )
+        return ExecutionInput
             .newExecutionInput(request.query)
             .operationName(request.operationName)
             .variables(variablesOf(request) + uploads)
+            .dataLoaderRegistry(dataLoaderRegistryBuilder.build())
             .graphQLContext(mapOf(CONTEXT_KEY to createContext(call)))
             .graphQLContext(mapOf(DI_CONTAINER_KEY to diContainer))
+            .graphQLContext(mapOf(DATA_LOADERS_KEY to dataLoaders))
             .build()
+    }
 
     private fun logErrors(executionResult: ExecutionResult) {
         executionResult.errors.forEach { error ->
@@ -135,6 +146,7 @@ class GraphQlEngine private constructor(
     companion object {
         private val CONTEXT_KEY = Any()
         private val DI_CONTAINER_KEY = Any()
+        private val DATA_LOADERS_KEY = Any()
 
         private val logger = LoggerFactory.getLogger(GraphQlEngine::class.java)
 
@@ -192,6 +204,12 @@ class GraphQlEngine private constructor(
         fun graphQlContext(env: DataFetchingEnvironment): GraphQlContext {
             return requireNotNull(env.graphQlContext.get(CONTEXT_KEY)) {
                 "GraphQLContext に GraphQlContext が無い"
+            }
+        }
+
+        internal fun dataLoaders(env: DataFetchingEnvironment): DataLoaders {
+            return requireNotNull(env.graphQlContext.get(DATA_LOADERS_KEY)) {
+                "GraphQLContext に DataLoaders が無い"
             }
         }
 

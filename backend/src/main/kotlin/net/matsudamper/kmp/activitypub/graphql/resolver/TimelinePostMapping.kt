@@ -12,30 +12,17 @@ import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
-import net.matsudamper.kmp.activitypub.shared.AccountId
-import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 /**
- * 投稿ごとに固定や購読先を引くと件数分問い合わせることになるので、並べる投稿の分をまとめて引く
+ * このサーバーのユーザーのアイコンは、自分の投稿ごとに引き直さないよう、並べる投稿の分で覚えておく
  */
-internal fun List<TimelinePost>.toQlTimelinePosts(accountId: AccountId, diContainer: DiContainer): List<QlTimelinePost> {
-    val pinnedNoteIds = diContainer.notePinService.pinnedAmong(mapNotNull { it.localPublicId }.toSet())
-    val groupIdsByMember = diContainer.followingGroupService.groupIdsOfPosts(accountId, this)
+internal fun List<TimelinePost>.toQlTimelinePosts(diContainer: DiContainer): List<QlTimelinePost> {
     val localIconUrls = diContainer.profileIconUrls?.memoized()
-    return map { post ->
-        post.toQlTimelinePost(
-            pinned = post.boostedBy == null && post.localPublicId in pinnedNoteIds,
-            followingGroupId = groupIdsByMember[post.position.member],
-            localIconUrls = localIconUrls,
-            diContainer = diContainer,
-        )
-    }
+    return map { post -> post.toQlTimelinePost(localIconUrls = localIconUrls, diContainer = diContainer) }
 }
 
 private fun TimelinePost.toQlTimelinePost(
-    pinned: Boolean,
-    followingGroupId: FollowingGroupId?,
     localIconUrls: ProfileIconUrls?,
     diContainer: DiContainer,
 ): QlTimelinePost {
@@ -55,6 +42,7 @@ private fun TimelinePost.toQlTimelinePost(
         content = body.content,
         publishedAt = publishedAt.toString(),
         author = QlActor(
+            actorUri = actorUri,
             username = username,
             host = actorUri?.let { URI(it).host },
             displayName = displayName ?: username,
@@ -73,7 +61,6 @@ private fun TimelinePost.toQlTimelinePost(
         // ブーストとして載せた投稿は他のアカウントの投稿のこともあり、ブーストされた元の投稿を消したり固定したりする場所ではない
         deletableNoteId = if (boostedBy == null) localPublicId?.value else null,
         pinnableNoteId = if (boostedBy == null) localPublicId else null,
-        pinned = pinned,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
         url = diContainer.noteShareUrls?.url(noteRef),
@@ -83,6 +70,7 @@ private fun TimelinePost.toQlTimelinePost(
         boostCount = boostCount?.toInt(),
         boostedBy = boostedBy?.let { booster ->
             QlActor(
+                actorUri = booster.actorUri,
                 username = booster.username,
                 host = booster.actorUri?.let { URI(it).host },
                 displayName = booster.displayName ?: booster.username,
@@ -94,7 +82,6 @@ private fun TimelinePost.toQlTimelinePost(
                 },
             )
         },
-        followingGroupId = followingGroupId,
     )
 }
 
@@ -105,6 +92,7 @@ internal fun ReceivedNotification.toQlNotification(post: QlTimelinePost, diConta
         NotificationKind.BOOST -> QlNotificationKind.BOOST
     },
     actor = QlActor(
+        actorUri = actor.actorUri,
         username = actor.username,
         host = URI(actor.actorUri).host,
         displayName = actor.displayName ?: actor.username,

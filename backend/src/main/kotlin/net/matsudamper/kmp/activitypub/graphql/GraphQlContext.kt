@@ -50,6 +50,12 @@ class GraphQlContext(
         return session.accountId
     }
 
+    /**
+     * 投稿や人ごとに解決するフィールドから何度も読まれるので、1 回の実行の中では最初に確かめた結果を使う。
+     * 購読を打ち切るかの判断など、その都度セッションを確かめたいところは [userAccountId] を使う
+     */
+    val viewerAccountId: AccountId? by lazy { userAccountId() }
+
     fun issueUserSession(accountId: AccountId) {
         userCookie.append(token = sessionService.create(accountId), maxAgeSeconds = sessionService.ttlSeconds)
     }

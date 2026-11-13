@@ -29,7 +29,7 @@ class UserInfoResolverImpl : UserInfoResolver {
             val diContainer = GraphQlEngine.diContainer(env)
             val page = diContainer.timelineService.page(userInfo.id, followingGroupId, after, limit)
             val result = QlTimelinePage(
-                posts = page.posts.toQlTimelinePosts(userInfo.id, diContainer),
+                posts = page.posts.toQlTimelinePosts(diContainer),
                 nextCursor = page.nextCursor,
             )
             DataFetcherResult.Builder<QlTimelinePage?>(result).build()
@@ -39,7 +39,7 @@ class UserInfoResolverImpl : UserInfoResolver {
         otelSupplyAsync {
             val diContainer = GraphQlEngine.diContainer(env)
             val page = diContainer.notificationService.page(userInfo.id, after, limit)
-            val posts = page.notifications.map { it.post }.distinctBy { it.position.member }.toQlTimelinePosts(userInfo.id, diContainer).associateBy { it.id.value }
+            val posts = page.notifications.map { it.post }.distinctBy { it.position.member }.toQlTimelinePosts(diContainer).associateBy { it.id.value }
             val result = QlNotificationPage(
                 notifications = page.notifications.map { it.notification.toQlNotification(posts.getValue(it.post.position.member), diContainer) },
                 nextCursor = page.nextCursor,
@@ -50,7 +50,7 @@ class UserInfoResolverImpl : UserInfoResolver {
     override fun timelinePost(userInfo: QlUserInfo, id: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> =
         otelSupplyAsync {
             val diContainer = GraphQlEngine.diContainer(env)
-            val post = diContainer.timelineService.post(userInfo.id, id.value)?.let { listOf(it).toQlTimelinePosts(userInfo.id, diContainer).single() }
+            val post = diContainer.timelineService.post(userInfo.id, id.value)?.let { listOf(it).toQlTimelinePosts(diContainer).single() }
             DataFetcherResult.Builder<QlTimelinePost?>(post).build()
         }
 
