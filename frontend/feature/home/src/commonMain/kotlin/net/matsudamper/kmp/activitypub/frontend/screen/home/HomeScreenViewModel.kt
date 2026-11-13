@@ -198,7 +198,8 @@ internal class HomeScreenViewModel(
         }
 
         override fun onResizeOpenedColumn(delta: Dp) {
-            resizeColumn(columnKey = OPENED_COLUMN_WIDTH_KEY, delta = delta)
+            val openedColumn = viewModelStateFlow.value.openedColumn ?: return
+            resizeColumn(columnKey = openedColumn.widthKey, delta = delta)
         }
 
         override fun onResizeOpenedColumnEnd() {
@@ -572,7 +573,7 @@ internal class HomeScreenViewModel(
      */
     private fun saveColumnWidths() {
         val state = viewModelStateFlow.value
-        val existingKeys = state.timelineColumns.settings.orEmpty().map { it.id }.toSet() + OPENED_COLUMN_WIDTH_KEY
+        val existingKeys = state.timelineColumns.settings.orEmpty().map { it.id }.toSet() + HomeScreenUiState.Column.entries.map { it.widthKey }
         val widths = state.columnWidths.filterKeys { it in existingKeys }
         viewModelScope.launch {
             if (!columnWidthStore.save(widths)) {
@@ -1090,7 +1091,7 @@ internal class HomeScreenViewModel(
             userPosts = createUserPosts(viewModelState),
             userTabIconUrl = (profile as? ProfileState.Loaded)?.profile?.iconUrl,
             openedColumn = viewModelState.openedColumn,
-            openedColumnWidth = viewModelState.columnWidth(OPENED_COLUMN_WIDTH_KEY),
+            openedColumnWidth = viewModelState.openedColumn?.let { viewModelState.columnWidth(it.widthKey) } ?: COLUMN_DEFAULT_WIDTH,
             railItems = HomeScreenUiState.Column.entries.map { column ->
                 HomeScreenUiState.RailItem(column = column, selected = column == viewModelState.openedColumn)
             },
@@ -1509,9 +1510,15 @@ internal class HomeScreenViewModel(
         val COLUMN_MAX_WIDTH = 800.dp
 
         /**
-         * 投稿・検索・ユーザーは同じ場所に 1 つずつしか開かないので、幅を共有する。タイムラインのカラムの id と重ならない
+         * レールから開くカラムの幅の保存キー。タイムラインのカラムの id と重ならない
          */
-        const val OPENED_COLUMN_WIDTH_KEY = "opened"
+        private val HomeScreenUiState.Column.widthKey: String
+            get() = when (this) {
+                HomeScreenUiState.Column.Post -> "opened:post"
+                HomeScreenUiState.Column.Notifications -> "opened:notifications"
+                HomeScreenUiState.Column.Search -> "opened:search"
+                HomeScreenUiState.Column.User -> "opened:user"
+            }
         const val COLUMN_WIDTHS_NOT_SAVED_MESSAGE = "カラムの幅を端末に保存できませんでした"
         const val NOT_LOGGED_IN_MESSAGE = "ログインしていません"
         const val NETWORK_ERROR_MESSAGE = "ネットワークエラー"
