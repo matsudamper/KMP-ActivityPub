@@ -323,6 +323,9 @@ class UserProfileService(
             .mapNotNull { post -> post.toActorProfilePost(viewer)?.let { post.position.score to it } }
         val posts = (outboxPosts + storedOnly).sortedByDescending { it.first }.map { it.second }.withoutPinned(pinnedObjectUris)
         val lastOlder = olderThanOutbox.lastOrNull()?.position
+        // 投稿が無いページや、境目が前のページと同じ時刻のページでは、保存済みの位置が進まない。
+        // 前のページの境目の投稿はまだ次のページの保存済みの範囲に入るので、引き継がないと 2 回出る
+        val stillAtPreviousBoundary = if (belowPage == storedBefore) shownAtBoundary else listOf()
         return ProfilePostPage(
             posts = posts,
             nextCursor = when {
@@ -331,7 +334,7 @@ class UserProfileService(
                     outbox = next,
                     storedBefore = belowPage?.let { StoredTimelinePosition(it.score, it.member) },
                     pinnedObjectUris = pinnedObjectUris,
-                    shownAtBoundary = outboxPage.notes.filter { it.publishedAt.toEpochMilli() == lowestScore }.map { it.objectUri },
+                    shownAtBoundary = (outboxPage.notes.filter { it.publishedAt.toEpochMilli() == lowestScore }.map { it.objectUri } + stillAtPreviousBoundary).distinct(),
                 )
 
                 olderThanOutbox.size == PROFILE_POST_LIMIT && lastOlder != null ->
