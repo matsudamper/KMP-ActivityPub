@@ -36,6 +36,8 @@ import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.LinkPreviewPostId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 class QueryResolverImpl : QueryResolver {
@@ -297,9 +299,9 @@ class QueryResolverImpl : QueryResolver {
             publishedAt = publishedAt,
             summary = body.summary,
             sensitive = body.sensitive,
-            linkPreviewId = linkPreviewId,
+            linkPreviewId = linkPreviewId?.let(::LinkPreviewPostId),
             postId = postId?.let(::TimelinePostId),
-            deletableNoteId = deletableNoteId,
+            deletableNoteId = deletableNoteId?.let(::PublicNoteId),
             pinned = pinned,
             pinnableNoteId = pinnableNoteId,
             linkUrls = body.linkUrls,
@@ -307,7 +309,7 @@ class QueryResolverImpl : QueryResolver {
             emojis = emojis.toQlCustomEmojis(diContainer),
             favouriteCount = favouriteCount?.toInt(),
             stamps = stamps.toQlPostStamps(diContainer),
-            like = like?.let { postLike -> QlProfilePostLike(postId = postLike.postId, likedByMe = postLike.likedByMe) },
+            like = like?.let { postLike -> QlProfilePostLike(postId = TimelinePostId(postLike.postId), likedByMe = postLike.likedByMe) },
             boostedByMe = boostedByMe,
             reactionPostId = reactionPostId?.let(::TimelinePostId),
             url = diContainer.noteShareUrls?.url(noteRef),

@@ -42,6 +42,7 @@ apollo {
         mapScalarToKotlinString("PublicNoteId")
         mapScalarToKotlinString("FollowingGroupId")
         mapScalarToKotlinString("TimelinePostId")
+        mapScalarToKotlinString("LinkPreviewPostId")
         mapScalarToKotlinString("NotificationId")
         mapScalarToUpload("Upload")
         plugin(libs.apollo.normalized.cache.compiler.plugin)

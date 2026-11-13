@@ -1,4 +1,4 @@
-mutation SetLiked($postId: ID!, $liked: Boolean!) {
+mutation SetLiked($postId: TimelinePostId!, $liked: Boolean!) {
     user {
         setLiked(postId: $postId, liked: $liked) {
             failure
