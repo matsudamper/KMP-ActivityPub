@@ -27,11 +27,13 @@ import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
+import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfilePost
 import net.matsudamper.kmp.activitypub.logic.ProfilePostCursor
 import net.matsudamper.kmp.activitypub.logic.ProfilePostsResult
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
+import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -49,25 +51,28 @@ class QueryResolverImpl : QueryResolver {
                     null
                 } else {
                     QlUserProfile(
-                        user = profile.user.toQlSearchedUser(env, accountId).copy(following = profile.following),
+                        user = profile.user.toQlSearchedUser(env),
                         headerUrl = profile.headerUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = profile.user.updatedAt) },
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
                         viewerIsOwner = profile.viewerIsOwner,
-                        posts = profile.posts.map { post -> post.toQlProfilePost(diContainer) },
-                        postsNextCursor = profile.postsNextCursor?.encode(),
                     )
                 }
             DataFetcherResult.Builder<QlUserProfile?>(result).build()
         }
     }
 
-    override fun userProfilePosts(after: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfilePostPage?>> {
-        val cursor = ProfilePostCursor.decode(after) ?: throw GraphQlClientException("after が読めない")
+    override fun userProfilePosts(acct: String, after: String?, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfilePostPage?>> {
+        val cursor = after?.let { ProfilePostCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
         val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
-            val page = when (val result = diContainer.userProfileService.morePosts(viewer = accountId, cursor = cursor)) {
+            val result = if (cursor == null) {
+                diContainer.userProfileService.firstPosts(acct = acct, viewer = accountId)
+            } else {
+                diContainer.userProfileService.morePosts(viewer = accountId, cursor = cursor)
+            }
+            val page = when (result) {
                 is ProfilePostsResult.Found -> QlProfilePostPage(
                     posts = result.page.posts.map { post -> post.toQlProfilePost(diContainer) },
                     nextCursor = result.page.nextCursor?.encode(),
@@ -161,7 +166,6 @@ class QueryResolverImpl : QueryResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserSearchResult>> {
         val cursor = after?.let { UserSearchCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
-        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         val result =
             GraphQlEngine.diContainer(env).userSearchService.searchUsers(
                 query = query,
@@ -170,7 +174,7 @@ class QueryResolverImpl : QueryResolver {
         return CompletableFuture.completedFuture(
             DataFetcherResult.Builder(
                 QlUserSearchResult(
-                    users = result.users.map { it.toQlSearchedUser(env, accountId) },
+                    users = result.users.toQlSearchedUsers(env),
                     nextCursor = result.nextCursor?.encode(),
                 ),
             ).build(),
@@ -188,7 +192,7 @@ class QueryResolverImpl : QueryResolver {
                 runBlocking {
                     userSearchService.resolveUser(query = query, remoteLookupAllowed = accountId != null)
                 }
-            DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser(env, accountId)).build()
+            DataFetcherResult.Builder<QlSearchedUser?>(user?.toQlSearchedUser(env)).build()
         }
     }
 
@@ -220,13 +224,10 @@ class QueryResolverImpl : QueryResolver {
 
     private fun ActorListPage.toQlActorList(env: DataFetchingEnvironment): QlActorList {
         val diContainer = GraphQlEngine.diContainer(env)
-        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
         return QlActorList(
             users = users.map { user ->
                 QlListedActor(
                     actorUri = user.actorUri,
-                    following = diContainer.followingService.isFollowing(accountId, user.actorUri),
-                    followingGroupId = diContainer.followingGroupService.groupIdOf(accountId, user.actorUri),
                     username = user.username,
                     host = user.host,
                     displayName = user.displayName,
@@ -238,15 +239,21 @@ class QueryResolverImpl : QueryResolver {
         )
     }
 
-    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment, accountId: AccountId?): QlSearchedUser {
+    private fun SearchedUser.toQlSearchedUser(env: DataFetchingEnvironment): QlSearchedUser =
+        listOf(this).toQlSearchedUsers(env).single()
+
+    /**
+     * このサーバーのユーザーのアイコンは、1 人ずつ引き直さないよう、並べる人の分で覚えておく
+     */
+    private fun List<SearchedUser>.toQlSearchedUsers(env: DataFetchingEnvironment): List<QlSearchedUser> {
         val diContainer = GraphQlEngine.diContainer(env)
+        val localIconUrls = diContainer.profileIconUrls?.memoized()
+        return map { user -> user.toQlSearchedUser(localIconUrls, diContainer) }
+    }
+
+    private fun SearchedUser.toQlSearchedUser(localIconUrls: ProfileIconUrls?, diContainer: DiContainer): QlSearchedUser {
         return QlSearchedUser(
             actorUri = actorUri,
-            following = diContainer.followingService.isFollowing(
-                accountId,
-                actorUri,
-            ),
-            followingGroupId = diContainer.followingGroupService.groupIdOf(accountId, actorUri),
             username = username,
             host = host,
             isLocal = isLocal,
@@ -254,7 +261,7 @@ class QueryResolverImpl : QueryResolver {
             displayNameEmojis = displayNameEmojis.toQlCustomEmojis(diContainer),
             iconUrl =
             if (isLocal) {
-                diContainer.profileIconUrls?.find(username)
+                localIconUrls?.find(username)
             } else {
                 iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = updatedAt) }
             },

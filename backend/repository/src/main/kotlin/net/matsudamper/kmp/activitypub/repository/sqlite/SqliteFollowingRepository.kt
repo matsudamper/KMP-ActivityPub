@@ -91,6 +91,16 @@ internal class SqliteFollowingRepository(
             ?.let { FollowingGroupId(it) }
     }
 
+    override fun groupIdsAmong(accountId: AccountId, actorUris: Set<String>): Map<String, FollowingGroupId?> {
+        if (actorUris.isEmpty()) return mapOf()
+        return jooq.withConnection { dsl ->
+            dsl.select(ACCOUNT_FOLLOWING.ACTOR_URI, ACCOUNT_FOLLOWING.GROUP_ID).from(ACCOUNT_FOLLOWING)
+                .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.`in`(actorUris))
+                .fetch()
+                .associate { checkNotNull(it.value1()) to it.value2()?.let(::FollowingGroupId) }
+        }
+    }
+
     override fun setGroup(accountId: AccountId, actorUri: String, groupId: FollowingGroupId?): Boolean = jooq.withConnection { dsl ->
         dsl.update(ACCOUNT_FOLLOWING).set(ACCOUNT_FOLLOWING.GROUP_ID, groupId?.value)
             .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri))

@@ -198,6 +198,40 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    override fun contentHtml(accountId: AccountId, member: String): String? = jooq.withConnection { dsl ->
+        TimelineMembers.localNoteIdOf(member)?.let { noteId ->
+            return@withConnection dsl.select(NOTES.CONTENT_HTML).from(NOTES)
+                .where(NOTES.ID.eq(noteId)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
+                .fetchOne(NOTES.CONTENT_HTML)
+        }
+        TimelineMembers.remoteNoteIdOf(member)?.let { remoteNoteId ->
+            return@withConnection dsl.select(REMOTE_NOTES.CONTENT_HTML).from(REMOTE_NOTES)
+                .where(REMOTE_NOTES.ID.eq(remoteNoteId)).and(dsl.remoteNoteReadableBy(accountId))
+                .fetchOne(REMOTE_NOTES.CONTENT_HTML)
+        }
+        TimelineMembers.boostIdOf(member)?.let { boostId ->
+            val booster = REMOTE_ACTORS.`as`("booster")
+            return@withConnection dsl.select(REMOTE_NOTES.CONTENT_HTML).from(REMOTE_BOOSTS)
+                .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
+                .join(booster).on(booster.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
+                .where(REMOTE_BOOSTS.ID.eq(boostId))
+                .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
+                .andExists(
+                    dsl.selectOne().from(ACCOUNT_FOLLOWING)
+                        .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(booster.ACTOR_URI)),
+                )
+                .fetchOne(REMOTE_NOTES.CONTENT_HTML)
+        }
+        TimelineMembers.accountBoostIdOf(member)?.let { accountBoostId ->
+            return@withConnection dsl.select(DSL.coalesce(NOTES.CONTENT_HTML, REMOTE_NOTES.CONTENT_HTML)).from(ACCOUNT_BOOSTS)
+                .leftJoin(NOTES).on(NOTES.ID.eq(ACCOUNT_BOOSTS.NOTE_ID))
+                .leftJoin(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(ACCOUNT_BOOSTS.REMOTE_NOTE_ID))
+                .where(ACCOUNT_BOOSTS.ID.eq(accountBoostId)).and(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))
+                .fetchOne()?.value1()
+        }
+        null
+    }
+
     /**
      * このサーバーの投稿と他のサーバーの投稿を、member の位置のまま組み立てる
      *
@@ -378,6 +412,15 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .andNotExists(
                     dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID)).and(REMOTE_NOTES.DELETED_AT.isNotNull),
                 )
+                // hydrate で外れるブーストを件数に数えると、limit に届かずに返り、呼び出し側が続きは無いと読んで古い投稿を飛ばす。
+                // boostedPosts と同じく、ブーストした相手をフォローしていて、公開している投稿のブーストに限る
+                .andExists(
+                    dsl.selectOne().from(ACCOUNT_FOLLOWING).where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)),
+                )
+                .andExists(
+                    dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
+                        .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)),
+                )
                 .and(olderThan(REMOTE_BOOSTS.SCORE_MS, boostMember, before))
                 .orderBy(REMOTE_BOOSTS.SCORE_MS.desc(), boostMember.desc()).limit(limit)
                 .fetch { TimelinePosition(checkNotNull(it.value2()), "b${it.value1()}") }
@@ -390,6 +433,15 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     override fun localPosition(publicId: String): TimelinePosition? = jooq.withConnection { dsl ->
         dsl.select(NOTES.ID, NOTES.PUBLISHED_AT).from(NOTES).where(NOTES.PUBLIC_ID.eq(publicId)).fetchOne()?.toLocalPosition()
+    }
+
+    override fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition> {
+        if (publicIds.isEmpty()) return mapOf()
+        return jooq.withConnection { dsl ->
+            dsl.select(NOTES.ID, NOTES.PUBLIC_ID, NOTES.PUBLISHED_AT).from(NOTES).where(NOTES.PUBLIC_ID.`in`(publicIds.map { it.value }))
+                .fetch()
+                .associate { PublicNoteId(checkNotNull(it.get(NOTES.PUBLIC_ID))) to it.toLocalPosition() }
+        }
     }
 
     private fun positions(

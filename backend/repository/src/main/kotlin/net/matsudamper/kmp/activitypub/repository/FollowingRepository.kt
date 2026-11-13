@@ -19,6 +19,11 @@ interface FollowingRepository {
     fun groupIdOf(accountId: AccountId, actorUri: String): FollowingGroupId?
 
     /**
+     * [actorUris] のうち購読している相手だけを、その購読先と組にして返す。購読先はメインなら null
+     */
+    fun groupIdsAmong(accountId: AccountId, actorUris: Set<String>): Map<String, FollowingGroupId?>
+
+    /**
      * @param groupId null ならメインに戻す
      * @return 購読していなければ false
      */

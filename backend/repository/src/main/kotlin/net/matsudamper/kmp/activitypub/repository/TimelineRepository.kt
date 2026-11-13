@@ -45,12 +45,22 @@ interface TimelineRepository {
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
 
     /**
+     * [hydrate] で [accountId] が読める投稿の本文だけを返す。ブーストならブーストした元の投稿の本文。読めなければ null
+     */
+    fun contentHtml(accountId: AccountId, member: String): String?
+
+    /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す
      *
      * @param before この位置より古いものを返す。null なら最新から
      */
     fun actorPosts(accountId: AccountId, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
+
+    /**
+     * [localPosition] を複数の投稿でまとめて引く。無い投稿は返さない
+     */
+    fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition>
 
     /**
      * [booster] が付けたブーストを新しい順に返す。ブーストした時点で読めていたので、[viewer] が今読めるかは問わない

@@ -6,7 +6,6 @@ import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
-import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
@@ -34,12 +33,9 @@ class FollowingGroupService(
     }
 
     /**
-     * 投稿を載せた購読先。ブーストならブーストした相手の購読先。自分の投稿や自分のブーストなどメインに入るものは null
+     * [actorUris] のうち [accountId] が購読している相手だけを、その購読先と組にして返す。購読先はメインなら null
      */
-    fun groupIdOfPost(accountId: AccountId, post: TimelinePost): FollowingGroupId? {
-        val booster = post.boostedBy ?: return groupIdOf(accountId, post.actorUri)
-        return groupIdOf(accountId, booster.actorUri)
-    }
+    fun groupIdsAmong(accountId: AccountId, actorUris: Set<String>): Map<String, FollowingGroupId?> = following.groupIdsAmong(accountId, actorUris)
 
     fun createGroup(accountId: AccountId?, name: String): CreateFollowingGroupResult {
         if (accountId == null || accounts.findById(accountId) == null) return CreateFollowingGroupResult.NotLoggedIn

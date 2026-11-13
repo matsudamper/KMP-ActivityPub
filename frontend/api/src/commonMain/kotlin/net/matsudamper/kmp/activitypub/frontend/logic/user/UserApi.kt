@@ -541,20 +541,20 @@ class UserApi(
             biography = profile.biography,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             viewerIsOwner = profile.viewerIsOwner,
-            posts = profile.posts.map { it.profilePostFields.toUserProfilePost() },
-            postsNextCursor = profile.postsNextCursor,
         )
     }
 
     /**
-     * プロフィールの投稿の、[UserProfileResult.Found.postsNextCursor] から先
+     * プロフィールの投稿。[userProfile] とは別に読むので、プロフィールは投稿を待たずに出せる
+     *
+     * @param after 最初のページなら null。続きは前回の [UserProfilePostsResult.Success.nextCursor]
      */
-    suspend fun userProfilePosts(after: String): UserProfilePostsResult {
+    suspend fun userProfilePosts(acct: String, after: String?): UserProfilePostsResult {
         val client = clients.awaitLoadedClient() ?: return UserProfilePostsResult.Failure("接続先が未設定")
-        val response = client.query(UserProfilePostsQuery(after = after)).execute()
+        val response = client.query(UserProfilePostsQuery(acct = acct, after = Optional.present(after))).execute()
         if (response.exception != null || response.hasErrors()) return UserProfilePostsResult.Failure(response.failureMessage())
         val data = response.data ?: return UserProfilePostsResult.Failure(response.failureMessage())
-        val page = data.userProfilePosts ?: return UserProfilePostsResult.Failure("ログインしていません")
+        val page = data.userProfilePosts ?: return UserProfilePostsResult.Failure("投稿を読めません")
         return UserProfilePostsResult.Success(
             posts = page.posts.map { it.profilePostFields.toUserProfilePost() },
             nextCursor = page.nextCursor,

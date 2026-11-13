@@ -128,6 +128,27 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `全アカウントの投稿を合わせて数える`() {
+        Accounts.insert(
+            databasePath = dbPath,
+            username = "user2",
+            passwordHash = "hash",
+            passwordHashType = "hash-type",
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
+            createdAt = NOW.toString(),
+        )
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()))
+            queue.enqueueNote(notePost(publicId = "note-2", inboxes = listOf()))
+            queue.enqueueNote(notePost(publicId = "note-3", inboxes = listOf()).copy(username = "user2"))
+
+            assertEquals(3, repositories.noteRepository.countAll())
+        }
+    }
+
+    @Test
     fun `いないアカウントの投稿は記録しない`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             assertEquals(

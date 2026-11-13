@@ -241,6 +241,12 @@ internal class SqliteNoteRepository(
             .fetchOne(0, Long::class.java) ?: 0L
     }
 
+    override fun countAll(): Long = jooq.withConnection { dsl ->
+        dsl.selectCount()
+            .from(NOTES)
+            .fetchOne(0, Long::class.java) ?: 0L
+    }
+
     override fun counts(usernames: Set<String>): Map<String, Long> {
         if (usernames.isEmpty()) return mapOf()
 

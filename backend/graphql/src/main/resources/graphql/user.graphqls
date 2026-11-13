@@ -13,9 +13,6 @@ type UserProfile {
     biography: String
     "プロフィールのリンク集。並べた順。他のサーバーのユーザーのものは受け取っていないので空"
     links: [ProfileLink!]!
-    posts: [ProfilePost!]!
-    "posts の続きを Query.userProfilePosts で読むときに after に渡す。続きが無ければ null"
-    postsNextCursor: String
     "ログイン中のアカウント本人のプロフィールか"
     viewerIsOwner: Boolean!
 }
@@ -100,9 +97,9 @@ type UserSearchResult {
 type SearchedUser {
     actorUri: String
     "このサーバー内部でのフォロー状態"
-    following: Boolean!
+    following: Boolean! @lazy
     "フォローを入れたグループ。フォローしていないか、メインに入っていれば null"
-    followingGroupId: FollowingGroupId
+    followingGroupId: FollowingGroupId @lazy
     username: String!
     host: String!
     "このサーバーのユーザーか"
@@ -127,9 +124,9 @@ type ActorList {
 type ListedActor {
     actorUri: String!
     "ログイン中のアカウントがフォローしているか"
-    following: Boolean!
+    following: Boolean! @lazy
     "フォローを入れたグループ。フォローしていないか、メインに入っていれば null"
-    followingGroupId: FollowingGroupId
+    followingGroupId: FollowingGroupId @lazy
     username: String
     host: String!
     displayName: String

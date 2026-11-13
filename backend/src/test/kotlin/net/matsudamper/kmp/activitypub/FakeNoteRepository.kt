@@ -95,6 +95,8 @@ internal class FakeNoteRepository : NoteRepository {
 
     override fun count(username: String): Long = notes.count { it.username.equals(username, ignoreCase = true) }.toLong()
 
+    override fun countAll(): Long = notes.size.toLong()
+
     override fun counts(usernames: Set<String>): Map<String, Long> = usernames.associateWith { count(it) }
 
     private fun sorted(
