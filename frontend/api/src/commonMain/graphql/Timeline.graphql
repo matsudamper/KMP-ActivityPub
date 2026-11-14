@@ -48,6 +48,7 @@ fragment TimelinePostFields on TimelinePost {
         emoji
         imageUrl
         count
+        customEmojiShortcode
     }
     url
     likedByMe

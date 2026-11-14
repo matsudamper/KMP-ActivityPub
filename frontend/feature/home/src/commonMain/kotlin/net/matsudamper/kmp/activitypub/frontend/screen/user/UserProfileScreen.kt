@@ -67,6 +67,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
+import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberProfileContentPagerState
@@ -267,6 +268,10 @@ internal fun UserProfileContent(
     val reactionPickerDialog = uiState.reactionPickerDialog
     if (reactionPickerDialog != null) {
         ReactionPickerDialog(dialogUiState = reactionPickerDialog)
+    }
+    val reactionConfirmDialog = uiState.reactionConfirmDialog
+    if (reactionConfirmDialog != null) {
+        ReactionConfirmDialog(uiState = reactionConfirmDialog)
     }
     val addFollowingGroupDialog = uiState.addFollowingGroupDialog
     if (addFollowingGroupDialog != null) {

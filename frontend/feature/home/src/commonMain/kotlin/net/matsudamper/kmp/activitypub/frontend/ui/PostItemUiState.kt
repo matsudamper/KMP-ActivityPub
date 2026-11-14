@@ -119,28 +119,24 @@ data class PostItemUiState(
     )
 
     /**
-     * @param selectedReaction 付けたリアクション。付けていなければ null で、リアクションのアイコンを出す
+     * 付けたリアクションはスタンプの方に出すので、ボタンはいつも同じ見た目にする
      */
     data class ReactionButton(
-        val selectedReaction: SelectedReaction?,
         val listener: ReactionButtonListener,
     )
 
     /**
      * @param imageUrl カスタム絵文字の画像。null なら [emoji] の文字で見せる
-     */
-    data class SelectedReaction(
-        val emoji: String,
-        val imageUrl: String?,
-    )
-
-    /**
-     * @param imageUrl カスタム絵文字の画像。null なら [emoji] の文字で見せる
+     * @param countText 数を受け取らない他のサーバーの投稿では null
+     * @param selected 自分が付けたリアクションか
+     * @param listener 押しても付けられない絵文字（他のサーバーのカスタム絵文字など）は null で、押せなくする
      */
     data class Stamp(
         val emoji: String,
         val imageUrl: String?,
-        val countText: String,
+        val countText: String?,
+        val selected: Boolean,
+        val listener: StampListener?,
     )
 
     /**
@@ -174,6 +170,11 @@ data class PostItemUiState(
 
     @Immutable
     interface ReactionButtonListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface StampListener {
         fun onClick()
     }
 

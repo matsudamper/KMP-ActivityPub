@@ -44,6 +44,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
@@ -197,6 +198,10 @@ internal fun HomeColumnsContent(
     val reactionPickerDialog = uiState.reactionPickerDialog
     if (reactionPickerDialog != null) {
         ReactionPickerDialog(dialogUiState = reactionPickerDialog)
+    }
+    val reactionConfirmDialog = uiState.reactionConfirmDialog
+    if (reactionConfirmDialog != null) {
+        ReactionConfirmDialog(uiState = reactionConfirmDialog)
     }
     val timelineColumnEditDialog = uiState.timelineColumnEditDialog
     if (timelineColumnEditDialog != null) {

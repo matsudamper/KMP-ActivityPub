@@ -49,7 +49,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
             favouriteCount = favouriteCount,
             boostCount = boostCount,
-            stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+            stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode) },
             emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
             shareUrl = url,
             likedByMe = likedByMe,
@@ -125,7 +125,9 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     favouriteCount = body.favouriteCount,
     boostCount = body.boostCount,
     boostedBy = boostedBy?.let { booster -> TimelinePostFields.BoostedBy(__typename = "Actor", actorFields = booster.toFields()) },
-    stamps = body.stamps.map { stamp -> TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+    stamps = body.stamps.map { stamp ->
+        TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode)
+    },
     url = body.shareUrl,
     likedByMe = body.likedByMe == true,
     viewerReaction = body.viewerReaction?.toFields(),
@@ -343,7 +345,9 @@ fun TimelinePostFields.withLikeState(reactionPostId: String, state: UserLikeStat
         likedByMe = body.likedByMe == true,
         viewerReaction = body.viewerReaction?.toFields(),
         favouriteCount = body.favouriteCount,
-        stamps = body.stamps.map { stamp -> TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+        stamps = body.stamps.map { stamp ->
+            TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode)
+        },
     )
 }
 

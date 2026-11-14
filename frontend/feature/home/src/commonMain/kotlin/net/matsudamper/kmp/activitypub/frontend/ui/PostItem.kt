@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +37,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -283,9 +285,7 @@ internal fun PostItem(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     uiState.stamps.forEach { stamp ->
-                        ReactionCount(countText = stamp.countText, sizes = sizes) {
-                            StampEmoji(emoji = stamp.emoji, imageUrl = stamp.imageUrl, sizes = sizes)
-                        }
+                        StampChip(stamp = stamp, sizes = sizes)
                     }
                 }
             }
@@ -440,25 +440,47 @@ private fun ActorLabel(
 
 private val ActorLabelIconSize = 20.dp
 
+/**
+ * M3 の Filter chip に合わせ、自分が付けた絵文字は secondaryContainer で塗り、それ以外は枠線だけにする
+ */
 @Composable
-private fun ReactionCount(
-    countText: String,
+private fun StampChip(
+    stamp: PostItemUiState.Stamp,
     sizes: PostItemSizes,
-    reaction: @Composable () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        reaction()
-        Text(
-            text = countText,
-            style = sizes.countTextStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val shape = RoundedCornerShape(8.dp)
+    val containerColor = if (stamp.selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val contentColor = if (stamp.selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val border = if (stamp.selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    val content: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StampEmoji(emoji = stamp.emoji, imageUrl = stamp.imageUrl, sizes = sizes)
+            val countText = stamp.countText
+            if (countText != null) {
+                Text(
+                    text = countText,
+                    style = sizes.countTextStyle,
+                    color = contentColor,
+                )
+            }
+        }
+    }
+    val listener = stamp.listener
+    if (listener == null) {
+        Surface(shape = shape, color = containerColor, contentColor = contentColor, border = border, content = content)
+    } else {
+        Surface(
+            onClick = listener::onClick,
+            shape = shape,
+            color = containerColor,
+            contentColor = contentColor,
+            border = border,
+            modifier = Modifier.semantics { stateDescription = if (stamp.selected) "付けている" else "付けていない" },
+            content = content,
         )
     }
 }
@@ -570,18 +592,12 @@ private fun PostActions(
                 modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
                 contentPadding = ActionButtonContentPadding,
             ) {
-                val selectedReaction = reactionButton?.selectedReaction
-                if (selectedReaction == null) {
-                    Icon(
-                        imageVector = AppIcons.Emoticon,
-                        contentDescription = "リアクション",
-                        modifier = Modifier.size(sizes.actionIconSize),
-                        tint = if (reactionButton == null) disabledIconColor else iconColor,
-                    )
-                } else {
-                    // 付けたリアクションをアイコンの代わりに出す。押すと付け替えか外すかを選べる
-                    StampEmoji(emoji = selectedReaction.emoji, imageUrl = selectedReaction.imageUrl, sizes = sizes)
-                }
+                Icon(
+                    imageVector = AppIcons.Emoticon,
+                    contentDescription = "リアクション",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = if (reactionButton == null) disabledIconColor else iconColor,
+                )
                 Spacer(modifier = Modifier.weight(1f))
             }
             val shareListener = uiState.shareListener

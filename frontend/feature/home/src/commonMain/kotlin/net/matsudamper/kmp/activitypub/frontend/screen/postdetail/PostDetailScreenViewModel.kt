@@ -16,8 +16,10 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLikeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserReaction
 import net.matsudamper.kmp.activitypub.frontend.logic.user.likeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
@@ -29,11 +31,15 @@ import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
+import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
+import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNoteSubmitResult
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNoteSubmitter
@@ -63,6 +69,7 @@ internal class PostDetailScreenViewModel(
                 blurToggledImageUrls = setOf(),
                 noteDeletion = NoteDeletionState.None,
                 reactionPicker = null,
+                reactionConfirmation = null,
                 mentionText = "",
                 mentionSending = false,
                 replyTargets = listOf(),
@@ -225,12 +232,53 @@ internal class PostDetailScreenViewModel(
     }
 
     /**
+     * ピッカーで選んだとき
+     */
+    private fun pickReaction(target: ReactionPickerTarget, reaction: UserReaction) {
+        viewModelStateFlow.update { it.copy(reactionPicker = null) }
+        handleReactionDecision(decidePickedReaction(target.reactionPostId, target.current, reaction))
+    }
+
+    /**
+     * ピッカーの「リアクションを外す」を押したとき
+     */
+    private fun requestReactionRemoval(target: ReactionPickerTarget) {
+        val current = target.current as? UserLikeState.Reacted
+        viewModelStateFlow.update {
+            it.copy(
+                reactionPicker = null,
+                reactionConfirmation = current?.let { reacted -> ReactionConfirmation(target.reactionPostId, reacted, next = null) },
+            )
+        }
+    }
+
+    /**
+     * @param body 押したときの状態
+     */
+    private fun clickStamp(reactionPostId: String, body: UserPostBody, stamp: UserPostStamp) {
+        if (reactionPostId in likeChangingPostIds) return
+        handleReactionDecision(decideStampTap(reactionPostId, body, stamp))
+    }
+
+    private fun handleReactionDecision(decision: ReactionDecision) {
+        when (decision) {
+            is ReactionDecision.Apply -> sendReaction(decision.reactionPostId, decision.current, decision.reaction)
+            is ReactionDecision.Confirm -> viewModelStateFlow.update { it.copy(reactionConfirmation = decision.confirmation) }
+            ReactionDecision.None -> Unit
+        }
+    }
+
+    private fun confirmReaction(confirmation: ReactionConfirmation) {
+        viewModelStateFlow.update { it.copy(reactionConfirmation = null) }
+        sendReaction(confirmation.reactionPostId, confirmation.current, confirmation.next)
+    }
+
+    /**
      * @param reaction null なら外す
      */
-    private fun setReaction(target: ReactionPickerTarget, reaction: UserReaction?) {
-        viewModelStateFlow.update { it.copy(reactionPicker = null) }
-        changeLikeState(reactionPostId = target.reactionPostId, current = target.current, next = reaction.toLikeState()) {
-            api.setReaction(postId = target.reactionPostId, reaction = reaction)
+    private fun sendReaction(reactionPostId: String, current: UserLikeState, reaction: UserReaction?) {
+        changeLikeState(reactionPostId, current, reaction.toLikeState()) {
+            api.setReaction(postId = reactionPostId, reaction = reaction)
         }
     }
 
@@ -496,9 +544,15 @@ internal class PostDetailScreenViewModel(
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             reactionPickerDialog = viewModelState.reactionPicker?.let { target ->
                 target.toDialogUiState(
-                    onPick = { reaction -> setReaction(target, reaction) },
-                    onRemove = { setReaction(target, null) },
+                    onPick = { reaction -> pickReaction(target, reaction) },
+                    onRemove = { requestReactionRemoval(target) },
                     onDismiss = { viewModelStateFlow.update { it.copy(reactionPicker = null) } },
+                )
+            },
+            reactionConfirmDialog = viewModelState.reactionConfirmation?.let { confirmation ->
+                confirmation.toDialogUiState(
+                    onConfirm = { confirmReaction(confirmation) },
+                    onDismiss = { viewModelStateFlow.update { it.copy(reactionConfirmation = null) } },
                 )
             },
             listener = listener,
@@ -560,6 +614,10 @@ internal class PostDetailScreenViewModel(
             onToggleLike = { toggleLike(post) },
             onToggleBoost = { toggleBoost(post) },
             onOpenReactionPicker = { openReactionPicker(post) },
+            onClickStamp = { stamp ->
+                val body = currentPost(post.reactionPostId)?.body
+                if (body != null) clickStamp(reactionPostId = post.reactionPostId, body = body, stamp = stamp)
+            },
             onVisible = {},
         )
     }
@@ -610,6 +668,10 @@ internal class PostDetailScreenViewModel(
             onToggleLike = { toggleLike(post) },
             onToggleBoost = { toggleBoost(post) },
             onOpenReactionPicker = { openReactionPicker(post) },
+            onClickStamp = { stamp ->
+                val body = currentPost(post.reactionPostId)?.body
+                if (body != null) clickStamp(reactionPostId = post.reactionPostId, body = body, stamp = stamp)
+            },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
@@ -640,6 +702,7 @@ internal class PostDetailScreenViewModel(
         val blurToggledImageUrls: Set<String>,
         val noteDeletion: NoteDeletionState,
         val reactionPicker: ReactionPickerTarget?,
+        val reactionConfirmation: ReactionConfirmation?,
         val mentionText: String,
         val mentionSending: Boolean,
         /**

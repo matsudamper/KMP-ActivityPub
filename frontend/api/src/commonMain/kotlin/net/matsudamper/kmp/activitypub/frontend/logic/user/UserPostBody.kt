@@ -50,12 +50,26 @@ data class UserPostMention(
 
 /**
  * @param imageUrl カスタム絵文字の画像。Unicode の絵文字か、画像が無ければ null で、[emoji] の文字で見せる
+ * @param customEmojiShortcode このサーバーのカスタム絵文字なら shortcode。他のサーバーの絵文字や消された絵文字は null
  */
 data class UserPostStamp(
     val emoji: String,
     val imageUrl: String?,
     val count: Int,
-)
+    val customEmojiShortcode: String?,
+) {
+    /**
+     * 同じ絵文字でリアクションするときのもの。他のサーバーのカスタム絵文字や消された絵文字は付けられないので null
+     */
+    fun toReaction(): UserReaction? {
+        val imageUrl = imageUrl
+        return when {
+            customEmojiShortcode != null && imageUrl != null -> UserReaction.Custom(shortcode = customEmojiShortcode, imageUrl = imageUrl)
+            imageUrl == null && !emoji.startsWith(":") -> UserReaction.Unicode(emoji)
+            else -> null
+        }
+    }
+}
 
 /**
  * 絵文字の無いいいねに変える。付けていたリアクションは外れる
@@ -136,7 +150,11 @@ private fun List<UserPostStamp>.withoutOne(reaction: UserViewerReaction?): List<
  */
 private fun List<UserPostStamp>.withOneMore(reaction: UserViewerReaction?): List<UserPostStamp> {
     if (reaction == null) return this
-    if (none { it.isSameAs(reaction) }) return this + UserPostStamp(emoji = reaction.emoji, imageUrl = reaction.imageUrl, count = 1)
+    if (none { it.isSameAs(reaction) }) {
+        // 自分が付けられるカスタム絵文字はこのサーバーのものだけなので、画像があれば :shortcode: から名前を取れる
+        val shortcode = if (reaction.imageUrl == null) null else reaction.emoji.removeSurrounding(":")
+        return this + UserPostStamp(emoji = reaction.emoji, imageUrl = reaction.imageUrl, count = 1, customEmojiShortcode = shortcode)
+    }
     return map { if (it.isSameAs(reaction)) it.copy(count = it.count + 1) else it }
 }
 

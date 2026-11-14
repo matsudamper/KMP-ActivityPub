@@ -68,6 +68,21 @@ object AppIcons {
             ).build()
     }
 
+    val ArrowForward: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "ArrowForward",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+                autoMirror = true,
+            ).addPath(
+                pathData = addPathNodes("M12,4l-1.41,1.41L16.17,11H4v2h12.17l-5.58,5.59L12,20l8,-8z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val Check: ImageVector by lazy {
         ImageVector
             .Builder(
