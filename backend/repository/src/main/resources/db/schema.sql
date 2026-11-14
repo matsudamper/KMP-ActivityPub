@@ -406,3 +406,12 @@ CREATE TABLE note_pins (
     note_id INTEGER PRIMARY KEY REFERENCES notes (id) ON DELETE CASCADE,
     pinned_at TEXT NOT NULL
 );
+
+-- アカウントごとにブロックした他のサーバー。そのサーバーのアクターの投稿・ブースト・通知をタイムラインと通知に出さない
+CREATE TABLE account_server_blocks (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    -- 小文字のホスト名。ポートは含めない
+    host TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, host)
+);

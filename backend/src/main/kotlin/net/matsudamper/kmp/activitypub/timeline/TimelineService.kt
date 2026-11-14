@@ -5,8 +5,10 @@ import java.time.Instant
 import java.util.Base64
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
+import net.matsudamper.kmp.activitypub.logic.BlockedServers
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
+import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
@@ -20,6 +22,7 @@ import org.slf4j.LoggerFactory
 class TimelineService(
     private val repository: TimelineRepository,
     private val groups: FollowingGroupRepository,
+    private val serverBlocks: ServerBlockRepository,
     private val store: TimelineStore,
     private val events: AccountEvents,
     private val clock: Clock,
@@ -40,6 +43,7 @@ class TimelineService(
         require(cursor == null || after != null) { "cursor が読めない" }
         val pageSize = limit.coerceIn(1, 100)
         repository.touch(accountId, clock.instant(), TimelineCachePolicy.ACTIVITY_UPDATE_INTERVAL_SECONDS)
+        val blockedServers = BlockedServers(serverBlocks.hosts(accountId).toSet())
         val posts = buildList {
             var positionCursor = after
             while (size < pageSize + 1) {
@@ -54,7 +58,7 @@ class TimelineService(
                 }
                 if (positions.isEmpty()) break
                 val hydrated = repository.hydrate(accountId, positions.map { it.member }).associateBy { it.position.member }
-                addAll(positions.mapNotNull { hydrated[it.member] })
+                addAll(positions.mapNotNull { hydrated[it.member] }.filterNot(blockedServers::hides))
                 positionCursor = positions.last()
                 if (positions.size < remaining) break
             }

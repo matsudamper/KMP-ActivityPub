@@ -64,6 +64,7 @@ class ViewablePostServiceTest {
     private val timeline = TimelineService(
         repositories.timelineRepository,
         repositories.followingGroupRepository,
+        repositories.serverBlockRepository,
         FakeTimelineStore(mutableListOf()),
         AccountEvents(repositories.timelineRepository),
         Clock.systemUTC(),

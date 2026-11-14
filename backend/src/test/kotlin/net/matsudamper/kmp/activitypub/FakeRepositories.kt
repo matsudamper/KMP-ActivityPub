@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 import net.matsudamper.kmp.activitypub.repository.Repositories
+import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
@@ -130,6 +131,16 @@ internal class FakeRepositories : Repositories {
         override fun find(kind: NotificationKind, notePublicId: PublicNoteId, actorUri: String): ReceivedNotification? = null
     }
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
+    override val serverBlockRepository: ServerBlockRepository = object : ServerBlockRepository {
+        private val rows = mutableListOf<Pair<AccountId, String>>()
+        override fun hosts(accountId: AccountId): List<String> = rows.filter { it.first == accountId }.map { it.second }.reversed()
+        override fun add(accountId: AccountId, host: String, createdAt: Instant) {
+            if (accountId to host !in rows) rows += accountId to host
+        }
+        override fun remove(accountId: AccountId, host: String) {
+            rows -= accountId to host
+        }
+    }
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })
 

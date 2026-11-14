@@ -19,6 +19,8 @@ import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 
 class TimelineOpenTelemetryTest {
+    private val noServerBlocks = FakeRepositories().serverBlockRepository
+
     @Test
     fun rebuiltCachedAndSqlReadsKeepTheRequestParentAndDescribeTheirSource() {
         val exporter = InMemorySpanExporter.create()
@@ -39,7 +41,7 @@ class TimelineOpenTelemetryTest {
             }
             val store = FakeTimelineStore(repository.events)
             val tracedStore = TracedStore(store, tracer)
-            val service = TimelineService(tracedRepository, FakeRepositories().followingGroupRepository, tracedStore, AccountEvents(tracedRepository), Clock.systemUTC(), telemetry)
+            val service = TimelineService(tracedRepository, FakeRepositories().followingGroupRepository, noServerBlocks, tracedStore, AccountEvents(tracedRepository), Clock.systemUTC(), telemetry)
             val request = tracer.spanBuilder("GraphQL homeTimeline").startSpan()
             request.makeCurrent().use {
                 runBlocking {

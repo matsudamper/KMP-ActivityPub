@@ -27,6 +27,8 @@ data class SettingsScreenUiState(
 
         fun onClickFollowingGroups()
 
+        fun onClickBlockedServers()
+
         fun onClickAdmin()
 
         fun onClickGitHubRelease()

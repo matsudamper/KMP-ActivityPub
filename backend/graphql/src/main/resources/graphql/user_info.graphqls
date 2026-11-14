@@ -29,6 +29,12 @@ type UserInfo {
     followingGroups: [FollowingGroup!]! @lazy
     "どのグループにも入れていないフォローを入れるメインの名前"
     mainGroupName: String! @lazy
+    """
+    ブロックしている他のサーバーのホスト。新しくブロックした順。
+    ブロックしたサーバーのアクターから自分宛てに届く投稿・お気に入り・ブースト・スタンプ・フォローは受け付けない。
+    フォローしている相手の投稿など自分宛てでないものも、タイムラインと通知に出さない
+    """
+    blockedServers: [String!]! @lazy
 }
 
 type RemoteProfileRefreshState {

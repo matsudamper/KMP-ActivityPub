@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -22,10 +24,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -139,7 +143,10 @@ internal fun UserProfileContent(
                     fontWeight = FontWeight.Bold,
                 )
                 if (uiState.openOriginalMenuItemVisible) {
-                    TopBarMenu(onClickOpenOriginal = uiState.listener::onClickOpenOriginal)
+                    TopBarMenu(
+                        blockServerMenuItemVisible = uiState.blockServerMenuItemVisible,
+                        listener = uiState.listener,
+                    )
                 }
             }
         },
@@ -241,10 +248,43 @@ internal fun UserProfileContent(
     if (addFollowingGroupDialog != null) {
         AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
     }
+    val blockServerDialog = uiState.blockServerDialog
+    if (blockServerDialog != null) {
+        BlockServerDialog(uiState = blockServerDialog)
+    }
 }
 
 @Composable
-private fun TopBarMenu(onClickOpenOriginal: () -> Unit) {
+private fun BlockServerDialog(uiState: UserProfileScreenUiState.BlockServerDialog) {
+    AlertDialog(
+        onDismissRequest = uiState.listener::onDismiss,
+        title = { Text("サーバーをブロック") },
+        text = { Text("${uiState.host} のユーザーの投稿・ブースト・通知を表示しなくなります。設定のサーバーブロックから解除できます") },
+        confirmButton = {
+            TextButton(
+                onClick = uiState.listener::onClickBlock,
+                enabled = uiState.buttonsEnabled,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                Text("ブロック")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = uiState.listener::onDismiss,
+                enabled = uiState.buttonsEnabled,
+            ) {
+                Text("キャンセル")
+            }
+        },
+    )
+}
+
+@Composable
+private fun TopBarMenu(
+    blockServerMenuItemVisible: Boolean,
+    listener: UserProfileScreenUiState.Listener,
+) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
@@ -258,9 +298,19 @@ private fun TopBarMenu(onClickOpenOriginal: () -> Unit) {
                 text = { Text("オリジナルを開く") },
                 onClick = {
                     expanded = false
-                    onClickOpenOriginal()
+                    listener.onClickOpenOriginal()
                 },
             )
+            if (blockServerMenuItemVisible) {
+                DropdownMenuItem(
+                    text = { Text("このサーバーをブロック") },
+                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                    onClick = {
+                        expanded = false
+                        listener.onClickBlockServer()
+                    },
+                )
+            }
         }
     }
 }

@@ -119,9 +119,16 @@ class RemoteNoteReceptionTest {
                 RemoteNoteReceptionInterest(if (fixture.repositories.followingRepository.contains(fixture.accountId, actorUri)) 1 else 0, localRecipients.size.toLong())
         }
         val receiver =
-            ReceivedRemoteNotes(repository, fixture.remote, fixture.repositories.remoteActorRepository, fixture.directory, fixture.timeline, Clock.systemUTC(), { actorUri, objectUri ->
-                repository.deleteRemote(actorUri, objectUri, Instant.now())
-            })
+            ReceivedRemoteNotes(
+                repository,
+                fixture.remote,
+                fixture.repositories.remoteActorRepository,
+                fixture.directory,
+                fixture.serverBlocks,
+                fixture.timeline,
+                Clock.systemUTC(),
+                { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
+            )
         receiver.save(note(listOf()))
         assertTrue(stored.received.isEmpty())
         assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
@@ -177,6 +184,7 @@ class RemoteNoteReceptionTest {
                 fixture.remote,
                 fixture.repositories.remoteActorRepository,
                 fixture.directory,
+                fixture.serverBlocks,
                 fixture.timeline,
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
@@ -266,6 +274,16 @@ class RemoteNoteReceptionTest {
     }
 
     @Test
+    fun addressedAccountThatBlocksAuthorServerIsNotStoredAsRecipient() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        fixture.repositories.timelineRepository.interested = false
+        fixture.repositories.serverBlockRepository.add(fixture.accountId, "remote.example", Instant.EPOCH)
+        fixture.receiver.save(note(listOf(checkNotNull(fixture.directory.resolve("alice")).actorId)))
+        assertEquals(0, fixture.remote.requests)
+        assertTrue(fixture.repositories.timelineRepository.received.isEmpty())
+    }
+
+    @Test
     fun unfollowUsesStoredInboxWhenRemoteServerIsUnavailable() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         assertTrue(fixture.following.setFollowing(fixture.accountId, ACTOR, true))
@@ -336,10 +354,12 @@ class RemoteNoteReceptionTest {
                 override fun finds(usernames: Set<String>): Map<String, String> = usernames.filter { it == "alice" }.associateWith { it }
             },
         )
+        val serverBlocks = InboxServerBlocks(repositories.accountRepository, repositories.noteRepository, repositories.serverBlockRepository)
         val timeline =
             TimelineService(
                 repositories.timelineRepository,
                 repositories.followingGroupRepository,
+                repositories.serverBlockRepository,
                 FakeTimelineStore(mutableListOf()),
                 AccountEvents(repositories.timelineRepository),
                 Clock.systemUTC(),
@@ -350,6 +370,7 @@ class RemoteNoteReceptionTest {
                 remote,
                 repositories.remoteActorRepository,
                 directory,
+                serverBlocks,
                 timeline,
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now()) },

@@ -21,6 +21,7 @@ interface Repositories : AutoCloseable {
     val notificationRepository: NotificationRepository
     val likeRepository: LikeRepository
     val accountBoostRepository: AccountBoostRepository
+    val serverBlockRepository: ServerBlockRepository
 
     val passkeyRepository: PasskeyRepository
 

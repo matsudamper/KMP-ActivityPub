@@ -29,6 +29,8 @@ import com.apollographql.cache.normalized.doNotStore
 import com.apollographql.cache.normalized.fetchPolicy
 import net.matsudamper.kmp.activitypub.frontend.graphql.AccountEventsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.AdminAccessQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.BlockServerMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.BlockedServersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
@@ -49,6 +51,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetPinnedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockServerMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
@@ -59,6 +62,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfilePostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ProfilePostFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.BlockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
@@ -66,6 +70,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGrou
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetBoostedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetPinnedFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
@@ -336,6 +341,48 @@ class UserApi(
             RenameFollowingGroupFailure.DUPLICATE_NAME -> "同じ名前の購読先があります"
 
             RenameFollowingGroupFailure.UNKNOWN__ -> "名前を変えられませんでした"
+        }
+    }
+
+    suspend fun blockedServers(): UserBlockedServersResult {
+        val client = clients.client.value ?: return UserBlockedServersResult.Failure("接続先が未設定")
+        val response = client.query(BlockedServersQuery()).fetchPolicy(FetchPolicy.NetworkOnly).execute()
+        if (response.exception != null || response.hasErrors()) return UserBlockedServersResult.Failure(response.failureMessage())
+        val userInfo = response.data?.userInfo ?: return UserBlockedServersResult.Failure("ログインしていません")
+        return UserBlockedServersResult.Success(userInfo.blockedServers)
+    }
+
+    /**
+     * @param server ホスト名か、そのサーバーの URL やユーザーのアカウント名
+     */
+    suspend fun blockServer(server: String): UserBlockServerResult {
+        val client = clients.client.value ?: return UserBlockServerResult.Failure("接続先が未設定")
+        val response = client.mutation(BlockServerMutation(server = server)).execute()
+        if (response.exception != null || response.hasErrors()) return UserBlockServerResult.Failure(response.failureMessage())
+        val result = response.data?.user?.blockServer ?: return UserBlockServerResult.Failure(response.failureMessage())
+        val host = result.host
+        if (host != null) return UserBlockServerResult.Blocked(host)
+        return UserBlockServerResult.Failure(
+            when (result.failure) {
+                BlockServerFailure.NOT_LOGGED_IN -> "ログインしていません"
+                BlockServerFailure.INVALID_SERVER -> "サーバーのホスト名を読み取れませんでした"
+                BlockServerFailure.UNKNOWN__, null -> "ブロックできませんでした"
+            },
+        )
+    }
+
+    /**
+     * @return 失敗したときに見せる文言。解除できたら null
+     */
+    suspend fun unblockServer(host: String): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(UnblockServerMutation(host = host)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.unblockServer ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+            UnblockServerFailure.NOT_LOGGED_IN -> "ログインしていません"
+            UnblockServerFailure.UNKNOWN__ -> "ブロックを解除できませんでした"
         }
     }
 

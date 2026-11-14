@@ -1,0 +1,23 @@
+query BlockedServers {
+    userInfo {
+        id
+        blockedServers
+    }
+}
+
+mutation BlockServer($server: String!) {
+    user {
+        blockServer(server: $server) {
+            host
+            failure
+        }
+    }
+}
+
+mutation UnblockServer($host: String!) {
+    user {
+        unblockServer(host: $host) {
+            failure
+        }
+    }
+}

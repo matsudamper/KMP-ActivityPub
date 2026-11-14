@@ -67,6 +67,10 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.FollowingGroups)
                 }
 
+                override fun navigateToBlockedServers() {
+                    navigator.navigate(Screen.BlockedServers)
+                }
+
                 override fun navigateToAdmin() {
                     navigator.navigate(Screen.Admin)
                 }
@@ -128,6 +132,8 @@ internal fun SettingsContent(
                 HorizontalDivider()
             }
             FollowingGroupsItem(listener = uiState.listener)
+            HorizontalDivider()
+            BlockedServersItem(listener = uiState.listener)
             HorizontalDivider()
             SecurityItem(listener = uiState.listener)
             HorizontalDivider()
@@ -206,6 +212,30 @@ private fun FollowingGroupsItem(
         )
         Text(
             text = "メインとグループの名前",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun BlockedServersItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickBlockedServers)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "サーバーブロック",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "ブロックしたサーバーの一覧と解除",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

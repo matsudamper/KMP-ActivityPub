@@ -20,7 +20,15 @@ data class UserProfileScreenUiState(
      * 出していなければ null
      */
     val addFollowingGroupDialog: AddFollowingGroupDialogUiState?,
+    /**
+     * 出していなければ null
+     */
+    val blockServerDialog: BlockServerDialog?,
     val openOriginalMenuItemVisible: Boolean,
+    /**
+     * このサーバーのユーザーには出さない
+     */
+    val blockServerMenuItemVisible: Boolean,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -67,6 +75,22 @@ data class UserProfileScreenUiState(
         ) : PostsFooter
     }
 
+    /**
+     * @param host ブロックするサーバー
+     */
+    data class BlockServerDialog(
+        val host: String,
+        val buttonsEnabled: Boolean,
+        val listener: BlockServerDialogListener,
+    )
+
+    @Immutable
+    interface BlockServerDialogListener {
+        fun onClickBlock()
+
+        fun onDismiss()
+    }
+
     @Immutable
     interface Listener {
         fun onClickRetry()
@@ -76,6 +100,8 @@ data class UserProfileScreenUiState(
         fun onClickTab(tab: ProfileContentTab)
 
         fun onClickOpenOriginal()
+
+        fun onClickBlockServer()
 
         fun onScrolledToEnd()
 

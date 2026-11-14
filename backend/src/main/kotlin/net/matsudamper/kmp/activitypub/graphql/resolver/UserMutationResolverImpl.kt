@@ -9,6 +9,8 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.GraphQlUpload
+import net.matsudamper.kmp.activitypub.graphql.model.QlBlockServerFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlBlockServerResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlCreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlCreateFollowingGroupResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteFailure
@@ -28,6 +30,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
@@ -46,6 +50,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.BlockServerResult
 import net.matsudamper.kmp.activitypub.logic.CreateFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.DeleteNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
@@ -55,6 +60,7 @@ import net.matsudamper.kmp.activitypub.logic.RenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.SetPinnedResult
+import net.matsudamper.kmp.activitypub.logic.UnblockServerResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
@@ -122,6 +128,39 @@ class UserMutationResolverImpl : UserMutationResolver {
             RenameFollowingGroupResult.DuplicateName -> QlRenameFollowingGroupFailure.DUPLICATE_NAME
         }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlRenameFollowingGroupResult(failure = failure)).build())
+    }
+
+    override fun blockServer(
+        userMutation: QlUserMutation,
+        server: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlBlockServerResult>> {
+        val result = GraphQlEngine.diContainer(env).serverBlockService.block(
+            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
+            server = server,
+        )
+        val qlResult = when (result) {
+            is BlockServerResult.Blocked -> QlBlockServerResult(host = result.host, failure = null)
+            BlockServerResult.NotLoggedIn -> QlBlockServerResult(host = null, failure = QlBlockServerFailure.NOT_LOGGED_IN)
+            BlockServerResult.InvalidServer -> QlBlockServerResult(host = null, failure = QlBlockServerFailure.INVALID_SERVER)
+        }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(qlResult).build())
+    }
+
+    override fun unblockServer(
+        userMutation: QlUserMutation,
+        host: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUnblockServerResult>> {
+        val result = GraphQlEngine.diContainer(env).serverBlockService.unblock(
+            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
+            host = host,
+        )
+        val failure = when (result) {
+            UnblockServerResult.Unblocked -> null
+            UnblockServerResult.NotLoggedIn -> QlUnblockServerFailure.NOT_LOGGED_IN
+        }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlUnblockServerResult(failure = failure)).build())
     }
 
     /**
