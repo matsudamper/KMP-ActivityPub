@@ -307,6 +307,8 @@ CREATE TABLE remote_note_likes (
     remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
     like_activity_uri TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    -- 付けた絵文字。Unicode の絵文字そのものか、custom_emojis の :shortcode:。NULL なら絵文字の無いいいね
+    reaction_emoji TEXT,
     PRIMARY KEY (account_id, remote_note_id)
 );
 
@@ -317,6 +319,8 @@ CREATE TABLE note_likes (
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
     created_at TEXT NOT NULL,
+    -- 付けた絵文字。Unicode の絵文字そのものか、custom_emojis の :shortcode:。NULL なら絵文字の無いいいね
+    reaction_emoji TEXT,
     PRIMARY KEY (account_id, note_id)
 );
 
@@ -416,4 +420,18 @@ CREATE TABLE account_server_blocks (
     host TEXT NOT NULL,
     created_at TEXT NOT NULL,
     PRIMARY KEY (account_id, host)
+);
+
+-- このサーバーで置いたカスタム絵文字。サーバーの全員が使える。消せるのは置いたアカウントだけ
+CREATE TABLE custom_emojis (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- 本文やリアクションに :shortcode: で入る名前。コロンは含めない
+    shortcode TEXT NOT NULL UNIQUE,
+    -- 画像の URL に入る識別子。他のサーバーは URL ごと画像を覚えるので、画像を差し替えるときは変える
+    public_id TEXT NOT NULL UNIQUE,
+    -- 画像の置き場の中での場所
+    path TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    uploaded_by_account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL
 );

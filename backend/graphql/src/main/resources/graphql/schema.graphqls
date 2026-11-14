@@ -50,6 +50,26 @@ type Query {
     hasPassword: Boolean @lazy
     "ログイン中のアカウントのプロフィール。ログインしていなければ null"
     profile: Profile @lazy
+    "このサーバーで置いたカスタム絵文字。shortcode の順。ログインしていないか、置けないサーバーなら null"
+    customEmojis: [LocalCustomEmoji!] @lazy
+}
+
+"このサーバーで置いたカスタム絵文字。サーバーの全員が使える"
+type LocalCustomEmoji {
+    id: CustomEmojiId!
+    "本文やリアクションに :shortcode: で入る名前。コロンは含まない"
+    shortcode: String!
+    imageUrl: String!
+    "ログイン中のアカウントが置いた絵文字か。消せるのは置いたアカウントだけ"
+    deletable: Boolean!
+}
+
+"ログイン中のアカウントが投稿に付けたリアクション"
+type ViewerReaction {
+    "絵文字そのもの、またはカスタム絵文字の :shortcode:"
+    emoji: String!
+    "カスタム絵文字の画像の URL。Unicode の絵文字か、消された絵文字なら null"
+    imageUrl: String
 }
 
 type Profile {
@@ -144,12 +164,14 @@ type TimelinePost {
     pinned: Boolean! @lazy
     "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
     favouriteCount: Int
-    "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
+    "他のサーバーから届いたスタンプと、このサーバーのアカウントのリアクション。先に押された絵文字の順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
     "共有するときに渡す投稿の URL。作れなければ null"
     url: String
-    "ログイン中のアカウントがいいねしているか。ブーストで載った投稿は、ブーストされた元の投稿へのいいね"
+    "ログイン中のアカウントがいいねしているか。リアクションも Like で送るので、リアクションを付けていても true。ブーストで載った投稿は、ブーストされた元の投稿へのいいね"
     likedByMe: Boolean!
+    "ログイン中のアカウントが付けたリアクション。付けていないか、絵文字の無いいいねなら null。ブーストで載った投稿は、ブーストされた元の投稿へのリアクション"
+    viewerReaction: ViewerReaction @lazy
     "ログイン中のアカウントがブーストしているか。フォロワー限定などブーストできない投稿は null。ブーストで載った投稿は、ブーストされた元の投稿のブースト"
     boostedByMe: Boolean
     "setLiked と setBoosted に渡す id。ブーストで載った投稿は、ブーストされた元の投稿を指す"
@@ -207,7 +229,7 @@ type CustomEmoji {
 type PostStamp {
     "絵文字そのもの、またはカスタム絵文字の :name:"
     emoji: String!
-    "カスタム絵文字の画像の URL。Unicode の絵文字か、画像を中継できなければ null"
+    "カスタム絵文字の画像の URL。Unicode の絵文字か、画像を中継できないか、消されたこのサーバーの絵文字なら null"
     imageUrl: String
     count: Int!
 }

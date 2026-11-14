@@ -5,7 +5,8 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
- * こちらのアカウントが付けるいいね。
+ * こちらのアカウントが付けるいいね。絵文字を付けたいいねがリアクションで、1 つの投稿に付けられるのはいいねかリアクションのどちらか 1 つ。
+ * 他のサーバーにはどちらも Like で送り、相手も 1 つの投稿に 1 つしか持たないため。
  * 投稿はタイムラインの member（他のサーバーの投稿は `r` + REMOTE_NOTES の id、このサーバーの投稿は `l` + NOTES の id、
  * ブーストで載った投稿は `b` + REMOTE_BOOSTS の id）で指す。ブーストで載った投稿へのいいねは、ブーストされた元の投稿に付ける
  */
@@ -18,9 +19,10 @@ interface LikeRepository {
     /**
      * このサーバーの投稿へのいいね。配らないので記録だけする
      *
+     * @param reactionEmoji 付ける絵文字。null なら絵文字の無いいいね
      * @return 既にいいねしているか、このサーバーの投稿でなければ false
      */
-    fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean
+    fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reactionEmoji: String?): Boolean
 
     /**
      * @return いいねしていないか、このサーバーの投稿でなければ false
@@ -31,6 +33,12 @@ interface LikeRepository {
      * @return [notePublicIds] のうち [accountId] がいいねしている投稿
      */
     fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId>
+
+    /**
+     * @param members タイムラインの member。ブーストで載った投稿は、ブーストされた元の投稿へのいいねを返す
+     * @return [members] のうち [accountId] がいいねしている投稿の、付けた絵文字
+     */
+    fun likesOf(accountId: AccountId, members: Set<String>): Map<String, AccountLike>
 
     /**
      * [username] がいいねした投稿のうち、誰でも読める公開の投稿を、いいねした新しい順に返す。Actor の liked に載せる
@@ -67,6 +75,11 @@ interface LikeRepository {
 }
 
 /**
+ * @param reactionEmoji 付けた絵文字。null なら絵文字の無いいいね
+ */
+data class AccountLike(val reactionEmoji: String?)
+
+/**
  * いいねの一覧の続きを指す位置
  *
  * @param member いいねした投稿の member。同じ時刻のいいねを並べる
@@ -97,6 +110,7 @@ sealed interface LikeTarget {
 /**
  * @param likeId 送る Like の id。Undo で指すので記録する
  * @param body 投稿者に送る Like のアクティビティ
+ * @param reactionEmoji 付ける絵文字。null なら絵文字の無いいいね
  */
 data class OutgoingLike(
     val accountId: AccountId,
@@ -105,4 +119,5 @@ data class OutgoingLike(
     val inbox: String,
     val body: String,
     val likedAt: Instant,
+    val reactionEmoji: String?,
 )

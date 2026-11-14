@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
@@ -42,6 +43,7 @@ internal class SqliteRepositories(
     override val likeRepository: LikeRepository = SqliteLikeRepository(jooq)
     override val accountBoostRepository: AccountBoostRepository = SqliteAccountBoostRepository(jooq)
     override val serverBlockRepository: ServerBlockRepository = SqliteServerBlockRepository(jooq)
+    override val customEmojiRepository: CustomEmojiRepository = SqliteCustomEmojiRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

@@ -11,6 +11,7 @@ import graphql.schema.CoercingParseValueException
 import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.NotificationId
@@ -58,6 +59,16 @@ object GraphQlScalars {
             .newScalar()
             .name("FollowingGroupId")
             .coercing(LongIdCoercing(name = "FollowingGroupId", type = FollowingGroupId::class.java, wrap = ::FollowingGroupId, unwrap = FollowingGroupId::value))
+            .build()
+
+    /**
+     * JavaScript の数値に収まらない桁でも崩れないよう、文字列でやり取りする
+     */
+    val customEmojiId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("CustomEmojiId")
+            .coercing(LongIdCoercing(name = "CustomEmojiId", type = CustomEmojiId::class.java, wrap = ::CustomEmojiId, unwrap = CustomEmojiId::value))
             .build()
 
     val timelinePostId: GraphQLScalarType =

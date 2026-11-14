@@ -22,6 +22,7 @@ interface Repositories : AutoCloseable {
     val likeRepository: LikeRepository
     val accountBoostRepository: AccountBoostRepository
     val serverBlockRepository: ServerBlockRepository
+    val customEmojiRepository: CustomEmojiRepository
 
     val passkeyRepository: PasskeyRepository
 

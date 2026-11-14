@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.graphql
 
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BoostService
+import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
+import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
@@ -89,4 +91,12 @@ class DiContainer(
      * DOMAIN が無いと相手のサーバーに取りに行けないので null
      */
     val replyTargetService: ReplyTargetService?,
+    /**
+     * DOMAIN が無いと絵文字の URL を作れないので null
+     */
+    val customEmojiService: CustomEmojiService?,
+    /**
+     * DOMAIN が無いと絵文字の URL を作れないので null
+     */
+    val customEmojiUrls: CustomEmojiUrls?,
 )

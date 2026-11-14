@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.AccountLike
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
@@ -60,13 +61,14 @@ internal class SqliteLikeRepository(
         }
     }
 
-    override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean {
+    override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reactionEmoji: String?): Boolean {
         val localNoteId = TimelineMembers.localNoteIdOf(member) ?: return false
         return jooq.withConnection { dsl ->
             dsl.insertInto(NOTE_LIKES)
                 .set(NOTE_LIKES.ACCOUNT_ID, accountId.value)
                 .set(NOTE_LIKES.NOTE_ID, localNoteId)
                 .set(NOTE_LIKES.CREATED_AT, StoredInstant.format(likedAt))
+                .set(NOTE_LIKES.REACTION_EMOJI, reactionEmoji)
                 .onConflictDoNothing()
                 .execute() > 0
         }
@@ -91,6 +93,31 @@ internal class SqliteLikeRepository(
                 .where(NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
                 .and(NOTES.PUBLIC_ID.`in`(notePublicIds.map { it.value }))
                 .fetchSet { PublicNoteId(checkNotNull(it.value1())) }
+        }
+    }
+
+    override fun likesOf(accountId: AccountId, members: Set<String>): Map<String, AccountLike> {
+        if (members.isEmpty()) return mapOf()
+        return jooq.withConnection { dsl ->
+            val localNoteIds = members.mapNotNull { TimelineMembers.localNoteIdOf(it) }
+            val localLikes = dsl.select(NOTE_LIKES.NOTE_ID, NOTE_LIKES.REACTION_EMOJI).from(NOTE_LIKES)
+                .where(NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
+                .and(NOTE_LIKES.NOTE_ID.`in`(localNoteIds))
+                .fetchMap({ checkNotNull(it.value1()) }, { AccountLike(reactionEmoji = it.value2()) })
+            val remoteNoteIdsByMember = members.associateWith { member -> dsl.likedRemoteNoteIdOf(member) }
+            val remoteLikes = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID, REMOTE_NOTE_LIKES.REACTION_EMOJI).from(REMOTE_NOTE_LIKES)
+                .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
+                .and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(remoteNoteIdsByMember.values.filterNotNull()))
+                .fetchMap({ checkNotNull(it.value1()) }, { AccountLike(reactionEmoji = it.value2()) })
+            members.mapNotNull { member ->
+                val localNoteId = TimelineMembers.localNoteIdOf(member)
+                val like = if (localNoteId != null) {
+                    localLikes[localNoteId]
+                } else {
+                    remoteNoteIdsByMember[member]?.let { remoteLikes[it] }
+                }
+                if (like == null) null else member to like
+            }.toMap()
         }
     }
 
@@ -144,6 +171,7 @@ internal class SqliteLikeRepository(
                 .set(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID, remoteNoteId)
                 .set(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI, like.likeId)
                 .set(REMOTE_NOTE_LIKES.CREATED_AT, now)
+                .set(REMOTE_NOTE_LIKES.REACTION_EMOJI, like.reactionEmoji)
                 .onConflictDoNothing()
                 .execute() > 0
             if (inserted) {

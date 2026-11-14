@@ -28,6 +28,48 @@ class LikeRepositoryTest {
     }
 
     @Test
+    fun likesOfReturnsTheEmojiOnlyForTheAccountThatReacted() = withRepository { repositories, alice, bob ->
+        val remoteMember = receiveNote(repositories, alice, bob)
+        val localMember = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val likes = repositories.likeRepository
+        likes.likeAndEnqueue(like(alice, remoteMember, "like-1", reactionEmoji = "👍"))
+        likes.likeLocal(alice, localMember, NOW, null)
+
+        assertEquals(
+            mapOf(remoteMember to AccountLike(reactionEmoji = "👍"), localMember to AccountLike(reactionEmoji = null)),
+            likes.likesOf(alice, setOf(remoteMember, localMember)),
+        )
+        assertEquals(mapOf(), likes.likesOf(bob, setOf(remoteMember, localMember)))
+    }
+
+    @Test
+    fun localReactionsAreStampsInTheOrderFirstReactedAndNotFavourites() = withRepository { repositories, alice, bob ->
+        val member = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val likes = repositories.likeRepository
+        likes.likeLocal(bob, member, NOW, "🎉")
+        likes.likeLocal(alice, member, NOW.plusSeconds(1), ":kotlin:")
+        repositories.customEmojiRepository.add(
+            NewLocalCustomEmoji(
+                shortcode = "kotlin",
+                publicId = "kotlin-image",
+                path = "users/1/custom-emojis/kotlin",
+                contentType = "image/png",
+                uploadedBy = bob,
+                createdAt = NOW,
+            ),
+        )
+
+        val post = repositories.timelineRepository.hydrate(bob, listOf(member)).single()
+
+        assertEquals(
+            listOf(StampCount("🎉", null, 1, null), StampCount(":kotlin:", null, 1, "kotlin-image")),
+            post.stamps,
+        )
+        assertEquals(0L, post.favouriteCount)
+        assertEquals(true, post.likedByMe)
+    }
+
+    @Test
     fun unreadableOrMissingPostCannotBeLiked() = withRepository { repositories, alice, _ ->
         val directOnly = assertNotNull(repositories.timelineRepository.receive(note("direct", "direct", setOf("bob")))).member
         assertNull(repositories.likeRepository.target(alice, directOnly))
@@ -40,9 +82,9 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         assertEquals(LikeTarget.Local, likes.target(alice, member))
 
-        assertTrue(likes.likeLocal(alice, member, NOW))
-        assertFalse(likes.likeLocal(alice, member, NOW))
-        assertTrue(likes.likeLocal(bob, member, NOW))
+        assertTrue(likes.likeLocal(alice, member, NOW, null))
+        assertFalse(likes.likeLocal(alice, member, NOW, null))
+        assertTrue(likes.likeLocal(bob, member, NOW, null))
 
         assertEquals(true, repositories.timelineRepository.hydrate(bob, listOf(member)).single().likedByMe)
         assertEquals(2L, repositories.timelineRepository.hydrate(bob, listOf(member)).single().favouriteCount)
@@ -55,8 +97,8 @@ class LikeRepositoryTest {
     fun unlikeLocalPostRemovesOnlyThatAccountsLike() = withRepository { repositories, alice, bob ->
         val member = postLocalNote(repositories, username = "alice", publicId = "alice-note")
         val likes = repositories.likeRepository
-        likes.likeLocal(alice, member, NOW)
-        likes.likeLocal(bob, member, NOW)
+        likes.likeLocal(alice, member, NOW, null)
+        likes.likeLocal(bob, member, NOW, null)
 
         assertTrue(likes.unlikeLocal(alice, member))
         assertFalse(likes.unlikeLocal(alice, member))
@@ -187,7 +229,7 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         likes.likeAndEnqueue(like(alice, publicMember, "like-public").copy(likedAt = NOW))
         likes.likeAndEnqueue(like(alice, followersMember, "like-followers").copy(likedAt = NOW.plusSeconds(1)))
-        likes.likeLocal(alice, localMember, NOW.plusSeconds(2))
+        likes.likeLocal(alice, localMember, NOW.plusSeconds(2), null)
 
         val first = likes.publishedLikes("alice", before = null, limit = 1)
         val rest = likes.publishedLikes("alice", before = first.last().position, limit = 10)
@@ -240,13 +282,14 @@ class LikeRepositoryTest {
         return assertNotNull(repositories.timelineRepository.receive(note("1", "public", setOf()))).member
     }
 
-    private fun like(accountId: AccountId, member: String, likeId: String): OutgoingLike = OutgoingLike(
+    private fun like(accountId: AccountId, member: String, likeId: String, reactionEmoji: String? = null): OutgoingLike = OutgoingLike(
         accountId = accountId,
         member = member,
         likeId = likeId,
         inbox = "$ACTOR/inbox",
         body = likeBody(likeId),
         likedAt = NOW,
+        reactionEmoji = reactionEmoji,
     )
 
     private fun likeBody(id: String): String = """{"id":"$id","type":"Like"}"""
