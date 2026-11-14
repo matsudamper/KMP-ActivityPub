@@ -35,7 +35,7 @@ type UserMutation {
     ログインしているアカウントの投稿を消し、フォロワーへの Delete を積む。付けた画像も消す。
     noteId には TimelinePost.deletableNoteId を渡す
     """
-    deleteNote(noteId: ID!): DeleteNoteResult! @lazy
+    deleteNote(noteId: PublicNoteId!): DeleteNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -48,7 +48,7 @@ type UserMutation {
     postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
     外すときは今読めない投稿でも、付けたいいねを外す
     """
-    setLiked(postId: ID!, liked: Boolean!): SetLikedResult! @lazy
+    setLiked(postId: TimelinePostId!, liked: Boolean!): SetLikedResult! @lazy
     """
     ログインしているアカウントで、このサーバーの投稿か、他のサーバーの公開の投稿をブーストするか外す。公開範囲に制限のある投稿はブーストできない。フォロワーと投稿者への Announce か Undo を積む。
     postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。

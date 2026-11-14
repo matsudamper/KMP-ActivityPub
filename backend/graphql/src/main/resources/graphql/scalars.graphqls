@@ -14,6 +14,9 @@ scalar FollowingGroupId
 "タイムラインに並ぶ投稿の識別子"
 scalar TimelinePostId
 
+"UserInfo.linkPreviews で OGP を引く投稿の識別子。TimelinePost.id か ProfilePost.linkPreviewId"
+scalar LinkPreviewPostId
+
 "通知の識別子"
 scalar NotificationId
 

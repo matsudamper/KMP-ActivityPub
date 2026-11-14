@@ -34,11 +34,11 @@ type ProfilePost {
     summary: String
     sensitive: Boolean!
     "OGP を UserInfo.linkPreviews で取るときに postId に渡す id。取れない投稿は null"
-    linkPreviewId: ID
+    linkPreviewId: LinkPreviewPostId
     "UserInfo.timelinePost で個別投稿画面を開くときの id。開けない投稿は null"
     postId: TimelinePostId
     "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
-    deletableNoteId: ID
+    deletableNoteId: PublicNoteId
     "プロフィールの先頭に固定されているか。固定した投稿は posts の先頭に固定した新しい順で並ぶ。他のサーバーの投稿は固定を受け取らないので false"
     pinned: Boolean!
     "ログイン中のアカウントのプロフィールの投稿なら setPinned に渡す id。固定できない投稿は null"
@@ -82,7 +82,7 @@ type PostAuthor {
 
 type ProfilePostLike {
     "UserMutation.setLiked の postId に渡す id。保存していない他のサーバーの投稿は、いいねを付けたときに保存する"
-    postId: ID!
+    postId: TimelinePostId!
     "ログイン中のアカウントがいいねしているか"
     likedByMe: Boolean!
 }

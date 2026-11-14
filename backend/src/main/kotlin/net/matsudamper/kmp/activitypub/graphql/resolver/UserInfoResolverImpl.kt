@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
+import net.matsudamper.kmp.activitypub.shared.LinkPreviewPostId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 class UserInfoResolverImpl : UserInfoResolver {
@@ -64,12 +65,12 @@ class UserInfoResolverImpl : UserInfoResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(name).build())
     }
 
-    override fun linkPreviews(userInfo: QlUserInfo, postId: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
+    override fun linkPreviews(userInfo: QlUserInfo, postId: LinkPreviewPostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
             val linkPreviewService = diContainer.linkPreviewService
-            val contentHtml = diContainer.userProfileService.localNoteContentHtml(postId)
-                ?: diContainer.timelineService.contentHtml(userInfo.id, postId)
+            val contentHtml = diContainer.userProfileService.localNoteContentHtml(postId.value)
+                ?: diContainer.timelineService.contentHtml(userInfo.id, postId.value)
             val previews =
                 if (linkPreviewService == null || contentHtml == null) {
                     listOf()

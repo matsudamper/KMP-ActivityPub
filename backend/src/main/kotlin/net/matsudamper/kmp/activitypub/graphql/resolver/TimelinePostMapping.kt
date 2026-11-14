@@ -59,7 +59,7 @@ private fun TimelinePost.toQlTimelinePost(
         images = body.images,
         emojis = emojis.toQlCustomEmojis(diContainer),
         // ブーストとして載せた投稿は他のアカウントの投稿のこともあり、ブーストされた元の投稿を消したり固定したりする場所ではない
-        deletableNoteId = if (boostedBy == null) localPublicId?.value else null,
+        deletableNoteId = if (boostedBy == null) localPublicId else null,
         pinnableNoteId = if (boostedBy == null) localPublicId else null,
         favouriteCount = favouriteCount?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),

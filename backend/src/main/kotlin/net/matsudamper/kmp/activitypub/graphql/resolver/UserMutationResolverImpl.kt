@@ -301,7 +301,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     override fun deleteNote(
         userMutation: QlUserMutation,
-        noteId: String,
+        noteId: PublicNoteId,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlDeleteNoteResult>> {
         val result = QlDeleteNoteResult(failure = deleteNote(noteId = noteId, env = env))
@@ -328,7 +328,7 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     override fun setLiked(
         userMutation: QlUserMutation,
-        postId: String,
+        postId: TimelinePostId,
         liked: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlSetLikedResult>> {
@@ -403,7 +403,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     }
 
     private fun deleteNote(
-        noteId: String,
+        noteId: PublicNoteId,
         env: DataFetchingEnvironment,
     ): QlDeleteNoteFailure? {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -411,7 +411,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         // セッションが残っていてもアカウントが消えていることがある
         val account = diContainer.accountService.account(accountId) ?: return QlDeleteNoteFailure.NOT_LOGGED_IN
         val notePostService = diContainer.notePostService ?: return QlDeleteNoteFailure.FEDERATION_DISABLED
-        return when (notePostService.delete(username = account.username, publicId = PublicNoteId(noteId))) {
+        return when (notePostService.delete(username = account.username, publicId = noteId)) {
             DeleteNoteResult.Deleted -> null
             DeleteNoteResult.NotFound -> QlDeleteNoteFailure.NOT_FOUND
             DeleteNoteResult.ImageStorageDisabled -> QlDeleteNoteFailure.INTERNAL_SERVER_ERROR
@@ -479,7 +479,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     }
 
     private suspend fun setLiked(
-        postId: String,
+        postId: TimelinePostId,
         liked: Boolean,
         env: DataFetchingEnvironment,
     ): QlSetLikedResult {
@@ -488,7 +488,7 @@ class UserMutationResolverImpl : UserMutationResolver {
             diContainer.likeService
                 ?: return QlSetLikedResult(failure = QlSetLikedFailure.FEDERATION_DISABLED)
         val failure =
-            when (likeService.setLiked(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), requestedPostId = postId, liked = liked)) {
+            when (likeService.setLiked(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), requestedPostId = postId.value, liked = liked)) {
                 SetLikedResult.Updated -> null
                 SetLikedResult.NotLoggedIn -> QlSetLikedFailure.NOT_LOGGED_IN
                 SetLikedResult.PostNotFound -> QlSetLikedFailure.POST_NOT_FOUND

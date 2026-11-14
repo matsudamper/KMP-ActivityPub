@@ -110,7 +110,7 @@ internal fun HomeColumnsContent(
                                 modifier = columnModifier,
                             ) { contentModifier ->
                                 UserTabContent(
-                                    listState = tabListStates.user,
+                                    pagerState = tabListStates.user,
                                     profile = uiState.profile,
                                     userContentTab = uiState.userContentTab,
                                     userPosts = uiState.userPosts,

@@ -27,10 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -129,9 +126,9 @@ import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentPager
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentPagerState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
-import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTabRow
-import net.matsudamper.kmp.activitypub.frontend.ui.ProfileGridCells
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
@@ -139,6 +136,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.rememberProfileContentPagerState
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -262,7 +260,7 @@ internal fun HomeScreen(
 internal class HomeTabListStates(
     val notifications: LazyListState,
     val search: LazyListState,
-    val user: LazyGridState,
+    val user: ProfileContentPagerState,
     private val timelineListStates: TimelineListStates,
 ) {
     fun timeline(listStateKey: String): LazyListState = timelineListStates.get(listStateKey)
@@ -276,7 +274,7 @@ internal class HomeTabListStates(
 
             HomeScreenUiState.Tab.Search -> search.animateScrollToItem(0)
 
-            HomeScreenUiState.Tab.User -> user.animateScrollToItem(0)
+            HomeScreenUiState.Tab.User -> user.scrollToTop()
         }
     }
 }
@@ -285,7 +283,7 @@ internal class HomeTabListStates(
 internal fun rememberHomeTabListStates(): HomeTabListStates {
     val notifications = rememberLazyListState()
     val search = rememberLazyListState()
-    val user = rememberLazyGridState()
+    val user = rememberProfileContentPagerState()
     val timeline = rememberSaveable(saver = TimelineListStates.Saver) { TimelineListStates(initialPositions = mapOf()) }
     return remember(notifications, search, user, timeline) {
         HomeTabListStates(notifications = notifications, search = search, user = user, timelineListStates = timeline)
@@ -448,7 +446,7 @@ internal fun HomeContent(
 
                 HomeScreenUiState.Tab.User -> {
                     UserTabContent(
-                        listState = tabListStates.user,
+                        pagerState = tabListStates.user,
                         profile = uiState.profile,
                         userContentTab = uiState.userContentTab,
                         userPosts = uiState.userPosts,
@@ -962,7 +960,7 @@ internal fun SearchTabContent(
 
 @Composable
 internal fun UserTabContent(
-    listState: LazyGridState,
+    pagerState: ProfileContentPagerState,
     profile: HomeScreenUiState.Profile,
     userContentTab: ProfileContentTab,
     userPosts: HomeScreenUiState.UserPosts,
@@ -992,58 +990,60 @@ internal fun UserTabContent(
             }
 
             is HomeScreenUiState.Profile.Loaded -> {
-                LazyVerticalGrid(columns = ProfileGridCells, state = listState, modifier = Modifier.fillMaxSize()) {
-                    fullLineItem {
-                        UserProfileHeader(profile = profile, listener = listener)
-                    }
-                    fullLineItem {
-                        ProfileContentTabRow(
-                            selectedTab = userContentTab,
-                            onClickTab = listener::onClickUserContentTab,
-                        )
-                    }
-                    when (userPosts) {
-                        HomeScreenUiState.UserPosts.Loading -> fullLineItem {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
+                ProfileContentPager(
+                    state = pagerState,
+                    selectedTab = userContentTab,
+                    onSelectTab = listener::onClickUserContentTab,
+                    header = {
+                        item {
+                            UserProfileHeader(profile = profile, listener = listener)
                         }
-
-                        HomeScreenUiState.UserPosts.LoadFailed -> fullLineItem {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                Button(onClick = listener::onClickRetryUserPosts) { Text("再読み込み") }
-                            }
-                        }
-
-                        is HomeScreenUiState.UserPosts.Loaded -> when (userContentTab) {
-                            ProfileContentTab.Posts -> {
-                                val emptyMessage = userPosts.emptyMessage
-                                if (emptyMessage != null) {
-                                    fullLineItem { UserTabEmptyMessage(text = emptyMessage) }
+                    },
+                    page = { tab ->
+                        when (userPosts) {
+                            HomeScreenUiState.UserPosts.Loading -> fullLineItem {
+                                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator()
                                 }
-                                items(
-                                    items = userPosts.items,
-                                    span = { GridItemSpan(maxLineSpan) },
-                                ) { post ->
-                                    Column {
-                                        PostItem(uiState = post, style = PostItemStyle.Timeline)
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+
+                            HomeScreenUiState.UserPosts.LoadFailed -> fullLineItem {
+                                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    Button(onClick = listener::onClickRetryUserPosts) { Text("再読み込み") }
+                                }
+                            }
+
+                            is HomeScreenUiState.UserPosts.Loaded -> when (tab) {
+                                ProfileContentTab.Posts -> {
+                                    val emptyMessage = userPosts.emptyMessage
+                                    if (emptyMessage != null) {
+                                        fullLineItem { UserTabEmptyMessage(text = emptyMessage) }
+                                    }
+                                    items(
+                                        items = userPosts.items,
+                                        span = { GridItemSpan(maxLineSpan) },
+                                    ) { post ->
+                                        Column {
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        }
+                                    }
+                                }
+
+                                ProfileContentTab.Media -> {
+                                    val mediaEmptyMessage = userPosts.mediaEmptyMessage
+                                    if (mediaEmptyMessage != null) {
+                                        fullLineItem { UserTabEmptyMessage(text = mediaEmptyMessage) }
+                                    }
+                                    items(userPosts.media) { media ->
+                                        ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
                                     }
                                 }
                             }
-
-                            ProfileContentTab.Media -> {
-                                val mediaEmptyMessage = userPosts.mediaEmptyMessage
-                                if (mediaEmptyMessage != null) {
-                                    fullLineItem { UserTabEmptyMessage(text = mediaEmptyMessage) }
-                                }
-                                items(userPosts.media) { media ->
-                                    ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
-                                }
-                            }
                         }
-                    }
-                }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
     }

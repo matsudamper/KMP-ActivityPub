@@ -1,4 +1,4 @@
-mutation DeleteNote($noteId: ID!) {
+mutation DeleteNote($noteId: PublicNoteId!) {
     user {
         deleteNote(noteId: $noteId) {
             failure
