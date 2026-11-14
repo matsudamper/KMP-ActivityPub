@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import java.text.BreakIterator
 import java.time.Clock
 import java.util.UUID
 import net.matsudamper.kmp.activitypub.repository.LikeReaction
@@ -211,13 +212,16 @@ sealed interface SetReactionResult {
 }
 
 /**
- * 他のサーバーは本文の文字をそのまま出すので、コロンで囲んだ名前や空白、英字の入った文字を絵文字として送らない。
- * ℹ️ のように文字に分類される絵文字もあるので、文字の分類では弾かない
+ * 絵文字 1 つだけかを見る。肌の色や家族、国旗の絵文字はいくつものコードポイントを繋いで 1 文字になるので、書記素で数える。
+ * ℹ️ のように文字にも分類される絵文字があるので、文字の分類ではなく Emoji の性質で判定する
  */
-private fun isUnicodeEmoji(text: String): Boolean =
-    text.isNotEmpty() &&
-        text.codePointCount(0, text.length) <= MAX_UNICODE_EMOJI_CODE_POINTS &&
-        text.none { it.isWhitespace() || it == ':' || it in 'a'..'z' || it in 'A'..'Z' }
+internal fun isUnicodeEmoji(text: String): Boolean {
+    if (text.isEmpty() || text.codePointCount(0, text.length) > MAX_UNICODE_EMOJI_CODE_POINTS) return false
+    if (text.any { it in 'a'..'z' || it in 'A'..'Z' || it.isWhitespace() || it == ':' }) return false
+    val graphemes = BreakIterator.getCharacterInstance().apply { setText(text) }
+    val singleGrapheme = graphemes.next() == text.length
+    return singleGrapheme && text.codePoints().anyMatch { Character.isEmoji(it) }
+}
 
 /**
  * @param customEmojiId このサーバーのカスタム絵文字なら、その id
