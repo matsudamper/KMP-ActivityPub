@@ -26,9 +26,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
 /**
- * 宛先の URL は相手が決めるので、内側のアドレスへ繋がないようにする。
- * IP アドレスがそのまま書かれた URL は OkHttp が名前を引かず [PublicAddressDns] を通らないので、
- * リダイレクトは自分で辿り、送る前に毎回宛先を確かめる
+ * 相手のサーバーとの通信。
+ *
+ * 宛先の URL は相手が決めるので、内側のアドレスへは繋がない。名前は名前解決のときに [PublicAddressDns] で確かめる。
+ * IP アドレスがそのまま書かれた URL は OkHttp が名前を引かずそこを通らないので、送る前に確かめる。
+ * リダイレクトの移り先も同じく確かめるため、リダイレクトは自分で辿る
  */
 internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     private val client: OkHttpClient =
@@ -57,7 +59,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         // リダイレクトを辿っても期限を延ばさないよう、全体で 1 つの期限を共有する
         val deadlineNanos = System.nanoTime() + CALL_TIMEOUT.toNanos()
         repeat(MAX_REDIRECTS + 1) {
-            requirePublicHost(request.url)
+            requirePublicIpAddressHost(request.url)
             val remainingNanos = deadlineNanos - System.nanoTime()
             if (remainingNanos <= 0) throw InterruptedIOException("タイムアウトした: $url")
             val result = execute(request, callTimeoutNanos = remainingNanos) { response ->
@@ -87,7 +89,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             // Content-Type は署名されたヘッダに入っているので、ここで付け直さない
             .post(body.toRequestBody())
             .build()
-        requirePublicHost(request.url)
+        requirePublicIpAddressHost(request.url)
         return execute(request, callTimeoutNanos = CALL_TIMEOUT.toNanos()) { response -> ActivityPubPostResponse(status = response.code) }
     }
 
@@ -97,11 +99,10 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     }
 
     /**
-     * 公開アドレスでなければ [net.matsudamper.kotpub.http.NonPublicAddressException] を投げる。
-     * 名前は OkHttp が [PublicAddressDns] で確かめるので、ここで引くと名前解決が Call の期限の外で二重になる。
-     * OkHttp が名前を引かない IP アドレスの表記だけを確かめる
+     * IP アドレスの表記なら、公開アドレスでなければ [net.matsudamper.kotpub.http.NonPublicAddressException] を投げる。
+     * 名前は OkHttp が [PublicAddressDns] で確かめるので、ここで引くと名前解決が Call の期限の外で二重になる
      */
-    private suspend fun requirePublicHost(url: HttpUrl) {
+    private suspend fun requirePublicIpAddressHost(url: HttpUrl) {
         if (IP_ADDRESS_HOST.matches(url.host)) {
             PublicAddressDnsResolver.resolve(url.host)
         }
