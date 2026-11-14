@@ -60,6 +60,12 @@ internal class SettingsScreenViewModel(
                 }
             }
 
+            override fun onClickCustomEmojis() {
+                viewModelScope.launch {
+                    events.send { it.navigateToCustomEmojis() }
+                }
+            }
+
             override fun onClickAdmin() {
                 viewModelScope.launch {
                     events.send { it.navigateToAdmin() }
@@ -197,6 +203,8 @@ internal class SettingsScreenViewModel(
         fun navigateToFollowingGroups()
 
         fun navigateToBlockedServers()
+
+        fun navigateToCustomEmojis()
 
         fun navigateToAdmin()
 

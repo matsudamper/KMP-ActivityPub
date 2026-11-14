@@ -29,6 +29,8 @@ data class SettingsScreenUiState(
 
         fun onClickBlockedServers()
 
+        fun onClickCustomEmojis()
+
         fun onClickAdmin()
 
         fun onClickGitHubRelease()

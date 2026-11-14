@@ -71,6 +71,10 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.BlockedServers)
                 }
 
+                override fun navigateToCustomEmojis() {
+                    navigator.navigate(Screen.CustomEmojis)
+                }
+
                 override fun navigateToAdmin() {
                     navigator.navigate(Screen.Admin)
                 }
@@ -134,6 +138,8 @@ internal fun SettingsContent(
             FollowingGroupsItem(listener = uiState.listener)
             HorizontalDivider()
             BlockedServersItem(listener = uiState.listener)
+            HorizontalDivider()
+            CustomEmojisItem(listener = uiState.listener)
             HorizontalDivider()
             SecurityItem(listener = uiState.listener)
             HorizontalDivider()
@@ -236,6 +242,30 @@ private fun BlockedServersItem(
         )
         Text(
             text = "ブロックしたサーバーの一覧と解除",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun CustomEmojisItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickCustomEmojis)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "カスタム絵文字",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "リアクションで使う絵文字の追加と削除",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
