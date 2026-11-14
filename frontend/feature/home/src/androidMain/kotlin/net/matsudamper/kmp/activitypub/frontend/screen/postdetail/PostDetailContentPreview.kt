@@ -73,7 +73,13 @@ private fun createLoadedUiState(
                 iconUrl = null,
                 displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                 acct = "@alice@example.social",
-                body = createPostBodyText(content = "@alice 個別の投稿の画面です。 https://kotlinlang.org/", mentions = listOf(UserPostMention(text = "@alice", acct = "alice@example.social")), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+                body = createPostBodyText(
+                    content = "@alice 個別の投稿の画面です。 https://kotlinlang.org/",
+                    mentions = listOf(UserPostMention(text = "@alice", acct = "alice@example.social")),
+                    emojis = listOf(),
+                    onOpenUrl = {},
+                    onOpenProfile = {},
+                ),
                 postedAt = "2026-11-01T12:00:00Z",
                 fullPostedAt = "2026/11/01 21:00",
                 linkPreviews = listOf(
