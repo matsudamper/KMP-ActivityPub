@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeReaction
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
@@ -120,7 +121,7 @@ internal class FakeRepositories : Repositories {
     override val stampRepository: FakeStampRepository = FakeStampRepository()
     override val likeRepository: LikeRepository = object : LikeRepository {
         override fun target(accountId: AccountId, member: String): LikeTarget? = null
-        override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reactionEmoji: String?): Boolean = false
+        override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reaction: LikeReaction?): Boolean = false
         override fun unlikeLocal(accountId: AccountId, member: String): Boolean = false
         override fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId> = setOf()
         override fun likesOf(accountId: AccountId, members: Set<String>): Map<String, AccountLike> = mapOf()

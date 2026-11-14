@@ -32,11 +32,14 @@ class LikeRepositoryTest {
         val remoteMember = receiveNote(repositories, alice, bob)
         val localMember = postLocalNote(repositories, username = "bob", publicId = "bob-note")
         val likes = repositories.likeRepository
-        likes.likeAndEnqueue(like(alice, remoteMember, "like-1", reactionEmoji = "👍"))
+        likes.likeAndEnqueue(like(alice, remoteMember, "like-1", reaction = LikeReaction(emoji = "👍", customEmojiId = null)))
         likes.likeLocal(alice, localMember, NOW, null)
 
         assertEquals(
-            mapOf(remoteMember to AccountLike(reactionEmoji = "👍"), localMember to AccountLike(reactionEmoji = null)),
+            mapOf(
+                remoteMember to AccountLike(reactionEmoji = "👍", customEmojiPublicId = null),
+                localMember to AccountLike(reactionEmoji = null, customEmojiPublicId = null),
+            ),
             likes.likesOf(alice, setOf(remoteMember, localMember)),
         )
         assertEquals(mapOf(), likes.likesOf(bob, setOf(remoteMember, localMember)))
@@ -46,18 +49,9 @@ class LikeRepositoryTest {
     fun localReactionsAreStampsInTheOrderFirstReactedAndNotFavourites() = withRepository { repositories, alice, bob ->
         val member = postLocalNote(repositories, username = "bob", publicId = "bob-note")
         val likes = repositories.likeRepository
-        likes.likeLocal(bob, member, NOW, "🎉")
-        likes.likeLocal(alice, member, NOW.plusSeconds(1), ":kotlin:")
-        repositories.customEmojiRepository.add(
-            NewLocalCustomEmoji(
-                shortcode = "kotlin",
-                publicId = "kotlin-image",
-                path = "users/1/custom-emojis/kotlin",
-                contentType = "image/png",
-                uploadedBy = bob,
-                createdAt = NOW,
-            ),
-        )
+        val kotlin = assertNotNull(repositories.customEmojiRepository.add(customEmoji(shortcode = "kotlin", publicId = "kotlin-image", uploadedBy = bob)))
+        likes.likeLocal(bob, member, NOW, LikeReaction(emoji = "🎉", customEmojiId = null))
+        likes.likeLocal(alice, member, NOW.plusSeconds(1), LikeReaction(emoji = ":kotlin:", customEmojiId = kotlin.id))
 
         val post = repositories.timelineRepository.hydrate(bob, listOf(member)).single()
 
@@ -67,6 +61,24 @@ class LikeRepositoryTest {
         )
         assertEquals(0L, post.favouriteCount)
         assertEquals(true, post.likedByMe)
+    }
+
+    @Test
+    fun reactionKeepsNoImageWhenTheEmojiIsReplacedUnderTheSameShortcode() = withRepository { repositories, alice, bob ->
+        val member = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val emojis = repositories.customEmojiRepository
+        val old = assertNotNull(emojis.add(customEmoji(shortcode = "kotlin", publicId = "old-image", uploadedBy = bob)))
+        repositories.likeRepository.likeLocal(alice, member, NOW, LikeReaction(emoji = ":kotlin:", customEmojiId = old.id))
+        emojis.delete(old.id, bob)
+        emojis.add(customEmoji(shortcode = "kotlin", publicId = "new-image", uploadedBy = bob))
+
+        val post = repositories.timelineRepository.hydrate(bob, listOf(member)).single()
+
+        assertEquals(listOf(StampCount(":kotlin:", null, 1, null)), post.stamps)
+        assertEquals(
+            mapOf(member to AccountLike(reactionEmoji = ":kotlin:", customEmojiPublicId = null)),
+            repositories.likeRepository.likesOf(alice, setOf(member)),
+        )
     }
 
     @Test
@@ -282,14 +294,23 @@ class LikeRepositoryTest {
         return assertNotNull(repositories.timelineRepository.receive(note("1", "public", setOf()))).member
     }
 
-    private fun like(accountId: AccountId, member: String, likeId: String, reactionEmoji: String? = null): OutgoingLike = OutgoingLike(
+    private fun customEmoji(shortcode: String, publicId: String, uploadedBy: AccountId): NewLocalCustomEmoji = NewLocalCustomEmoji(
+        shortcode = shortcode,
+        publicId = publicId,
+        path = "users/${uploadedBy.value}/custom-emojis/$publicId",
+        contentType = "image/png",
+        uploadedBy = uploadedBy,
+        createdAt = NOW,
+    )
+
+    private fun like(accountId: AccountId, member: String, likeId: String, reaction: LikeReaction? = null): OutgoingLike = OutgoingLike(
         accountId = accountId,
         member = member,
         likeId = likeId,
         inbox = "$ACTOR/inbox",
         body = likeBody(likeId),
         likedAt = NOW,
-        reactionEmoji = reactionEmoji,
+        reaction = reaction,
     )
 
     private fun likeBody(id: String): String = """{"id":"$id","type":"Like"}"""

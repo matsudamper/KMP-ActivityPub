@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 /**
@@ -19,10 +20,10 @@ interface LikeRepository {
     /**
      * このサーバーの投稿へのいいね。配らないので記録だけする
      *
-     * @param reactionEmoji 付ける絵文字。null なら絵文字の無いいいね
+     * @param reaction 付ける絵文字。null なら絵文字の無いいいね
      * @return 既にいいねしているか、このサーバーの投稿でなければ false
      */
-    fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reactionEmoji: String?): Boolean
+    fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reaction: LikeReaction?): Boolean
 
     /**
      * @return いいねしていないか、このサーバーの投稿でなければ false
@@ -76,8 +77,17 @@ interface LikeRepository {
 
 /**
  * @param reactionEmoji 付けた絵文字。null なら絵文字の無いいいね
+ * @param customEmojiPublicId 付けたカスタム絵文字の画像の公開 id。Unicode の絵文字と、消された絵文字では null
  */
-data class AccountLike(val reactionEmoji: String?)
+data class AccountLike(val reactionEmoji: String?, val customEmojiPublicId: String?)
+
+/**
+ * いいねに付ける絵文字
+ *
+ * @param emoji Unicode の絵文字そのものか、カスタム絵文字の `:shortcode:`
+ * @param customEmojiId カスタム絵文字なら、その id。消した後に同じ名前で別の画像を置けるので、名前ではなく id で結び付ける
+ */
+data class LikeReaction(val emoji: String, val customEmojiId: CustomEmojiId?)
 
 /**
  * いいねの一覧の続きを指す位置
@@ -110,7 +120,7 @@ sealed interface LikeTarget {
 /**
  * @param likeId 送る Like の id。Undo で指すので記録する
  * @param body 投稿者に送る Like のアクティビティ
- * @param reactionEmoji 付ける絵文字。null なら絵文字の無いいいね
+ * @param reaction 付ける絵文字。null なら絵文字の無いいいね
  */
 data class OutgoingLike(
     val accountId: AccountId,
@@ -119,5 +129,5 @@ data class OutgoingLike(
     val inbox: String,
     val body: String,
     val likedAt: Instant,
-    val reactionEmoji: String?,
+    val reaction: LikeReaction?,
 )

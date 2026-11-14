@@ -2,10 +2,12 @@ package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Clock
 import java.util.UUID
+import net.matsudamper.kmp.activitypub.repository.LikeReaction
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kotpub.activity.LikeActivities
 import net.matsudamper.kotpub.activity.OutgoingActivity
 import net.matsudamper.kotpub.activity.ReactionEmoji
@@ -58,16 +60,18 @@ class LikeService(
         if (accountId == null) return SetReactionResult.NotLoggedIn
         val account = accountService.account(accountId) ?: return SetReactionResult.NotLoggedIn
         val sender = directory.resolve(account.username) ?: return SetReactionResult.NotLoggedIn
-        val reactionEmoji = when (reaction) {
+        val sending = when (reaction) {
             null, PostReaction.Like -> null
 
-            is PostReaction.Unicode -> if (isUnicodeEmoji(reaction.emoji)) ReactionEmoji.Unicode(reaction.emoji) else return SetReactionResult.InvalidEmoji
+            is PostReaction.Unicode -> if (isUnicodeEmoji(reaction.emoji)) SendingReaction(ReactionEmoji.Unicode(reaction.emoji), null) else return SetReactionResult.InvalidEmoji
 
             is PostReaction.Custom -> {
                 val emoji = customEmojis.findByShortcode(reaction.shortcode) ?: return SetReactionResult.InvalidEmoji
-                ReactionEmoji.Custom(customEmojiUrls.emojiObjectOf(emoji))
+                SendingReaction(ReactionEmoji.Custom(customEmojiUrls.emojiObjectOf(emoji)), emoji.id)
             }
         }
+        val reactionEmoji = sending?.emoji
+        val likeReaction = sending?.let { LikeReaction(emoji = it.emoji.text, customEmojiId = it.customEmojiId) }
         val postId = unsavedNotes.memberOf(viewer = accountId, postId = requestedPostId, importsMissing = reaction != null)
             ?: return if (reaction != null) SetReactionResult.PostNotFound else SetReactionResult.Updated
         val current = likes.likesOf(accountId, setOf(postId))[postId]
@@ -82,11 +86,11 @@ class LikeService(
 
             // このサーバーの投稿は配らずに記録だけする
             LikeTarget.Local -> {
-                likes.likeLocal(accountId, postId, clock.instant(), reactionEmoji?.text)
+                likes.likeLocal(accountId, postId, clock.instant(), likeReaction)
                 false
             }
 
-            is LikeTarget.Remote -> likeRemote(accountId = accountId, senderActorId = sender.actorId, postId = postId, target = target, emoji = reactionEmoji)
+            is LikeTarget.Remote -> likeRemote(accountId = accountId, senderActorId = sender.actorId, postId = postId, target = target, reaction = likeReaction, emoji = reactionEmoji)
         }
         if (enqueuedUndo || enqueuedLike) onEnqueued()
         return SetReactionResult.Updated
@@ -97,16 +101,23 @@ class LikeService(
      * @return [members] のうち [accountId] が絵文字を付けた投稿の、付けた絵文字。絵文字の無いいいねは含めない
      */
     fun viewerReactionsOf(accountId: AccountId, members: Set<String>): Map<String, ViewerReaction> {
-        val emojis = likes.likesOf(accountId, members).mapNotNull { (member, like) -> like.reactionEmoji?.let { member to it } }.toMap()
-        if (emojis.isEmpty()) return mapOf()
-        val customEmojiImageUrls = customEmojis.all().associate { ":${it.shortcode}:" to customEmojiUrls.imageUrl(it.publicId) }
-        return emojis.mapValues { (_, emoji) -> ViewerReaction(emoji = emoji, imageUrl = customEmojiImageUrls[emoji]) }
+        return likes.likesOf(accountId, members).mapNotNull { (member, like) ->
+            val emoji = like.reactionEmoji ?: return@mapNotNull null
+            member to ViewerReaction(emoji = emoji, imageUrl = like.customEmojiPublicId?.let(customEmojiUrls::imageUrl))
+        }.toMap()
     }
 
     /**
      * @return 配信を積んだら true
      */
-    private fun likeRemote(accountId: AccountId, senderActorId: String, postId: String, target: LikeTarget.Remote, emoji: ReactionEmoji?): Boolean {
+    private fun likeRemote(
+        accountId: AccountId,
+        senderActorId: String,
+        postId: String,
+        target: LikeTarget.Remote,
+        reaction: LikeReaction?,
+        emoji: ReactionEmoji?,
+    ): Boolean {
         val likeId = "$senderActorId/likes/${UUID.randomUUID()}"
         val like = if (emoji == null) {
             LikeActivities.like(id = likeId, actor = senderActorId, objectUri = target.objectUri)
@@ -121,7 +132,7 @@ class LikeService(
                 inbox = target.inbox,
                 body = AppJson.encodeToString(OutgoingActivity.serializer(), like),
                 likedAt = clock.instant(),
-                reactionEmoji = emoji?.text,
+                reaction = reaction,
             ),
         )
     }
@@ -178,12 +189,18 @@ sealed interface SetReactionResult {
 }
 
 /**
- * 他のサーバーは本文の文字をそのまま出すので、コロンで囲んだ名前や空白の入った文字を絵文字として送らない
+ * 他のサーバーは本文の文字をそのまま出すので、コロンで囲んだ名前や空白、英字の入った文字を絵文字として送らない。
+ * ℹ️ のように文字に分類される絵文字もあるので、文字の分類では弾かない
  */
 private fun isUnicodeEmoji(text: String): Boolean =
     text.isNotEmpty() &&
         text.codePointCount(0, text.length) <= MAX_UNICODE_EMOJI_CODE_POINTS &&
-        text.none { it.isWhitespace() || it == ':' || it.isLetter() }
+        text.none { it.isWhitespace() || it == ':' || it in 'a'..'z' || it in 'A'..'Z' }
+
+/**
+ * @param customEmojiId このサーバーのカスタム絵文字なら、その id
+ */
+private class SendingReaction(val emoji: ReactionEmoji, val customEmojiId: CustomEmojiId?)
 
 // 肌の色や家族の絵文字は、いくつものコードポイントを繋いで 1 つになる
 private const val MAX_UNICODE_EMOJI_CODE_POINTS = 16

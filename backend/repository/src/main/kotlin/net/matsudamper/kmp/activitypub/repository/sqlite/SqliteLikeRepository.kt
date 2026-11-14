@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountLike
+import net.matsudamper.kmp.activitypub.repository.LikeReaction
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
@@ -9,6 +10,7 @@ import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.PublishedLike
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.CUSTOM_EMOJIS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_LIKES
@@ -61,14 +63,15 @@ internal class SqliteLikeRepository(
         }
     }
 
-    override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reactionEmoji: String?): Boolean {
+    override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reaction: LikeReaction?): Boolean {
         val localNoteId = TimelineMembers.localNoteIdOf(member) ?: return false
         return jooq.withConnection { dsl ->
             dsl.insertInto(NOTE_LIKES)
                 .set(NOTE_LIKES.ACCOUNT_ID, accountId.value)
                 .set(NOTE_LIKES.NOTE_ID, localNoteId)
                 .set(NOTE_LIKES.CREATED_AT, StoredInstant.format(likedAt))
-                .set(NOTE_LIKES.REACTION_EMOJI, reactionEmoji)
+                .set(NOTE_LIKES.REACTION_EMOJI, reaction?.emoji)
+                .set(NOTE_LIKES.REACTION_CUSTOM_EMOJI_ID, reaction?.customEmojiId?.value)
                 .onConflictDoNothing()
                 .execute() > 0
         }
@@ -100,15 +103,17 @@ internal class SqliteLikeRepository(
         if (members.isEmpty()) return mapOf()
         return jooq.withConnection { dsl ->
             val localNoteIds = members.mapNotNull { TimelineMembers.localNoteIdOf(it) }
-            val localLikes = dsl.select(NOTE_LIKES.NOTE_ID, NOTE_LIKES.REACTION_EMOJI).from(NOTE_LIKES)
+            val localLikes = dsl.select(NOTE_LIKES.NOTE_ID, NOTE_LIKES.REACTION_EMOJI, CUSTOM_EMOJIS.PUBLIC_ID).from(NOTE_LIKES)
+                .leftJoin(CUSTOM_EMOJIS).on(CUSTOM_EMOJIS.ID.eq(NOTE_LIKES.REACTION_CUSTOM_EMOJI_ID))
                 .where(NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
                 .and(NOTE_LIKES.NOTE_ID.`in`(localNoteIds))
-                .fetchMap({ checkNotNull(it.value1()) }, { AccountLike(reactionEmoji = it.value2()) })
+                .fetchMap({ checkNotNull(it.value1()) }, { AccountLike(reactionEmoji = it.value2(), customEmojiPublicId = it.value3()) })
             val remoteNoteIdsByMember = members.associateWith { member -> dsl.likedRemoteNoteIdOf(member) }
-            val remoteLikes = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID, REMOTE_NOTE_LIKES.REACTION_EMOJI).from(REMOTE_NOTE_LIKES)
+            val remoteLikes = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID, REMOTE_NOTE_LIKES.REACTION_EMOJI, CUSTOM_EMOJIS.PUBLIC_ID).from(REMOTE_NOTE_LIKES)
+                .leftJoin(CUSTOM_EMOJIS).on(CUSTOM_EMOJIS.ID.eq(REMOTE_NOTE_LIKES.REACTION_CUSTOM_EMOJI_ID))
                 .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
                 .and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(remoteNoteIdsByMember.values.filterNotNull()))
-                .fetchMap({ checkNotNull(it.value1()) }, { AccountLike(reactionEmoji = it.value2()) })
+                .fetchMap({ checkNotNull(it.value1()) }, { AccountLike(reactionEmoji = it.value2(), customEmojiPublicId = it.value3()) })
             members.mapNotNull { member ->
                 val localNoteId = TimelineMembers.localNoteIdOf(member)
                 val like = if (localNoteId != null) {
@@ -171,7 +176,8 @@ internal class SqliteLikeRepository(
                 .set(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID, remoteNoteId)
                 .set(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI, like.likeId)
                 .set(REMOTE_NOTE_LIKES.CREATED_AT, now)
-                .set(REMOTE_NOTE_LIKES.REACTION_EMOJI, like.reactionEmoji)
+                .set(REMOTE_NOTE_LIKES.REACTION_EMOJI, like.reaction?.emoji)
+                .set(REMOTE_NOTE_LIKES.REACTION_CUSTOM_EMOJI_ID, like.reaction?.customEmojiId?.value)
                 .onConflictDoNothing()
                 .execute() > 0
             if (inserted) {
