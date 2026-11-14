@@ -155,6 +155,7 @@ internal class UserProfileScreenViewModel(
             // ほかの画面で消した投稿もここで外す
             api.deletedNoteIds.collect { noteId ->
                 updatePosts { posts -> posts.copy(posts = posts.posts.filterNot { it.deletableNoteId == noteId }) }
+                updateLikes { likes -> likes.copy(posts = likes.posts.filterNot { it.deletableNoteId == noteId }) }
             }
         }
         viewModelScope.launch {

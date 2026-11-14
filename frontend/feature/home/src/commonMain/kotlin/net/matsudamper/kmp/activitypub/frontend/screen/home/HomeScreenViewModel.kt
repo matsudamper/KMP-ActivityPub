@@ -1076,7 +1076,12 @@ internal class HomeScreenViewModel(
         updateLoadedNotifications { it.copy(data = it.data.withoutNote(noteId)) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.filterNot { post -> post.deletableNoteId == noteId }))
+            it.copy(
+                myPosts = myPosts.copy(
+                    posts = myPosts.posts.filterNot { post -> post.deletableNoteId == noteId },
+                    likes = myPosts.likes?.filterNot { post -> post.deletableNoteId == noteId },
+                ),
+            )
         }
     }
 
