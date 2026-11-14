@@ -1,12 +1,17 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.blockedservers
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialogUiState
 
 data class BlockedServersScreenUiState(
     val serverInput: String,
     val serverInputEnabled: Boolean,
     val blockButtonEnabled: Boolean,
     val content: Content,
+    /**
+     * 出していなければ null
+     */
+    val unblockDialog: UnblockDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {

@@ -5,6 +5,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppTheme
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialogUiState
 
 @Preview
 @Composable
@@ -27,6 +28,23 @@ private fun BlockedAccountsContentEmptyDarkPreview() {
     }
 }
 
+@Preview
+@Composable
+private fun BlockedAccountsContentUnblockDialogPreview() {
+    MaterialTheme {
+        BlockedAccountsContent(
+            uiState = previewBlockedAccountsUiState.copy(
+                unblockDialog = UnblockDialogUiState(
+                    message = "@spam@noisy.example のブロックを解除します。このアカウントの投稿・ブースト・通知がまた届くようになります",
+                    buttonsEnabled = true,
+                    listener = AndroidPreviewUnblockDialogListener,
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 private val previewBlockedAccountsUiState = BlockedAccountsScreenUiState(
     content = BlockedAccountsScreenUiState.Content.Loaded(
         accounts = listOf(
@@ -39,6 +57,7 @@ private val previewBlockedAccountsUiState = BlockedAccountsScreenUiState(
         ),
         emptyMessageVisible = false,
     ),
+    unblockDialog = null,
     listener = AndroidPreviewBlockedAccountsListener,
 )
 
@@ -50,4 +69,10 @@ private object AndroidPreviewBlockedAccountsListener : BlockedAccountsScreenUiSt
     override fun onClickBack() = Unit
 
     override fun onClickRetry() = Unit
+}
+
+private object AndroidPreviewUnblockDialogListener : UnblockDialogUiState.Listener {
+    override fun onClickUnblock() = Unit
+
+    override fun onDismiss() = Unit
 }

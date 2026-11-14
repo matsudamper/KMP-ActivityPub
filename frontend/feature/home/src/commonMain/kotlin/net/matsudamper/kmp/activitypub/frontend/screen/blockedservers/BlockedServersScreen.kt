@@ -40,6 +40,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -145,6 +146,10 @@ internal fun BlockedServersContent(
                 ServersContent(content = uiState.content, listener = uiState.listener)
             }
         }
+    }
+    val unblockDialog = uiState.unblockDialog
+    if (unblockDialog != null) {
+        UnblockDialog(uiState = unblockDialog)
     }
 }
 

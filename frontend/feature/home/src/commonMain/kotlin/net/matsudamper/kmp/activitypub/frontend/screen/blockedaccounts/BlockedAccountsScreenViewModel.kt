@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockedAccount
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockedAccountsResult
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialogUiState
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -23,7 +24,7 @@ internal class BlockedAccountsScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 accounts = AccountsState.Loading,
-                unblockingActorUris = setOf(),
+                unblock = UnblockState.None,
             ),
         )
 
@@ -64,16 +65,29 @@ internal class BlockedAccountsScreenViewModel(
         }
     }
 
-    private fun unblock(account: UserBlockedAccount) {
-        if (account.actorUri in viewModelStateFlow.value.unblockingActorUris) return
+    private val unblockDialogListener =
+        object : UnblockDialogUiState.Listener {
+            override fun onClickUnblock() {
+                unblock()
+            }
 
-        viewModelStateFlow.update { it.copy(unblockingActorUris = it.unblockingActorUris + account.actorUri) }
+            override fun onDismiss() {
+                viewModelStateFlow.update { state ->
+                    if (state.unblock is UnblockState.Confirming) state.copy(unblock = UnblockState.None) else state
+                }
+            }
+        }
+
+    private fun unblock() {
+        val account = (viewModelStateFlow.value.unblock as? UnblockState.Confirming)?.account ?: return
+
+        viewModelStateFlow.update { it.copy(unblock = UnblockState.Unblocking(account)) }
         viewModelScope.launch {
             val error =
                 try {
                     api.unblockAccount(account.actorUri)
                 } finally {
-                    viewModelStateFlow.update { it.copy(unblockingActorUris = it.unblockingActorUris - account.actorUri) }
+                    viewModelStateFlow.update { it.copy(unblock = UnblockState.None) }
                 }
             if (error == null) {
                 viewModelStateFlow.update { current ->
@@ -102,10 +116,12 @@ internal class BlockedAccountsScreenViewModel(
                     accounts = accounts.accounts.map { account ->
                         BlockedAccountsScreenUiState.Account(
                             acct = "@${account.acct}",
-                            unblockButtonEnabled = account.actorUri !in viewModelState.unblockingActorUris,
+                            unblockButtonEnabled = viewModelState.unblock == UnblockState.None,
                             listener = object : BlockedAccountsScreenUiState.AccountListener {
                                 override fun onClickUnblock() {
-                                    unblock(account)
+                                    viewModelStateFlow.update { state ->
+                                        if (state.unblock == UnblockState.None) state.copy(unblock = UnblockState.Confirming(account)) else state
+                                    }
                                 }
                             },
                         )
@@ -115,9 +131,20 @@ internal class BlockedAccountsScreenViewModel(
 
                 AccountsState.Failed -> BlockedAccountsScreenUiState.Content.LoadFailed
             },
+            unblockDialog = when (val unblock = viewModelState.unblock) {
+                UnblockState.None -> null
+                is UnblockState.Confirming -> createUnblockDialog(account = unblock.account, buttonsEnabled = true)
+                is UnblockState.Unblocking -> createUnblockDialog(account = unblock.account, buttonsEnabled = false)
+            },
             listener = listener,
         )
     }
+
+    private fun createUnblockDialog(account: UserBlockedAccount, buttonsEnabled: Boolean): UnblockDialogUiState = UnblockDialogUiState(
+        message = "@${account.acct} のブロックを解除します。このアカウントの投稿・ブースト・通知がまた届くようになります",
+        buttonsEnabled = buttonsEnabled,
+        listener = unblockDialogListener,
+    )
 
     internal interface Event {
         fun navigateBack()
@@ -127,8 +154,16 @@ internal class BlockedAccountsScreenViewModel(
 
     private data class ViewModelState(
         val accounts: AccountsState,
-        val unblockingActorUris: Set<String>,
+        val unblock: UnblockState,
     )
+
+    private sealed interface UnblockState {
+        data object None : UnblockState
+
+        data class Confirming(val account: UserBlockedAccount) : UnblockState
+
+        data class Unblocking(val account: UserBlockedAccount) : UnblockState
+    }
 
     private sealed interface AccountsState {
         data object Loading : AccountsState

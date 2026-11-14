@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -127,6 +128,10 @@ internal fun BlockedAccountsContent(
                 }
             }
         }
+    }
+    val unblockDialog = uiState.unblockDialog
+    if (unblockDialog != null) {
+        UnblockDialog(uiState = unblockDialog)
     }
 }
 

@@ -1,9 +1,14 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.blockedaccounts
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialogUiState
 
 data class BlockedAccountsScreenUiState(
     val content: Content,
+    /**
+     * 出していなければ null
+     */
+    val unblockDialog: UnblockDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {
