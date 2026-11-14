@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import org.jooq.Condition
 import org.jooq.DSLContext
@@ -191,7 +192,7 @@ internal class SqliteLikeRepository(
         accountId: AccountId,
         member: String,
         now: Instant,
-        undoBody: (likeId: String, objectUri: String) -> String,
+        undoBody: (likeId: String, objectUri: String, reaction: LikeReaction?) -> String,
     ): Boolean {
         return jooq.transaction { dsl ->
             val remoteNoteId = dsl.likedRemoteNoteIdOf(member) ?: return@transaction false
@@ -203,12 +204,16 @@ internal class SqliteLikeRepository(
                 ?: return@transaction false
             val objectUri = checkNotNull(note.value1())
             val inbox = checkNotNull(note.value2())
-            val likeId = dsl.deleteFrom(REMOTE_NOTE_LIKES)
+            val removed = dsl.deleteFrom(REMOTE_NOTE_LIKES)
                 .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value))
                 .and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.eq(remoteNoteId))
-                .returning(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI)
-                .fetchOne(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI)
+                .returning(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI, REMOTE_NOTE_LIKES.REACTION_EMOJI, REMOTE_NOTE_LIKES.REACTION_CUSTOM_EMOJI_ID)
+                .fetchOne()
                 ?: return@transaction false
+            val likeId = checkNotNull(removed.get(REMOTE_NOTE_LIKES.LIKE_ACTIVITY_URI))
+            val reaction = removed.get(REMOTE_NOTE_LIKES.REACTION_EMOJI)?.let { emoji ->
+                LikeReaction(emoji = emoji, customEmojiId = removed.get(REMOTE_NOTE_LIKES.REACTION_CUSTOM_EMOJI_ID)?.let(::CustomEmojiId))
+            }
             val matchingLike = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)
                 .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_LIKE))
                 .and(DSL.field("json_extract({0}, '$.id')", String::class.java, DELIVERY_QUEUE.BODY).eq(likeId))
@@ -227,7 +232,7 @@ internal class SqliteLikeRepository(
                     .where(matchingLike)
                     .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_DELIVERING))
                     .execute()
-                dsl.enqueue(accountId, inbox, undoBody(likeId, objectUri), StoredInstant.format(now), DeliveryQueueValues.KIND_UNDO_LIKE)
+                dsl.enqueue(accountId, inbox, undoBody(likeId, objectUri, reaction), StoredInstant.format(now), DeliveryQueueValues.KIND_UNDO_LIKE)
             }
             true
         }

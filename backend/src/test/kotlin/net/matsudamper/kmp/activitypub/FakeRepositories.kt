@@ -132,7 +132,7 @@ internal class FakeRepositories : Repositories {
             accountId: AccountId,
             member: String,
             now: Instant,
-            undoBody: (likeId: String, objectUri: String) -> String,
+            undoBody: (likeId: String, objectUri: String, reaction: LikeReaction?) -> String,
         ): Boolean = false
     }
     override val accountBoostRepository: FakeAccountBoostRepository = FakeAccountBoostRepository()
@@ -156,6 +156,7 @@ internal class FakeRepositories : Repositories {
     override val customEmojiRepository: CustomEmojiRepository = object : CustomEmojiRepository {
         override fun add(emoji: NewLocalCustomEmoji): LocalCustomEmoji? = null
         override fun all(): List<LocalCustomEmoji> = listOf()
+        override fun findById(id: CustomEmojiId): LocalCustomEmoji? = null
         override fun findByShortcode(shortcode: String): LocalCustomEmoji? = null
         override fun findByPublicId(publicId: String): LocalCustomEmoji? = null
         override fun delete(id: CustomEmojiId, accountId: AccountId): LocalCustomEmoji? = null

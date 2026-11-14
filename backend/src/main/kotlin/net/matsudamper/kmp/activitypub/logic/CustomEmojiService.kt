@@ -26,6 +26,8 @@ class CustomEmojiService(
 
     fun all(): List<LocalCustomEmoji> = customEmojis.all()
 
+    fun findById(id: CustomEmojiId): LocalCustomEmoji? = customEmojis.findById(id)
+
     /**
      * @param shortcode `:shortcode:` で入る名前。コロンを含めない
      */

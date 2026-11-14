@@ -32,6 +32,10 @@ internal class SqliteCustomEmojiRepository(
         dsl.selectFrom(CUSTOM_EMOJIS).orderBy(CUSTOM_EMOJIS.SHORTCODE).fetch { it.toLocalCustomEmoji() }
     }
 
+    override fun findById(id: CustomEmojiId): LocalCustomEmoji? = jooq.withConnection { dsl ->
+        dsl.selectFrom(CUSTOM_EMOJIS).where(CUSTOM_EMOJIS.ID.eq(id.value)).fetchOne()?.toLocalCustomEmoji()
+    }
+
     override fun findByShortcode(shortcode: String): LocalCustomEmoji? = jooq.withConnection { dsl ->
         dsl.selectFrom(CUSTOM_EMOJIS).where(CUSTOM_EMOJIS.SHORTCODE.eq(shortcode)).fetchOne()?.toLocalCustomEmoji()
     }

@@ -18,6 +18,8 @@ interface CustomEmojiRepository {
      */
     fun all(): List<LocalCustomEmoji>
 
+    fun findById(id: CustomEmojiId): LocalCustomEmoji?
+
     fun findByShortcode(shortcode: String): LocalCustomEmoji?
 
     fun findByPublicId(publicId: String): LocalCustomEmoji?

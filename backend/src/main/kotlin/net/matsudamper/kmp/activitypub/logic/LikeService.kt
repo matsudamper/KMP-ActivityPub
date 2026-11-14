@@ -147,11 +147,24 @@ class LikeService(
     }
 
     /**
+     * 送ったときの絵文字を作り直す。カスタム絵文字が消されていたら画像は付けられないので、名前だけを入れる
+     */
+    private fun reactionEmojiOf(reaction: LikeReaction): ReactionEmoji {
+        val customEmoji = reaction.customEmojiId?.let(customEmojis::findById)
+        return if (customEmoji == null) ReactionEmoji.Unicode(reaction.emoji) else ReactionEmoji.Custom(customEmojiUrls.emojiObjectOf(customEmoji))
+    }
+
+    /**
      * @return 外したら true
      */
     private fun unlikeRemote(accountId: AccountId, senderActorId: String, postId: String): Boolean {
-        return likes.unlikeAndEnqueueUndo(accountId = accountId, member = postId, now = clock.instant()) { likeId, objectUri ->
-            val like = LikeActivities.like(id = likeId, actor = senderActorId, objectUri = objectUri)
+        return likes.unlikeAndEnqueueUndo(accountId = accountId, member = postId, now = clock.instant()) { likeId, objectUri, reaction ->
+            val emoji = reaction?.let(::reactionEmojiOf)
+            val like = if (emoji == null) {
+                LikeActivities.like(id = likeId, actor = senderActorId, objectUri = objectUri)
+            } else {
+                LikeActivities.reaction(id = likeId, actor = senderActorId, objectUri = objectUri, emoji = emoji)
+            }
             val undo = LikeActivities.undo(id = "$senderActorId/undo/${UUID.randomUUID()}", like = like)
             AppJson.encodeToString(OutgoingActivity.serializer(), undo)
         }
