@@ -83,8 +83,8 @@ internal fun Route.customEmojiRoutes(
         }
     }
 
-    get("${CustomEmojiUrls.OBJECT_PATH_PREFIX}/{shortcode}") {
-        val emoji = withOpenTelemetryContext { customEmojiService.findByShortcode(call.parameters["shortcode"].orEmpty()) }
+    get("${CustomEmojiUrls.OBJECT_PATH_PREFIX}/{publicId}") {
+        val emoji = withOpenTelemetryContext { customEmojiService.findByPublicId(call.parameters["publicId"].orEmpty()) }
         if (emoji == null) {
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.NotFound)

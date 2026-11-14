@@ -15,7 +15,8 @@ class CustomEmojiUrls(
     fun imageUrl(publicId: String): String = "https://$domain$IMAGE_PATH_PREFIX/$publicId"
 
     fun emojiObjectOf(emoji: LocalCustomEmoji): EmojiObject = EmojiObject(
-        id = "https://$domain$OBJECT_PATH_PREFIX/${emoji.shortcode}",
+        // 消した後に同じ名前で置き直した絵文字を別のものとして扱わせるため、名前ではなく公開 id で指す
+        id = "https://$domain$OBJECT_PATH_PREFIX/${emoji.publicId}",
         name = ":${emoji.shortcode}:",
         icon = EmojiObject.Icon(url = imageUrl(emoji.publicId), mediaType = emoji.contentType),
     )
