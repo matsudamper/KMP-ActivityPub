@@ -232,6 +232,8 @@ type PostStamp {
     "カスタム絵文字の画像の URL。Unicode の絵文字か、画像を中継できないか、消されたこのサーバーの絵文字なら null"
     imageUrl: String
     count: Int!
+    "このサーバーのカスタム絵文字なら、コロンを含めない shortcode。同じ絵文字で setReaction できる。Unicode の絵文字、他のサーバーの絵文字、消された絵文字では null"
+    customEmojiShortcode: String
 }
 
 "投稿の本文にあるメンション。同じ名前でも別のサーバーの相手がいるので、本文の文字ではなく位置で宛先を決める"

@@ -58,6 +58,7 @@ internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlP
             stamp.localCustomEmojiPublicId?.let { diContainer.customEmojiUrls?.imageUrl(it) }
         },
         count = stamp.count.toInt(),
+        customEmojiShortcode = if (stamp.localCustomEmojiPublicId == null) null else stamp.emoji.removeSurrounding(":"),
     )
 }
 
