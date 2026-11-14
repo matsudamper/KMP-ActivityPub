@@ -31,9 +31,10 @@ data class CustomEmojisScreenUiState(
             val emptyMessageVisible: Boolean,
         ) : Content
 
-        data class Error(
-            val message: String,
-        ) : Content
+        /**
+         * 読めなかった理由は Snackbar で出すので、ここでは読み直す操作だけを出す
+         */
+        data object LoadFailed : Content
     }
 
     /**

@@ -83,7 +83,11 @@ internal class CustomEmojisScreenViewModel(
         loadJob = viewModelScope.launch {
             val emojis = when (val result = api.customEmojis()) {
                 is UserCustomEmojisResult.Success -> EmojisState.Loaded(result.emojis)
-                is UserCustomEmojisResult.Failure -> EmojisState.Failed(result.message)
+
+                is UserCustomEmojisResult.Failure -> {
+                    events.send { it.showMessage(result.message) }
+                    EmojisState.Failed
+                }
             }
             viewModelStateFlow.update { it.copy(emojis = emojis) }
         }
@@ -183,7 +187,7 @@ internal class CustomEmojisScreenViewModel(
             content = when (val emojis = viewModelState.emojis) {
                 EmojisState.Loading -> CustomEmojisScreenUiState.Content.Loading
 
-                is EmojisState.Failed -> CustomEmojisScreenUiState.Content.Error(emojis.message)
+                EmojisState.Failed -> CustomEmojisScreenUiState.Content.LoadFailed
 
                 is EmojisState.Loaded -> CustomEmojisScreenUiState.Content.Loaded(
                     emojis = emojis.emojis.map { emoji ->
@@ -238,7 +242,7 @@ internal class CustomEmojisScreenViewModel(
          */
         data class Loaded(val emojis: List<UserLocalCustomEmoji>) : EmojisState
 
-        data class Failed(val message: String) : EmojisState
+        data object Failed : EmojisState
     }
 
     private companion object {
