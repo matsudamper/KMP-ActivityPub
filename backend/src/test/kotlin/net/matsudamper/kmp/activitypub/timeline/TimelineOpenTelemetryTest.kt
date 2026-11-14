@@ -39,7 +39,7 @@ class TimelineOpenTelemetryTest {
             }
             val store = FakeTimelineStore(repository.events)
             val tracedStore = TracedStore(store, tracer)
-            val service = TimelineService(tracedRepository, FakeRepositories().followingGroupRepository, tracedStore, AccountEvents(tracedRepository), Clock.systemUTC(), telemetry)
+            val service = TimelineService(tracedRepository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, tracedStore, AccountEvents(tracedRepository), Clock.systemUTC(), telemetry)
             val request = tracer.spanBuilder("GraphQL homeTimeline").startSpan()
             request.makeCurrent().use {
                 runBlocking {

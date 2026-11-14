@@ -17,6 +17,7 @@ import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
+import net.matsudamper.kmp.activitypub.logic.ServerBlockService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
@@ -32,6 +33,7 @@ class DiContainer(
     val followingService: FollowingService,
     val followingGroupService: FollowingGroupService,
     val followListService: FollowListService,
+    val serverBlockService: ServerBlockService,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,
     val notePinService: NotePinService,

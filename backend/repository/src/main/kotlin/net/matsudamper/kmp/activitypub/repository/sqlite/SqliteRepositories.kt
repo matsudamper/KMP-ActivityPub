@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
+import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 
@@ -40,6 +41,7 @@ internal class SqliteRepositories(
     override val stampRepository: StampRepository = SqliteStampRepository(jooq)
     override val likeRepository: LikeRepository = SqliteLikeRepository(jooq)
     override val accountBoostRepository: AccountBoostRepository = SqliteAccountBoostRepository(jooq)
+    override val serverBlockRepository: ServerBlockRepository = SqliteServerBlockRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

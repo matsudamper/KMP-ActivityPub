@@ -65,6 +65,11 @@ class UserInfoResolverImpl : UserInfoResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(name).build())
     }
 
+    override fun blockedServers(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<String>>> {
+        val hosts = GraphQlEngine.diContainer(env).serverBlockService.hosts(userInfo.id)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(hosts).build())
+    }
+
     override fun linkPreviews(userInfo: QlUserInfo, postId: LinkPreviewPostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
