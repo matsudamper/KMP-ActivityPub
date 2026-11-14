@@ -136,7 +136,7 @@ internal class UserProfileScreenViewModel(
         override fun onClickBlockAccount() {
             val profile = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile ?: return
             if (profile.actorUri == null) return
-            viewModelStateFlow.update { it.copy(block = BlockState.Confirming(BlockTarget.Account("${profile.username}@${profile.host}"))) }
+            viewModelStateFlow.update { it.copy(block = BlockState.Confirming(BlockTarget.Account(acct = username, displayAcct = "@${profile.username}@${profile.host}"))) }
         }
     }
 
@@ -478,7 +478,7 @@ internal class UserProfileScreenViewModel(
 
         is BlockTarget.Account -> UserProfileScreenUiState.BlockDialog(
             title = "アカウントをブロック",
-            message = "@${target.acct} の投稿・ブースト・通知を表示しなくなります。設定のアカウントブロックから解除できます",
+            message = "${target.displayAcct} の投稿・ブースト・通知を表示しなくなります。設定のアカウントブロックから解除できます",
             buttonsEnabled = buttonsEnabled,
             listener = blockDialogListener,
         )
@@ -730,9 +730,10 @@ internal class UserProfileScreenViewModel(
         data class Server(val host: String) : BlockTarget
 
         /**
-         * @param acct username@host
+         * @param acct プロフィールを開いたときの acct。WebFinger のドメインとアクターのホストが違うことがあるので、ホストから組み立て直さない
+         * @param displayAcct ダイアログに出す `@username@host`
          */
-        data class Account(val acct: String) : BlockTarget
+        data class Account(val acct: String, val displayAcct: String) : BlockTarget
     }
 
     private sealed interface ProfileState {
