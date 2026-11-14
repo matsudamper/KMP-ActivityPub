@@ -55,6 +55,14 @@ class UserInfoResolverImpl : UserInfoResolver {
             DataFetcherResult.Builder<QlTimelinePost?>(post).build()
         }
 
+    override fun replyTarget(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelFuture {
+            val post = diContainer.replyTargetService?.replyTarget(userInfo.id, postId.value)?.let { listOf(it).toQlTimelinePosts(diContainer).single() }
+            DataFetcherResult.Builder<QlTimelinePost?>(post).build()
+        }
+    }
+
     override fun followingGroups(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlFollowingGroup>>> {
         val groups = GraphQlEngine.diContainer(env).followingGroupService.groups(userInfo.id).map { it.toQlFollowingGroup() }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(groups).build())

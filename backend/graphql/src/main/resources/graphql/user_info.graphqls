@@ -13,6 +13,11 @@ type UserInfo {
     linkPreviews(postId: LinkPreviewPostId!): [LinkPreview!]! @lazy
     "タイムラインの投稿を 1 件。id には TimelinePost.id を渡す。読めない投稿なら null"
     timelinePost(id: TimelinePostId!): TimelinePost @lazy
+    """
+    postId の投稿の返信先。postId には TimelinePost.id を渡す。返した投稿の id を渡せば、さらに返信先をたどれる。
+    保存していない他のサーバーの投稿は取ってきて保存するので遅い。返信でないか、返信先を読めないか、サーバーに DOMAIN が無ければ null
+    """
+    replyTarget(postId: TimelinePostId!): TimelinePost @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!

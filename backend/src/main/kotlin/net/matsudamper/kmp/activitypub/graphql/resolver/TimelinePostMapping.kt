@@ -82,6 +82,7 @@ private fun TimelinePost.toQlTimelinePost(
                 },
             )
         },
+        hasReplyTarget = inReplyTo != null,
     )
 }
 

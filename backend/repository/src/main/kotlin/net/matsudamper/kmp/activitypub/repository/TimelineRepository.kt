@@ -50,6 +50,12 @@ interface TimelineRepository {
     fun contentHtml(accountId: AccountId, member: String): String?
 
     /**
+     * [member] の投稿の返信先の id。[hydrate] で読めるものに加えて、公開と、公開タイムラインに載せない公開の他のサーバーの投稿は、フォローしていなくても返す。
+     * 返信でないか、読めなければ null
+     */
+    fun inReplyTo(accountId: AccountId, member: String): String?
+
+    /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す
      *
      * @param before この位置より古いものを返す。null なら最新から
@@ -115,6 +121,7 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
  * @param deleted 投稿者が投稿を消したか。ほかの項目は消される前のまま
  * @param boostUndone ブーストした相手がブーストを取り消したか。ほかの項目は取り消される前のまま
+ * @param inReplyTo 返信先の投稿の id。返信でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の返信先
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -140,6 +147,7 @@ data class TimelinePost(
     val boostedBy: TimelineBooster?,
     val deleted: Boolean,
     val boostUndone: Boolean,
+    val inReplyTo: String?,
 ) {
     /**
      * このサーバーの投稿の公開 id。他のサーバーの投稿は null

@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
+import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
@@ -166,6 +167,13 @@ internal class Federation(
             unsavedNotes = unsavedRemoteNotes,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
+        )
+
+    val replyTargetService: ReplyTargetService =
+        ReplyTargetService(
+            domain = domain,
+            timeline = timelineRepository,
+            unsavedNotes = unsavedRemoteNotes,
         )
 
     val boostService: BoostService =

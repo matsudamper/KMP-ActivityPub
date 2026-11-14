@@ -232,6 +232,36 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         null
     }
 
+    override fun inReplyTo(accountId: AccountId, member: String): String? = jooq.withConnection { dsl ->
+        TimelineMembers.localNoteIdOf(member)?.let { noteId ->
+            return@withConnection dsl.select(NOTES.IN_REPLY_TO).from(NOTES)
+                .where(NOTES.ID.eq(noteId)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
+                .fetchOne(NOTES.IN_REPLY_TO)
+        }
+        TimelineMembers.remoteNoteIdOf(member)?.let { remoteNoteId ->
+            return@withConnection dsl.select(REMOTE_NOTES.IN_REPLY_TO).from(REMOTE_NOTES)
+                .where(REMOTE_NOTES.ID.eq(remoteNoteId))
+                .and(dsl.remoteNoteReadableBy(accountId).or(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)))
+                .fetchOne(REMOTE_NOTES.IN_REPLY_TO)
+        }
+        TimelineMembers.boostIdOf(member)?.let { boostId ->
+            // ブーストされた投稿は公開か、公開タイムラインに載せない公開のものしか記録しないので、ブーストした相手のフォローは問わない
+            return@withConnection dsl.select(REMOTE_NOTES.IN_REPLY_TO).from(REMOTE_BOOSTS)
+                .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
+                .where(REMOTE_BOOSTS.ID.eq(boostId))
+                .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
+                .fetchOne(REMOTE_NOTES.IN_REPLY_TO)
+        }
+        TimelineMembers.accountBoostIdOf(member)?.let { accountBoostId ->
+            return@withConnection dsl.select(DSL.coalesce(NOTES.IN_REPLY_TO, REMOTE_NOTES.IN_REPLY_TO)).from(ACCOUNT_BOOSTS)
+                .leftJoin(NOTES).on(NOTES.ID.eq(ACCOUNT_BOOSTS.NOTE_ID))
+                .leftJoin(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(ACCOUNT_BOOSTS.REMOTE_NOTE_ID))
+                .where(ACCOUNT_BOOSTS.ID.eq(accountBoostId)).and(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))
+                .fetchOne()?.value1()
+        }
+        null
+    }
+
     /**
      * このサーバーの投稿と他のサーバーの投稿を、member の位置のまま組み立てる
      *
@@ -258,6 +288,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             NOTES.PUBLIC_ID,
             DSL.inline(null, String::class.java),
             DSL.inline(null, String::class.java),
+            NOTES.IN_REPLY_TO,
         ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.ID.`in`(localIds)).and(localCondition)
         val remote = dsl.select(
@@ -268,6 +299,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.OBJECT_URI,
             REMOTE_NOTES.VISIBILITY,
             REMOTE_NOTES.DELETED_AT,
+            REMOTE_NOTES.IN_REPLY_TO,
         ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(remoteCondition)
         val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -315,6 +347,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 null,
                 record.value16() != null,
                 false,
+                record.value17(),
             )
         }
     }
@@ -639,7 +672,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE,
             REMOTE_ACTORS.ACTOR_URI, REMOTE_ACTORS.PREFERRED_USERNAME, REMOTE_ACTORS.DISPLAY_NAME, REMOTE_ACTORS.ICON_URL, REMOTE_ACTORS.UPDATED_AT,
             booster.ACTOR_URI, booster.PREFERRED_USERNAME, booster.DISPLAY_NAME, booster.ICON_URL, booster.UPDATED_AT,
-            REMOTE_NOTES.OBJECT_URI, REMOTE_NOTES.VISIBILITY, REMOTE_NOTES.DELETED_AT, REMOTE_BOOSTS.UNDONE_AT,
+            REMOTE_NOTES.OBJECT_URI, REMOTE_NOTES.VISIBILITY, REMOTE_NOTES.DELETED_AT, REMOTE_BOOSTS.UNDONE_AT, REMOTE_NOTES.IN_REPLY_TO,
         ).from(REMOTE_BOOSTS)
             .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
@@ -692,6 +725,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 ),
                 deleted = record.value20() != null,
                 boostUndone = record.value21() != null,
+                inReplyTo = record.value22(),
             )
         }
     }
