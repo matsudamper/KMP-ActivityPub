@@ -46,6 +46,8 @@ private fun ProfileEditContentPreview() {
                         ),
                     ),
                     addLinkButtonEnabled = true,
+                    likesPublic = true,
+                    likesPublicSwitchEnabled = true,
                     saveButtonEnabled = true,
                 ),
                 backButtonEnabled = true,
@@ -92,6 +94,8 @@ private fun ProfileEditContentIconUploadingPreview() {
                     summaryHasError = false,
                     links = listOf(),
                     addLinkButtonEnabled = true,
+                    likesPublic = false,
+                    likesPublicSwitchEnabled = true,
                     saveButtonEnabled = false,
                 ),
                 backButtonEnabled = false,
@@ -124,6 +128,8 @@ private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.List
     override fun onClickAddLink() = Unit
 
     override fun onClickRemoveLink(index: Int) = Unit
+
+    override fun onLikesPublicChanged(likesPublic: Boolean) = Unit
 
     override fun onClickSave() = Unit
 

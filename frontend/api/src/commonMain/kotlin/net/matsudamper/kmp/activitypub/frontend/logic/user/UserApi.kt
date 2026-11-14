@@ -725,6 +725,7 @@ class UserApi(
             iconUrl = profile.iconUrl,
             summary = profile.summary,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
+            likesPublic = profile.likesPublic,
             followingCount = profile.followingCount,
             followersCount = profile.followersCount,
         )
@@ -734,11 +735,13 @@ class UserApi(
      * @param displayName 空なら未設定に戻す
      * @param summary 空なら未設定に戻す
      * @param links 並べる順。名前も URL も空の行はサーバーが捨てる
+     * @param likesPublic いいねした投稿の一覧を公開するか
      */
     suspend fun updateProfile(
         displayName: String,
         summary: String,
         links: List<UserProfileLink>,
+        likesPublic: Boolean,
     ): UserUpdateProfileResult {
         val client = clients.client.value ?: return UserUpdateProfileResult.Failure("接続先が未設定")
         val query =
@@ -746,6 +749,7 @@ class UserApi(
                 displayName = Optional.present(displayName),
                 summary = Optional.present(summary),
                 links = Optional.present(links.map { ProfileLinkInput(name = it.name, url = it.url) }),
+                likesPublic = Optional.present(likesPublic),
             )
         val response = client.mutation(UpdateProfileMutation(query)).execute()
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())

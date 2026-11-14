@@ -87,6 +87,10 @@ internal class ProfileEditScreenViewModel(
                         updateEditing { state -> state.copy(links = state.links.filterIndexed { i, _ -> i != index }) }
                     }
 
+                    override fun onLikesPublicChanged(likesPublic: Boolean) {
+                        updateEditing { it.copy(likesPublic = likesPublic) }
+                    }
+
                     override fun onClickSave() {
                         save()
                     }
@@ -134,6 +138,7 @@ internal class ProfileEditScreenViewModel(
                         displayName = result.displayName.orEmpty(),
                         summary = result.summary.orEmpty(),
                         links = result.links,
+                        likesPublic = result.likesPublic,
                         saving = false,
                         errorField = null,
                     )
@@ -241,7 +246,12 @@ internal class ProfileEditScreenViewModel(
         viewModelScope.launch {
             val error =
                 try {
-                    val result = api.updateProfile(displayName = state.displayName, summary = state.summary, links = state.links)
+                    val result = api.updateProfile(
+                        displayName = state.displayName,
+                        summary = state.summary,
+                        links = state.links,
+                        likesPublic = state.likesPublic,
+                    )
                     when (result) {
                         UserUpdateProfileResult.Success -> null
                         UserUpdateProfileResult.NotLoggedIn -> SaveError(message = "ログインしていません", field = null)
@@ -301,6 +311,8 @@ internal class ProfileEditScreenViewModel(
                         )
                     },
                     addLinkButtonEnabled = viewModelState.saving.not() && viewModelState.links.size < MAX_LINK_COUNT,
+                    likesPublic = viewModelState.likesPublic,
+                    likesPublicSwitchEnabled = viewModelState.saving.not(),
                     saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
                 )
             },
@@ -331,6 +343,7 @@ internal class ProfileEditScreenViewModel(
             val displayName: String,
             val summary: String,
             val links: List<UserProfileLink>,
+            val likesPublic: Boolean,
             val saving: Boolean,
             val errorField: ErrorField?,
         ) : ViewModelState
