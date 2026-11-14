@@ -30,7 +30,7 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             .events(accountId)
             // 接続はログアウトや期限切れの後も残るので、流すたびにセッションを確かめて終える
             .takeWhile { context.userAccountId() == accountId }
-            .filterNot { event -> diContainer.serverBlockService.hides(accountId, event) }
+            .filterNot { event -> diContainer.blockLists.hides(accountId, event) }
             .map { event -> event.toQlAccountEvent(diContainer) }
             .asPublisher(Dispatchers.IO)
     }

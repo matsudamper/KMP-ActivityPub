@@ -40,6 +40,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -146,6 +147,10 @@ internal fun BlockedServersContent(
             }
         }
     }
+    val unblockDialog = uiState.unblockDialog
+    if (unblockDialog != null) {
+        UnblockDialog(uiState = unblockDialog)
+    }
 }
 
 @Composable
@@ -163,16 +168,11 @@ private fun ServersContent(
             }
         }
 
-        is BlockedServersScreenUiState.Content.Error -> {
-            Column(
+        BlockedServersScreenUiState.Content.LoadFailed -> {
+            Box(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = content.message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
                 TextButton(onClick = listener::onClickRetry) {
                     Text("再読み込み")
                 }

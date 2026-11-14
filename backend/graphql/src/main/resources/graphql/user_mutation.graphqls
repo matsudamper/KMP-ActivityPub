@@ -13,6 +13,10 @@ type UserMutation {
     blockServer(server: String!): BlockServerResult! @lazy
     "サーバーのブロックを解除する。host には blockedServers の値を渡す。ブロックしていなくても成功する"
     unblockServer(host: String!): UnblockServerResult! @lazy
+    "他のサーバーのアカウントをブロックする。acct にはプロフィールを開くときと同じ username@host を渡す。相手のサーバーにプロフィールを引きに行くことがある。既にブロックしていても成功する"
+    blockAccount(acct: String!): BlockAccountResult! @lazy
+    "アカウントのブロックを解除する。actorUri には BlockedAccount.actorUri を渡す。ブロックしていなくても成功する"
+    unblockAccount(actorUri: String!): UnblockAccountResult! @lazy
     login(query: UserLoginQuery!): UserLoginResult! @lazy
     passkeyLoginOptions: String! @lazy
     passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
@@ -93,6 +97,29 @@ enum BlockServerFailure {
     NOT_LOGGED_IN
     "ホストを取り出せない"
     INVALID_SERVER
+}
+
+type BlockAccountResult {
+    "ブロックできなければ null"
+    account: BlockedAccount
+    failure: BlockAccountFailure
+}
+
+enum BlockAccountFailure {
+    NOT_LOGGED_IN
+    "アカウントが見つからない"
+    NOT_FOUND
+    "このサーバーのアカウントはブロックできない"
+    LOCAL_ACCOUNT
+}
+
+type UnblockAccountResult {
+    "解除できたら null"
+    failure: UnblockAccountFailure
+}
+
+enum UnblockAccountFailure {
+    NOT_LOGGED_IN
 }
 
 type UnblockServerResult {

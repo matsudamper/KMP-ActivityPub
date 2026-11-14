@@ -4,7 +4,6 @@ import java.time.Clock
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
-import net.matsudamper.kmp.activitypub.timeline.AccountEvent
 
 /**
  * アカウントごとに他のサーバーをブロックする。ブロックしたサーバーのアクターの投稿・ブースト・通知は、読むときに除く
@@ -18,8 +17,6 @@ class ServerBlockService(
      * 新しくブロックした順
      */
     fun hosts(accountId: AccountId): List<String> = serverBlocks.hosts(accountId)
-
-    fun blockedServers(accountId: AccountId): BlockedServers = BlockedServers(serverBlocks.hosts(accountId).toSet())
 
     /**
      * @param server ホスト名か、その中の URL やユーザーのアカウント名
@@ -38,12 +35,6 @@ class ServerBlockService(
         if (accountId == null || accounts.findById(accountId) == null) return UnblockServerResult.NotLoggedIn
         serverBlocks.remove(accountId, host)
         return UnblockServerResult.Unblocked
-    }
-
-    fun hides(accountId: AccountId, event: AccountEvent): Boolean = when (event) {
-        is AccountEvent.PostArrived -> blockedServers(accountId).hides(event.post)
-        is AccountEvent.NotificationArrived -> blockedServers(accountId).hidesActor(event.notification.actor.actorUri)
-        is AccountEvent.PostsDeleted -> false
     }
 }
 

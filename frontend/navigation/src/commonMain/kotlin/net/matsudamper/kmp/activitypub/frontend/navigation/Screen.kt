@@ -92,6 +92,14 @@ sealed interface Screen : NavKey {
     }
 
     @Serializable
+    data object BlockedAccounts : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/settings/blocked-accounts")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Settings
+        override val loginRequired: Boolean get() = true
+    }
+
+    @Serializable
     data object Admin : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/admin")
         override val pathParameters: Map<String, String> get() = mapOf()
@@ -211,6 +219,7 @@ sealed interface Screen : NavKey {
                 Security.pathPattern to { _ -> Security },
                 FollowingGroups.pathPattern to { _ -> FollowingGroups },
                 BlockedServers.pathPattern to { _ -> BlockedServers },
+                BlockedAccounts.pathPattern to { _ -> BlockedAccounts },
                 Admin.pathPattern to { _ -> Admin },
                 ProfileEdit.pathPattern to { _ -> ProfileEdit },
                 Following.pathPattern to { _ -> Following },
