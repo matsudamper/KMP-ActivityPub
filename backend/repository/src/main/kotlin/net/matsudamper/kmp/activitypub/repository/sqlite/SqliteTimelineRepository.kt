@@ -602,6 +602,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
+            .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
             .where(REMOTE_NOTES.ID.eq(id))
             .execute()
         dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
