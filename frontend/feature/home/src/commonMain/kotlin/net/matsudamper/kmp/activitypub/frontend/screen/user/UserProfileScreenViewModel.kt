@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockAccountResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockServerResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
@@ -61,7 +62,7 @@ internal class UserProfileScreenViewModel(
                 blurToggledImageUrls = setOf(),
                 selectedTab = ProfileContentTab.Posts,
                 noteDeletion = NoteDeletionState.None,
-                serverBlock = ServerBlockState.None,
+                block = BlockState.None,
             ),
         )
     private var loadJob: Job? = null
@@ -122,18 +123,24 @@ internal class UserProfileScreenViewModel(
         override fun onClickBlockServer() {
             val profile = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile ?: return
             if (profile.actorUri == null) return
-            viewModelStateFlow.update { it.copy(serverBlock = ServerBlockState.Confirming(profile.host)) }
+            viewModelStateFlow.update { it.copy(block = BlockState.Confirming(BlockTarget.Server(profile.host))) }
+        }
+
+        override fun onClickBlockAccount() {
+            val profile = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile ?: return
+            if (profile.actorUri == null) return
+            viewModelStateFlow.update { it.copy(block = BlockState.Confirming(BlockTarget.Account("${profile.username}@${profile.host}"))) }
         }
     }
 
-    private val blockServerDialogListener = object : UserProfileScreenUiState.BlockServerDialogListener {
+    private val blockDialogListener = object : UserProfileScreenUiState.BlockDialogListener {
         override fun onClickBlock() {
-            blockServer()
+            block()
         }
 
         override fun onDismiss() {
             viewModelStateFlow.update { state ->
-                if (state.serverBlock is ServerBlockState.Confirming) state.copy(serverBlock = ServerBlockState.None) else state
+                if (state.block is BlockState.Confirming) state.copy(block = BlockState.None) else state
             }
         }
     }
@@ -384,41 +391,53 @@ internal class UserProfileScreenViewModel(
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
-            blockServerDialog = when (val serverBlock = viewModelState.serverBlock) {
-                ServerBlockState.None -> null
-
-                is ServerBlockState.Confirming -> UserProfileScreenUiState.BlockServerDialog(
-                    host = serverBlock.host,
-                    buttonsEnabled = true,
-                    listener = blockServerDialogListener,
-                )
-
-                is ServerBlockState.Blocking -> UserProfileScreenUiState.BlockServerDialog(
-                    host = serverBlock.host,
-                    buttonsEnabled = false,
-                    listener = blockServerDialogListener,
-                )
+            blockDialog = when (val block = viewModelState.block) {
+                BlockState.None -> null
+                is BlockState.Confirming -> createBlockDialog(target = block.target, buttonsEnabled = true)
+                is BlockState.Blocking -> createBlockDialog(target = block.target, buttonsEnabled = false)
             },
             openOriginalMenuItemVisible = viewModelState.profile is ProfileState.Loaded,
-            blockServerMenuItemVisible = (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
+            blockMenuItemsVisible = (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
             listener = listener,
         )
     }
 
-    private fun blockServer() {
-        val confirming = viewModelStateFlow.value.serverBlock as? ServerBlockState.Confirming ?: return
-        viewModelStateFlow.update { it.copy(serverBlock = ServerBlockState.Blocking(confirming.host)) }
+    private fun createBlockDialog(target: BlockTarget, buttonsEnabled: Boolean): UserProfileScreenUiState.BlockDialog = when (target) {
+        is BlockTarget.Server -> UserProfileScreenUiState.BlockDialog(
+            title = "サーバーをブロック",
+            message = "${target.host} のユーザーの投稿・ブースト・通知を表示しなくなります。設定のサーバーブロックから解除できます",
+            buttonsEnabled = buttonsEnabled,
+            listener = blockDialogListener,
+        )
+
+        is BlockTarget.Account -> UserProfileScreenUiState.BlockDialog(
+            title = "アカウントをブロック",
+            message = "@${target.acct} の投稿・ブースト・通知を表示しなくなります。設定のアカウントブロックから解除できます",
+            buttonsEnabled = buttonsEnabled,
+            listener = blockDialogListener,
+        )
+    }
+
+    private fun block() {
+        val confirming = viewModelStateFlow.value.block as? BlockState.Confirming ?: return
+        viewModelStateFlow.update { it.copy(block = BlockState.Blocking(confirming.target)) }
         viewModelScope.launch {
-            val result =
+            val message =
                 try {
-                    api.blockServer(confirming.host)
+                    when (val target = confirming.target) {
+                        is BlockTarget.Server -> when (val result = api.blockServer(target.host)) {
+                            is UserBlockServerResult.Blocked -> "${result.host} をブロックしました"
+                            is UserBlockServerResult.Failure -> result.message
+                        }
+
+                        is BlockTarget.Account -> when (val result = api.blockAccount(target.acct)) {
+                            is UserBlockAccountResult.Blocked -> "@${result.account.acct} をブロックしました"
+                            is UserBlockAccountResult.Failure -> result.message
+                        }
+                    }
                 } finally {
-                    viewModelStateFlow.update { it.copy(serverBlock = ServerBlockState.None) }
+                    viewModelStateFlow.update { it.copy(block = BlockState.None) }
                 }
-            val message = when (result) {
-                is UserBlockServerResult.Blocked -> "${result.host} をブロックしました"
-                is UserBlockServerResult.Failure -> result.message
-            }
             events.send { it.showMessage(message) }
         }
     }
@@ -568,15 +587,24 @@ internal class UserProfileScreenViewModel(
         val blurToggledImageUrls: Set<String>,
         val selectedTab: ProfileContentTab,
         val noteDeletion: NoteDeletionState,
-        val serverBlock: ServerBlockState,
+        val block: BlockState,
     )
 
-    private sealed interface ServerBlockState {
-        data object None : ServerBlockState
+    private sealed interface BlockState {
+        data object None : BlockState
 
-        data class Confirming(val host: String) : ServerBlockState
+        data class Confirming(val target: BlockTarget) : BlockState
 
-        data class Blocking(val host: String) : ServerBlockState
+        data class Blocking(val target: BlockTarget) : BlockState
+    }
+
+    private sealed interface BlockTarget {
+        data class Server(val host: String) : BlockTarget
+
+        /**
+         * @param acct username@host
+         */
+        data class Account(val acct: String) : BlockTarget
     }
 
     private sealed interface ProfileState {

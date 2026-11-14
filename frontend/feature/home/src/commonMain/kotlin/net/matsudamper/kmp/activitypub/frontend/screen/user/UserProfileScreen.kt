@@ -144,7 +144,7 @@ internal fun UserProfileContent(
                 )
                 if (uiState.openOriginalMenuItemVisible) {
                     TopBarMenu(
-                        blockServerMenuItemVisible = uiState.blockServerMenuItemVisible,
+                        blockMenuItemsVisible = uiState.blockMenuItemsVisible,
                         listener = uiState.listener,
                     )
                 }
@@ -248,18 +248,18 @@ internal fun UserProfileContent(
     if (addFollowingGroupDialog != null) {
         AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
     }
-    val blockServerDialog = uiState.blockServerDialog
-    if (blockServerDialog != null) {
-        BlockServerDialog(uiState = blockServerDialog)
+    val blockDialog = uiState.blockDialog
+    if (blockDialog != null) {
+        BlockDialog(uiState = blockDialog)
     }
 }
 
 @Composable
-private fun BlockServerDialog(uiState: UserProfileScreenUiState.BlockServerDialog) {
+private fun BlockDialog(uiState: UserProfileScreenUiState.BlockDialog) {
     AlertDialog(
         onDismissRequest = uiState.listener::onDismiss,
-        title = { Text("サーバーをブロック") },
-        text = { Text("${uiState.host} のユーザーの投稿・ブースト・通知を表示しなくなります。設定のサーバーブロックから解除できます") },
+        title = { Text(uiState.title) },
+        text = { Text(uiState.message) },
         confirmButton = {
             TextButton(
                 onClick = uiState.listener::onClickBlock,
@@ -282,7 +282,7 @@ private fun BlockServerDialog(uiState: UserProfileScreenUiState.BlockServerDialo
 
 @Composable
 private fun TopBarMenu(
-    blockServerMenuItemVisible: Boolean,
+    blockMenuItemsVisible: Boolean,
     listener: UserProfileScreenUiState.Listener,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -301,7 +301,15 @@ private fun TopBarMenu(
                     listener.onClickOpenOriginal()
                 },
             )
-            if (blockServerMenuItemVisible) {
+            if (blockMenuItemsVisible) {
+                DropdownMenuItem(
+                    text = { Text("このアカウントをブロック") },
+                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                    onClick = {
+                        expanded = false
+                        listener.onClickBlockAccount()
+                    },
+                )
                 DropdownMenuItem(
                     text = { Text("このサーバーをブロック") },
                     colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),

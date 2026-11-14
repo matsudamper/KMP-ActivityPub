@@ -29,7 +29,9 @@ import com.apollographql.cache.normalized.doNotStore
 import com.apollographql.cache.normalized.fetchPolicy
 import net.matsudamper.kmp.activitypub.frontend.graphql.AccountEventsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.AdminAccessQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.BlockAccountMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.BlockServerMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.BlockedAccountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.BlockedServersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
@@ -51,6 +53,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetPinnedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockAccountMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockServerMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
@@ -62,6 +65,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfilePostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ProfilePostFields
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.BlockAccountFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.BlockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
@@ -70,6 +74,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGrou
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetBoostedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetPinnedFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockAccountFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
@@ -383,6 +388,49 @@ class UserApi(
             null -> null
             UnblockServerFailure.NOT_LOGGED_IN -> "ログインしていません"
             UnblockServerFailure.UNKNOWN__ -> "ブロックを解除できませんでした"
+        }
+    }
+
+    suspend fun blockedAccounts(): UserBlockedAccountsResult {
+        val client = clients.client.value ?: return UserBlockedAccountsResult.Failure("接続先が未設定")
+        val response = client.query(BlockedAccountsQuery()).fetchPolicy(FetchPolicy.NetworkOnly).execute()
+        if (response.exception != null || response.hasErrors()) return UserBlockedAccountsResult.Failure(response.failureMessage())
+        val userInfo = response.data?.userInfo ?: return UserBlockedAccountsResult.Failure("ログインしていません")
+        return UserBlockedAccountsResult.Success(userInfo.blockedAccounts.map { UserBlockedAccount(actorUri = it.actorUri, acct = it.acct) })
+    }
+
+    /**
+     * @param acct プロフィールを開くときと同じ username@host
+     */
+    suspend fun blockAccount(acct: String): UserBlockAccountResult {
+        val client = clients.client.value ?: return UserBlockAccountResult.Failure("接続先が未設定")
+        val response = client.mutation(BlockAccountMutation(acct = acct)).execute()
+        if (response.exception != null || response.hasErrors()) return UserBlockAccountResult.Failure(response.failureMessage())
+        val result = response.data?.user?.blockAccount ?: return UserBlockAccountResult.Failure(response.failureMessage())
+        val account = result.account
+        if (account != null) return UserBlockAccountResult.Blocked(UserBlockedAccount(actorUri = account.actorUri, acct = account.acct))
+        return UserBlockAccountResult.Failure(
+            when (result.failure) {
+                BlockAccountFailure.NOT_LOGGED_IN -> "ログインしていません"
+                BlockAccountFailure.NOT_FOUND -> "アカウントが見つかりませんでした"
+                BlockAccountFailure.LOCAL_ACCOUNT -> "このサーバーのアカウントはブロックできません"
+                BlockAccountFailure.UNKNOWN__, null -> "ブロックできませんでした"
+            },
+        )
+    }
+
+    /**
+     * @return 失敗したときに見せる文言。解除できたら null
+     */
+    suspend fun unblockAccount(actorUri: String): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(UnblockAccountMutation(actorUri = actorUri)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.unblockAccount ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+            UnblockAccountFailure.NOT_LOGGED_IN -> "ログインしていません"
+            UnblockAccountFailure.UNKNOWN__ -> "ブロックを解除できませんでした"
         }
     }
 
