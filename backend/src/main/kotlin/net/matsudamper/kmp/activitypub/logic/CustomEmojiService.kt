@@ -70,16 +70,25 @@ class CustomEmojiService(
                 return UploadCustomEmojiResult.UploadFailed
             }
         }
-        val added = customEmojis.add(
-            NewLocalCustomEmoji(
-                shortcode = shortcode,
-                publicId = UUID.randomUUID().toString(),
-                path = path.value,
-                contentType = format.contentType,
-                uploadedBy = accountId,
-                createdAt = clock.instant(),
-            ),
-        )
+        val added = try {
+            customEmojis.add(
+                NewLocalCustomEmoji(
+                    shortcode = shortcode,
+                    publicId = UUID.randomUUID().toString(),
+                    path = path.value,
+                    contentType = format.contentType,
+                    uploadedBy = accountId,
+                    createdAt = clock.instant(),
+                ),
+            )
+        } catch (e: Exception) {
+            // 記録できなかった画像はどこからも引かれず消す手段も無くなるので、ここで消す
+            val deleteResult = storage.delete(ImageStorage.DeleteRequest(ownerAccountId = accountId, path = path))
+            if (deleteResult is ImageStorage.DeleteResult.Failure) {
+                logger.error("記録できなかったカスタム絵文字の画像を消せなかった: ${path.value}", deleteResult.cause)
+            }
+            throw e
+        }
         if (added == null) {
             // 確かめてから入れるまでの間に同じ名前が入った。置いた画像は使われないので消す
             storage.delete(ImageStorage.DeleteRequest(ownerAccountId = accountId, path = path))
