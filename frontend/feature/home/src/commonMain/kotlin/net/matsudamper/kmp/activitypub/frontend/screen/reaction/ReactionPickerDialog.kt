@@ -23,9 +23,11 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +36,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
@@ -41,7 +45,16 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 internal fun ReactionPickerDialog(dialogUiState: ReactionPickerDialogUiState) {
-    val viewModel = koinViewModel<ReactionPickerViewModel>(key = dialogUiState.requestKey)
+    // 画面のストアに置くと、閉じた後も画面を離れるまで開いた回数だけ残るので、開いている間だけのストアに置く
+    val viewModelStoreOwner = remember(dialogUiState.requestKey) {
+        object : ViewModelStoreOwner {
+            override val viewModelStore: ViewModelStore = ViewModelStore()
+        }
+    }
+    DisposableEffect(viewModelStoreOwner) {
+        onDispose { viewModelStoreOwner.viewModelStore.clear() }
+    }
+    val viewModel = koinViewModel<ReactionPickerViewModel>(viewModelStoreOwner = viewModelStoreOwner)
     val uiState by viewModel.uiStateFlow.collectAsState()
 
     LaunchedEffect(viewModel.eventHandler, dialogUiState.listener) {
