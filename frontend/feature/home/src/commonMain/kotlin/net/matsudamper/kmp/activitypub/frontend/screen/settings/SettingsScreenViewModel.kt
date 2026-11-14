@@ -54,6 +54,12 @@ internal class SettingsScreenViewModel(
                 }
             }
 
+            override fun onClickBlockedServers() {
+                viewModelScope.launch {
+                    events.send { it.navigateToBlockedServers() }
+                }
+            }
+
             override fun onClickAdmin() {
                 viewModelScope.launch {
                     events.send { it.navigateToAdmin() }
@@ -189,6 +195,8 @@ internal class SettingsScreenViewModel(
         fun navigateToSecurity()
 
         fun navigateToFollowingGroups()
+
+        fun navigateToBlockedServers()
 
         fun navigateToAdmin()
 

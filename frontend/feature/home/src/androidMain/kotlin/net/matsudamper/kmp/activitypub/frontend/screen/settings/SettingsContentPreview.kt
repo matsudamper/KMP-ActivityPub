@@ -62,6 +62,8 @@ private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
 
     override fun onClickFollowingGroups() = Unit
 
+    override fun onClickBlockedServers() = Unit
+
     override fun onClickAdmin() = Unit
 
     override fun onClickGitHubRelease() = Unit
