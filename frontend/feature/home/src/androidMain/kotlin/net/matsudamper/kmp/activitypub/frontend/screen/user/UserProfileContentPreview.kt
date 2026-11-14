@@ -119,9 +119,9 @@ private fun UserProfileContentPreview() {
                     ),
                     deleteNoteDialog = null,
                     addFollowingGroupDialog = null,
-                    blockServerDialog = null,
+                    blockDialog = null,
                     openOriginalMenuItemVisible = true,
-                    blockServerMenuItemVisible = true,
+                    blockMenuItemsVisible = true,
                     listener = AndroidPreviewUserProfileListener,
                 ),
                 snackbarHostState = SnackbarHostState(),
@@ -259,9 +259,9 @@ private fun UserProfileContentMediaPreview() {
                 ),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
-                blockServerDialog = null,
+                blockDialog = null,
                 openOriginalMenuItemVisible = true,
-                blockServerMenuItemVisible = true,
+                blockMenuItemsVisible = true,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -314,9 +314,9 @@ private fun UserProfileContentNotFoundPreview() {
                 content = UserProfileScreenUiState.Content.NotFound,
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
-                blockServerDialog = null,
+                blockDialog = null,
                 openOriginalMenuItemVisible = false,
-                blockServerMenuItemVisible = false,
+                blockMenuItemsVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -326,14 +326,15 @@ private fun UserProfileContentNotFoundPreview() {
 
 @Preview
 @Composable
-private fun UserProfileBlockServerDialogPreview() {
+private fun UserProfileBlockDialogPreview() {
     MaterialTheme {
         UserProfileContent(
             uiState = LocalUserUiState.copy(
-                blockServerDialog = UserProfileScreenUiState.BlockServerDialog(
-                    host = "example.social",
+                blockDialog = UserProfileScreenUiState.BlockDialog(
+                    title = "アカウントをブロック",
+                    message = "@alice@example.social の投稿・ブースト・通知を表示しなくなります。設定のアカウントブロックから解除できます",
                     buttonsEnabled = true,
-                    listener = AndroidPreviewBlockServerDialogListener,
+                    listener = AndroidPreviewBlockDialogListener,
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
@@ -341,7 +342,7 @@ private fun UserProfileBlockServerDialogPreview() {
     }
 }
 
-private object AndroidPreviewBlockServerDialogListener : UserProfileScreenUiState.BlockServerDialogListener {
+private object AndroidPreviewBlockDialogListener : UserProfileScreenUiState.BlockDialogListener {
     override fun onClickBlock() = Unit
 
     override fun onDismiss() = Unit
@@ -374,9 +375,9 @@ private val LocalUserUiState = UserProfileScreenUiState(
     content = LocalUserContent,
     deleteNoteDialog = null,
     addFollowingGroupDialog = null,
-    blockServerDialog = null,
+    blockDialog = null,
     openOriginalMenuItemVisible = true,
-    blockServerMenuItemVisible = false,
+    blockMenuItemsVisible = false,
     listener = AndroidPreviewUserProfileListener,
 )
 
@@ -390,6 +391,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickOpenOriginal() = Unit
 
     override fun onClickBlockServer() = Unit
+
+    override fun onClickBlockAccount() = Unit
 
     override fun onScrolledToEnd() = Unit
 

@@ -6,6 +6,7 @@ import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.model.QlBlockedAccount
 import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationPage
@@ -95,6 +96,11 @@ class UserInfoResolverImpl : UserInfoResolver {
     override fun blockedServers(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<String>>> {
         val hosts = GraphQlEngine.diContainer(env).serverBlockService.hosts(userInfo.id)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(hosts).build())
+    }
+
+    override fun blockedAccounts(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlBlockedAccount>>> {
+        val accounts = GraphQlEngine.diContainer(env).actorBlockService.list(userInfo.id).map { it.toQlBlockedAccount() }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(accounts).build())
     }
 
     override fun linkPreviews(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {

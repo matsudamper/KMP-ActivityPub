@@ -11,6 +11,7 @@ import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
 import io.opentelemetry.sdk.trace.SdkTracerProvider
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -19,7 +20,7 @@ import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 
 class TimelineOpenTelemetryTest {
-    private val noServerBlocks = FakeRepositories().serverBlockRepository
+    private val noBlocks = FakeRepositories().let { BlockLists(it.serverBlockRepository, it.actorBlockRepository) }
 
     @Test
     fun rebuiltCachedAndSqlReadsKeepTheRequestParentAndDescribeTheirSource() {
@@ -41,7 +42,7 @@ class TimelineOpenTelemetryTest {
             }
             val store = FakeTimelineStore(repository.events)
             val tracedStore = TracedStore(store, tracer)
-            val service = TimelineService(tracedRepository, FakeRepositories().followingGroupRepository, noServerBlocks, tracedStore, AccountEvents(tracedRepository), Clock.systemUTC(), telemetry)
+            val service = TimelineService(tracedRepository, FakeRepositories().followingGroupRepository, noBlocks, tracedStore, AccountEvents(tracedRepository), Clock.systemUTC(), telemetry)
             val request = tracer.spanBuilder("GraphQL homeTimeline").startSpan()
             request.makeCurrent().use {
                 runBlocking {

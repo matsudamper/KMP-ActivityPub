@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub.logic
 
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
-import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -14,7 +13,7 @@ import net.matsudamper.kmp.activitypub.shared.NotificationId
 class NotificationService(
     private val notifications: NotificationRepository,
     private val timeline: TimelineRepository,
-    private val serverBlocks: ServerBlockRepository,
+    private val blockLists: BlockLists,
 ) {
     /**
      * @param cursor 前回の [NotificationPage.nextCursor]。先頭から読むなら null
@@ -24,8 +23,8 @@ class NotificationService(
         require(cursor == null || after != null) { "cursor が読めない" }
         val pageSize = limit.coerceIn(1, 100)
         val received = notifications.page(accountId, after, pageSize + 1)
-        val blockedServers = BlockedServers(serverBlocks.hosts(accountId).toSet())
-        val selected = received.take(pageSize).filterNot { blockedServers.hidesActor(it.actor.actorUri) }
+        val blockList = blockLists.of(accountId)
+        val selected = received.take(pageSize).filterNot { blockList.hidesActor(it.actor.actorUri) }
         val posts = timeline.hydrate(accountId, selected.map { it.noteMember }.distinct()).associateBy { it.position.member }
         return NotificationPage(
             notifications = selected.mapNotNull { notification -> posts[notification.noteMember]?.let { NotificationWithPost(notification, it) } },

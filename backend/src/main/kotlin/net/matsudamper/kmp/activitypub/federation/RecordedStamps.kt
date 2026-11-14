@@ -7,11 +7,11 @@ import net.matsudamper.kotpub.stamp.StampStore
 
 internal class RecordedStamps(
     private val stampRepository: StampRepository,
-    private val serverBlocks: InboxServerBlocks,
+    private val blocks: InboxBlocks,
 ) : StampStore {
     override fun put(stamp: StampStore.ReceivedStamp): Boolean {
         val notePublicId = PublicNoteId(stamp.notePublicId.value)
-        if (serverBlocks.blocksOnNote(notePublicId, stamp.actor.actorId)) return false
+        if (blocks.blocksOnNote(notePublicId, stamp.actor.actorId)) return false
         return stampRepository.put(
             notePublicId = notePublicId,
             actor = stamp.actor.toRecord(),

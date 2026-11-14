@@ -5,6 +5,8 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.FakeRepositories
+import net.matsudamper.kmp.activitypub.logic.BlockLists
+import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.timeline.AccountEvents
@@ -13,14 +15,18 @@ import net.matsudamper.kotpub.actor.RemoteActorProfile
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
 import net.matsudamper.kotpub.favourite.FavouriteStore
 
-class InboxServerBlocksTest {
+class InboxBlocksTest {
     private val repositories = FakeRepositories()
     private val alice = repositories.accountRepository.add("alice", "hash", "type")
-    private val serverBlocks = InboxServerBlocks(repositories.accountRepository, repositories.noteRepository, repositories.serverBlockRepository)
+    private val inboxBlocks = InboxBlocks(
+        repositories.accountRepository,
+        repositories.noteRepository,
+        BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
+    )
     private val favourites = RecordedFavourites(
         repositories.favouriteRepository,
         ReceivedNotifications(repositories.notificationRepository, AccountEvents(repositories.timelineRepository)),
-        serverBlocks,
+        inboxBlocks,
     )
 
     init {
@@ -45,9 +51,18 @@ class InboxServerBlocksTest {
 
     @Test
     fun blocksOnlyAccountsThatBlockTheActorsServer() {
-        assertTrue(serverBlocks.blocks("alice", "https://blocked.example/users/carol"))
-        assertFalse(serverBlocks.blocks("bob", "https://blocked.example/users/carol"))
-        assertFalse(serverBlocks.blocks("alice", "https://sub.blocked.example/users/carol"))
+        assertTrue(inboxBlocks.blocks("alice", "https://blocked.example/users/carol"))
+        assertFalse(inboxBlocks.blocks("bob", "https://blocked.example/users/carol"))
+        assertFalse(inboxBlocks.blocks("alice", "https://sub.blocked.example/users/carol"))
+    }
+
+    @Test
+    fun blockedActorIsRejectedButOtherActorsOnSameServerAreNot() {
+        repositories.actorBlockRepository.add(alice, BlockedActor("https://other.example/users/dave", "dave@other.example"), Instant.EPOCH)
+        assertFalse(favourites.add(favourite("alice-note", "https://other.example/users/dave")))
+        assertTrue(favourites.add(favourite("alice-note", "https://other.example/users/erin")))
+        assertTrue(inboxBlocks.blocks("alice", "https://other.example/users/dave"))
+        assertFalse(inboxBlocks.blocks("bob", "https://other.example/users/dave"))
     }
 
     private fun favourite(notePublicId: String, actorUri: String): FavouriteStore.ReceivedFavourite =

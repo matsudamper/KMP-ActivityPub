@@ -11,13 +11,13 @@ internal class RecordedBoosts(
     private val boostRepository: BoostRepository,
     private val receivedNotes: ReceivedRemoteNotes,
     private val notifications: ReceivedNotifications,
-    private val serverBlocks: InboxServerBlocks,
+    private val blocks: InboxBlocks,
     private val timeline: TimelineService,
     private val clock: Clock,
 ) : BoostStore {
     override fun add(boost: BoostStore.ReceivedBoost): Boolean {
         val notePublicId = PublicNoteId(boost.notePublicId.value)
-        if (serverBlocks.blocksOnNote(notePublicId, boost.actor.actorId)) return false
+        if (blocks.blocksOnNote(notePublicId, boost.actor.actorId)) return false
         val added = boostRepository.add(
             notePublicId = notePublicId,
             actor = boost.actor.toRecord(),
