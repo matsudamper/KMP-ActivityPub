@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -122,8 +123,13 @@ internal fun ProfileContentPager(
                     selectedTab = tabs.getOrElse(pagerState.currentPage) { tabs.first() },
                     onClickTab = onSelectTab,
                 )
+                val currentGridDragged by state.gridState(tabs.getOrElse(pagerState.currentPage) { tabs.first() })
+                    .interactionSource
+                    .collectIsDraggedAsState()
                 HorizontalPager(
                     state = pagerState,
+                    // 縦に動かしたあと指を止めたまま横へ動かすと、縦のドラッグが横の動きを取らずにページへ渡ってしまう
+                    userScrollEnabled = !currentGridDragged,
                     modifier = Modifier.weight(1f),
                 ) { pageIndex ->
                     val tab = tabs.getOrElse(pageIndex) { tabs.first() }
