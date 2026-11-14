@@ -1,8 +1,8 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
-import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
