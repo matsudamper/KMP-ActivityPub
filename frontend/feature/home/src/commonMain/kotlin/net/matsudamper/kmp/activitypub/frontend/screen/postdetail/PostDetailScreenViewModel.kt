@@ -213,6 +213,8 @@ internal class PostDetailScreenViewModel(
 
     private fun openReactionPicker(post: UserHomeTimelineResult.Post) {
         val body = currentPost(post.reactionPostId)?.body ?: return
+        // 送っている途中の状態を開いたときの状態として持つと、両方失敗したときに送れていない状態へ戻してしまう
+        if (post.reactionPostId in likeChangingPostIds) return
         reactionPickerOpenCount++
         val target = ReactionPickerTarget(
             reactionPostId = post.reactionPostId,

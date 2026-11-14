@@ -992,6 +992,8 @@ internal class HomeScreenViewModel(
      */
     private fun openReactionPicker(postId: String, body: UserPostBody) {
         if (body.likedByMe == null) return
+        // 送っている途中の状態を開いたときの状態として持つと、両方失敗したときに送れていない状態へ戻してしまう
+        if (postId in likeChangingPostIds) return
         reactionPickerOpenCount++
         val target = ReactionPickerTarget(reactionPostId = postId, current = body.likeState(), requestKey = "reaction-picker-$reactionPickerOpenCount")
         viewModelStateFlow.update { it.copy(reactionPicker = target) }
