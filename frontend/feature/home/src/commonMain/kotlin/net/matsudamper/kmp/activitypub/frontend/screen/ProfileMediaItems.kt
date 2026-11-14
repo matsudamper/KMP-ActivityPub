@@ -11,14 +11,9 @@ internal fun createProfileMedia(
     onOpenPost: (postId: String) -> Unit,
 ): List<ProfileMediaUiState> {
     return posts.flatMap { post ->
-        val postId = post.postId
-        val listener = if (postId == null) {
-            null
-        } else {
-            object : ProfileMediaUiState.Listener {
-                override fun onClick() {
-                    onOpenPost(postId)
-                }
+        val listener = object : ProfileMediaUiState.Listener {
+            override fun onClick() {
+                onOpenPost(post.postId)
             }
         }
         post.body.images.map { image ->

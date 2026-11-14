@@ -45,6 +45,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             summary = summary,
             sensitive = sensitive,
             linkUrls = linkUrls,
+            mentions = mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
             images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
             favouriteCount = favouriteCount,
             boostCount = boostCount,
@@ -60,6 +61,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
         pinnableNoteId = pinnableNoteId,
         pinned = pinned,
         followingGroupId = followingGroupId,
+        hasReplyTarget = hasReplyTarget,
     )
 }
 
@@ -111,6 +113,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     summary = body.summary,
     sensitive = body.sensitive,
     linkUrls = body.linkUrls,
+    mentions = body.mentions.map { mention -> TimelinePostFields.Mention(__typename = "PostMention", start = mention.start, end = mention.end, acct = mention.acct) },
     images = body.images.map { image ->
         TimelinePostFields.Image(__typename = "PostImage", url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description)
     },
@@ -127,6 +130,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     boostedByMe = body.boostedByMe,
     reactionPostId = reactionPostId,
     followingGroupId = followingGroupId,
+    hasReplyTarget = hasReplyTarget,
 )
 
 private fun UserHomeTimelineResult.Actor.toFields(): ActorFields = ActorFields(

@@ -17,9 +17,11 @@ import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
+import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
 import net.matsudamper.kmp.activitypub.logic.ServerBlockService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
+import net.matsudamper.kmp.activitypub.logic.ViewablePostService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.timeline.AccountEvents
@@ -36,6 +38,7 @@ class DiContainer(
     val serverBlockService: ServerBlockService,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,
+    val viewablePostService: ViewablePostService,
     val notePinService: NotePinService,
     /**
      * ENABLE_PASSKEY が false なら null
@@ -80,4 +83,8 @@ class DiContainer(
      * DOMAIN が無いと相手のサーバーに取りに行けないので null
      */
     val remoteProfileRefreshService: RemoteProfileRefreshService?,
+    /**
+     * DOMAIN が無いと相手のサーバーに取りに行けないので null
+     */
+    val replyTargetService: ReplyTargetService?,
 )

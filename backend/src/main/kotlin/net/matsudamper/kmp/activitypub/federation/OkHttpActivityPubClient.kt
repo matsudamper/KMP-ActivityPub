@@ -1,9 +1,12 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.net.InetAddress
+import java.net.ProtocolException
 import java.net.Proxy
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
@@ -16,26 +19,30 @@ import net.matsudamper.kotpub.http.PublicAddressDnsResolver
 import net.matsudamper.kotpub.http.ResponseBody
 import okhttp3.Dns
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
+/**
+ * 相手のサーバーとの通信。
+ *
+ * 宛先の URL は相手が決めるので、内側のアドレスへは繋がない。名前は名前解決のときに [PublicAddressDns] で確かめる。
+ * IP アドレスがそのまま書かれた URL は OkHttp が名前を引かずそこを通らないので、送る前に確かめる。
+ * リダイレクトの移り先も同じく確かめるため、リダイレクトは自分で辿る
+ */
 internal class OkHttpActivityPubClient : ActivityPubHttpClient {
-    private val getClient: OkHttpClient =
+    private val client: OkHttpClient =
         OkHttpClient.Builder()
             // プロキシを通すと名前解決がプロキシ側に移り、PublicAddressDnsResolver を通らない
             .proxy(Proxy.NO_PROXY)
             .dns(PublicAddressDns)
-            .connectTimeout(Duration.ofSeconds(10))
-            .readTimeout(Duration.ofSeconds(10))
-            .callTimeout(Duration.ofSeconds(30))
-            .build()
-
-    private val postClient: OkHttpClient =
-        getClient.newBuilder()
             .followRedirects(false)
             .followSslRedirects(false)
+            .connectTimeout(Duration.ofSeconds(10))
+            .readTimeout(Duration.ofSeconds(10))
+            .callTimeout(CALL_TIMEOUT)
             .build()
 
     override suspend fun get(
@@ -44,28 +51,31 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         maxBodyBytes: Int,
         readsBody: (status: Int, finalUrl: String) -> Boolean,
     ): ActivityPubClientResponse {
-        val request = Request.Builder()
+        var request = Request.Builder()
             .url(url)
             .headers(withUserAgent(headers).toHeaders())
             .get()
             .build()
-        return execute(getClient, request) { response ->
-            val finalUrl = response.request.url.toString()
-            val body =
-                if (readsBody(response.code, finalUrl)) {
-                    try {
-                        val source = response.body.source()
-                        source.request(maxBodyBytes + 1L)
-                        ResponseBody.Read(source.buffer.readByteArray(minOf(source.buffer.size, maxBodyBytes + 1L)))
-                    } catch (failure: IOException) {
-                        Span.current().recordException(failure)
-                        ResponseBody.Unreadable(failure)
-                    }
+        // リダイレクトを辿っても期限を延ばさないよう、全体で 1 つの期限を共有する
+        val deadlineNanos = System.nanoTime() + CALL_TIMEOUT.toNanos()
+        repeat(MAX_REDIRECTS + 1) {
+            requirePublicIpAddressHost(request.url)
+            val remainingNanos = deadlineNanos - System.nanoTime()
+            if (remainingNanos <= 0) throw InterruptedIOException("タイムアウトした: $url")
+            val result = execute(request, callTimeoutNanos = remainingNanos) { response ->
+                val redirectRequest = response.redirectRequest()
+                if (redirectRequest != null) {
+                    GetResult.Redirect(redirectRequest)
                 } else {
-                    ResponseBody.NotRead
+                    GetResult.Done(response.toActivityPubClientResponse(maxBodyBytes, readsBody))
                 }
-            ActivityPubClientResponse(status = response.code, finalUrl = finalUrl, body = body)
+            }
+            when (result) {
+                is GetResult.Redirect -> request = result.request
+                is GetResult.Done -> return result.response
+            }
         }
+        throw ProtocolException("リダイレクトが多すぎる: $url")
     }
 
     override suspend fun post(
@@ -79,21 +89,72 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             // Content-Type は署名されたヘッダに入っているので、ここで付け直さない
             .post(body.toRequestBody())
             .build()
-        return execute(postClient, request) { response -> ActivityPubPostResponse(status = response.code) }
+        requirePublicIpAddressHost(request.url)
+        return execute(request, callTimeoutNanos = CALL_TIMEOUT.toNanos()) { response -> ActivityPubPostResponse(status = response.code) }
     }
 
     override fun close() {
-        getClient.dispatcher.executorService.shutdown()
-        getClient.connectionPool.evictAll()
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
     }
 
+    /**
+     * IP アドレスの表記なら、公開アドレスでなければ [net.matsudamper.kotpub.http.NonPublicAddressException] を投げる。
+     * 名前は OkHttp が [PublicAddressDns] で確かめるので、ここで引くと名前解決が Call の期限の外で二重になる
+     */
+    private suspend fun requirePublicIpAddressHost(url: HttpUrl) {
+        if (IP_ADDRESS_HOST.matches(url.host)) {
+            PublicAddressDnsResolver.resolve(url.host)
+        }
+    }
+
+    /**
+     * OkHttp が自分で辿るときと同じく、ホスト・ポート・スキームのどれかが変わるなら Authorization を外す
+     *
+     * @return リダイレクトでないか、移り先が無ければ null
+     */
+    private fun Response.redirectRequest(): Request? {
+        if (!isRedirect) return null
+        val location = header("Location")?.let { request.url.resolve(it) } ?: return null
+        return request.newBuilder()
+            .url(location)
+            .apply { if (!location.isSameOrigin(request.url)) removeHeader("Authorization") }
+            .build()
+    }
+
+    private fun Response.toActivityPubClientResponse(
+        maxBodyBytes: Int,
+        readsBody: (status: Int, finalUrl: String) -> Boolean,
+    ): ActivityPubClientResponse {
+        val finalUrl = request.url.toString()
+        val readBody =
+            if (readsBody(code, finalUrl)) {
+                try {
+                    val source = body.source()
+                    source.request(maxBodyBytes + 1L)
+                    ResponseBody.Read(source.buffer.readByteArray(minOf(source.buffer.size, maxBodyBytes + 1L)))
+                } catch (failure: IOException) {
+                    Span.current().recordException(failure)
+                    ResponseBody.Unreadable(failure)
+                }
+            } else {
+                ResponseBody.NotRead
+            }
+        return ActivityPubClientResponse(status = code, finalUrl = finalUrl, body = readBody)
+    }
+
+    private fun HttpUrl.isSameOrigin(other: HttpUrl): Boolean =
+        host == other.host && port == other.port && scheme == other.scheme
+
     private suspend fun <T> execute(
-        client: OkHttpClient,
         request: Request,
+        callTimeoutNanos: Long,
         block: (Response) -> T,
     ): T = withOpenTelemetryContext {
         runInterruptible {
-            client.newCall(request).execute().use(block)
+            val call = client.newCall(request)
+            call.timeout().timeout(callTimeoutNanos, TimeUnit.NANOSECONDS)
+            call.execute().use(block)
         }
     }
 
@@ -110,7 +171,19 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
                 .map { InetAddress.getByName(it) }
     }
 
+    private sealed interface GetResult {
+        class Redirect(val request: Request) : GetResult
+
+        class Done(val response: ActivityPubClientResponse) : GetResult
+    }
+
     private companion object {
+        // OkHttp が自分で辿るときの上限に合わせる
+        const val MAX_REDIRECTS = 20
+        val CALL_TIMEOUT: Duration = Duration.ofSeconds(30)
+
+        // OkHttp が名前解決を飛ばして IP アドレスとして扱うホストの判定と同じ
+        val IP_ADDRESS_HOST = Regex("""([0-9a-fA-F]*:[0-9a-fA-F:.]*)|([\d.]+)""")
         const val USER_AGENT_HEADER = "User-Agent"
         const val USER_AGENT = "kmp-activitypub"
     }

@@ -37,12 +37,16 @@ fragment ProfilePostFields on ProfilePost {
     publishedAt
     summary
     sensitive
-    linkPreviewId
-    postId
+    id
     deletableNoteId
     pinned
     pinnableNoteId
     linkUrls
+    mentions {
+        start
+        end
+        acct
+    }
     images {
         url
         thumbnailUrl
@@ -59,10 +63,7 @@ fragment ProfilePostFields on ProfilePost {
         imageUrl
         count
     }
-    like {
-        postId
-        likedByMe
-    }
+    likedByMe
     boostedByMe
     reactionPostId
     url

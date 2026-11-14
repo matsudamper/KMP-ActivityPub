@@ -7,12 +7,21 @@ type UserInfo {
     "自分の投稿に届いたお気に入りとブーストを新しい順に返す。after には前回の nextCursor を渡す"
     notifications(after: String, limit: Int!): NotificationPage @lazy
     """
-    投稿の本文にあるリンク先の OGP。postId には TimelinePost.id か ProfilePost.linkPreviewId を渡す。
-    リンク先へ取りに行くので遅い。読めない投稿か、サーバーに DOMAIN が無ければ空
+    投稿の本文にあるリンク先の OGP。postId には TimelinePost.id か ProfilePost.id を渡す。
+    リンク先へ取りに行くので遅い。読めない投稿か、保存していない他のサーバーの投稿か、サーバーに DOMAIN が無ければ空
     """
-    linkPreviews(postId: LinkPreviewPostId!): [LinkPreview!]! @lazy
-    "タイムラインの投稿を 1 件。id には TimelinePost.id を渡す。読めない投稿なら null"
+    linkPreviews(postId: TimelinePostId!): [LinkPreview!]! @lazy
+    """
+    個別投稿画面に出す投稿を 1 件。id には TimelinePost.id か ProfilePost.id を渡す。
+    タイムラインに載る投稿に加えて、プロフィールに並ぶ投稿も開ける。保存していない他のサーバーの投稿は取ってきて保存する。開けない投稿なら null
+    """
     timelinePost(id: TimelinePostId!): TimelinePost @lazy
+    """
+    postId の投稿の返信先。postId には TimelinePost.id を渡す。返した投稿の id を渡せば、さらに返信先をたどれる。
+    保存していない他のサーバーの投稿は、相手のサーバーから取って保存せずに返すので遅い。その id と reactionPostId は保存していない投稿を指し、いいねやブーストを付けたときに保存する。
+    返信でないか、返信先を読めないか、サーバーに DOMAIN が無ければ null。返信先のサーバーが応えなければ、null とエラーを返す
+    """
+    replyTarget(postId: TimelinePostId!): TimelinePost @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!

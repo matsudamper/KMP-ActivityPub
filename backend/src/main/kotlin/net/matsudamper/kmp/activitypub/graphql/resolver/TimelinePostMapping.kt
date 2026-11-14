@@ -56,6 +56,7 @@ private fun TimelinePost.toQlTimelinePost(
         summary = body.summary,
         sensitive = body.sensitive,
         linkUrls = body.linkUrls,
+        mentions = body.mentions,
         images = body.images,
         emojis = emojis.toQlCustomEmojis(diContainer),
         // ブーストとして載せた投稿は他のアカウントの投稿のこともあり、ブーストされた元の投稿を消したり固定したりする場所ではない
@@ -82,6 +83,7 @@ private fun TimelinePost.toQlTimelinePost(
                 },
             )
         },
+        hasReplyTarget = inReplyTo != null,
     )
 }
 

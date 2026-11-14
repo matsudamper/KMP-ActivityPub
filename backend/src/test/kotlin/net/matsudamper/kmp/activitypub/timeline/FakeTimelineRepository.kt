@@ -51,7 +51,10 @@ internal class FakeTimelineRepository : TimelineRepository {
         return sorted().filter { after == null || it.score < after.score || (it.score == after.score && it.member < after.member) }.take(limit)
     }
 
-    override fun contentHtml(accountId: AccountId, member: String): String? = hydrate(accountId, listOf(member)).firstOrNull()?.contentHtml
+    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? =
+        hydrate(viewer, listOf(member)).firstOrNull() ?: (actorPosts + accountBoosts + storedFetchedNotes.values).firstOrNull { it.position.member == member }
+
+    override fun contentHtml(viewer: AccountId, member: String): String? = viewablePost(viewer, member)?.contentHtml
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
         TimelinePost(
@@ -59,7 +62,7 @@ internal class FakeTimelineRepository : TimelineRepository {
             TimelineNoteRef.Local(
                 PublicNoteId(it.member),
             ),
-            null, null, false, false,
+            null, null, false, false, null,
         )
     }
 
@@ -70,7 +73,8 @@ internal class FakeTimelineRepository : TimelineRepository {
 
     override fun localPosition(publicId: String): TimelinePosition? = null
 
-    override fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition> = mapOf()
+    override fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition> =
+        publicIds.associateWith { TimelinePosition(0, "l-${it.value}") }
 
     override fun accountBoosts(booster: AccountId, viewer: AccountId?, before: TimelinePosition?, limit: Int): List<TimelinePost> =
         accountBoosts.filter { before == null || it.position.score < before.score || (it.position.score == before.score && it.position.member < before.member) }

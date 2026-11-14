@@ -58,9 +58,12 @@ internal class PostDetailScreenViewModel(
                 noteDeletion = NoteDeletionState.None,
                 mentionText = "",
                 mentionSending = false,
+                replyTargets = listOf(),
+                replyTargetLoad = ReplyTargetLoad.Waiting,
             ),
         )
     private var loadJob: Job? = null
+    private var replyTargetJob: Job? = null
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -68,10 +71,11 @@ internal class PostDetailScreenViewModel(
     private var linkPreviewRequested = false
 
     /**
-     * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
+     * 返事を待たずに表示を切り替えるので、表示には使わない。続けて押されたときに送り違えないよう、返事までは受け付けない。
+     * 返信先の投稿も押せるので、reactionPostId ごとに持つ
      */
-    private var likeChanging = false
-    private var boostChanging = false
+    private var likeChangingPostIds: Set<String> = setOf()
+    private var boostChangingPostIds: Set<String> = setOf()
 
     /**
      * 続けて押されたときに送り違えないよう、返事までは受け付けない
@@ -103,6 +107,19 @@ internal class PostDetailScreenViewModel(
 
         override fun onClickSend() {
             sendMention()
+        }
+    }
+
+    private val replyTargetLoadingListener = object : PostDetailScreenUiState.ReplyTargetLoader.Loading.Listener {
+        override fun onVisible() {
+            loadNextReplyTarget()
+        }
+    }
+
+    private val replyTargetErrorListener = object : PostDetailScreenUiState.ReplyTargetLoader.Error.Listener {
+        override fun onClickRetry() {
+            viewModelStateFlow.update { it.copy(replyTargetLoad = ReplyTargetLoad.Waiting) }
+            loadNextReplyTarget()
         }
     }
 
@@ -144,8 +161,7 @@ internal class PostDetailScreenViewModel(
         viewModelScope.launch {
             // ほかの画面で変えたブーストもここで反映する
             api.boostChanges.collect { change ->
-                val loaded = viewModelStateFlow.value.post as? PostState.Loaded ?: return@collect
-                if (loaded.post.reactionPostId == change.reactionPostId) updateBoosted(change.boosted)
+                updateBoosted(reactionPostId = change.reactionPostId, boosted = change.boosted)
             }
         }
         load()
@@ -153,7 +169,8 @@ internal class PostDetailScreenViewModel(
 
     private fun load() {
         loadJob?.cancel()
-        viewModelStateFlow.update { it.copy(post = PostState.Loading) }
+        replyTargetJob?.cancel()
+        viewModelStateFlow.update { it.copy(post = PostState.Loading, replyTargets = listOf(), replyTargetLoad = ReplyTargetLoad.Waiting) }
         loadJob = viewModelScope.launch {
             val post =
                 when (val result = api.postDetail(postId = postId)) {
@@ -176,40 +193,83 @@ internal class PostDetailScreenViewModel(
         }
     }
 
-    private fun toggleLike() {
-        val loaded = viewModelStateFlow.value.post as? PostState.Loaded ?: return
-        val liked = loaded.post.body.likedByMe ?: return
-        if (likeChanging) return
-        likeChanging = true
+    private fun toggleLike(post: UserHomeTimelineResult.Post) {
+        val reactionPostId = post.reactionPostId
+        val liked = currentPost(reactionPostId)?.body?.likedByMe ?: return
+        if (reactionPostId in likeChangingPostIds) return
+        likeChangingPostIds = likeChangingPostIds + reactionPostId
         viewModelScope.launch {
             try {
-                updateLiked(!liked)
-                val error = api.setLiked(postId = loaded.post.reactionPostId, liked = !liked)
+                updateLiked(reactionPostId = reactionPostId, liked = !liked)
+                val error = api.setLiked(postId = reactionPostId, liked = !liked)
                 if (error != null) {
-                    updateLiked(liked)
+                    updateLiked(reactionPostId = reactionPostId, liked = liked)
                     events.send { it.showMessage(error) }
                 }
             } finally {
-                likeChanging = false
+                likeChangingPostIds = likeChangingPostIds - reactionPostId
             }
         }
     }
 
-    private fun toggleBoost() {
-        val loaded = viewModelStateFlow.value.post as? PostState.Loaded ?: return
-        val boosted = loaded.post.body.boostedByMe ?: return
-        if (boostChanging) return
-        boostChanging = true
+    private fun toggleBoost(post: UserHomeTimelineResult.Post) {
+        val reactionPostId = post.reactionPostId
+        val boosted = currentPost(reactionPostId)?.body?.boostedByMe ?: return
+        if (reactionPostId in boostChangingPostIds) return
+        boostChangingPostIds = boostChangingPostIds + reactionPostId
         viewModelScope.launch {
             try {
-                updateBoosted(!boosted)
-                val error = api.setBoosted(postId = loaded.post.reactionPostId, boosted = !boosted)
+                updateBoosted(reactionPostId = reactionPostId, boosted = !boosted)
+                val error = api.setBoosted(postId = reactionPostId, boosted = !boosted)
                 if (error != null) {
-                    updateBoosted(boosted)
+                    updateBoosted(reactionPostId = reactionPostId, boosted = boosted)
                     events.send { it.showMessage(error) }
                 }
             } finally {
-                boostChanging = false
+                boostChangingPostIds = boostChangingPostIds - reactionPostId
+            }
+        }
+    }
+
+    /**
+     * 押された後に表示が変わっているかもしれないので、押した時点の投稿ではなく今の投稿を見る
+     */
+    private fun currentPost(reactionPostId: String): UserHomeTimelineResult.Post? {
+        val state = viewModelStateFlow.value
+        val loaded = state.post as? PostState.Loaded
+        return (listOfNotNull(loaded?.post) + state.replyTargets).firstOrNull { it.reactionPostId == reactionPostId }
+    }
+
+    /**
+     * 表示されている一番上の投稿の返信先を取る。取れた投稿も返信なら、また表示されたときに続きを取る
+     */
+    private fun loadNextReplyTarget() {
+        val state = viewModelStateFlow.value
+        if (state.replyTargetLoad != ReplyTargetLoad.Waiting) return
+        val loaded = state.post as? PostState.Loaded ?: return
+        val topPost = state.replyTargets.lastOrNull() ?: loaded.post
+        if (!topPost.hasReplyTarget) return
+        viewModelStateFlow.update { it.copy(replyTargetLoad = ReplyTargetLoad.Loading) }
+        replyTargetJob = viewModelScope.launch {
+            val result = api.replyTarget(postId = topPost.id)
+            viewModelStateFlow.update { current ->
+                when (result) {
+                    is UserPostDetailResult.Found -> {
+                        val shownIds = (listOf(loaded.post) + current.replyTargets).map { it.id }
+                        // 返信先が輪になっていると、たどり続けて終わらない
+                        if (result.post.id in shownIds) {
+                            current.copy(replyTargetLoad = ReplyTargetLoad.Unavailable)
+                        } else {
+                            current.copy(replyTargets = current.replyTargets + result.post, replyTargetLoad = ReplyTargetLoad.Waiting)
+                        }
+                    }
+
+                    UserPostDetailResult.NotFound,
+                    UserPostDetailResult.NotLoggedIn,
+                    -> current.copy(replyTargetLoad = ReplyTargetLoad.Unavailable)
+
+                    is UserPostDetailResult.Failure -> current.copy(replyTargetLoad = ReplyTargetLoad.Failed)
+                }
             }
         }
     }
@@ -242,13 +302,15 @@ internal class PostDetailScreenViewModel(
     private fun sendMention() {
         val state = viewModelStateFlow.value
         if (!state.mentionSendable()) return
+        // 保存していない投稿の id で開いたときは、開いたときに保存した投稿の id でないと返信先を引けない
+        val replyToPostId = (state.post as? PostState.Loaded)?.post?.id ?: return
         val body = state.mentionText
         viewModelStateFlow.update { it.copy(mentionSending = true) }
         viewModelScope.launch {
             val error =
                 try {
                     val result =
-                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = postId)
+                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId)
                     when (result) {
                         // 画像を付けないので置けないことは無い
                         is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"
@@ -317,17 +379,25 @@ internal class PostDetailScreenViewModel(
         }
     }
 
-    private fun updateLiked(liked: Boolean) {
-        viewModelStateFlow.update { state ->
-            val post = state.post as? PostState.Loaded ?: return@update state
-            state.copy(post = PostState.Loaded(post.post.copy(body = post.post.body.withLiked(liked))))
-        }
+    private fun updateLiked(reactionPostId: String, liked: Boolean) {
+        updatePosts(reactionPostId) { post -> post.copy(body = post.body.withLiked(liked)) }
     }
 
-    private fun updateBoosted(boosted: Boolean) {
+    private fun updateBoosted(reactionPostId: String, boosted: Boolean) {
+        updatePosts(reactionPostId) { post -> post.copy(body = post.body.withBoosted(boosted)) }
+    }
+
+    /**
+     * 同じ投稿が返信先と開いている投稿の両方に出ることがあるので、合うものすべてを変える
+     */
+    private fun updatePosts(reactionPostId: String, transform: (UserHomeTimelineResult.Post) -> UserHomeTimelineResult.Post) {
+        val update = { post: UserHomeTimelineResult.Post -> if (post.reactionPostId == reactionPostId) transform(post) else post }
         viewModelStateFlow.update { state ->
-            val post = state.post as? PostState.Loaded ?: return@update state
-            state.copy(post = PostState.Loaded(post.post.copy(body = post.post.body.withBoosted(boosted))))
+            val post = when (val current = state.post) {
+                is PostState.Loaded -> PostState.Loaded(update(current.post))
+                else -> current
+            }
+            state.copy(post = post, replyTargets = state.replyTargets.map(update))
         }
     }
 
@@ -337,11 +407,14 @@ internal class PostDetailScreenViewModel(
         }
     }
 
-    private fun loadLinkPreviews() {
+    /**
+     * 保存していない投稿の id で開いたときは OGP を引けないので、開いたときに保存した投稿の id で引く
+     */
+    private fun loadLinkPreviews(loadedPostId: String) {
         if (linkPreviewRequested) return
         linkPreviewRequested = true
         viewModelScope.launch {
-            when (val result = api.linkPreviews(postId)) {
+            when (val result = api.linkPreviews(loadedPostId)) {
                 is UserLinkPreviewsResult.Success -> {
                     viewModelStateFlow.update { it.copy(linkPreviews = result.previews) }
                 }
@@ -360,6 +433,8 @@ internal class PostDetailScreenViewModel(
                 PostState.Loading -> PostDetailScreenUiState.Content.Loading
 
                 is PostState.Loaded -> PostDetailScreenUiState.Content.Loaded(
+                    replyTargetLoader = createReplyTargetLoader(post.post, viewModelState),
+                    replyTargets = viewModelState.replyTargets.reversed().map { replyTarget -> createReplyTargetItem(replyTarget, viewModelState) },
                     post = createPostItem(post.post, viewModelState),
                     mentionBox = PostDetailScreenUiState.MentionBox(
                         text = viewModelState.mentionText,
@@ -376,6 +451,64 @@ internal class PostDetailScreenViewModel(
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             listener = listener,
+        )
+    }
+
+    private fun createReplyTargetLoader(
+        post: UserHomeTimelineResult.Post,
+        viewModelState: ViewModelState,
+    ): PostDetailScreenUiState.ReplyTargetLoader? {
+        val topPost = viewModelState.replyTargets.lastOrNull() ?: post
+        return when (viewModelState.replyTargetLoad) {
+            ReplyTargetLoad.Waiting,
+            ReplyTargetLoad.Loading,
+            -> if (topPost.hasReplyTarget) PostDetailScreenUiState.ReplyTargetLoader.Loading(replyTargetLoadingListener) else null
+
+            ReplyTargetLoad.Unavailable -> PostDetailScreenUiState.ReplyTargetLoader.Unavailable
+
+            ReplyTargetLoad.Failed -> PostDetailScreenUiState.ReplyTargetLoader.Error(replyTargetErrorListener)
+        }
+    }
+
+    /**
+     * 返信先は読み返すためのものなので、固定や削除は押して開いたその投稿の詳細で行う
+     */
+    private fun createReplyTargetItem(
+        post: UserHomeTimelineResult.Post,
+        viewModelState: ViewModelState,
+    ): PostItemUiState {
+        val host = post.host
+        return createPostItemUiState(
+            pinned = false,
+            deleted = post.deleted,
+            boostUndone = false,
+            actorLabel = null,
+            iconUrl = post.iconUrl,
+            displayName = post.displayName,
+            displayNameEmojis = post.displayNameEmojis,
+            acct = createAcct(post),
+            body = post.body,
+            linkPreviews = listOf(),
+            sensitiveImagesBlurred = true,
+            blurToggledImageUrls = viewModelState.blurToggledImageUrls,
+            authorTapAction = AuthorTapAction.OpenProfile {
+                val username = if (host == null) post.username else "${post.username}@$host"
+                viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
+            },
+            menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url ->
+                viewModelScope.launch { events.send { it.openUrl(url) } }
+            },
+            postTapAction = PostTapAction.OpenPostDetail(postId = post.id) { postId ->
+                viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
+            },
+            onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+            onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
+            onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
+            onToggleLike = { toggleLike(post) },
+            onToggleBoost = { toggleBoost(post) },
+            onVisible = {},
         )
     }
 
@@ -418,14 +551,15 @@ internal class PostDetailScreenViewModel(
                 createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
             onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
-            onToggleLike = { toggleLike() },
-            onToggleBoost = { toggleBoost() },
+            onToggleLike = { toggleLike(post) },
+            onToggleBoost = { toggleBoost(post) },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
-                    loadLinkPreviews()
+                    loadLinkPreviews(post.id)
                 }
             },
         )
@@ -437,6 +571,8 @@ internal class PostDetailScreenViewModel(
         fun showMessage(message: String)
 
         fun navigateToUserProfile(username: String)
+
+        fun navigateToPostDetail(postId: String)
 
         fun openUrl(url: String)
 
@@ -452,8 +588,21 @@ internal class PostDetailScreenViewModel(
         val noteDeletion: NoteDeletionState,
         val mentionText: String,
         val mentionSending: Boolean,
+        /**
+         * 取れた返信先を、開いている投稿に近い順に並べたもの
+         */
+        val replyTargets: List<UserHomeTimelineResult.Post>,
+        val replyTargetLoad: ReplyTargetLoad,
     ) {
         fun mentionSendable(): Boolean = !mentionSending && mentionText.isNotBlank()
+    }
+
+    private enum class ReplyTargetLoad {
+        /** 一番上の投稿が返信なら、表示されたときに取りに行く */
+        Waiting,
+        Loading,
+        Unavailable,
+        Failed,
     }
 
     private sealed interface PostState {

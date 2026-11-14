@@ -11,11 +11,11 @@ scalar PublicNoteId
 "フォローを仕分けるグループの識別子"
 scalar FollowingGroupId
 
-"タイムラインに並ぶ投稿の識別子"
+"""
+投稿の識別子。タイムラインの行のほか、プロフィールに並ぶ投稿も指す。
+保存していない他のサーバーの投稿も、いいねやブーストを付けたり個別投稿画面を開いたりしたときに保存できるよう指せる
+"""
 scalar TimelinePostId
-
-"UserInfo.linkPreviews で OGP を引く投稿の識別子。TimelinePost.id か ProfilePost.linkPreviewId"
-scalar LinkPreviewPostId
 
 "通知の識別子"
 scalar NotificationId

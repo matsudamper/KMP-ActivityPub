@@ -267,25 +267,25 @@ internal class UserProfileScreenViewModel(
     /**
      * @param likedByMe 押す前の状態
      */
-    private fun toggleLike(likePostId: String, likedByMe: Boolean) {
-        if (likePostId in likeChangingPostIds) return
-        likeChangingPostIds = likeChangingPostIds + likePostId
+    private fun toggleLike(reactionPostId: String, likedByMe: Boolean) {
+        if (reactionPostId in likeChangingPostIds) return
+        likeChangingPostIds = likeChangingPostIds + reactionPostId
         viewModelScope.launch {
             try {
-                applyLiked(likePostId = likePostId, liked = !likedByMe)
-                val error = api.setLiked(postId = likePostId, liked = !likedByMe)
+                applyLiked(reactionPostId = reactionPostId, liked = !likedByMe)
+                val error = api.setLiked(postId = reactionPostId, liked = !likedByMe)
                 if (error != null) {
-                    applyLiked(likePostId = likePostId, liked = likedByMe)
+                    applyLiked(reactionPostId = reactionPostId, liked = likedByMe)
                     events.send { it.showMessage(error) }
                 }
             } finally {
-                likeChangingPostIds = likeChangingPostIds - likePostId
+                likeChangingPostIds = likeChangingPostIds - reactionPostId
             }
         }
     }
 
-    private fun applyLiked(likePostId: String, liked: Boolean) {
-        updatePosts { posts -> posts.copy(posts = posts.posts.withLiked(likePostId = likePostId, liked = liked)) }
+    private fun applyLiked(reactionPostId: String, liked: Boolean) {
+        updatePosts { posts -> posts.copy(posts = posts.posts.withLiked(reactionPostId = reactionPostId, liked = liked)) }
     }
 
     /**
@@ -357,19 +357,19 @@ internal class UserProfileScreenViewModel(
         }
     }
 
-    private fun loadLinkPreviews(linkPreviewId: String) {
-        if (linkPreviewId in linkPreviewRequestedIds) return
-        linkPreviewRequestedIds = linkPreviewRequestedIds + linkPreviewId
+    private fun loadLinkPreviews(postId: String) {
+        if (postId in linkPreviewRequestedIds) return
+        linkPreviewRequestedIds = linkPreviewRequestedIds + postId
         viewModelScope.launch {
-            when (val result = api.linkPreviews(linkPreviewId)) {
+            when (val result = api.linkPreviews(postId)) {
                 is UserLinkPreviewsResult.Success -> {
-                    viewModelStateFlow.update { it.copy(linkPreviews = it.linkPreviews + (linkPreviewId to result.previews)) }
+                    viewModelStateFlow.update { it.copy(linkPreviews = it.linkPreviews + (postId to result.previews)) }
                 }
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
                 UserLinkPreviewsResult.NotLoggedIn,
-                -> linkPreviewRequestedIds = linkPreviewRequestedIds - linkPreviewId
+                -> linkPreviewRequestedIds = linkPreviewRequestedIds - postId
             }
         }
     }
@@ -463,8 +463,7 @@ internal class UserProfileScreenViewModel(
             },
             selectedTab = viewModelState.selectedTab,
             posts = posts.posts.map { post ->
-                val linkPreviewId = post.linkPreviewId
-                val previews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty()
+                val previews = viewModelState.linkPreviews[post.postId].orEmpty()
                 val boostedNoteAuthor = post.boostedNoteAuthor
                 createPostItemUiState(
                     pinned = post.pinned,
@@ -508,13 +507,14 @@ internal class UserProfileScreenViewModel(
                         createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                    onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
                     onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
                     onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
                     onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                     onToggleLike = {
-                        val likePostId = post.likePostId
+                        val reactionPostId = post.reactionPostId
                         val likedByMe = post.body.likedByMe
-                        if (likePostId != null && likedByMe != null) toggleLike(likePostId = likePostId, likedByMe = likedByMe)
+                        if (reactionPostId != null && likedByMe != null) toggleLike(reactionPostId = reactionPostId, likedByMe = likedByMe)
                     },
                     onToggleBoost = {
                         val reactionPostId = post.reactionPostId
@@ -522,8 +522,8 @@ internal class UserProfileScreenViewModel(
                         if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                     },
                     onVisible = {
-                        if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
-                            loadLinkPreviews(linkPreviewId)
+                        if (post.body.linkUrls.isNotEmpty()) {
+                            loadLinkPreviews(post.postId)
                         }
                     },
                 )

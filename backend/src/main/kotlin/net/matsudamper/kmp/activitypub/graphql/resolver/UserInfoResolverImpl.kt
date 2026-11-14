@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
+import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
@@ -14,8 +15,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
+import net.matsudamper.kmp.activitypub.logic.ReplyTargetResult
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
-import net.matsudamper.kmp.activitypub.shared.LinkPreviewPostId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
 class UserInfoResolverImpl : UserInfoResolver {
@@ -49,11 +50,37 @@ class UserInfoResolverImpl : UserInfoResolver {
         }
 
     override fun timelinePost(userInfo: QlUserInfo, id: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> =
-        otelSupplyAsync {
+        otelFuture {
             val diContainer = GraphQlEngine.diContainer(env)
-            val post = diContainer.timelineService.post(userInfo.id, id.value)?.let { listOf(it).toQlTimelinePosts(diContainer).single() }
+            val post = diContainer.viewablePostService.post(userInfo.id, id.value)?.let { viewable ->
+                val mapped = listOf(viewable.post).toQlTimelinePosts(diContainer).single()
+                if (viewable.ownedByViewer) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+            }
             DataFetcherResult.Builder<QlTimelinePost?>(post).build()
         }
+
+    override fun replyTarget(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelFuture {
+            when (val result = diContainer.replyTargetService?.replyTarget(userInfo.id, postId.value)) {
+                is ReplyTargetResult.Found -> {
+                    val mapped = listOf(result.post).toQlTimelinePosts(diContainer).single()
+                    val post = if (diContainer.viewablePostService.isOwnedByViewer(userInfo.id, result.post)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+                    DataFetcherResult.Builder<QlTimelinePost?>(post).build()
+                }
+
+                ReplyTargetResult.NotFound,
+                null,
+                -> DataFetcherResult.Builder<QlTimelinePost?>(null).build()
+
+                // 返信先が無いのと区別して、画面が取り直せるようにする
+                ReplyTargetResult.Unavailable ->
+                    DataFetcherResult.Builder<QlTimelinePost?>(null)
+                        .error(GraphqlErrorBuilder.newError(env).message("返信先のサーバーから投稿を取れなかった").build())
+                        .build()
+            }
+        }
+    }
 
     override fun followingGroups(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlFollowingGroup>>> {
         val groups = GraphQlEngine.diContainer(env).followingGroupService.groups(userInfo.id).map { it.toQlFollowingGroup() }
@@ -70,12 +97,11 @@ class UserInfoResolverImpl : UserInfoResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(hosts).build())
     }
 
-    override fun linkPreviews(userInfo: QlUserInfo, postId: LinkPreviewPostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
+    override fun linkPreviews(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
             val linkPreviewService = diContainer.linkPreviewService
-            val contentHtml = diContainer.userProfileService.localNoteContentHtml(postId.value)
-                ?: diContainer.timelineService.contentHtml(userInfo.id, postId.value)
+            val contentHtml = diContainer.viewablePostService.contentHtml(userInfo.id, postId.value)
             val previews =
                 if (linkPreviewService == null || contentHtml == null) {
                     listOf()

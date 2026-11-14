@@ -45,6 +45,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.ReplyTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetBoostedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
@@ -172,7 +173,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id]
+     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.postId]
      */
     suspend fun linkPreviews(postId: String): UserLinkPreviewsResult {
         val client = clients.awaitLoadedClient() ?: return UserLinkPreviewsResult.Failure("接続先が未設定")
@@ -188,7 +189,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id]
+     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.postId]
      */
     suspend fun postDetail(postId: String): UserPostDetailResult {
         val client = clients.awaitLoadedClient() ?: return UserPostDetailResult.Failure("接続先が未設定")
@@ -197,6 +198,22 @@ class UserApi(
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
         val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
         val post = userInfo.timelinePost ?: return UserPostDetailResult.NotFound
+        return UserPostDetailResult.Found(post.timelinePostFields.toPost())
+    }
+
+    /**
+     * 返信先の投稿。返した投稿の [UserHomeTimelineResult.Post.id] を渡せば、さらに返信先をたどれる
+     *
+     * @param postId [UserHomeTimelineResult.Post.id]
+     * @return 返信でないか、返信先を読めなければ [UserPostDetailResult.NotFound]
+     */
+    suspend fun replyTarget(postId: String): UserPostDetailResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostDetailResult.Failure("接続先が未設定")
+        val response = client.query(ReplyTargetQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
+        val post = userInfo.replyTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
@@ -370,7 +387,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.likePostId]
+     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.reactionPostId]
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun setLiked(postId: String, liked: Boolean): String? {
@@ -892,12 +909,10 @@ class UserApi(
 
     private fun ProfilePostFields.toUserProfilePost(): UserProfileResult.Post =
         UserProfileResult.Post(
-            linkPreviewId = linkPreviewId,
-            postId = postId,
+            postId = id,
             deletableNoteId = deletableNoteId,
             pinned = pinned,
             pinnableNoteId = pinnableNoteId,
-            likePostId = like?.postId,
             reactionPostId = reactionPostId,
             body = UserPostBody(
                 content = content,
@@ -905,13 +920,14 @@ class UserApi(
                 summary = summary,
                 sensitive = sensitive,
                 linkUrls = linkUrls,
+                mentions = mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
                 images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
                 favouriteCount = favouriteCount,
                 boostCount = boostCount,
                 stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
                 emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 shareUrl = url,
-                likedByMe = like?.likedByMe,
+                likedByMe = likedByMe,
                 boostedByMe = boostedByMe,
             ),
             boostedNoteAuthor = boostedNoteAuthor?.let { author ->

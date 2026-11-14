@@ -122,6 +122,8 @@ type TimelinePost {
     sensitive: Boolean!
     "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び。取りに行かないので速い"
     linkUrls: [String!]!
+    "本文にあるメンション。本文に出てくる順"
+    mentions: [PostMention!]!
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
     "本文と summary に入るカスタム絵文字。画像を中継できなければ空"
@@ -150,6 +152,8 @@ type TimelinePost {
     boostedBy: Actor
     "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。メインなら null"
     followingGroupId: FollowingGroupId @lazy
+    "返信なら true。ブーストで載った投稿は、ブーストされた元の投稿が返信か。返信先は UserInfo.replyTarget で取る"
+    hasReplyTarget: Boolean!
 }
 
 "投稿者、ブーストした相手、通知を送ってきた相手"
@@ -198,6 +202,16 @@ type PostStamp {
     "カスタム絵文字の画像の URL。Unicode の絵文字か、画像を中継できなければ null"
     imageUrl: String
     count: Int!
+}
+
+"投稿の本文にあるメンション。同じ名前でも別のサーバーの相手がいるので、本文の文字ではなく位置で宛先を決める"
+type PostMention {
+    "content でメンションが始まる位置。UTF-16 の単位で数える"
+    start: Int!
+    "content でメンションが終わる位置。この位置の文字は含まない"
+    end: Int!
+    "UserInfo.profile などに渡す user@host"
+    acct: String!
 }
 
 type PostImage {
