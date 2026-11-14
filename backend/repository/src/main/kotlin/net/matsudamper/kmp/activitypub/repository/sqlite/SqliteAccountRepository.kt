@@ -112,7 +112,7 @@ internal class SqliteAccountRepository(
     override fun findProfileDetail(username: String): AccountProfileDetail? = jooq.withConnection { dsl ->
         val account =
             dsl
-                .select(ACCOUNTS.ID, ACCOUNTS.SUMMARY)
+                .select(ACCOUNTS.ID, ACCOUNTS.SUMMARY, ACCOUNTS.LIKES_PUBLIC)
                 .from(ACCOUNTS)
                 .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
                 .fetchOne()
@@ -130,7 +130,7 @@ internal class SqliteAccountRepository(
                         url = checkNotNull(record.get(ACCOUNT_PROFILE_LINKS.URL)),
                     )
                 }
-        AccountProfileDetail(summary = account.get(ACCOUNTS.SUMMARY), links = links)
+        AccountProfileDetail(summary = account.get(ACCOUNTS.SUMMARY), links = links, likesPublic = account.get(ACCOUNTS.LIKES_PUBLIC) == 1L)
     }
 
     override fun findPublicKeyPem(username: String): String? = jooq.withConnection { dsl ->

@@ -33,6 +33,8 @@ data class ProfileEditScreenUiState(
             val summaryHasError: Boolean,
             val links: List<Link>,
             val addLinkButtonEnabled: Boolean,
+            val likesPublic: Boolean,
+            val likesPublicSwitchEnabled: Boolean,
             val saveButtonEnabled: Boolean,
         ) : Content
     }
@@ -72,6 +74,8 @@ data class ProfileEditScreenUiState(
         fun onClickAddLink()
 
         fun onClickRemoveLink(index: Int)
+
+        fun onLikesPublicChanged(likesPublic: Boolean)
 
         fun onClickSave()
 

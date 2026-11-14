@@ -266,6 +266,8 @@ data class HomeScreenUiState(
             val emptyMessage: String?,
             val media: List<ProfileMediaUiState>,
             val mediaEmptyMessage: String?,
+            val likes: List<PostItemUiState>,
+            val likesEmptyMessage: String?,
         ) : UserPosts
 
         data object LoadFailed : UserPosts

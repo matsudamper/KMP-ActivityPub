@@ -93,7 +93,16 @@ interface TimelineRepository {
      * @return 投稿の id ごとの、保存した投稿。保存できなかった投稿は含まない
      */
     fun storeFetchedNotes(viewer: AccountId, notes: List<RemoteNoteInput>): Map<String, TimelinePost>
+
+    /**
+     * [liker] がいいねした投稿のうち [viewer] が開けるものを、いいねした新しい順に返す。消された投稿は出さない
+     *
+     * @param before この位置より古いいいねを返す。null なら最新から
+     */
+    fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost>
 }
+
+data class LikedTimelinePost(val post: TimelinePost, val position: LikedNotePosition)
 
 data class RemoteNoteReceptionInterest(val followingAccountCount: Long, val localRecipientCount: Long) {
     val shouldReceive: Boolean get() = followingAccountCount > 0 || localRecipientCount > 0

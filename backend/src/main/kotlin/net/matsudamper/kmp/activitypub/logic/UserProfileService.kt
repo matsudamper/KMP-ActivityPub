@@ -589,7 +589,7 @@ data class UserProfile(
 /**
  * プロフィールを開く相手。`@` は外し、ホストが無ければこのサーバーのユーザーとする
  */
-private data class ProfileAcct(
+internal data class ProfileAcct(
     val username: String,
     val host: String,
     val isLocal: Boolean,

@@ -23,6 +23,13 @@ type ProfilePostPage {
     nextCursor: String
 }
 
+type ProfileLikePage {
+    "最初のページはいいねした新しい順。他のサーバーのユーザーは相手が並べた順"
+    posts: [TimelinePost!]!
+    "続きが無ければ null"
+    nextCursor: String
+}
+
 type ProfileLink {
     name: String!
     url: String!

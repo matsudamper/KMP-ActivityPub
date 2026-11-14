@@ -70,7 +70,7 @@ class ProfileUpdateServiceTest {
 
         assertEquals(
             UpdateProfileResult.Updated,
-            service.updateProfile(username = "user1", displayName = null, summary = "1行目\r\n2行目", links = links),
+            service.updateProfile(username = "user1", displayName = null, summary = "1行目\r\n2行目", links = links, likesPublic = null),
         )
 
         val update = deliveryQueueRepository.profileUpdates.single()
@@ -86,8 +86,18 @@ class ProfileUpdateServiceTest {
     }
 
     @Test
+    fun `いいねを公開すると Update の Actor に liked を載せる`() {
+        assertEquals(UpdateProfileResult.Updated, service.updateProfile(username = "user1", displayName = null, summary = null, links = null, likesPublic = true))
+
+        val update = deliveryQueueRepository.profileUpdates.single()
+        assertEquals(ProfileValueChange.Set(true), update.likesPublic)
+        val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
+        assertEquals("https://$DOMAIN/users/user1/liked", actor.getValue("liked").jsonPrimitive.content)
+    }
+
+    @Test
     fun `空の説明文は未設定に戻す`() {
-        assertEquals(UpdateProfileResult.Updated, service.updateProfile(username = "user1", displayName = null, summary = " ", links = null))
+        assertEquals(UpdateProfileResult.Updated, service.updateProfile(username = "user1", displayName = null, summary = " ", links = null, likesPublic = null))
 
         val update = deliveryQueueRepository.profileUpdates.single()
         assertEquals(ProfileValueChange.Set(null), update.summary)
@@ -98,7 +108,7 @@ class ProfileUpdateServiceTest {
     fun `長すぎる説明文は積まない`() {
         assertEquals(
             UpdateProfileResult.SummaryTooLong,
-            service.updateProfile(username = "user1", displayName = null, summary = "あ".repeat(ProfileUpdateService.MAX_SUMMARY_LENGTH + 1), links = null),
+            service.updateProfile(username = "user1", displayName = null, summary = "あ".repeat(ProfileUpdateService.MAX_SUMMARY_LENGTH + 1), links = null, likesPublic = null),
         )
 
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
@@ -108,7 +118,7 @@ class ProfileUpdateServiceTest {
     fun `リンクが多すぎれば積まない`() {
         val links = (0..ProfileUpdateService.MAX_LINK_COUNT).map { ProfileLink(name = "link$it", url = "https://example.com/$it") }
 
-        assertEquals(UpdateProfileResult.TooManyLinks, service.updateProfile(username = "user1", displayName = null, summary = null, links = links))
+        assertEquals(UpdateProfileResult.TooManyLinks, service.updateProfile(username = "user1", displayName = null, summary = null, links = links, likesPublic = null))
 
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
     }
@@ -117,7 +127,7 @@ class ProfileUpdateServiceTest {
     fun `長すぎるリンクは積まない`() {
         val links = listOf(ProfileLink(name = "Blog", url = "https://example.com/" + "a".repeat(ProfileUpdateService.MAX_LINK_PART_LENGTH)))
 
-        assertEquals(UpdateProfileResult.LinkTooLong, service.updateProfile(username = "user1", displayName = null, summary = null, links = links))
+        assertEquals(UpdateProfileResult.LinkTooLong, service.updateProfile(username = "user1", displayName = null, summary = null, links = links, likesPublic = null))
 
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
     }
@@ -131,7 +141,7 @@ class ProfileUpdateServiceTest {
         ).forEach { link ->
             assertEquals(
                 UpdateProfileResult.InvalidLink,
-                service.updateProfile(username = "user1", displayName = null, summary = null, links = listOf(link)),
+                service.updateProfile(username = "user1", displayName = null, summary = null, links = listOf(link), likesPublic = null),
             )
         }
 
@@ -258,7 +268,7 @@ class ProfileUpdateServiceTest {
     private fun ProfileUpdateService.updateDisplayName(
         username: String,
         displayName: String,
-    ): UpdateProfileResult = updateProfile(username = username, displayName = displayName, summary = null, links = null)
+    ): UpdateProfileResult = updateProfile(username = username, displayName = displayName, summary = null, links = null, likesPublic = null)
 
     private fun createService(imageStorage: ImageStorage?): ProfileUpdateService =
         ProfileUpdateService(
@@ -296,7 +306,7 @@ class ProfileUpdateServiceTest {
     }
 
     private object StoredProfiles : StoredActorProfiles {
-        override fun find(username: String): ActorProfile = ActorProfile(displayName = "古い名前", summary = STORED_SUMMARY)
+        override fun find(username: String): ActorProfile = ActorProfile(displayName = "古い名前", summary = STORED_SUMMARY, likedPublic = false)
     }
 
     private companion object {

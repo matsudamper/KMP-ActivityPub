@@ -191,6 +191,13 @@ internal class SqliteDeliveryQueueRepository(
                     is ProfileValueChange.Set -> DSL.value(summary.value)
                 },
             )
+            .set(
+                ACCOUNTS.LIKES_PUBLIC,
+                when (val likesPublic = update.likesPublic) {
+                    ProfileValueChange.Keep -> ACCOUNTS.LIKES_PUBLIC
+                    is ProfileValueChange.Set -> DSL.value(if (likesPublic.value) 1L else 0L)
+                },
+            )
             .set(ACCOUNTS.ICON_PATH, update.newIconPath?.let { DSL.value(it) } ?: ACCOUNTS.ICON_PATH)
             .where(ACCOUNTS.ID.eq(accountId))
             .execute()

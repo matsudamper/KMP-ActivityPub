@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.NotePinService
 import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ServerBlockService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
@@ -182,6 +183,16 @@ class AppDependencies(
         actorBlocks = repositories.actorBlockRepository,
         profiles = userProfileService,
         clock = Clock.systemUTC(),
+    )
+
+    val profileLikesService: ProfileLikesService = ProfileLikesService(
+        accounts = repositories.accountRepository,
+        remoteActors = repositories.remoteActorRepository,
+        timeline = repositories.timelineRepository,
+        remoteProfiles = federation?.remoteUserProfiles,
+        remoteLikes = federation?.remoteLikedCollections,
+        unsavedNotes = federation?.unsavedRemoteNotes,
+        localDomain = checkNotNull(env.domain),
     )
 
     val notePinService: NotePinService = NotePinService(

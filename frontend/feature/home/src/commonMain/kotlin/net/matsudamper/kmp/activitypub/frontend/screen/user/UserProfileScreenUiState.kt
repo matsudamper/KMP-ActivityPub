@@ -38,6 +38,7 @@ data class UserProfileScreenUiState(
          * @param iconUrl プロフィール画像が無ければ null
          * @param headerUrl ヘッダー画像が無ければ null
          * @param followMenu 購読できない相手には出さないので null
+         * @param tabs いいねの一覧を読めた相手だけ「いいね」を並べる
          */
         data class Loaded(
             val acct: String,
@@ -47,12 +48,16 @@ data class UserProfileScreenUiState(
             val biography: String?,
             val links: List<ProfileLinkUiState>,
             val followMenu: FollowMenuUiState?,
+            val tabs: List<ProfileContentTab>,
             val selectedTab: ProfileContentTab,
             val posts: List<PostItemUiState>,
             val postsEmptyMessage: String?,
             val postsFooter: PostsFooter,
             val media: List<ProfileMediaUiState>,
             val mediaEmptyMessage: String?,
+            val likes: List<PostItemUiState>,
+            val likesEmptyMessage: String?,
+            val likesFooter: PostsFooter,
         ) : Content
 
         data object NotFound : Content
@@ -63,7 +68,7 @@ data class UserProfileScreenUiState(
     }
 
     /**
-     * 投稿の一覧の末尾。続きの読み込みの状態を出す
+     * 投稿やいいねの一覧の末尾。続きの読み込みの状態を出す
      */
     sealed interface PostsFooter {
         data object None : PostsFooter

@@ -44,6 +44,7 @@ private fun UserProfileContentPreview() {
                         biography = "Kotlin と写真が好きです。\n日々のことを投稿しています。",
                         links = listOf(),
                         followMenu = previewFollowMenu(destinationName = null),
+                        tabs = listOf(ProfileContentTab.Posts, ProfileContentTab.Media, ProfileContentTab.Likes),
                         selectedTab = ProfileContentTab.Posts,
                         posts = listOf(
                             PostItemUiState(
@@ -112,6 +113,9 @@ private fun UserProfileContentPreview() {
                         postsFooter = UserProfileScreenUiState.PostsFooter.Loading,
                         media = listOf(),
                         mediaEmptyMessage = "表示できるメディアはありません",
+                        likes = listOf(),
+                        likesEmptyMessage = null,
+                        likesFooter = UserProfileScreenUiState.PostsFooter.Loading,
                     ),
                     deleteNoteDialog = null,
                     addFollowingGroupDialog = null,
@@ -123,6 +127,72 @@ private fun UserProfileContentPreview() {
                 snackbarHostState = SnackbarHostState(),
             )
         }
+    }
+}
+
+/**
+ * いいねを公開しているユーザーの「いいね」のタブ。並ぶのは他の人の投稿
+ */
+@Preview
+@Composable
+private fun UserProfileContentLikesPreview() {
+    MaterialTheme {
+        UserProfileContent(
+            uiState = LocalUserUiState.copy(
+                content = LocalUserContent.copy(
+                    selectedTab = ProfileContentTab.Likes,
+                    likes = listOf(
+                        PostItemUiState(
+                            pinnedLabelVisible = false,
+                            deletedLabelVisible = false,
+                            actorLabel = null,
+                            iconUrl = null,
+                            displayName = createTextWithEmojis(text = "Carol", emojis = listOf()),
+                            acct = "@carol@remote.example",
+                            body = createPostBodyText(content = "いいねした他のサーバーの投稿です", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+                            postedAt = "2026-11-02T09:00:00Z",
+                            fullPostedAt = "2026/11/02 18:00",
+                            linkPreviews = listOf(),
+                            images = listOf(),
+                            favouriteCountText = null,
+                            boostCountText = null,
+                            favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
+                            boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+                            stamps = listOf(),
+                            authorListener = null,
+                            menuItems = listOf(),
+                            postListener = null,
+                            shareListener = null,
+                            listener = AndroidPreviewPostItemListener,
+                        ),
+                        PostItemUiState(
+                            pinnedLabelVisible = false,
+                            deletedLabelVisible = false,
+                            actorLabel = null,
+                            iconUrl = null,
+                            displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
+                            acct = "@alice",
+                            body = createPostBodyText(content = "このサーバーの人の投稿にもいいねしています", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+                            postedAt = "2026-11-01T12:00:00Z",
+                            fullPostedAt = "2026/11/01 21:00",
+                            linkPreviews = listOf(),
+                            images = listOf(),
+                            favouriteCountText = "3",
+                            boostCountText = null,
+                            favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
+                            boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+                            stamps = listOf(),
+                            authorListener = null,
+                            menuItems = listOf(),
+                            postListener = null,
+                            shareListener = null,
+                            listener = AndroidPreviewPostItemListener,
+                        ),
+                    ),
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
     }
 }
 
@@ -169,6 +239,7 @@ private fun UserProfileContentMediaPreview() {
                     biography = null,
                     links = listOf(),
                     followMenu = previewFollowMenu(destinationName = null),
+                    tabs = listOf(ProfileContentTab.Posts, ProfileContentTab.Media),
                     selectedTab = ProfileContentTab.Media,
                     posts = listOf(),
                     postsEmptyMessage = "表示できる投稿はありません",
@@ -182,6 +253,9 @@ private fun UserProfileContentMediaPreview() {
                         )
                     },
                     mediaEmptyMessage = null,
+                    likes = listOf(),
+                    likesEmptyMessage = null,
+                    likesFooter = UserProfileScreenUiState.PostsFooter.None,
                 ),
                 deleteNoteDialog = null,
                 addFollowingGroupDialog = null,
@@ -285,12 +359,16 @@ private val LocalUserContent = UserProfileScreenUiState.Content.Loaded(
         ProfileLinkUiState(name = "Blog", url = "https://blog.example/bob/very/long/path/to/the/article", listener = AndroidPreviewProfileLinkListener),
     ),
     followMenu = null,
+    tabs = listOf(ProfileContentTab.Posts, ProfileContentTab.Media, ProfileContentTab.Likes),
     selectedTab = ProfileContentTab.Posts,
     posts = listOf(),
     postsEmptyMessage = "表示できる投稿はありません",
     postsFooter = UserProfileScreenUiState.PostsFooter.None,
     media = listOf(),
     mediaEmptyMessage = "表示できるメディアはありません",
+    likes = listOf(),
+    likesEmptyMessage = null,
+    likesFooter = UserProfileScreenUiState.PostsFooter.None,
 )
 
 private val LocalUserUiState = UserProfileScreenUiState(

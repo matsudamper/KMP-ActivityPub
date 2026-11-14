@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -28,6 +29,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -216,6 +219,13 @@ private fun LoadedContent(
                 Text("リンクを追加")
             }
         }
+        Section(title = "いいね") {
+            LikesPublicRow(
+                checked = content.likesPublic,
+                enabled = content.likesPublicSwitchEnabled,
+                onCheckedChange = listener::onLikesPublicChanged,
+            )
+        }
         Button(
             onClick = listener::onClickSave,
             enabled = content.saveButtonEnabled,
@@ -241,6 +251,27 @@ private fun Section(
             color = MaterialTheme.colorScheme.primary,
         )
         content()
+    }
+}
+
+@Composable
+private fun LikesPublicRow(
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = "いいねした投稿を公開する", style = MaterialTheme.typography.bodyLarge)
+            SupportingText(text = "プロフィールに「いいね」が出て、他のサーバーからも見られるようになります。公開の投稿へのいいねだけが他のサーバーに見えます")
+        }
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

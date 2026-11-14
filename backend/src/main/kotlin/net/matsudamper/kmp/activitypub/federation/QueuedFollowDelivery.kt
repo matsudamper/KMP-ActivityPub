@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.telemetry.inOpenTelemetrySuspendSpan
 import net.matsudamper.kotpub.activity.FollowActivities
 import net.matsudamper.kotpub.activity.OutgoingActivity
 import net.matsudamper.kotpub.actor.ActorDirectory
+import net.matsudamper.kotpub.actor.RemoteActorLookup
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.json.AppJson
 import org.slf4j.LoggerFactory
@@ -53,7 +54,10 @@ internal class QueuedFollowDelivery(
         val account = checkNotNull(accounts.account(accountId))
         val sender = checkNotNull(directory.resolve(account.username))
         if (followed) {
-            val remote = checkNotNull(actors.findActor(actorUri)) { "相手の inbox を取得できない" }
+            val remote = when (val lookup = actors.findActor(actorUri)) {
+                is RemoteActorLookup.Found -> lookup.actor
+                RemoteActorLookup.Gone, is RemoteActorLookup.Unavailable -> error("相手の inbox を取得できない: $lookup")
+            }
             span.setAttribute(FollowingSpan.ACTOR_ID, remote.actorId)
             span.setAttribute(FollowingSpan.ACTOR_ID_DIFFERS, actorUri != remote.actorId)
             storedActors.save(remote.toRecord(), clock.instant())

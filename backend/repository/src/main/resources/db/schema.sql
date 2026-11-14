@@ -9,7 +9,9 @@ CREATE TABLE accounts (
     icon_path TEXT,
     last_active_at TEXT,
     -- プロフィールの説明文。プレーンテキスト。未設定なら NULL
-    summary TEXT
+    summary TEXT,
+    -- いいねした投稿の一覧を公開するなら 1
+    likes_public INTEGER NOT NULL DEFAULT 0
 );
 
 -- プロフィールのリンク集。position の小さい順に並べる

@@ -26,6 +26,7 @@ import coil3.size.Precision
 enum class ProfileContentTab {
     Posts,
     Media,
+    Likes,
 }
 
 /**
@@ -50,14 +51,15 @@ internal val ProfileGridCells: GridCells = GridCells.Adaptive(minSize = 120.dp)
 
 @Composable
 internal fun ProfileContentTabRow(
+    tabs: List<ProfileContentTab>,
     selectedTab: ProfileContentTab,
     onClickTab: (ProfileContentTab) -> Unit,
 ) {
     PrimaryTabRow(
-        selectedTabIndex = selectedTab.ordinal,
+        selectedTabIndex = tabs.indexOf(selectedTab).coerceAtLeast(0),
         containerColor = MaterialTheme.colorScheme.background,
     ) {
-        ProfileContentTab.entries.forEach { tab ->
+        tabs.forEach { tab ->
             Tab(
                 selected = tab == selectedTab,
                 onClick = { onClickTab(tab) },
@@ -66,6 +68,7 @@ internal fun ProfileContentTabRow(
                         text = when (tab) {
                             ProfileContentTab.Posts -> "投稿"
                             ProfileContentTab.Media -> "メディア"
+                            ProfileContentTab.Likes -> "いいね"
                         },
                     )
                 },

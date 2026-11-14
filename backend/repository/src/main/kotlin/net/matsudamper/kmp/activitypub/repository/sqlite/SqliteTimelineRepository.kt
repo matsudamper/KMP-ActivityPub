@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.net.URI
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
+import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
@@ -394,6 +396,24 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 remoteCondition = dsl.remoteNoteViewableBy(viewer),
             )
         }
+    }
+
+    override fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost> = jooq.withConnection { dsl ->
+        val likes = dsl.likedMembers(
+            liker = DSL.value(liker.value),
+            remoteCondition = REMOTE_NOTES.DELETED_AT.isNull.and(dsl.remoteNoteViewableBy(viewer)),
+            before = before,
+            limit = limit,
+        )
+        val posts = hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = likes.mapNotNull { TimelineMembers.localNoteIdOf(it.member) },
+            remoteIds = likes.mapNotNull { TimelineMembers.remoteNoteIdOf(it.member) },
+            localCondition = DSL.noCondition(),
+            remoteCondition = DSL.noCondition(),
+        ).associateBy { it.position.member }
+        likes.mapNotNull { like -> posts[like.member]?.let { LikedTimelinePost(post = it, position = like) } }
     }
 
     override fun accountBoosts(booster: AccountId, viewer: AccountId?, before: TimelinePosition?, limit: Int): List<TimelinePost> = jooq.withConnection { dsl ->
