@@ -29,6 +29,8 @@ class ProfileLikesServiceTest {
             repositories.timelineRepository.storedFetchedNotes[objectUri] = remotePost(objectUri, "r${imported.size + 10}")
             return "r${imported.size + 10}"
         }
+
+        override suspend fun fetch(objectUri: String): RemoteNoteFetchResult = RemoteNoteFetchResult.NotFound
     }
     private val service = ProfileLikesService(
         accounts = repositories.accountRepository,
@@ -132,5 +134,6 @@ class ProfileLikesServiceTest {
             emojis = listOf(),
             deleted = false,
             boostUndone = false,
+            inReplyTo = null,
         )
 }
