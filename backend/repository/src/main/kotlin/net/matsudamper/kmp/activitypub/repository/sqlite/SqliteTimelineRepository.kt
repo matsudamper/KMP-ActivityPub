@@ -210,16 +210,10 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .fetchOne(REMOTE_NOTES.CONTENT_HTML)
         }
         TimelineMembers.boostIdOf(member)?.let { boostId ->
-            val booster = REMOTE_ACTORS.`as`("booster")
             return@withConnection dsl.select(REMOTE_NOTES.CONTENT_HTML).from(REMOTE_BOOSTS)
                 .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
-                .join(booster).on(booster.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
                 .where(REMOTE_BOOSTS.ID.eq(boostId))
-                .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
-                .andExists(
-                    dsl.selectOne().from(ACCOUNT_FOLLOWING)
-                        .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(booster.ACTOR_URI)),
-                )
+                .and(remoteBoostReadable())
                 .fetchOne(REMOTE_NOTES.CONTENT_HTML)
         }
         TimelineMembers.accountBoostIdOf(member)?.let { accountBoostId ->
@@ -413,7 +407,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID)).and(REMOTE_NOTES.DELETED_AT.isNotNull),
                 )
                 // hydrate で外れるブーストを件数に数えると、limit に届かずに返り、呼び出し側が続きは無いと読んで古い投稿を飛ばす。
-                // boostedPosts と同じく、ブーストした相手をフォローしていて、公開している投稿のブーストに限る
+                // プロフィールに出すのは、ブーストした相手をフォローしていて、boostedPosts で読める公開している投稿のブーストに限る
                 .andExists(
                     dsl.selectOne().from(ACCOUNT_FOLLOWING).where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)),
                 )
@@ -645,11 +639,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .join(booster).on(booster.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID))
             .where(REMOTE_BOOSTS.ID.`in`(boostIds))
-            .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
-            .andExists(
-                dsl.selectOne().from(ACCOUNT_FOLLOWING)
-                    .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(booster.ACTOR_URI)),
-            )
+            .and(remoteBoostReadable())
             .fetch()
         val likedNoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
             .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(rows.map { checkNotNull(it.value3()) }))

@@ -135,7 +135,7 @@ class LikeRepositoryTest {
     }
 
     @Test
-    fun boostedPostIsLikedAsTheBoostedNoteOnlyWhileTheBoosterIsFollowed() = withRepository { repositories, alice, bob ->
+    fun boostedPostIsLikedAsTheBoostedNoteEvenWithoutFollowingTheBooster() = withRepository { repositories, alice, bob ->
         repositories.remoteActorRepository.save(
             RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
             NOW,
@@ -155,7 +155,7 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
 
         assertEquals(LikeTarget.Remote(objectUri = "$ACTOR/notes/boosted", inbox = "$ACTOR/inbox"), likes.target(alice, boostMember))
-        assertNull(likes.target(bob, boostMember))
+        assertEquals(LikeTarget.Remote(objectUri = "$ACTOR/notes/boosted", inbox = "$ACTOR/inbox"), likes.target(bob, boostMember))
         assertTrue(likes.likeAndEnqueue(like(alice, boostMember, "like-1")))
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
         assertEquals(listOf(likeBody("like-1")), repositories.deliveryQueueRepository.claim(NOW, 10).map { it.body })
