@@ -25,7 +25,10 @@ import net.matsudamper.kotpub.actor.ActorUrls
 import net.matsudamper.kotpub.collection.COLLECTION_CURSOR_PARAM
 import net.matsudamper.kotpub.http.EndpointResponse
 import net.matsudamper.kotpub.http.RequestHeaders
+import net.matsudamper.kotpub.inbox.InboxHandling
+import net.matsudamper.kotpub.inbox.InboxResult
 import net.matsudamper.kotpub.inbox.IncomingInboxRequest
+import org.slf4j.LoggerFactory
 
 internal fun Route.federationRoutes(federation: Federation) {
     get("/.well-known/webfinger") {
@@ -113,13 +116,15 @@ internal fun Route.federationRoutes(federation: Federation) {
             withOpenTelemetryContext {
                 federation.inboxEndpoint.receiveForAccount(username = call.parameters["username"], request = request)
             }
-        call.respondEndpoint(response)
+        logInboxResult(response.result)
+        call.respondEndpoint(response.response)
     }
 
     post(ActorUrls.SHARED_INBOX_PATH) {
         val request = call.toIncomingInboxRequest()
         val response = withOpenTelemetryContext { federation.inboxEndpoint.receiveShared(request) }
-        call.respondEndpoint(response)
+        logInboxResult(response.result)
+        call.respondEndpoint(response.response)
     }
 }
 
@@ -156,6 +161,30 @@ private fun ApplicationCall.toIncomingInboxRequest(): IncomingInboxRequest =
         headers = RequestHeaders.of(request.headers.entries().associate { (name, values) -> name to values }),
         readBody = { maxBytes -> receiveChannel().readRemaining(maxBytes + 1L).readByteArray() },
     )
+
+private val inboxLogger = LoggerFactory.getLogger("net.matsudamper.kmp.activitypub.federation.Inbox")
+
+/**
+ * kotpub は受け付けなかった理由をログに残さずに結果で返すので、こちらで残す
+ *
+ * @param result 宛先のアカウントが無いなど、処理まで進まなかったときは null
+ */
+private fun logInboxResult(result: InboxResult?) {
+    when (result) {
+        null -> Unit
+
+        is InboxResult.Accepted -> {
+            val handling = result.handling
+            if (handling is InboxHandling.Ignored) inboxLogger.info("inbox で受け付けなかった: ${handling.reason}")
+        }
+
+        is InboxResult.Unauthorized -> inboxLogger.warn("inbox の署名を拒否した: ${result.reason}")
+
+        is InboxResult.BadRequest -> inboxLogger.warn("inbox のボディを読めなかった: ${result.reason}")
+
+        is InboxResult.TemporarilyUnavailable -> inboxLogger.warn("inbox を処理できなかったので送り直してもらう", result.cause)
+    }
+}
 
 private suspend fun ApplicationCall.respondEndpoint(response: EndpointResponse) {
     response.headers.forEach { (name, value) -> this.response.header(name, value) }

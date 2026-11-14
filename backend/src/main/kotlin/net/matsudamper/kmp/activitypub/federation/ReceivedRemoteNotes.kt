@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.telemetry.inOpenTelemetrySuspendSpan
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineSpan
 import net.matsudamper.kotpub.actor.ActorDirectory
+import net.matsudamper.kotpub.actor.RemoteActorLookup
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.boost.BoostStore.ReceivedRemoteBoost
 import net.matsudamper.kotpub.note.ReceivedNote
@@ -105,7 +106,10 @@ internal class ReceivedRemoteNotes(
      */
     private suspend fun storeActorIfMissing(actorUri: String, now: Instant): String? {
         if (storedActors.findByUri(actorUri) != null) return null
-        val actor = actors.findActor(actorUri) ?: return "actor_not_found"
+        val actor = when (val lookup = actors.findActor(actorUri)) {
+            is RemoteActorLookup.Found -> lookup.actor
+            RemoteActorLookup.Gone, is RemoteActorLookup.Unavailable -> return "actor_not_found"
+        }
         if (actor.actorId != actorUri) return "actor_id_mismatch"
         storedActors.save(actor.toRecord(), now)
         return null

@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kotpub.actor.RemoteActor
+import net.matsudamper.kotpub.actor.RemoteActorLookup
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.webfinger.WebFingerLookup
 import net.matsudamper.kotpub.webfinger.WebFingerResult
@@ -37,12 +38,12 @@ internal class KotpubRemoteUserLookup(
             when (val result = webFinger.findActorId("$username@$host")) {
                 is WebFingerResult.Found -> result.actorId
 
-                WebFingerResult.NotFound,
+                is WebFingerResult.NotFound,
                 WebFingerResult.InvalidAcct,
                 -> return null
 
-                WebFingerResult.Unavailable -> {
-                    logger.warn("WebFinger を引けなかった: $username@$host")
+                is WebFingerResult.Unavailable -> {
+                    logger.warn("WebFinger を引けなかった: $username@$host ${result.failure}")
                     return null
                 }
             }
@@ -54,7 +55,16 @@ internal class KotpubRemoteUserLookup(
      * acct のユーザー名は preferredUsername から決まるので、無いアクターは返さない
      */
     suspend fun findWithActorByUrl(url: String): FoundRemoteUser? {
-        val actor = remoteActors.findActorByUrl(url) ?: return null
+        val actor = when (val lookup = remoteActors.findActorByUrl(url)) {
+            is RemoteActorLookup.Found -> lookup.actor
+
+            RemoteActorLookup.Gone -> return null
+
+            is RemoteActorLookup.Unavailable -> {
+                logger.warn("アクターを取れなかった: $url ${lookup.failure}")
+                return null
+            }
+        }
         if (url != actor.actorId) storedActors.remove(url)
         val username = actor.profile.preferredUsername ?: return null
         val emojis = actor.profile.emojis.toRecords()

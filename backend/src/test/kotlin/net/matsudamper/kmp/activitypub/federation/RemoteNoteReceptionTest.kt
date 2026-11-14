@@ -29,10 +29,12 @@ import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kmp.activitypub.timeline.TimelineSpan
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.RemoteActor
+import net.matsudamper.kotpub.actor.RemoteActorLookup
 import net.matsudamper.kotpub.actor.RemoteActorProfile
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.actor.StoredActorNames
 import net.matsudamper.kotpub.boost.BoostStore.ReceivedRemoteBoost
+import net.matsudamper.kotpub.http.RemoteFetchFailure
 import net.matsudamper.kotpub.httpsignature.PublicKeyLookup
 import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
@@ -381,15 +383,15 @@ class RemoteNoteReceptionTest {
         var requests = 0
         var available = true
         var onFindActor: suspend () -> Unit = {}
-        override suspend fun findActor(actorId: String): RemoteActor? {
+        override suspend fun findActor(actorId: String): RemoteActorLookup {
             requests++
             onFindActor()
             check(available) { "相手サーバーに接続できない" }
             val id = if (actorId == BOOSTER) BOOSTER else ACTOR
-            return RemoteActor(id, "$id/inbox", null, "key", RemoteActorProfile("remote", null, null, null, null, emojis = listOf()))
+            return RemoteActorLookup.Found(RemoteActor(id, "$id/inbox", null, "key", RemoteActorProfile("remote", null, null, null, null, emojis = listOf())))
         }
-        override suspend fun find(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable
-        override suspend fun refresh(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable
+        override suspend fun find(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable(RemoteFetchFailure.NotHttps(keyId))
+        override suspend fun refresh(keyId: String): PublicKeyLookup = PublicKeyLookup.Unavailable(RemoteFetchFailure.NotHttps(keyId))
         override fun close() = Unit
     }
 

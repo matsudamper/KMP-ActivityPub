@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
+import net.matsudamper.kotpub.note.RemoteActorCollectionsLookup
 import net.matsudamper.kotpub.note.RemoteOutboxCursor
 import net.matsudamper.kotpub.note.RemoteOutboxNote
 import net.matsudamper.kotpub.note.RemoteOutboxPageResult
@@ -30,10 +31,13 @@ internal class KotpubRemoteUserProfiles(
         outbox.recentPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) }).toNotesPage(actorUri, from)
 
     override suspend fun postSources(actorUri: String): RemoteProfilePostSources? {
-        val actor = outbox.collectionsOf(actorUri)
-        if (actor == null) {
-            logger.warn("outbox と featured を読むためのアクターを取れなかった: $actorUri")
-            return null
+        val actor = when (val lookup = outbox.collectionsOf(actorUri)) {
+            is RemoteActorCollectionsLookup.Found -> lookup.collections
+
+            is RemoteActorCollectionsLookup.Unavailable -> {
+                logger.warn("outbox と featured を読むためのアクターを取れなかった: $actorUri ${lookup.failure}")
+                return null
+            }
         }
         return object : RemoteProfilePostSources {
             override suspend fun firstNotesPage(): RemoteNotesPage? = outbox.recentPage(actor, null).toNotesPage(actorUri, from = null)
@@ -49,8 +53,8 @@ internal class KotpubRemoteUserProfiles(
                 next = page.next?.let { OutboxPosition(pageId = it.pageId, itemOffset = it.itemOffset) },
             )
 
-            RemoteOutboxPageResult.Unavailable -> {
-                logger.warn("outbox を取れなかった: $actorUri from=$from")
+            is RemoteOutboxPageResult.Unavailable -> {
+                logger.warn("outbox を取れなかった: $actorUri from=$from $failure")
                 null
             }
         }
@@ -59,8 +63,8 @@ internal class KotpubRemoteUserProfiles(
         when (this) {
             is RemoteOutboxResult.Found -> notes.map { it.toInput(actorUri, Instant.now()) }
 
-            RemoteOutboxResult.Unavailable -> {
-                logger.warn("$kind を取れなかった: $actorUri")
+            is RemoteOutboxResult.Unavailable -> {
+                logger.warn("$kind を取れなかった: $actorUri $failure")
                 listOf()
             }
         }

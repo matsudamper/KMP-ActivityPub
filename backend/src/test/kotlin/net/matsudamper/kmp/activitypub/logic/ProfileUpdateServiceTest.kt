@@ -296,7 +296,7 @@ class ProfileUpdateServiceTest {
     }
 
     private object StoredProfiles : StoredActorProfiles {
-        override fun find(username: String): ActorProfile = ActorProfile(displayName = "古い名前", summary = STORED_SUMMARY)
+        override fun find(username: String): ActorProfile = ActorProfile(displayName = "古い名前", summary = STORED_SUMMARY, likedPublic = false)
     }
 
     private companion object {

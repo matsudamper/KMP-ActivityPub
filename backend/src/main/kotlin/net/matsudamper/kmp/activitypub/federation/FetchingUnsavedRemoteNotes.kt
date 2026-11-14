@@ -34,7 +34,7 @@ internal class FetchingUnsavedRemoteNotes(
         when (val lookup = remoteNotes.find(objectUri)) {
             is RemoteNoteLookup.Found -> receivedNotes.storeForReaction(viewer, lookup.note)
 
-            RemoteNoteLookup.NotFound, RemoteNoteLookup.Unavailable -> {
+            is RemoteNoteLookup.NotFound, is RemoteNoteLookup.Unavailable -> {
                 logger.warn("いいねやブーストを付ける投稿を取れなかった: $objectUri result=$lookup")
                 null
             }

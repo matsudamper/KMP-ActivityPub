@@ -11,5 +11,6 @@ internal class AccountActorProfiles(
         ActorProfile(
             displayName = accountService.account(username)?.displayName,
             summary = accountService.profileDetail(username)?.summary,
+            likedPublic = false,
         )
 }
