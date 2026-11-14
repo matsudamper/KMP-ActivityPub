@@ -282,9 +282,10 @@ class UserMutationResolverImpl : UserMutationResolver {
         body: String,
         requestId: String,
         imageIds: List<NoteImagePublicId>,
+        replyToPostId: TimelinePostId?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val result = postNote(body = body, requestId = requestId, imageIds = imageIds, env = env)
+        val result = postNote(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = replyToPostId, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -366,6 +367,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         body: String,
         requestId: String,
         imageIds: List<NoteImagePublicId>,
+        replyToPostId: TimelinePostId?,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -385,6 +387,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 body = body,
                 requestId = requestId,
                 imageIds = imageIds,
+                replyToPostId = replyToPostId?.value,
             )
         val failure =
             when (result) {
@@ -393,6 +396,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 PostNoteResult.TooLong -> QlUserPostNoteFailure.TOO_LONG
                 PostNoteResult.TooManyImages -> QlUserPostNoteFailure.TOO_MANY_IMAGES
                 PostNoteResult.ImageNotFound -> QlUserPostNoteFailure.IMAGE_NOT_FOUND
+                PostNoteResult.ReplyTargetNotFound -> QlUserPostNoteFailure.REPLY_TARGET_NOT_FOUND
                 PostNoteResult.AccountNotFound -> QlUserPostNoteFailure.NOT_LOGGED_IN
             }
         return QlUserPostNoteResult(url = null, failure = failure)

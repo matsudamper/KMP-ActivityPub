@@ -115,6 +115,8 @@ class FavouriteRepositoryTest {
                 publishedAt = NOW,
                 body = "create-$publicId",
                 inboxes = listOf(),
+                inReplyTo = null,
+                mentions = listOf(),
                 images = listOf(),
             ),
         )

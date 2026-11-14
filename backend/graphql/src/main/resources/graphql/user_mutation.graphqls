@@ -22,9 +22,10 @@ type UserMutation {
     logout: Boolean! @lazy
     """
     ログインしているアカウントで投稿し、フォロワーへの配信を積む。同じ requestId で送り直すと最初の投稿を返す。
-    imageIds には uploadNoteImage で置いた画像を付ける順に渡す。省略すると画像無し。画像があれば本文は空でもよい
+    imageIds には uploadNoteImage で置いた画像を付ける順に渡す。省略すると画像無し。画像があれば本文は空でもよい。
+    replyToPostId には返信する TimelinePost.id を渡す。投稿者へのメンションを本文の先頭に付け、投稿者にも配る。省略すると返信にしない
     """
-    postNote(body: String!, requestId: String!, imageIds: [NoteImageId!]! = []): UserPostNoteResult! @lazy
+    postNote(body: String!, requestId: String!, imageIds: [NoteImageId!]! = [], replyToPostId: TimelinePostId): UserPostNoteResult! @lazy
     """
     投稿に付ける画像を置く。multipart で送る。PNG / JPEG / GIF / WebP で 20MB まで。
     description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える
@@ -166,6 +167,8 @@ enum UserPostNoteFailure {
     IMAGE_NOT_FOUND
     "サーバーに DOMAIN が無く、投稿を配れない"
     FEDERATION_DISABLED
+    "返信先の投稿が無いか、読めないか、消された"
+    REPLY_TARGET_NOT_FOUND
 }
 
 input UpdateProfileQuery {

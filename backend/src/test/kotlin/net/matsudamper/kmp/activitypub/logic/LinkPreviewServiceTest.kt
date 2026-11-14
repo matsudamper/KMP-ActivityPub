@@ -55,6 +55,7 @@ class LinkPreviewServiceTest {
         val composed = NoteComposer.compose(
             "記事 https://example.com/article.\n\n（https://example.com/other）\n\n" +
                 "(https://en.wikipedia.org/wiki/Kotlin_(programming_language))",
+            mentions = listOf(),
         )
         val contentHtml = (composed as NoteComposer.ComposeResult.Composed).contentHtml
 

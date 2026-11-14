@@ -10,7 +10,7 @@ class HtmlToPlainTextTest {
     @Test
     fun 投稿の段落と改行を復元する() {
         val text = "first\nline\n\nsecond"
-        val composed = assertIs<NoteComposer.ComposeResult.Composed>(NoteComposer.compose(text))
+        val composed = assertIs<NoteComposer.ComposeResult.Composed>(NoteComposer.compose(text, mentions = listOf()))
 
         assertEquals(text, htmlToPlainText(composed.contentHtml))
     }

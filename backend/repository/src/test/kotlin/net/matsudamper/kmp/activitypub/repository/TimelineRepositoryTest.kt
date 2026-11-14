@@ -265,7 +265,7 @@ class TimelineRepositoryTest {
     fun localPostsUseEpochMillisecondsAndOnlyReachTheirAuthor() = withRepository { repositories, accounts ->
         val time = NOW.plusNanos(999999999)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, listOf(), "create", listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, listOf(), "create", listOf(), null, listOf()),
         )
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
@@ -281,7 +281,7 @@ class TimelineRepositoryTest {
     fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
         listOf("local-1", "local-2").forEachIndexed { index, publicId ->
             repositories.deliveryQueueRepository.enqueueNote(
-                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf()),
+                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, listOf()),
             )
         }
         val repository = repositories.timelineRepository

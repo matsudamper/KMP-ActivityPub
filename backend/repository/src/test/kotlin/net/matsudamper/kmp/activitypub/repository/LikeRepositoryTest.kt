@@ -189,6 +189,8 @@ class LikeRepositoryTest {
                 images = listOf(),
                 body = "create",
                 inboxes = listOf(),
+                inReplyTo = null,
+                mentions = listOf(),
             ),
         )
         return checkNotNull(repositories.timelineRepository.localPosition(publicId)).member
