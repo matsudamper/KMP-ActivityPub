@@ -102,6 +102,18 @@ internal fun Route.federationRoutes(federation: Federation) {
         call.respondEndpoint(response)
     }
 
+    get("/users/{username}/liked") {
+        val response =
+            withOpenTelemetryContext {
+                federation.likedEndpoint.get(
+                    call.parameters["username"],
+                    call.request.header(HttpHeaders.Accept),
+                    call.request.queryParameters[COLLECTION_CURSOR_PARAM],
+                )
+            }
+        call.respondEndpoint(response)
+    }
+
     get("/notes/{publicId}") {
         val response =
             withOpenTelemetryContext {

@@ -65,6 +65,7 @@ import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.like.LikedEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoSoftware
 import net.matsudamper.kotpub.note.FeaturedEndpoint
@@ -309,6 +310,9 @@ internal class Federation(
 
     val featuredEndpoint: FeaturedEndpoint =
         FeaturedEndpoint(directory = directory, featuredNotes = RepositoryFeaturedNoteStore(pins = notePinRepository, notes = notes), webPages = null)
+
+    val likedEndpoint: LikedEndpoint =
+        LikedEndpoint(directory = directory, profiles = actorProfiles, likedObjects = RepositoryLikedObjectStore(domain = domain, likes = likeRepository))
 
     /**
      * kotpub の InboxService.default に、他のサーバーからの投稿の受け取りとフォローへの応答の受け取りを足したもの

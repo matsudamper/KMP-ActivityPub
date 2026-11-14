@@ -2,8 +2,12 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
+import net.matsudamper.kmp.activitypub.repository.PublishedLike
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_LIKES
@@ -13,7 +17,9 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import org.jooq.Condition
 import org.jooq.DSLContext
+import org.jooq.Field
 import org.jooq.impl.DSL
 
 internal class SqliteLikeRepository(
@@ -87,6 +93,47 @@ internal class SqliteLikeRepository(
                 .fetchSet { PublicNoteId(checkNotNull(it.value1())) }
         }
     }
+
+    override fun publishedLikes(username: String, before: LikedNotePosition?, limit: Int): List<PublishedLike> = jooq.withConnection { dsl ->
+        val likes = dsl.likedMembers(
+            liker = likerIdOf(dsl, username),
+            remoteCondition = publishedRemoteNote(),
+            before = before,
+            limit = limit,
+        )
+        val localPublicIds = dsl.select(NOTES.ID, NOTES.PUBLIC_ID).from(NOTES)
+            .where(NOTES.ID.`in`(likes.mapNotNull { TimelineMembers.localNoteIdOf(it.member) }))
+            .fetchMap({ checkNotNull(it.value1()) }, { PublicNoteId(checkNotNull(it.value2())) })
+        val remoteObjectUris = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.OBJECT_URI).from(REMOTE_NOTES)
+            .where(REMOTE_NOTES.ID.`in`(likes.mapNotNull { TimelineMembers.remoteNoteIdOf(it.member) }))
+            .fetchMap({ checkNotNull(it.value1()) }, { checkNotNull(it.value2()) })
+        likes.mapNotNull { like ->
+            val noteRef = TimelineMembers.localNoteIdOf(like.member)?.let { id -> localPublicIds[id]?.let { TimelineNoteRef.Local(it) } }
+                ?: TimelineMembers.remoteNoteIdOf(like.member)?.let { id -> remoteObjectUris[id]?.let { TimelineNoteRef.Remote(it) } }
+                ?: return@mapNotNull null
+            PublishedLike(noteRef = noteRef, position = like)
+        }
+    }
+
+    override fun countPublishedLikes(username: String): Long = jooq.withConnection { dsl ->
+        val liker = likerIdOf(dsl, username)
+        val local = dsl.selectCount().from(NOTE_LIKES).where(NOTE_LIKES.ACCOUNT_ID.eq(liker)).fetchOne(0, Long::class.java) ?: 0L
+        val remote = dsl.selectCount().from(REMOTE_NOTE_LIKES)
+            .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID))
+            .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(liker))
+            .and(publishedRemoteNote())
+            .fetchOne(0, Long::class.java) ?: 0L
+        local + remote
+    }
+
+    /**
+     * Actor の liked は誰でも読めるので、公開の投稿だけを載せる。消された投稿は載せない
+     */
+    private fun publishedRemoteNote(): Condition =
+        REMOTE_NOTES.DELETED_AT.isNull.and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
+
+    private fun likerIdOf(dsl: DSLContext, username: String): Field<Long?> =
+        DSL.field(dsl.select(ACCOUNTS.ID).from(ACCOUNTS).where(ACCOUNTS.USERNAME.eq(username)))
 
     override fun likeAndEnqueue(like: OutgoingLike): Boolean {
         return jooq.transaction { dsl ->

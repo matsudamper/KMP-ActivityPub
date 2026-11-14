@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
+import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
@@ -19,6 +20,7 @@ import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
+import net.matsudamper.kmp.activitypub.repository.PublishedLike
 import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -115,6 +117,8 @@ internal class FakeRepositories : Repositories {
         override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean = false
         override fun unlikeLocal(accountId: AccountId, member: String): Boolean = false
         override fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId> = setOf()
+        override fun publishedLikes(username: String, before: LikedNotePosition?, limit: Int): List<PublishedLike> = listOf()
+        override fun countPublishedLikes(username: String): Long = 0
         override fun likeAndEnqueue(like: OutgoingLike): Boolean = false
         override fun unlikeAndEnqueueUndo(
             accountId: AccountId,

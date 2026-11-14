@@ -178,6 +178,26 @@ class LikeRepositoryTest {
         assertEquals(listOf("$ACTOR/inbox" to "undo:like-1:$ACTOR/notes/1"), queue.claim(NOW, 10).map { it.inbox to it.body })
     }
 
+    @Test
+    fun publishedLikesListOnlyPublicNotesNewestFirstAndContinueFromCursor() = withRepository { repositories, alice, bob ->
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val publicMember = assertNotNull(repositories.timelineRepository.receive(note("public", "public", setOf()))).member
+        val followersMember = assertNotNull(repositories.timelineRepository.receive(note("followers", "followers", setOf("alice")))).member
+        val localMember = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val likes = repositories.likeRepository
+        likes.likeAndEnqueue(like(alice, publicMember, "like-public").copy(likedAt = NOW))
+        likes.likeAndEnqueue(like(alice, followersMember, "like-followers").copy(likedAt = NOW.plusSeconds(1)))
+        likes.likeLocal(alice, localMember, NOW.plusSeconds(2))
+
+        val first = likes.publishedLikes("alice", before = null, limit = 1)
+        val rest = likes.publishedLikes("alice", before = first.last().position, limit = 10)
+
+        assertEquals(listOf<TimelineNoteRef>(TimelineNoteRef.Local(PublicNoteId("bob-note"))), first.map { it.noteRef })
+        assertEquals(listOf<TimelineNoteRef>(TimelineNoteRef.Remote("$ACTOR/notes/public")), rest.map { it.noteRef })
+        assertEquals(2L, likes.countPublishedLikes("alice"))
+        assertEquals(listOf(), likes.publishedLikes("bob", before = null, limit = 10))
+    }
+
     private fun postLocalNote(repositories: Repositories, username: String, publicId: String): String {
         repositories.deliveryQueueRepository.enqueueNote(
             NotePost(
