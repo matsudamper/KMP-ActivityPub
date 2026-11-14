@@ -46,6 +46,7 @@ class ViewablePostServiceTest {
         boostedBy = null,
         deleted = false,
         boostUndone = false,
+        inReplyTo = null,
     )
     private val imports = mutableListOf<String>()
     private val unsavedNotes = object : UnsavedRemoteNotes {
@@ -57,6 +58,8 @@ class ViewablePostServiceTest {
             repositories.timelineRepository.storedFetchedNotes[objectUri] = storedPost
             return storedPost.position.member
         }
+
+        override suspend fun fetch(objectUri: String): RemoteNoteFetchResult = RemoteNoteFetchResult.NotFound
     }
     private val timeline = TimelineService(
         repositories.timelineRepository,

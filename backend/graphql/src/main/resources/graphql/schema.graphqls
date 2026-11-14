@@ -152,6 +152,8 @@ type TimelinePost {
     boostedBy: Actor
     "投稿が載った購読先のグループ。ブーストならブーストした相手の購読先。メインなら null"
     followingGroupId: FollowingGroupId @lazy
+    "返信なら true。ブーストで載った投稿は、ブーストされた元の投稿が返信か。返信先は UserInfo.replyTarget で取る"
+    hasReplyTarget: Boolean!
 }
 
 "投稿者、ブーストした相手、通知を送ってきた相手"

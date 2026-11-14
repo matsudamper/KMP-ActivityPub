@@ -23,9 +23,14 @@ class ViewablePostService(
     suspend fun post(viewer: AccountId, postId: String): ViewablePost? {
         val member = memberOf(viewer = viewer, postId = postId, importsMissing = true) ?: return null
         val post = timeline.viewablePost(viewer, member) ?: return null
-        val ownedByViewer = post.boostedBy == null && post.localPublicId != null && post.username == accounts.account(viewer)?.username
-        return ViewablePost(post = post, ownedByViewer = ownedByViewer)
+        return ViewablePost(post = post, ownedByViewer = isOwnedByViewer(viewer, post))
     }
+
+    /**
+     * 他の人の投稿も開けるので、消したり固定したりできるかはこれで分ける
+     */
+    fun isOwnedByViewer(viewer: AccountId, post: TimelinePost): Boolean =
+        post.boostedBy == null && post.localPublicId != null && post.username == accounts.account(viewer)?.username
 
     /**
      * OGP を引くためだけに投稿を保存しないよう、保存していない投稿は null を返す

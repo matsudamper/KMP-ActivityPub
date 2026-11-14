@@ -124,6 +124,7 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
  *   [position] はブーストの位置で、本文や投稿者はブーストされた投稿のもの
  * @param deleted 投稿者が投稿を消したか。ほかの項目は消される前のまま
  * @param boostUndone ブーストした相手がブーストを取り消したか。ほかの項目は取り消される前のまま
+ * @param inReplyTo 返信先の投稿の id。返信でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の返信先
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -149,6 +150,7 @@ data class TimelinePost(
     val boostedBy: TimelineBooster?,
     val deleted: Boolean,
     val boostUndone: Boolean,
+    val inReplyTo: String?,
 ) {
     /**
      * このサーバーの投稿の公開 id。他のサーバーの投稿は null

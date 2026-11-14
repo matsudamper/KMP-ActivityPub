@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.logic
 
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
@@ -35,6 +36,31 @@ interface UnsavedRemoteNotes {
      * @return 保存した投稿の、いいねやブーストに渡すタイムラインの member。取れないか、保存できない投稿なら null
      */
     suspend fun import(viewer: AccountId, objectUri: String): String?
+
+    /**
+     * 投稿と投稿者を取ってくる。どちらも保存しない
+     */
+    suspend fun fetch(objectUri: String): RemoteNoteFetchResult
+}
+
+sealed interface RemoteNoteFetchResult {
+    /**
+     * @param author 投稿者。保存済みならその記録
+     */
+    data class Found(
+        val note: RemoteNoteInput,
+        val author: RemoteUser,
+    ) : RemoteNoteFetchResult
+
+    /**
+     * 無いか、公開と公開タイムラインに載せない公開のどちらでもない投稿
+     */
+    data object NotFound : RemoteNoteFetchResult
+
+    /**
+     * 相手のサーバーが応えなかった。時間を置けば取れることがある
+     */
+    data object Unavailable : RemoteNoteFetchResult
 }
 
 /**

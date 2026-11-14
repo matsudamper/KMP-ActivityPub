@@ -729,6 +729,7 @@ class UserProfileServiceTest {
             emojis = listOf(),
             deleted = false,
             boostUndone = false,
+            inReplyTo = null,
         )
 
     private companion object {

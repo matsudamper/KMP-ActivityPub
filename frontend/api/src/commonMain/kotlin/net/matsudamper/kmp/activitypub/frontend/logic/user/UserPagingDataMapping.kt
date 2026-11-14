@@ -61,6 +61,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
         pinnableNoteId = pinnableNoteId,
         pinned = pinned,
         followingGroupId = followingGroupId,
+        hasReplyTarget = hasReplyTarget,
     )
 }
 
@@ -129,6 +130,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     boostedByMe = body.boostedByMe,
     reactionPostId = reactionPostId,
     followingGroupId = followingGroupId,
+    hasReplyTarget = hasReplyTarget,
 )
 
 private fun UserHomeTimelineResult.Actor.toFields(): ActorFields = ActorFields(

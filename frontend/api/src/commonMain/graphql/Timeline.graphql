@@ -54,6 +54,7 @@ fragment TimelinePostFields on TimelinePost {
     boostedByMe
     reactionPostId
     followingGroupId
+    hasReplyTarget
 }
 
 fragment ActorFields on Actor {

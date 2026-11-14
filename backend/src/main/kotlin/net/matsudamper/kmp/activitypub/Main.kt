@@ -173,6 +173,7 @@ internal fun Application.module(deps: AppDependencies) {
                 remoteImageProxy = federation?.remoteImageProxy,
                 linkPreviewService = federation?.linkPreviewService,
                 remoteProfileRefreshService = federation?.remoteProfileRefreshService,
+                replyTargetService = federation?.replyTargetService,
             ),
         )
 

@@ -41,6 +41,68 @@ private fun PostDetailContentDeleteNoteDialogPreview() = PostDetailLoadedPreview
     mentionText = "",
 )
 
+@Preview(heightDp = 1000)
+@Composable
+private fun PostDetailContentReplyTargetLoadingPreview() = PostDetailReplyTargetPreview(
+    replyTargetLoader = PostDetailScreenUiState.ReplyTargetLoader.Loading(AndroidPreviewReplyTargetLoadingListener),
+)
+
+@Preview(heightDp = 1000)
+@Composable
+private fun PostDetailContentReplyTargetUnavailablePreview() = PostDetailReplyTargetPreview(
+    replyTargetLoader = PostDetailScreenUiState.ReplyTargetLoader.Unavailable,
+)
+
+@Preview(heightDp = 1000)
+@Composable
+private fun PostDetailContentReplyTargetErrorPreview() = PostDetailReplyTargetPreview(
+    replyTargetLoader = PostDetailScreenUiState.ReplyTargetLoader.Error(AndroidPreviewReplyTargetErrorListener),
+)
+
+@Composable
+private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiState.ReplyTargetLoader) {
+    MaterialTheme {
+        PostDetailContent(
+            uiState = createLoadedUiState(
+                images = listOf(),
+                deleteNoteDialog = null,
+                mentionText = "",
+                replyTargetLoader = replyTargetLoader,
+                replyTargets = listOf(
+                    previewReplyTarget(displayName = "Bob", acct = "@bob@remote.example", content = "最初の投稿です"),
+                    previewReplyTarget(displayName = "Carol", acct = "@carol@other.example", content = "@bob@remote.example それに返信します"),
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+            layout = PostDetailLayout.FullScreen,
+        )
+    }
+}
+
+private fun previewReplyTarget(displayName: String, acct: String, content: String) = PostItemUiState(
+    pinnedLabelVisible = false,
+    deletedLabelVisible = false,
+    actorLabel = null,
+    iconUrl = null,
+    displayName = createTextWithEmojis(text = displayName, emojis = listOf()),
+    acct = acct,
+    body = createPostBodyText(content = content, mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+    postedAt = "1時間",
+    fullPostedAt = "2026/11/01 20:00",
+    linkPreviews = listOf(),
+    images = listOf(),
+    favouriteCountText = null,
+    boostCountText = null,
+    favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
+    boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+    stamps = listOf(),
+    authorListener = null,
+    postListener = null,
+    shareListener = null,
+    menuItems = listOf(),
+    listener = AndroidPreviewPostItemListener,
+)
+
 @Composable
 private fun PostDetailLoadedPreview(
     deleteNoteDialog: DeleteNoteDialogUiState?,
@@ -52,6 +114,8 @@ private fun PostDetailLoadedPreview(
                 images = listOf(previewImage(index = 1), previewImage(index = 2)),
                 deleteNoteDialog = deleteNoteDialog,
                 mentionText = mentionText,
+                replyTargetLoader = null,
+                replyTargets = listOf(),
             ),
             snackbarHostState = SnackbarHostState(),
             layout = PostDetailLayout.FullScreen,
@@ -63,9 +127,13 @@ private fun createLoadedUiState(
     images: List<PostItemUiState.Image>,
     deleteNoteDialog: DeleteNoteDialogUiState?,
     mentionText: String,
+    replyTargetLoader: PostDetailScreenUiState.ReplyTargetLoader?,
+    replyTargets: List<PostItemUiState>,
 ): PostDetailScreenUiState {
     return PostDetailScreenUiState(
         content = PostDetailScreenUiState.Content.Loaded(
+            replyTargetLoader = replyTargetLoader,
+            replyTargets = replyTargets,
             post = PostItemUiState(
                 pinnedLabelVisible = false,
                 deletedLabelVisible = false,
@@ -145,7 +213,13 @@ private fun PostDetailDialogPreviewContent(
             ) {
                 PostDetailDialogFrame(onDismissRequest = {}) {
                     PostDetailContent(
-                        uiState = createLoadedUiState(images = (1..imageCount).map { previewImage(index = it) }, deleteNoteDialog = null, mentionText = ""),
+                        uiState = createLoadedUiState(
+                            images = (1..imageCount).map { previewImage(index = it) },
+                            deleteNoteDialog = null,
+                            mentionText = "",
+                            replyTargetLoader = null,
+                            replyTargets = listOf(),
+                        ),
                         snackbarHostState = SnackbarHostState(),
                         layout = PostDetailLayout.Dialog,
                     )
@@ -183,6 +257,14 @@ private object AndroidPreviewPostDetailListener : PostDetailScreenUiState.Listen
     override fun onClickRetry() = Unit
 
     override fun onClickBack() = Unit
+}
+
+private object AndroidPreviewReplyTargetLoadingListener : PostDetailScreenUiState.ReplyTargetLoader.Loading.Listener {
+    override fun onVisible() = Unit
+}
+
+private object AndroidPreviewReplyTargetErrorListener : PostDetailScreenUiState.ReplyTargetLoader.Error.Listener {
+    override fun onClickRetry() = Unit
 }
 
 private object AndroidPreviewMentionBoxListener : PostDetailScreenUiState.MentionBox.Listener {

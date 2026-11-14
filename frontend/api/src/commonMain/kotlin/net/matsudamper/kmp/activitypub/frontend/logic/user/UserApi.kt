@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.ReplyTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetBoostedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
@@ -192,6 +193,22 @@ class UserApi(
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
         val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
         val post = userInfo.timelinePost ?: return UserPostDetailResult.NotFound
+        return UserPostDetailResult.Found(post.timelinePostFields.toPost())
+    }
+
+    /**
+     * 返信先の投稿。返した投稿の [UserHomeTimelineResult.Post.id] を渡せば、さらに返信先をたどれる
+     *
+     * @param postId [UserHomeTimelineResult.Post.id]
+     * @return 返信でないか、返信先を読めなければ [UserPostDetailResult.NotFound]
+     */
+    suspend fun replyTarget(postId: String): UserPostDetailResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostDetailResult.Failure("接続先が未設定")
+        val response = client.query(ReplyTargetQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
+        val post = userInfo.replyTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 

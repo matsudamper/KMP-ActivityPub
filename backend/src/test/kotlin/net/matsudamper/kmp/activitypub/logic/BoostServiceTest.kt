@@ -50,6 +50,8 @@ class BoostServiceTest {
                 imported += objectUri
                 return "r1"
             }
+
+            override suspend fun fetch(objectUri: String): RemoteNoteFetchResult = RemoteNoteFetchResult.NotFound
         }
         val importingService = BoostService(
             directory = ActorDirectory(domain = DOMAIN, stored = LocalAccounts),
