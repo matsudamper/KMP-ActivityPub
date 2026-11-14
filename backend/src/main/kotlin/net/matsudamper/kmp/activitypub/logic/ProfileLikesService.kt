@@ -60,6 +60,7 @@ class ProfileLikesService(
             ?: return ProfileLikesResult.Hidden
         return when (val objects = remoteLikedObjects(actorUri = actorUri, from = null)) {
             is RemoteLikedObjects.Found -> ProfileLikesResult.Found(remotePage(viewer = viewer, actorUri = actorUri, objects = objects))
+
             // 最初のページが読めないときは、liked を出していないのと同じく「いいね」を出さない
             RemoteLikedObjects.Absent, RemoteLikedObjects.Unavailable -> ProfileLikesResult.Hidden
         }
