@@ -65,6 +65,18 @@ class NoteReplyRepositoryTest {
         assertEquals(mentions, repositories.noteRepository.list("alice", after = null, limit = 10).single().mentions)
     }
 
+    @Test
+    fun quoteIsRecordedOnLocalAndRemotePosts() = withRepository { repositories, alice ->
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        repositories.deliveryQueueRepository.enqueueNote(notePost(username = "alice", publicId = "quote").copy(quoteUri = "$ACTOR/notes/1"))
+        val remote = assertNotNull(repositories.timelineRepository.receive(note("2", "public", setOf()).copy(quoteUri = "https://other.example/notes/3"))).member
+        val local = checkNotNull(repositories.timelineRepository.localPosition("quote")).member
+
+        assertEquals("$ACTOR/notes/1", assertNotNull(repositories.noteRepository.find(PublicNoteId("quote"))).quoteUri)
+        assertEquals("$ACTOR/notes/1", assertNotNull(repositories.timelineRepository.viewablePost(alice, local)).quoteUri)
+        assertEquals("https://other.example/notes/3", assertNotNull(repositories.timelineRepository.viewablePost(alice, remote)).quoteUri)
+    }
+
     private fun notePost(username: String, publicId: String): NotePost = NotePost(
         username = username,
         requestId = "request-$publicId",
@@ -75,12 +87,13 @@ class NoteReplyRepositoryTest {
         body = "create",
         inboxes = listOf(),
         inReplyTo = null,
+        quoteUri = null,
         mentions = listOf(),
     )
 
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = visibility,
-        localRecipients = recipients, inReplyTo = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
+        localRecipients = recipients, inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
         images = listOf(),
         emojis = listOf(),
     )

@@ -105,7 +105,9 @@ CREATE TABLE notes (
     -- 画面が送信ごとに作る ID。応答だけ失われて送り直されても 2 つ目を作らない
     request_id TEXT,
     -- 返信先の投稿の id。返信でなければ NULL
-    in_reply_to TEXT
+    in_reply_to TEXT,
+    -- 引用した投稿の id。引用でなければ NULL
+    quote_uri TEXT
 );
 
 CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, public_id);
@@ -232,7 +234,9 @@ CREATE TABLE remote_notes (
     -- ブーストで知っただけの投稿は 1。後から Create が届いたら宛先を登録して 0 にする
     via_boost INTEGER NOT NULL DEFAULT 0,
     -- 投稿者が消した時刻。タイムラインに削除済みと出すために行は残す
-    deleted_at TEXT
+    deleted_at TEXT,
+    -- 引用した投稿の id。引用でなければ NULL
+    quote_uri TEXT
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);

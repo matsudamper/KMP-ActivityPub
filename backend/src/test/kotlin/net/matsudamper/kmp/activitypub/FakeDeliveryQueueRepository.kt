@@ -43,6 +43,7 @@ internal class FakeDeliveryQueueRepository(
                 publishedAt = post.publishedAt,
                 images = post.images,
                 inReplyTo = post.inReplyTo,
+                quoteUri = null,
                 mentions = post.mentions,
             )
         return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)

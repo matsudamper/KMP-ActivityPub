@@ -135,5 +135,6 @@ class ProfileLikesServiceTest {
             deleted = false,
             boostUndone = false,
             inReplyTo = null,
+            quoteUri = null,
         )
 }

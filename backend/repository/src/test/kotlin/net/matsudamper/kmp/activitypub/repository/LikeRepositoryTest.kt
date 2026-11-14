@@ -229,6 +229,7 @@ class LikeRepositoryTest {
                 body = "create",
                 inboxes = listOf(),
                 inReplyTo = null,
+                quoteUri = null,
                 mentions = listOf(),
             ),
         )
@@ -253,7 +254,7 @@ class LikeRepositoryTest {
 
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = visibility,
-        localRecipients = recipients, inReplyTo = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
+        localRecipients = recipients, inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
         images = listOf(),
         emojis = listOf(),
     )

@@ -31,8 +31,8 @@ class InboxBlocksTest {
 
     init {
         repositories.accountRepository.add("bob", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("alice-note"), "alice", "<p>投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("bob-note"), "bob", "<p>投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("alice-note"), "alice", "<p>投稿</p>", Instant.EPOCH, listOf(), null, null, listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("bob-note"), "bob", "<p>投稿</p>", Instant.EPOCH, listOf(), null, null, listOf()))
         repositories.serverBlockRepository.add(alice, "blocked.example", Instant.EPOCH)
     }
 

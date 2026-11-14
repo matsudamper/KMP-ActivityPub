@@ -103,6 +103,7 @@ class BoostRepositoryTest {
                 body = "create-$publicId",
                 inboxes = listOf(),
                 inReplyTo = null,
+                quoteUri = null,
                 mentions = listOf(),
                 images = listOf(),
             ),

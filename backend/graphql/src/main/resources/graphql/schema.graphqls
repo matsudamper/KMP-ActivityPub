@@ -162,6 +162,8 @@ type TimelinePost {
     followingGroupId: FollowingGroupId @lazy
     "返信なら true。ブーストで載った投稿は、ブーストされた元の投稿が返信か。返信先は UserInfo.replyTarget で取る"
     hasReplyTarget: Boolean!
+    "引用なら true。ブーストで載った投稿は、ブーストされた元の投稿が引用か。引用先は UserInfo.quoteTarget で取る"
+    hasQuoteTarget: Boolean!
 }
 
 "投稿者、ブーストした相手、通知を送ってきた相手"

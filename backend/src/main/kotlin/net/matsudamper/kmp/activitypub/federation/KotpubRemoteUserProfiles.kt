@@ -79,6 +79,7 @@ internal class KotpubRemoteUserProfiles(
         visibility = if (unlisted) "unlisted" else "public",
         localRecipients = setOf(),
         inReplyTo = null,
+        quoteUri = null,
         summary = summary?.let { Jsoup.clean(it, Safelist.none()) },
         sensitive = sensitive,
         publishedAt = Instant.parse(publishedAt),

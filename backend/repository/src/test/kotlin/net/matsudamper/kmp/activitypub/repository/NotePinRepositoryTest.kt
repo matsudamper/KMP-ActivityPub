@@ -91,6 +91,7 @@ class NotePinRepositoryTest {
                 body = "create",
                 inboxes = listOf(),
                 inReplyTo = null,
+                quoteUri = null,
                 mentions = listOf(),
             ),
         )

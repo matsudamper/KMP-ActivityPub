@@ -111,6 +111,7 @@ sealed interface EnqueueNoteResult {
  * @param images [NoteRepository.addUploadedImage] で記録した画像。付けた順。投稿に付けると、期限で消されなくなる
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
  * @param inReplyTo 返信先の投稿の id。返信でなければ null
+ * @param quoteUri 引用した投稿の id。引用でなければ null
  * @param mentions 宛てた順。宛てた相手の inbox は [inboxes] にも入れる
  */
 data class NotePost(
@@ -123,6 +124,7 @@ data class NotePost(
     val body: String,
     val inboxes: List<String>,
     val inReplyTo: String?,
+    val quoteUri: String?,
     val mentions: List<NoteMention>,
 )
 

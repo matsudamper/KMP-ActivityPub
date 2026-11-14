@@ -268,6 +268,19 @@ class RemoteNoteReceptionTest {
     }
 
     @Test
+    fun quoteFallbackIsRemovedOnlyFromQuotes() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        val content = """<p>引用</p><p class="quote-inline">RE: <a href="https://other.example/notes/1">https://other.example/notes/1</a></p>"""
+        fixture.receiver.save(note(listOf()).copy(content = content, quote = "https://other.example/notes/1"))
+        fixture.receiver.save(note(listOf()).copy(id = "$ACTOR/notes/2", content = content))
+        val received = fixture.repositories.timelineRepository.received
+        assertEquals("<p>引用</p>", received[0].contentHtml)
+        assertEquals("https://other.example/notes/1", received[0].quoteUri)
+        assertTrue(received[1].contentHtml.contains("RE: "))
+        assertEquals(null, received[1].quoteUri)
+    }
+
+    @Test
     fun addressedLocalAccountsAreResolvedBeforeFetchingActors() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false
@@ -343,7 +356,7 @@ class RemoteNoteReceptionTest {
     )
 
     private fun note(to: List<String>): ReceivedNote = ReceivedNote(
-        "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", Instant.EPOCH, to, listOf(), null, null, false, NoteVisibility.Public, listOf(), listOf(),
+        "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", Instant.EPOCH, to, listOf(), null, null, null, false, NoteVisibility.Public, listOf(), listOf(),
     )
 
     private class Fixture(openTelemetry: OpenTelemetry) {
