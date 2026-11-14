@@ -232,62 +232,40 @@ internal class UserProfileScreenViewModel(
         val next = loaded.likes.next
         if (next == NextPosts.End) return
         updateLikes { it.copy(loadErrorMessage = null) }
-        loadMoreLikesJob = viewModelScope.launch {
-            val result = api.userProfileLikes(acct = username, after = (next as? NextPosts.After)?.cursor)
-            updateLikes { current ->
-                // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
-                if (current.next != next) {
-                    current
-                } else {
-                    when (result) {
-                        is UserProfileLikesResult.Success -> current.copy(
-                            posts = current.posts + result.posts,
-                            next = result.nextCursor.toNextPosts(),
-                            available = true,
-                        )
-
-                        UserProfileLikesResult.Hidden -> current.copy(next = NextPosts.End, available = false)
-
-                        is UserProfileLikesResult.Failure -> if (current.available) {
-                            current.copy(loadErrorMessage = result.message)
-                        } else {
-                            current.copy(next = NextPosts.End)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun loadMore() {
-        if (loadMoreJob?.isActive == true) return
-        val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
-        val next = loaded.posts.next
-        if (next == NextPosts.End) return
-        updatePosts { it.copy(loadErrorMessage = null) }
-        loadMoreJob = viewModelScope.launch { loadPosts(next) }
+        loadMoreLikesJob = viewModelScope.launch { loadLikes(next) }
     }
 
     /**
-     * 続きが空でもまだ先があれば、続けて読む。固定した投稿だけのページなどは表示が増えず、画面の末尾の見張りでは読み進められない
+     * 続きが空でもまだ先があれば、続けて読む。開けない投稿だけのページは表示が増えず、画面の末尾の見張りでは読み進められない
      */
-    private tailrec suspend fun loadPosts(next: NextPosts) {
-        val result = api.userProfilePosts(acct = username, after = (next as? NextPosts.After)?.cursor)
-        updatePosts { current ->
+    private tailrec suspend fun loadLikes(next: NextPosts) {
+        val result = api.userProfileLikes(acct = username, after = (next as? NextPosts.After)?.cursor)
+        updateLikes { current ->
             // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
             if (current.next != next) {
                 current
             } else {
                 when (result) {
-                    is UserProfilePostsResult.Success -> current.copy(posts = current.posts + result.posts, next = result.nextCursor.toNextPosts())
-                    is UserProfilePostsResult.Failure -> current.copy(loadErrorMessage = result.message)
+                    is UserProfileLikesResult.Success -> current.copy(
+                        posts = current.posts + result.posts,
+                        next = result.nextCursor.toNextPosts(),
+                        available = true,
+                    )
+
+                    UserProfileLikesResult.Hidden -> current.copy(next = NextPosts.End, available = false)
+
+                    is UserProfileLikesResult.Failure -> if (current.available) {
+                        current.copy(loadErrorMessage = result.message)
+                    } else {
+                        current.copy(next = NextPosts.End)
+                    }
                 }
             }
         }
-        val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
+        val nextCursor = (result as? UserProfileLikesResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
         val continuation = NextPosts.After(nextCursor)
-        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.posts?.next == continuation
-        if (applied) loadPosts(continuation)
+        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.likes?.next == continuation
+        if (applied) loadLikes(continuation)
     }
 
     /**
