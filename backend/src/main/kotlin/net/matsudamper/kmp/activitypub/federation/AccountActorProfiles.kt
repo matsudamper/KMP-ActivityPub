@@ -7,10 +7,12 @@ import net.matsudamper.kotpub.actor.StoredActorProfiles
 internal class AccountActorProfiles(
     private val accountService: AccountService,
 ) : StoredActorProfiles {
-    override fun find(username: String): ActorProfile =
-        ActorProfile(
+    override fun find(username: String): ActorProfile {
+        val detail = accountService.profileDetail(username)
+        return ActorProfile(
             displayName = accountService.account(username)?.displayName,
-            summary = accountService.profileDetail(username)?.summary,
-            likedPublic = false,
+            summary = detail?.summary,
+            likedPublic = detail?.likesPublic == true,
         )
+    }
 }

@@ -139,6 +139,11 @@ internal class FakeRepositories : Repositories {
 internal class FakeAccountRepository(
     private val hasPasskey: (AccountId) -> Boolean,
 ) : AccountRepository {
+    /**
+     * いいねを公開しているアカウントの名前。小文字で入れる
+     */
+    val likesPublicUsernames: MutableSet<String> = mutableSetOf()
+
     private val rows = mutableListOf<AccountCredential>()
     private val passwordDeletedIds = mutableSetOf<AccountId>()
     private val publicKeyPems = mutableMapOf<AccountId, String>()
@@ -192,7 +197,9 @@ internal class FakeAccountRepository(
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.takeIf { it.id !in passwordDeletedIds }
 
     override fun findProfileDetail(username: String): AccountProfileDetail? =
-        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { AccountProfileDetail(summary = null, links = listOf()) }
+        rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let {
+            AccountProfileDetail(summary = null, links = listOf(), likesPublic = it.username.lowercase() in likesPublicUsernames)
+        }
 
     override fun findPublicKeyPem(username: String): String? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.let { publicKeyPems[it.id] }

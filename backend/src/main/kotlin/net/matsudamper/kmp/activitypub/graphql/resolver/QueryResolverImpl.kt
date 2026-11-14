@@ -137,6 +137,7 @@ class QueryResolverImpl : QueryResolver {
                     iconUrl = diContainer.profileIconUrls?.find(account.username),
                     summary = profileDetail.summary,
                     links = profileDetail.links.map { it.toQlProfileLink() },
+                    likesPublic = profileDetail.likesPublic,
                     followingCount = followCounts.following.toInt(),
                     followersCount = followCounts.followers.toInt(),
                 )

@@ -458,7 +458,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         // セッションが残っていてもアカウントが消えていることがある
         val account = diContainer.accountService.account(accountId) ?: return QlUpdateProfileFailure.NOT_LOGGED_IN
         val profileUpdateService = diContainer.profileUpdateService ?: return QlUpdateProfileFailure.FEDERATION_DISABLED
-        if (query.displayName == null && query.summary == null && query.links == null) return null
+        if (query.displayName == null && query.summary == null && query.links == null && query.likesPublic == null) return null
 
         val result =
             profileUpdateService.updateProfile(
@@ -466,6 +466,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 displayName = query.displayName,
                 summary = query.summary,
                 links = query.links?.map { ProfileLink(name = it.name, url = it.url) },
+                likesPublic = query.likesPublic,
             )
         return when (result) {
             UpdateProfileResult.Updated -> null
