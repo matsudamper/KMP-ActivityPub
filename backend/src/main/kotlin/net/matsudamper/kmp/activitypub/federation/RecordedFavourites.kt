@@ -11,9 +11,11 @@ import net.matsudamper.kotpub.inbox.EarlyUndoneLikes
 internal class RecordedFavourites(
     private val favouriteRepository: FavouriteRepository,
     private val notifications: ReceivedNotifications,
+    private val serverBlocks: InboxServerBlocks,
 ) : FavouriteStore, EarlyUndoneLikes {
     override fun add(favourite: FavouriteStore.ReceivedFavourite): Boolean {
         val notePublicId = PublicNoteId(favourite.notePublicId.value)
+        if (serverBlocks.blocksOnNote(notePublicId, favourite.actor.actorId)) return false
         val added = favouriteRepository.add(
             notePublicId = notePublicId,
             actor = favourite.actor.toRecord(),
