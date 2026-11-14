@@ -55,6 +55,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileLikesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfilePostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
@@ -574,6 +575,23 @@ class UserApi(
         val page = data.userProfilePosts ?: return UserProfilePostsResult.Failure("投稿を読めません")
         return UserProfilePostsResult.Success(
             posts = page.posts.map { it.profilePostFields.toUserProfilePost() },
+            nextCursor = page.nextCursor,
+        )
+    }
+
+    /**
+     * プロフィールのユーザーがいいねした投稿
+     *
+     * @param after 最初のページなら null。続きは前回の [UserProfileLikesResult.Success.nextCursor]
+     */
+    suspend fun userProfileLikes(acct: String, after: String?): UserProfileLikesResult {
+        val client = clients.awaitLoadedClient() ?: return UserProfileLikesResult.Failure("接続先が未設定")
+        val response = client.query(UserProfileLikesQuery(acct = acct, after = Optional.present(after))).execute()
+        if (response.exception != null || response.hasErrors()) return UserProfileLikesResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserProfileLikesResult.Failure(response.failureMessage())
+        val page = data.userProfileLikes ?: return UserProfileLikesResult.Hidden
+        return UserProfileLikesResult.Success(
+            posts = page.posts.map { it.timelinePostFields.toPost() },
             nextCursor = page.nextCursor,
         )
     }

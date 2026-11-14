@@ -39,6 +39,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsPageResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLikesResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfilePostsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
@@ -624,7 +625,8 @@ internal class HomeScreenViewModel(
         // 名前やアイコンは自分のプロフィールで読んでいるので、投稿だけを読む
         when (val result = userApi.userProfilePosts(acct = owner.username, after = null)) {
             is UserProfilePostsResult.Success -> {
-                viewModelStateFlow.update { it.copy(myPosts = MyPostsState.Loaded(owner = owner, posts = result.posts)) }
+                val likes = (userApi.userProfileLikes(acct = owner.username, after = null) as? UserProfileLikesResult.Success)?.posts
+                viewModelStateFlow.update { it.copy(myPosts = MyPostsState.Loaded(owner = owner, posts = result.posts, likes = likes)) }
             }
 
             is UserProfilePostsResult.Failure -> myPostsFailed(owner, result.message)
@@ -1005,7 +1007,12 @@ internal class HomeScreenViewModel(
         updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withLiked(reactionPostId = postId, liked = liked) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.withLiked(reactionPostId = postId, liked = liked)))
+            it.copy(
+                myPosts = myPosts.copy(
+                    posts = myPosts.posts.withLiked(reactionPostId = postId, liked = liked),
+                    likes = myPosts.likes?.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withLiked(liked)) else post },
+                ),
+            )
         }
     }
 
@@ -1034,7 +1041,12 @@ internal class HomeScreenViewModel(
         updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withBoosted(reactionPostId = postId, boosted = boosted) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.withBoosted(reactionPostId = postId, boosted = boosted)))
+            it.copy(
+                myPosts = myPosts.copy(
+                    posts = myPosts.posts.withBoosted(reactionPostId = postId, boosted = boosted),
+                    likes = myPosts.likes?.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post },
+                ),
+            )
         }
     }
 
@@ -1220,9 +1232,60 @@ internal class HomeScreenViewModel(
                     emptyMessage = if (myPosts.posts.isEmpty()) "表示できる投稿はありません" else null,
                     media = media,
                     mediaEmptyMessage = if (media.isEmpty()) "表示できるメディアはありません" else null,
+                    likes = myPosts.likes.orEmpty().map { post -> createMyLikedPostItem(post, viewModelState) },
+                    likesEmptyMessage = when {
+                        myPosts.likes == null -> "いいねを読めませんでした"
+                        myPosts.likes.isEmpty() -> "表示できるいいねはありません"
+                        else -> null
+                    },
                 )
             }
         }
+    }
+
+    /**
+     * いいねした投稿は他の人の投稿のことがあるので、投稿者のプロフィールを開けるようにする
+     */
+    private fun createMyLikedPostItem(post: UserHomeTimelineResult.Post, viewModelState: ViewModelState): PostItemUiState {
+        val host = post.host
+        val profileAcct = if (host == null) post.username else "${post.username}@$host"
+        return createPostItemUiState(
+            pinned = false,
+            deleted = post.deleted,
+            boostUndone = false,
+            actorLabel = null,
+            iconUrl = post.iconUrl,
+            displayName = post.displayName,
+            displayNameEmojis = post.displayNameEmojis,
+            acct = "@$profileAcct",
+            body = post.body,
+            linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
+            sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+            blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
+            authorTapAction = AuthorTapAction.OpenProfile {
+                viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
+            },
+            menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
+            onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+            onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
+            onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
+            onToggleLike = {
+                val likedByMe = post.body.likedByMe
+                if (likedByMe != null) toggleLike(postId = post.reactionPostId, likedByMe = likedByMe)
+            },
+            onToggleBoost = {
+                val boostedByMe = post.body.boostedByMe
+                if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
+            },
+            onVisible = {
+                if (post.body.linkUrls.isNotEmpty()) {
+                    loadLinkPreviews(post.id)
+                }
+            },
+        )
     }
 
     private fun navigateToPostDetail(postId: String) {
@@ -1701,10 +1764,12 @@ internal class HomeScreenViewModel(
 
         /**
          * @param owner 投稿の主。名前やアイコンを出す
+         * @param likes いいねした投稿の最初のページ。読めなければ null
          */
         data class Loaded(
             val owner: UserMyProfileResult.Found,
             val posts: List<UserProfileResult.Post>,
+            val likes: List<UserHomeTimelineResult.Post>?,
         ) : MyPostsState
 
         /**

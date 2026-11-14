@@ -32,6 +32,15 @@ query UserProfilePosts($acct: String!, $after: String) {
     }
 }
 
+query UserProfileLikes($acct: String!, $after: String) {
+    userProfileLikes(acct: $acct, after: $after) {
+        posts {
+            ...TimelinePostFields
+        }
+        nextCursor
+    }
+}
+
 fragment ProfilePostFields on ProfilePost {
     content
     publishedAt

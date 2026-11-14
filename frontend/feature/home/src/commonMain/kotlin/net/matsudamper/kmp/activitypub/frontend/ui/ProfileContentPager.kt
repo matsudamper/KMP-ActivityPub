@@ -33,17 +33,20 @@ internal class ProfileContentPagerState(
     val headerListState: LazyListState,
     private val postsGridState: LazyGridState,
     private val mediaGridState: LazyGridState,
+    private val likesGridState: LazyGridState,
 ) {
     fun gridState(tab: ProfileContentTab): LazyGridState {
         return when (tab) {
             ProfileContentTab.Posts -> postsGridState
             ProfileContentTab.Media -> mediaGridState
+            ProfileContentTab.Likes -> likesGridState
         }
     }
 
     suspend fun scrollToTop() {
         postsGridState.scrollToItem(0)
         mediaGridState.scrollToItem(0)
+        likesGridState.scrollToItem(0)
         headerListState.animateScrollToItem(0)
     }
 }
@@ -53,42 +56,49 @@ internal fun rememberProfileContentPagerState(): ProfileContentPagerState {
     val headerListState = rememberLazyListState()
     val postsGridState = rememberLazyGridState()
     val mediaGridState = rememberLazyGridState()
-    return remember(headerListState, postsGridState, mediaGridState) {
+    val likesGridState = rememberLazyGridState()
+    return remember(headerListState, postsGridState, mediaGridState, likesGridState) {
         ProfileContentPagerState(
             headerListState = headerListState,
             postsGridState = postsGridState,
             mediaGridState = mediaGridState,
+            likesGridState = likesGridState,
         )
     }
 }
 
 /**
- * プロフィールの見出しの下に投稿とメディアのタブを並べ、左右にスワイプして切り替える。
+ * プロフィールの見出しの下に投稿やメディアのタブを並べ、左右にスワイプして切り替える。
  * 上へスクロールすると先に見出しが隠れ、タブが上に残る
+ *
+ * @param tabs 並べるタブ。[selectedTab] が入っていなければ先頭のタブを出す
  */
 @Composable
 internal fun ProfileContentPager(
     state: ProfileContentPagerState,
+    tabs: List<ProfileContentTab>,
     selectedTab: ProfileContentTab,
     onSelectTab: (ProfileContentTab) -> Unit,
     header: LazyListScope.() -> Unit,
     page: LazyGridScope.(ProfileContentTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val pagerState = rememberPagerState(initialPage = selectedTab.ordinal) { ProfileContentTab.entries.size }
+    val selectedPage = tabs.indexOf(selectedTab).coerceAtLeast(0)
+    val latestTabs by rememberUpdatedState(tabs)
+    val pagerState = rememberPagerState(initialPage = selectedPage) { latestTabs.size }
     val latestSelectedTab by rememberUpdatedState(selectedTab)
     val latestOnSelectTab by rememberUpdatedState(onSelectTab)
-    LaunchedEffect(pagerState, selectedTab) {
+    LaunchedEffect(pagerState, selectedPage) {
         // 途中で止まったアニメーションのずれが残るので、ページの番号だけでなくずれも見る
-        val pageSettledOnSelected = pagerState.currentPage == selectedTab.ordinal && pagerState.currentPageOffsetFraction == 0f
+        val pageSettledOnSelected = pagerState.currentPage == selectedPage && pagerState.currentPageOffsetFraction == 0f
         if (!pageSettledOnSelected) {
-            pagerState.animateScrollToPage(selectedTab.ordinal)
+            pagerState.animateScrollToPage(selectedPage)
         }
     }
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }
             .collect { settledPage ->
-                val settledTab = ProfileContentTab.entries[settledPage]
+                val settledTab = latestTabs.getOrNull(settledPage) ?: return@collect
                 if (settledTab != latestSelectedTab) {
                     latestOnSelectTab(settledTab)
                 }
@@ -105,14 +115,15 @@ internal fun ProfileContentPager(
         item {
             Column(modifier = Modifier.fillParentMaxSize()) {
                 ProfileContentTabRow(
-                    selectedTab = ProfileContentTab.entries[pagerState.currentPage],
+                    tabs = tabs,
+                    selectedTab = tabs.getOrElse(pagerState.currentPage) { tabs.first() },
                     onClickTab = onSelectTab,
                 )
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.weight(1f),
                 ) { pageIndex ->
-                    val tab = ProfileContentTab.entries[pageIndex]
+                    val tab = tabs.getOrElse(pageIndex) { tabs.first() }
                     LazyVerticalGrid(
                         columns = ProfileGridCells,
                         state = state.gridState(tab),

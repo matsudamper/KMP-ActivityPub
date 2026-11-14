@@ -992,6 +992,7 @@ internal fun UserTabContent(
             is HomeScreenUiState.Profile.Loaded -> {
                 ProfileContentPager(
                     state = pagerState,
+                    tabs = OWN_PROFILE_TABS,
                     selectedTab = userContentTab,
                     onSelectTab = listener::onClickUserContentTab,
                     header = {
@@ -1039,6 +1040,22 @@ internal fun UserTabContent(
                                         ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
                                     }
                                 }
+
+                                ProfileContentTab.Likes -> {
+                                    val likesEmptyMessage = userPosts.likesEmptyMessage
+                                    if (likesEmptyMessage != null) {
+                                        fullLineItem { UserTabEmptyMessage(text = likesEmptyMessage) }
+                                    }
+                                    items(
+                                        items = userPosts.likes,
+                                        span = { GridItemSpan(maxLineSpan) },
+                                    ) { post ->
+                                        Column {
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        }
+                                    }
+                                }
                             }
                         }
                     },
@@ -1048,6 +1065,11 @@ internal fun UserTabContent(
         }
     }
 }
+
+/**
+ * 自分のいいねは公開していなくても自分には見えるので、いつも「いいね」を並べる
+ */
+private val OWN_PROFILE_TABS = listOf(ProfileContentTab.Posts, ProfileContentTab.Media, ProfileContentTab.Likes)
 
 private fun LazyGridScope.fullLineItem(content: @Composable () -> Unit) {
     item(span = { GridItemSpan(maxLineSpan) }) { content() }

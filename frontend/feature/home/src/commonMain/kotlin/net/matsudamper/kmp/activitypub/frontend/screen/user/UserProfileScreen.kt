@@ -155,7 +155,7 @@ internal fun UserProfileContent(
                     val pagerState = rememberProfileContentPagerState()
                     val selectedGridState = pagerState.gridState(content.selectedTab)
                     // メディアのタブでは、画像の無い続きを読んでも表示の件数が増えない。投稿の件数で見張り直し、末尾にいる間は続きを読み進める
-                    LaunchedEffect(selectedGridState, uiState.listener, content.posts.size) {
+                    LaunchedEffect(selectedGridState, uiState.listener, content.posts.size, content.likes.size) {
                         // 件数も比べ、続きを読んでもまだ末尾が見えているときにもう一度知らせる
                         snapshotFlow {
                             val layoutInfo = selectedGridState.layoutInfo
@@ -169,6 +169,7 @@ internal fun UserProfileContent(
                     }
                     ProfileContentPager(
                         state = pagerState,
+                        tabs = content.tabs,
                         selectedTab = content.selectedTab,
                         onSelectTab = uiState.listener::onClickTab,
                         header = {
@@ -198,6 +199,7 @@ internal fun UserProfileContent(
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
+                                    postsFooter(footer = content.postsFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
                                 }
 
                                 ProfileContentTab.Media -> {
@@ -208,9 +210,26 @@ internal fun UserProfileContent(
                                     items(content.media) { media ->
                                         ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
                                     }
+                                    postsFooter(footer = content.postsFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
+                                }
+
+                                ProfileContentTab.Likes -> {
+                                    val likesEmptyMessage = content.likesEmptyMessage
+                                    if (likesEmptyMessage != null) {
+                                        fullLineItem { EmptyMessage(text = likesEmptyMessage) }
+                                    }
+                                    items(
+                                        items = content.likes,
+                                        span = { GridItemSpan(maxLineSpan) },
+                                    ) { post ->
+                                        Column {
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        }
+                                    }
+                                    postsFooter(footer = content.likesFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
                                 }
                             }
-                            postsFooter(footer = content.postsFooter, onClickRetry = uiState.listener::onClickRetryLoadMore)
                         },
                         modifier = Modifier.fillMaxSize(),
                     )
