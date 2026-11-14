@@ -127,8 +127,8 @@ internal fun ReactionPickerContent(
                     )
                 }
             }
-            // タブや検索で中身が変わってもダイアログの高さを変えない
-            Box(modifier = Modifier.fillMaxWidth().height(360.dp)) {
+            // タブや検索で中身が変わってもダイアログの高さを変えない。画面が低いときは、下の操作を残して一覧を縮める
+            Box(modifier = Modifier.fillMaxWidth().weight(1f, fill = false).height(360.dp)) {
                 PickerContent(content = uiState.content, listener = uiState.listener)
             }
             Row(
