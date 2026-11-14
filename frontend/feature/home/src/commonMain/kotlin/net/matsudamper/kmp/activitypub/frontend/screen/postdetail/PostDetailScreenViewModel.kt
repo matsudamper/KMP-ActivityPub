@@ -242,13 +242,15 @@ internal class PostDetailScreenViewModel(
     private fun sendMention() {
         val state = viewModelStateFlow.value
         if (!state.mentionSendable()) return
+        // 保存していない投稿の id で開いたときは、開いたときに保存した投稿の id でないと返信先を引けない
+        val replyToPostId = (state.post as? PostState.Loaded)?.post?.id ?: return
         val body = state.mentionText
         viewModelStateFlow.update { it.copy(mentionSending = true) }
         viewModelScope.launch {
             val error =
                 try {
                     val result =
-                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = postId)
+                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId)
                     when (result) {
                         // 画像を付けないので置けないことは無い
                         is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"
@@ -337,11 +339,14 @@ internal class PostDetailScreenViewModel(
         }
     }
 
-    private fun loadLinkPreviews() {
+    /**
+     * 保存していない投稿の id で開いたときは OGP を引けないので、開いたときに保存した投稿の id で引く
+     */
+    private fun loadLinkPreviews(loadedPostId: String) {
         if (linkPreviewRequested) return
         linkPreviewRequested = true
         viewModelScope.launch {
-            when (val result = api.linkPreviews(postId)) {
+            when (val result = api.linkPreviews(loadedPostId)) {
                 is UserLinkPreviewsResult.Success -> {
                     viewModelStateFlow.update { it.copy(linkPreviews = result.previews) }
                 }
@@ -425,7 +430,7 @@ internal class PostDetailScreenViewModel(
             onToggleBoost = { toggleBoost() },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
-                    loadLinkPreviews()
+                    loadLinkPreviews(post.id)
                 }
             },
         )
