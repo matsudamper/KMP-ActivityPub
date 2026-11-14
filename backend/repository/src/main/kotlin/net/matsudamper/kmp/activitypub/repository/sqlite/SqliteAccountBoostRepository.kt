@@ -45,7 +45,7 @@ internal class SqliteAccountBoostRepository(
                     .where(REMOTE_BOOSTS.ID.eq(boostId))
                     // 消された投稿は削除済みと出すために行を残しているだけなので、新しく付けられないようにする
                     .and(REMOTE_NOTES.DELETED_AT.isNull)
-                    .and(dsl.remoteBoostReadableBy(accountId))
+                    .and(remoteBoostReadable())
                     .and(REMOTE_NOTES.VISIBILITY.eq(BOOSTABLE_REMOTE_NOTE_VISIBILITY))
                     .fetchOne { it.toRemoteTarget() }
             }

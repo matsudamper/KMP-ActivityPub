@@ -7,31 +7,50 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostMention
 import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
 
 /**
- * 本文の URL を押せるようにし、カスタム絵文字を画像にする。本文は HTML を文字にしたものなので、`<a>` の情報は残っておらず URL を文字から拾う
+ * 本文の URL とメンションを押せるようにし、カスタム絵文字を画像にする。本文は HTML を文字にしたものなので、`<a>` の情報は残っておらず URL を文字から拾う
+ *
+ * @param mentions 位置は [content] でのもの。範囲から外れたものは無視する
+ * @param onOpenProfile acct は `user@host`
  */
 internal fun createPostBodyText(
     content: String,
+    mentions: List<UserPostMention>,
     emojis: List<UserCustomEmoji>,
     onOpenUrl: (url: String) -> Unit,
+    onOpenProfile: (acct: String) -> Unit,
 ): TextWithEmojis = TextWithEmojis(
     text = buildAnnotatedString {
-        val urlRanges = PlainTextUrl.findAll(content).map { match ->
-            match.range.first until match.range.first + trimTrailingPunctuation(match.value).length
-        }
-        val plainTextEnd = urlRanges.fold(0) { plainTextStart, urlRange ->
-            appendWithEmojis(content.substring(plainTextStart, urlRange.first), emojis)
-            val url = content.substring(urlRange)
-            withLink(LinkAnnotation.Clickable(tag = url, styles = PostBodyLinkStyles) { onOpenUrl(url) }) {
-                append(url)
+        val urlLinks = PlainTextUrl.findAll(content).map { match ->
+            val urlRange = match.range.first until match.range.first + trimTrailingPunctuation(match.value).length
+            BodyLink(range = urlRange) { onOpenUrl(content.substring(urlRange)) }
+        }.toList()
+        val mentionLinks = mentions
+            .filter { mention -> mention.start in 0 until mention.end && mention.end <= content.length }
+            .map { mention -> BodyLink(range = mention.start until mention.end) { onOpenProfile(mention.acct) } }
+        // 同じ位置から始まるなら、元の HTML でリンクだったメンションを残す
+        val links = (mentionLinks + urlLinks).sortedBy { it.range.first }
+        val plainTextEnd = links.fold(0) { plainTextStart, link ->
+            // 重なったリンクは、先に始まるほうを残す
+            if (link.range.first < plainTextStart) return@fold plainTextStart
+            appendWithEmojis(content.substring(plainTextStart, link.range.first), emojis)
+            val linkText = content.substring(link.range)
+            withLink(LinkAnnotation.Clickable(tag = linkText, styles = PostBodyLinkStyles) { link.onClick() }) {
+                append(linkText)
             }
-            urlRange.last + 1
+            link.range.last + 1
         }
         appendWithEmojis(content.substring(plainTextEnd), emojis)
     },
     emojis = emojis.toInlineEmojis(),
+)
+
+private class BodyLink(
+    val range: IntRange,
+    val onClick: () -> Unit,
 )
 
 // 文末の句読点や、URL の外側で閉じている括弧までリンクにしない

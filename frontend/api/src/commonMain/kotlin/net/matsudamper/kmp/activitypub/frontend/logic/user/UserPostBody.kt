@@ -4,6 +4,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * ホームとプロフィールで同じ見せ方にするため、投稿の中身はこの型でまとめて渡す
  *
  * @param linkUrls カードにするリンク。OGP は [UserApi.linkPreviews] で別に取る
+ * @param mentions [content] に書かれたメンション
  * @param favouriteCount 他のサーバーの投稿は数を受け取らないので null
  * @param boostCount 他のサーバーの投稿は数を受け取らないので null
  * @param stamps 多く押された順
@@ -18,6 +19,7 @@ data class UserPostBody(
     val summary: String?,
     val sensitive: Boolean,
     val linkUrls: List<String>,
+    val mentions: List<UserPostMention>,
     val images: List<UserPostImage>,
     val favouriteCount: Int?,
     val boostCount: Int?,
@@ -26,6 +28,17 @@ data class UserPostBody(
     val shareUrl: String?,
     val likedByMe: Boolean?,
     val boostedByMe: Boolean?,
+)
+
+/**
+ * @param start [UserPostBody.content] でメンションが始まる位置
+ * @param end メンションが終わる位置。この位置の文字は含まない
+ * @param acct プロフィールを開くときの `user@host`
+ */
+data class UserPostMention(
+    val start: Int,
+    val end: Int,
+    val acct: String,
 )
 
 /**

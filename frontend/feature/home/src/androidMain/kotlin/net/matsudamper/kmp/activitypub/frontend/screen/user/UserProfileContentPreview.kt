@@ -53,7 +53,7 @@ private fun UserProfileContentPreview() {
                                 iconUrl = null,
                                 displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                                 acct = "@alice@example.social",
-                                body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
+                                body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                                 postedAt = "2026-11-01T12:00:00Z",
                                 fullPostedAt = "2026/11/01 21:00",
                                 linkPreviews = listOf(
@@ -91,7 +91,7 @@ private fun UserProfileContentPreview() {
                                 iconUrl = null,
                                 displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
                                 acct = "@bob@remote.example",
-                                body = createPostBodyText(content = "フォローしていない人の投稿もブーストできます", emojis = listOf(), onOpenUrl = {}),
+                                body = createPostBodyText(content = "フォローしていない人の投稿もブーストできます", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                                 postedAt = "2026-11-01T13:00:00Z",
                                 fullPostedAt = "2026/11/01 22:00",
                                 linkPreviews = listOf(),

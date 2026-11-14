@@ -42,22 +42,17 @@ internal fun DSLContext.remoteNoteReadableBy(accountId: AccountId): Condition {
 }
 
 /**
- * REMOTE_BOOSTS の行を [accountId] のタイムラインに載せてよいか。ブーストした相手をフォローしていれば、投稿者のフォローは問わない
+ * REMOTE_BOOSTS の行を読めるか。公開している投稿は投稿元で誰でも読めるので、ブーストした相手や投稿者のフォローは問わない
  */
-internal fun DSLContext.remoteBoostReadableBy(accountId: AccountId): Condition =
-    REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)
-        .andExists(
-            selectOne().from(ACCOUNT_FOLLOWING).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ACTOR_URI.eq(ACCOUNT_FOLLOWING.ACTOR_URI))
-                .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_ACTORS.ID.eq(REMOTE_BOOSTS.REMOTE_ACTOR_ID)),
-        )
+internal fun remoteBoostReadable(): Condition = REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)
 
 /**
- * REMOTE_NOTES の行を [accountId] が読めるか、フォローしている相手のブーストで [accountId] のタイムラインに載っているか。
+ * REMOTE_NOTES の行を [accountId] が読めるか、読めるブーストがあるか。
  * ブーストで知った投稿は投稿者をフォローしていなくても、いいねやブーストを付けられる
  */
 internal fun DSLContext.remoteNoteReadableOrBoostedTo(accountId: AccountId): Condition =
     remoteNoteReadableBy(accountId).orExists(
-        selectOne().from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(REMOTE_NOTES.ID)).and(remoteBoostReadableBy(accountId)),
+        selectOne().from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(REMOTE_NOTES.ID)).and(remoteBoostReadable()),
     )
 
 /**
