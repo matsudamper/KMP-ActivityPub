@@ -50,10 +50,18 @@ interface TimelineRepository {
     fun contentHtml(accountId: AccountId, member: String): String?
 
     /**
-     * [member] の投稿の返信先の id。[hydrate] で読めるものに加えて、公開と、公開タイムラインに載せない公開の他のサーバーの投稿は、フォローしていなくても返す。
+     * [member] の投稿の返信先の id。[hydrate] で読めるものに加えて、このサーバーのほかのアカウントの投稿と、
+     * 公開と、公開タイムラインに載せない公開の他のサーバーの投稿は、フォローしていなくても返す。
      * 返信でないか、読めなければ null
      */
     fun inReplyTo(accountId: AccountId, member: String): String?
+
+    /**
+     * このサーバーの投稿を、誰の投稿かを問わずに返す。このサーバーの投稿はプロフィールで誰でも読める。無ければ null
+     *
+     * @param viewer いいねやブーストの有無を見るアカウント
+     */
+    fun localPost(viewer: AccountId, publicId: String): TimelinePost?
 
     /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す

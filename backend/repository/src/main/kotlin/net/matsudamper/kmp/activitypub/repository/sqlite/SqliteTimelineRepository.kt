@@ -235,7 +235,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     override fun inReplyTo(accountId: AccountId, member: String): String? = jooq.withConnection { dsl ->
         TimelineMembers.localNoteIdOf(member)?.let { noteId ->
             return@withConnection dsl.select(NOTES.IN_REPLY_TO).from(NOTES)
-                .where(NOTES.ID.eq(noteId)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
+                .where(NOTES.ID.eq(noteId))
                 .fetchOne(NOTES.IN_REPLY_TO)
         }
         TimelineMembers.remoteNoteIdOf(member)?.let { remoteNoteId ->
@@ -260,6 +260,18 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .fetchOne()?.value1()
         }
         null
+    }
+
+    override fun localPost(viewer: AccountId, publicId: String): TimelinePost? = jooq.withConnection { dsl ->
+        val noteId = dsl.select(NOTES.ID).from(NOTES).where(NOTES.PUBLIC_ID.eq(publicId)).fetchOne(NOTES.ID) ?: return@withConnection null
+        hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = listOf(noteId),
+            remoteIds = listOf(),
+            localCondition = DSL.noCondition(),
+            remoteCondition = DSL.noCondition(),
+        ).firstOrNull()
     }
 
     /**

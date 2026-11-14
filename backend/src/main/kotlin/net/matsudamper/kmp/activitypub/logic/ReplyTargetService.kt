@@ -29,8 +29,7 @@ class ReplyTargetService(
         return if (localPublicId == null) {
             remotePost(viewer, inReplyTo)
         } else {
-            val member = timeline.localPosition(localPublicId)?.member ?: return null
-            timeline.hydrate(viewer, listOf(member)).firstOrNull()
+            timeline.localPost(viewer, localPublicId)
         }
     }
 
