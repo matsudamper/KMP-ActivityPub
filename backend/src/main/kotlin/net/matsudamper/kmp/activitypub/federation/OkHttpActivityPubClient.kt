@@ -16,26 +16,29 @@ import net.matsudamper.kotpub.http.PublicAddressDnsResolver
 import net.matsudamper.kotpub.http.ResponseBody
 import okhttp3.Dns
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
+/**
+ * 返信先の URL など、他のサーバーが書いた URL も取りに行くので、内側のアドレスに届かないようにする。
+ * IP アドレスがそのまま書かれた URL は OkHttp が名前を引かず [PublicAddressDns] を通らないので、
+ * リダイレクトは自分で辿り、接続する前に毎回宛先を確かめる
+ */
 internal class OkHttpActivityPubClient : ActivityPubHttpClient {
-    private val getClient: OkHttpClient =
+    private val client: OkHttpClient =
         OkHttpClient.Builder()
             // プロキシを通すと名前解決がプロキシ側に移り、PublicAddressDnsResolver を通らない
             .proxy(Proxy.NO_PROXY)
             .dns(PublicAddressDns)
+            .followRedirects(false)
+            .followSslRedirects(false)
             .connectTimeout(Duration.ofSeconds(10))
             .readTimeout(Duration.ofSeconds(10))
             .callTimeout(Duration.ofSeconds(30))
-            .build()
-
-    private val postClient: OkHttpClient =
-        getClient.newBuilder()
-            .followRedirects(false)
-            .followSslRedirects(false)
             .build()
 
     override suspend fun get(
@@ -44,13 +47,31 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         maxBodyBytes: Int,
         readsBody: (status: Int, finalUrl: String) -> Boolean,
     ): ActivityPubClientResponse {
+        var target = url.toHttpUrlOrNull() ?: throw IOException("URL として読めない: $url")
+        repeat(MAX_REDIRECTS + 1) {
+            requirePublic(target)
+            when (val result = getOnce(target, headers, maxBodyBytes, readsBody)) {
+                is GetResult.Redirect -> target = result.location ?: throw IOException("リダイレクト先が無い: $target")
+                is GetResult.Completed -> return result.response
+            }
+        }
+        throw IOException("リダイレクトが多すぎる: $url")
+    }
+
+    private suspend fun getOnce(
+        url: HttpUrl,
+        headers: Map<String, String>,
+        maxBodyBytes: Int,
+        readsBody: (status: Int, finalUrl: String) -> Boolean,
+    ): GetResult {
         val request = Request.Builder()
             .url(url)
             .headers(withUserAgent(headers).toHeaders())
             .get()
             .build()
-        return execute(getClient, request) { response ->
-            val finalUrl = response.request.url.toString()
+        return execute(request) { response ->
+            if (response.isRedirect) return@execute GetResult.Redirect(response.header("Location")?.let { url.resolve(it) })
+            val finalUrl = url.toString()
             val body =
                 if (readsBody(response.code, finalUrl)) {
                     try {
@@ -64,7 +85,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
                 } else {
                     ResponseBody.NotRead
                 }
-            ActivityPubClientResponse(status = response.code, finalUrl = finalUrl, body = body)
+            GetResult.Completed(ActivityPubClientResponse(status = response.code, finalUrl = finalUrl, body = body))
         }
     }
 
@@ -73,22 +94,26 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         headers: Map<String, String>,
         body: ByteArray,
     ): ActivityPubPostResponse {
+        requirePublic(url.toHttpUrlOrNull() ?: throw IOException("URL として読めない: $url"))
         val request = Request.Builder()
             .url(url)
             .headers(withUserAgent(headers).toHeaders())
             // Content-Type は署名されたヘッダに入っているので、ここで付け直さない
             .post(body.toRequestBody())
             .build()
-        return execute(postClient, request) { response -> ActivityPubPostResponse(status = response.code) }
+        return execute(request) { response -> ActivityPubPostResponse(status = response.code) }
     }
 
     override fun close() {
-        getClient.dispatcher.executorService.shutdown()
-        getClient.connectionPool.evictAll()
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
+    }
+
+    private suspend fun requirePublic(url: HttpUrl) {
+        if (PublicAddressDnsResolver.resolve(url.host).isEmpty()) throw IOException("公開されていない宛先: ${url.host}")
     }
 
     private suspend fun <T> execute(
-        client: OkHttpClient,
         request: Request,
         block: (Response) -> T,
     ): T = withOpenTelemetryContext {
@@ -104,6 +129,12 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             headers + (USER_AGENT_HEADER to USER_AGENT)
         }
 
+    private sealed interface GetResult {
+        class Redirect(val location: HttpUrl?) : GetResult
+
+        class Completed(val response: ActivityPubClientResponse) : GetResult
+    }
+
     private object PublicAddressDns : Dns {
         override fun lookup(hostname: String): List<InetAddress> =
             runBlocking { PublicAddressDnsResolver.resolve(hostname) }
@@ -113,5 +144,6 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     private companion object {
         const val USER_AGENT_HEADER = "User-Agent"
         const val USER_AGENT = "kmp-activitypub"
+        const val MAX_REDIRECTS = 5
     }
 }
