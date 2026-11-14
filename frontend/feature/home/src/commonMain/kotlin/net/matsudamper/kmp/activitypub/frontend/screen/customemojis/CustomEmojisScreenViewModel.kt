@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.customemojis
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,8 @@ internal class CustomEmojisScreenViewModel(
                 deletingIds = setOf(),
             ),
         )
+
+    private var loadJob: Job? = null
 
     private val listener = object : CustomEmojisScreenUiState.Listener {
         override fun onClickBack() {
@@ -71,9 +74,13 @@ internal class CustomEmojisScreenViewModel(
         load()
     }
 
+    /**
+     * 前の読み込みは止める。追加より前に始まった読み込みの結果で、追加した後の一覧を上書きしないため
+     */
     private fun load() {
+        loadJob?.cancel()
         viewModelStateFlow.update { it.copy(emojis = EmojisState.Loading) }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             val emojis = when (val result = api.customEmojis()) {
                 is UserCustomEmojisResult.Success -> EmojisState.Loaded(result.emojis)
                 is UserCustomEmojisResult.Failure -> EmojisState.Failed(result.message)
@@ -132,6 +139,8 @@ internal class CustomEmojisScreenViewModel(
                             },
                         )
                     }
+                    // 一覧を取れていないときは、足した絵文字が見えるよう取り直す
+                    if (viewModelStateFlow.value.emojis !is EmojisState.Loaded) load()
                     events.send { it.showMessage(":${result.emoji.shortcode}: を追加しました") }
                 }
 
