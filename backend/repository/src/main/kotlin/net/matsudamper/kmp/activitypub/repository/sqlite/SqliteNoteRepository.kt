@@ -85,7 +85,7 @@ internal class SqliteNoteRepository(
                     .from(REMOTE_BOOSTS)
                     .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
                     .where(REMOTE_BOOSTS.ID.eq(boostId))
-                    .and(dsl.remoteBoostReadableBy(accountId))
+                    .and(remoteBoostReadable())
                     .fetchOne(REMOTE_BOOSTS.REMOTE_NOTE_ID)
                     ?: return@withConnection null
                 dsl.remoteReplyTarget(REMOTE_NOTES.ID.eq(boostedNoteId))
