@@ -11,7 +11,10 @@ import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 internal class SqliteCustomEmojiRepository(
     private val jooq: SqliteJooq,
 ) : CustomEmojiRepository {
-    override fun add(emoji: NewLocalCustomEmoji): LocalCustomEmoji? = jooq.withConnection { dsl ->
+    /**
+     * 入れた行を読み直すところまでを 1 つにまとめる。読み直しで失敗したときに行だけが残ると、呼び出し側が消した画像を指す行になる
+     */
+    override fun add(emoji: NewLocalCustomEmoji): LocalCustomEmoji? = jooq.transaction { dsl ->
         val inserted = dsl.insertInto(CUSTOM_EMOJIS)
             .set(CUSTOM_EMOJIS.SHORTCODE, emoji.shortcode)
             .set(CUSTOM_EMOJIS.PUBLIC_ID, emoji.publicId)
