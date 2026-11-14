@@ -1,10 +1,12 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.net.InetAddress
 import java.net.ProtocolException
 import java.net.Proxy
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
@@ -38,7 +40,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             .followSslRedirects(false)
             .connectTimeout(Duration.ofSeconds(10))
             .readTimeout(Duration.ofSeconds(10))
-            .callTimeout(Duration.ofSeconds(30))
+            .callTimeout(CALL_TIMEOUT)
             .build()
 
     override suspend fun get(
@@ -52,9 +54,13 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             .headers(withUserAgent(headers).toHeaders())
             .get()
             .build()
+        // リダイレクトを辿っても期限を延ばさないよう、全体で 1 つの期限を共有する
+        val deadlineNanos = System.nanoTime() + CALL_TIMEOUT.toNanos()
         repeat(MAX_REDIRECTS + 1) {
             requirePublicHost(request.url)
-            val result = execute(request) { response ->
+            val remainingNanos = deadlineNanos - System.nanoTime()
+            if (remainingNanos <= 0) throw InterruptedIOException("タイムアウトした: $url")
+            val result = execute(request, callTimeoutNanos = remainingNanos) { response ->
                 val redirectRequest = response.redirectRequest()
                 if (redirectRequest != null) {
                     GetResult.Redirect(redirectRequest)
@@ -82,7 +88,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             .post(body.toRequestBody())
             .build()
         requirePublicHost(request.url)
-        return execute(request) { response -> ActivityPubPostResponse(status = response.code) }
+        return execute(request, callTimeoutNanos = CALL_TIMEOUT.toNanos()) { response -> ActivityPubPostResponse(status = response.code) }
     }
 
     override fun close() {
@@ -98,7 +104,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     }
 
     /**
-     * OkHttp が自分で辿るときと同じく、別のホストへ移るなら Authorization を外す
+     * OkHttp が自分で辿るときと同じく、ホスト・ポート・スキームのどれかが変わるなら Authorization を外す
      *
      * @return リダイレクトでないか、移り先が無ければ null
      */
@@ -107,7 +113,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         val location = header("Location")?.let { request.url.resolve(it) } ?: return null
         return request.newBuilder()
             .url(location)
-            .apply { if (location.host != request.url.host) removeHeader("Authorization") }
+            .apply { if (!location.isSameOrigin(request.url)) removeHeader("Authorization") }
             .build()
     }
 
@@ -132,12 +138,18 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         return ActivityPubClientResponse(status = code, finalUrl = finalUrl, body = readBody)
     }
 
+    private fun HttpUrl.isSameOrigin(other: HttpUrl): Boolean =
+        host == other.host && port == other.port && scheme == other.scheme
+
     private suspend fun <T> execute(
         request: Request,
+        callTimeoutNanos: Long,
         block: (Response) -> T,
     ): T = withOpenTelemetryContext {
         runInterruptible {
-            client.newCall(request).execute().use(block)
+            val call = client.newCall(request)
+            call.timeout().timeout(callTimeoutNanos, TimeUnit.NANOSECONDS)
+            call.execute().use(block)
         }
     }
 
@@ -163,6 +175,7 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     private companion object {
         // OkHttp が自分で辿るときの上限に合わせる
         const val MAX_REDIRECTS = 20
+        val CALL_TIMEOUT: Duration = Duration.ofSeconds(30)
         const val USER_AGENT_HEADER = "User-Agent"
         const val USER_AGENT = "kmp-activitypub"
     }
