@@ -64,7 +64,11 @@ internal class BlockedServersScreenViewModel(
         viewModelScope.launch {
             val servers = when (val result = api.blockedServers()) {
                 is UserBlockedServersResult.Success -> ServersState.Loaded(result.hosts)
-                is UserBlockedServersResult.Failure -> ServersState.Failed(result.message)
+
+                is UserBlockedServersResult.Failure -> {
+                    events.send { it.showMessage(result.message) }
+                    ServersState.Failed
+                }
             }
             viewModelStateFlow.update { it.copy(servers = servers) }
         }
@@ -149,7 +153,7 @@ internal class BlockedServersScreenViewModel(
                     emptyMessageVisible = servers.hosts.isEmpty(),
                 )
 
-                is ServersState.Failed -> BlockedServersScreenUiState.Content.Error(servers.message)
+                ServersState.Failed -> BlockedServersScreenUiState.Content.LoadFailed
             },
             listener = listener,
         )
@@ -176,6 +180,6 @@ internal class BlockedServersScreenViewModel(
          */
         data class Loaded(val hosts: List<String>) : ServersState
 
-        data class Failed(val message: String) : ServersState
+        data object Failed : ServersState
     }
 }

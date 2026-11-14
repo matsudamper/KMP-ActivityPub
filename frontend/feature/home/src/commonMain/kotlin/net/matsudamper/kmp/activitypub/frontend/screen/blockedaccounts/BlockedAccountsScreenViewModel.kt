@@ -54,7 +54,11 @@ internal class BlockedAccountsScreenViewModel(
         viewModelScope.launch {
             val accounts = when (val result = api.blockedAccounts()) {
                 is UserBlockedAccountsResult.Success -> AccountsState.Loaded(result.accounts)
-                is UserBlockedAccountsResult.Failure -> AccountsState.Failed(result.message)
+
+                is UserBlockedAccountsResult.Failure -> {
+                    events.send { it.showMessage(result.message) }
+                    AccountsState.Failed
+                }
             }
             viewModelStateFlow.update { it.copy(accounts = accounts) }
         }
@@ -109,7 +113,7 @@ internal class BlockedAccountsScreenViewModel(
                     emptyMessageVisible = accounts.accounts.isEmpty(),
                 )
 
-                is AccountsState.Failed -> BlockedAccountsScreenUiState.Content.Error(accounts.message)
+                AccountsState.Failed -> BlockedAccountsScreenUiState.Content.LoadFailed
             },
             listener = listener,
         )
@@ -134,6 +138,6 @@ internal class BlockedAccountsScreenViewModel(
          */
         data class Loaded(val accounts: List<UserBlockedAccount>) : AccountsState
 
-        data class Failed(val message: String) : AccountsState
+        data object Failed : AccountsState
     }
 }
