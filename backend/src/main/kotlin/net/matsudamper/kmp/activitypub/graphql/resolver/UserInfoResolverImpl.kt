@@ -50,7 +50,10 @@ class UserInfoResolverImpl : UserInfoResolver {
     override fun timelinePost(userInfo: QlUserInfo, id: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> =
         otelFuture {
             val diContainer = GraphQlEngine.diContainer(env)
-            val post = diContainer.viewablePostService.post(userInfo.id, id.value)?.let { listOf(it).toQlTimelinePosts(diContainer).single() }
+            val post = diContainer.viewablePostService.post(userInfo.id, id.value)?.let { viewable ->
+                val mapped = listOf(viewable.post).toQlTimelinePosts(diContainer).single()
+                if (viewable.ownedByViewer) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+            }
             DataFetcherResult.Builder<QlTimelinePost?>(post).build()
         }
 

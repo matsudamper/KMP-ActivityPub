@@ -4,7 +4,10 @@ import java.time.Clock
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
@@ -65,17 +68,17 @@ class ViewablePostServiceTest {
 
     @Test
     fun unsavedPostIsStoredWhenOpened() = runBlocking {
-        val service = ViewablePostService(timeline, unsavedNotes)
+        val service = ViewablePostService(timeline, AccountService(repositories.accountRepository), unsavedNotes)
 
         val post = service.post(viewer, UnsavedRemoteNoteId.of(objectUri))
 
-        assertEquals("r1", post?.position?.member)
+        assertEquals("r1", post?.post?.position?.member)
         assertEquals(listOf(objectUri), imports)
     }
 
     @Test
     fun linkPreviewsDoNotStoreUnsavedPost() = runBlocking {
-        val service = ViewablePostService(timeline, unsavedNotes)
+        val service = ViewablePostService(timeline, AccountService(repositories.accountRepository), unsavedNotes)
 
         assertNull(service.contentHtml(viewer, UnsavedRemoteNoteId.of(objectUri)))
         assertEquals(listOf(), imports)
@@ -87,9 +90,21 @@ class ViewablePostServiceTest {
     @Test
     fun unsavedPostCannotBeOpenedWithoutFederation() = runBlocking {
         repositories.timelineRepository.storedFetchedNotes[objectUri] = storedPost
-        val service = ViewablePostService(timeline, null)
+        val service = ViewablePostService(timeline, AccountService(repositories.accountRepository), null)
 
         assertNull(service.post(viewer, UnsavedRemoteNoteId.of(objectUri)))
-        assertEquals("r1", service.post(viewer, "r1")?.position?.member)
+        assertEquals("r1", service.post(viewer, "r1")?.post?.position?.member)
+    }
+
+    @Test
+    fun onlyViewersOwnLocalPostIsOwned() = runBlocking {
+        val alice = repositories.accountRepository.add("alice", "hash", "type")
+        val carol = repositories.accountRepository.add("carol", "hash", "type")
+        // FakeTimelineRepository が組み立てるこのサーバーの投稿は alice の投稿になる
+        repositories.timelineRepository.positions.add(TimelinePosition(1, "l1"))
+        val service = ViewablePostService(timeline, AccountService(repositories.accountRepository), unsavedNotes)
+
+        assertTrue(assertNotNull(service.post(alice, "l1")).ownedByViewer)
+        assertFalse(assertNotNull(service.post(carol, "l1")).ownedByViewer)
     }
 }

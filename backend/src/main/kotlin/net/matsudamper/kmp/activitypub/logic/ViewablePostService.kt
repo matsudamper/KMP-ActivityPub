@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.timeline.TimelineService
  */
 class ViewablePostService(
     private val timeline: TimelineService,
+    private val accounts: AccountService,
     private val unsavedNotes: UnsavedRemoteNotes?,
 ) {
     /**
@@ -19,9 +20,11 @@ class ViewablePostService(
      *
      * @return 開けない投稿なら null
      */
-    suspend fun post(viewer: AccountId, postId: String): TimelinePost? {
+    suspend fun post(viewer: AccountId, postId: String): ViewablePost? {
         val member = memberOf(viewer = viewer, postId = postId, importsMissing = true) ?: return null
-        return timeline.viewablePost(viewer, member)
+        val post = timeline.viewablePost(viewer, member) ?: return null
+        val ownedByViewer = post.boostedBy == null && post.localPublicId != null && post.username == accounts.account(viewer)?.username
+        return ViewablePost(post = post, ownedByViewer = ownedByViewer)
     }
 
     /**
@@ -39,3 +42,11 @@ class ViewablePostService(
         return unsavedNotes?.memberOf(viewer = viewer, postId = postId, importsMissing = importsMissing)
     }
 }
+
+/**
+ * @param ownedByViewer 見ているアカウント自身の投稿か。タイムラインと違い他の人の投稿も開けるので、消したり固定したりできるかはこれで分ける
+ */
+data class ViewablePost(
+    val post: TimelinePost,
+    val ownedByViewer: Boolean,
+)
