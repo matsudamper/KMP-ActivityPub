@@ -7,31 +7,59 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostMention
 import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
 
 /**
- * 本文の URL を押せるようにし、カスタム絵文字を画像にする。本文は HTML を文字にしたものなので、`<a>` の情報は残っておらず URL を文字から拾う
+ * 本文の URL とメンションを押せるようにし、カスタム絵文字を画像にする。本文は HTML を文字にしたものなので、`<a>` の情報は残っておらず URL を文字から拾う
+ *
+ * @param onOpenProfile acct は `user@host`
  */
 internal fun createPostBodyText(
     content: String,
+    mentions: List<UserPostMention>,
     emojis: List<UserCustomEmoji>,
     onOpenUrl: (url: String) -> Unit,
+    onOpenProfile: (acct: String) -> Unit,
 ): TextWithEmojis = TextWithEmojis(
     text = buildAnnotatedString {
-        val urlRanges = PlainTextUrl.findAll(content).map { match ->
-            match.range.first until match.range.first + trimTrailingPunctuation(match.value).length
-        }
-        val plainTextEnd = urlRanges.fold(0) { plainTextStart, urlRange ->
-            appendWithEmojis(content.substring(plainTextStart, urlRange.first), emojis)
-            val url = content.substring(urlRange)
-            withLink(LinkAnnotation.Clickable(tag = url, styles = PostBodyLinkStyles) { onOpenUrl(url) }) {
-                append(url)
+        val urlLinks = PlainTextUrl.findAll(content).map { match ->
+            val urlRange = match.range.first until match.range.first + trimTrailingPunctuation(match.value).length
+            BodyLink(range = urlRange) { onOpenUrl(content.substring(urlRange)) }
+        }.toList()
+        val mentionLinks = mentions.flatMap { mention ->
+            findMentionRanges(content = content, mentionText = mention.text).map { range ->
+                BodyLink(range = range) { onOpenProfile(mention.acct) }
             }
-            urlRange.last + 1
+        }
+        val links = (urlLinks + mentionLinks).sortedBy { it.range.first }
+        val plainTextEnd = links.fold(0) { plainTextStart, link ->
+            // URL の中に書かれた @ やメンションの重なりは、先に始まるリンクを残す
+            if (link.range.first < plainTextStart) return@fold plainTextStart
+            appendWithEmojis(content.substring(plainTextStart, link.range.first), emojis)
+            val linkText = content.substring(link.range)
+            withLink(LinkAnnotation.Clickable(tag = linkText, styles = PostBodyLinkStyles) { link.onClick() }) {
+                append(linkText)
+            }
+            link.range.last + 1
         }
         appendWithEmojis(content.substring(plainTextEnd), emojis)
     },
     emojis = emojis.toInlineEmojis(),
+)
+
+/**
+ * `@alice` が `@alice@example.com` や `@alice_2` の一部のときは別のアカウントなので、前後が名前に続く文字なら当てない
+ */
+private fun findMentionRanges(content: String, mentionText: String): List<IntRange> =
+    Regex("""(?<![\w@.-])${Regex.escape(mentionText)}(?![\w@-]|\.\w)""", RegexOption.IGNORE_CASE)
+        .findAll(content)
+        .map { it.range }
+        .toList()
+
+private class BodyLink(
+    val range: IntRange,
+    val onClick: () -> Unit,
 )
 
 // 文末の句読点や、URL の外側で閉じている括弧までリンクにしない

@@ -43,6 +43,10 @@ fragment ProfilePostFields on ProfilePost {
     pinned
     pinnableNoteId
     linkUrls
+    mentions {
+        text
+        acct
+    }
     images {
         url
         thumbnailUrl

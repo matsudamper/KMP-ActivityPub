@@ -858,6 +858,7 @@ class UserApi(
                 summary = summary,
                 sensitive = sensitive,
                 linkUrls = linkUrls,
+                mentions = mentions.map { mention -> UserPostMention(text = mention.text, acct = mention.acct) },
                 images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
                 favouriteCount = favouriteCount,
                 boostCount = boostCount,

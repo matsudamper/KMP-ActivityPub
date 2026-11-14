@@ -3,7 +3,9 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.model.QlCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostImage
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostMention
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostStamp
+import net.matsudamper.kmp.activitypub.logic.PostMentions
 import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.StampCount
@@ -19,6 +21,7 @@ internal class QlPostBody(
     val summary: String?,
     val sensitive: Boolean,
     val linkUrls: List<String>,
+    val mentions: List<QlPostMention>,
     val images: List<QlPostImage>,
 )
 
@@ -39,6 +42,7 @@ internal fun createQlPostBody(
         sensitive = sensitive,
         // DOMAIN が無いと linkPreviewService は null。そのときはカードにするリンクを返さない
         linkUrls = if (linkUrlsEnabled) diContainer.linkPreviewService?.links(contentHtml).orEmpty() else listOf(),
+        mentions = PostMentions.find(contentHtml).map { QlPostMention(text = it.text, acct = it.acct) },
         images = images.toQlPostImages(diContainer),
     )
 

@@ -19,6 +19,7 @@ import coil3.ColorImage
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostMention
 import net.matsudamper.kmp.activitypub.frontend.screen.PostDetailDialogFrame
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
@@ -72,7 +73,7 @@ private fun createLoadedUiState(
                 iconUrl = null,
                 displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                 acct = "@alice@example.social",
-                body = createPostBodyText(content = "個別の投稿の画面です。 https://kotlinlang.org/", emojis = listOf(), onOpenUrl = {}),
+                body = createPostBodyText(content = "@alice 個別の投稿の画面です。 https://kotlinlang.org/", mentions = listOf(UserPostMention(text = "@alice", acct = "alice@example.social")), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                 postedAt = "2026-11-01T12:00:00Z",
                 fullPostedAt = "2026/11/01 21:00",
                 linkPreviews = listOf(
