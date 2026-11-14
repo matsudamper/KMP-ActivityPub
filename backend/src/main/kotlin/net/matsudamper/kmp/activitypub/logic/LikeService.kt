@@ -63,11 +63,18 @@ class LikeService(
         val sending = when (reaction) {
             null, PostReaction.Like -> null
 
-            is PostReaction.Unicode -> if (isUnicodeEmoji(reaction.emoji)) SendingReaction(ReactionEmoji.Unicode(reaction.emoji), null) else return SetReactionResult.InvalidEmoji
+            is PostReaction.Unicode -> if (isUnicodeEmoji(
+                    reaction.emoji,
+                )
+            ) {
+                SendingReaction(ReactionEmoji.Unicode(reaction.emoji), customEmojiId = null, customEmojiPublicId = null)
+            } else {
+                return SetReactionResult.InvalidEmoji
+            }
 
             is PostReaction.Custom -> {
                 val emoji = customEmojis.findByShortcode(reaction.shortcode) ?: return SetReactionResult.InvalidEmoji
-                SendingReaction(ReactionEmoji.Custom(customEmojiUrls.emojiObjectOf(emoji)), emoji.id)
+                SendingReaction(ReactionEmoji.Custom(customEmojiUrls.emojiObjectOf(emoji)), customEmojiId = emoji.id, customEmojiPublicId = emoji.publicId)
             }
         }
         val reactionEmoji = sending?.emoji
@@ -75,7 +82,9 @@ class LikeService(
         val postId = unsavedNotes.memberOf(viewer = accountId, postId = requestedPostId, importsMissing = reaction != null)
             ?: return if (reaction != null) SetReactionResult.PostNotFound else SetReactionResult.Updated
         val current = likes.likesOf(accountId, setOf(postId))[postId]
-        if (reaction != null && current != null && current.reactionEmoji == reactionEmoji?.text) return SetReactionResult.Updated
+        // 消した絵文字と同じ名前で置き直した絵文字は別のものなので、名前だけでなく画像でも比べる
+        val unchanged = current != null && current.reactionEmoji == reactionEmoji?.text && current.customEmojiPublicId == sending?.customEmojiPublicId
+        if (reaction != null && unchanged) return SetReactionResult.Updated
         val target = if (reaction == null) null else likes.target(accountId, postId) ?: return SetReactionResult.PostNotFound
 
         // 外すときは今読めるかを問わない。投稿者のフォローを外した後でも、付けたものを外せるようにする
@@ -199,8 +208,9 @@ private fun isUnicodeEmoji(text: String): Boolean =
 
 /**
  * @param customEmojiId このサーバーのカスタム絵文字なら、その id
+ * @param customEmojiPublicId このサーバーのカスタム絵文字なら、画像の公開 id
  */
-private class SendingReaction(val emoji: ReactionEmoji, val customEmojiId: CustomEmojiId?)
+private class SendingReaction(val emoji: ReactionEmoji, val customEmojiId: CustomEmojiId?, val customEmojiPublicId: String?)
 
 // 肌の色や家族の絵文字は、いくつものコードポイントを繋いで 1 つになる
 private const val MAX_UNICODE_EMOJI_CODE_POINTS = 16
