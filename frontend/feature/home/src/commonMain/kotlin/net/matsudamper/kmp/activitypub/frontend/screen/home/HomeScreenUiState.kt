@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.home
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
@@ -51,6 +52,7 @@ data class HomeScreenUiState(
      * 出していなければ null
      */
     val deleteNoteDialog: DeleteNoteDialogUiState?,
+    val reactionPickerDialog: ReactionPickerDialogUiState?,
     /**
      * 出していなければ null
      */

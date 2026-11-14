@@ -117,6 +117,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImageInput
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
@@ -460,6 +461,10 @@ internal fun HomeContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
+    }
+    val reactionPickerDialog = uiState.reactionPickerDialog
+    if (reactionPickerDialog != null) {
+        ReactionPickerDialog(dialogUiState = reactionPickerDialog)
     }
     val addFollowingGroupDialog = uiState.addFollowingGroupDialog
     if (addFollowingGroupDialog != null) {

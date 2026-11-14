@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param onOpenProfile 本文のメンションを押したとき。acct は `user@host`
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
+ * @param onOpenReactionPicker リアクションのアイコンを押したとき
  */
 internal fun createPostItemUiState(
     actorLabel: PostActorLabel?,
@@ -43,6 +44,7 @@ internal fun createPostItemUiState(
     onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
+    onOpenReactionPicker: () -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     val shareUrl = body.shareUrl
@@ -104,9 +106,10 @@ internal fun createPostItemUiState(
         },
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
-        favouriteButton = body.likedByMe?.let { liked ->
+        favouriteButton = body.likedByMe?.let {
             PostItemUiState.FavouriteButton(
-                iconHighlighted = liked,
+                // リアクションも Like で送るが、絵文字を付けたものはリアクションのアイコンに出す
+                iconHighlighted = body.plainLikedByMe,
                 listener = object : PostItemUiState.FavouriteButtonListener {
                     override fun onClick() {
                         onToggleLike()
@@ -120,6 +123,17 @@ internal fun createPostItemUiState(
                 listener = object : PostItemUiState.BoostButtonListener {
                     override fun onClick() {
                         onToggleBoost()
+                    }
+                },
+            )
+        },
+        // いいねとリアクションは同じ Like で送るので、いいねできる投稿だけリアクションできる
+        reactionButton = body.likedByMe?.let {
+            PostItemUiState.ReactionButton(
+                selectedReaction = body.viewerReaction?.let { PostItemUiState.SelectedReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
+                listener = object : PostItemUiState.ReactionButtonListener {
+                    override fun onClick() {
+                        onOpenReactionPicker()
                     }
                 },
             )

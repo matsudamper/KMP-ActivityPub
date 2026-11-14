@@ -284,7 +284,7 @@ internal fun PostItem(
                 ) {
                     uiState.stamps.forEach { stamp ->
                         ReactionCount(countText = stamp.countText, sizes = sizes) {
-                            StampEmoji(stamp = stamp, sizes = sizes)
+                            StampEmoji(emoji = stamp.emoji, imageUrl = stamp.imageUrl, sizes = sizes)
                         }
                     }
                 }
@@ -468,20 +468,20 @@ private fun ReactionCount(
  */
 @Composable
 private fun StampEmoji(
-    stamp: PostItemUiState.Stamp,
+    emoji: String,
+    imageUrl: String?,
     sizes: PostItemSizes,
 ) {
-    val imageUrl = stamp.imageUrl
     var imageFailed by remember(imageUrl) { mutableStateOf(false) }
     if (imageUrl == null || imageFailed) {
         Text(
-            text = stamp.emoji,
+            text = emoji,
             style = sizes.secondaryTextStyle,
         )
     } else {
         AsyncImage(
             model = imageUrl,
-            contentDescription = stamp.emoji,
+            contentDescription = emoji,
             modifier = Modifier.height(sizes.stampImageHeight).widthIn(max = sizes.stampImageHeight * 3),
             contentScale = ContentScale.Fit,
             onError = { imageFailed = true },
@@ -491,7 +491,7 @@ private fun StampEmoji(
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。スタンプはまだ押せないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る
  */
 @Composable
 private fun PostActions(
@@ -563,13 +563,26 @@ private fun PostActions(
                     maxLines = 1,
                 )
             }
-            Box(modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth)) {
-                Icon(
-                    imageVector = AppIcons.Emoticon,
-                    contentDescription = "スタンプ",
-                    modifier = Modifier.size(sizes.actionIconSize),
-                    tint = disabledIconColor,
-                )
+            val reactionButton = uiState.reactionButton
+            TextButton(
+                onClick = { reactionButton?.listener?.onClick() },
+                enabled = reactionButton != null,
+                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
+                contentPadding = ActionButtonContentPadding,
+            ) {
+                val selectedReaction = reactionButton?.selectedReaction
+                if (selectedReaction == null) {
+                    Icon(
+                        imageVector = AppIcons.Emoticon,
+                        contentDescription = "リアクション",
+                        modifier = Modifier.size(sizes.actionIconSize),
+                        tint = if (reactionButton == null) disabledIconColor else iconColor,
+                    )
+                } else {
+                    // 付けたリアクションをアイコンの代わりに出す。押すと付け替えか外すかを選べる
+                    StampEmoji(emoji = selectedReaction.emoji, imageUrl = selectedReaction.imageUrl, sizes = sizes)
+                }
+                Spacer(modifier = Modifier.weight(1f))
             }
             val shareListener = uiState.shareListener
             IconButton(
