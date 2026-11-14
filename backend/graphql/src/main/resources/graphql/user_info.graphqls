@@ -15,7 +15,8 @@ type UserInfo {
     timelinePost(id: TimelinePostId!): TimelinePost @lazy
     """
     postId の投稿の返信先。postId には TimelinePost.id を渡す。返した投稿の id を渡せば、さらに返信先をたどれる。
-    保存していない他のサーバーの投稿は取ってきて保存するので遅い。返信でないか、返信先を読めないか、サーバーに DOMAIN が無ければ null
+    保存していない他のサーバーの投稿は、相手のサーバーから取って保存せずに返すので遅い。その id と reactionPostId は保存していない投稿を指し、いいねやブーストを付けたときに保存する。
+    返信でないか、返信先を読めないか、サーバーに DOMAIN が無ければ null
     """
     replyTarget(postId: TimelinePostId!): TimelinePost @lazy
     id: UserId!

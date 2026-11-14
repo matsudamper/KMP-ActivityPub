@@ -157,7 +157,14 @@ internal class Federation(
         )
 
     private val remoteNotes = HttpRemoteNotes(httpClient)
-    private val unsavedRemoteNotes = FetchingUnsavedRemoteNotes(timeline = timelineRepository, remoteNotes = remoteNotes, receivedNotes = receivedNotes)
+    private val unsavedRemoteNotes = FetchingUnsavedRemoteNotes(
+        timeline = timelineRepository,
+        remoteNotes = remoteNotes,
+        receivedNotes = receivedNotes,
+        remoteActors = remoteActors,
+        storedActors = remoteActorRepository,
+        clock = Clock.systemUTC(),
+    )
 
     val likeService: LikeService =
         LikeService(

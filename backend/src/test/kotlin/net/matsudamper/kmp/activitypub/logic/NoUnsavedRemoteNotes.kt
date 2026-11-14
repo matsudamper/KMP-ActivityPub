@@ -9,4 +9,6 @@ object NoUnsavedRemoteNotes : UnsavedRemoteNotes {
     override fun storedMember(viewer: AccountId, objectUri: String): String? = null
 
     override suspend fun import(viewer: AccountId, objectUri: String): String? = null
+
+    override suspend fun fetch(objectUri: String): FetchedRemoteNote? = null
 }

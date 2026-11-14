@@ -52,7 +52,7 @@ internal class ReceivedRemoteNotes(
     suspend fun storeForReaction(viewer: AccountId, note: ReceivedNote): String? {
         val now = clock.instant()
         if (storeActorIfMissing(note.attributedTo, now) != null) return null
-        return repository.storeFetchedNotes(viewer, listOf(note.toInput(localRecipients = setOf(), now = now)))[note.id]?.reactionMember
+        return repository.storeFetchedNotes(viewer, listOf(note.toRemoteNoteInput(localRecipients = setOf(), now = now)))[note.id]?.reactionMember
     }
 
     suspend fun saveBoost(boost: ReceivedRemoteBoost) {
@@ -87,7 +87,7 @@ internal class ReceivedRemoteNotes(
                 boosterUri = boost.actorUri,
                 boostedAt = boost.published ?: now,
                 receivedAt = now,
-                note = boost.note.toInput(localRecipients = setOf(), now = now),
+                note = boost.note.toRemoteNoteInput(localRecipients = setOf(), now = now),
             ),
         )
         if (position == null) {
@@ -134,7 +134,7 @@ internal class ReceivedRemoteNotes(
             span.setAttribute(InboxSpan.DISCARD_REASON, actorReason)
             return
         }
-        val position = repository.receive(note.toInput(localRecipients = recipients, now = now))
+        val position = repository.receive(note.toRemoteNoteInput(localRecipients = recipients, now = now))
         if (position != null) {
             span.setAttribute(InboxSpan.SAVED, true)
             span.setAttribute(InboxSpan.OUTCOME, "saved")
@@ -145,22 +145,22 @@ internal class ReceivedRemoteNotes(
             span.setAttribute(InboxSpan.DISCARD_REASON, reason)
         }
     }
-
-    private fun ReceivedNote.toInput(localRecipients: Set<String>, now: Instant): RemoteNoteInput = RemoteNoteInput(
-        objectUri = id,
-        actorUri = attributedTo,
-        contentHtml = Jsoup.clean(content, Safelist.basic()),
-        visibility = visibility.name.lowercase(),
-        localRecipients = localRecipients,
-        inReplyTo = inReplyTo,
-        summary = summary?.let { Jsoup.clean(it, Safelist.none()) },
-        sensitive = sensitive,
-        publishedAt = published ?: now,
-        receivedAt = now,
-        images = attachments.mapNotNull { it.toImage() },
-        emojis = emojis.toRecords(),
-    )
 }
+
+internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: Instant): RemoteNoteInput = RemoteNoteInput(
+    objectUri = id,
+    actorUri = attributedTo,
+    contentHtml = Jsoup.clean(content, Safelist.basic()),
+    visibility = visibility.name.lowercase(),
+    localRecipients = localRecipients,
+    inReplyTo = inReplyTo,
+    summary = summary?.let { Jsoup.clean(it, Safelist.none()) },
+    sensitive = sensitive,
+    publishedAt = published ?: now,
+    receivedAt = now,
+    images = attachments.mapNotNull { it.toImage() },
+    emojis = emojis.toRecords(),
+)
 
 // 動画や音声も添付で来る。画像だけを出すので、申告が画像のものだけを残す
 internal fun ReceivedNoteAttachment.toImage(): TimelinePostImage.Remote? {
