@@ -14,7 +14,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLink
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
-import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostLike
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
@@ -36,7 +35,6 @@ import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.shared.AccountId
-import net.matsudamper.kmp.activitypub.shared.LinkPreviewPostId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
@@ -291,7 +289,7 @@ class QueryResolverImpl : QueryResolver {
             summary = summary,
             sensitive = sensitive,
             images = images,
-            linkUrlsEnabled = linkPreviewId != null,
+            linkUrlsEnabled = linkPreviewsAvailable,
             diContainer = diContainer,
         )
         return QlProfilePost(
@@ -299,8 +297,7 @@ class QueryResolverImpl : QueryResolver {
             publishedAt = publishedAt,
             summary = body.summary,
             sensitive = body.sensitive,
-            linkPreviewId = linkPreviewId?.let(::LinkPreviewPostId),
-            postId = postId?.let(::TimelinePostId),
+            id = TimelinePostId(postId),
             deletableNoteId = deletableNoteId?.let(::PublicNoteId),
             pinned = pinned,
             pinnableNoteId = pinnableNoteId,
@@ -310,7 +307,7 @@ class QueryResolverImpl : QueryResolver {
             emojis = emojis.toQlCustomEmojis(diContainer),
             favouriteCount = favouriteCount?.toInt(),
             stamps = stamps.toQlPostStamps(diContainer),
-            like = like?.let { postLike -> QlProfilePostLike(postId = TimelinePostId(postLike.postId), likedByMe = postLike.likedByMe) },
+            likedByMe = likedByMe,
             boostedByMe = boostedByMe,
             reactionPostId = reactionPostId?.let(::TimelinePostId),
             url = diContainer.noteShareUrls?.url(noteRef),

@@ -45,9 +45,18 @@ interface TimelineRepository {
     fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost>
 
     /**
-     * [hydrate] で [accountId] が読める投稿の本文だけを返す。ブーストならブーストした元の投稿の本文。読めなければ null
+     * 個別投稿画面で [viewer] が開ける投稿。タイムラインに載る投稿に加えて、プロフィールに並ぶ投稿も開ける。
+     * このサーバーの投稿とこのサーバーのアカウントのブーストは誰でも、他のサーバーの投稿は [viewer] が読めるものと公開のもの、
+     * 他のサーバーのブーストは公開している投稿のものなら開ける
+     *
+     * @return 開けない投稿か、[member] が無ければ null
      */
-    fun contentHtml(accountId: AccountId, member: String): String?
+    fun viewablePost(viewer: AccountId, member: String): TimelinePost?
+
+    /**
+     * [viewablePost] で [viewer] が開ける投稿の本文だけを返す。ブーストならブーストした元の投稿の本文。開けなければ null
+     */
+    fun contentHtml(viewer: AccountId, member: String): String?
 
     /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す

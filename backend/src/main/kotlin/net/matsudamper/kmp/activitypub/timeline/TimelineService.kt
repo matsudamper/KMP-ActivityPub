@@ -67,18 +67,23 @@ class TimelineService(
     }
 
     /**
-     * [accountId] のタイムラインで読める投稿。[postId] が読めないか、読めない投稿なら null
+     * 個別投稿画面で [viewer] が開ける投稿。開ける範囲は [TimelineRepository.viewablePost]
      *
-     * @param postId [TimelinePosition.member] の値
+     * @param member [TimelinePosition.member] の値
+     * @return [member] が読めないか、開けない投稿なら null
      */
-    fun post(accountId: AccountId, postId: String): TimelinePost? {
-        if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return null
-        return repository.hydrate(accountId, listOf(postId)).firstOrNull()
+    fun viewablePost(viewer: AccountId, member: String): TimelinePost? {
+        if (!member.matches(TimelineCursor.MEMBER_PATTERN)) return null
+        return repository.viewablePost(viewer, member)
     }
 
-    fun contentHtml(accountId: AccountId, postId: String): String? {
-        if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return null
-        return repository.contentHtml(accountId, postId)
+    /**
+     * @param member [TimelinePosition.member] の値
+     * @return [viewablePost] で開けない投稿なら null
+     */
+    fun contentHtml(viewer: AccountId, member: String): String? {
+        if (!member.matches(TimelineCursor.MEMBER_PATTERN)) return null
+        return repository.contentHtml(viewer, member)
     }
 
     fun enqueue(position: TimelinePosition) {

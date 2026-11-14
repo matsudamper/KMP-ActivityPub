@@ -27,22 +27,18 @@ sealed interface UserProfileResult {
     data object NotFound : UserProfileResult
 
     /**
-     * @param linkPreviewId OGP を [UserApi.linkPreviews] で取るときの id。取れない投稿は null
-     * @param postId [UserApi.postDetail] で個別投稿画面を開くときの id。開けない投稿は null
+     * @param postId [UserApi.postDetail] で個別投稿画面を開くときと、[UserApi.linkPreviews] で OGP を取るときの id
      * @param deletableNoteId ログイン中のアカウントの投稿なら [UserApi.deleteNote] に渡す id。消せない投稿は null
      * @param pinned プロフィールの先頭に固定されているか
      * @param pinnableNoteId ログイン中のアカウントのプロフィールの投稿なら [UserApi.setPinned] に渡す id。固定できない投稿は null
-     * @param likePostId [UserApi.setLiked] に渡す id。いいねできない投稿は null
-     * @param reactionPostId [UserApi.setBoosted] に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。付け外しできない投稿は null
+     * @param reactionPostId [UserApi.setLiked] と [UserApi.setBoosted] に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。付け外しできない投稿は null
      * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
      */
     data class Post(
-        val linkPreviewId: String?,
-        val postId: String?,
+        val postId: String,
         val deletableNoteId: String?,
         val pinned: Boolean,
         val pinnableNoteId: String?,
-        val likePostId: String?,
         val reactionPostId: String?,
         val body: UserPostBody,
         val boostedNoteAuthor: Author?,
@@ -67,8 +63,8 @@ sealed interface UserProfileResult {
 /**
  * いいねを変えた結果を、取得し直さずに反映する
  */
-fun List<UserProfileResult.Post>.withLiked(likePostId: String, liked: Boolean): List<UserProfileResult.Post> {
-    return map { if (it.likePostId == likePostId) it.copy(body = it.body.withLiked(liked)) else it }
+fun List<UserProfileResult.Post>.withLiked(reactionPostId: String, liked: Boolean): List<UserProfileResult.Post> {
+    return map { if (it.reactionPostId == reactionPostId) it.copy(body = it.body.withLiked(liked)) else it }
 }
 
 /**
