@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kotpub.actor.RemoteActorLookup
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.note.ReceivedNote
 import net.matsudamper.kotpub.note.RemoteNoteLookup
@@ -44,10 +45,10 @@ internal class FetchingUnsavedRemoteNotes(
         val note = when (val lookup = remoteNotes.find(objectUri)) {
             is RemoteNoteLookup.Found -> lookup.note
 
-            RemoteNoteLookup.NotFound -> return RemoteNoteFetchResult.NotFound
+            is RemoteNoteLookup.NotFound -> return RemoteNoteFetchResult.NotFound
 
-            RemoteNoteLookup.Unavailable -> {
-                logger.warn("投稿を取れなかった: $objectUri")
+            is RemoteNoteLookup.Unavailable -> {
+                logger.warn("投稿を取れなかった: $objectUri ${lookup.failure}")
                 return RemoteNoteFetchResult.Unavailable
             }
         }
@@ -70,7 +71,10 @@ internal class FetchingUnsavedRemoteNotes(
                 displayNameEmojis = stored.profile.emojis,
             )
         }
-        val actor = remoteActors.findActor(actorUri) ?: return null
+        val actor = when (val lookup = remoteActors.findActor(actorUri)) {
+            is RemoteActorLookup.Found -> lookup.actor
+            RemoteActorLookup.Gone, is RemoteActorLookup.Unavailable -> return null
+        }
         if (actor.actorId != actorUri) return null
         return RemoteUser(
             actorUri = actor.actorId,
