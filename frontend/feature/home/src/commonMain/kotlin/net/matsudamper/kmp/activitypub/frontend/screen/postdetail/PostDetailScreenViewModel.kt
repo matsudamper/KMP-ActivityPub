@@ -200,7 +200,14 @@ internal class PostDetailScreenViewModel(
      */
     private suspend fun refreshCounts(post: UserHomeTimelineResult.Post) {
         val counts = api.postCounts(postId = post.id) ?: return
-        updatePosts(post.reactionPostId) { current -> current.copy(body = current.body.withCounts(counts)) }
+        updatePosts(post.reactionPostId) { current ->
+            // 取っている間に押したいいねやブーストは、取った数に入っていないことがあるので、押した後の数のまま残す
+            val unchangedCounts = counts.copy(
+                favouriteCount = if (current.body.likedByMe == post.body.likedByMe) counts.favouriteCount else current.body.favouriteCount,
+                boostCount = if (current.body.boostedByMe == post.body.boostedByMe) counts.boostCount else current.body.boostCount,
+            )
+            current.copy(body = current.body.withCounts(unchangedCounts))
+        }
     }
 
     private fun toggleLike(post: UserHomeTimelineResult.Post) {
