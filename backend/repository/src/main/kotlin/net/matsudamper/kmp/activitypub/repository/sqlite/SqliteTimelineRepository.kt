@@ -241,48 +241,6 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         null
     }
 
-    override fun inReplyTo(accountId: AccountId, member: String): String? = jooq.withConnection { dsl ->
-        TimelineMembers.localNoteIdOf(member)?.let { noteId ->
-            return@withConnection dsl.select(NOTES.IN_REPLY_TO).from(NOTES)
-                .where(NOTES.ID.eq(noteId))
-                .fetchOne(NOTES.IN_REPLY_TO)
-        }
-        TimelineMembers.remoteNoteIdOf(member)?.let { remoteNoteId ->
-            return@withConnection dsl.select(REMOTE_NOTES.IN_REPLY_TO).from(REMOTE_NOTES)
-                .where(REMOTE_NOTES.ID.eq(remoteNoteId))
-                .and(dsl.remoteNoteReadableBy(accountId).or(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)))
-                .fetchOne(REMOTE_NOTES.IN_REPLY_TO)
-        }
-        TimelineMembers.boostIdOf(member)?.let { boostId ->
-            // ブーストされた投稿は公開か、公開タイムラインに載せない公開のものしか記録しないので、ブーストした相手のフォローは問わない
-            return@withConnection dsl.select(REMOTE_NOTES.IN_REPLY_TO).from(REMOTE_BOOSTS)
-                .join(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
-                .where(REMOTE_BOOSTS.ID.eq(boostId))
-                .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
-                .fetchOne(REMOTE_NOTES.IN_REPLY_TO)
-        }
-        TimelineMembers.accountBoostIdOf(member)?.let { accountBoostId ->
-            return@withConnection dsl.select(DSL.coalesce(NOTES.IN_REPLY_TO, REMOTE_NOTES.IN_REPLY_TO)).from(ACCOUNT_BOOSTS)
-                .leftJoin(NOTES).on(NOTES.ID.eq(ACCOUNT_BOOSTS.NOTE_ID))
-                .leftJoin(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(ACCOUNT_BOOSTS.REMOTE_NOTE_ID))
-                .where(ACCOUNT_BOOSTS.ID.eq(accountBoostId)).and(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))
-                .fetchOne()?.value1()
-        }
-        null
-    }
-
-    override fun localPost(viewer: AccountId, publicId: String): TimelinePost? = jooq.withConnection { dsl ->
-        val noteId = dsl.select(NOTES.ID).from(NOTES).where(NOTES.PUBLIC_ID.eq(publicId)).fetchOne(NOTES.ID) ?: return@withConnection null
-        hydrateNotes(
-            dsl = dsl,
-            viewer = viewer,
-            localIds = listOf(noteId),
-            remoteIds = listOf(),
-            localCondition = DSL.noCondition(),
-            remoteCondition = DSL.noCondition(),
-        ).firstOrNull()
-    }
-
     /**
      * このサーバーの投稿と他のサーバーの投稿を、member の位置のまま組み立てる
      *

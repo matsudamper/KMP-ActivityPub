@@ -32,7 +32,8 @@ class ReplyTargetService(
         return if (localPublicId == null) {
             remotePost(viewer, inReplyTo)
         } else {
-            timeline.localPost(viewer, localPublicId)?.let { ReplyTargetResult.Found(it) } ?: ReplyTargetResult.NotFound
+            val member = timeline.localPosition(localPublicId)?.member ?: return ReplyTargetResult.NotFound
+            timeline.viewablePost(viewer, member)?.let { ReplyTargetResult.Found(it) } ?: ReplyTargetResult.NotFound
         }
     }
 
@@ -40,7 +41,7 @@ class ReplyTargetService(
         val unsavedObjectUri = UnsavedRemoteNoteId.objectUriOf(postId)
         if (unsavedObjectUri == null) {
             if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return InReplyToLookup.NotFound
-            return InReplyToLookup.of(timeline.inReplyTo(viewer, postId))
+            return InReplyToLookup.of(timeline.viewablePost(viewer, postId)?.inReplyTo)
         }
         // 表示した後に、いいねやブーストで保存されていることがある
         val stored = storedRemotePost(viewer, unsavedObjectUri)

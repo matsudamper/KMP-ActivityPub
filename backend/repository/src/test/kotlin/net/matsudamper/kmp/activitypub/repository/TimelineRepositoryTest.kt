@@ -278,27 +278,6 @@ class TimelineRepositoryTest {
     }
 
     @Test
-    fun replyTargetsOfOtherLocalAccountsAreReadable() = withRepository { repositories, accounts ->
-        repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("bob", "request-1", PublicNoteId("bob-1"), "元の投稿", NOW, listOf(), "create", listOf(), "https://remote.example/notes/root", listOf()),
-        )
-        repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request-2", PublicNoteId("alice-1"), "返信", NOW.plusSeconds(1), listOf(), "create", listOf(), "https://local.example/notes/bob-1", listOf()),
-        )
-        val repository = repositories.timelineRepository
-        val alice = accounts.getValue("alice")
-        val bobPosition = assertNotNull(repository.localPosition("bob-1"))
-
-        val bobPost = assertNotNull(repository.localPost(alice, "bob-1"))
-
-        assertEquals("bob", bobPost.username)
-        assertEquals(bobPosition.member, bobPost.position.member)
-        assertEquals("https://remote.example/notes/root", bobPost.inReplyTo)
-        assertEquals("https://remote.example/notes/root", repository.inReplyTo(alice, bobPosition.member))
-        assertEquals(null, repository.localPost(alice, "missing"))
-    }
-
-    @Test
     fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
         listOf("local-1", "local-2").forEachIndexed { index, publicId ->
             repositories.deliveryQueueRepository.enqueueNote(
