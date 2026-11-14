@@ -148,10 +148,13 @@ class ProfileLikesService(
                 }
             }
         }
-        withTimeoutOrNull(IMPORT_TIMEOUT) { importing.joinAll() }
-        val imported = importing.filter { it.isCompleted && !it.isCancelled }.mapNotNull { it.await() }
-        importing.forEach { it.cancel() }
-        return imported.toSet()
+        return try {
+            withTimeoutOrNull(IMPORT_TIMEOUT) { importing.joinAll() }
+            importing.filter { it.isCompleted && !it.isCancelled }.mapNotNull { it.await() }.toSet()
+        } finally {
+            // 呼び出し元が取り消されたときも、別のスコープで動く取得を残さない
+            importing.forEach { it.cancel() }
+        }
     }
 
     /**
