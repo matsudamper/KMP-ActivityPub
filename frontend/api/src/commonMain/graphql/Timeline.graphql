@@ -51,6 +51,10 @@ fragment TimelinePostFields on TimelinePost {
     }
     url
     likedByMe
+    viewerReaction {
+        emoji
+        imageUrl
+    }
     boostedByMe
     reactionPostId
     followingGroupId

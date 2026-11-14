@@ -73,6 +73,10 @@ fragment ProfilePostFields on ProfilePost {
         count
     }
     likedByMe
+    viewerReaction {
+        emoji
+        imageUrl
+    }
     boostedByMe
     reactionPostId
     url

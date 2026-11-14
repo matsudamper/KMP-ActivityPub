@@ -1,0 +1,7 @@
+mutation SetReaction($postId: TimelinePostId!, $reaction: ReactionInput) {
+    user {
+        setReaction(postId: $postId, reaction: $reaction) {
+            failure
+        }
+    }
+}
