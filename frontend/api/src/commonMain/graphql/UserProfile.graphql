@@ -44,7 +44,8 @@ fragment ProfilePostFields on ProfilePost {
     pinnableNoteId
     linkUrls
     mentions {
-        text
+        start
+        end
         acct
     }
     images {

@@ -45,7 +45,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             summary = summary,
             sensitive = sensitive,
             linkUrls = linkUrls,
-            mentions = mentions.map { mention -> UserPostMention(text = mention.text, acct = mention.acct) },
+            mentions = mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
             images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
             favouriteCount = favouriteCount,
             boostCount = boostCount,
@@ -112,7 +112,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     summary = body.summary,
     sensitive = body.sensitive,
     linkUrls = body.linkUrls,
-    mentions = body.mentions.map { mention -> TimelinePostFields.Mention(__typename = "PostMention", text = mention.text, acct = mention.acct) },
+    mentions = body.mentions.map { mention -> TimelinePostFields.Mention(__typename = "PostMention", start = mention.start, end = mention.end, acct = mention.acct) },
     images = body.images.map { image ->
         TimelinePostFields.Image(__typename = "PostImage", url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description)
     },

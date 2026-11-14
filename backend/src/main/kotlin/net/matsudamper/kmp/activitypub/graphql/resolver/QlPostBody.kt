@@ -5,8 +5,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostImage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostMention
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostStamp
-import net.matsudamper.kmp.activitypub.logic.PostMentions
-import net.matsudamper.kmp.activitypub.logic.htmlToPlainText
+import net.matsudamper.kmp.activitypub.logic.htmlToPlainTextWithMentions
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
@@ -35,16 +34,18 @@ internal fun createQlPostBody(
     images: List<TimelinePostImage>,
     linkUrlsEnabled: Boolean,
     diContainer: DiContainer,
-): QlPostBody =
-    QlPostBody(
-        content = htmlToPlainText(contentHtml),
+): QlPostBody {
+    val plainText = htmlToPlainTextWithMentions(contentHtml)
+    return QlPostBody(
+        content = plainText.text,
         summary = summary,
         sensitive = sensitive,
         // DOMAIN が無いと linkPreviewService は null。そのときはカードにするリンクを返さない
         linkUrls = if (linkUrlsEnabled) diContainer.linkPreviewService?.links(contentHtml).orEmpty() else listOf(),
-        mentions = PostMentions.find(contentHtml).map { QlPostMention(text = it.text, acct = it.acct) },
+        mentions = plainText.mentions.map { QlPostMention(start = it.start, end = it.end, acct = it.acct) },
         images = images.toQlPostImages(diContainer),
     )
+}
 
 internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlPostStamp> = map { stamp ->
     QlPostStamp(

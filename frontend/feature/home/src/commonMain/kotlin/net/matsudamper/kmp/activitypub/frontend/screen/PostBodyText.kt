@@ -13,6 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
 /**
  * 本文の URL とメンションを押せるようにし、カスタム絵文字を画像にする。本文は HTML を文字にしたものなので、`<a>` の情報は残っておらず URL を文字から拾う
  *
+ * @param mentions 位置は [content] でのもの。範囲から外れたものは無視する
  * @param onOpenProfile acct は `user@host`
  */
 internal fun createPostBodyText(
@@ -27,14 +28,13 @@ internal fun createPostBodyText(
             val urlRange = match.range.first until match.range.first + trimTrailingPunctuation(match.value).length
             BodyLink(range = urlRange) { onOpenUrl(content.substring(urlRange)) }
         }.toList()
-        val mentionLinks = mentions.flatMap { mention ->
-            findMentionRanges(content = content, mentionText = mention.text).map { range ->
-                BodyLink(range = range) { onOpenProfile(mention.acct) }
-            }
-        }
-        val links = (urlLinks + mentionLinks).sortedBy { it.range.first }
+        val mentionLinks = mentions
+            .filter { mention -> mention.start in 0 until mention.end && mention.end <= content.length }
+            .map { mention -> BodyLink(range = mention.start until mention.end) { onOpenProfile(mention.acct) } }
+        // 同じ位置から始まるなら、元の HTML でリンクだったメンションを残す
+        val links = (mentionLinks + urlLinks).sortedBy { it.range.first }
         val plainTextEnd = links.fold(0) { plainTextStart, link ->
-            // URL の中に書かれた @ やメンションの重なりは、先に始まるリンクを残す
+            // 重なったリンクは、先に始まるほうを残す
             if (link.range.first < plainTextStart) return@fold plainTextStart
             appendWithEmojis(content.substring(plainTextStart, link.range.first), emojis)
             val linkText = content.substring(link.range)
@@ -47,15 +47,6 @@ internal fun createPostBodyText(
     },
     emojis = emojis.toInlineEmojis(),
 )
-
-/**
- * `@alice` が `@alice@example.com` や `@alice_2` の一部のときは別のアカウントなので、前後が名前に続く文字なら当てない
- */
-private fun findMentionRanges(content: String, mentionText: String): List<IntRange> =
-    Regex("""(?<![\w@.-])${Regex.escape(mentionText)}(?![\w@-]|\.\w)""", RegexOption.IGNORE_CASE)
-        .findAll(content)
-        .map { it.range }
-        .toList()
 
 private class BodyLink(
     val range: IntRange,

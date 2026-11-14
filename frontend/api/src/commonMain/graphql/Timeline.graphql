@@ -23,7 +23,8 @@ fragment TimelinePostFields on TimelinePost {
     sensitive
     linkUrls
     mentions {
-        text
+        start
+        end
         acct
     }
     deletableNoteId

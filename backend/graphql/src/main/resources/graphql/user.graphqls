@@ -45,7 +45,7 @@ type ProfilePost {
     pinnableNoteId: PublicNoteId
     "本文にあるカードにするリンク。本文に出てくる順で、UserInfo.linkPreviews と同じ並び"
     linkUrls: [String!]!
-    "本文にあるメンション。本文に出てくる順で、同じ書かれ方のものは 1 つにまとめる"
+    "本文にあるメンション。本文に出てくる順"
     mentions: [PostMention!]!
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!

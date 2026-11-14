@@ -31,11 +31,13 @@ data class UserPostBody(
 )
 
 /**
- * @param text [UserPostBody.content] での書かれ方。`@alice` や `@alice@example.com`
+ * @param start [UserPostBody.content] でメンションが始まる位置
+ * @param end メンションが終わる位置。この位置の文字は含まない
  * @param acct プロフィールを開くときの `user@host`
  */
 data class UserPostMention(
-    val text: String,
+    val start: Int,
+    val end: Int,
     val acct: String,
 )
 

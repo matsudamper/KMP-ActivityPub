@@ -75,7 +75,7 @@ private fun createLoadedUiState(
                 acct = "@alice@example.social",
                 body = createPostBodyText(
                     content = "@alice 個別の投稿の画面です。 https://kotlinlang.org/",
-                    mentions = listOf(UserPostMention(text = "@alice", acct = "alice@example.social")),
+                    mentions = listOf(UserPostMention(start = 0, end = 6, acct = "alice@example.social")),
                     emojis = listOf(),
                     onOpenUrl = {},
                     onOpenProfile = {},
