@@ -33,10 +33,8 @@ type ProfilePost {
     publishedAt: String!
     summary: String
     sensitive: Boolean!
-    "OGP を UserInfo.linkPreviews で取るときに postId に渡す id。取れない投稿は null"
-    linkPreviewId: LinkPreviewPostId
-    "UserInfo.timelinePost で個別投稿画面を開くときの id。開けない投稿は null"
-    postId: TimelinePostId
+    "UserInfo.timelinePost で個別投稿画面を開くときと、UserInfo.linkPreviews で OGP を取るときの id。保存していない他のサーバーの投稿は、個別投稿画面を開くときに保存する"
+    id: TimelinePostId!
     "ログイン中のアカウントの投稿なら deleteNote に渡す id。消せない投稿は null"
     deletableNoteId: PublicNoteId
     "プロフィールの先頭に固定されているか。固定した投稿は posts の先頭に固定した新しい順で並ぶ。他のサーバーの投稿は固定を受け取らないので false"
@@ -57,9 +55,9 @@ type ProfilePost {
     url: String
     "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
     boostCount: Int
-    "ログインしていないか、いいねできない投稿は null"
-    like: ProfilePostLike
-    "ログイン中のアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しは UserMutation.setBoosted に postId を渡す"
+    "ログイン中のアカウントがいいねしているか。ログインしていないか、いいねできない投稿は null。付け外しは UserMutation.setLiked に reactionPostId を渡す"
+    likedByMe: Boolean
+    "ログイン中のアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しは UserMutation.setBoosted に reactionPostId を渡す"
     boostedByMe: Boolean
     """
     setLiked と setBoosted に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。ログインしていないか、付け外しできない投稿は null。
@@ -78,13 +76,6 @@ type PostAuthor {
     displayNameEmojis: [CustomEmoji!]!
     "プロフィール画像の URL。無ければ null"
     iconUrl: String
-}
-
-type ProfilePostLike {
-    "UserMutation.setLiked の postId に渡す id。保存していない他のサーバーの投稿は、いいねを付けたときに保存する"
-    postId: TimelinePostId!
-    "ログイン中のアカウントがいいねしているか"
-    likedByMe: Boolean!
 }
 
 type UserSearchResult {

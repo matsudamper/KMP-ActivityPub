@@ -198,15 +198,30 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    override fun contentHtml(accountId: AccountId, member: String): String? = jooq.withConnection { dsl ->
+    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? = jooq.withConnection { dsl ->
+        val notes = hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = listOfNotNull(TimelineMembers.localNoteIdOf(member)),
+            remoteIds = listOfNotNull(TimelineMembers.remoteNoteIdOf(member)),
+            localCondition = DSL.noCondition(),
+            remoteCondition = dsl.remoteNoteViewableBy(viewer),
+        )
+        val accountBoostIds = listOfNotNull(TimelineMembers.accountBoostIdOf(member))
+        val boosts = boostedPosts(dsl, viewer, listOfNotNull(TimelineMembers.boostIdOf(member))) +
+            if (accountBoostIds.isEmpty()) listOf() else accountBoostedPosts(dsl, viewer, ACCOUNT_BOOSTS.ID.`in`(accountBoostIds))
+        (notes + boosts).firstOrNull()
+    }
+
+    override fun contentHtml(viewer: AccountId, member: String): String? = jooq.withConnection { dsl ->
         TimelineMembers.localNoteIdOf(member)?.let { noteId ->
             return@withConnection dsl.select(NOTES.CONTENT_HTML).from(NOTES)
-                .where(NOTES.ID.eq(noteId)).and(NOTES.ACCOUNT_ID.eq(accountId.value))
+                .where(NOTES.ID.eq(noteId))
                 .fetchOne(NOTES.CONTENT_HTML)
         }
         TimelineMembers.remoteNoteIdOf(member)?.let { remoteNoteId ->
             return@withConnection dsl.select(REMOTE_NOTES.CONTENT_HTML).from(REMOTE_NOTES)
-                .where(REMOTE_NOTES.ID.eq(remoteNoteId)).and(dsl.remoteNoteReadableBy(accountId))
+                .where(REMOTE_NOTES.ID.eq(remoteNoteId)).and(dsl.remoteNoteViewableBy(viewer))
                 .fetchOne(REMOTE_NOTES.CONTENT_HTML)
         }
         TimelineMembers.boostIdOf(member)?.let { boostId ->
@@ -218,7 +233,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
                 .andExists(
                     dsl.selectOne().from(ACCOUNT_FOLLOWING)
-                        .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(booster.ACTOR_URI)),
+                        .where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(viewer.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(booster.ACTOR_URI)),
                 )
                 .fetchOne(REMOTE_NOTES.CONTENT_HTML)
         }
@@ -226,7 +241,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             return@withConnection dsl.select(DSL.coalesce(NOTES.CONTENT_HTML, REMOTE_NOTES.CONTENT_HTML)).from(ACCOUNT_BOOSTS)
                 .leftJoin(NOTES).on(NOTES.ID.eq(ACCOUNT_BOOSTS.NOTE_ID))
                 .leftJoin(REMOTE_NOTES).on(REMOTE_NOTES.ID.eq(ACCOUNT_BOOSTS.REMOTE_NOTE_ID))
-                .where(ACCOUNT_BOOSTS.ID.eq(accountBoostId)).and(ACCOUNT_BOOSTS.ACCOUNT_ID.eq(accountId.value))
+                .where(ACCOUNT_BOOSTS.ID.eq(accountBoostId))
                 .fetchOne()?.value1()
         }
         null
@@ -379,7 +394,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 localIds = listOf(),
                 remoteIds = remoteIds,
                 localCondition = DSL.noCondition(),
-                remoteCondition = dsl.remoteNoteReadableBy(viewer).or(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)),
+                remoteCondition = dsl.remoteNoteViewableBy(viewer),
             )
         }
     }

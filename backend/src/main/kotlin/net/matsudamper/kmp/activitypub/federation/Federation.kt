@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
+import net.matsudamper.kmp.activitypub.logic.UnsavedRemoteNotes
 import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
@@ -156,7 +157,7 @@ internal class Federation(
         )
 
     private val remoteNotes = HttpRemoteNotes(httpClient)
-    private val unsavedRemoteNotes = FetchingUnsavedRemoteNotes(timeline = timelineRepository, remoteNotes = remoteNotes, receivedNotes = receivedNotes)
+    val unsavedRemoteNotes: UnsavedRemoteNotes = FetchingUnsavedRemoteNotes(timeline = timelineRepository, remoteNotes = remoteNotes, receivedNotes = receivedNotes)
 
     val likeService: LikeService =
         LikeService(

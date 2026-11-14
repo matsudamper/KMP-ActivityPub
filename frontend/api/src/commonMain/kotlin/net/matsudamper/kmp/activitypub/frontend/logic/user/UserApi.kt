@@ -167,7 +167,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id]
+     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.postId]
      */
     suspend fun linkPreviews(postId: String): UserLinkPreviewsResult {
         val client = clients.awaitLoadedClient() ?: return UserLinkPreviewsResult.Failure("接続先が未設定")
@@ -183,7 +183,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.id]
+     * @param postId [UserHomeTimelineResult.Post.id] か [UserProfileResult.Post.postId]
      */
     suspend fun postDetail(postId: String): UserPostDetailResult {
         val client = clients.awaitLoadedClient() ?: return UserPostDetailResult.Failure("接続先が未設定")
@@ -323,7 +323,7 @@ class UserApi(
     }
 
     /**
-     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.likePostId]
+     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.reactionPostId]
      * @return 失敗したときに見せる文言。変えられたら null
      */
     suspend fun setLiked(postId: String, liked: Boolean): String? {
@@ -840,12 +840,10 @@ class UserApi(
 
     private fun ProfilePostFields.toUserProfilePost(): UserProfileResult.Post =
         UserProfileResult.Post(
-            linkPreviewId = linkPreviewId,
-            postId = postId,
+            postId = id,
             deletableNoteId = deletableNoteId,
             pinned = pinned,
             pinnableNoteId = pinnableNoteId,
-            likePostId = like?.postId,
             reactionPostId = reactionPostId,
             body = UserPostBody(
                 content = content,
@@ -859,7 +857,7 @@ class UserApi(
                 stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
                 emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 shareUrl = url,
-                likedByMe = like?.likedByMe,
+                likedByMe = likedByMe,
                 boostedByMe = boostedByMe,
             ),
             boostedNoteAuthor = boostedNoteAuthor?.let { author ->

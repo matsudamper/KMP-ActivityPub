@@ -30,13 +30,12 @@ enum class ProfileContentTab {
 
 /**
  * @param description 画像の説明文。無ければ null
- * @param listener 個別投稿画面で開けない投稿の画像は押せないので null
  */
 data class ProfileMediaUiState(
     val url: String,
     val description: String?,
     val blurred: Boolean,
-    val listener: Listener?,
+    val listener: Listener,
 ) {
     @Immutable
     interface Listener {
@@ -80,12 +79,11 @@ internal fun ProfileMediaGridItem(
     media: ProfileMediaUiState,
     modifier: Modifier = Modifier,
 ) {
-    val listener = media.listener
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .then(if (listener == null) Modifier else Modifier.clickable(onClick = listener::onClick)),
+            .clickable(onClick = media.listener::onClick),
     ) {
         if (media.blurred) {
             // Modifier.blur は Android 11 以下で効かないので、小さく読み込んで引き伸ばしたぼやけでも隠す。

@@ -556,7 +556,7 @@ class TimelineRepositoryTest {
     }
 
     @Test
-    fun contentHtmlIsReturnedOnlyForPostsTheViewerCanHydrate() = withRepository { repositories, accounts ->
+    fun viewablePostOpensProfilePostsBeyondTheViewersTimeline() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         val bob = accounts.getValue("bob")
@@ -566,7 +566,12 @@ class TimelineRepositoryTest {
         )
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repositories.followingRepository.add(alice, BOOSTER, NOW)
+        repositories.deliveryQueueRepository.enqueueNote(
+            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", NOW, listOf(), "create", listOf()),
+        )
+        val localNote = assertNotNull(repository.localPosition("local-1"))
         val note = assertNotNull(repository.receive(note("content", "public", setOf())))
+        val direct = assertNotNull(repository.receive(note("direct", "direct", setOf("alice"))))
         val boost = assertNotNull(repository.receiveBoost(boost("content", note("boosted-content", "public", setOf()))))
         val accountBoost = assertNotNull(
             repositories.accountBoostRepository.boostAndEnqueue(
@@ -585,11 +590,22 @@ class TimelineRepositoryTest {
             ),
         )
 
-        listOf(note, boost, accountBoost).forEach { position ->
-            assertEquals(repository.hydrate(alice, listOf(position.member)).single().contentHtml, repository.contentHtml(alice, position.member))
-            assertTrue(repository.hydrate(bob, listOf(position.member)).isEmpty())
+        listOf(localNote, note, direct, boost, accountBoost).forEach { position ->
+            val post = assertNotNull(repository.viewablePost(alice, position.member))
+            assertEquals(position.member, post.position.member)
+            assertEquals(post.contentHtml, repository.contentHtml(alice, position.member))
+        }
+        // 他の人の投稿と公開の投稿とこのサーバーのアカウントのブーストは、自分のタイムラインに載らなくても開ける
+        listOf(localNote, note, accountBoost).forEach { position ->
+            assertEquals(position.member, repository.viewablePost(bob, position.member)?.position?.member)
+            assertNotNull(repository.contentHtml(bob, position.member))
+        }
+        // 宛先に入っていない投稿と、フォローしていない相手のブーストは開けない
+        listOf(direct, boost).forEach { position ->
+            assertNull(repository.viewablePost(bob, position.member))
             assertNull(repository.contentHtml(bob, position.member))
         }
+        assertNull(repository.viewablePost(alice, "r999"))
         assertNull(repository.contentHtml(alice, "r999"))
     }
 

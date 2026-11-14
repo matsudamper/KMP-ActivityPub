@@ -1,4 +1,4 @@
-query HomeTimelineLinkPreviews($postId: LinkPreviewPostId!) {
+query HomeTimelineLinkPreviews($postId: TimelinePostId!) {
     userInfo {
         linkPreviews(postId: $postId) {
             url
