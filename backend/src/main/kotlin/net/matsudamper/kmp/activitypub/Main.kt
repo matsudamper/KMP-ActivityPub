@@ -30,6 +30,7 @@ import net.matsudamper.kmp.activitypub.graphql.resolver.SubscriptionResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.TimelinePostResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserInfoResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.UserMutationResolverImpl
+import net.matsudamper.kmp.activitypub.logic.ViewablePostService
 import net.matsudamper.kmp.activitypub.oidc.oidcRoutes
 import net.matsudamper.kmp.activitypub.repository.DatabaseWriteCheck
 import net.matsudamper.kmp.activitypub.staticfiles.staticRoutes
@@ -154,6 +155,7 @@ internal fun Application.module(deps: AppDependencies) {
                 accountService = deps.accountService,
                 userSearchService = deps.userSearchService,
                 userProfileService = deps.userProfileService,
+                viewablePostService = ViewablePostService(timeline = deps.timelineService, accounts = deps.accountService, unsavedNotes = federation?.unsavedRemoteNotes),
                 notePinService = deps.notePinService,
                 followingService = deps.followingService,
                 followingGroupService = deps.followingGroupService,

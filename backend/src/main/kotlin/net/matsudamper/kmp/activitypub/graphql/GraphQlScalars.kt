@@ -12,7 +12,6 @@ import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
-import net.matsudamper.kmp.activitypub.shared.LinkPreviewPostId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.NotificationId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
@@ -66,13 +65,6 @@ object GraphQlScalars {
             .newScalar()
             .name("TimelinePostId")
             .coercing(StringIdCoercing(name = "TimelinePostId", type = TimelinePostId::class.java, wrap = ::TimelinePostId, unwrap = TimelinePostId::value))
-            .build()
-
-    val linkPreviewPostId: GraphQLScalarType =
-        GraphQLScalarType
-            .newScalar()
-            .name("LinkPreviewPostId")
-            .coercing(StringIdCoercing(name = "LinkPreviewPostId", type = LinkPreviewPostId::class.java, wrap = ::LinkPreviewPostId, unwrap = LinkPreviewPostId::value))
             .build()
 
     /**

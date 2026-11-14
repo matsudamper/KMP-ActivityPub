@@ -85,6 +85,10 @@ internal fun PostDetailScreen(
                 navigator.navigate(Screen.UserProfile(username = username))
             }
 
+            override fun navigateToPostDetail(postId: String) {
+                navigator.navigate(Screen.PostDetail(postId = postId))
+            }
+
             override fun openUrl(url: String) {
                 uriHandler.openUri(url)
             }

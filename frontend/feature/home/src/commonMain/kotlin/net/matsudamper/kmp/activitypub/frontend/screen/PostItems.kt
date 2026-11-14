@@ -138,16 +138,9 @@ internal fun createPostItemUiState(
         },
         menuItems = menuItems,
         postListener = when (postTapAction) {
-            is PostTapAction.OpenPostDetail -> {
-                val postId = postTapAction.postId
-                if (postId == null) {
-                    null
-                } else {
-                    object : PostItemUiState.PostListener {
-                        override fun onClick() {
-                            postTapAction.navigate(postId)
-                        }
-                    }
+            is PostTapAction.OpenPostDetail -> object : PostItemUiState.PostListener {
+                override fun onClick() {
+                    postTapAction.navigate(postTapAction.postId)
                 }
             }
 
@@ -176,11 +169,9 @@ internal fun createPostItemUiState(
 internal sealed interface PostTapAction {
     /**
      * 投稿を並べる画面（タイムライン・自分やほかの人のプロフィールなど）はすべてこれ
-     *
-     * @param postId サーバーから id が返らなかった投稿は詳細を開けないので null
      */
     class OpenPostDetail(
-        val postId: String?,
+        val postId: String,
         val navigate: (postId: String) -> Unit,
     ) : PostTapAction
 

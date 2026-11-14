@@ -1005,7 +1005,7 @@ internal class HomeScreenViewModel(
         updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withLiked(reactionPostId = postId, liked = liked) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.withLiked(likePostId = postId, liked = liked)))
+            it.copy(myPosts = myPosts.copy(posts = myPosts.posts.withLiked(reactionPostId = postId, liked = liked)))
         }
     }
 
@@ -1153,7 +1153,6 @@ internal class HomeScreenViewModel(
                 val media = createProfileMedia(myPosts.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
                 HomeScreenUiState.UserPosts.Loaded(
                     items = myPosts.posts.map { post ->
-                        val linkPreviewId = post.linkPreviewId
                         val boostedNoteAuthor = post.boostedNoteAuthor
                         createPostItemUiState(
                             pinned = post.pinned,
@@ -1179,7 +1178,7 @@ internal class HomeScreenViewModel(
                             displayNameEmojis = boostedNoteAuthor?.displayNameEmojis.orEmpty(),
                             acct = if (boostedNoteAuthor == null) "@${profile.username}" else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                             body = post.body,
-                            linkPreviews = linkPreviewId?.let { viewModelState.linkPreviews[it] }.orEmpty(),
+                            linkPreviews = viewModelState.linkPreviews[post.postId].orEmpty(),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = if (boostedNoteAuthor == null) {
@@ -1202,9 +1201,9 @@ internal class HomeScreenViewModel(
                             onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
                             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                             onToggleLike = {
-                                val likePostId = post.likePostId
+                                val reactionPostId = post.reactionPostId
                                 val likedByMe = post.body.likedByMe
-                                if (likePostId != null && likedByMe != null) toggleLike(postId = likePostId, likedByMe = likedByMe)
+                                if (reactionPostId != null && likedByMe != null) toggleLike(postId = reactionPostId, likedByMe = likedByMe)
                             },
                             onToggleBoost = {
                                 val reactionPostId = post.reactionPostId
@@ -1212,8 +1211,8 @@ internal class HomeScreenViewModel(
                                 if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                             },
                             onVisible = {
-                                if (linkPreviewId != null && post.body.linkUrls.isNotEmpty()) {
-                                    loadLinkPreviews(linkPreviewId)
+                                if (post.body.linkUrls.isNotEmpty()) {
+                                    loadLinkPreviews(post.postId)
                                 }
                             },
                         )

@@ -4,6 +4,7 @@ import java.time.Clock
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -135,9 +136,11 @@ class UserProfileServiceTest {
 
         assertEquals("<p>最新の投稿</p>", post.contentHtml)
         assertEquals("r1", post.reactionPostId)
-        assertEquals(ProfilePostLike(postId = "r1", likedByMe = false), post.like)
+        assertEquals(false, post.likedByMe)
         assertEquals(false, post.boostedByMe)
-        assertNull(post.postId)
+        // フォローしていない相手の保存済みの投稿も、個別投稿画面で開ける
+        assertEquals("r1", post.postId)
+        assertTrue(post.linkPreviewsAvailable)
     }
 
     @Test
@@ -147,9 +150,10 @@ class UserProfileServiceTest {
         val unsavedId = UnsavedRemoteNoteId.of("https://remote.example/notes/1")
         assertEquals("<p>最新の投稿</p>", post.contentHtml)
         assertEquals(unsavedId, post.reactionPostId)
-        assertEquals(ProfilePostLike(postId = unsavedId, likedByMe = false), post.like)
+        assertEquals(false, post.likedByMe)
         assertEquals(false, post.boostedByMe)
-        assertNull(post.postId)
+        assertEquals(unsavedId, post.postId)
+        assertFalse(post.linkPreviewsAvailable)
         assertTrue(repositories.timelineRepository.storeRequests.isEmpty())
     }
 
@@ -194,7 +198,6 @@ class UserProfileServiceTest {
         assertEquals(listOf("<p>受け取った投稿</p>", "<p>閲覧注意の本文</p>"), page.posts.map { it.contentHtml })
         assertEquals(listOf(null, "注意書き"), page.posts.map { it.summary })
         assertEquals(listOf(false, true), page.posts.map { it.sensitive })
-        assertEquals(listOf("r1", "r1"), page.posts.map { it.linkPreviewId })
         assertEquals(listOf("r1", "r1"), page.posts.map { it.postId })
         assertEquals(listOf(listOf(image), listOf(image)), page.posts.map { it.images })
     }
@@ -484,8 +487,7 @@ class UserProfileServiceTest {
         val post = firstPage("alice", viewer).posts.single()
         assertEquals(listOf(), requests)
         assertEquals("<p>保存済みの投稿</p>", post.contentHtml)
-        assertEquals("<p>保存済みの投稿</p>", service.localNoteContentHtml(assertNotNull(post.linkPreviewId)))
-        assertNull(service.localNoteContentHtml("r1"))
+        assertEquals("l-note-1", post.postId)
     }
 
     @Test
@@ -496,6 +498,18 @@ class UserProfileServiceTest {
 
         assertEquals("note-alice", firstPage("alice", viewer).posts.single().deletableNoteId)
         assertNull(firstPage("carol", viewer).posts.single().deletableNoteId)
+    }
+
+    @Test
+    fun othersLocalPostsCanBeOpened() = runBlocking {
+        repositories.accountRepository.add("carol", "hash", "type")
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf(), null, listOf()))
+
+        val post = firstPage("carol", viewer).posts.single()
+
+        assertEquals("l-note-carol", post.postId)
+        assertEquals("l-note-carol", post.reactionPostId)
+        assertTrue(post.linkPreviewsAvailable)
     }
 
     @Test
@@ -520,15 +534,15 @@ class UserProfileServiceTest {
 
         val ownPosts = firstPage("alice", viewer).posts
         assertEquals(listOf("<p>ブーストした投稿</p>", "<p>自分の投稿</p>", "<p>古いブースト</p>"), ownPosts.map { it.contentHtml })
-        assertEquals(listOf("a1", null, "a2"), ownPosts.map { it.postId })
+        assertEquals(listOf("a1", "l-note-alice", "a2"), ownPosts.map { it.postId })
         assertEquals(listOf("remote.example", null, "local.example"), ownPosts.map { it.boostedNoteAuthor?.host })
         assertEquals(listOf("r1", "l9"), listOf(ownPosts[0].reactionPostId, ownPosts[2].reactionPostId))
         assertEquals(listOf(null, null), listOf(ownPosts[0].deletableNoteId, ownPosts[2].deletableNoteId))
 
         val anonymousPosts = firstPage("alice", null).posts
         assertEquals(listOf(null, null, null), anonymousPosts.map { it.reactionPostId })
-        assertNull(anonymousPosts.first().postId)
-        assertNull(anonymousPosts.first().like)
+        assertEquals("a1", anonymousPosts.first().postId)
+        assertNull(anonymousPosts.first().likedByMe)
     }
 
     @Test

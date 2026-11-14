@@ -302,13 +302,15 @@ internal class PostDetailScreenViewModel(
     private fun sendMention() {
         val state = viewModelStateFlow.value
         if (!state.mentionSendable()) return
+        // 保存していない投稿の id で開いたときは、開いたときに保存した投稿の id でないと返信先を引けない
+        val replyToPostId = (state.post as? PostState.Loaded)?.post?.id ?: return
         val body = state.mentionText
         viewModelStateFlow.update { it.copy(mentionSending = true) }
         viewModelScope.launch {
             val error =
                 try {
                     val result =
-                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = postId)
+                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId)
                     when (result) {
                         // 画像を付けないので置けないことは無い
                         is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"
@@ -405,11 +407,14 @@ internal class PostDetailScreenViewModel(
         }
     }
 
-    private fun loadLinkPreviews() {
+    /**
+     * 保存していない投稿の id で開いたときは OGP を引けないので、開いたときに保存した投稿の id で引く
+     */
+    private fun loadLinkPreviews(loadedPostId: String) {
         if (linkPreviewRequested) return
         linkPreviewRequested = true
         viewModelScope.launch {
-            when (val result = api.linkPreviews(postId)) {
+            when (val result = api.linkPreviews(loadedPostId)) {
                 is UserLinkPreviewsResult.Success -> {
                     viewModelStateFlow.update { it.copy(linkPreviews = result.previews) }
                 }
@@ -466,8 +471,7 @@ internal class PostDetailScreenViewModel(
     }
 
     /**
-     * 返信先は読み返すためのものなので、固定や削除はその投稿の詳細で行う。
-     * 返信先は詳細の画面で読めない投稿のこともあるので、押しても詳細を開かない
+     * 返信先は読み返すためのものなので、固定や削除は押して開いたその投稿の詳細で行う
      */
     private fun createReplyTargetItem(
         post: UserHomeTimelineResult.Post,
@@ -494,7 +498,9 @@ internal class PostDetailScreenViewModel(
             menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url ->
                 viewModelScope.launch { events.send { it.openUrl(url) } }
             },
-            postTapAction = PostTapAction.OpenPostDetail(postId = null, navigate = {}),
+            postTapAction = PostTapAction.OpenPostDetail(postId = post.id) { postId ->
+                viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
+            },
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
@@ -553,7 +559,7 @@ internal class PostDetailScreenViewModel(
             onToggleBoost = { toggleBoost(post) },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
-                    loadLinkPreviews()
+                    loadLinkPreviews(post.id)
                 }
             },
         )
@@ -565,6 +571,8 @@ internal class PostDetailScreenViewModel(
         fun showMessage(message: String)
 
         fun navigateToUserProfile(username: String)
+
+        fun navigateToPostDetail(postId: String)
 
         fun openUrl(url: String)
 

@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
+import net.matsudamper.kmp.activitypub.logic.ViewablePostService
 import net.matsudamper.kmp.activitypub.session.LoginThrottle
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.timeline.AccountEvents
@@ -35,6 +36,7 @@ class DiContainer(
     val followListService: FollowListService,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,
+    val viewablePostService: ViewablePostService,
     val notePinService: NotePinService,
     /**
      * ENABLE_PASSKEY が false なら null
