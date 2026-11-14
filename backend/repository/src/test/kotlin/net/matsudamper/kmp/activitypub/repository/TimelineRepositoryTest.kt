@@ -397,7 +397,7 @@ class TimelineRepositoryTest {
     }
 
     @Test
-    fun boostsOfFollowedActorAreShownOnlyToItsFollowersWithTheBoostedNote() = withRepository { repositories, accounts ->
+    fun boostsOfFollowedActorAreShownOnItsFollowersTimelineWithTheBoostedNote() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
@@ -418,7 +418,9 @@ class TimelineRepositoryTest {
         assertEquals("<p>本文</p>", post.contentHtml)
         assertEquals(BOOSTER, post.boostedBy?.actorUri)
         assertEquals("booster", post.boostedBy?.username)
-        assertTrue(repository.hydrate(accounts.getValue("bob"), listOf(position.member)).isEmpty())
+        // 公開している投稿なので、ブーストした相手をフォローしていなくても開ける
+        assertEquals(BOOSTER, repository.hydrate(accounts.getValue("bob"), listOf(position.member)).single().boostedBy?.actorUri)
+        assertEquals("<p>本文</p>", repository.contentHtml(accounts.getValue("bob"), position.member))
         // 投稿者をフォローしていなくても、ブーストされた投稿だけがタイムラインに載ることはない
         assertTrue(repository.page(accounts.getValue("bob"), null, null, 10).isEmpty())
 
@@ -587,6 +589,10 @@ class TimelineRepositoryTest {
 
         listOf(note, boost, accountBoost).forEach { position ->
             assertEquals(repository.hydrate(alice, listOf(position.member)).single().contentHtml, repository.contentHtml(alice, position.member))
+        }
+        // 公開している投稿のブーストは、ブーストした相手をフォローしていなくても開ける
+        assertEquals(repository.hydrate(bob, listOf(boost.member)).single().contentHtml, repository.contentHtml(bob, boost.member))
+        listOf(note, accountBoost).forEach { position ->
             assertTrue(repository.hydrate(bob, listOf(position.member)).isEmpty())
             assertNull(repository.contentHtml(bob, position.member))
         }
