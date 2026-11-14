@@ -27,19 +27,31 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
-private fun PostDetailContentPreview() = PostDetailLoadedPreview(deleteNoteDialog = null)
+private fun PostDetailContentPreview() = PostDetailLoadedPreview(deleteNoteDialog = null, mentionText = "")
+
+@Preview
+@Composable
+private fun PostDetailContentMentionTypedPreview() = PostDetailLoadedPreview(deleteNoteDialog = null, mentionText = "@alice@example.social こんにちは")
 
 @Preview
 @Composable
 private fun PostDetailContentDeleteNoteDialogPreview() = PostDetailLoadedPreview(
     deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
+    mentionText = "",
 )
 
 @Composable
-private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) {
+private fun PostDetailLoadedPreview(
+    deleteNoteDialog: DeleteNoteDialogUiState?,
+    mentionText: String,
+) {
     MaterialTheme {
         PostDetailContent(
-            uiState = createLoadedUiState(images = listOf(previewImage(index = 1), previewImage(index = 2)), deleteNoteDialog = deleteNoteDialog),
+            uiState = createLoadedUiState(
+                images = listOf(previewImage(index = 1), previewImage(index = 2)),
+                deleteNoteDialog = deleteNoteDialog,
+                mentionText = mentionText,
+            ),
             snackbarHostState = SnackbarHostState(),
             layout = PostDetailLayout.FullScreen,
         )
@@ -49,6 +61,7 @@ private fun PostDetailLoadedPreview(deleteNoteDialog: DeleteNoteDialogUiState?) 
 private fun createLoadedUiState(
     images: List<PostItemUiState.Image>,
     deleteNoteDialog: DeleteNoteDialogUiState?,
+    mentionText: String,
 ): PostDetailScreenUiState {
     return PostDetailScreenUiState(
         content = PostDetailScreenUiState.Content.Loaded(
@@ -83,7 +96,13 @@ private fun createLoadedUiState(
                 menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
                 listener = AndroidPreviewPostItemListener,
             ),
-            mentionBoxPlaceholder = "@alice@example.social へメンション",
+            mentionBox = PostDetailScreenUiState.MentionBox(
+                text = mentionText,
+                placeholder = "@alice@example.social へメンション",
+                textFieldEnabled = true,
+                sendButtonEnabled = mentionText.isNotBlank(),
+                listener = AndroidPreviewMentionBoxListener,
+            ),
         ),
         deleteNoteDialog = deleteNoteDialog,
         listener = AndroidPreviewPostDetailListener,
@@ -119,7 +138,7 @@ private fun PostDetailDialogPreviewContent(
             ) {
                 PostDetailDialogFrame(onDismissRequest = {}) {
                     PostDetailContent(
-                        uiState = createLoadedUiState(images = (1..imageCount).map { previewImage(index = it) }, deleteNoteDialog = null),
+                        uiState = createLoadedUiState(images = (1..imageCount).map { previewImage(index = it) }, deleteNoteDialog = null, mentionText = ""),
                         snackbarHostState = SnackbarHostState(),
                         layout = PostDetailLayout.Dialog,
                     )
@@ -157,6 +176,12 @@ private object AndroidPreviewPostDetailListener : PostDetailScreenUiState.Listen
     override fun onClickRetry() = Unit
 
     override fun onClickBack() = Unit
+}
+
+private object AndroidPreviewMentionBoxListener : PostDetailScreenUiState.MentionBox.Listener {
+    override fun onTextChange(text: String) = Unit
+
+    override fun onClickSend() = Unit
 }
 
 private object AndroidPreviewPostItemListener : PostItemUiState.Listener {

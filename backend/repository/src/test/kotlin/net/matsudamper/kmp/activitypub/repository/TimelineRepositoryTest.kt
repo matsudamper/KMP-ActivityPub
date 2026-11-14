@@ -265,7 +265,7 @@ class TimelineRepositoryTest {
     fun localPostsUseEpochMillisecondsAndOnlyReachTheirAuthor() = withRepository { repositories, accounts ->
         val time = NOW.plusNanos(999999999)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, listOf(), "create", listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, listOf(), "create", listOf(), null, listOf()),
         )
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
@@ -281,7 +281,7 @@ class TimelineRepositoryTest {
     fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
         listOf("local-1", "local-2").forEachIndexed { index, publicId ->
             repositories.deliveryQueueRepository.enqueueNote(
-                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf()),
+                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, listOf()),
             )
         }
         val repository = repositories.timelineRepository
@@ -397,7 +397,7 @@ class TimelineRepositoryTest {
     }
 
     @Test
-    fun boostsOfFollowedActorAreShownOnlyToItsFollowersWithTheBoostedNote() = withRepository { repositories, accounts ->
+    fun boostsOfFollowedActorAreShownOnItsFollowersTimelineWithTheBoostedNote() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
@@ -418,7 +418,9 @@ class TimelineRepositoryTest {
         assertEquals("<p>本文</p>", post.contentHtml)
         assertEquals(BOOSTER, post.boostedBy?.actorUri)
         assertEquals("booster", post.boostedBy?.username)
-        assertTrue(repository.hydrate(accounts.getValue("bob"), listOf(position.member)).isEmpty())
+        // 公開している投稿なので、ブーストした相手をフォローしていなくても開ける
+        assertEquals(BOOSTER, repository.hydrate(accounts.getValue("bob"), listOf(position.member)).single().boostedBy?.actorUri)
+        assertEquals("<p>本文</p>", repository.contentHtml(accounts.getValue("bob"), position.member))
         // 投稿者をフォローしていなくても、ブーストされた投稿だけがタイムラインに載ることはない
         assertTrue(repository.page(accounts.getValue("bob"), null, null, 10).isEmpty())
 
@@ -567,7 +569,7 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", NOW, listOf(), "create", listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", NOW, listOf(), "create", listOf(), null, listOf()),
         )
         val localNote = assertNotNull(repository.localPosition("local-1"))
         val note = assertNotNull(repository.receive(note("content", "public", setOf())))
@@ -595,13 +597,13 @@ class TimelineRepositoryTest {
             assertEquals(position.member, post.position.member)
             assertEquals(post.contentHtml, repository.contentHtml(alice, position.member))
         }
-        // 他の人の投稿と公開の投稿とこのサーバーのアカウントのブーストは、自分のタイムラインに載らなくても開ける
-        listOf(localNote, note, accountBoost).forEach { position ->
+        // 他の人の投稿と公開の投稿、そのブーストとこのサーバーのアカウントのブーストは、自分のタイムラインに載らなくても開ける
+        listOf(localNote, note, boost, accountBoost).forEach { position ->
             assertEquals(position.member, repository.viewablePost(bob, position.member)?.position?.member)
             assertNotNull(repository.contentHtml(bob, position.member))
         }
-        // 宛先に入っていない投稿と、フォローしていない相手のブーストは開けない
-        listOf(direct, boost).forEach { position ->
+        // 宛先に入っていない投稿は開けない
+        listOf(direct).forEach { position ->
             assertNull(repository.viewablePost(bob, position.member))
             assertNull(repository.contentHtml(bob, position.member))
         }

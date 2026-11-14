@@ -98,6 +98,8 @@ class NotificationRepositoryTest {
                     publishedAt = NOW,
                     body = "create-note-1",
                     inboxes = listOf(),
+                    inReplyTo = null,
+                    mentions = listOf(),
                     images = listOf(),
                 ),
             )

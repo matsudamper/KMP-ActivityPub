@@ -29,12 +29,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -167,18 +171,19 @@ internal fun PostDetailContent(
                                 }
                             }
                         }
+                        // 下のメンションの入力欄に被らないよう、投稿の領域の下端に出す
+                        SnackbarHost(
+                            hostState = snackbarHostState,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
                     }
                     val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
                     if (loadedContent != null) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        DummyMentionBox(placeholder = loadedContent.mentionBoxPlaceholder)
+                        MentionBox(uiState = loadedContent.mentionBox)
                     }
                 }
             }
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(contentWindowInsets),
-            )
         }
     }
     val deleteNoteDialog = uiState.deleteNoteDialog
@@ -187,29 +192,42 @@ internal fun PostDetailContent(
     }
 }
 
-/**
- * 送信はまだできないので、入力も送信も押せない見た目だけの欄
- */
 @Composable
-private fun DummyMentionBox(placeholder: String) {
+private fun MentionBox(uiState: PostDetailScreenUiState.MentionBox) {
+    var editingValue by remember { mutableStateOf(TextFieldValue()) }
+    // 最初に入れた宛先や送信後に戻した本文は、続けて書けるようカーソルを末尾に置く
+    val value =
+        if (editingValue.text == uiState.text) {
+            editingValue
+        } else {
+            TextFieldValue(text = uiState.text, selection = TextRange(uiState.text.length))
+        }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = value,
+            onValueChange = { changed ->
+                editingValue = changed
+                uiState.listener.onTextChange(changed.text)
+            },
             modifier = Modifier.weight(1f),
-            enabled = false,
-            singleLine = true,
-            placeholder = { Text(text = placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            enabled = uiState.textFieldEnabled,
+            maxLines = MENTION_BOX_MAX_LINES,
+            placeholder = { Text(text = uiState.placeholder, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         )
-        Button(onClick = {}, enabled = false) {
+        Button(onClick = uiState.listener::onClickSend, enabled = uiState.sendButtonEnabled) {
             Text(text = "送信")
         }
     }
 }
+
+/**
+ * 長く書いても投稿が隠れないよう、入力欄の伸びを抑える
+ */
+private const val MENTION_BOX_MAX_LINES = 4
 
 private val contentWindowInsets: WindowInsets
     @Composable

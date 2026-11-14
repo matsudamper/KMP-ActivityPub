@@ -15,17 +15,32 @@ data class PostDetailScreenUiState(
     sealed interface Content {
         data object Loading : Content
 
-        /**
-         * @param mentionBoxPlaceholder 投稿の下に置くメンションの入力欄（まだ送れないダミー）に出す文言
-         */
         data class Loaded(
             val post: PostItemUiState,
-            val mentionBoxPlaceholder: String,
+            val mentionBox: MentionBox,
         ) : Content
 
         data object NotFound : Content
 
         data object Error : Content
+    }
+
+    /**
+     * 投稿の下に置く、投稿者へのメンションの入力欄
+     */
+    data class MentionBox(
+        val text: String,
+        val placeholder: String,
+        val textFieldEnabled: Boolean,
+        val sendButtonEnabled: Boolean,
+        val listener: Listener,
+    ) {
+        @Immutable
+        interface Listener {
+            fun onTextChange(text: String)
+
+            fun onClickSend()
+        }
     }
 
     @Immutable

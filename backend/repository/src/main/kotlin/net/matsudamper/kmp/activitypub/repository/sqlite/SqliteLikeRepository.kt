@@ -36,7 +36,7 @@ internal class SqliteLikeRepository(
                     .where(REMOTE_BOOSTS.ID.eq(boostId))
                     // 消された投稿は削除済みと出すために行を残しているだけなので、新しく付けられないようにする
                     .and(REMOTE_NOTES.DELETED_AT.isNull)
-                    .and(dsl.remoteBoostReadableBy(accountId))
+                    .and(remoteBoostReadable())
                     .fetchOne { LikeTarget.Remote(objectUri = checkNotNull(it.value1()), inbox = checkNotNull(it.value2())) }
             }
         }

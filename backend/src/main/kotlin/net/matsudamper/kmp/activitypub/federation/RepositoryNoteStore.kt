@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
 import net.matsudamper.kotpub.note.NoteAttachment
+import net.matsudamper.kotpub.note.NoteMention
 import net.matsudamper.kotpub.note.NotePosition
 import net.matsudamper.kotpub.note.NoteStore
 import net.matsudamper.kotpub.note.StoredNote
@@ -77,7 +78,7 @@ internal class RepositoryNoteStore(
             images.map { image ->
                 NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
             },
-            inReplyTo = null,
-            mentions = listOf(),
+            inReplyTo = inReplyTo,
+            mentions = mentions.map { mention -> NoteMention(actorId = mention.actorUri, acct = mention.acct) },
         )
 }

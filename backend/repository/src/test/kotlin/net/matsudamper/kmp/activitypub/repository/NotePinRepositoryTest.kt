@@ -90,6 +90,8 @@ class NotePinRepositoryTest {
                 images = listOf(),
                 body = "create",
                 inboxes = listOf(),
+                inReplyTo = null,
+                mentions = listOf(),
             ),
         )
     }

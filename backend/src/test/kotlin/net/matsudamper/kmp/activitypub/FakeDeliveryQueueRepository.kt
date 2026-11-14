@@ -35,7 +35,16 @@ internal class FakeDeliveryQueueRepository(
         notes.uploadedImages.removeAll { it.image.publicId in imageIds }
         posts += post
         notes.requestIds[post.username.lowercase() to post.requestId] = post.publicId
-        notes.notes += Note(publicId = post.publicId, username = post.username, contentHtml = post.contentHtml, publishedAt = post.publishedAt, images = post.images)
+        notes.notes +=
+            Note(
+                publicId = post.publicId,
+                username = post.username,
+                contentHtml = post.contentHtml,
+                publishedAt = post.publishedAt,
+                images = post.images,
+                inReplyTo = post.inReplyTo,
+                mentions = post.mentions,
+            )
         return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)
     }
 

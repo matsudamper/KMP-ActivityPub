@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_MENTIONS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.UPLOADED_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -89,6 +90,7 @@ internal class SqliteDeliveryQueueRepository(
                     .set(NOTES.CONTENT_HTML, post.contentHtml)
                     .set(NOTES.PUBLISHED_AT, publishedAt)
                     .set(NOTES.REQUEST_ID, post.requestId)
+                    .set(NOTES.IN_REPLY_TO, post.inReplyTo)
                     .returning(NOTES.ID)
                     .fetchOne(NOTES.ID),
             ) { "記録した投稿の id を引けない: ${post.publicId}" }
@@ -100,6 +102,15 @@ internal class SqliteDeliveryQueueRepository(
                 .set(NOTE_IMAGES.PATH, image.path)
                 .set(NOTE_IMAGES.CONTENT_TYPE, image.contentType)
                 .set(NOTE_IMAGES.DESCRIPTION, image.description)
+                .execute()
+        }
+        post.mentions.forEachIndexed { position, mention ->
+            dsl.insertInto(NOTE_MENTIONS)
+                .set(NOTE_MENTIONS.NOTE_ID, noteId)
+                .set(NOTE_MENTIONS.POSITION, position.toLong())
+                .set(NOTE_MENTIONS.ACTOR_URI, mention.actorUri)
+                .set(NOTE_MENTIONS.ACCT, mention.acct)
+                .set(NOTE_MENTIONS.INBOX, mention.inbox)
                 .execute()
         }
 

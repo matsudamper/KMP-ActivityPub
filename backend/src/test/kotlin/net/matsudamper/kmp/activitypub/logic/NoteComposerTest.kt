@@ -8,7 +8,7 @@ class NoteComposerTest {
     @Test
     fun 本文のURLをリンクにして句読点と閉じ括弧は外に残す() {
         val composed = assertIs<NoteComposer.ComposeResult.Composed>(
-            NoteComposer.compose("記事 https://example.com/a?x=1&y=2.\n（https://en.wikipedia.org/wiki/Kotlin_(programming_language)）"),
+            NoteComposer.compose("記事 https://example.com/a?x=1&y=2.\n（https://en.wikipedia.org/wiki/Kotlin_(programming_language)）", mentions = listOf()),
         )
 
         assertEquals(
@@ -21,7 +21,7 @@ class NoteComposerTest {
     @Test
     fun URLの外のタグはエスケープする() {
         val composed = assertIs<NoteComposer.ComposeResult.Composed>(
-            NoteComposer.compose("<b>https://example.com</b>"),
+            NoteComposer.compose("<b>https://example.com</b>", mentions = listOf()),
         )
 
         assertEquals(
@@ -33,7 +33,7 @@ class NoteComposerTest {
     @Test
     fun URLの途中のアポストロフィはリンクに含め囲みの引用符は外す() {
         val composed = assertIs<NoteComposer.ComposeResult.Composed>(
-            NoteComposer.compose("https://en.wikipedia.org/wiki/I'm_Feeling_Lucky 'https://example.com'"),
+            NoteComposer.compose("https://en.wikipedia.org/wiki/I'm_Feeling_Lucky 'https://example.com'", mentions = listOf()),
         )
 
         assertEquals(
@@ -46,12 +46,31 @@ class NoteComposerTest {
     @Test
     fun 全角の閉じ括弧の後に文章が続いてもURLをそこで区切る() {
         val composed = assertIs<NoteComposer.ComposeResult.Composed>(
-            NoteComposer.compose("こちら（https://example.com）を参照 https://ja.wikipedia.org/wiki/日本"),
+            NoteComposer.compose("こちら（https://example.com）を参照 https://ja.wikipedia.org/wiki/日本", mentions = listOf()),
         )
 
         assertEquals(
             "<p>こちら（<a href=\"https://example.com\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">https://example.com</a>）を参照 " +
                 "<a href=\"https://ja.wikipedia.org/wiki/日本\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">https://ja.wikipedia.org/wiki/日本</a></p>",
+            composed.contentHtml,
+        )
+    }
+
+    @Test
+    fun `本文に書かれたメンションだけをリンクにし、名前の続きや URL の中は当てない`() {
+        val alice = NoteComposer.MentionLink(text = "@alice@remote.example", href = "https://remote.example/@alice", username = "alice")
+
+        val composed = assertIs<NoteComposer.ComposeResult.Composed>(
+            NoteComposer.compose(
+                "こんにちは @alice@remote.example.\n@alice@remote.example2 https://remote.example/@alice@remote.example",
+                mentions = listOf(alice),
+            ),
+        )
+
+        assertEquals(
+            "<p>こんにちは <span class=\"h-card\" translate=\"no\"><a href=\"https://remote.example/@alice\" class=\"u-url mention\">@<span>alice</span></a></span>." +
+                "<br>@alice@remote.example2 " +
+                "<a href=\"https://remote.example/@alice@remote.example\" rel=\"nofollow noopener noreferrer\" target=\"_blank\">https://remote.example/@alice@remote.example</a></p>",
             composed.contentHtml,
         )
     }
