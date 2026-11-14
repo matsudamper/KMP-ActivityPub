@@ -75,6 +75,10 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.CustomEmojis)
                 }
 
+                override fun navigateToBlockedAccounts() {
+                    navigator.navigate(Screen.BlockedAccounts)
+                }
+
                 override fun navigateToAdmin() {
                     navigator.navigate(Screen.Admin)
                 }
@@ -138,6 +142,8 @@ internal fun SettingsContent(
             FollowingGroupsItem(listener = uiState.listener)
             HorizontalDivider()
             BlockedServersItem(listener = uiState.listener)
+            HorizontalDivider()
+            BlockedAccountsItem(listener = uiState.listener)
             HorizontalDivider()
             CustomEmojisItem(listener = uiState.listener)
             HorizontalDivider()
@@ -266,6 +272,30 @@ private fun CustomEmojisItem(
         )
         Text(
             text = "リアクションで使う絵文字の追加と削除",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun BlockedAccountsItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickBlockedAccounts)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "アカウントブロック",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "ブロックしたアカウントの一覧と解除",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

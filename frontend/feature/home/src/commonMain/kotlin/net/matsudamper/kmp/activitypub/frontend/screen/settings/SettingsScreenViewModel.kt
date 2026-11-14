@@ -66,6 +66,12 @@ internal class SettingsScreenViewModel(
                 }
             }
 
+            override fun onClickBlockedAccounts() {
+                viewModelScope.launch {
+                    events.send { it.navigateToBlockedAccounts() }
+                }
+            }
+
             override fun onClickAdmin() {
                 viewModelScope.launch {
                     events.send { it.navigateToAdmin() }
@@ -205,6 +211,8 @@ internal class SettingsScreenViewModel(
         fun navigateToBlockedServers()
 
         fun navigateToCustomEmojis()
+
+        fun navigateToBlockedAccounts()
 
         fun navigateToAdmin()
 

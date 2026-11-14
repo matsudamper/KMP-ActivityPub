@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -122,9 +123,9 @@ private fun UserProfileContentPreview() {
                     deleteNoteDialog = null,
                     reactionPickerDialog = null,
                     addFollowingGroupDialog = null,
-                    blockServerDialog = null,
+                    blockDialog = null,
                     openOriginalMenuItemVisible = true,
-                    blockServerMenuItemVisible = true,
+                    blockMenuItemsVisible = true,
                     listener = AndroidPreviewUserProfileListener,
                 ),
                 snackbarHostState = SnackbarHostState(),
@@ -265,9 +266,9 @@ private fun UserProfileContentMediaPreview() {
                 deleteNoteDialog = null,
                 reactionPickerDialog = null,
                 addFollowingGroupDialog = null,
-                blockServerDialog = null,
+                blockDialog = null,
                 openOriginalMenuItemVisible = true,
-                blockServerMenuItemVisible = true,
+                blockMenuItemsVisible = true,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -321,10 +322,28 @@ private fun UserProfileContentNotFoundPreview() {
                 deleteNoteDialog = null,
                 reactionPickerDialog = null,
                 addFollowingGroupDialog = null,
-                blockServerDialog = null,
+                blockDialog = null,
                 openOriginalMenuItemVisible = false,
-                blockServerMenuItemVisible = false,
+                blockMenuItemsVisible = false,
                 listener = AndroidPreviewUserProfileListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun UserProfileBlockDialogPreview() {
+    MaterialTheme {
+        UserProfileContent(
+            uiState = LocalUserUiState.copy(
+                blockDialog = UserProfileScreenUiState.BlockDialog(
+                    title = "アカウントをブロック",
+                    message = "@alice@example.social の投稿・ブースト・通知を表示しなくなります。設定のアカウントブロックから解除できます",
+                    buttonsEnabled = true,
+                    listener = AndroidPreviewBlockDialogListener,
+                ),
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -337,10 +356,11 @@ private fun UserProfileBlockServerDialogPreview() {
     MaterialTheme {
         UserProfileContent(
             uiState = LocalUserUiState.copy(
-                blockServerDialog = UserProfileScreenUiState.BlockServerDialog(
-                    host = "example.social",
+                blockDialog = UserProfileScreenUiState.BlockDialog(
+                    title = "サーバーをブロック",
+                    message = "example.social のユーザーの投稿・ブースト・通知を表示しなくなります。設定のサーバーブロックから解除できます",
                     buttonsEnabled = true,
-                    listener = AndroidPreviewBlockServerDialogListener,
+                    listener = AndroidPreviewBlockDialogListener,
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
@@ -348,7 +368,24 @@ private fun UserProfileBlockServerDialogPreview() {
     }
 }
 
-private object AndroidPreviewBlockServerDialogListener : UserProfileScreenUiState.BlockServerDialogListener {
+/**
+ * DropdownMenu はポップアップで出してスナップショットに写らないので、項目だけを並べる
+ */
+@Preview
+@Composable
+private fun UserProfileTopBarMenuPreview() {
+    MaterialTheme {
+        Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+            TopBarMenuItems(
+                blockMenuItemsVisible = true,
+                listener = AndroidPreviewUserProfileListener,
+                onItemClick = {},
+            )
+        }
+    }
+}
+
+private object AndroidPreviewBlockDialogListener : UserProfileScreenUiState.BlockDialogListener {
     override fun onClickBlock() = Unit
 
     override fun onDismiss() = Unit
@@ -382,9 +419,9 @@ private val LocalUserUiState = UserProfileScreenUiState(
     deleteNoteDialog = null,
     reactionPickerDialog = null,
     addFollowingGroupDialog = null,
-    blockServerDialog = null,
+    blockDialog = null,
     openOriginalMenuItemVisible = true,
-    blockServerMenuItemVisible = false,
+    blockMenuItemsVisible = false,
     listener = AndroidPreviewUserProfileListener,
 )
 
@@ -398,6 +435,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickOpenOriginal() = Unit
 
     override fun onClickBlockServer() = Unit
+
+    override fun onClickBlockAccount() = Unit
 
     override fun onScrolledToEnd() = Unit
 

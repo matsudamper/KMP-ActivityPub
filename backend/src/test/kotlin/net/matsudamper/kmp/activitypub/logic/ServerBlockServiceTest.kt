@@ -20,6 +20,7 @@ class ServerBlockServiceTest {
         serverBlocks = repositories.serverBlockRepository,
         clock = Clock.systemUTC(),
     )
+    private val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
     private val alice = repositories.accountRepository.add("alice", "hash", "type")
     private val bob = repositories.accountRepository.add("bob", "hash", "type")
 
@@ -75,12 +76,12 @@ class ServerBlockServiceTest {
         val subdomain = post.copy(actorUri = "https://sub.remote.example/users/erin")
         val withPort = post.copy(actorUri = "https://remote.example:8443/users/frank")
 
-        assertTrue(service.hides(alice, AccountEvent.PostArrived(blockedAuthor)))
-        assertTrue(service.hides(alice, AccountEvent.PostArrived(blockedBooster)))
-        assertTrue(service.hides(alice, AccountEvent.PostArrived(withPort)))
-        assertFalse(service.hides(alice, AccountEvent.PostArrived(otherServer)))
-        assertFalse(service.hides(alice, AccountEvent.PostArrived(subdomain)))
-        assertFalse(service.hides(alice, AccountEvent.PostArrived(post)))
-        assertFalse(service.hides(bob, AccountEvent.PostArrived(blockedAuthor)))
+        assertTrue(blockLists.hides(alice, AccountEvent.PostArrived(blockedAuthor)))
+        assertTrue(blockLists.hides(alice, AccountEvent.PostArrived(blockedBooster)))
+        assertTrue(blockLists.hides(alice, AccountEvent.PostArrived(withPort)))
+        assertFalse(blockLists.hides(alice, AccountEvent.PostArrived(otherServer)))
+        assertFalse(blockLists.hides(alice, AccountEvent.PostArrived(subdomain)))
+        assertFalse(blockLists.hides(alice, AccountEvent.PostArrived(post)))
+        assertFalse(blockLists.hides(bob, AccountEvent.PostArrived(blockedAuthor)))
     }
 }

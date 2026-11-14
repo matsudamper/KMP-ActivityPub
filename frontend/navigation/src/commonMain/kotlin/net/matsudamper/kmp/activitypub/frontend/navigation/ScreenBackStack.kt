@@ -31,6 +31,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
             subclass(Screen.FollowingGroups::class)
             subclass(Screen.BlockedServers::class)
             subclass(Screen.CustomEmojis::class)
+            subclass(Screen.BlockedAccounts::class)
             subclass(Screen.Admin::class)
             subclass(Screen.ProfileEdit::class)
             subclass(Screen.Following::class)

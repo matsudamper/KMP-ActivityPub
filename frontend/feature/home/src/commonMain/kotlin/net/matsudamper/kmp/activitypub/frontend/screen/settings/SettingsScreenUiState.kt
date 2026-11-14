@@ -31,6 +31,8 @@ data class SettingsScreenUiState(
 
         fun onClickCustomEmojis()
 
+        fun onClickBlockedAccounts()
+
         fun onClickAdmin()
 
         fun onClickGitHubRelease()

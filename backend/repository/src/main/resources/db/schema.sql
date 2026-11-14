@@ -441,3 +441,13 @@ CREATE TABLE custom_emojis (
     uploaded_by_account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     created_at TEXT NOT NULL
 );
+
+-- アカウントごとにブロックした他のサーバーのアクター。そのアクターの投稿・ブースト・通知をタイムラインと通知に出さない
+CREATE TABLE account_actor_blocks (
+    account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    actor_uri TEXT NOT NULL,
+    -- 一覧に出す username@host。ブロックしたときのもの
+    acct TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (account_id, actor_uri)
+);

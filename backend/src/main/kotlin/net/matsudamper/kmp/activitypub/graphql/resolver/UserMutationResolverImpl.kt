@@ -9,6 +9,8 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.GraphQlUpload
+import net.matsudamper.kmp.activitypub.graphql.model.QlBlockAccountFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlBlockAccountResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockServerFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockServerResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlCreateFollowingGroupFailure
@@ -35,6 +37,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetReactionFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetReactionResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockAccountFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockAccountResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
@@ -57,6 +61,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserPostNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.UserMutationResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.BlockActorResult
 import net.matsudamper.kmp.activitypub.logic.BlockServerResult
 import net.matsudamper.kmp.activitypub.logic.CreateFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUpload
@@ -71,6 +76,7 @@ import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.SetPinnedResult
 import net.matsudamper.kmp.activitypub.logic.SetReactionResult
+import net.matsudamper.kmp.activitypub.logic.UnblockActorResult
 import net.matsudamper.kmp.activitypub.logic.UnblockServerResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
@@ -174,6 +180,40 @@ class UserMutationResolverImpl : UserMutationResolver {
             UnblockServerResult.NotLoggedIn -> QlUnblockServerFailure.NOT_LOGGED_IN
         }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlUnblockServerResult(failure = failure)).build())
+    }
+
+    override fun blockAccount(
+        userMutation: QlUserMutation,
+        acct: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlBlockAccountResult>> {
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val service = GraphQlEngine.diContainer(env).actorBlockService
+        return otelFuture {
+            val qlResult = when (val result = service.block(accountId = accountId, acct = acct)) {
+                is BlockActorResult.Blocked -> QlBlockAccountResult(account = result.actor.toQlBlockedAccount(), failure = null)
+                BlockActorResult.NotLoggedIn -> QlBlockAccountResult(account = null, failure = QlBlockAccountFailure.NOT_LOGGED_IN)
+                BlockActorResult.NotFound -> QlBlockAccountResult(account = null, failure = QlBlockAccountFailure.NOT_FOUND)
+                BlockActorResult.LocalAccount -> QlBlockAccountResult(account = null, failure = QlBlockAccountFailure.LOCAL_ACCOUNT)
+            }
+            DataFetcherResult.Builder(qlResult).build()
+        }
+    }
+
+    override fun unblockAccount(
+        userMutation: QlUserMutation,
+        actorUri: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUnblockAccountResult>> {
+        val result = GraphQlEngine.diContainer(env).actorBlockService.unblock(
+            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
+            actorUri = actorUri,
+        )
+        val failure = when (result) {
+            UnblockActorResult.Unblocked -> null
+            UnblockActorResult.NotLoggedIn -> QlUnblockAccountFailure.NOT_LOGGED_IN
+        }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(QlUnblockAccountResult(failure = failure)).build())
     }
 
     /**

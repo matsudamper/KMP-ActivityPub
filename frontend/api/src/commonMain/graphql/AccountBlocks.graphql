@@ -1,0 +1,29 @@
+query BlockedAccounts {
+    userInfo {
+        id
+        blockedAccounts {
+            actorUri
+            acct
+        }
+    }
+}
+
+mutation BlockAccount($acct: String!) {
+    user {
+        blockAccount(acct: $acct) {
+            account {
+                actorUri
+                acct
+            }
+            failure
+        }
+    }
+}
+
+mutation UnblockAccount($actorUri: String!) {
+    user {
+        unblockAccount(actorUri: $actorUri) {
+            failure
+        }
+    }
+}

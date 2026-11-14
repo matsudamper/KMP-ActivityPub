@@ -34,6 +34,7 @@ import kotlin.math.roundToInt
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.blockedaccounts.BlockedAccountsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.blockedservers.BlockedServersScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.customemojis.CustomEmojisScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.followinggroups.FollowingGroupsScreen
@@ -267,6 +268,10 @@ private fun ScreenContent(
 
         Screen.CustomEmojis -> {
             CustomEmojisScreen(navigator = navigator)
+        }
+
+        Screen.BlockedAccounts -> {
+            BlockedAccountsScreen(navigator = navigator)
         }
 
         Screen.Admin -> {
