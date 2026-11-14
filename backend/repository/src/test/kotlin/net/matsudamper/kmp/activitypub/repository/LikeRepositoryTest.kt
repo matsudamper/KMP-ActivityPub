@@ -148,6 +148,32 @@ class LikeRepositoryTest {
     }
 
     @Test
+    fun newLikeWaitsUntilUndoOfThePreviousLikeIsDelivered() = withRepository { repositories, alice, bob ->
+        val member = receiveNote(repositories, alice, bob)
+        val likes = repositories.likeRepository
+        val queue = repositories.deliveryQueueRepository
+        val objectUri = "$ACTOR/notes/1"
+        likes.likeAndEnqueue(like(alice, member, "like-1").copy(body = jsonLikeBody("like-1", objectUri)))
+        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, uri, _ -> jsonUndoBody(likeId, uri) }
+        likes.likeAndEnqueue(like(alice, member, "like-2").copy(body = jsonLikeBody("like-2", objectUri)))
+
+        val undo = queue.claim(NOW, 10).single()
+        assertEquals(jsonUndoBody("like-1", objectUri), undo.body)
+
+        queue.scheduleRetry(undo.id, NOW, "failed")
+        assertEquals(listOf(jsonUndoBody("like-1", objectUri)), queue.claim(NOW, 10).map { it.body })
+
+        queue.markDelivered(undo.id, NOW)
+        assertEquals(listOf(jsonLikeBody("like-2", objectUri)), queue.claim(NOW, 10).map { it.body })
+    }
+
+    private fun jsonLikeBody(id: String, objectUri: String): String = """{"id":"$id","type":"Like","object":"$objectUri"}"""
+
+    private fun jsonUndoBody(likeId: String, objectUri: String): String =
+        """{"id":"undo-$likeId","type":"Undo","object":{"id":"$likeId","type":"Like","object":"$objectUri"}}"""
+
+    @Test
     fun undoOfReactionReceivesTheEmojiThatWasSent() = withRepository { repositories, alice, bob ->
         val member = receiveNote(repositories, alice, bob)
         val likes = repositories.likeRepository
