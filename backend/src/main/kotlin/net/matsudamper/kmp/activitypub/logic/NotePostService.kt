@@ -122,12 +122,6 @@ class NotePostService(
         replyToPostId: String?,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
-        val contentHtml =
-            when (val composed = NoteComposer.compose(body)) {
-                is NoteComposer.ComposeResult.Composed -> composed.contentHtml
-                NoteComposer.ComposeResult.Empty -> if (imageIds.isEmpty()) return PostNoteResult.EmptyBody else ""
-                NoteComposer.ComposeResult.TooLong -> return PostNoteResult.TooLong
-            }
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
         val account = accountService.account(sender.username) ?: return PostNoteResult.AccountNotFound
         // 送り直しで付ける画像は最初の投稿に付いて期限の記録から消えているので、画像を探す前に見分ける
@@ -146,17 +140,17 @@ class NotePostService(
                 resolveReply(sender = sender, accountId = account.id, replyToPostId = replyToPostId) ?: return PostNoteResult.ReplyTargetNotFound
             }
         val mention = reply?.mention
-        val replyContentHtml =
-            if (mention == null) {
-                contentHtml
-            } else {
-                NoteComposer.prependMention(contentHtml = contentHtml, href = mention.href, username = mention.username)
+        val contentHtml =
+            when (val composed = NoteComposer.compose(body = body, mentions = listOfNotNull(mention?.link))) {
+                is NoteComposer.ComposeResult.Composed -> composed.contentHtml
+                NoteComposer.ComposeResult.Empty -> if (imageIds.isEmpty()) return PostNoteResult.EmptyBody else ""
+                NoteComposer.ComposeResult.TooLong -> return PostNoteResult.TooLong
             }
 
         val prepared =
             publisher.prepare(
                 sender = sender,
-                contentHtml = replyContentHtml,
+                contentHtml = contentHtml,
                 attachments =
                 images.map { image ->
                     NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
@@ -264,8 +258,12 @@ class NotePostService(
                     mention =
                     ReplyMention(
                         record = NoteMention(actorUri = target.actorUri, acct = "$preferredUsername@$host", inbox = target.inbox),
-                        href = target.profileUrl ?: target.actorUri,
-                        username = preferredUsername,
+                        link =
+                        NoteComposer.MentionLink(
+                            text = "@$preferredUsername@$host",
+                            href = target.profileUrl ?: target.actorUri,
+                            username = preferredUsername,
+                        ),
                     ),
                 )
             }
@@ -282,8 +280,8 @@ class NotePostService(
                         ReplyMention(
                             // このサーバーのアカウントには配らないので inbox は要らない
                             record = NoteMention(actorUri = author.actorId, acct = "${author.username}@${author.domain}", inbox = null),
-                            href = author.actorId,
-                            username = author.username,
+                            // 画面ではこのサーバーのアカウントをドメイン無しで出すので、その形で書かれる
+                            link = NoteComposer.MentionLink(text = "@${author.username}", href = author.actorId, username = author.username),
                         )
                     },
                 )
@@ -304,13 +302,11 @@ class NotePostService(
     )
 
     /**
-     * @param href 本文のリンク先
-     * @param username 本文に出す `@` を付けない名前
+     * @param link 本文に書かれていたらリンクにする
      */
     private class ReplyMention(
         val record: NoteMention,
-        val href: String,
-        val username: String,
+        val link: NoteComposer.MentionLink,
     )
 
     companion object {

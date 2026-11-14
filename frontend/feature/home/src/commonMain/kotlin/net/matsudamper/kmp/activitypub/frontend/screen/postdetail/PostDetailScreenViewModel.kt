@@ -168,7 +168,11 @@ internal class PostDetailScreenViewModel(
                         PostState.Failed
                     }
                 }
-            viewModelStateFlow.update { it.copy(post = post) }
+            viewModelStateFlow.update { state ->
+                // 読み直しで書きかけの本文を消さない
+                val mentionText = if (post is PostState.Loaded && state.mentionText.isEmpty()) initialMentionText(post.post) else state.mentionText
+                state.copy(post = post, mentionText = mentionText)
+            }
         }
     }
 
@@ -259,7 +263,10 @@ internal class PostDetailScreenViewModel(
                 return@launch
             }
             mentionRequestId = newRequestId()
-            viewModelStateFlow.update { it.copy(mentionText = "") }
+            viewModelStateFlow.update { state ->
+                val loaded = state.post as? PostState.Loaded
+                state.copy(mentionText = if (loaded == null) "" else initialMentionText(loaded.post))
+            }
             events.send { it.showMessage("メンションを送りました") }
         }
     }
@@ -287,6 +294,13 @@ internal class PostDetailScreenViewModel(
 
             is UserPostNoteResult.Failure -> result.message
         }
+
+    /**
+     * 宛てる相手を本文に書いておく。消したり後ろに書き足したりできるよう、ただの文字として入れる。
+     * 自分の投稿への返信はサーバーが自分に宛てないので、書かない
+     */
+    private fun initialMentionText(post: UserHomeTimelineResult.Post): String =
+        if (post.deletableNoteId != null) "" else "${createAcct(post)} "
 
     private fun newRequestId(): String = Uuid.random().toString()
 

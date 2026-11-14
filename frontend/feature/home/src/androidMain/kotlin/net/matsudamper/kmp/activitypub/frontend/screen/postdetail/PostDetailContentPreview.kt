@@ -31,7 +31,7 @@ private fun PostDetailContentPreview() = PostDetailLoadedPreview(deleteNoteDialo
 
 @Preview
 @Composable
-private fun PostDetailContentMentionTypedPreview() = PostDetailLoadedPreview(deleteNoteDialog = null, mentionText = "こんにちは")
+private fun PostDetailContentMentionTypedPreview() = PostDetailLoadedPreview(deleteNoteDialog = null, mentionText = "@alice@example.social こんにちは")
 
 @Preview
 @Composable

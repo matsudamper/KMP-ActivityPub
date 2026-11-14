@@ -29,12 +29,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -190,14 +194,25 @@ internal fun PostDetailContent(
 
 @Composable
 private fun MentionBox(uiState: PostDetailScreenUiState.MentionBox) {
+    var editingValue by remember { mutableStateOf(TextFieldValue()) }
+    // 最初に入れた宛先や送信後に戻した本文は、続けて書けるようカーソルを末尾に置く
+    val value =
+        if (editingValue.text == uiState.text) {
+            editingValue
+        } else {
+            TextFieldValue(text = uiState.text, selection = TextRange(uiState.text.length))
+        }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         OutlinedTextField(
-            value = uiState.text,
-            onValueChange = uiState.listener::onTextChange,
+            value = value,
+            onValueChange = { changed ->
+                editingValue = changed
+                uiState.listener.onTextChange(changed.text)
+            },
             modifier = Modifier.weight(1f),
             enabled = uiState.textFieldEnabled,
             maxLines = MENTION_BOX_MAX_LINES,

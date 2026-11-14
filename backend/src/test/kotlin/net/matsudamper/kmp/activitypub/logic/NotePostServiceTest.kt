@@ -243,7 +243,7 @@ class NotePostServiceTest {
                 inbox = REMOTE_INBOX,
             )
 
-        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1"))
+        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "@alice@remote.example こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1"))
 
         val post = deliveryQueueRepository.posts.single()
         assertEquals(listOf(INBOX_A, REMOTE_INBOX), post.inboxes)
@@ -259,6 +259,25 @@ class NotePostServiceTest {
 
         assertEquals(DeleteNoteResult.Deleted, service.delete(username = "user1", publicId = posted.publicId))
         assertEquals(listOf(INBOX_A, REMOTE_INBOX), deliveryQueueRepository.noteDeletions.single().inboxes)
+    }
+
+    @Test
+    fun `本文からメンションを消しても投稿者には宛てる`() {
+        noteRepository.replyTargets["r1"] =
+            ReplyTarget.Remote(
+                objectUri = "https://remote.example/notes/1",
+                actorUri = REMOTE_ACTOR,
+                preferredUsername = "alice",
+                profileUrl = null,
+                inbox = REMOTE_INBOX,
+            )
+
+        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1"))
+
+        val post = deliveryQueueRepository.posts.single()
+        assertEquals("<p>こんにちは</p>", post.contentHtml)
+        assertEquals(listOf(REMOTE_INBOX), post.inboxes)
+        assertEquals(listOf(REMOTE_ACTOR), post.mentions.map { it.actorUri })
     }
 
     @Test
