@@ -12,23 +12,29 @@ internal class SqliteCustomEmojiRepository(
     private val jooq: SqliteJooq,
 ) : CustomEmojiRepository {
     /**
-     * 入れた行を読み直すところまでを 1 つにまとめる。読み直しで失敗したときに行だけが残ると、呼び出し側が消した画像を指す行になる
+     * 入れた行の id は INSERT の RETURNING で受け取り、読み直さない。
+     * 読み直しを別の文にすると、それが失敗したときに行だけが残り、呼び出し側が消した画像を指す行になる
      */
     override fun add(emoji: NewLocalCustomEmoji): LocalCustomEmoji? = jooq.transaction { dsl ->
-        val inserted = dsl.insertInto(CUSTOM_EMOJIS)
+        if (dsl.fetchExists(CUSTOM_EMOJIS, CUSTOM_EMOJIS.SHORTCODE.eq(emoji.shortcode))) return@transaction null
+        val id = dsl.insertInto(CUSTOM_EMOJIS)
             .set(CUSTOM_EMOJIS.SHORTCODE, emoji.shortcode)
             .set(CUSTOM_EMOJIS.PUBLIC_ID, emoji.publicId)
             .set(CUSTOM_EMOJIS.PATH, emoji.path)
             .set(CUSTOM_EMOJIS.CONTENT_TYPE, emoji.contentType)
             .set(CUSTOM_EMOJIS.UPLOADED_BY_ACCOUNT_ID, emoji.uploadedBy.value)
             .set(CUSTOM_EMOJIS.CREATED_AT, StoredInstant.format(emoji.createdAt))
-            .onConflict(CUSTOM_EMOJIS.SHORTCODE).doNothing()
-            .execute() > 0
-        if (inserted) {
-            dsl.selectFrom(CUSTOM_EMOJIS).where(CUSTOM_EMOJIS.PUBLIC_ID.eq(emoji.publicId)).fetchOne()?.toLocalCustomEmoji()
-        } else {
-            null
-        }
+            .returningResult(CUSTOM_EMOJIS.ID)
+            .fetchOne(CUSTOM_EMOJIS.ID)
+        LocalCustomEmoji(
+            id = CustomEmojiId(checkNotNull(id)),
+            shortcode = emoji.shortcode,
+            publicId = emoji.publicId,
+            path = emoji.path,
+            contentType = emoji.contentType,
+            uploadedBy = emoji.uploadedBy,
+            createdAt = emoji.createdAt,
+        )
     }
 
     override fun all(): List<LocalCustomEmoji> = jooq.withConnection { dsl ->

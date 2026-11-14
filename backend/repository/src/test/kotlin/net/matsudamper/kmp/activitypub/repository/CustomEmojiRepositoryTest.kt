@@ -51,6 +51,14 @@ class CustomEmojiRepositoryTest {
     }
 
     @Test
+    fun addedEmojiIsTheSameAsTheStoredRow() = withRepositories { repositories, alice, _ ->
+        val emojis = repositories.customEmojiRepository
+        val added = assertNotNull(emojis.add(newEmoji("kotlin", alice)))
+
+        assertEquals(added, emojis.findById(added.id))
+    }
+
+    @Test
     fun allIsSortedByShortcodeAndSharedByEveryone() = withRepositories { repositories, alice, bob ->
         val emojis = repositories.customEmojiRepository
         emojis.add(newEmoji("zebra", alice))
