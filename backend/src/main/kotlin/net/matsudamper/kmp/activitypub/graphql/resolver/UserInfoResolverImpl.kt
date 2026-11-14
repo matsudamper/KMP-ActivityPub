@@ -63,7 +63,11 @@ class UserInfoResolverImpl : UserInfoResolver {
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
             when (val result = diContainer.replyTargetService?.replyTarget(userInfo.id, postId.value)) {
-                is ReplyTargetResult.Found -> DataFetcherResult.Builder<QlTimelinePost?>(listOf(result.post).toQlTimelinePosts(diContainer).single()).build()
+                is ReplyTargetResult.Found -> {
+                    val mapped = listOf(result.post).toQlTimelinePosts(diContainer).single()
+                    val post = if (diContainer.viewablePostService.isOwnedByViewer(userInfo.id, result.post)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+                    DataFetcherResult.Builder<QlTimelinePost?>(post).build()
+                }
 
                 ReplyTargetResult.NotFound,
                 null,
