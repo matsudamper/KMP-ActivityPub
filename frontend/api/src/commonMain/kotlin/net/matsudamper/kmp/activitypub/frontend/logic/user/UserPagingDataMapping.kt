@@ -339,7 +339,12 @@ fun TimelinePostFields.withLiked(reactionPostId: String, liked: Boolean): Timeli
 fun TimelinePostFields.withLikeState(reactionPostId: String, state: UserLikeState): TimelinePostFields {
     if (this.reactionPostId != reactionPostId) return this
     val body = toPost().body.withLikeState(state)
-    return copy(likedByMe = body.likedByMe == true, viewerReaction = body.viewerReaction?.toFields(), favouriteCount = body.favouriteCount)
+    return copy(
+        likedByMe = body.likedByMe == true,
+        viewerReaction = body.viewerReaction?.toFields(),
+        favouriteCount = body.favouriteCount,
+        stamps = body.stamps.map { stamp -> TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+    )
 }
 
 private fun UserViewerReaction.toFields(): TimelinePostFields.ViewerReaction =

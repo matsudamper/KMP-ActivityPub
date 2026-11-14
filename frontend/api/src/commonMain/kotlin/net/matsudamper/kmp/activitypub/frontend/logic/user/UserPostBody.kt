@@ -64,14 +64,17 @@ fun UserPostBody.withLiked(liked: Boolean): UserPostBody = withLikeState(if (lik
 
 /**
  * いいねかリアクションを付け替える。1 つの投稿に付けられるのはどちらか 1 つ。
- * お気に入りの数は、自分の絵文字の無いいいねの分だけ増減させる。他の人の分は取り直すまで分からない
+ * お気に入りの数とスタンプは、自分の分だけ増減させる。他の人の分は取り直すまで分からない
  */
 fun UserPostBody.withLikeState(state: UserLikeState): UserPostBody {
     if (likedByMe == null || likeState() == state) return this
     val nowPlainLiked = state == UserLikeState.Liked
+    val nextReaction = (state as? UserLikeState.Reacted)?.reaction
     return copy(
         likedByMe = state != UserLikeState.None,
-        viewerReaction = (state as? UserLikeState.Reacted)?.reaction,
+        viewerReaction = nextReaction,
+        // 他のサーバーの投稿は数を受け取らないので、スタンプも自分の分を足さない
+        stamps = if (favouriteCount == null) stamps else stamps.withoutOne(viewerReaction).withOneMore(nextReaction),
         favouriteCount = favouriteCount?.let { count ->
             when {
                 plainLikedByMe && !nowPlainLiked -> (count - 1).coerceAtLeast(0)
@@ -116,3 +119,25 @@ fun UserPostBody.withBoosted(boosted: Boolean): UserPostBody {
         boostCount = boostCount?.let { count -> if (boosted) count + 1 else (count - 1).coerceAtLeast(0) },
     )
 }
+
+private fun List<UserPostStamp>.withoutOne(reaction: UserViewerReaction?): List<UserPostStamp> {
+    if (reaction == null) return this
+    return mapNotNull { stamp ->
+        when {
+            !stamp.isSameAs(reaction) -> stamp
+            stamp.count <= 1 -> null
+            else -> stamp.copy(count = stamp.count - 1)
+        }
+    }
+}
+
+/**
+ * 無い絵文字は最後に足す。スタンプは先に押された絵文字の順に並ぶため
+ */
+private fun List<UserPostStamp>.withOneMore(reaction: UserViewerReaction?): List<UserPostStamp> {
+    if (reaction == null) return this
+    if (none { it.isSameAs(reaction) }) return this + UserPostStamp(emoji = reaction.emoji, imageUrl = reaction.imageUrl, count = 1)
+    return map { if (it.isSameAs(reaction)) it.copy(count = it.count + 1) else it }
+}
+
+private fun UserPostStamp.isSameAs(reaction: UserViewerReaction): Boolean = emoji == reaction.emoji && imageUrl == reaction.imageUrl
