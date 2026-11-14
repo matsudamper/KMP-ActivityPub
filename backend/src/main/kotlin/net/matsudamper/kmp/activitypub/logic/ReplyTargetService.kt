@@ -21,36 +21,47 @@ class ReplyTargetService(
 ) {
     /**
      * @param postId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id
-     * @return 返信でないか、返信先を読めなければ null
      */
-    suspend fun replyTarget(viewer: AccountId, postId: String): TimelinePost? {
-        val inReplyTo = inReplyToOf(viewer, postId) ?: return null
+    suspend fun replyTarget(viewer: AccountId, postId: String): ReplyTargetResult {
+        val inReplyTo = when (val lookup = inReplyToOf(viewer, postId)) {
+            is InReplyToLookup.Found -> lookup.objectUri
+            InReplyToLookup.NotFound -> return ReplyTargetResult.NotFound
+            InReplyToLookup.Unavailable -> return ReplyTargetResult.Unavailable
+        }
         val localPublicId = localPublicIdOf(inReplyTo)
         return if (localPublicId == null) {
             remotePost(viewer, inReplyTo)
         } else {
-            timeline.localPost(viewer, localPublicId)
+            timeline.localPost(viewer, localPublicId)?.let { ReplyTargetResult.Found(it) } ?: ReplyTargetResult.NotFound
         }
     }
 
-    private suspend fun inReplyToOf(viewer: AccountId, postId: String): String? {
+    private suspend fun inReplyToOf(viewer: AccountId, postId: String): InReplyToLookup {
         val unsavedObjectUri = UnsavedRemoteNoteId.objectUriOf(postId)
         if (unsavedObjectUri == null) {
-            if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return null
-            return timeline.inReplyTo(viewer, postId)
+            if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return InReplyToLookup.NotFound
+            return InReplyToLookup.of(timeline.inReplyTo(viewer, postId))
         }
         // 表示した後に、いいねやブーストで保存されていることがある
         val stored = storedRemotePost(viewer, unsavedObjectUri)
-        if (stored != null) return stored.inReplyTo
-        return unsavedNotes.fetch(unsavedObjectUri)?.note?.inReplyTo
+        if (stored != null) return InReplyToLookup.of(stored.inReplyTo)
+        return when (val fetched = unsavedNotes.fetch(unsavedObjectUri)) {
+            is RemoteNoteFetchResult.Found -> InReplyToLookup.of(fetched.note.inReplyTo)
+            RemoteNoteFetchResult.NotFound -> InReplyToLookup.NotFound
+            RemoteNoteFetchResult.Unavailable -> InReplyToLookup.Unavailable
+        }
     }
 
-    private suspend fun remotePost(viewer: AccountId, objectUri: String): TimelinePost? {
+    private suspend fun remotePost(viewer: AccountId, objectUri: String): ReplyTargetResult {
         val stored = storedRemotePost(viewer, objectUri)
-        if (stored != null) return stored
+        if (stored != null) return ReplyTargetResult.Found(stored)
         // 相手のサーバーに取りに行けるのは https の URI だけ
-        if (!objectUri.startsWith("https://")) return null
-        return unsavedNotes.fetch(objectUri)?.toUnsavedPost()
+        if (!objectUri.startsWith("https://")) return ReplyTargetResult.NotFound
+        return when (val fetched = unsavedNotes.fetch(objectUri)) {
+            is RemoteNoteFetchResult.Found -> ReplyTargetResult.Found(fetched.toUnsavedPost())
+            RemoteNoteFetchResult.NotFound -> ReplyTargetResult.NotFound
+            RemoteNoteFetchResult.Unavailable -> ReplyTargetResult.Unavailable
+        }
     }
 
     private fun storedRemotePost(viewer: AccountId, objectUri: String): TimelinePost? =
@@ -60,7 +71,7 @@ class ReplyTargetService(
     /**
      * 保存していないので、いいねもブーストも付いていない
      */
-    private fun FetchedRemoteNote.toUnsavedPost(): TimelinePost {
+    private fun RemoteNoteFetchResult.Found.toUnsavedPost(): TimelinePost {
         val unsavedId = UnsavedRemoteNoteId.of(note.objectUri)
         return TimelinePost(
             position = TimelinePosition(note.publishedAt.toEpochMilli(), unsavedId),
@@ -100,4 +111,31 @@ class ReplyTargetService(
         val publicId = parsed.path?.substringAfterLast('/')?.takeIf { it.isNotEmpty() } ?: return null
         return publicId.takeIf { runCatching { NoteUrls(domain, KotpubPublicNoteId(it)).noteUrl }.getOrNull() == uri }
     }
+
+    private sealed interface InReplyToLookup {
+        data class Found(val objectUri: String) : InReplyToLookup
+
+        /** 返信でないか、読めない投稿 */
+        data object NotFound : InReplyToLookup
+
+        data object Unavailable : InReplyToLookup
+
+        companion object {
+            fun of(inReplyTo: String?): InReplyToLookup = if (inReplyTo == null) NotFound else Found(inReplyTo)
+        }
+    }
+}
+
+sealed interface ReplyTargetResult {
+    data class Found(val post: TimelinePost) : ReplyTargetResult
+
+    /**
+     * 返信でないか、返信先が無いか読めない
+     */
+    data object NotFound : ReplyTargetResult
+
+    /**
+     * 返信先のサーバーが応えなかった。時間を置けば取れることがある
+     */
+    data object Unavailable : ReplyTargetResult
 }

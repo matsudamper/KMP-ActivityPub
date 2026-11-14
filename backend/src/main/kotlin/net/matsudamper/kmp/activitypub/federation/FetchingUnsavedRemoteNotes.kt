@@ -2,7 +2,7 @@ package net.matsudamper.kmp.activitypub.federation
 
 import java.net.URI
 import java.time.Clock
-import net.matsudamper.kmp.activitypub.logic.FetchedRemoteNote
+import net.matsudamper.kmp.activitypub.logic.RemoteNoteFetchResult
 import net.matsudamper.kmp.activitypub.logic.RemoteUser
 import net.matsudamper.kmp.activitypub.logic.UnsavedRemoteNotes
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
@@ -40,20 +40,23 @@ internal class FetchingUnsavedRemoteNotes(
             }
         }
 
-    override suspend fun fetch(objectUri: String): FetchedRemoteNote? {
+    override suspend fun fetch(objectUri: String): RemoteNoteFetchResult {
         val note = when (val lookup = remoteNotes.find(objectUri)) {
             is RemoteNoteLookup.Found -> lookup.note
 
-            RemoteNoteLookup.NotFound, RemoteNoteLookup.Unavailable -> {
-                logger.warn("投稿を取れなかった: $objectUri result=$lookup")
-                return null
+            RemoteNoteLookup.NotFound -> return RemoteNoteFetchResult.NotFound
+
+            RemoteNoteLookup.Unavailable -> {
+                logger.warn("投稿を取れなかった: $objectUri")
+                return RemoteNoteFetchResult.Unavailable
             }
         }
         val input = note.toRemoteNoteInput(localRecipients = setOf(), now = clock.instant())
         // 保存するときと同じく、誰でも読める投稿で、投稿者と同じサーバーにあるものだけを出す
-        if (input.visibility !in PUBLISHED_VISIBILITIES || !note.isOnAuthorsOrigin()) return null
-        val author = findAuthor(note.attributedTo) ?: return null
-        return FetchedRemoteNote(note = input, author = author)
+        if (input.visibility !in PUBLISHED_VISIBILITIES || !note.isOnAuthorsOrigin()) return RemoteNoteFetchResult.NotFound
+        // アクターが取れないのは、相手のサーバーが応えなかったときと区別できないので、取り直せるようにする
+        val author = findAuthor(note.attributedTo) ?: return RemoteNoteFetchResult.Unavailable
+        return RemoteNoteFetchResult.Found(note = input, author = author)
     }
 
     private suspend fun findAuthor(actorUri: String): RemoteUser? {

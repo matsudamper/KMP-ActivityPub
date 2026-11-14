@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
+import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
@@ -14,6 +15,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
+import net.matsudamper.kmp.activitypub.logic.ReplyTargetResult
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.LinkPreviewPostId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -58,8 +60,19 @@ class UserInfoResolverImpl : UserInfoResolver {
     override fun replyTarget(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
         val diContainer = GraphQlEngine.diContainer(env)
         return otelFuture {
-            val post = diContainer.replyTargetService?.replyTarget(userInfo.id, postId.value)?.let { listOf(it).toQlTimelinePosts(diContainer).single() }
-            DataFetcherResult.Builder<QlTimelinePost?>(post).build()
+            when (val result = diContainer.replyTargetService?.replyTarget(userInfo.id, postId.value)) {
+                is ReplyTargetResult.Found -> DataFetcherResult.Builder<QlTimelinePost?>(listOf(result.post).toQlTimelinePosts(diContainer).single()).build()
+
+                ReplyTargetResult.NotFound,
+                null,
+                -> DataFetcherResult.Builder<QlTimelinePost?>(null).build()
+
+                // 返信先が無いのと区別して、画面が取り直せるようにする
+                ReplyTargetResult.Unavailable ->
+                    DataFetcherResult.Builder<QlTimelinePost?>(null)
+                        .error(GraphqlErrorBuilder.newError(env).message("返信先のサーバーから投稿を取れなかった").build())
+                        .build()
+            }
         }
     }
 

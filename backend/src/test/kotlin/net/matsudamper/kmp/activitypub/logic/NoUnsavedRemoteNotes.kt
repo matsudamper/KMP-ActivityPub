@@ -10,5 +10,5 @@ object NoUnsavedRemoteNotes : UnsavedRemoteNotes {
 
     override suspend fun import(viewer: AccountId, objectUri: String): String? = null
 
-    override suspend fun fetch(objectUri: String): FetchedRemoteNote? = null
+    override suspend fun fetch(objectUri: String): RemoteNoteFetchResult = RemoteNoteFetchResult.NotFound
 }

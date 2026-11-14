@@ -39,19 +39,29 @@ interface UnsavedRemoteNotes {
 
     /**
      * 投稿と投稿者を取ってくる。どちらも保存しない
-     *
-     * @return 取れないか、公開と公開タイムラインに載せない公開のどちらでもない投稿なら null
      */
-    suspend fun fetch(objectUri: String): FetchedRemoteNote?
+    suspend fun fetch(objectUri: String): RemoteNoteFetchResult
 }
 
-/**
- * @param author 投稿者。保存済みならその記録
- */
-data class FetchedRemoteNote(
-    val note: RemoteNoteInput,
-    val author: RemoteUser,
-)
+sealed interface RemoteNoteFetchResult {
+    /**
+     * @param author 投稿者。保存済みならその記録
+     */
+    data class Found(
+        val note: RemoteNoteInput,
+        val author: RemoteUser,
+    ) : RemoteNoteFetchResult
+
+    /**
+     * 無いか、公開と公開タイムラインに載せない公開のどちらでもない投稿
+     */
+    data object NotFound : RemoteNoteFetchResult
+
+    /**
+     * 相手のサーバーが応えなかった。時間を置けば取れることがある
+     */
+    data object Unavailable : RemoteNoteFetchResult
+}
 
 /**
  * いいねやブーストに渡された投稿の id を、タイムラインの member にする
