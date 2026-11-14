@@ -30,12 +30,13 @@ class ServerBlockServiceTest {
             "https://remote.example/@carol" to "remote.example",
             "@carol@remote.example" to "remote.example",
             "carol@remote.example" to "remote.example",
-            "http://remote.example:8080/users/carol" to "remote.example:8080",
+            "https://port.example:443/users/carol" to "port.example",
+            "port.example:8443" to "port.example",
             "例え.テスト" to "xn--r8jz45g.xn--zckzah",
         ).forEach { (input, host) ->
             assertEquals(BlockServerResult.Blocked(host), service.block(alice, input), input)
         }
-        assertEquals(listOf("xn--r8jz45g.xn--zckzah", "remote.example:8080", "remote.example"), service.hosts(alice))
+        assertEquals(listOf("xn--r8jz45g.xn--zckzah", "port.example", "remote.example"), service.hosts(alice))
         assertEquals(listOf(), service.hosts(bob))
     }
 
@@ -72,9 +73,11 @@ class ServerBlockServiceTest {
         )
         val otherServer = post.copy(actorUri = "https://other.example/users/dave")
         val subdomain = post.copy(actorUri = "https://sub.remote.example/users/erin")
+        val withPort = post.copy(actorUri = "https://remote.example:8443/users/frank")
 
         assertTrue(service.hides(alice, AccountEvent.PostArrived(blockedAuthor)))
         assertTrue(service.hides(alice, AccountEvent.PostArrived(blockedBooster)))
+        assertTrue(service.hides(alice, AccountEvent.PostArrived(withPort)))
         assertFalse(service.hides(alice, AccountEvent.PostArrived(otherServer)))
         assertFalse(service.hides(alice, AccountEvent.PostArrived(subdomain)))
         assertFalse(service.hides(alice, AccountEvent.PostArrived(post)))
