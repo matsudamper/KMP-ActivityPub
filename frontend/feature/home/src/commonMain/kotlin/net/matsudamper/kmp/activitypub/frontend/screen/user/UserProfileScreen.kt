@@ -342,7 +342,7 @@ internal fun TopBarMenuItems(
         )
         if (blockMenuItemsVisible) {
             DropdownMenuItem(
-                text = { Text("このアカウントをブロック") },
+                text = { Text("アカウントをブロック") },
                 colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
                 onClick = {
                     onItemClick()
@@ -350,7 +350,7 @@ internal fun TopBarMenuItems(
                 },
             )
             DropdownMenuItem(
-                text = { Text("このサーバーをブロック") },
+                text = { Text("サーバーをブロック") },
                 colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
                 onClick = {
                     onItemClick()
