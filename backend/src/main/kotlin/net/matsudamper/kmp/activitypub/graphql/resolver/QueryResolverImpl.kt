@@ -305,6 +305,7 @@ class QueryResolverImpl : QueryResolver {
             pinned = pinned,
             pinnableNoteId = pinnableNoteId,
             linkUrls = body.linkUrls,
+            mentions = body.mentions,
             images = body.images,
             emojis = emojis.toQlCustomEmojis(diContainer),
             favouriteCount = favouriteCount?.toInt(),

@@ -22,6 +22,11 @@ fragment TimelinePostFields on TimelinePost {
     summary
     sensitive
     linkUrls
+    mentions {
+        start
+        end
+        acct
+    }
     deletableNoteId
     pinnableNoteId
     pinned

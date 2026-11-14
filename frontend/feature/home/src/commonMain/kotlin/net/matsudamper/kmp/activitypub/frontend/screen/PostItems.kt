@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param pinned プロフィールの先頭に固定されている投稿か
  * @param deleted 投稿者が投稿を消した後か
  * @param boostUndone ブーストした相手がブーストを取り消した後か
+ * @param onOpenProfile 本文のメンションを押したとき。acct は `user@host`
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
  */
@@ -36,6 +37,7 @@ internal fun createPostItemUiState(
     menuItems: List<PostItemUiState.MenuItem>,
     postTapAction: PostTapAction,
     onOpenUrl: (url: String) -> Unit,
+    onOpenProfile: (acct: String) -> Unit,
     onOpenImage: (urls: List<String>, index: Int) -> Unit,
     onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
     onShare: (url: String) -> Unit,
@@ -74,7 +76,13 @@ internal fun createPostItemUiState(
         iconUrl = iconUrl,
         displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,
-        body = createPostBodyText(content = body.content, emojis = body.emojis, onOpenUrl = onOpenUrl),
+        body = createPostBodyText(
+            content = body.content,
+            mentions = body.mentions,
+            emojis = body.emojis,
+            onOpenUrl = onOpenUrl,
+            onOpenProfile = onOpenProfile,
+        ),
         postedAt = createPostedAtText(
             publishedAt = body.publishedAt,
             now = Clock.System.now(),
