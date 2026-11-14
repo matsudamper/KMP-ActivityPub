@@ -167,6 +167,11 @@ internal fun PostDetailContent(
                                 }
                             }
                         }
+                        // 下のメンションの入力欄に被らないよう、投稿の領域の下端に出す
+                        SnackbarHost(
+                            hostState = snackbarHostState,
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
                     }
                     val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
                     if (loadedContent != null) {
@@ -175,10 +180,6 @@ internal fun PostDetailContent(
                     }
                 }
             }
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.align(Alignment.BottomCenter).windowInsetsPadding(contentWindowInsets),
-            )
         }
     }
     val deleteNoteDialog = uiState.deleteNoteDialog
