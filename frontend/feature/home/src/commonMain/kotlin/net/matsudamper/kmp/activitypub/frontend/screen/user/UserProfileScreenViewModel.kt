@@ -268,6 +268,37 @@ internal class UserProfileScreenViewModel(
         if (applied) loadLikes(continuation)
     }
 
+    private fun loadMore() {
+        if (loadMoreJob?.isActive == true) return
+        val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
+        val next = loaded.posts.next
+        if (next == NextPosts.End) return
+        updatePosts { it.copy(loadErrorMessage = null) }
+        loadMoreJob = viewModelScope.launch { loadPosts(next) }
+    }
+
+    /**
+     * 続きが空でもまだ先があれば、続けて読む。固定した投稿だけのページなどは表示が増えず、画面の末尾の見張りでは読み進められない
+     */
+    private tailrec suspend fun loadPosts(next: NextPosts) {
+        val result = api.userProfilePosts(acct = username, after = (next as? NextPosts.After)?.cursor)
+        updatePosts { current ->
+            // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
+            if (current.next != next) {
+                current
+            } else {
+                when (result) {
+                    is UserProfilePostsResult.Success -> current.copy(posts = current.posts + result.posts, next = result.nextCursor.toNextPosts())
+                    is UserProfilePostsResult.Failure -> current.copy(loadErrorMessage = result.message)
+                }
+            }
+        }
+        val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
+        val continuation = NextPosts.After(nextCursor)
+        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.posts?.next == continuation
+        if (applied) loadPosts(continuation)
+    }
+
     /**
      * @param likedByMe 押す前の状態
      */
