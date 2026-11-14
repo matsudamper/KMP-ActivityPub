@@ -22,6 +22,11 @@ type UserInfo {
     返信でないか、返信先を読めないか、サーバーに DOMAIN が無ければ null。返信先のサーバーが応えなければ、null とエラーを返す
     """
     replyTarget(postId: TimelinePostId!): TimelinePost @lazy
+    """
+    投稿のリプライ・いいね・ブーストの数。id には TimelinePost.id か ProfilePost.id を渡す。開けない投稿なら null。
+    他のサーバーの投稿は、前に取ってから 1 分経っていれば相手のサーバーから数を取り直すので遅い。個別投稿画面を開いたときに使う
+    """
+    postCounts(postId: TimelinePostId!): PostCounts @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!
@@ -60,4 +65,11 @@ type RemoteProfileRefreshProgress {
 type FollowingGroup {
     id: FollowingGroupId!
     name: String!
+}
+
+"投稿のリプライ・いいね・ブーストの数。それぞれ TimelinePost の同じ名前の項目と同じ意味"
+type PostCounts {
+    replyCount: Int!
+    favouriteCount: Int
+    boostCount: Int
 }

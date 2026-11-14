@@ -124,6 +124,7 @@ class AppDependencies(
                 stampRepository = repositories.stampRepository,
                 boostRepository = repositories.boostRepository,
                 serverBlockRepository = repositories.serverBlockRepository,
+                noteCountRepository = repositories.noteCountRepository,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),

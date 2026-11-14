@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
+import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
@@ -36,6 +37,7 @@ import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
@@ -71,6 +73,7 @@ import net.matsudamper.kotpub.like.LikedEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoSoftware
 import net.matsudamper.kotpub.note.FeaturedEndpoint
+import net.matsudamper.kotpub.note.HttpRemoteNoteCounts
 import net.matsudamper.kotpub.note.HttpRemoteNotes
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
@@ -99,6 +102,7 @@ internal class Federation(
     stampRepository: StampRepository,
     boostRepository: BoostRepository,
     serverBlockRepository: ServerBlockRepository,
+    noteCountRepository: NoteCountRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
@@ -189,6 +193,14 @@ internal class Federation(
             domain = domain,
             timeline = timelineRepository,
             unsavedNotes = unsavedRemoteNotes,
+        )
+
+    val postCountService: PostCountService =
+        PostCountService(
+            domain = domain,
+            counts = noteCountRepository,
+            remoteCounts = KotpubRemoteNoteCounts(HttpRemoteNoteCounts(httpClient)),
+            clock = Clock.systemUTC(),
         )
 
     val boostService: BoostService =

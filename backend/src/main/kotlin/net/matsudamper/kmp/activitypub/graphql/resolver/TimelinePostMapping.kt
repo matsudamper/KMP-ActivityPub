@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotification
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationKind
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
+import net.matsudamper.kmp.activitypub.logic.PostCounts
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.NotificationKind
@@ -19,11 +20,13 @@ import net.matsudamper.kmp.activitypub.shared.TimelinePostId
  */
 internal fun List<TimelinePost>.toQlTimelinePosts(diContainer: DiContainer): List<QlTimelinePost> {
     val localIconUrls = diContainer.profileIconUrls?.memoized()
-    return map { post -> post.toQlTimelinePost(localIconUrls = localIconUrls, diContainer = diContainer) }
+    val countsByRef = diContainer.postCountService?.countsOf(map { it.noteRef }.toSet()).orEmpty()
+    return map { post -> post.toQlTimelinePost(localIconUrls = localIconUrls, counts = countsByRef[post.noteRef], diContainer = diContainer) }
 }
 
 private fun TimelinePost.toQlTimelinePost(
     localIconUrls: ProfileIconUrls?,
+    counts: PostCounts?,
     diContainer: DiContainer,
 ): QlTimelinePost {
     val body = createQlPostBody(
@@ -62,13 +65,13 @@ private fun TimelinePost.toQlTimelinePost(
         // ブーストとして載せた投稿は他のアカウントの投稿のこともあり、ブーストされた元の投稿を消したり固定したりする場所ではない
         deletableNoteId = if (boostedBy == null) localPublicId else null,
         pinnableNoteId = if (boostedBy == null) localPublicId else null,
-        favouriteCount = favouriteCount?.toInt(),
+        favouriteCount = (favouriteCount ?: counts?.reportedFavouriteCount)?.toInt(),
         stamps = stamps.toQlPostStamps(diContainer),
         url = diContainer.noteShareUrls?.url(noteRef),
         likedByMe = likedByMe,
         boostedByMe = boostedByMe,
         reactionPostId = TimelinePostId(reactionMember),
-        boostCount = boostCount?.toInt(),
+        boostCount = (boostCount ?: counts?.reportedBoostCount)?.toInt(),
         boostedBy = boostedBy?.let { booster ->
             QlActor(
                 actorUri = booster.actorUri,
@@ -84,6 +87,7 @@ private fun TimelinePost.toQlTimelinePost(
             )
         },
         hasReplyTarget = inReplyTo != null,
+        replyCount = counts?.replyCount?.toInt() ?: 0,
     )
 }
 

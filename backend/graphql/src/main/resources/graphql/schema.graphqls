@@ -142,7 +142,7 @@ type TimelinePost {
     pinnableNoteId: PublicNoteId
     "プロフィールの先頭に固定されているか。他のサーバーの投稿は false"
     pinned: Boolean! @lazy
-    "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
+    "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は、相手のサーバーが出している数を UserInfo.postCounts で取ったことがあればその数で、無ければ null"
     favouriteCount: Int
     "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
@@ -154,7 +154,7 @@ type TimelinePost {
     boostedByMe: Boolean
     "setLiked と setBoosted に渡す id。ブーストで載った投稿は、ブーストされた元の投稿を指す"
     reactionPostId: TimelinePostId!
-    "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
+    "他のサーバーから届いたブーストの数。他のサーバーの投稿は、相手のサーバーが出している数を UserInfo.postCounts で取ったことがあればその数で、無ければ null"
     boostCount: Int
     "フォローしている相手か自分のブーストとして載った投稿なら、ブーストした相手。author などほかの項目はブーストされた投稿のもの"
     boostedBy: Actor
@@ -162,6 +162,8 @@ type TimelinePost {
     followingGroupId: FollowingGroupId @lazy
     "返信なら true。ブーストで載った投稿は、ブーストされた元の投稿が返信か。返信先は UserInfo.replyTarget で取る"
     hasReplyTarget: Boolean!
+    "リプライの数。他のサーバーの投稿は、このサーバーが知っている返信と、UserInfo.postCounts で取った相手のサーバーの数の大きい方"
+    replyCount: Int!
 }
 
 "投稿者、ブーストした相手、通知を送ってきた相手"

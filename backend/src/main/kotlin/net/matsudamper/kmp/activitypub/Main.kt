@@ -176,6 +176,7 @@ internal fun Application.module(deps: AppDependencies) {
                 linkPreviewService = federation?.linkPreviewService,
                 remoteProfileRefreshService = federation?.remoteProfileRefreshService,
                 replyTargetService = federation?.replyTargetService,
+                postCountService = federation?.postCountService,
             ),
         )
 
