@@ -5,7 +5,9 @@ import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
 import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
+import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
@@ -135,6 +137,17 @@ internal class FakeRepositories : Repositories {
         override fun find(kind: NotificationKind, notePublicId: PublicNoteId, actorUri: String): ReceivedNotification? = null
     }
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
+    override val actorBlockRepository: ActorBlockRepository = object : ActorBlockRepository {
+        private val rows = mutableListOf<Pair<AccountId, BlockedActor>>()
+        override fun list(accountId: AccountId): List<BlockedActor> = rows.filter { it.first == accountId }.map { it.second }.reversed()
+        override fun add(accountId: AccountId, actor: BlockedActor, createdAt: Instant) {
+            val index = rows.indexOfFirst { it.first == accountId && it.second.actorUri == actor.actorUri }.takeIf { it >= 0 }
+            if (index == null) rows += accountId to actor else rows[index] = accountId to actor
+        }
+        override fun remove(accountId: AccountId, actorUri: String) {
+            rows.removeAll { it.first == accountId && it.second.actorUri == actorUri }
+        }
+    }
     override val serverBlockRepository: ServerBlockRepository = object : ServerBlockRepository {
         private val rows = mutableListOf<Pair<AccountId, String>>()
         override fun hosts(accountId: AccountId): List<String> = rows.filter { it.first == accountId }.map { it.second }.reversed()

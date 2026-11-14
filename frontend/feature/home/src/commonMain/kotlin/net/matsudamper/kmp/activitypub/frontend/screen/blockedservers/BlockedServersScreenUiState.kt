@@ -1,12 +1,17 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.blockedservers
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialogUiState
 
 data class BlockedServersScreenUiState(
     val serverInput: String,
     val serverInputEnabled: Boolean,
     val blockButtonEnabled: Boolean,
     val content: Content,
+    /**
+     * 出していなければ null
+     */
+    val unblockDialog: UnblockDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -20,9 +25,10 @@ data class BlockedServersScreenUiState(
             val emptyMessageVisible: Boolean,
         ) : Content
 
-        data class Error(
-            val message: String,
-        ) : Content
+        /**
+         * 読めなかった理由は Snackbar で出すので、ここでは読み直す操作だけを出す
+         */
+        data object LoadFailed : Content
     }
 
     data class Server(

@@ -71,6 +71,10 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.BlockedServers)
                 }
 
+                override fun navigateToBlockedAccounts() {
+                    navigator.navigate(Screen.BlockedAccounts)
+                }
+
                 override fun navigateToAdmin() {
                     navigator.navigate(Screen.Admin)
                 }
@@ -134,6 +138,8 @@ internal fun SettingsContent(
             FollowingGroupsItem(listener = uiState.listener)
             HorizontalDivider()
             BlockedServersItem(listener = uiState.listener)
+            HorizontalDivider()
+            BlockedAccountsItem(listener = uiState.listener)
             HorizontalDivider()
             SecurityItem(listener = uiState.listener)
             HorizontalDivider()
@@ -236,6 +242,30 @@ private fun BlockedServersItem(
         )
         Text(
             text = "ブロックしたサーバーの一覧と解除",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun BlockedAccountsItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickBlockedAccounts)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "アカウントブロック",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "ブロックしたアカウントの一覧と解除",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

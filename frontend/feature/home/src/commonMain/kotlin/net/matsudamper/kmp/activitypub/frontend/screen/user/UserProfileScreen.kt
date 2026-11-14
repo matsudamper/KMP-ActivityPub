@@ -144,7 +144,7 @@ internal fun UserProfileContent(
                 )
                 if (uiState.openOriginalMenuItemVisible) {
                     TopBarMenu(
-                        blockServerMenuItemVisible = uiState.blockServerMenuItemVisible,
+                        blockMenuItemsVisible = uiState.blockMenuItemsVisible,
                         listener = uiState.listener,
                     )
                 }
@@ -267,18 +267,18 @@ internal fun UserProfileContent(
     if (addFollowingGroupDialog != null) {
         AddFollowingGroupDialog(uiState = addFollowingGroupDialog)
     }
-    val blockServerDialog = uiState.blockServerDialog
-    if (blockServerDialog != null) {
-        BlockServerDialog(uiState = blockServerDialog)
+    val blockDialog = uiState.blockDialog
+    if (blockDialog != null) {
+        BlockDialog(uiState = blockDialog)
     }
 }
 
 @Composable
-private fun BlockServerDialog(uiState: UserProfileScreenUiState.BlockServerDialog) {
+private fun BlockDialog(uiState: UserProfileScreenUiState.BlockDialog) {
     AlertDialog(
         onDismissRequest = uiState.listener::onDismiss,
-        title = { Text("サーバーをブロック") },
-        text = { Text("${uiState.host} のユーザーの投稿・ブースト・通知を表示しなくなります。設定のサーバーブロックから解除できます") },
+        title = { Text(uiState.title) },
+        text = { Text(uiState.message) },
         confirmButton = {
             TextButton(
                 onClick = uiState.listener::onClickBlock,
@@ -301,7 +301,7 @@ private fun BlockServerDialog(uiState: UserProfileScreenUiState.BlockServerDialo
 
 @Composable
 private fun TopBarMenu(
-    blockServerMenuItemVisible: Boolean,
+    blockMenuItemsVisible: Boolean,
     listener: UserProfileScreenUiState.Listener,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -313,23 +313,50 @@ private fun TopBarMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
+            TopBarMenuItems(
+                blockMenuItemsVisible = blockMenuItemsVisible,
+                listener = listener,
+                onItemClick = { expanded = false },
+            )
+        }
+    }
+}
+
+/**
+ * @param onItemClick どの項目を押しても、メニューを閉じるために先に呼ぶ
+ */
+@Composable
+internal fun TopBarMenuItems(
+    blockMenuItemsVisible: Boolean,
+    listener: UserProfileScreenUiState.Listener,
+    onItemClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        DropdownMenuItem(
+            text = { Text("オリジナルを開く") },
+            onClick = {
+                onItemClick()
+                listener.onClickOpenOriginal()
+            },
+        )
+        if (blockMenuItemsVisible) {
             DropdownMenuItem(
-                text = { Text("オリジナルを開く") },
+                text = { Text("アカウントをブロック") },
+                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
                 onClick = {
-                    expanded = false
-                    listener.onClickOpenOriginal()
+                    onItemClick()
+                    listener.onClickBlockAccount()
                 },
             )
-            if (blockServerMenuItemVisible) {
-                DropdownMenuItem(
-                    text = { Text("このサーバーをブロック") },
-                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        expanded = false
-                        listener.onClickBlockServer()
-                    },
-                )
-            }
+            DropdownMenuItem(
+                text = { Text("サーバーをブロック") },
+                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                onClick = {
+                    onItemClick()
+                    listener.onClickBlockServer()
+                },
+            )
         }
     }
 }

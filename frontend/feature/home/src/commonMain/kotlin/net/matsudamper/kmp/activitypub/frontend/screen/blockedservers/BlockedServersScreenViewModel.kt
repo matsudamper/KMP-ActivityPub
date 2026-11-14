@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockServerResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockedServersResult
+import net.matsudamper.kmp.activitypub.frontend.ui.UnblockDialogUiState
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -25,7 +26,7 @@ internal class BlockedServersScreenViewModel(
                 servers = ServersState.Loading,
                 serverInput = "",
                 blocking = false,
-                unblockingHosts = setOf(),
+                unblock = UnblockState.None,
             ),
         )
 
@@ -64,7 +65,11 @@ internal class BlockedServersScreenViewModel(
         viewModelScope.launch {
             val servers = when (val result = api.blockedServers()) {
                 is UserBlockedServersResult.Success -> ServersState.Loaded(result.hosts)
-                is UserBlockedServersResult.Failure -> ServersState.Failed(result.message)
+
+                is UserBlockedServersResult.Failure -> {
+                    events.send { it.showMessage(result.message) }
+                    ServersState.Failed
+                }
             }
             viewModelStateFlow.update { it.copy(servers = servers) }
         }
@@ -103,16 +108,29 @@ internal class BlockedServersScreenViewModel(
         }
     }
 
-    private fun unblock(host: String) {
-        if (host in viewModelStateFlow.value.unblockingHosts) return
+    private val unblockDialogListener =
+        object : UnblockDialogUiState.Listener {
+            override fun onClickUnblock() {
+                unblock()
+            }
 
-        viewModelStateFlow.update { it.copy(unblockingHosts = it.unblockingHosts + host) }
+            override fun onDismiss() {
+                viewModelStateFlow.update { state ->
+                    if (state.unblock is UnblockState.Confirming) state.copy(unblock = UnblockState.None) else state
+                }
+            }
+        }
+
+    private fun unblock() {
+        val host = (viewModelStateFlow.value.unblock as? UnblockState.Confirming)?.host ?: return
+
+        viewModelStateFlow.update { it.copy(unblock = UnblockState.Unblocking(host)) }
         viewModelScope.launch {
             val error =
                 try {
                     api.unblockServer(host)
                 } finally {
-                    viewModelStateFlow.update { it.copy(unblockingHosts = it.unblockingHosts - host) }
+                    viewModelStateFlow.update { it.copy(unblock = UnblockState.None) }
                 }
             if (error == null) {
                 viewModelStateFlow.update { current ->
@@ -138,10 +156,12 @@ internal class BlockedServersScreenViewModel(
                     servers = servers.hosts.map { host ->
                         BlockedServersScreenUiState.Server(
                             host = host,
-                            unblockButtonEnabled = host !in viewModelState.unblockingHosts,
+                            unblockButtonEnabled = viewModelState.unblock == UnblockState.None,
                             listener = object : BlockedServersScreenUiState.ServerListener {
                                 override fun onClickUnblock() {
-                                    unblock(host)
+                                    viewModelStateFlow.update { state ->
+                                        if (state.unblock == UnblockState.None) state.copy(unblock = UnblockState.Confirming(host)) else state
+                                    }
                                 }
                             },
                         )
@@ -149,11 +169,22 @@ internal class BlockedServersScreenViewModel(
                     emptyMessageVisible = servers.hosts.isEmpty(),
                 )
 
-                is ServersState.Failed -> BlockedServersScreenUiState.Content.Error(servers.message)
+                ServersState.Failed -> BlockedServersScreenUiState.Content.LoadFailed
+            },
+            unblockDialog = when (val unblock = viewModelState.unblock) {
+                UnblockState.None -> null
+                is UnblockState.Confirming -> createUnblockDialog(host = unblock.host, buttonsEnabled = true)
+                is UnblockState.Unblocking -> createUnblockDialog(host = unblock.host, buttonsEnabled = false)
             },
             listener = listener,
         )
     }
+
+    private fun createUnblockDialog(host: String, buttonsEnabled: Boolean): UnblockDialogUiState = UnblockDialogUiState(
+        message = "$host のブロックを解除します。このサーバーのユーザーの投稿・ブースト・通知がまた届くようになります",
+        buttonsEnabled = buttonsEnabled,
+        listener = unblockDialogListener,
+    )
 
     internal interface Event {
         fun navigateBack()
@@ -165,8 +196,16 @@ internal class BlockedServersScreenViewModel(
         val servers: ServersState,
         val serverInput: String,
         val blocking: Boolean,
-        val unblockingHosts: Set<String>,
+        val unblock: UnblockState,
     )
+
+    private sealed interface UnblockState {
+        data object None : UnblockState
+
+        data class Confirming(val host: String) : UnblockState
+
+        data class Unblocking(val host: String) : UnblockState
+    }
 
     private sealed interface ServersState {
         data object Loading : ServersState
@@ -176,6 +215,6 @@ internal class BlockedServersScreenViewModel(
          */
         data class Loaded(val hosts: List<String>) : ServersState
 
-        data class Failed(val message: String) : ServersState
+        data object Failed : ServersState
     }
 }
