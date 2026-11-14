@@ -97,10 +97,14 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
     }
 
     /**
-     * 公開アドレスでなければ [net.matsudamper.kotpub.http.NonPublicAddressException] を投げる
+     * 公開アドレスでなければ [net.matsudamper.kotpub.http.NonPublicAddressException] を投げる。
+     * 名前は OkHttp が [PublicAddressDns] で確かめるので、ここで引くと名前解決が Call の期限の外で二重になる。
+     * OkHttp が名前を引かない IP アドレスの表記だけを確かめる
      */
     private suspend fun requirePublicHost(url: HttpUrl) {
-        PublicAddressDnsResolver.resolve(url.host)
+        if (IP_ADDRESS_HOST.matches(url.host)) {
+            PublicAddressDnsResolver.resolve(url.host)
+        }
     }
 
     /**
@@ -176,6 +180,9 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
         // OkHttp が自分で辿るときの上限に合わせる
         const val MAX_REDIRECTS = 20
         val CALL_TIMEOUT: Duration = Duration.ofSeconds(30)
+
+        // OkHttp が名前解決を飛ばして IP アドレスとして扱うホストの判定と同じ
+        val IP_ADDRESS_HOST = Regex("""([0-9a-fA-F]*:[0-9a-fA-F:.]*)|([\d.]+)""")
         const val USER_AGENT_HEADER = "User-Agent"
         const val USER_AGENT = "kmp-activitypub"
     }
