@@ -20,6 +20,8 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
 class TimelineServiceTest {
+    private val noServerBlocks = FakeRepositories().serverBlockRepository
+
     @Test
     fun boostMemberCanBeUsedAsCursor() {
         val position = TimelinePosition(100, "b12")
@@ -33,7 +35,7 @@ class TimelineServiceTest {
             val repository = FakeTimelineRepository()
             val positions = (1..430).map { TimelinePosition(1000L - it, "r$it") }
             repository.positions.addAll(positions)
-            val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, FakeTimelineStore(repository.events), AccountEvents(repository), Clock.systemUTC())
+            val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, FakeTimelineStore(repository.events), AccountEvents(repository), Clock.systemUTC())
             service.page(account, null, null, 10)
             repository.positions.removeAll(positions.take(deletedCount).toSet())
             val first = service.page(account, null, null, 10)
@@ -60,7 +62,14 @@ class TimelineServiceTest {
         }
         val serverBlocks = FakeRepositories().serverBlockRepository
         serverBlocks.add(account, "blocked.example", Instant.EPOCH)
-        val service = TimelineService(remoteRepository, FakeRepositories().followingGroupRepository, serverBlocks, FakeTimelineStore(repository.events), AccountEvents(remoteRepository), Clock.systemUTC())
+        val service = TimelineService(
+            remoteRepository,
+            FakeRepositories().followingGroupRepository,
+            serverBlocks,
+            FakeTimelineStore(repository.events),
+            AccountEvents(remoteRepository),
+            Clock.systemUTC(),
+        )
 
         val first = service.page(account, null, null, 10)
         val second = service.page(account, null, first.nextCursor, 10)
@@ -77,7 +86,7 @@ class TimelineServiceTest {
         val repository = FakeTimelineRepository()
         val positions = (1..15).map { TimelinePosition(100L - it, "r$it") }
         repository.positions.addAll(positions)
-        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, FakeTimelineStore(repository.events), AccountEvents(repository), Clock.systemUTC())
+        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, FakeTimelineStore(repository.events), AccountEvents(repository), Clock.systemUTC())
         service.page(account, null, null, 10)
         repository.positions.removeAll(positions.drop(5).toSet())
         val page = service.page(account, null, null, 10)
@@ -101,7 +110,7 @@ class TimelineServiceTest {
         store.distribute(listOf(account).map { TimelineFeed(it, null) }, old)
         assertTrue(store.lock(TimelineFeed(account, null)))
         store.markBuilt(TimelineFeed(account, null))
-        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, store, AccountEvents(repository), Clock.systemUTC())
+        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, store, AccountEvents(repository), Clock.systemUTC())
         val page = service.page(account, null, null, 1)
         assertEquals(listOf(newest), page.posts.map { it.position })
         assertEquals(newest, page.nextCursor?.let { TimelineCursor.decode(it) })
@@ -119,7 +128,7 @@ class TimelineServiceTest {
         val repository = FakeTimelineRepository()
         repository.positions.add(TimelinePosition(1, "r1"))
         val store = FakeTimelineStore(repository.events)
-        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, store, AccountEvents(repository), Clock.systemUTC())
+        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, store, AccountEvents(repository), Clock.systemUTC())
         service.page(account, null, null, 10)
         (1..23).forEach { hour ->
             store.now = Instant.EPOCH.plusSeconds(hour * 3600L)
@@ -149,7 +158,7 @@ class TimelineServiceTest {
                 error("XADD 失敗")
             }
         }
-        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, failingQueueStore, AccountEvents(repository), Clock.systemUTC())
+        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, failingQueueStore, AccountEvents(repository), Clock.systemUTC())
         assertEquals(listOf(existing), service.page(account, null, null, 10).posts.map { it.position })
         val missed = TimelinePosition(2, "r2")
         repository.positions.add(missed)
@@ -193,7 +202,7 @@ class TimelineServiceTest {
         val repository = FakeTimelineRepository()
         repository.positions.add(TimelinePosition(1, "r1"))
         val store = FakeTimelineStore(repository.events)
-        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, store, AccountEvents(repository), Clock.systemUTC())
+        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, store, AccountEvents(repository), Clock.systemUTC())
         assertEquals(1, service.page(AccountId(1), null, null, 10).posts.size)
         assertEquals(listOf("lock", "built", "rebuild", "zadd", "unlock", "expire"), repository.events)
     }
@@ -203,7 +212,7 @@ class TimelineServiceTest {
         val repository = FakeTimelineRepository()
         repository.positions.addAll((1..450).map { TimelinePosition(100, "r$it") })
         val store = FakeTimelineStore(repository.events)
-        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, store, AccountEvents(repository), Clock.systemUTC())
+        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, store, AccountEvents(repository), Clock.systemUTC())
         val received = buildList {
             var cursor: String? = null
             do {
@@ -225,7 +234,14 @@ class TimelineServiceTest {
         val prefixRepository = object : TimelineRepository by repository {
             override fun rebuild(accountId: AccountId, groupId: FollowingGroupId?, limit: Int): List<TimelinePosition> = newer.take(20)
         }
-        val service = TimelineService(prefixRepository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, FakeTimelineStore(repository.events), AccountEvents(prefixRepository), Clock.systemUTC())
+        val service = TimelineService(
+            prefixRepository,
+            FakeRepositories().followingGroupRepository,
+            noServerBlocks,
+            FakeTimelineStore(repository.events),
+            AccountEvents(prefixRepository),
+            Clock.systemUTC(),
+        )
         val received = buildList {
             var cursor: String? = null
             do {
@@ -241,7 +257,7 @@ class TimelineServiceTest {
     fun invalidationDropsRemovedPostsBeforeRebuilding() {
         val repository = FakeTimelineRepository()
         repository.positions.addAll(listOf(TimelinePosition(2, "r1"), TimelinePosition(1, "r2")))
-        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, FakeTimelineStore(repository.events), AccountEvents(repository), Clock.systemUTC())
+        val service = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, FakeTimelineStore(repository.events), AccountEvents(repository), Clock.systemUTC())
         assertEquals(1, service.page(AccountId(1), null, null, 1).posts.size)
         repository.positions.clear()
         service.invalidate(AccountId(1))
@@ -261,7 +277,7 @@ class TimelineServiceTest {
             override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> = listOf(TimelineRecipient(account, null))
         }
         val store = FakeTimelineStore(repository.events)
-        val service = TimelineService(prefixRepository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, store, AccountEvents(prefixRepository), Clock.systemUTC())
+        val service = TimelineService(prefixRepository, FakeRepositories().followingGroupRepository, noServerBlocks, store, AccountEvents(prefixRepository), Clock.systemUTC())
         val first = service.page(account, null, null, 7)
         val delayed = TimelinePosition(10, "r31")
         repository.positions.add(delayed)
@@ -321,7 +337,7 @@ class TimelineServiceTest {
                     if (duringRebuild) store.distribute(listOf(feed), delayed)
                 }
             }
-            val service = TimelineService(prefixRepository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, rebuildingStore, AccountEvents(prefixRepository), Clock.systemUTC())
+            val service = TimelineService(prefixRepository, FakeRepositories().followingGroupRepository, noServerBlocks, rebuildingStore, AccountEvents(prefixRepository), Clock.systemUTC())
             store.appendRebuilt(TimelineFeed(account, null), existing.take(20))
             service.invalidate(account)
             if (!duringRebuild) store.distribute(listOf(account).map { TimelineFeed(it, null) }, delayed)
@@ -362,7 +378,7 @@ class TimelineServiceTest {
             val store = FakeTimelineStore(repository.events)
             store.unavailable = unavailable
             store.lockAvailable = false
-            val page = TimelineService(repository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, store, AccountEvents(repository), Clock.systemUTC()).page(AccountId(1), null, null, 10)
+            val page = TimelineService(repository, FakeRepositories().followingGroupRepository, noServerBlocks, store, AccountEvents(repository), Clock.systemUTC()).page(AccountId(1), null, null, 10)
             assertEquals("l1", page.posts.single().position.member)
             assertTrue("built" !in repository.events)
         }
@@ -384,7 +400,7 @@ class TimelineServiceTest {
             override fun page(accountId: AccountId, groupId: FollowingGroupId?, after: TimelinePosition?, limit: Int): List<TimelinePosition> = listOf()
         }
         val store = FakeTimelineStore(repository.events)
-        val service = TimelineService(groupedRepository, groups, FakeRepositories().serverBlockRepository, store, AccountEvents(groupedRepository), Clock.systemUTC())
+        val service = TimelineService(groupedRepository, groups, noServerBlocks, store, AccountEvents(groupedRepository), Clock.systemUTC())
 
         assertEquals(listOf(homePosition), service.page(account, null, null, 10).posts.map { it.position })
         assertEquals(listOf(groupPosition), service.page(account, group.id, null, 10).posts.map { it.position })
@@ -406,7 +422,7 @@ class TimelineServiceTest {
                 if (member == "b1" && after == null) listOf(TimelineRecipient(recipient, null)) else listOf()
         }
         val events = AccountEvents(recipientsRepository)
-        val service = TimelineService(recipientsRepository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, FakeTimelineStore(repository.events), events, Clock.systemUTC())
+        val service = TimelineService(recipientsRepository, FakeRepositories().followingGroupRepository, noServerBlocks, FakeTimelineStore(repository.events), events, Clock.systemUTC())
         val recipientEvent = async(start = CoroutineStart.UNDISPATCHED) { events.events(recipient).first() }
         val otherEvent = async(start = CoroutineStart.UNDISPATCHED) { withTimeoutOrNull(100) { events.events(other).first() } }
 
@@ -425,7 +441,7 @@ class TimelineServiceTest {
                 if (after == null) listOf(TimelineRecipient(recipient, null)) else listOf()
         }
         val events = AccountEvents(recipientsRepository)
-        val service = TimelineService(recipientsRepository, FakeRepositories().followingGroupRepository, FakeRepositories().serverBlockRepository, FakeTimelineStore(repository.events), events, Clock.systemUTC())
+        val service = TimelineService(recipientsRepository, FakeRepositories().followingGroupRepository, noServerBlocks, FakeTimelineStore(repository.events), events, Clock.systemUTC())
         val recipientEvent = async(start = CoroutineStart.UNDISPATCHED) { events.events(recipient).first() }
 
         service.publishBoostUndone(listOf("b1"))
