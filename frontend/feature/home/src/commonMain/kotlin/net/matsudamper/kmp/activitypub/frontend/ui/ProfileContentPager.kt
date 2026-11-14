@@ -43,11 +43,14 @@ internal class ProfileContentPagerState(
         }
     }
 
+    /**
+     * 一度も出していないタブのグリッドは、最初のレイアウトまで scrollToItem が戻らないことがあるので、見出しを先に戻す
+     */
     suspend fun scrollToTop() {
+        headerListState.animateScrollToItem(0)
         postsGridState.scrollToItem(0)
         mediaGridState.scrollToItem(0)
         likesGridState.scrollToItem(0)
-        headerListState.animateScrollToItem(0)
     }
 }
 
