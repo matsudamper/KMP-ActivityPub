@@ -45,4 +45,22 @@ class PathPatternTest {
 
         assertEquals("/@alice", pattern.pathOf(mapOf("username" to "alice")))
     }
+
+    @Test
+    fun 区切りの文字が入った値も1階層に入れて戻せる() {
+        val pattern = PathPattern("/posts/{postId}")
+        val postId = "uhttps://remote.example/notes/1?a=b#c%d"
+
+        val path = pattern.pathOf(mapOf("postId" to postId))
+
+        assertEquals("/posts/uhttps:%2F%2Fremote.example%2Fnotes%2F1%3Fa=b%23c%25d", path)
+        assertEquals(mapOf("postId" to postId), pattern.match(path))
+    }
+
+    @Test
+    fun ブラウザがエンコードした日本語を戻す() {
+        val pattern = PathPattern("/@{username}")
+
+        assertEquals(mapOf("username" to "あ"), pattern.match("/@%E3%81%82"))
+    }
 }
