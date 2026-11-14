@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.timeline
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
+import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
@@ -23,6 +25,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     val accountBoosts = mutableListOf<TimelinePost>()
     val storedFetchedNotes = mutableMapOf<String, TimelinePost>()
     val storeRequests = mutableListOf<RemoteNoteInput>()
+    val likedPosts = mutableListOf<LikedTimelinePost>()
 
     var interested = true
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
@@ -88,6 +91,8 @@ internal class FakeTimelineRepository : TimelineRepository {
         storeRequests.addAll(notes)
         return storedFetchedNotes.filterKeys { objectUri -> notes.any { it.objectUri == objectUri } }
     }
+
+    override fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost> = likedPosts.take(limit)
 
     private fun sorted(): List<TimelinePosition> = positions.sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })
 }

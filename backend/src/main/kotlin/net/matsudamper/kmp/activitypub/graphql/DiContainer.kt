@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
+import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.logic.ViewablePostService
@@ -36,6 +37,7 @@ class DiContainer(
     val followListService: FollowListService,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,
+    val profileLikesService: ProfileLikesService,
     val viewablePostService: ViewablePostService,
     val notePinService: NotePinService,
     /**

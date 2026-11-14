@@ -198,6 +198,25 @@ class LikeRepositoryTest {
         assertEquals(listOf(), likes.publishedLikes("bob", before = null, limit = 10))
     }
 
+    @Test
+    fun likedPostsShowOnlyPostsTheViewerCanOpen() = withRepository { repositories, alice, bob ->
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val publicMember = assertNotNull(repositories.timelineRepository.receive(note("public", "public", setOf()))).member
+        val directMember = assertNotNull(repositories.timelineRepository.receive(note("direct", "direct", setOf("alice")))).member
+        val likes = repositories.likeRepository
+        likes.likeAndEnqueue(like(alice, publicMember, "like-public").copy(likedAt = NOW))
+        likes.likeAndEnqueue(like(alice, directMember, "like-direct").copy(likedAt = NOW.plusSeconds(1)))
+
+        assertEquals(
+            listOf(directMember, publicMember),
+            repositories.timelineRepository.likedPosts(liker = alice, viewer = alice, before = null, limit = 10).map { it.post.position.member },
+        )
+        assertEquals(
+            listOf(publicMember),
+            repositories.timelineRepository.likedPosts(liker = alice, viewer = bob, before = null, limit = 10).map { it.post.position.member },
+        )
+    }
+
     private fun postLocalNote(repositories: Repositories, username: String, publicId: String): String {
         repositories.deliveryQueueRepository.enqueueNote(
             NotePost(

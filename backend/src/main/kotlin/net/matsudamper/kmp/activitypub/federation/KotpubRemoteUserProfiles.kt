@@ -2,6 +2,8 @@ package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.logic.OutboxPosition
+import net.matsudamper.kmp.activitypub.logic.RemoteLikedCollections
+import net.matsudamper.kmp.activitypub.logic.RemoteLikedObjects
 import net.matsudamper.kmp.activitypub.logic.RemoteNotesPage
 import net.matsudamper.kmp.activitypub.logic.RemoteProfilePostSources
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
@@ -9,6 +11,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.RemoteActorCollectionsLookup
+import net.matsudamper.kotpub.note.RemoteLikedPageResult
 import net.matsudamper.kotpub.note.RemoteOutboxCursor
 import net.matsudamper.kotpub.note.RemoteOutboxNote
 import net.matsudamper.kotpub.note.RemoteOutboxPageResult
@@ -86,4 +89,25 @@ internal class KotpubRemoteUserProfiles(
 
     private fun FoundRemoteUser.toProfile(): RemoteUserProfile =
         RemoteUserProfile(user = user, headerUrl = actor.profile.headerUrl, biography = actor.profile.summary)
+}
+
+internal class KotpubRemoteLikedCollections(
+    private val outbox: HttpRemoteOutbox,
+) : RemoteLikedCollections {
+    private val logger = LoggerFactory.getLogger(KotpubRemoteLikedCollections::class.java)
+
+    override suspend fun page(actorUri: String, from: OutboxPosition?, limit: Int): RemoteLikedObjects =
+        when (val result = outbox.likedPage(actorUri, from?.let { RemoteOutboxCursor(pageId = it.pageId, itemOffset = it.itemOffset) }, limit)) {
+            is RemoteLikedPageResult.Found -> RemoteLikedObjects.Found(
+                objectUris = result.page.objectUris,
+                next = result.page.next?.let { OutboxPosition(pageId = it.pageId, itemOffset = it.itemOffset) },
+            )
+
+            RemoteLikedPageResult.Absent -> RemoteLikedObjects.Absent
+
+            is RemoteLikedPageResult.Unavailable -> {
+                logger.warn("liked を取れなかった: $actorUri from=$from ${result.failure}")
+                RemoteLikedObjects.Unavailable
+            }
+        }
 }

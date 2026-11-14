@@ -19,6 +19,12 @@ type Query {
     """
     userProfilePosts(acct: String!, after: String): ProfilePostPage
     """
+    プロフィールのユーザーがいいねした投稿。after が null なら最初のページ、続きは前回の nextCursor を after に渡す。
+    このサーバーのユーザーは本人か、いいねを公開しているとき、他のサーバーのユーザーは Actor の liked を読めたときに返す。
+    見ているアカウントが開けない投稿は出さない。返せないか、ログインしていなければ null で、プロフィールに「いいね」を出さない
+    """
+    userProfileLikes(acct: String!, after: String): ProfileLikePage
+    """
     名前の一部で、このサーバーのユーザーとフォローなどで受け取った他のサーバーのユーザーをまとめて探す。
     after には前回の nextCursor を渡す
     """

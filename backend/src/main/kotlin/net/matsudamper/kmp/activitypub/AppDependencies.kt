@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.NotePinService
+import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
@@ -159,6 +160,16 @@ class AppDependencies(
         pins = repositories.notePinRepository,
         following = followingService,
         remoteProfiles = federation?.remoteUserProfiles,
+        localDomain = checkNotNull(env.domain),
+    )
+
+    val profileLikesService: ProfileLikesService = ProfileLikesService(
+        accounts = repositories.accountRepository,
+        remoteActors = repositories.remoteActorRepository,
+        timeline = repositories.timelineRepository,
+        remoteProfiles = federation?.remoteUserProfiles,
+        remoteLikes = federation?.remoteLikedCollections,
+        unsavedNotes = federation?.unsavedRemoteNotes,
         localDomain = checkNotNull(env.domain),
     )
 
