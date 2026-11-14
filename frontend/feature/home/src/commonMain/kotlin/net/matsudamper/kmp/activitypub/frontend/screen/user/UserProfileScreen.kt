@@ -313,32 +313,48 @@ private fun TopBarMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            DropdownMenuItem(
-                text = { Text("オリジナルを開く") },
-                onClick = {
-                    expanded = false
-                    listener.onClickOpenOriginal()
-                },
+            TopBarMenuItems(
+                blockMenuItemsVisible = blockMenuItemsVisible,
+                listener = listener,
+                onItemClick = { expanded = false },
             )
-            if (blockMenuItemsVisible) {
-                DropdownMenuItem(
-                    text = { Text("このアカウントをブロック") },
-                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        expanded = false
-                        listener.onClickBlockAccount()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("このサーバーをブロック") },
-                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
-                    onClick = {
-                        expanded = false
-                        listener.onClickBlockServer()
-                    },
-                )
-            }
         }
+    }
+}
+
+/**
+ * @param onItemClick どの項目を押しても、メニューを閉じるために先に呼ぶ
+ */
+@Composable
+internal fun TopBarMenuItems(
+    blockMenuItemsVisible: Boolean,
+    listener: UserProfileScreenUiState.Listener,
+    onItemClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text("オリジナルを開く") },
+        onClick = {
+            onItemClick()
+            listener.onClickOpenOriginal()
+        },
+    )
+    if (blockMenuItemsVisible) {
+        DropdownMenuItem(
+            text = { Text("このアカウントをブロック") },
+            colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+            onClick = {
+                onItemClick()
+                listener.onClickBlockAccount()
+            },
+        )
+        DropdownMenuItem(
+            text = { Text("このサーバーをブロック") },
+            colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+            onClick = {
+                onItemClick()
+                listener.onClickBlockServer()
+            },
+        )
     }
 }
 

@@ -2,9 +2,11 @@ package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -339,6 +341,43 @@ private fun UserProfileBlockDialogPreview() {
             ),
             snackbarHostState = SnackbarHostState(),
         )
+    }
+}
+
+@Preview
+@Composable
+private fun UserProfileBlockServerDialogPreview() {
+    MaterialTheme {
+        UserProfileContent(
+            uiState = LocalUserUiState.copy(
+                blockDialog = UserProfileScreenUiState.BlockDialog(
+                    title = "サーバーをブロック",
+                    message = "example.social のユーザーの投稿・ブースト・通知を表示しなくなります。設定のサーバーブロックから解除できます",
+                    buttonsEnabled = true,
+                    listener = AndroidPreviewBlockDialogListener,
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+/**
+ * DropdownMenu はポップアップで出してスナップショットに写らないので、項目だけを並べる
+ */
+@Preview
+@Composable
+private fun UserProfileTopBarMenuPreview() {
+    MaterialTheme {
+        Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+            Column {
+                TopBarMenuItems(
+                    blockMenuItemsVisible = true,
+                    listener = AndroidPreviewUserProfileListener,
+                    onItemClick = {},
+                )
+            }
+        }
     }
 }
 
