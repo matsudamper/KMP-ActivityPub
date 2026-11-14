@@ -15,6 +15,7 @@ import net.matsudamper.kmp.activitypub.logic.NotePinService
 import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
+import net.matsudamper.kmp.activitypub.logic.ServerBlockService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.oidc.OidcSigningKey
@@ -52,6 +53,7 @@ class AppDependencies(
     val timelineService = TimelineService(
         repository = repositories.timelineRepository,
         groups = repositories.followingGroupRepository,
+        serverBlocks = repositories.serverBlockRepository,
         store = timelineStore,
         events = accountEvents,
         clock = Clock.systemUTC(),
@@ -59,6 +61,12 @@ class AppDependencies(
     val notificationService = NotificationService(
         notifications = repositories.notificationRepository,
         timeline = repositories.timelineRepository,
+        serverBlocks = repositories.serverBlockRepository,
+    )
+    val serverBlockService: ServerBlockService = ServerBlockService(
+        accounts = repositories.accountRepository,
+        serverBlocks = repositories.serverBlockRepository,
+        clock = Clock.systemUTC(),
     )
     val followListService: FollowListService = FollowListService(
         accounts = repositories.accountRepository,
@@ -115,6 +123,7 @@ class AppDependencies(
                 accountBoostRepository = repositories.accountBoostRepository,
                 stampRepository = repositories.stampRepository,
                 boostRepository = repositories.boostRepository,
+                serverBlockRepository = repositories.serverBlockRepository,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),

@@ -40,6 +40,7 @@ import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
+import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.timeline.AccountEvents
@@ -97,6 +98,7 @@ internal class Federation(
     accountBoostRepository: AccountBoostRepository,
     stampRepository: StampRepository,
     boostRepository: BoostRepository,
+    serverBlockRepository: ServerBlockRepository,
     imageStorage: ImageStorage?,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
@@ -113,18 +115,20 @@ internal class Federation(
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
     private val receivedNotifications = ReceivedNotifications(notificationRepository, accountEvents)
-    private val favourites = RecordedFavourites(favouriteRepository, receivedNotifications)
-    private val stamps = RecordedStamps(stampRepository)
+    private val inboxServerBlocks = InboxServerBlocks(accountRepository, noteRepository, serverBlockRepository)
+    private val favourites = RecordedFavourites(favouriteRepository, receivedNotifications, inboxServerBlocks)
+    private val stamps = RecordedStamps(stampRepository, inboxServerBlocks)
     private val receivedNotes = ReceivedRemoteNotes(
         timelineRepository,
         remoteActors,
         remoteActorRepository,
         directory,
+        inboxServerBlocks,
         timeline,
         Clock.systemUTC(),
         deleteRemoteNote = { actorUri, objectUri -> boostService.deleteRemoteNote(actorUri, objectUri) },
     )
-    private val boosts = RecordedBoosts(boostRepository, receivedNotes, receivedNotifications, timeline, Clock.systemUTC())
+    private val boosts = RecordedBoosts(boostRepository, receivedNotes, receivedNotifications, inboxServerBlocks, timeline, Clock.systemUTC())
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -138,6 +142,7 @@ internal class Federation(
     private val followers =
         AccountFollowerStore(
             followerRepository = followerRepository,
+            serverBlocks = inboxServerBlocks,
             onAcceptEnqueued = deliveryQueueWorker::wakeUp,
         )
 

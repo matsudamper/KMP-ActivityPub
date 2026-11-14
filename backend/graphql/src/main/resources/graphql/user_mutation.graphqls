@@ -9,6 +9,10 @@ type UserMutation {
     createFollowingGroup(name: String!): CreateFollowingGroupResult! @lazy
     "フォローを仕分けるグループの名前を変える。groupId が null ならメインの名前を変える"
     renameFollowingGroup(groupId: FollowingGroupId, name: String!): RenameFollowingGroupResult! @lazy
+    "他のサーバーをブロックする。server にはホスト名か、そのサーバーの URL やユーザーのアカウント名を渡す。既にブロックしていても成功する"
+    blockServer(server: String!): BlockServerResult! @lazy
+    "サーバーのブロックを解除する。host には blockedServers の値を渡す。ブロックしていなくても成功する"
+    unblockServer(host: String!): UnblockServerResult! @lazy
     login(query: UserLoginQuery!): UserLoginResult! @lazy
     passkeyLoginOptions: String! @lazy
     passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
@@ -77,6 +81,27 @@ enum CreateFollowingGroupFailure {
 type RenameFollowingGroupResult {
     "変えられたら null"
     failure: RenameFollowingGroupFailure
+}
+
+type BlockServerResult {
+    "ブロックしたホスト。ブロックできなければ null"
+    host: String
+    failure: BlockServerFailure
+}
+
+enum BlockServerFailure {
+    NOT_LOGGED_IN
+    "ホストを取り出せない"
+    INVALID_SERVER
+}
+
+type UnblockServerResult {
+    "解除できたら null"
+    failure: UnblockServerFailure
+}
+
+enum UnblockServerFailure {
+    NOT_LOGGED_IN
 }
 
 enum RenameFollowingGroupFailure {

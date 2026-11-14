@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockServerResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLikesResult
@@ -61,6 +62,7 @@ internal class UserProfileScreenViewModel(
                 blurToggledImageUrls = setOf(),
                 selectedTab = ProfileContentTab.Posts,
                 noteDeletion = NoteDeletionState.None,
+                serverBlock = ServerBlockState.None,
             ),
         )
     private var loadJob: Job? = null
@@ -122,6 +124,24 @@ internal class UserProfileScreenViewModel(
             // このサーバーのユーザーは actorUri が無いので、画面のプロフィールの URL を開く
             val originalUrl = profile.actorUri ?: "https://${profile.host}/@${profile.username}"
             viewModelScope.launch { events.send { it.openUrl(originalUrl) } }
+        }
+
+        override fun onClickBlockServer() {
+            val profile = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile ?: return
+            if (profile.actorUri == null) return
+            viewModelStateFlow.update { it.copy(serverBlock = ServerBlockState.Confirming(profile.host)) }
+        }
+    }
+
+    private val blockServerDialogListener = object : UserProfileScreenUiState.BlockServerDialogListener {
+        override fun onClickBlock() {
+            blockServer()
+        }
+
+        override fun onDismiss() {
+            viewModelStateFlow.update { state ->
+                if (state.serverBlock is ServerBlockState.Confirming) state.copy(serverBlock = ServerBlockState.None) else state
+            }
         }
     }
 
@@ -430,9 +450,43 @@ internal class UserProfileScreenViewModel(
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
             addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
+            blockServerDialog = when (val serverBlock = viewModelState.serverBlock) {
+                ServerBlockState.None -> null
+
+                is ServerBlockState.Confirming -> UserProfileScreenUiState.BlockServerDialog(
+                    host = serverBlock.host,
+                    buttonsEnabled = true,
+                    listener = blockServerDialogListener,
+                )
+
+                is ServerBlockState.Blocking -> UserProfileScreenUiState.BlockServerDialog(
+                    host = serverBlock.host,
+                    buttonsEnabled = false,
+                    listener = blockServerDialogListener,
+                )
+            },
             openOriginalMenuItemVisible = viewModelState.profile is ProfileState.Loaded,
+            blockServerMenuItemVisible = (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
             listener = listener,
         )
+    }
+
+    private fun blockServer() {
+        val confirming = viewModelStateFlow.value.serverBlock as? ServerBlockState.Confirming ?: return
+        viewModelStateFlow.update { it.copy(serverBlock = ServerBlockState.Blocking(confirming.host)) }
+        viewModelScope.launch {
+            val result =
+                try {
+                    api.blockServer(confirming.host)
+                } finally {
+                    viewModelStateFlow.update { it.copy(serverBlock = ServerBlockState.None) }
+                }
+            val message = when (result) {
+                is UserBlockServerResult.Blocked -> "${result.host} をブロックしました"
+                is UserBlockServerResult.Failure -> result.message
+            }
+            events.send { it.showMessage(message) }
+        }
     }
 
     private fun navigateToPostDetail(postId: String) {
@@ -642,7 +696,16 @@ internal class UserProfileScreenViewModel(
         val blurToggledImageUrls: Set<String>,
         val selectedTab: ProfileContentTab,
         val noteDeletion: NoteDeletionState,
+        val serverBlock: ServerBlockState,
     )
+
+    private sealed interface ServerBlockState {
+        data object None : ServerBlockState
+
+        data class Confirming(val host: String) : ServerBlockState
+
+        data class Blocking(val host: String) : ServerBlockState
+    }
 
     private sealed interface ProfileState {
         data object Loading : ProfileState
