@@ -213,15 +213,23 @@ sealed interface SetReactionResult {
 
 /**
  * 絵文字 1 つだけかを見る。肌の色や家族、国旗の絵文字はいくつものコードポイントを繋いで 1 文字になるので、書記素で数える。
- * ℹ️ のように文字にも分類される絵文字があるので、文字の分類ではなく Emoji の性質で判定する
+ * ℹ️ のように文字にも分類される絵文字があるので、文字の分類ではなく絵文字の性質で判定する
  */
 internal fun isUnicodeEmoji(text: String): Boolean {
     if (text.isEmpty() || text.codePointCount(0, text.length) > MAX_UNICODE_EMOJI_CODE_POINTS) return false
     if (text.any { it in 'a'..'z' || it in 'A'..'Z' || it.isWhitespace() || it == ':' }) return false
     val graphemes = BreakIterator.getCharacterInstance().apply { setText(text) }
     val singleGrapheme = graphemes.next() == text.length
-    return singleGrapheme && text.codePoints().anyMatch { Character.isEmoji(it) }
+    return singleGrapheme && text.codePoints().anyMatch { isEmojiBase(it) }
 }
+
+/**
+ * 数字や # は Emoji の性質を持つが、それだけでは絵文字として出ないので、キーキャップの記号が付いたときだけ絵文字とみなす
+ */
+private fun isEmojiBase(codePoint: Int): Boolean =
+    Character.isExtendedPictographic(codePoint) || Character.isEmojiPresentation(codePoint) || codePoint == COMBINING_ENCLOSING_KEYCAP
+
+private const val COMBINING_ENCLOSING_KEYCAP = 0x20E3
 
 /**
  * @param customEmojiId このサーバーのカスタム絵文字なら、その id

@@ -7,14 +7,14 @@ import kotlin.test.assertTrue
 class UnicodeEmojiValidationTest {
     @Test
     fun acceptsSingleEmojiMadeOfSeveralCodePoints() {
-        listOf("👍", "ℹ️", "1️⃣", "👍🏽", "👨‍👩‍👧‍👦", "🇯🇵").forEach { emoji ->
+        listOf("👍", "ℹ️", "ℹ", "1️⃣", "#️⃣", "👍🏽", "👨‍👩‍👧‍👦", "🇯🇵", "©️").forEach { emoji ->
             assertTrue(isUnicodeEmoji(emoji), emoji)
         }
     }
 
     @Test
     fun rejectsTextAndMoreThanOneEmoji() {
-        listOf("", "👍👍", "日本語", "a", ":kotlin:", "👍 ").forEach { text ->
+        listOf("", "👍👍", "日本語", "a", ":kotlin:", "👍 ", "1", "#", "*", "1\u0301").forEach { text ->
             assertFalse(isUnicodeEmoji(text), text)
         }
     }
