@@ -330,31 +330,34 @@ internal fun TopBarMenuItems(
     blockMenuItemsVisible: Boolean,
     listener: UserProfileScreenUiState.Listener,
     onItemClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    DropdownMenuItem(
-        text = { Text("オリジナルを開く") },
-        onClick = {
-            onItemClick()
-            listener.onClickOpenOriginal()
-        },
-    )
-    if (blockMenuItemsVisible) {
+    Column(modifier = modifier) {
         DropdownMenuItem(
-            text = { Text("このアカウントをブロック") },
-            colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+            text = { Text("オリジナルを開く") },
             onClick = {
                 onItemClick()
-                listener.onClickBlockAccount()
+                listener.onClickOpenOriginal()
             },
         )
-        DropdownMenuItem(
-            text = { Text("このサーバーをブロック") },
-            colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
-            onClick = {
-                onItemClick()
-                listener.onClickBlockServer()
-            },
-        )
+        if (blockMenuItemsVisible) {
+            DropdownMenuItem(
+                text = { Text("このアカウントをブロック") },
+                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                onClick = {
+                    onItemClick()
+                    listener.onClickBlockAccount()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("このサーバーをブロック") },
+                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                onClick = {
+                    onItemClick()
+                    listener.onClickBlockServer()
+                },
+            )
+        }
     }
 }
 

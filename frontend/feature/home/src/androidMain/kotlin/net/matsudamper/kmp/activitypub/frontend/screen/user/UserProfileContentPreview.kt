@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -370,13 +369,11 @@ private fun UserProfileBlockServerDialogPreview() {
 private fun UserProfileTopBarMenuPreview() {
     MaterialTheme {
         Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
-            Column {
-                TopBarMenuItems(
-                    blockMenuItemsVisible = true,
-                    listener = AndroidPreviewUserProfileListener,
-                    onItemClick = {},
-                )
-            }
+            TopBarMenuItems(
+                blockMenuItemsVisible = true,
+                listener = AndroidPreviewUserProfileListener,
+                onItemClick = {},
+            )
         }
     }
 }
