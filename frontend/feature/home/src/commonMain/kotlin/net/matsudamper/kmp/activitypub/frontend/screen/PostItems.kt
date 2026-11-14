@@ -102,6 +102,7 @@ internal fun createPostItemUiState(
                 onToggleBlur = { onToggleImageBlur(imageUrls, image.url !in blurToggledImageUrls) },
             )
         },
+        replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
         favouriteButton = body.likedByMe?.let { liked ->

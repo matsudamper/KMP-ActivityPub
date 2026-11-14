@@ -30,6 +30,10 @@ data class PostItemUiState(
     val linkPreviews: List<LinkPreview>,
     val images: List<Image>,
     /**
+     * 1 件も無ければ null で、リプライのアイコンだけを出す
+     */
+    val replyCountText: String?,
+    /**
      * 1 件も無ければ null で、お気に入りのアイコンだけを出す
      */
     val favouriteCountText: String?,

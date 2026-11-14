@@ -67,6 +67,7 @@ fragment ProfilePostFields on ProfilePost {
     }
     favouriteCount
     boostCount
+    replyCount
     stamps {
         emoji
         imageUrl

@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withCounts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
@@ -190,7 +191,16 @@ internal class PostDetailScreenViewModel(
                 val mentionText = if (post is PostState.Loaded && state.mentionText.isEmpty()) initialMentionText(post.post) else state.mentionText
                 state.copy(post = post, mentionText = mentionText)
             }
+            if (post is PostState.Loaded) refreshCounts(post.post)
         }
+    }
+
+    /**
+     * 他のサーバーの投稿は、開くまでこのサーバーが知っている数しか出ていないので、開いてから相手のサーバーの数に取り直す
+     */
+    private suspend fun refreshCounts(post: UserHomeTimelineResult.Post) {
+        val counts = api.postCounts(postId = post.id) ?: return
+        updatePosts(post.reactionPostId) { current -> current.copy(body = current.body.withCounts(counts)) }
     }
 
     private fun toggleLike(post: UserHomeTimelineResult.Post) {
@@ -330,6 +340,8 @@ internal class PostDetailScreenViewModel(
                 state.copy(mentionText = if (loaded == null) "" else initialMentionText(loaded.post))
             }
             events.send { it.showMessage("メンションを送りました") }
+            val loaded = viewModelStateFlow.value.post as? PostState.Loaded
+            if (loaded != null) refreshCounts(loaded.post)
         }
     }
 
