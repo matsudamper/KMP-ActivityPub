@@ -54,12 +54,14 @@ class ProfileUpdateService(
      * @param displayName 空なら未設定に戻す
      * @param summary 空なら未設定に戻す
      * @param links 名前も URL も空の行は捨てる。空のリストならリンク集を消す
+     * @param likesPublic いいねした投稿の一覧を公開するか。Actor の liked も出し入れするので、変えたら Update を送る
      */
     fun updateProfile(
         username: String,
         displayName: String?,
         summary: String?,
         links: List<ProfileLink>?,
+        likesPublic: Boolean?,
     ): UpdateProfileResult {
         val displayNameChange =
             when (val result = displayNameChange(displayName)) {
@@ -81,7 +83,12 @@ class ProfileUpdateService(
         val enqueued =
             enqueueUpdate(
                 target = target,
-                changes = ProfileChanges(displayName = displayNameChange, summary = summaryChange, links = linksChange),
+                changes = ProfileChanges(
+                    displayName = displayNameChange,
+                    summary = summaryChange,
+                    links = linksChange,
+                    likesPublic = if (likesPublic == null) ProfileValueChange.Keep else ProfileValueChange.Set(likesPublic),
+                ),
                 newIconPath = null,
             )
         return if (enqueued) UpdateProfileResult.Updated else UpdateProfileResult.AccountNotFound
@@ -193,6 +200,7 @@ class ProfileUpdateService(
             storedProfile.copy(
                 displayName = changes.displayName.applyTo(storedProfile.displayName),
                 summary = changes.summary.applyTo(storedProfile.summary),
+                likedPublic = changes.likesPublic.applyTo(storedProfile.likedPublic),
             )
         val storedAppearance = appearances.find(username)
         val updatedAppearance =
@@ -221,6 +229,7 @@ class ProfileUpdateService(
                     displayName = changes.displayName,
                     summary = changes.summary,
                     links = changes.links,
+                    likesPublic = changes.likesPublic,
                     newIconPath = newIconPath?.value,
                     updatedAt = clock.instant(),
                     body = body,
@@ -293,10 +302,16 @@ class ProfileUpdateService(
         val displayName: ProfileValueChange<String?>,
         val summary: ProfileValueChange<String?>,
         val links: ProfileValueChange<List<ProfileLink>>,
+        val likesPublic: ProfileValueChange<Boolean>,
     ) {
         companion object {
             val KEEP_ALL: ProfileChanges =
-                ProfileChanges(displayName = ProfileValueChange.Keep, summary = ProfileValueChange.Keep, links = ProfileValueChange.Keep)
+                ProfileChanges(
+                    displayName = ProfileValueChange.Keep,
+                    summary = ProfileValueChange.Keep,
+                    links = ProfileValueChange.Keep,
+                    likesPublic = ProfileValueChange.Keep,
+                )
         }
     }
 

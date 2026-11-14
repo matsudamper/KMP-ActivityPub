@@ -203,6 +203,8 @@ input UpdateProfileQuery {
     summary: String
     "プロフィールのリンク集。並べる順に渡す。名前も URL も空の行は捨てる。空のリストなら消す"
     links: [ProfileLinkInput!]
+    "いいねした投稿の一覧を、プロフィールと他のサーバーに公開するか"
+    likesPublic: Boolean
 }
 
 input ProfileLinkInput {

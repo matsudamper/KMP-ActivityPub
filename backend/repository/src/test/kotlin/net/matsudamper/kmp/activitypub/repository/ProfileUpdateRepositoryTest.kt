@@ -108,10 +108,22 @@ class ProfileUpdateRepositoryTest {
                     links = ProfileValueChange.Set(links),
                 ),
             )
-            assertEquals(AccountProfileDetail(summary = "自己紹介", links = links), repositories.accountRepository.findProfileDetail("user1"))
+            assertEquals(AccountProfileDetail(summary = "自己紹介", links = links, likesPublic = false), repositories.accountRepository.findProfileDetail("user1"))
 
             queue.updateProfile(profileUpdate(displayName = "名前", body = "update-2"))
-            assertEquals(AccountProfileDetail(summary = "自己紹介", links = links), repositories.accountRepository.findProfileDetail("user1"))
+            assertEquals(AccountProfileDetail(summary = "自己紹介", links = links, likesPublic = false), repositories.accountRepository.findProfileDetail("user1"))
+        }
+    }
+
+    @Test
+    fun `いいねの公開を書き、Keep なら今のまま`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.updateProfile(profileUpdate(displayName = null, body = "update-1").copy(likesPublic = ProfileValueChange.Set(true)))
+            assertEquals(true, repositories.accountRepository.findProfileDetail("user1")?.likesPublic)
+
+            queue.updateProfile(profileUpdate(displayName = "名前", body = "update-2"))
+            assertEquals(true, repositories.accountRepository.findProfileDetail("user1")?.likesPublic)
         }
     }
 
@@ -129,7 +141,7 @@ class ProfileUpdateRepositoryTest {
                 ),
             )
 
-            assertEquals(AccountProfileDetail(summary = null, links = newLinks), repositories.accountRepository.findProfileDetail("user1"))
+            assertEquals(AccountProfileDetail(summary = null, links = newLinks, likesPublic = false), repositories.accountRepository.findProfileDetail("user1"))
         }
     }
 
@@ -152,6 +164,7 @@ class ProfileUpdateRepositoryTest {
             displayName = ProfileValueChange.Set(displayName),
             summary = ProfileValueChange.Keep,
             links = ProfileValueChange.Keep,
+            likesPublic = ProfileValueChange.Keep,
             newIconPath = null,
             updatedAt = NOW,
             body = body,

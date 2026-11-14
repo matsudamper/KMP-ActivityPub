@@ -33,6 +33,18 @@ interface LikeRepository {
     fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId>
 
     /**
+     * [username] がいいねした投稿のうち、誰でも読める公開の投稿を、いいねした新しい順に返す。Actor の liked に載せる
+     *
+     * @param before この位置より古いいいねを返す。null なら最新から
+     */
+    fun publishedLikes(username: String, before: LikedNotePosition?, limit: Int): List<PublishedLike>
+
+    /**
+     * [publishedLikes] で返る件数
+     */
+    fun countPublishedLikes(username: String): Long
+
+    /**
      * いいねを記録して、投稿者への Like を積む。記録と投函を分けると、いいねしたのに相手に届かない状態が残る
      *
      * @return 既にいいねしていれば何も書かずに false
@@ -53,6 +65,21 @@ interface LikeRepository {
         undoBody: (likeId: String, objectUri: String) -> String,
     ): Boolean
 }
+
+/**
+ * いいねの一覧の続きを指す位置
+ *
+ * @param member いいねした投稿の member。同じ時刻のいいねを並べる
+ */
+data class LikedNotePosition(val likedAt: Instant, val member: String)
+
+/**
+ * @param noteRef いいねした投稿。URL はこのサーバーのドメインで決まるので、ここでは作らない
+ */
+data class PublishedLike(
+    val noteRef: TimelineNoteRef,
+    val position: LikedNotePosition,
+)
 
 sealed interface LikeTarget {
     /**

@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
+import net.matsudamper.kmp.activitypub.logic.RemoteLikedCollections
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.RemoteUserLookup
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
@@ -66,6 +67,7 @@ import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.like.LikedEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoSoftware
 import net.matsudamper.kotpub.note.FeaturedEndpoint
@@ -256,10 +258,14 @@ internal class Federation(
             maxConsecutiveFailuresPerHost = RemoteProfileRefreshService.DEFAULT_MAX_CONSECUTIVE_FAILURES_PER_HOST,
         )
 
+    private val remoteOutbox = HttpRemoteOutbox(httpClient)
+
     val remoteUserProfiles: RemoteUserProfiles = KotpubRemoteUserProfiles(
         users = kotpubRemoteUserLookup,
-        outbox = HttpRemoteOutbox(httpClient),
+        outbox = remoteOutbox,
     )
+
+    val remoteLikedCollections: RemoteLikedCollections = KotpubRemoteLikedCollections(remoteOutbox)
 
     val actorEndpoint: ActorEndpoint =
         ActorEndpoint(
@@ -314,6 +320,9 @@ internal class Federation(
 
     val featuredEndpoint: FeaturedEndpoint =
         FeaturedEndpoint(directory = directory, featuredNotes = RepositoryFeaturedNoteStore(pins = notePinRepository, notes = notes), webPages = null)
+
+    val likedEndpoint: LikedEndpoint =
+        LikedEndpoint(directory = directory, profiles = actorProfiles, likedObjects = RepositoryLikedObjectStore(domain = domain, likes = likeRepository))
 
     /**
      * kotpub の InboxService.default に、他のサーバーからの投稿の受け取りとフォローへの応答の受け取りを足したもの

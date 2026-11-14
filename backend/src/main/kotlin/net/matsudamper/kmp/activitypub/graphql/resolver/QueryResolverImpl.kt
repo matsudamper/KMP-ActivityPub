@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
 import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
+import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLikePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLink
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostPage
@@ -27,6 +28,8 @@ import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
+import net.matsudamper.kmp.activitypub.logic.ProfileLikeCursor
+import net.matsudamper.kmp.activitypub.logic.ProfileLikesResult
 import net.matsudamper.kmp.activitypub.logic.ProfilePost
 import net.matsudamper.kmp.activitypub.logic.ProfilePostCursor
 import net.matsudamper.kmp.activitypub.logic.ProfilePostsResult
@@ -86,6 +89,30 @@ class QueryResolverImpl : QueryResolver {
         }
     }
 
+    override fun userProfileLikes(acct: String, after: String?, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfileLikePage?>> {
+        val cursor = after?.let { ProfileLikeCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelFuture {
+            val result = if (cursor == null) {
+                diContainer.profileLikesService.firstPage(acct = acct, viewer = accountId)
+            } else {
+                diContainer.profileLikesService.morePage(viewer = accountId, cursor = cursor)
+            }
+            val page = when (result) {
+                is ProfileLikesResult.Found -> QlProfileLikePage(
+                    posts = result.page.posts.toQlTimelinePosts(diContainer),
+                    nextCursor = result.page.nextCursor?.encode(),
+                )
+
+                ProfileLikesResult.Hidden -> null
+
+                ProfileLikesResult.Unreachable -> throw GraphQlClientException("相手のサーバーからいいねを読めなかった")
+            }
+            DataFetcherResult.Builder<QlProfileLikePage?>(page).build()
+        }
+    }
+
     override fun unused(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<Boolean?>> {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<Boolean?>(null).build())
     }
@@ -137,6 +164,7 @@ class QueryResolverImpl : QueryResolver {
                     iconUrl = diContainer.profileIconUrls?.find(account.username),
                     summary = profileDetail.summary,
                     links = profileDetail.links.map { it.toQlProfileLink() },
+                    likesPublic = profileDetail.likesPublic,
                     followingCount = followCounts.following.toInt(),
                     followersCount = followCounts.followers.toInt(),
                 )

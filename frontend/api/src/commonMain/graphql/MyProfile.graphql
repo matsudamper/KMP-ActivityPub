@@ -8,6 +8,7 @@ query MyProfile {
             name
             url
         }
+        likesPublic
         followingCount
         followersCount
     }

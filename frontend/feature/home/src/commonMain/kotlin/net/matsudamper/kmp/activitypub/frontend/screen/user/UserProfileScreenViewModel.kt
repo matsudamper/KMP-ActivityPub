@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockServerResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLikesResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfilePostsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
@@ -66,6 +67,7 @@ internal class UserProfileScreenViewModel(
         )
     private var loadJob: Job? = null
     private var loadMoreJob: Job? = null
+    private var loadMoreLikesJob: Job? = null
     private val followMenuController = FollowMenuController(
         scope = viewModelScope,
         userApi = api,
@@ -104,12 +106,17 @@ internal class UserProfileScreenViewModel(
         override fun onScrolledToEnd() {
             // 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押したときだけ読み直す
             val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
-            if (loaded.posts.loadErrorMessage != null) return
-            loadMore()
+            if (viewModelStateFlow.value.selectedTab == ProfileContentTab.Likes) {
+                if (loaded.likes.loadErrorMessage != null) return
+                loadMoreLikes()
+            } else {
+                if (loaded.posts.loadErrorMessage != null) return
+                loadMore()
+            }
         }
 
         override fun onClickRetryLoadMore() {
-            loadMore()
+            if (viewModelStateFlow.value.selectedTab == ProfileContentTab.Likes) loadMoreLikes() else loadMore()
         }
 
         override fun onClickOpenOriginal() {
@@ -168,6 +175,7 @@ internal class UserProfileScreenViewModel(
             // ほかの画面で消した投稿もここで外す
             api.deletedNoteIds.collect { noteId ->
                 updatePosts { posts -> posts.copy(posts = posts.posts.filterNot { it.deletableNoteId == noteId }) }
+                updateLikes { likes -> likes.copy(posts = likes.posts.filterNot { it.deletableNoteId == noteId }) }
             }
         }
         viewModelScope.launch {
@@ -215,6 +223,7 @@ internal class UserProfileScreenViewModel(
     private fun load() {
         loadJob?.cancel()
         loadMoreJob?.cancel()
+        loadMoreLikesJob?.cancel()
         updateProfile { ProfileState.Loading }
         loadJob = viewModelScope.launch {
             val profile =
@@ -222,6 +231,7 @@ internal class UserProfileScreenViewModel(
                     is UserProfileResult.Found -> ProfileState.Loaded(
                         profile = result,
                         posts = PostsState(posts = listOf(), next = NextPosts.FirstPage, loadErrorMessage = null),
+                        likes = LikesState(posts = listOf(), next = NextPosts.FirstPage, loadErrorMessage = null, available = false),
                     )
 
                     UserProfileResult.NotFound -> ProfileState.NotFound
@@ -230,7 +240,53 @@ internal class UserProfileScreenViewModel(
                 }
             updateProfile { profile }
             loadMore()
+            loadMoreLikes()
         }
+    }
+
+    /**
+     * 最初のページを読めた相手だけ「いいね」のタブを出す。最初のページを読めなければ、いいねの一覧が無いのと区別できないのでタブを出さない
+     */
+    private fun loadMoreLikes() {
+        if (loadMoreLikesJob?.isActive == true) return
+        val loaded = viewModelStateFlow.value.profile as? ProfileState.Loaded ?: return
+        val next = loaded.likes.next
+        if (next == NextPosts.End) return
+        updateLikes { it.copy(loadErrorMessage = null) }
+        loadMoreLikesJob = viewModelScope.launch { loadLikes(next) }
+    }
+
+    /**
+     * 続きが空でもまだ先があれば、続けて読む。開けない投稿だけのページは表示が増えず、画面の末尾の見張りでは読み進められない
+     */
+    private tailrec suspend fun loadLikes(next: NextPosts) {
+        val result = api.userProfileLikes(acct = username, after = (next as? NextPosts.After)?.cursor)
+        updateLikes { current ->
+            // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
+            if (current.next != next) {
+                current
+            } else {
+                when (result) {
+                    is UserProfileLikesResult.Success -> current.copy(
+                        posts = current.posts + result.posts,
+                        next = result.nextCursor.toNextPosts(),
+                        available = true,
+                    )
+
+                    UserProfileLikesResult.Hidden -> current.copy(next = NextPosts.End, available = false)
+
+                    is UserProfileLikesResult.Failure -> if (current.available) {
+                        current.copy(loadErrorMessage = result.message)
+                    } else {
+                        current.copy(next = NextPosts.End)
+                    }
+                }
+            }
+        }
+        val nextCursor = (result as? UserProfileLikesResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
+        val continuation = NextPosts.After(nextCursor)
+        val applied = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.likes?.next == continuation
+        if (applied) loadLikes(continuation)
     }
 
     private fun loadMore() {
@@ -286,6 +342,9 @@ internal class UserProfileScreenViewModel(
 
     private fun applyLiked(reactionPostId: String, liked: Boolean) {
         updatePosts { posts -> posts.copy(posts = posts.posts.withLiked(reactionPostId = reactionPostId, liked = liked)) }
+        updateLikes { likes ->
+            likes.copy(posts = likes.posts.map { if (it.reactionPostId == reactionPostId) it.copy(body = it.body.withLiked(liked)) else it })
+        }
     }
 
     /**
@@ -323,6 +382,9 @@ internal class UserProfileScreenViewModel(
 
     private fun applyBoosted(postId: String, boosted: Boolean) {
         updatePosts { posts -> posts.copy(posts = posts.posts.withBoosted(reactionPostId = postId, boosted = boosted)) }
+        updateLikes { likes ->
+            likes.copy(posts = likes.posts.map { if (it.reactionPostId == postId) it.copy(body = it.body.withBoosted(boosted)) else it })
+        }
     }
 
     private fun confirmNoteDeletion(noteId: String) {
@@ -349,6 +411,10 @@ internal class UserProfileScreenViewModel(
 
     private fun updatePosts(transform: (PostsState) -> PostsState) {
         updateProfile { profile -> if (profile is ProfileState.Loaded) profile.copy(posts = transform(profile.posts)) else profile }
+    }
+
+    private fun updateLikes(transform: (LikesState) -> LikesState) {
+        updateProfile { profile -> if (profile is ProfileState.Loaded) profile.copy(likes = transform(profile.likes)) else profile }
     }
 
     private fun toggleImageBlur(imageUrls: List<String>, toggled: Boolean) {
@@ -461,6 +527,11 @@ internal class UserProfileScreenViewModel(
                     receivedGroupId = profile.followingGroupId,
                 )
             },
+            tabs = if (loaded.likes.available) {
+                listOf(ProfileContentTab.Posts, ProfileContentTab.Media, ProfileContentTab.Likes)
+            } else {
+                listOf(ProfileContentTab.Posts, ProfileContentTab.Media)
+            },
             selectedTab = viewModelState.selectedTab,
             posts = posts.posts.map { post ->
                 val previews = viewModelState.linkPreviews[post.postId].orEmpty()
@@ -532,7 +603,64 @@ internal class UserProfileScreenViewModel(
             postsFooter = createPostsFooter(posts),
             media = media,
             mediaEmptyMessage = if (media.isEmpty() && posts.next == NextPosts.End) "表示できるメディアはありません" else null,
+            likes = loaded.likes.posts.map { post -> createLikedPostItem(post, viewModelState) },
+            likesEmptyMessage = if (loaded.likes.posts.isEmpty() && loaded.likes.next == NextPosts.End) "表示できるいいねはありません" else null,
+            likesFooter = createLikesFooter(loaded.likes),
         )
+    }
+
+    /**
+     * いいねした投稿は、プロフィールの本人ではない人の投稿なので、投稿者のプロフィールを開けるようにする
+     */
+    private fun createLikedPostItem(post: UserHomeTimelineResult.Post, viewModelState: ViewModelState): PostItemUiState {
+        val host = post.host
+        val profileAcct = if (host == null) post.username else "${post.username}@$host"
+        return createPostItemUiState(
+            pinned = false,
+            deleted = post.deleted,
+            boostUndone = false,
+            actorLabel = null,
+            iconUrl = post.iconUrl,
+            displayName = post.displayName,
+            displayNameEmojis = post.displayNameEmojis,
+            acct = "@$profileAcct",
+            body = post.body,
+            linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
+            sensitiveImagesBlurred = true,
+            blurToggledImageUrls = viewModelState.blurToggledImageUrls,
+            authorTapAction = AuthorTapAction.OpenProfile {
+                viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
+            },
+            menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
+            onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+            onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
+            onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
+            onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
+            onToggleLike = {
+                val likedByMe = post.body.likedByMe
+                if (likedByMe != null) toggleLike(reactionPostId = post.reactionPostId, likedByMe = likedByMe)
+            },
+            onToggleBoost = {
+                val boostedByMe = post.body.boostedByMe
+                if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
+            },
+            onVisible = {
+                if (post.body.linkUrls.isNotEmpty()) {
+                    loadLinkPreviews(post.id)
+                }
+            },
+        )
+    }
+
+    private fun createLikesFooter(likes: LikesState): UserProfileScreenUiState.PostsFooter {
+        val loadErrorMessage = likes.loadErrorMessage
+        return when {
+            loadErrorMessage != null -> UserProfileScreenUiState.PostsFooter.Error(loadErrorMessage)
+            likes.next != NextPosts.End -> UserProfileScreenUiState.PostsFooter.Loading
+            else -> UserProfileScreenUiState.PostsFooter.None
+        }
     }
 
     private fun createPostsFooter(posts: PostsState): UserProfileScreenUiState.PostsFooter {
@@ -585,6 +713,7 @@ internal class UserProfileScreenViewModel(
         data class Loaded(
             val profile: UserProfileResult.Found,
             val posts: PostsState,
+            val likes: LikesState,
         ) : ProfileState
 
         data object NotFound : ProfileState
@@ -602,6 +731,18 @@ internal class UserProfileScreenViewModel(
         val posts: List<UserProfileResult.Post>,
         val next: NextPosts,
         val loadErrorMessage: String?,
+    )
+
+    /**
+     * @param next 次に読むページ
+     * @param loadErrorMessage 続きを読めなかったときの理由。読めていれば null
+     * @param available いいねの一覧を読めたか。読めた相手だけ「いいね」のタブを出す
+     */
+    private data class LikesState(
+        val posts: List<UserHomeTimelineResult.Post>,
+        val next: NextPosts,
+        val loadErrorMessage: String?,
+        val available: Boolean,
     )
 
     private sealed interface NextPosts {

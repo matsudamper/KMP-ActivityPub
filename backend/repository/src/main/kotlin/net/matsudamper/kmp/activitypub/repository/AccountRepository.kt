@@ -60,10 +60,12 @@ data class Account(
  *
  * @param summary プレーンテキスト。未設定なら null
  * @param links 並べた順
+ * @param likesPublic いいねした投稿の一覧を、プロフィールと Actor の liked で公開するか
  */
 data class AccountProfileDetail(
     val summary: String?,
     val links: List<ProfileLink>,
+    val likesPublic: Boolean,
 )
 
 data class ProfileLink(

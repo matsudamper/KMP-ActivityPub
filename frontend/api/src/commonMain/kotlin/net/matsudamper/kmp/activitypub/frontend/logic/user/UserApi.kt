@@ -58,6 +58,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserPostNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileLikesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfilePostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
@@ -625,6 +626,23 @@ class UserApi(
         )
     }
 
+    /**
+     * プロフィールのユーザーがいいねした投稿
+     *
+     * @param after 最初のページなら null。続きは前回の [UserProfileLikesResult.Success.nextCursor]
+     */
+    suspend fun userProfileLikes(acct: String, after: String?): UserProfileLikesResult {
+        val client = clients.awaitLoadedClient() ?: return UserProfileLikesResult.Failure("接続先が未設定")
+        val response = client.query(UserProfileLikesQuery(acct = acct, after = Optional.present(after))).execute()
+        if (response.exception != null || response.hasErrors()) return UserProfileLikesResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserProfileLikesResult.Failure(response.failureMessage())
+        val page = data.userProfileLikes ?: return UserProfileLikesResult.Hidden
+        return UserProfileLikesResult.Success(
+            posts = page.posts.map { it.timelinePostFields.toPost() },
+            nextCursor = page.nextCursor,
+        )
+    }
+
     fun searchUsersPaging(query: String): CursorPagingModel<HomeScreenSearchUsersQuery.Data> {
         return CursorPagingModel(
             clients = clients,
@@ -772,6 +790,7 @@ class UserApi(
             iconUrl = profile.iconUrl,
             summary = profile.summary,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
+            likesPublic = profile.likesPublic,
             followingCount = profile.followingCount,
             followersCount = profile.followersCount,
         )
@@ -781,11 +800,13 @@ class UserApi(
      * @param displayName 空なら未設定に戻す
      * @param summary 空なら未設定に戻す
      * @param links 並べる順。名前も URL も空の行はサーバーが捨てる
+     * @param likesPublic いいねした投稿の一覧を公開するか
      */
     suspend fun updateProfile(
         displayName: String,
         summary: String,
         links: List<UserProfileLink>,
+        likesPublic: Boolean,
     ): UserUpdateProfileResult {
         val client = clients.client.value ?: return UserUpdateProfileResult.Failure("接続先が未設定")
         val query =
@@ -793,6 +814,7 @@ class UserApi(
                 displayName = Optional.present(displayName),
                 summary = Optional.present(summary),
                 links = Optional.present(links.map { ProfileLinkInput(name = it.name, url = it.url) }),
+                likesPublic = Optional.present(likesPublic),
             )
         val response = client.mutation(UpdateProfileMutation(query)).execute()
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())

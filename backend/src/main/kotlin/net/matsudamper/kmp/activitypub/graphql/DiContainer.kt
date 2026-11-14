@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
+import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
@@ -38,6 +39,7 @@ class DiContainer(
     val serverBlockService: ServerBlockService,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,
+    val profileLikesService: ProfileLikesService,
     val viewablePostService: ViewablePostService,
     val notePinService: NotePinService,
     /**
