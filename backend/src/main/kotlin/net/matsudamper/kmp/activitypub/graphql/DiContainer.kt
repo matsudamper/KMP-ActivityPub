@@ -1,6 +1,8 @@
 package net.matsudamper.kmp.activitypub.graphql
 
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.ActorBlockService
+import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
@@ -36,6 +38,8 @@ class DiContainer(
     val followingGroupService: FollowingGroupService,
     val followListService: FollowListService,
     val serverBlockService: ServerBlockService,
+    val actorBlockService: ActorBlockService,
+    val blockLists: BlockLists,
     val userSearchService: UserSearchService,
     val userProfileService: UserProfileService,
     val viewablePostService: ViewablePostService,

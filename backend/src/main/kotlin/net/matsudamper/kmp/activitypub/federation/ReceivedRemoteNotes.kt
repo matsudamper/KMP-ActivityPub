@@ -29,7 +29,7 @@ internal class ReceivedRemoteNotes(
     private val actors: RemoteActors,
     private val storedActors: RemoteActorRepository,
     private val directory: ActorDirectory,
-    private val serverBlocks: InboxServerBlocks,
+    private val blocks: InboxBlocks,
     private val timeline: TimelineService,
     private val clock: Clock,
     private val deleteRemoteNote: (actorUri: String, objectUri: String) -> List<String>,
@@ -121,7 +121,7 @@ internal class ReceivedRemoteNotes(
             val uri = runCatching { URI(target) }.getOrNull() ?: return@mapNotNull null
             val username = uri.path?.substringAfterLast('/') ?: return@mapNotNull null
             directory.resolve(username)?.takeIf { it.actorId == target }?.username
-        }.filterNot { serverBlocks.blocks(it, note.attributedTo) }.toSet()
+        }.filterNot { blocks.blocks(it, note.attributedTo) }.toSet()
         val interest = repository.receptionInterest(note.attributedTo, recipients)
         span.setAttribute(InboxSpan.FOLLOWING_ACCOUNT_COUNT, interest.followingAccountCount)
         span.setAttribute(InboxSpan.LOCAL_RECIPIENT_COUNT, interest.localRecipientCount)

@@ -161,6 +161,8 @@ internal fun Application.module(deps: AppDependencies) {
                 followingGroupService = deps.followingGroupService,
                 followListService = deps.followListService,
                 serverBlockService = deps.serverBlockService,
+                actorBlockService = deps.actorBlockService,
+                blockLists = deps.blockLists,
                 passkeyService = deps.passkeyService,
                 loginThrottle = deps.loginThrottle,
                 adminAccountIds = deps.env.adminAccountIds,

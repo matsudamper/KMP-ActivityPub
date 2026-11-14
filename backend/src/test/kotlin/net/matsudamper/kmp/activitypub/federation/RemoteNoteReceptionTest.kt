@@ -14,6 +14,7 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.FollowingSpan
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
@@ -124,7 +125,7 @@ class RemoteNoteReceptionTest {
                 fixture.remote,
                 fixture.repositories.remoteActorRepository,
                 fixture.directory,
-                fixture.serverBlocks,
+                fixture.inboxBlocks,
                 fixture.timeline,
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
@@ -184,7 +185,7 @@ class RemoteNoteReceptionTest {
                 fixture.remote,
                 fixture.repositories.remoteActorRepository,
                 fixture.directory,
-                fixture.serverBlocks,
+                fixture.inboxBlocks,
                 fixture.timeline,
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
@@ -354,12 +355,13 @@ class RemoteNoteReceptionTest {
                 override fun finds(usernames: Set<String>): Map<String, String> = usernames.filter { it == "alice" }.associateWith { it }
             },
         )
-        val serverBlocks = InboxServerBlocks(repositories.accountRepository, repositories.noteRepository, repositories.serverBlockRepository)
+        val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
+        val inboxBlocks = InboxBlocks(repositories.accountRepository, repositories.noteRepository, blockLists)
         val timeline =
             TimelineService(
                 repositories.timelineRepository,
                 repositories.followingGroupRepository,
-                repositories.serverBlockRepository,
+                blockLists,
                 FakeTimelineStore(mutableListOf()),
                 AccountEvents(repositories.timelineRepository),
                 Clock.systemUTC(),
@@ -370,7 +372,7 @@ class RemoteNoteReceptionTest {
                 remote,
                 repositories.remoteActorRepository,
                 directory,
-                serverBlocks,
+                inboxBlocks,
                 timeline,
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now()) },

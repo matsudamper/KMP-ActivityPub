@@ -13,7 +13,7 @@ import net.matsudamper.kotpub.follower.FollowerStore
  */
 internal class AccountFollowerStore(
     private val followerRepository: FollowerRepository,
-    private val serverBlocks: InboxServerBlocks,
+    private val blocks: InboxBlocks,
     private val onAcceptEnqueued: () -> Unit,
 ) : FollowerStore {
     override fun record(
@@ -24,7 +24,7 @@ internal class AccountFollowerStore(
         acceptBody: String,
     ): Boolean {
         // 記録しなければ Accept を積まないので、相手からはフォローが保留のまま残る
-        if (serverBlocks.blocks(username, follower.actorId)) return false
+        if (blocks.blocks(username, follower.actorId)) return false
         val recorded = followerRepository.record(
             username = username,
             follower = RemoteActorRecord(

@@ -8,6 +8,8 @@ import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.imagestorage.s3.S3ImageStorage
 import net.matsudamper.kmp.activitypub.imagestorage.s3.StsCredentialProvider
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.ActorBlockService
+import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
@@ -49,10 +51,14 @@ class AppDependencies(
 
     val accountService: AccountService = AccountService(accountRepository = repositories.accountRepository)
     val accountEvents = AccountEvents(repositories.timelineRepository)
+    val blockLists = BlockLists(
+        serverBlocks = repositories.serverBlockRepository,
+        actorBlocks = repositories.actorBlockRepository,
+    )
     val timelineService = TimelineService(
         repository = repositories.timelineRepository,
         groups = repositories.followingGroupRepository,
-        serverBlocks = repositories.serverBlockRepository,
+        blockLists = blockLists,
         store = timelineStore,
         events = accountEvents,
         clock = Clock.systemUTC(),
@@ -60,7 +66,7 @@ class AppDependencies(
     val notificationService = NotificationService(
         notifications = repositories.notificationRepository,
         timeline = repositories.timelineRepository,
-        serverBlocks = repositories.serverBlockRepository,
+        blockLists = blockLists,
     )
     val serverBlockService: ServerBlockService = ServerBlockService(
         accounts = repositories.accountRepository,
@@ -122,7 +128,7 @@ class AppDependencies(
                 accountBoostRepository = repositories.accountBoostRepository,
                 stampRepository = repositories.stampRepository,
                 boostRepository = repositories.boostRepository,
-                serverBlockRepository = repositories.serverBlockRepository,
+                blockLists = blockLists,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
@@ -169,6 +175,13 @@ class AppDependencies(
         following = followingService,
         remoteProfiles = federation?.remoteUserProfiles,
         localDomain = checkNotNull(env.domain),
+    )
+
+    val actorBlockService: ActorBlockService = ActorBlockService(
+        accounts = repositories.accountRepository,
+        actorBlocks = repositories.actorBlockRepository,
+        profiles = userProfileService,
+        clock = Clock.systemUTC(),
     )
 
     val notePinService: NotePinService = NotePinService(

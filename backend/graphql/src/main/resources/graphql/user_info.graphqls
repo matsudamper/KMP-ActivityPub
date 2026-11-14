@@ -35,6 +35,12 @@ type UserInfo {
     フォローしている相手の投稿など自分宛てでないものも、タイムラインと通知に出さない
     """
     blockedServers: [String!]! @lazy
+    """
+    ブロックしている他のサーバーのアカウント。新しくブロックした順。
+    ブロックしたアカウントから自分宛てに届く投稿・お気に入り・ブースト・スタンプ・フォローは受け付けない。
+    フォローしている相手がブーストしたものなど自分宛てでないものも、タイムラインと通知に出さない
+    """
+    blockedAccounts: [BlockedAccount!]! @lazy
 }
 
 type RemoteProfileRefreshState {
@@ -60,4 +66,11 @@ type RemoteProfileRefreshProgress {
 type FollowingGroup {
     id: FollowingGroupId!
     name: String!
+}
+
+"ブロックしている他のサーバーのアカウント"
+type BlockedAccount {
+    actorUri: String!
+    "ブロックしたときの username@host"
+    acct: String!
 }
