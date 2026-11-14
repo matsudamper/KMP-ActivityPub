@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -23,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -262,6 +264,7 @@ private fun BlockServerDialog(uiState: UserProfileScreenUiState.BlockServerDialo
             TextButton(
                 onClick = uiState.listener::onClickBlock,
                 enabled = uiState.buttonsEnabled,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
             ) {
                 Text("ブロック")
             }
@@ -301,6 +304,7 @@ private fun TopBarMenu(
             if (blockServerMenuItemVisible) {
                 DropdownMenuItem(
                     text = { Text("このサーバーをブロック") },
+                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
                     onClick = {
                         expanded = false
                         listener.onClickBlockServer()
