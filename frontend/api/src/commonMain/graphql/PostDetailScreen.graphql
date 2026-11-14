@@ -5,3 +5,11 @@ query PostDetailScreen($id: TimelinePostId!) {
         }
     }
 }
+
+query ReplyTarget($postId: TimelinePostId!) {
+    userInfo {
+        replyTarget(postId: $postId) {
+            ...TimelinePostFields
+        }
+    }
+}

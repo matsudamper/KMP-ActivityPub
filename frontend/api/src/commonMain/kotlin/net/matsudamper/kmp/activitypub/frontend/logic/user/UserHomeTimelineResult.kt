@@ -51,6 +51,10 @@ sealed interface UserHomeTimelineResult {
          * 投稿が載った購読先のグループ。メインなら null
          */
         val followingGroupId: String?,
+        /**
+         * 返信か。返信先は [UserApi.replyTarget] で取る
+         */
+        val hasReplyTarget: Boolean,
     )
 
     /**

@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -25,6 +27,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -149,7 +152,22 @@ internal fun PostDetailContent(
 
                             is PostDetailScreenUiState.Content.Loaded -> {
                                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                                    item {
+                                    val replyTargetLoader = content.replyTargetLoader
+                                    if (replyTargetLoader != null) {
+                                        item(key = REPLY_TARGET_LOADER_KEY) {
+                                            ReplyTargetLoaderRow(uiState = replyTargetLoader, loadedReplyTargetCount = content.replyTargets.size)
+                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                        }
+                                    }
+                                    // 上に古い返信先が足されていくので、開いている投稿からの距離で見分けて、読んでいる位置をずらさない
+                                    itemsIndexed(
+                                        items = content.replyTargets,
+                                        key = { index, _ -> "reply-target-${content.replyTargets.size - index}" },
+                                    ) { _, replyTarget ->
+                                        PostItem(uiState = replyTarget, style = PostItemStyle.Timeline)
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
+                                    item(key = POST_KEY) {
                                         PostItem(uiState = content.post, style = PostItemStyle.Detail)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
@@ -192,6 +210,52 @@ internal fun PostDetailContent(
     }
 }
 
+/**
+ * @param loadedReplyTargetCount 取れるたびに変わる。表示されたままでも続きを取りに行けるよう、取り直しのきっかけにする
+ */
+@Composable
+private fun ReplyTargetLoaderRow(
+    uiState: PostDetailScreenUiState.ReplyTargetLoader,
+    loadedReplyTargetCount: Int,
+) {
+    // 読み込み中と結果で高さが変わって、下の投稿が動かないようにする
+    Box(
+        modifier = Modifier.fillMaxWidth().heightIn(min = ReplyTargetLoaderMinHeight).padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        when (uiState) {
+            is PostDetailScreenUiState.ReplyTargetLoader.Loading -> {
+                LaunchedEffect(uiState.listener, loadedReplyTargetCount) {
+                    uiState.listener.onVisible()
+                }
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            }
+
+            PostDetailScreenUiState.ReplyTargetLoader.Unavailable -> {
+                Text(
+                    text = "返信先の投稿を表示できません",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            is PostDetailScreenUiState.ReplyTargetLoader.Error -> {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "返信先を読み込めませんでした",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = uiState.listener::onClickRetry) { Text("再読み込み") }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun MentionBox(uiState: PostDetailScreenUiState.MentionBox) {
     var editingValue by remember { mutableStateOf(TextFieldValue()) }
@@ -223,6 +287,11 @@ private fun MentionBox(uiState: PostDetailScreenUiState.MentionBox) {
         }
     }
 }
+
+private const val REPLY_TARGET_LOADER_KEY = "reply-target-loader"
+private const val POST_KEY = "post"
+
+private val ReplyTargetLoaderMinHeight = 56.dp
 
 /**
  * 長く書いても投稿が隠れないよう、入力欄の伸びを抑える
