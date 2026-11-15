@@ -59,13 +59,32 @@ internal fun UserReaction?.toLikeState(): UserLikeState = if (this == null) User
  * 付けているリアクションを外すか付け替える前の確かめ
  *
  * @param current 確かめを出したときに付けていたもの。送れなかったときにここへ戻す
- * @param next 付け替える先。外すときは null
  */
 internal data class ReactionConfirmation(
     val reactionPostId: String,
     val current: UserLikeState.Reacted,
-    val next: UserReaction?,
+    val next: ReactionChange,
 )
+
+/**
+ * 付けているリアクションをどうするか
+ */
+internal sealed interface ReactionChange {
+    data object Remove : ReactionChange
+
+    data class React(val reaction: UserReaction) : ReactionChange
+
+    /** 絵文字の無いいいねに変える */
+    data object PlainLike : ReactionChange
+}
+
+/**
+ * いいねを押したとき。リアクションを付けていれば、いいねに変えるかを確かめる
+ */
+internal fun decideLikeTap(reactionPostId: String, body: UserPostBody): ReactionConfirmation? {
+    val current = body.likeState() as? UserLikeState.Reacted ?: return null
+    return ReactionConfirmation(reactionPostId, current, ReactionChange.PlainLike)
+}
 
 /**
  * 絵文字を選んだときにすること
@@ -85,7 +104,7 @@ internal sealed interface ReactionDecision {
 internal fun decidePickedReaction(reactionPostId: String, current: UserLikeState, picked: UserReaction): ReactionDecision = when {
     current !is UserLikeState.Reacted -> ReactionDecision.Apply(reactionPostId, current, picked)
     current.reaction == picked.toViewerReaction() -> ReactionDecision.None
-    else -> ReactionDecision.Confirm(ReactionConfirmation(reactionPostId, current, picked))
+    else -> ReactionDecision.Confirm(ReactionConfirmation(reactionPostId, current, ReactionChange.React(picked)))
 }
 
 /**
@@ -94,7 +113,7 @@ internal fun decidePickedReaction(reactionPostId: String, current: UserLikeState
 internal fun decideStampTap(reactionPostId: String, body: UserPostBody, stamp: UserPostStamp): ReactionDecision {
     val current = body.likeState()
     if (current is UserLikeState.Reacted && stamp.isReactionOf(current.reaction)) {
-        return ReactionDecision.Confirm(ReactionConfirmation(reactionPostId, current, next = null))
+        return ReactionDecision.Confirm(ReactionConfirmation(reactionPostId, current, ReactionChange.Remove))
     }
     val reaction = stamp.toReaction() ?: return ReactionDecision.None
     return decidePickedReaction(reactionPostId, current, reaction)
@@ -106,10 +125,14 @@ internal fun ReactionConfirmation.toDialogUiState(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ): ReactionConfirmDialogUiState = ReactionConfirmDialogUiState(
-    title = if (next == null) "リアクションを外す" else "リアクションを変更",
-    confirmButtonText = if (next == null) "外す" else "変える",
+    title = if (next == ReactionChange.Remove) "リアクションを外す" else "リアクションを変更",
+    confirmButtonText = if (next == ReactionChange.Remove) "外す" else "変える",
     current = current.reaction.let { ReactionConfirmDialogUiState.Emoji(emoji = it.emoji, imageUrl = it.imageUrl) },
-    next = next?.toViewerReaction()?.let { ReactionConfirmDialogUiState.Emoji(emoji = it.emoji, imageUrl = it.imageUrl) },
+    next = when (next) {
+        ReactionChange.Remove -> null
+        is ReactionChange.React -> next.reaction.toViewerReaction().let { ReactionConfirmDialogUiState.Next.ToEmoji(ReactionConfirmDialogUiState.Emoji(emoji = it.emoji, imageUrl = it.imageUrl)) }
+        ReactionChange.PlainLike -> ReactionConfirmDialogUiState.Next.ToLike
+    },
     listener = object : ReactionConfirmDialogUiState.Listener {
         override fun onConfirm() {
             onConfirm()

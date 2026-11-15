@@ -66,6 +66,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
@@ -75,6 +76,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
@@ -987,6 +989,12 @@ internal class HomeScreenViewModel(
      */
     private fun toggleLike(postId: String, body: UserPostBody) {
         if (body.likedByMe == null) return
+        if (postId in likeChangingPostIds) return
+        val confirmation = decideLikeTap(postId, body)
+        if (confirmation != null) {
+            viewModelStateFlow.update { it.copy(reactionConfirmation = confirmation) }
+            return
+        }
         val liked = body.plainLikedByMe
         changeLikeState(postId = postId, current = body.likeState(), next = body.withLiked(!liked).likeState()) {
             userApi.setLiked(postId = postId, liked = !liked)
@@ -1021,7 +1029,7 @@ internal class HomeScreenViewModel(
         viewModelStateFlow.update {
             it.copy(
                 reactionPicker = null,
-                reactionConfirmation = current?.let { reacted -> ReactionConfirmation(target.reactionPostId, reacted, next = null) },
+                reactionConfirmation = current?.let { reacted -> ReactionConfirmation(target.reactionPostId, reacted, ReactionChange.Remove) },
             )
         }
     }
@@ -1044,7 +1052,16 @@ internal class HomeScreenViewModel(
 
     private fun confirmReaction(confirmation: ReactionConfirmation) {
         viewModelStateFlow.update { it.copy(reactionConfirmation = null) }
-        sendReaction(confirmation.reactionPostId, confirmation.current, confirmation.next)
+        val reactionPostId = confirmation.reactionPostId
+        when (val next = confirmation.next) {
+            ReactionChange.Remove -> sendReaction(reactionPostId, confirmation.current, reaction = null)
+
+            is ReactionChange.React -> sendReaction(reactionPostId, confirmation.current, next.reaction)
+
+            ReactionChange.PlainLike -> changeLikeState(reactionPostId, confirmation.current, UserLikeState.Liked) {
+                userApi.setLiked(postId = reactionPostId, liked = true)
+            }
+        }
     }
 
     /**

@@ -11,7 +11,7 @@ data class ReactionConfirmDialogUiState(
     val title: String,
     val confirmButtonText: String,
     val current: Emoji,
-    val next: Emoji?,
+    val next: Next?,
     val listener: Listener,
 ) {
     /**
@@ -21,6 +21,13 @@ data class ReactionConfirmDialogUiState(
         val emoji: String,
         val imageUrl: String?,
     )
+
+    sealed interface Next {
+        data class ToEmoji(val emoji: Emoji) : Next
+
+        /** 絵文字の無いいいね */
+        data object ToLike : Next
+    }
 
     @Immutable
     interface Listener {

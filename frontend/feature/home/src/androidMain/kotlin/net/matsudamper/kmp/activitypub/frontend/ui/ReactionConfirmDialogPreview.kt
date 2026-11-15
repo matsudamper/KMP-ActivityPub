@@ -13,7 +13,7 @@ private fun ReactionChangeDialogPreview() {
                 title = "リアクションを変更",
                 confirmButtonText = "変える",
                 current = ReactionConfirmDialogUiState.Emoji(emoji = "👍", imageUrl = null),
-                next = ReactionConfirmDialogUiState.Emoji(emoji = "🎉", imageUrl = null),
+                next = ReactionConfirmDialogUiState.Next.ToEmoji(ReactionConfirmDialogUiState.Emoji(emoji = "🎉", imageUrl = null)),
                 listener = AndroidPreviewListener,
             ),
         )
@@ -30,6 +30,22 @@ private fun ReactionRemoveDialogPreview() {
                 confirmButtonText = "外す",
                 current = ReactionConfirmDialogUiState.Emoji(emoji = "👍", imageUrl = null),
                 next = null,
+                listener = AndroidPreviewListener,
+            ),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ReactionToLikeDialogPreview() {
+    MaterialTheme {
+        ReactionConfirmDialog(
+            uiState = ReactionConfirmDialogUiState(
+                title = "リアクションを変更",
+                confirmButtonText = "変える",
+                current = ReactionConfirmDialogUiState.Emoji(emoji = "👍", imageUrl = null),
+                next = ReactionConfirmDialogUiState.Next.ToLike,
                 listener = AndroidPreviewListener,
             ),
         )

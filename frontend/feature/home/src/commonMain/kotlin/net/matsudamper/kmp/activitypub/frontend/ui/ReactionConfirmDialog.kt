@@ -38,7 +38,16 @@ internal fun ReactionConfirmDialog(uiState: ReactionConfirmDialogUiState) {
                         contentDescription = "から",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    DialogEmoji(next)
+                    when (next) {
+                        is ReactionConfirmDialogUiState.Next.ToEmoji -> DialogEmoji(next.emoji)
+
+                        ReactionConfirmDialogUiState.Next.ToLike -> Icon(
+                            imageVector = AppIcons.Star,
+                            contentDescription = "お気に入り",
+                            modifier = Modifier.size(40.dp),
+                            tint = FavouriteHighlightedColor,
+                        )
+                    }
                 }
             }
         },
