@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param onOpenProfile 本文のメンションを押したとき。acct は `user@host`
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
+ * @param onQuote ブーストのアイコンから引用を選んだとき
  * @param onOpenReactionPicker リアクションのアイコンを押したとき
  * @param onClickStamp スタンプを押したとき
  */
@@ -48,6 +49,7 @@ internal fun createPostItemUiState(
     onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
+    onQuote: () -> Unit,
     onOpenReactionPicker: () -> Unit,
     onClickStamp: (UserPostStamp) -> Unit,
     onVisible: () -> Unit,
@@ -109,6 +111,7 @@ internal fun createPostItemUiState(
                 onToggleBlur = { onToggleImageBlur(imageUrls, image.url !in blurToggledImageUrls) },
             )
         },
+        replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
         quote = quote,
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
@@ -126,11 +129,24 @@ internal fun createPostItemUiState(
         boostButton = body.boostedByMe?.let { boosted ->
             PostItemUiState.BoostButton(
                 iconHighlighted = boosted,
-                listener = object : PostItemUiState.BoostButtonListener {
-                    override fun onClick() {
-                        onToggleBoost()
-                    }
-                },
+                menuItems = listOf(
+                    PostItemUiState.MenuItem(
+                        label = if (boosted) "ブーストを取り消す" else "ブースト",
+                        listener = object : PostItemUiState.MenuItemListener {
+                            override fun onClick() {
+                                onToggleBoost()
+                            }
+                        },
+                    ),
+                    PostItemUiState.MenuItem(
+                        label = "引用",
+                        listener = object : PostItemUiState.MenuItemListener {
+                            override fun onClick() {
+                                onQuote()
+                            }
+                        },
+                    ),
+                ),
             )
         },
         // いいねとリアクションは同じ Like で送るので、いいねできる投稿だけリアクションできる
@@ -250,7 +266,7 @@ internal sealed interface PostActorLabel {
  */
 private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Unit): List<PostItemUiState.Stamp> {
     val viewerReaction = body.viewerReaction
-    val countReceived = body.favouriteCount != null
+    val countReceived = body.stampCountsReceived
     val stamps = if (viewerReaction == null || body.stamps.any { it.isReactionOf(viewerReaction) }) {
         body.stamps
     } else {

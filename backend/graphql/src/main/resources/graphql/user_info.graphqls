@@ -23,6 +23,11 @@ type UserInfo {
     """
     replyTarget(postId: TimelinePostId!): TimelinePost @lazy
     """
+    投稿のリプライ・いいね・ブーストの数。id には TimelinePost.id か ProfilePost.id を渡す。開けない投稿なら null。
+    他のサーバーの投稿は、前に取ってから 1 分経っていれば相手のサーバーから数を取り直すので遅い。個別投稿画面を開いたときに使う
+    """
+    postCounts(postId: TimelinePostId!): PostCounts @lazy
+    """
     postId の投稿の引用先。postId には TimelinePost.id を渡す。読み方と返す投稿は replyTarget と同じ。
     引用でないか、引用先を読めないか、サーバーに DOMAIN が無ければ null。引用先のサーバーが応えなければ、null とエラーを返す
     """
@@ -84,4 +89,11 @@ type BlockedAccount {
     actorUri: String!
     "ブロックしたときの username@host"
     acct: String!
+}
+
+"投稿のリプライ・いいね・ブーストの数。それぞれ TimelinePost の同じ名前の項目と同じ意味"
+type PostCounts {
+    replyCount: Int!
+    favouriteCount: Int
+    boostCount: Int
 }

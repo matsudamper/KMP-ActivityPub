@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.previewBoostButton
 
 @Preview
 @Composable
@@ -174,11 +175,12 @@ private fun previewThreadPost(displayName: String, acct: String, content: String
     fullPostedAt = "2026/11/01 20:00",
     linkPreviews = listOf(),
     images = listOf(),
+    replyCountText = null,
     quote = null,
     favouriteCountText = null,
     boostCountText = null,
     favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-    boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+    boostButton = previewBoostButton(boosted = false),
     reactionButton = null,
     stamps = listOf(),
     authorListener = null,
@@ -249,11 +251,12 @@ private fun createLoadedUiState(
                     ),
                 ),
                 images = images,
+                replyCountText = "2",
                 quote = quote,
                 favouriteCountText = "12",
                 boostCountText = "4",
                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-                boostButton = PostItemUiState.BoostButton(iconHighlighted = true, listener = AndroidPreviewBoostButtonListener),
+                boostButton = previewBoostButton(boosted = true),
                 reactionButton = PostItemUiState.ReactionButton(listener = AndroidPreviewReactionButtonListener),
                 stamps = listOf(
                     PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4", selected = false, listener = AndroidPreviewStampListener),
@@ -403,10 +406,6 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 }
 
 private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
-    override fun onClick() = Unit
-}
-
-private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
     override fun onClick() = Unit
 }
 

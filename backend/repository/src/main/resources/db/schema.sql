@@ -116,7 +116,7 @@ CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, p
 
 CREATE INDEX notes_published_at ON notes (published_at, public_id);
 
-CREATE INDEX notes_in_reply_to ON notes (in_reply_to, published_at);
+CREATE INDEX notes_in_reply_to ON notes (in_reply_to);
 
 -- 投稿に付けた画像。position は付けた順
 CREATE TABLE note_images (
@@ -239,13 +239,19 @@ CREATE TABLE remote_notes (
     via_boost INTEGER NOT NULL DEFAULT 0,
     -- 投稿者が消した時刻。タイムラインに削除済みと出すために行は残す
     deleted_at TEXT,
+    -- 相手のサーバーが出している数。出していないか、まだ取っていなければ NULL
+    reported_reply_count INTEGER,
+    reported_favourite_count INTEGER,
+    reported_boost_count INTEGER,
+    -- 上の数を相手のサーバーから取った時刻。取ったことがなければ NULL
+    counts_fetched_at TEXT,
     -- 引用した投稿の id。引用でなければ NULL
     quote_uri TEXT
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);
 
-CREATE INDEX remote_notes_in_reply_to ON remote_notes (in_reply_to, published_at);
+CREATE INDEX remote_notes_in_reply_to ON remote_notes (in_reply_to);
 
 CREATE TABLE remote_note_images (
     remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,

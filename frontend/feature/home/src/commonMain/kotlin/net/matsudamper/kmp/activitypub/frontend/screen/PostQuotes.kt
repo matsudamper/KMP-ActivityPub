@@ -2,7 +2,6 @@ package net.matsudamper.kmp.activitypub.frontend.screen
 
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
@@ -86,27 +85,4 @@ internal fun createQuote(
             )
         }
     }
-}
-
-/**
- * 公開範囲に制限のある投稿は引用できない。ブーストできる投稿と同じ範囲なので、ブーストできるかで決める
- *
- * @param postId 引用する [UserHomeTimelineResult.Post.id]
- */
-internal fun createQuoteMenuItems(
-    postId: String,
-    body: UserPostBody,
-    onQuote: (postId: String) -> Unit,
-): List<PostItemUiState.MenuItem> {
-    if (body.boostedByMe == null) return listOf()
-    return listOf(
-        PostItemUiState.MenuItem(
-            label = "引用",
-            listener = object : PostItemUiState.MenuItemListener {
-                override fun onClick() {
-                    onQuote(postId)
-                }
-            },
-        ),
-    )
 }

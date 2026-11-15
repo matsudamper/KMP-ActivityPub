@@ -29,3 +29,13 @@ query PostReplies($postId: TimelinePostId!) {
         }
     }
 }
+
+query PostCounts($postId: TimelinePostId!) {
+    userInfo {
+        postCounts(postId: $postId) {
+            replyCount
+            favouriteCount
+            boostCount
+        }
+    }
+}

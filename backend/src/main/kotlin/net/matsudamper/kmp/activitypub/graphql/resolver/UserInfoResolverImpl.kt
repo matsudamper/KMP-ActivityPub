@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlBlockedAccount
 import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationPage
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostCounts
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
@@ -59,6 +60,21 @@ class UserInfoResolverImpl : UserInfoResolver {
                 if (viewable.ownedByViewer) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
             }
             DataFetcherResult.Builder<QlTimelinePost?>(post).build()
+        }
+
+    override fun postCounts(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlPostCounts?>> =
+        otelFuture {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val post = diContainer.viewablePostService.post(userInfo.id, postId.value)?.post
+            val counts = post?.let { diContainer.postCountService?.refreshedCountsOf(it.noteRef) }
+            val result = post?.let {
+                QlPostCounts(
+                    replyCount = counts?.replyCount?.toInt() ?: 0,
+                    favouriteCount = (it.favouriteCount ?: counts?.reportedFavouriteCount)?.toInt(),
+                    boostCount = (it.boostCount ?: counts?.reportedBoostCount)?.toInt(),
+                )
+            }
+            DataFetcherResult.Builder<QlPostCounts?>(result).build()
         }
 
     override fun replyTarget(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> =

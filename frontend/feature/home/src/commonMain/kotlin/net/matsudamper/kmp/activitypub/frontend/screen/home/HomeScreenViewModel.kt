@@ -77,7 +77,6 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
-import net.matsudamper.kmp.activitypub.frontend.screen.createQuoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
@@ -1358,6 +1357,7 @@ internal class HomeScreenViewModel(
                                 val boostedByMe = post.body.boostedByMe
                                 if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                             },
+                            onQuote = { navigateToQuotePost(post.postId) },
                             onOpenReactionPicker = {
                                 val reactionPostId = post.reactionPostId
                                 if (reactionPostId != null) openReactionPicker(postId = reactionPostId, body = post.body)
@@ -1413,9 +1413,7 @@ internal class HomeScreenViewModel(
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
             },
-            menuItems =
-            createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
-                createQuoteMenuItems(postId = post.id, body = post.body, onQuote = ::navigateToQuotePost),
+            menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -1427,6 +1425,7 @@ internal class HomeScreenViewModel(
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onQuote = { navigateToQuotePost(post.id) },
             onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
             onVisible = {
@@ -1632,7 +1631,6 @@ internal class HomeScreenViewModel(
             },
             menuItems =
             createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
-                createQuoteMenuItems(postId = post.id, body = post.body, onQuote = ::navigateToQuotePost) +
                 createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
                 createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
@@ -1646,6 +1644,7 @@ internal class HomeScreenViewModel(
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onQuote = { navigateToQuotePost(post.id) },
             onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
             onVisible = {

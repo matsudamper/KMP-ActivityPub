@@ -181,6 +181,7 @@ internal fun Application.module(deps: AppDependencies) {
                 remoteProfileRefreshService = federation?.remoteProfileRefreshService,
                 replyTargetService = federation?.replyTargetService,
                 postRepliesService = federation?.postRepliesService,
+                postCountService = federation?.postCountService,
                 customEmojiService = federation?.customEmojiService,
                 customEmojiUrls = federation?.customEmojiUrls,
             ),

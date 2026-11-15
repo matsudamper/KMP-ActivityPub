@@ -35,6 +35,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.previewBoostButton
 import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
 @Preview
@@ -467,6 +468,7 @@ private fun HomeUserContentPreview() {
                             fullPostedAt = "2026/11/05 12:00",
                             linkPreviews = listOf(),
                             images = listOf(),
+                            replyCountText = null,
                             quote = null,
                             favouriteCountText = null,
                             boostCountText = null,
@@ -603,6 +605,7 @@ private fun HomeUserMediaContentPreview() {
                             fullPostedAt = "2026/11/05 12:00",
                             linkPreviews = listOf(),
                             images = listOf(),
+                            replyCountText = null,
                             quote = null,
                             favouriteCountText = null,
                             boostCountText = null,
@@ -847,10 +850,6 @@ private object AndroidPreviewFavouriteButtonListener : PostItemUiState.Favourite
     override fun onClick() = Unit
 }
 
-private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
-    override fun onClick() = Unit
-}
-
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
     override fun onClick() = Unit
 }
@@ -923,14 +922,12 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
                 listener = AndroidPreviewImageListener,
             ),
         ),
+        replyCountText = null,
         quote = null,
         favouriteCountText = null,
         boostCountText = null,
         favouriteButton = null,
-        boostButton = PostItemUiState.BoostButton(
-            iconHighlighted = true,
-            listener = AndroidPreviewBoostButtonListener,
-        ),
+        boostButton = previewBoostButton(boosted = true),
         reactionButton = null,
         stamps = listOf(),
         authorListener = AndroidPreviewAuthorListener,
@@ -980,6 +977,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
                 listener = AndroidPreviewImageListener,
             ),
         ),
+        replyCountText = null,
         quote = null,
         favouriteCountText = "3",
         boostCountText = null,
@@ -987,10 +985,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             iconHighlighted = true,
             listener = AndroidPreviewFavouriteButtonListener,
         ),
-        boostButton = PostItemUiState.BoostButton(
-            iconHighlighted = false,
-            listener = AndroidPreviewBoostButtonListener,
-        ),
+        boostButton = previewBoostButton(boosted = false),
         reactionButton = null,
         stamps = listOf(
             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5", selected = false, listener = null),
@@ -1018,6 +1013,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         fullPostedAt = "2026/11/05 12:00",
         linkPreviews = listOf(),
         images = listOf(),
+        replyCountText = null,
         quote = null,
         favouriteCountText = null,
         boostCountText = null,

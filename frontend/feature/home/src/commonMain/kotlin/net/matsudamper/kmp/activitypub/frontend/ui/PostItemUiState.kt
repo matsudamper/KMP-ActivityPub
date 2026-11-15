@@ -30,6 +30,10 @@ data class PostItemUiState(
     val linkPreviews: List<LinkPreview>,
     val images: List<Image>,
     /**
+     * 1 件も無ければ null で、リプライのアイコンだけを出す
+     */
+    val replyCountText: String?,
+    /**
      * 引用でなければ null
      */
     val quote: Quote?,
@@ -138,9 +142,12 @@ data class PostItemUiState(
         val listener: FavouriteButtonListener,
     )
 
+    /**
+     * @param menuItems 押すと出す、ブーストと引用の選択肢
+     */
     data class BoostButton(
         val iconHighlighted: Boolean,
-        val listener: BoostButtonListener,
+        val menuItems: List<MenuItem>,
     )
 
     /**
@@ -185,11 +192,6 @@ data class PostItemUiState(
 
     @Immutable
     interface FavouriteButtonListener {
-        fun onClick()
-    }
-
-    @Immutable
-    interface BoostButtonListener {
         fun onClick()
     }
 

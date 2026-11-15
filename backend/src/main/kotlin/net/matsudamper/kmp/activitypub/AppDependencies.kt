@@ -131,6 +131,7 @@ class AppDependencies(
                 boostRepository = repositories.boostRepository,
                 customEmojiRepository = repositories.customEmojiRepository,
                 blockLists = blockLists,
+                noteCountRepository = repositories.noteCountRepository,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
