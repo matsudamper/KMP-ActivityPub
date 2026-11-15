@@ -450,7 +450,6 @@ class UserProfileService(
         sensitive = note.sensitive,
         images = note.images,
         emojis = note.emojis,
-        hasQuoteTarget = note.quoteUri != null,
     )
 
     private fun RemoteNoteInput.toUnsavedProfilePost(): ProfilePost {

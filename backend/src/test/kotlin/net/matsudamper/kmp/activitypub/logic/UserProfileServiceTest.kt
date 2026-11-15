@@ -144,6 +144,14 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun storedQuoteKeepsQuoteTargetEvenIfOutboxDoesNotTellIt() = runBlocking {
+        repositories.timelineRepository.storedFetchedNotes["https://remote.example/notes/1"] =
+            storedPost("<p>保存した投稿</p>", summary = null, sensitive = false).copy(quoteUri = "https://other.example/notes/9")
+
+        assertTrue(firstPage("bob@remote.example", viewer).posts.single().hasQuoteTarget)
+    }
+
+    @Test
     fun unsavedPostsAreNotStoredButCanBeLikedAndBoostedLater() = runBlocking {
         val post = firstPage("bob@remote.example", viewer).posts.single()
 
