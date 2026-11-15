@@ -134,7 +134,7 @@ private fun previewReplyTarget(displayName: String, acct: String, content: Strin
     favouriteCountText = null,
     boostCountText = null,
     favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-    boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+    boostButton = PostItemUiState.BoostButton(iconHighlighted = false, menuItems = listOf()),
     reactionButton = null,
     stamps = listOf(),
     authorListener = null,
@@ -207,7 +207,7 @@ private fun createLoadedUiState(
                 favouriteCountText = "12",
                 boostCountText = "4",
                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-                boostButton = PostItemUiState.BoostButton(iconHighlighted = true, listener = AndroidPreviewBoostButtonListener),
+                boostButton = PostItemUiState.BoostButton(iconHighlighted = true, menuItems = listOf()),
                 reactionButton = PostItemUiState.ReactionButton(listener = AndroidPreviewReactionButtonListener),
                 stamps = listOf(
                     PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4", selected = false, listener = AndroidPreviewStampListener),
@@ -351,10 +351,6 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 }
 
 private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
-    override fun onClick() = Unit
-}
-
-private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
     override fun onClick() = Unit
 }
 

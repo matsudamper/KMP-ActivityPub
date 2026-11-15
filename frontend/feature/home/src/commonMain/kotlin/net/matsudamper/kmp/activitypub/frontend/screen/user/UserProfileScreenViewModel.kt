@@ -47,7 +47,6 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
-import net.matsudamper.kmp.activitypub.frontend.screen.createQuoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
@@ -754,6 +753,7 @@ internal class UserProfileScreenViewModel(
                         val boostedByMe = post.body.boostedByMe
                         if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                     },
+                    onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.postId) } } },
                     onOpenReactionPicker = {
                         val reactionPostId = post.reactionPostId
                         if (reactionPostId != null) openReactionPicker(reactionPostId = reactionPostId, body = post.body)
@@ -811,11 +811,7 @@ internal class UserProfileScreenViewModel(
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
             },
-            menuItems =
-            createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
-                createQuoteMenuItems(postId = post.id, body = post.body) { postId ->
-                    viewModelScope.launch { events.send { it.navigateToQuotePost(postId) } }
-                },
+            menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -827,6 +823,7 @@ internal class UserProfileScreenViewModel(
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.id) } } },
             onOpenReactionPicker = { openReactionPicker(reactionPostId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
             onVisible = {

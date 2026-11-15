@@ -847,10 +847,6 @@ private object AndroidPreviewFavouriteButtonListener : PostItemUiState.Favourite
     override fun onClick() = Unit
 }
 
-private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
-    override fun onClick() = Unit
-}
-
 private object AndroidPreviewLinkPreviewListener : PostItemUiState.LinkPreviewListener {
     override fun onClick() = Unit
 }
@@ -929,7 +925,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         favouriteButton = null,
         boostButton = PostItemUiState.BoostButton(
             iconHighlighted = true,
-            listener = AndroidPreviewBoostButtonListener,
+            menuItems = listOf(),
         ),
         reactionButton = null,
         stamps = listOf(),
@@ -989,7 +985,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         ),
         boostButton = PostItemUiState.BoostButton(
             iconHighlighted = false,
-            listener = AndroidPreviewBoostButtonListener,
+            menuItems = listOf(),
         ),
         reactionButton = null,
         stamps = listOf(

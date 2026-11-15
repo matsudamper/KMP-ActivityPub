@@ -540,37 +540,54 @@ private fun PostActions(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val boostButton = uiState.boostButton
-            TextButton(
-                onClick = { boostButton?.listener?.onClick() },
-                enabled = boostButton != null,
-                modifier = Modifier
-                    .weight(1f, fill = false).width(sizes.actionSlotWidth)
-                    .then(
-                        if (boostButton == null) {
-                            Modifier
-                        } else {
-                            Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
+            var boostMenuExpanded by remember { mutableStateOf(false) }
+            Box(modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth)) {
+                TextButton(
+                    onClick = { boostMenuExpanded = true },
+                    enabled = boostButton != null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (boostButton == null) {
+                                Modifier
+                            } else {
+                                Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
+                            },
+                        ),
+                    contentPadding = ActionButtonContentPadding,
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Repeat,
+                        contentDescription = "ブースト",
+                        modifier = Modifier.size(sizes.actionIconSize),
+                        tint = when {
+                            boostButton == null -> disabledIconColor
+                            boostButton.iconHighlighted -> BoostHighlightedColor
+                            else -> iconColor
                         },
-                    ),
-                contentPadding = ActionButtonContentPadding,
-            ) {
-                Icon(
-                    imageVector = AppIcons.Repeat,
-                    contentDescription = "ブースト",
-                    modifier = Modifier.size(sizes.actionIconSize),
-                    tint = when {
-                        boostButton == null -> disabledIconColor
-                        boostButton.iconHighlighted -> BoostHighlightedColor
-                        else -> iconColor
-                    },
-                )
-                Text(
-                    text = uiState.boostCountText.orEmpty(),
-                    modifier = Modifier.padding(start = 4.dp).weight(1f),
-                    style = sizes.countTextStyle,
-                    color = iconColor,
-                    maxLines = 1,
-                )
+                    )
+                    Text(
+                        text = uiState.boostCountText.orEmpty(),
+                        modifier = Modifier.padding(start = 4.dp).weight(1f),
+                        style = sizes.countTextStyle,
+                        color = iconColor,
+                        maxLines = 1,
+                    )
+                }
+                DropdownMenu(
+                    expanded = boostMenuExpanded,
+                    onDismissRequest = { boostMenuExpanded = false },
+                ) {
+                    boostButton?.menuItems.orEmpty().forEach { item ->
+                        DropdownMenuItem(
+                            text = { Text(item.label) },
+                            onClick = {
+                                boostMenuExpanded = false
+                                item.listener.onClick()
+                            },
+                        )
+                    }
+                }
             }
             val favouriteButton = uiState.favouriteButton
             TextButton(

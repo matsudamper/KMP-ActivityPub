@@ -138,9 +138,12 @@ data class PostItemUiState(
         val listener: FavouriteButtonListener,
     )
 
+    /**
+     * @param menuItems 押すと出す、ブーストと引用の選択肢
+     */
     data class BoostButton(
         val iconHighlighted: Boolean,
-        val listener: BoostButtonListener,
+        val menuItems: List<MenuItem>,
     )
 
     /**
@@ -185,11 +188,6 @@ data class PostItemUiState(
 
     @Immutable
     interface FavouriteButtonListener {
-        fun onClick()
-    }
-
-    @Immutable
-    interface BoostButtonListener {
         fun onClick()
     }
 
