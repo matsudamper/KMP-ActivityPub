@@ -21,3 +21,11 @@ query ReplyTarget($postId: TimelinePostId!) {
         }
     }
 }
+
+query PostReplies($postId: TimelinePostId!) {
+    userInfo {
+        replies(postId: $postId) {
+            ...TimelinePostFields
+        }
+    }
+}

@@ -26,6 +26,7 @@ data class PostDetailScreenUiState(
             val replyTargetLoader: ReplyTargetLoader?,
             val replyTargets: List<PostItemUiState>,
             val post: PostItemUiState,
+            val replies: Replies,
             val mentionBox: MentionBox,
         ) : Content
 
@@ -54,6 +55,30 @@ data class PostDetailScreenUiState(
         data object Unavailable : ReplyTargetLoader
 
         data class Error(val listener: Listener) : ReplyTargetLoader {
+            @Immutable
+            interface Listener {
+                fun onClickRetry()
+            }
+        }
+    }
+
+    /**
+     * 開いている投稿の下に並べる返信
+     */
+    sealed interface Replies {
+        /**
+         * 古い順。取り直している間と取り直せなかったときは、前に取れたものを出したままにする
+         */
+        val items: List<PostItemUiState>
+
+        data class Loading(override val items: List<PostItemUiState>) : Replies
+
+        data class Loaded(override val items: List<PostItemUiState>) : Replies
+
+        data class Error(
+            override val items: List<PostItemUiState>,
+            val listener: Listener,
+        ) : Replies {
             @Immutable
             interface Listener {
                 fun onClickRetry()

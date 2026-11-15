@@ -59,6 +59,24 @@ private fun PostDetailContentReplyTargetErrorPreview() = PostDetailReplyTargetPr
     replyTargetLoader = PostDetailScreenUiState.ReplyTargetLoader.Error(AndroidPreviewReplyTargetErrorListener),
 )
 
+@Preview(heightDp = 1000)
+@Composable
+private fun PostDetailContentRepliesPreview() = PostDetailRepliesPreview(
+    replies = PostDetailScreenUiState.Replies.Loaded(previewReplies()),
+)
+
+@Preview(heightDp = 1000)
+@Composable
+private fun PostDetailContentRepliesLoadingPreview() = PostDetailRepliesPreview(
+    replies = PostDetailScreenUiState.Replies.Loading(listOf()),
+)
+
+@Preview(heightDp = 1000)
+@Composable
+private fun PostDetailContentRepliesErrorPreview() = PostDetailRepliesPreview(
+    replies = PostDetailScreenUiState.Replies.Error(items = previewReplies(), listener = AndroidPreviewRepliesErrorListener),
+)
+
 @Preview
 @Composable
 private fun PostDetailContentQuotePreview() = PostDetailQuotePreview(
@@ -90,12 +108,37 @@ private fun PostDetailQuotePreview(quote: PostItemUiState.Quote) {
                 replyTargetLoader = null,
                 quote = quote,
                 replyTargets = listOf(),
+                replies = PostDetailScreenUiState.Replies.Loaded(listOf()),
             ),
             snackbarHostState = SnackbarHostState(),
             layout = PostDetailLayout.FullScreen,
         )
     }
 }
+
+@Composable
+private fun PostDetailRepliesPreview(replies: PostDetailScreenUiState.Replies) {
+    MaterialTheme {
+        PostDetailContent(
+            uiState = createLoadedUiState(
+                images = listOf(),
+                deleteNoteDialog = null,
+                mentionText = "",
+                replyTargetLoader = null,
+                quote = null,
+                replyTargets = listOf(),
+                replies = replies,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            layout = PostDetailLayout.FullScreen,
+        )
+    }
+}
+
+private fun previewReplies(): List<PostItemUiState> = listOf(
+    previewThreadPost(displayName = "Bob", acct = "@bob@remote.example", content = "@alice@example.social 返信です"),
+    previewThreadPost(displayName = "Carol", acct = "@carol@other.example", content = "@alice@example.social もう 1 つの返信です"),
+)
 
 @Composable
 private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiState.ReplyTargetLoader) {
@@ -108,9 +151,10 @@ private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiSt
                 replyTargetLoader = replyTargetLoader,
                 quote = null,
                 replyTargets = listOf(
-                    previewReplyTarget(displayName = "Bob", acct = "@bob@remote.example", content = "最初の投稿です"),
-                    previewReplyTarget(displayName = "Carol", acct = "@carol@other.example", content = "@bob@remote.example それに返信します"),
+                    previewThreadPost(displayName = "Bob", acct = "@bob@remote.example", content = "最初の投稿です"),
+                    previewThreadPost(displayName = "Carol", acct = "@carol@other.example", content = "@bob@remote.example それに返信します"),
                 ),
+                replies = PostDetailScreenUiState.Replies.Loaded(listOf()),
             ),
             snackbarHostState = SnackbarHostState(),
             layout = PostDetailLayout.FullScreen,
@@ -118,7 +162,7 @@ private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiSt
     }
 }
 
-private fun previewReplyTarget(displayName: String, acct: String, content: String) = PostItemUiState(
+private fun previewThreadPost(displayName: String, acct: String, content: String) = PostItemUiState(
     pinnedLabelVisible = false,
     deletedLabelVisible = false,
     actorLabel = null,
@@ -158,6 +202,7 @@ private fun PostDetailLoadedPreview(
                 replyTargetLoader = null,
                 quote = null,
                 replyTargets = listOf(),
+                replies = PostDetailScreenUiState.Replies.Loaded(listOf()),
             ),
             snackbarHostState = SnackbarHostState(),
             layout = PostDetailLayout.FullScreen,
@@ -171,6 +216,7 @@ private fun createLoadedUiState(
     mentionText: String,
     replyTargetLoader: PostDetailScreenUiState.ReplyTargetLoader?,
     replyTargets: List<PostItemUiState>,
+    replies: PostDetailScreenUiState.Replies,
     quote: PostItemUiState.Quote?,
 ): PostDetailScreenUiState {
     return PostDetailScreenUiState(
@@ -219,6 +265,7 @@ private fun createLoadedUiState(
                 menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
                 listener = AndroidPreviewPostItemListener,
             ),
+            replies = replies,
             mentionBox = PostDetailScreenUiState.MentionBox(
                 text = mentionText,
                 placeholder = "@alice@example.social へメンション",
@@ -270,6 +317,7 @@ private fun PostDetailDialogPreviewContent(
                             replyTargetLoader = null,
                             quote = null,
                             replyTargets = listOf(),
+                            replies = PostDetailScreenUiState.Replies.Loaded(listOf()),
                         ),
                         snackbarHostState = SnackbarHostState(),
                         layout = PostDetailLayout.Dialog,
@@ -317,6 +365,10 @@ private object AndroidPreviewReplyTargetLoadingListener : PostDetailScreenUiStat
 }
 
 private object AndroidPreviewReplyTargetErrorListener : PostDetailScreenUiState.ReplyTargetLoader.Error.Listener {
+    override fun onClickRetry() = Unit
+}
+
+private object AndroidPreviewRepliesErrorListener : PostDetailScreenUiState.Replies.Error.Listener {
     override fun onClickRetry() = Unit
 }
 

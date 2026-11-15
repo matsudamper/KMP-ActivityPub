@@ -181,6 +181,38 @@ internal fun PostDetailContent(
                                         PostItem(uiState = content.post, style = PostItemStyle.Detail)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
+                                    itemsIndexed(
+                                        items = content.replies.items,
+                                        key = { index, _ -> "reply-$index" },
+                                    ) { _, reply ->
+                                        PostItem(uiState = reply, style = PostItemStyle.Timeline)
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                    }
+                                    when (val replies = content.replies) {
+                                        is PostDetailScreenUiState.Replies.Loading -> item(key = REPLIES_STATUS_KEY) {
+                                            RepliesStatusRow {
+                                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                            }
+                                        }
+
+                                        is PostDetailScreenUiState.Replies.Loaded -> Unit
+
+                                        is PostDetailScreenUiState.Replies.Error -> item(key = REPLIES_STATUS_KEY) {
+                                            RepliesStatusRow {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    Text(
+                                                        text = "返信を読み込めませんでした",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                    TextButton(onClick = replies.listener::onClickRetry) { Text("再読み込み") }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -274,6 +306,19 @@ private fun ReplyTargetLoaderRow(
     }
 }
 
+/**
+ * 返信の一番下に置く、読み込み中や失敗の行
+ */
+@Composable
+private fun RepliesStatusRow(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().heightIn(min = RepliesStatusMinHeight).padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
 @Composable
 private fun MentionBox(uiState: PostDetailScreenUiState.MentionBox) {
     var editingValue by remember { mutableStateOf(TextFieldValue()) }
@@ -308,8 +353,11 @@ private fun MentionBox(uiState: PostDetailScreenUiState.MentionBox) {
 
 private const val REPLY_TARGET_LOADER_KEY = "reply-target-loader"
 private const val POST_KEY = "post"
+private const val REPLIES_STATUS_KEY = "replies-status"
 
 private val ReplyTargetLoaderMinHeight = 56.dp
+
+private val RepliesStatusMinHeight = 56.dp
 
 /**
  * 長く書いても投稿が隠れないよう、入力欄の伸びを抑える
