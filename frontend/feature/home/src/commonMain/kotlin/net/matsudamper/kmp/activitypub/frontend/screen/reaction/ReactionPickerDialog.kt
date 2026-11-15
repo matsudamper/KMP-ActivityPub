@@ -70,6 +70,7 @@ internal fun ReactionPickerDialog(dialogUiState: ReactionPickerDialogUiState) {
     Dialog(onDismissRequest = dialogUiState.listener::onDismiss) {
         ReactionPickerContent(
             uiState = uiState,
+            title = dialogUiState.title,
             removeButtonVisible = dialogUiState.removeButtonVisible,
             dialogListener = dialogUiState.listener,
         )
@@ -79,6 +80,7 @@ internal fun ReactionPickerDialog(dialogUiState: ReactionPickerDialogUiState) {
 @Composable
 internal fun ReactionPickerContent(
     uiState: ReactionPickerUiState,
+    title: String,
     removeButtonVisible: Boolean,
     dialogListener: ReactionPickerDialogUiState.Listener,
     modifier: Modifier = Modifier,
@@ -90,7 +92,7 @@ internal fun ReactionPickerContent(
     ) {
         Column(modifier = Modifier.padding(top = 16.dp)) {
             Text(
-                text = "リアクション",
+                text = title,
                 modifier = Modifier.padding(horizontal = 24.dp),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,

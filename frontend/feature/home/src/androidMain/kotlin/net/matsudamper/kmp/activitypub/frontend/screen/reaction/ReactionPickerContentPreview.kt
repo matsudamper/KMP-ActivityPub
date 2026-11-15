@@ -23,6 +23,7 @@ private fun ReactionPickerUnicodePreview() {
                 ),
                 listener = AndroidPreviewListener,
             ),
+            title = "リアクション",
             removeButtonVisible = true,
             dialogListener = AndroidPreviewDialogListener,
         )
@@ -48,6 +49,7 @@ private fun ReactionPickerSearchPreview() {
                 ),
                 listener = AndroidPreviewListener,
             ),
+            title = "リアクション",
             removeButtonVisible = false,
             dialogListener = AndroidPreviewDialogListener,
         )
@@ -68,6 +70,7 @@ private fun ReactionPickerCustomEmptyPreview() {
                 ),
                 listener = AndroidPreviewListener,
             ),
+            title = "リアクション",
             removeButtonVisible = false,
             dialogListener = AndroidPreviewDialogListener,
         )

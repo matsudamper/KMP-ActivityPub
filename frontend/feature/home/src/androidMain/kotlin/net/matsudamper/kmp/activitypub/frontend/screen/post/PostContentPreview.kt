@@ -87,6 +87,8 @@ private fun previewUiState(
         quote = quote,
         addImageButtonEnabled = addImageLoadingVisible.not(),
         addImageLoadingVisible = addImageLoadingVisible,
+        addEmojiButtonEnabled = true,
+        emojiPickerDialog = null,
         listener = AndroidPreviewPostListener,
     )
 
@@ -107,6 +109,8 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onClickAddImage() = Unit
 
     override fun onImagePicked(file: PickedImageFile) = Unit
+
+    override fun onClickAddEmoji() = Unit
 
     override fun onClickPost() = Unit
 

@@ -729,6 +729,8 @@ private fun HomeColumnsPreview(
                             quote = null,
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
+                            addEmojiButtonEnabled = true,
+                            emojiPickerDialog = null,
                             listener = AndroidPreviewPostScreenListener,
                         ),
                         navigationIcon = PostNavigationIcon.Close,
@@ -878,6 +880,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onClickAddImage() = Unit
 
     override fun onImagePicked(file: PickedImageFile) = Unit
+
+    override fun onClickAddEmoji() = Unit
 
     override fun onClickPost() = Unit
 
