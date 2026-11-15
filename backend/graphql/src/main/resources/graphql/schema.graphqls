@@ -186,6 +186,8 @@ type TimelinePost {
     hasReplyTarget: Boolean!
     "リプライの数。他のサーバーの投稿は、このサーバーが知っている返信と、UserInfo.postCounts で取った相手のサーバーの数の大きい方"
     replyCount: Int!
+    "スタンプの数を受け取っているか。他のサーバーの投稿はスタンプを受け取らないので false"
+    stampCountsReceived: Boolean!
 }
 
 "投稿者、ブーストした相手、通知を送ってきた相手"

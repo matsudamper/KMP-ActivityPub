@@ -50,6 +50,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             favouriteCount = favouriteCount,
             boostCount = boostCount,
             replyCount = replyCount,
+            stampCountsReceived = stampCountsReceived,
             stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode) },
             emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
             shareUrl = url,
@@ -126,6 +127,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     favouriteCount = body.favouriteCount,
     boostCount = body.boostCount,
     replyCount = body.replyCount,
+    stampCountsReceived = body.stampCountsReceived,
     boostedBy = boostedBy?.let { booster -> TimelinePostFields.BoostedBy(__typename = "Actor", actorFields = booster.toFields()) },
     stamps = body.stamps.map { stamp ->
         TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode)

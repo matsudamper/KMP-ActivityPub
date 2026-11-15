@@ -248,7 +248,7 @@ internal sealed interface PostActorLabel {
  */
 private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Unit): List<PostItemUiState.Stamp> {
     val viewerReaction = body.viewerReaction
-    val countReceived = body.favouriteCount != null
+    val countReceived = body.stampCountsReceived
     val stamps = if (viewerReaction == null || body.stamps.any { it.isReactionOf(viewerReaction) }) {
         body.stamps
     } else {

@@ -1125,6 +1125,7 @@ class UserApi(
                 favouriteCount = favouriteCount,
                 boostCount = boostCount,
                 replyCount = replyCount,
+                stampCountsReceived = stampCountsReceived,
                 stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode) },
                 emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 shareUrl = url,

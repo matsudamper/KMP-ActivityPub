@@ -42,6 +42,7 @@ fragment TimelinePostFields on TimelinePost {
     favouriteCount
     boostCount
     replyCount
+    stampCountsReceived
     boostedBy {
         ...ActorFields
     }

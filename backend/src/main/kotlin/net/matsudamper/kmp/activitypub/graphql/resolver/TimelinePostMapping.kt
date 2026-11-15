@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
@@ -88,6 +89,7 @@ private fun TimelinePost.toQlTimelinePost(
         },
         hasReplyTarget = inReplyTo != null,
         replyCount = counts?.replyCount?.toInt() ?: 0,
+        stampCountsReceived = noteRef is TimelineNoteRef.Local,
     )
 }
 

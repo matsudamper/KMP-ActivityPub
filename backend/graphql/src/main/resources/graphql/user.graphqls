@@ -66,6 +66,8 @@ type ProfilePost {
     boostCount: Int
     "リプライの数。他のサーバーの投稿は、このサーバーが知っている返信と、UserInfo.postCounts で取った相手のサーバーの数の大きい方"
     replyCount: Int!
+    "スタンプの数を受け取っているか。他のサーバーの投稿はスタンプを受け取らないので false"
+    stampCountsReceived: Boolean!
     "ログイン中のアカウントがいいねしているか。リアクションを付けていても true。ログインしていないか、いいねできない投稿は null。付け外しは UserMutation.setLiked に reactionPostId を渡す"
     likedByMe: Boolean
     "ログイン中のアカウントが付けたリアクション。付けていないか、絵文字の無いいいねなら null。付け外しは UserMutation.setReaction に reactionPostId を渡す"

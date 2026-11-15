@@ -39,6 +39,7 @@ import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -360,6 +361,7 @@ class QueryResolverImpl : QueryResolver {
             boostCount = (boostCount ?: counts?.reportedBoostCount)?.toInt(),
             boostedNoteAuthor = qlBoostedNoteAuthor,
             replyCount = counts?.replyCount?.toInt() ?: 0,
+            stampCountsReceived = noteRef is TimelineNoteRef.Local,
         )
     }
 }
