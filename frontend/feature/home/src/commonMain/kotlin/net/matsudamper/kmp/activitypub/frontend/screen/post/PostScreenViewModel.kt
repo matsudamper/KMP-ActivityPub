@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.PickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.TextInsertion
 import net.matsudamper.kmp.activitypub.frontend.ui.WebpImage
 import net.matsudamper.kmp.activitypub.frontend.ui.WebpResult
 import org.koin.core.annotation.InjectedParam
@@ -42,6 +43,7 @@ internal class PostScreenViewModel(
                 submitting = false,
                 error = null,
                 emojiPickerRequestKey = null,
+                bodyInsertion = null,
                 quote = when (target) {
                     PostScreenTarget.NewNote -> null
                     is PostScreenTarget.Quote -> QuoteLoad.Loading
@@ -54,7 +56,11 @@ internal class PostScreenViewModel(
             override fun onPick(reaction: PickedReaction) {
                 viewModelStateFlow.update { it.copy(emojiPickerRequestKey = null) }
                 if (viewModelStateFlow.value.submitting) return
-                changeBody(viewModelStateFlow.value.body.withEmoji(reaction))
+                val insertion = when (reaction) {
+                    is PickedReaction.Unicode -> TextInsertion(id = Uuid.random().toString(), text = reaction.emoji, separatedFromWords = false)
+                    is PickedReaction.Custom -> TextInsertion(id = Uuid.random().toString(), text = ":${reaction.shortcode}:", separatedFromWords = true)
+                }
+                viewModelStateFlow.update { it.copy(bodyInsertion = insertion) }
             }
 
             override fun onClickRemove() = Unit
@@ -71,6 +77,10 @@ internal class PostScreenViewModel(
                 listener = object : PostScreenUiState.Listener {
                     override fun onBodyChanged(text: String) {
                         changeBody(text)
+                    }
+
+                    override fun onBodyInsertionHandled() {
+                        viewModelStateFlow.update { it.copy(bodyInsertion = null) }
                     }
 
                     override fun onClickAddEmoji() {
@@ -142,20 +152,6 @@ internal class PostScreenViewModel(
         renewRequestId()
         viewModelStateFlow.update { it.copy(body = text, error = null) }
     }
-
-    /**
-     * 入力欄のカーソルの位置は受け取っていないので、本文の終わりに足す
-     */
-    private fun String.withEmoji(reaction: PickedReaction): String =
-        when (reaction) {
-            is PickedReaction.Unicode -> this + reaction.emoji
-
-            // 前後が文字に続いていると、他のサーバーは絵文字として扱わない
-            is PickedReaction.Custom -> {
-                val separator = if (isEmpty() || last().isWhitespace()) "" else " "
-                "$this$separator:${reaction.shortcode}: "
-            }
-        }
 
     /**
      * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、loadingImage が下りなくなる
@@ -298,6 +294,7 @@ internal class PostScreenViewModel(
     ): PostScreenUiState =
         PostScreenUiState(
             body = viewModelState.body,
+            bodyInsertion = viewModelState.bodyInsertion,
             inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
             backButtonEnabled = viewModelState.submitting.not(),
@@ -348,6 +345,10 @@ internal class PostScreenViewModel(
          * 絵文字のピッカーを開くたびに変える。開いていなければ null
          */
         val emojiPickerRequestKey: String?,
+        /**
+         * 入力欄が本文に入れ終えたら null に戻す
+         */
+        val bodyInsertion: TextInsertion?,
         /**
          * 引用でなければ null
          */

@@ -185,6 +185,8 @@ internal fun PostContent(
                 enabled = uiState.inputEnabled,
                 hasError = uiState.inputHasError,
                 onSubmitShortcut = uiState.listener::onPressPostShortcut,
+                insertion = uiState.bodyInsertion,
+                onInsertionHandled = uiState.listener::onBodyInsertionHandled,
                 modifier = Modifier.fillMaxWidth(),
             )
             val quote = uiState.quote

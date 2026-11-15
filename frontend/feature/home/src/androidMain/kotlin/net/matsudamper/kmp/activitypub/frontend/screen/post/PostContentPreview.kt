@@ -79,6 +79,7 @@ private fun previewUiState(
 ): PostScreenUiState =
     PostScreenUiState(
         body = "Kotlin 2.4 がリリースされました",
+        bodyInsertion = null,
         inputHasError = false,
         inputEnabled = true,
         backButtonEnabled = true,
@@ -105,6 +106,8 @@ private fun PostPreviewTheme(content: @Composable () -> Unit) {
 
 private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
+
+    override fun onBodyInsertionHandled() = Unit
 
     override fun onClickAddImage() = Unit
 

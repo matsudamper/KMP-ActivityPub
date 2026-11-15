@@ -721,6 +721,7 @@ private fun HomeColumnsPreview(
                     PostContent(
                         uiState = PostScreenUiState(
                             body = "",
+                            bodyInsertion = null,
                             inputHasError = false,
                             inputEnabled = true,
                             backButtonEnabled = true,
@@ -876,6 +877,8 @@ private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
 
 private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
+
+    override fun onBodyInsertionHandled() = Unit
 
     override fun onClickAddImage() = Unit
 

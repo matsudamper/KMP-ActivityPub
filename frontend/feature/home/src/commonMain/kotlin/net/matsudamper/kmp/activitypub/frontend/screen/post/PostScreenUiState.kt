@@ -6,9 +6,14 @@ import coil3.request.ImageRequest
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.TextInsertion
 
 data class PostScreenUiState(
     val body: String,
+    /**
+     * 選んだ絵文字。入力欄が本文に入れ終えるまで持つ。入れるものが無ければ null
+     */
+    val bodyInsertion: TextInsertion?,
     val inputHasError: Boolean,
     val inputEnabled: Boolean,
     /**
@@ -55,6 +60,8 @@ data class PostScreenUiState(
     @Immutable
     interface Listener {
         fun onBodyChanged(text: String)
+
+        fun onBodyInsertionHandled()
 
         fun onClickAddImage()
 

@@ -193,6 +193,8 @@ private fun LoadedContent(
                 enabled = content.summaryInputEnabled,
                 hasError = content.summaryHasError,
                 onSubmitShortcut = null,
+                insertion = null,
+                onInsertionHandled = {},
                 modifier = Modifier.fillMaxWidth(),
             )
         }
