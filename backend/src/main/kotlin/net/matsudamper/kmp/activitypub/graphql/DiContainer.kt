@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
+import net.matsudamper.kmp.activitypub.logic.PostRepliesService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
@@ -96,6 +97,10 @@ class DiContainer(
      * DOMAIN が無いと相手のサーバーに取りに行けないので null
      */
     val replyTargetService: ReplyTargetService?,
+    /**
+     * DOMAIN が無いとこのサーバーの投稿の id を作れないので null
+     */
+    val postRepliesService: PostRepliesService?,
     /**
      * DOMAIN が無いとこのサーバーの投稿の URL を作れず、相手のサーバーにも取りに行けないので null
      */

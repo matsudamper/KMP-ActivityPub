@@ -26,6 +26,7 @@ data class PostDetailScreenUiState(
             val replyTargetLoader: ReplyTargetLoader?,
             val replyTargets: List<PostItemUiState>,
             val post: PostItemUiState,
+            val replies: Replies,
             val mentionBox: MentionBox,
         ) : Content
 
@@ -60,6 +61,38 @@ data class PostDetailScreenUiState(
             }
         }
     }
+
+    /**
+     * 開いている投稿の下に並べる返信
+     */
+    sealed interface Replies {
+        /**
+         * 古い順。取り直している間と取り直せなかったときは、前に取れたものを出したままにする
+         */
+        val items: List<Reply>
+
+        data class Loading(override val items: List<Reply>) : Replies
+
+        data class Loaded(override val items: List<Reply>) : Replies
+
+        data class Error(
+            override val items: List<Reply>,
+            val listener: Listener,
+        ) : Replies {
+            @Immutable
+            interface Listener {
+                fun onClickRetry()
+            }
+        }
+    }
+
+    /**
+     * @param listKey 取り直しで返信が増減しても、画像の横スクロールの位置などが別の返信に移らないよう、一覧の中で返信を見分ける
+     */
+    data class Reply(
+        val listKey: String,
+        val post: PostItemUiState,
+    )
 
     /**
      * 投稿の下に置く、投稿者へのメンションの入力欄

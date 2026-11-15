@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.PostCountService
+import net.matsudamper.kmp.activitypub.logic.PostRepliesService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
@@ -208,6 +209,13 @@ internal class Federation(
             domain = domain,
             timeline = timelineRepository,
             unsavedNotes = unsavedRemoteNotes,
+        )
+
+    val postRepliesService: PostRepliesService =
+        PostRepliesService(
+            timeline = timelineRepository,
+            noteShareUrls = noteShareUrls,
+            blockLists = blockLists,
         )
 
     val postCountService: PostCountService =

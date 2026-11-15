@@ -48,6 +48,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostCountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PostRepliesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.QuoteTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
@@ -245,6 +246,20 @@ class UserApi(
         val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
         val post = userInfo.replyTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
+    }
+
+    /**
+     * 投稿に付いた返信。サーバーが保存しているものだけ
+     *
+     * @param postId [UserHomeTimelineResult.Post.id]
+     */
+    suspend fun replies(postId: String): UserPostRepliesResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostRepliesResult.Failure("接続先が未設定")
+        val response = client.query(PostRepliesQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostRepliesResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostRepliesResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserPostRepliesResult.NotLoggedIn
+        return UserPostRepliesResult.Success(userInfo.replies.map { it.timelinePostFields.toPost() })
     }
 
     /**
