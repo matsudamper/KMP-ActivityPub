@@ -129,6 +129,7 @@ class AppDependencies(
                 accountBoostRepository = repositories.accountBoostRepository,
                 stampRepository = repositories.stampRepository,
                 boostRepository = repositories.boostRepository,
+                customEmojiRepository = repositories.customEmojiRepository,
                 blockLists = blockLists,
                 imageStorage = imageStorage,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),

@@ -39,10 +39,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
+import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 /**
@@ -192,6 +194,14 @@ internal fun HomeColumnsContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
+    }
+    val reactionPickerDialog = uiState.reactionPickerDialog
+    if (reactionPickerDialog != null) {
+        ReactionPickerDialog(dialogUiState = reactionPickerDialog)
+    }
+    val reactionConfirmDialog = uiState.reactionConfirmDialog
+    if (reactionConfirmDialog != null) {
+        ReactionConfirmDialog(uiState = reactionConfirmDialog)
     }
     val timelineColumnEditDialog = uiState.timelineColumnEditDialog
     if (timelineColumnEditDialog != null) {

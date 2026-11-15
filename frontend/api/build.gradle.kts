@@ -41,6 +41,7 @@ apollo {
         mapScalarToKotlinString("NoteImageId")
         mapScalarToKotlinString("PublicNoteId")
         mapScalarToKotlinString("FollowingGroupId")
+        mapScalarToKotlinString("CustomEmojiId")
         mapScalarToKotlinString("TimelinePostId")
         mapScalarToKotlinString("NotificationId")
         mapScalarToUpload("Upload")

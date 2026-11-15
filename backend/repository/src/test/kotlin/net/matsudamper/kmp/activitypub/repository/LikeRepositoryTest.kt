@@ -28,6 +28,60 @@ class LikeRepositoryTest {
     }
 
     @Test
+    fun likesOfReturnsTheEmojiOnlyForTheAccountThatReacted() = withRepository { repositories, alice, bob ->
+        val remoteMember = receiveNote(repositories, alice, bob)
+        val localMember = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val likes = repositories.likeRepository
+        likes.likeAndEnqueue(like(alice, remoteMember, "like-1", reaction = LikeReaction(emoji = "👍", customEmojiId = null)))
+        likes.likeLocal(alice, localMember, NOW, null)
+
+        assertEquals(
+            mapOf(
+                remoteMember to AccountLike(reactionEmoji = "👍", customEmojiPublicId = null),
+                localMember to AccountLike(reactionEmoji = null, customEmojiPublicId = null),
+            ),
+            likes.likesOf(alice, setOf(remoteMember, localMember)),
+        )
+        assertEquals(mapOf(), likes.likesOf(bob, setOf(remoteMember, localMember)))
+    }
+
+    @Test
+    fun localReactionsAreStampsInTheOrderFirstReactedAndNotFavourites() = withRepository { repositories, alice, bob ->
+        val member = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val likes = repositories.likeRepository
+        val kotlin = assertNotNull(repositories.customEmojiRepository.add(customEmoji(shortcode = "kotlin", publicId = "kotlin-image", uploadedBy = bob)))
+        likes.likeLocal(bob, member, NOW, LikeReaction(emoji = "🎉", customEmojiId = null))
+        likes.likeLocal(alice, member, NOW.plusSeconds(1), LikeReaction(emoji = ":kotlin:", customEmojiId = kotlin.id))
+
+        val post = repositories.timelineRepository.hydrate(bob, listOf(member)).single()
+
+        assertEquals(
+            listOf(StampCount("🎉", null, 1, null), StampCount(":kotlin:", null, 1, "kotlin-image")),
+            post.stamps,
+        )
+        assertEquals(0L, post.favouriteCount)
+        assertEquals(true, post.likedByMe)
+    }
+
+    @Test
+    fun reactionKeepsNoImageWhenTheEmojiIsReplacedUnderTheSameShortcode() = withRepository { repositories, alice, bob ->
+        val member = postLocalNote(repositories, username = "bob", publicId = "bob-note")
+        val emojis = repositories.customEmojiRepository
+        val old = assertNotNull(emojis.add(customEmoji(shortcode = "kotlin", publicId = "old-image", uploadedBy = bob)))
+        repositories.likeRepository.likeLocal(alice, member, NOW, LikeReaction(emoji = ":kotlin:", customEmojiId = old.id))
+        emojis.delete(old.id, bob)
+        emojis.add(customEmoji(shortcode = "kotlin", publicId = "new-image", uploadedBy = bob))
+
+        val post = repositories.timelineRepository.hydrate(bob, listOf(member)).single()
+
+        assertEquals(listOf(StampCount(":kotlin:", null, 1, null)), post.stamps)
+        assertEquals(
+            mapOf(member to AccountLike(reactionEmoji = ":kotlin:", customEmojiPublicId = null)),
+            repositories.likeRepository.likesOf(alice, setOf(member)),
+        )
+    }
+
+    @Test
     fun unreadableOrMissingPostCannotBeLiked() = withRepository { repositories, alice, _ ->
         val directOnly = assertNotNull(repositories.timelineRepository.receive(note("direct", "direct", setOf("bob")))).member
         assertNull(repositories.likeRepository.target(alice, directOnly))
@@ -40,9 +94,9 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         assertEquals(LikeTarget.Local, likes.target(alice, member))
 
-        assertTrue(likes.likeLocal(alice, member, NOW))
-        assertFalse(likes.likeLocal(alice, member, NOW))
-        assertTrue(likes.likeLocal(bob, member, NOW))
+        assertTrue(likes.likeLocal(alice, member, NOW, null))
+        assertFalse(likes.likeLocal(alice, member, NOW, null))
+        assertTrue(likes.likeLocal(bob, member, NOW, null))
 
         assertEquals(true, repositories.timelineRepository.hydrate(bob, listOf(member)).single().likedByMe)
         assertEquals(2L, repositories.timelineRepository.hydrate(bob, listOf(member)).single().favouriteCount)
@@ -55,8 +109,8 @@ class LikeRepositoryTest {
     fun unlikeLocalPostRemovesOnlyThatAccountsLike() = withRepository { repositories, alice, bob ->
         val member = postLocalNote(repositories, username = "alice", publicId = "alice-note")
         val likes = repositories.likeRepository
-        likes.likeLocal(alice, member, NOW)
-        likes.likeLocal(bob, member, NOW)
+        likes.likeLocal(alice, member, NOW, null)
+        likes.likeLocal(bob, member, NOW, null)
 
         assertTrue(likes.unlikeLocal(alice, member))
         assertFalse(likes.unlikeLocal(alice, member))
@@ -73,11 +127,11 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         likes.likeAndEnqueue(like(alice, member, "like-1"))
 
-        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _ -> "undo:$likeId" })
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
 
         assertTrue(repositories.deliveryQueueRepository.claim(NOW, 10).isEmpty())
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(member)).single().likedByMe)
-        assertFalse(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _ -> "undo:$likeId" })
+        assertFalse(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
     }
 
     @Test
@@ -88,9 +142,56 @@ class LikeRepositoryTest {
         likes.likeAndEnqueue(like(alice, member, "like-1"))
         queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
 
-        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _ -> "undo:$likeId" })
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
 
         assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
+    }
+
+    @Test
+    fun newLikeWaitsUntilUndoOfThePreviousLikeIsDelivered() = withRepository { repositories, alice, bob ->
+        val member = receiveNote(repositories, alice, bob)
+        val likes = repositories.likeRepository
+        val queue = repositories.deliveryQueueRepository
+        val objectUri = "$ACTOR/notes/1"
+        likes.likeAndEnqueue(like(alice, member, "like-1").copy(body = jsonLikeBody("like-1", objectUri)))
+        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+        likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, uri, _ -> jsonUndoBody(likeId, uri) }
+        likes.likeAndEnqueue(like(alice, member, "like-2").copy(body = jsonLikeBody("like-2", objectUri)))
+
+        val undo = queue.claim(NOW, 10).single()
+        assertEquals(jsonUndoBody("like-1", objectUri), undo.body)
+
+        queue.scheduleRetry(undo.id, NOW, "failed")
+        assertEquals(listOf(jsonUndoBody("like-1", objectUri)), queue.claim(NOW, 10).map { it.body })
+
+        queue.markDelivered(undo.id, NOW)
+        assertEquals(listOf(jsonLikeBody("like-2", objectUri)), queue.claim(NOW, 10).map { it.body })
+    }
+
+    private fun jsonLikeBody(id: String, objectUri: String): String = """{"id":"$id","type":"Like","object":"$objectUri"}"""
+
+    private fun jsonUndoBody(likeId: String, objectUri: String): String =
+        """{"id":"undo-$likeId","type":"Undo","object":{"id":"$likeId","type":"Like","object":"$objectUri"}}"""
+
+    @Test
+    fun undoOfReactionReceivesTheEmojiThatWasSent() = withRepository { repositories, alice, bob ->
+        val member = receiveNote(repositories, alice, bob)
+        val likes = repositories.likeRepository
+        val queue = repositories.deliveryQueueRepository
+        val kotlin = assertNotNull(repositories.customEmojiRepository.add(customEmoji(shortcode = "kotlin", publicId = "kotlin-image", uploadedBy = bob)))
+        val reaction = LikeReaction(emoji = ":kotlin:", customEmojiId = kotlin.id)
+        likes.likeAndEnqueue(like(alice, member, "like-1", reaction = reaction))
+        queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
+
+        var undoneReaction: LikeReaction? = null
+        assertTrue(
+            likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, sentReaction ->
+                undoneReaction = sentReaction
+                "undo:$likeId"
+            },
+        )
+
+        assertEquals(reaction, undoneReaction)
     }
 
     @Test
@@ -101,7 +202,7 @@ class LikeRepositoryTest {
         likes.likeAndEnqueue(like(alice, member, "like-1"))
         queue.scheduleRetry(queue.claim(NOW, 10).single().id, NOW, "接続失敗")
 
-        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _ -> "undo:$likeId" })
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
 
         assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
     }
@@ -114,7 +215,7 @@ class LikeRepositoryTest {
         likes.likeAndEnqueue(like(alice, member, "like-1"))
         val delivering = queue.claim(NOW, 10).single()
 
-        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _ -> "undo:$likeId" })
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
         queue.scheduleRetry(delivering.id, NOW, "接続失敗")
 
         assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
@@ -128,7 +229,7 @@ class LikeRepositoryTest {
         likes.likeAndEnqueue(like(alice, member, "like-1"))
         queue.claim(NOW, 10)
 
-        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _ -> "undo:$likeId" })
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, _, _ -> "undo:$likeId" })
         queue.recoverDelivering(NOW)
 
         assertEquals(listOf("undo:like-1"), queue.claim(NOW, 10).map { it.body })
@@ -160,7 +261,7 @@ class LikeRepositoryTest {
         assertEquals(true, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
         assertEquals(listOf(likeBody("like-1")), repositories.deliveryQueueRepository.claim(NOW, 10).map { it.body })
 
-        assertTrue(likes.unlikeAndEnqueueUndo(alice, boostMember, NOW) { likeId, _ -> "undo:$likeId" })
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, boostMember, NOW) { likeId, _, _ -> "undo:$likeId" })
         assertEquals(false, repositories.timelineRepository.hydrate(alice, listOf(boostMember)).single().likedByMe)
     }
 
@@ -173,7 +274,7 @@ class LikeRepositoryTest {
         queue.markDelivered(queue.claim(NOW, 10).single().id, NOW)
         repositories.followingRepository.remove(alice, ACTOR)
 
-        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, objectUri -> "undo:$likeId:$objectUri" })
+        assertTrue(likes.unlikeAndEnqueueUndo(alice, member, NOW) { likeId, objectUri, _ -> "undo:$likeId:$objectUri" })
 
         assertEquals(listOf("$ACTOR/inbox" to "undo:like-1:$ACTOR/notes/1"), queue.claim(NOW, 10).map { it.inbox to it.body })
     }
@@ -187,7 +288,7 @@ class LikeRepositoryTest {
         val likes = repositories.likeRepository
         likes.likeAndEnqueue(like(alice, publicMember, "like-public").copy(likedAt = NOW))
         likes.likeAndEnqueue(like(alice, followersMember, "like-followers").copy(likedAt = NOW.plusSeconds(1)))
-        likes.likeLocal(alice, localMember, NOW.plusSeconds(2))
+        likes.likeLocal(alice, localMember, NOW.plusSeconds(2), null)
 
         val first = likes.publishedLikes("alice", before = null, limit = 1)
         val rest = likes.publishedLikes("alice", before = first.last().position, limit = 10)
@@ -241,13 +342,23 @@ class LikeRepositoryTest {
         return assertNotNull(repositories.timelineRepository.receive(note("1", "public", setOf()))).member
     }
 
-    private fun like(accountId: AccountId, member: String, likeId: String): OutgoingLike = OutgoingLike(
+    private fun customEmoji(shortcode: String, publicId: String, uploadedBy: AccountId): NewLocalCustomEmoji = NewLocalCustomEmoji(
+        shortcode = shortcode,
+        publicId = publicId,
+        path = "users/${uploadedBy.value}/custom-emojis/$publicId",
+        contentType = "image/png",
+        uploadedBy = uploadedBy,
+        createdAt = NOW,
+    )
+
+    private fun like(accountId: AccountId, member: String, likeId: String, reaction: LikeReaction? = null): OutgoingLike = OutgoingLike(
         accountId = accountId,
         member = member,
         likeId = likeId,
         inbox = "$ACTOR/inbox",
         body = likeBody(likeId),
         likedAt = NOW,
+        reaction = reaction,
     )
 
     private fun likeBody(id: String): String = """{"id":"$id","type":"Like"}"""

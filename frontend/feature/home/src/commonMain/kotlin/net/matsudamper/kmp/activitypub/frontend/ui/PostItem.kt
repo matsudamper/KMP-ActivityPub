@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +37,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -291,9 +293,7 @@ internal fun PostItem(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     uiState.stamps.forEach { stamp ->
-                        ReactionCount(countText = stamp.countText, sizes = sizes) {
-                            StampEmoji(stamp = stamp, sizes = sizes)
-                        }
+                        StampChip(stamp = stamp, sizes = sizes)
                     }
                 }
             }
@@ -448,25 +448,47 @@ private fun ActorLabel(
 
 private val ActorLabelIconSize = 20.dp
 
+/**
+ * M3 の Filter chip に合わせ、自分が付けた絵文字は secondaryContainer で塗り、それ以外は枠線だけにする
+ */
 @Composable
-private fun ReactionCount(
-    countText: String,
+private fun StampChip(
+    stamp: PostItemUiState.Stamp,
     sizes: PostItemSizes,
-    reaction: @Composable () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        reaction()
-        Text(
-            text = countText,
-            style = sizes.countTextStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val shape = RoundedCornerShape(8.dp)
+    val containerColor = if (stamp.selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val contentColor = if (stamp.selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val border = if (stamp.selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    val content: @Composable () -> Unit = {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StampEmoji(emoji = stamp.emoji, imageUrl = stamp.imageUrl, sizes = sizes)
+            val countText = stamp.countText
+            if (countText != null) {
+                Text(
+                    text = countText,
+                    style = sizes.countTextStyle,
+                    color = contentColor,
+                )
+            }
+        }
+    }
+    val listener = stamp.listener
+    if (listener == null) {
+        Surface(shape = shape, color = containerColor, contentColor = contentColor, border = border, content = content)
+    } else {
+        Surface(
+            onClick = listener::onClick,
+            shape = shape,
+            color = containerColor,
+            contentColor = contentColor,
+            border = border,
+            modifier = Modifier.semantics { stateDescription = if (stamp.selected) "付けている" else "付けていない" },
+            content = content,
         )
     }
 }
@@ -476,20 +498,20 @@ private fun ReactionCount(
  */
 @Composable
 private fun StampEmoji(
-    stamp: PostItemUiState.Stamp,
+    emoji: String,
+    imageUrl: String?,
     sizes: PostItemSizes,
 ) {
-    val imageUrl = stamp.imageUrl
     var imageFailed by remember(imageUrl) { mutableStateOf(false) }
     if (imageUrl == null || imageFailed) {
         Text(
-            text = stamp.emoji,
+            text = emoji,
             style = sizes.secondaryTextStyle,
         )
     } else {
         AsyncImage(
             model = imageUrl,
-            contentDescription = stamp.emoji,
+            contentDescription = emoji,
             modifier = Modifier.height(sizes.stampImageHeight).widthIn(max = sizes.stampImageHeight * 3),
             contentScale = ContentScale.Fit,
             onError = { imageFailed = true },
@@ -499,7 +521,7 @@ private fun StampEmoji(
 
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
- * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る。スタンプはまだ押せないので、押せないアイコンだけを置く
+ * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る
  */
 @Composable
 private fun PostActions(
@@ -571,13 +593,20 @@ private fun PostActions(
                     maxLines = 1,
                 )
             }
-            Box(modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth)) {
+            val reactionButton = uiState.reactionButton
+            TextButton(
+                onClick = { reactionButton?.listener?.onClick() },
+                enabled = reactionButton != null,
+                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
+                contentPadding = ActionButtonContentPadding,
+            ) {
                 Icon(
                     imageVector = AppIcons.Emoticon,
-                    contentDescription = "スタンプ",
+                    contentDescription = "リアクション",
                     modifier = Modifier.size(sizes.actionIconSize),
-                    tint = disabledIconColor,
+                    tint = if (reactionButton == null) disabledIconColor else iconColor,
                 )
+                Spacer(modifier = Modifier.weight(1f))
             }
             val shareListener = uiState.shareListener
             IconButton(
@@ -600,7 +629,7 @@ private fun PostActions(
 
 private val ActionButtonContentPadding = PaddingValues(horizontal = 8.dp)
 
-private val FavouriteHighlightedColor = Color(0xFFF5B400)
+internal val FavouriteHighlightedColor = Color(0xFFF5B400)
 
 private val BoostHighlightedColor = Color(0xFF2E9E5B)
 

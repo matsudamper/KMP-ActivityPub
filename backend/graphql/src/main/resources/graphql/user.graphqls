@@ -58,14 +58,16 @@ type ProfilePost {
     emojis: [CustomEmoji!]!
     "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
     favouriteCount: Int
-    "他のサーバーから届いたスタンプ。多く押された順。他のサーバーの投稿は受け取らないので空"
+    "他のサーバーから届いたスタンプと、このサーバーのアカウントのリアクション。先に押された絵文字の順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
     "共有するときに渡す投稿の URL。作れなければ null"
     url: String
     "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
     boostCount: Int
-    "ログイン中のアカウントがいいねしているか。ログインしていないか、いいねできない投稿は null。付け外しは UserMutation.setLiked に reactionPostId を渡す"
+    "ログイン中のアカウントがいいねしているか。リアクションを付けていても true。ログインしていないか、いいねできない投稿は null。付け外しは UserMutation.setLiked に reactionPostId を渡す"
     likedByMe: Boolean
+    "ログイン中のアカウントが付けたリアクション。付けていないか、絵文字の無いいいねなら null。付け外しは UserMutation.setReaction に reactionPostId を渡す"
+    viewerReaction: ViewerReaction @lazy
     "ログイン中のアカウントがブーストしているか。ログインしていないか、ブーストできない投稿は null。付け外しは UserMutation.setBoosted に reactionPostId を渡す"
     boostedByMe: Boolean
     """

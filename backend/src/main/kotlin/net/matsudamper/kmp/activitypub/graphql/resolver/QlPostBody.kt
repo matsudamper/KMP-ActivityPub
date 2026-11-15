@@ -48,11 +48,17 @@ internal fun createQlPostBody(
 }
 
 internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlPostStamp> = map { stamp ->
+    val remoteImageUrl = stamp.emojiImageUrl
     QlPostStamp(
         emoji = stamp.emoji,
         // 画像を中継できないときは :name: の文字で見せる
-        imageUrl = stamp.emojiImageUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(it) },
+        imageUrl = if (remoteImageUrl != null) {
+            diContainer.remoteImageProxy?.proxyUrlOf(remoteImageUrl)
+        } else {
+            stamp.localCustomEmojiPublicId?.let { diContainer.customEmojiUrls?.imageUrl(it) }
+        },
         count = stamp.count.toInt(),
+        customEmojiShortcode = if (stamp.localCustomEmojiPublicId == null) null else stamp.emoji.removeSurrounding(":"),
     )
 }
 

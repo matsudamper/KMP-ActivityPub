@@ -1,8 +1,10 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialogUiState
 
 data class PostDetailScreenUiState(
     val content: Content,
@@ -10,6 +12,8 @@ data class PostDetailScreenUiState(
      * 出していなければ null
      */
     val deleteNoteDialog: DeleteNoteDialogUiState?,
+    val reactionPickerDialog: ReactionPickerDialogUiState?,
+    val reactionConfirmDialog: ReactionConfirmDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {

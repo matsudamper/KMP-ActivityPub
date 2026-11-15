@@ -118,6 +118,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImage
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
@@ -133,6 +134,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
+import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
@@ -466,6 +468,14 @@ internal fun HomeContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
+    }
+    val reactionPickerDialog = uiState.reactionPickerDialog
+    if (reactionPickerDialog != null) {
+        ReactionPickerDialog(dialogUiState = reactionPickerDialog)
+    }
+    val reactionConfirmDialog = uiState.reactionConfirmDialog
+    if (reactionConfirmDialog != null) {
+        ReactionConfirmDialog(uiState = reactionConfirmDialog)
     }
     val addFollowingGroupDialog = uiState.addFollowingGroupDialog
     if (addFollowingGroupDialog != null) {

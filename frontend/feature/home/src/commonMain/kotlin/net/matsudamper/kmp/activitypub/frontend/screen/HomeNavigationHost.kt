@@ -36,6 +36,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.blockedaccounts.BlockedAccountsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.blockedservers.BlockedServersScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.customemojis.CustomEmojisScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.followinggroups.FollowingGroupsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListKind
 import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListScreen
@@ -268,6 +269,10 @@ private fun ScreenContent(
 
         Screen.BlockedServers -> {
             BlockedServersScreen(navigator = navigator)
+        }
+
+        Screen.CustomEmojis -> {
+            CustomEmojisScreen(navigator = navigator)
         }
 
         Screen.BlockedAccounts -> {

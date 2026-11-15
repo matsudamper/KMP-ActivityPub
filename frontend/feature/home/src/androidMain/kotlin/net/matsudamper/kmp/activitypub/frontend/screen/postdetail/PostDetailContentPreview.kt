@@ -135,6 +135,7 @@ private fun previewReplyTarget(displayName: String, acct: String, content: Strin
     boostCountText = null,
     favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
     boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+    reactionButton = null,
     stamps = listOf(),
     authorListener = null,
     postListener = null,
@@ -207,7 +208,11 @@ private fun createLoadedUiState(
                 boostCountText = "4",
                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
                 boostButton = PostItemUiState.BoostButton(iconHighlighted = true, listener = AndroidPreviewBoostButtonListener),
-                stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4")),
+                reactionButton = PostItemUiState.ReactionButton(listener = AndroidPreviewReactionButtonListener),
+                stamps = listOf(
+                    PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4", selected = false, listener = AndroidPreviewStampListener),
+                    PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2", selected = true, listener = AndroidPreviewStampListener),
+                ),
                 authorListener = null,
                 postListener = null,
                 shareListener = null,
@@ -223,6 +228,8 @@ private fun createLoadedUiState(
             ),
         ),
         deleteNoteDialog = deleteNoteDialog,
+        reactionPickerDialog = null,
+        reactionConfirmDialog = null,
         listener = AndroidPreviewPostDetailListener,
     )
 }
@@ -289,6 +296,8 @@ private fun PostDetailContentNotFoundPreview() {
             uiState = PostDetailScreenUiState(
                 content = PostDetailScreenUiState.Content.NotFound,
                 deleteNoteDialog = null,
+                reactionPickerDialog = null,
+                reactionConfirmDialog = null,
                 listener = AndroidPreviewPostDetailListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -350,5 +359,13 @@ private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonLi
 }
 
 private object AndroidPreviewQuoteListener : PostItemUiState.QuoteListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewReactionButtonListener : PostItemUiState.ReactionButtonListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewStampListener : PostItemUiState.StampListener {
     override fun onClick() = Unit
 }

@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_ME
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.UPLOADED_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 
@@ -259,6 +260,7 @@ internal class SqliteDeliveryQueueRepository(
                 .join(ACCOUNTS).on(ACCOUNTS.ID.eq(DELIVERY_QUEUE.ACCOUNT_ID))
                 .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
                 .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
+                .andNot(likeWaitingForEarlierUndo(dsl))
                 .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
                 .limit(limit)
                 .fetch { record ->
@@ -280,6 +282,27 @@ internal class SqliteDeliveryQueueRepository(
             .where(DELIVERY_QUEUE.ID.`in`(due.map { it.id }))
             .execute()
         due
+    }
+
+    /**
+     * 同じ投稿への前の Like の Undo がまだ届いていない Like。
+     * 相手は 1 つの投稿に Like を 1 つしか持たないので、先に新しい Like が届くと、後から届いた Undo で新しい方まで消されることがある。
+     * Undo が送れたか諦めるまで、後の Like は取り出さない
+     */
+    private fun likeWaitingForEarlierUndo(dsl: DSLContext): Condition {
+        val undo = DELIVERY_QUEUE.`as`("earlier_undo")
+        val likedObject = DSL.field("json_extract({0}, '$.object')", String::class.java, DELIVERY_QUEUE.BODY)
+        val undoneObject = DSL.field("json_extract({0}, '$.object.object')", String::class.java, undo.BODY)
+        return DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_LIKE).and(
+            DSL.exists(
+                dsl.selectOne().from(undo)
+                    .where(undo.KIND.eq(DeliveryQueueValues.KIND_UNDO_LIKE))
+                    .and(undo.ACCOUNT_ID.eq(DELIVERY_QUEUE.ACCOUNT_ID))
+                    .and(undo.ID.lt(DELIVERY_QUEUE.ID))
+                    .and(undo.STATE.`in`(DeliveryQueueValues.STATE_PENDING, DeliveryQueueValues.STATE_DELIVERING))
+                    .and(undoneObject.eq(likedObject)),
+            ),
+        )
     }
 
     override fun markDelivered(

@@ -64,6 +64,7 @@ private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
 
     override fun onClickBlockedServers() = Unit
 
+    override fun onClickCustomEmojis() = Unit
     override fun onClickBlockedAccounts() = Unit
 
     override fun onClickAdmin() = Unit

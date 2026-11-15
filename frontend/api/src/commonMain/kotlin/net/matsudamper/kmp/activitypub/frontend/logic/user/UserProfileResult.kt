@@ -63,10 +63,10 @@ sealed interface UserProfileResult {
 }
 
 /**
- * いいねを変えた結果を、取得し直さずに反映する
+ * いいねかリアクションを変えた結果を、取得し直さずに反映する
  */
-fun List<UserProfileResult.Post>.withLiked(reactionPostId: String, liked: Boolean): List<UserProfileResult.Post> {
-    return map { if (it.reactionPostId == reactionPostId) it.copy(body = it.body.withLiked(liked)) else it }
+fun List<UserProfileResult.Post>.withLikeState(reactionPostId: String, state: UserLikeState): List<UserProfileResult.Post> {
+    return map { if (it.reactionPostId == reactionPostId) it.copy(body = it.body.withLikeState(state)) else it }
 }
 
 /**

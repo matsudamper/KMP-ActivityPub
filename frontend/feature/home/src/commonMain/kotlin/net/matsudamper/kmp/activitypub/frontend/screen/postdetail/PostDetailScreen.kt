@@ -47,10 +47,12 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
+import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberUrlSharer
@@ -215,6 +217,14 @@ internal fun PostDetailContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
+    }
+    val reactionPickerDialog = uiState.reactionPickerDialog
+    if (reactionPickerDialog != null) {
+        ReactionPickerDialog(dialogUiState = reactionPickerDialog)
+    }
+    val reactionConfirmDialog = uiState.reactionConfirmDialog
+    if (reactionConfirmDialog != null) {
+        ReactionConfirmDialog(uiState = reactionConfirmDialog)
     }
 }
 

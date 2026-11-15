@@ -20,5 +20,8 @@ scalar TimelinePostId
 "通知の識別子"
 scalar NotificationId
 
+"このサーバーで置いたカスタム絵文字の識別子"
+scalar CustomEmojiId
+
 "multipart で送るファイル。GraphQL multipart request の形で送る"
 scalar Upload

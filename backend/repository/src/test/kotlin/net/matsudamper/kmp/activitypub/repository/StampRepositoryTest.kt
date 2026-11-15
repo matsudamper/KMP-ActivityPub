@@ -40,7 +40,7 @@ class StampRepositoryTest {
     }
 
     @Test
-    fun `多く押された絵文字から並べ、画像の違うカスタム絵文字は分ける`() {
+    fun `先に押された絵文字から並べ、画像の違うカスタム絵文字は分ける`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.postNote("note-1")
             val stamps = repositories.stampRepository
@@ -52,9 +52,9 @@ class StampRepositoryTest {
             assertEquals(
                 mapOf(
                     NOTE_1 to listOf(
-                        StampCount("👍", null, 2),
-                        StampCount(":kotlin:", "https://a.example/kotlin.png", 1),
-                        StampCount(":kotlin:", "https://b.example/kotlin.png", 1),
+                        StampCount("👍", null, 2, null),
+                        StampCount(":kotlin:", "https://a.example/kotlin.png", 1, null),
+                        StampCount(":kotlin:", "https://b.example/kotlin.png", 1, null),
                     ),
                     NOTE_2 to listOf(),
                 ),
@@ -72,7 +72,7 @@ class StampRepositoryTest {
             stamps.put(NOTE_1, actor(ALICE), "👍", null, NOW)
             stamps.put(NOTE_1, actor(ALICE), "👍", null, NOW)
 
-            assertEquals(listOf(StampCount("👍", null, 1)), stamps.counts(setOf(NOTE_1)).getValue(NOTE_1))
+            assertEquals(listOf(StampCount("👍", null, 1, null)), stamps.counts(setOf(NOTE_1)).getValue(NOTE_1))
         }
     }
 
@@ -95,10 +95,10 @@ class StampRepositoryTest {
 
             assertTrue(stamps.remove(NOTE_1, ALICE, "👍"))
             assertFalse(stamps.remove(NOTE_1, ALICE, "👍"))
-            assertEquals(listOf(StampCount("🎉", null, 1), StampCount("👍", null, 1)), stamps.counts(setOf(NOTE_1)).getValue(NOTE_1))
+            assertEquals(listOf(StampCount("🎉", null, 1, null), StampCount("👍", null, 1, null)), stamps.counts(setOf(NOTE_1)).getValue(NOTE_1))
 
             assertEquals(1, stamps.removeActor(BOB))
-            assertEquals(listOf(StampCount("🎉", null, 1)), stamps.counts(setOf(NOTE_1)).getValue(NOTE_1))
+            assertEquals(listOf(StampCount("🎉", null, 1, null)), stamps.counts(setOf(NOTE_1)).getValue(NOTE_1))
         }
     }
 
@@ -112,7 +112,7 @@ class StampRepositoryTest {
 
             val post = repositories.timelineRepository.hydrate(account.id, listOf(position.member)).single()
 
-            assertEquals(listOf(StampCount("👍", null, 1)), post.stamps)
+            assertEquals(listOf(StampCount("👍", null, 1, null)), post.stamps)
         }
     }
 
