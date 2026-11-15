@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
+import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
@@ -35,6 +36,7 @@ internal class SqliteRepositories(
     override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)
     override val deliveryQueueRepository: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
+    override val noteCountRepository: NoteCountRepository = SqliteNoteCountRepository(jooq)
     override val notePinRepository: NotePinRepository = SqliteNotePinRepository(jooq)
     override val remoteActorRepository: RemoteActorRepository = SqliteRemoteActorRepository(jooq)
     override val favouriteRepository: FavouriteRepository = SqliteFavouriteRepository(jooq)

@@ -56,14 +56,18 @@ type ProfilePost {
     images: [PostImage!]!
     "本文と summary に入るカスタム絵文字。画像を中継できなければ空"
     emojis: [CustomEmoji!]!
-    "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は数を受け取らないので null"
+    "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は、相手のサーバーが出している数を UserInfo.postCounts で取ったことがあればその数で、無ければ null"
     favouriteCount: Int
     "他のサーバーから届いたスタンプと、このサーバーのアカウントのリアクション。先に押された絵文字の順。他のサーバーの投稿は受け取らないので空"
     stamps: [PostStamp!]!
     "共有するときに渡す投稿の URL。作れなければ null"
     url: String
-    "他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null"
+    "他のサーバーから届いたブーストの数。他のサーバーの投稿は、相手のサーバーが出している数を UserInfo.postCounts で取ったことがあればその数で、無ければ null"
     boostCount: Int
+    "リプライの数。他のサーバーの投稿は、このサーバーが知っている返信と、UserInfo.postCounts で取った相手のサーバーの数の大きい方"
+    replyCount: Int!
+    "スタンプの数を受け取っているか。他のサーバーの投稿はスタンプを受け取らないので false"
+    stampCountsReceived: Boolean!
     "ログイン中のアカウントがいいねしているか。リアクションを付けていても true。ログインしていないか、いいねできない投稿は null。付け外しは UserMutation.setLiked に reactionPostId を渡す"
     likedByMe: Boolean
     "ログイン中のアカウントが付けたリアクション。付けていないか、絵文字の無いいいねなら null。付け外しは UserMutation.setReaction に reactionPostId を渡す"
