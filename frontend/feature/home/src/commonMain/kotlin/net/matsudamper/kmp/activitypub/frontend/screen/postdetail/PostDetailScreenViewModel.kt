@@ -453,7 +453,7 @@ internal class PostDetailScreenViewModel(
         viewModelState: ViewModelState,
     ): PostItemUiState.Quote? =
         createPostItemQuote(
-            post = post,
+            hasQuoteTarget = post.hasQuoteTarget,
             load = viewModelState.quotes[post.id],
             onOpenPostDetail = { postId -> viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } } },
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },

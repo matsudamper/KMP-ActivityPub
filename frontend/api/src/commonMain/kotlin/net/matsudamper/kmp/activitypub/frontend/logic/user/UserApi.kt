@@ -1039,6 +1039,7 @@ class UserApi(
                     iconUrl = author.iconUrl,
                 )
             },
+            hasQuoteTarget = hasQuoteTarget,
         )
 
     private companion object {

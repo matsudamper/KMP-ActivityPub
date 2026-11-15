@@ -39,13 +39,13 @@ internal suspend fun UserApi.loadQuote(postId: String): QuoteLoad? =
  * @return 引用でなければ null
  */
 internal fun createPostItemQuote(
-    post: UserHomeTimelineResult.Post,
+    hasQuoteTarget: Boolean,
     load: QuoteLoad?,
     onOpenPostDetail: (postId: String) -> Unit,
     onOpenUrl: (url: String) -> Unit,
     onOpenProfile: (acct: String) -> Unit,
 ): PostItemUiState.Quote? {
-    if (!post.hasQuoteTarget) return null
+    if (!hasQuoteTarget) return null
     return createQuote(load = load, onOpenPostDetail = onOpenPostDetail, onOpenUrl = onOpenUrl, onOpenProfile = onOpenProfile)
 }
 

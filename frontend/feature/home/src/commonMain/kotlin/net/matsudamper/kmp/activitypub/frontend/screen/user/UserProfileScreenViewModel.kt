@@ -596,8 +596,13 @@ internal class UserProfileScreenViewModel(
                     acct = if (boostedNoteAuthor == null) acct else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                     body = post.body,
                     linkPreviews = previews,
-                    // プロフィールの投稿は引用かどうかを受け取らない
-                    quote = null,
+                    quote = createPostItemQuote(
+                        hasQuoteTarget = post.hasQuoteTarget,
+                        load = viewModelState.quotes[post.postId],
+                        onOpenPostDetail = ::navigateToPostDetail,
+                        onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                        onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+                    ),
                     sensitiveImagesBlurred = true,
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
                     authorTapAction = if (boostedNoteAuthor == null) {
@@ -633,6 +638,9 @@ internal class UserProfileScreenViewModel(
                         if (post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(post.postId)
                         }
+                        if (post.hasQuoteTarget) {
+                            loadQuote(post.postId)
+                        }
                     },
                 )
             },
@@ -664,7 +672,7 @@ internal class UserProfileScreenViewModel(
             body = post.body,
             linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
             quote = createPostItemQuote(
-                post = post,
+                hasQuoteTarget = post.hasQuoteTarget,
                 load = viewModelState.quotes[post.id],
                 onOpenPostDetail = ::navigateToPostDetail,
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },

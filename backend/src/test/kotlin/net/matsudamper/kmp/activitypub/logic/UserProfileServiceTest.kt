@@ -491,6 +491,14 @@ class UserProfileServiceTest {
     }
 
     @Test
+    fun localQuotePostHasQuoteTarget() = runBlocking {
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "", Instant.EPOCH, listOf(), null, "https://remote.example/notes/9", listOf()))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-2"), "alice", "<p>普通の投稿</p>", Instant.EPOCH.plusSeconds(1), listOf(), null, null, listOf()))
+
+        assertEquals(mapOf("l-note-1" to true, "l-note-2" to false), firstPage("alice", viewer).posts.associate { it.postId to it.hasQuoteTarget })
+    }
+
+    @Test
     fun ownLocalPostsHaveDeletableNoteIdButOthersDoNot() = runBlocking {
         repositories.accountRepository.add("carol", "hash", "type")
         repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.EPOCH, listOf(), null, null, listOf()))

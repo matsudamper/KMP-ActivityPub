@@ -1201,8 +1201,13 @@ internal class HomeScreenViewModel(
                             acct = if (boostedNoteAuthor == null) "@${profile.username}" else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                             body = post.body,
                             linkPreviews = viewModelState.linkPreviews[post.postId].orEmpty(),
-                            // プロフィールの投稿は引用かどうかを受け取らない
-                            quote = null,
+                            quote = createPostItemQuote(
+                                hasQuoteTarget = post.hasQuoteTarget,
+                                load = viewModelState.quotes[post.postId],
+                                onOpenPostDetail = ::navigateToPostDetail,
+                                onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                                onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+                            ),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = if (boostedNoteAuthor == null) {
@@ -1237,6 +1242,9 @@ internal class HomeScreenViewModel(
                             onVisible = {
                                 if (post.body.linkUrls.isNotEmpty()) {
                                     loadLinkPreviews(post.postId)
+                                }
+                                if (post.hasQuoteTarget) {
+                                    loadQuote(post.postId)
                                 }
                             },
                         )
@@ -1330,7 +1338,7 @@ internal class HomeScreenViewModel(
         viewModelState: ViewModelState,
     ): PostItemUiState.Quote? =
         createPostItemQuote(
-            post = post,
+            hasQuoteTarget = post.hasQuoteTarget,
             load = viewModelState.quotes[post.id],
             onOpenPostDetail = ::navigateToPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
