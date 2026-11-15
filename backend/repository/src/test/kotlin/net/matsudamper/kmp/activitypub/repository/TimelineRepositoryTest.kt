@@ -265,7 +265,7 @@ class TimelineRepositoryTest {
     fun localPostsUseEpochMillisecondsAndOnlyReachTheirAuthor() = withRepository { repositories, accounts ->
         val time = NOW.plusNanos(999999999)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, listOf(), "create", listOf(), null, listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "本文", time, listOf(), "create", listOf(), null, null, null, listOf()),
         )
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
@@ -281,7 +281,7 @@ class TimelineRepositoryTest {
     fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
         listOf("local-1", "local-2").forEachIndexed { index, publicId ->
             repositories.deliveryQueueRepository.enqueueNote(
-                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, listOf()),
+                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, null, null, listOf()),
             )
         }
         val repository = repositories.timelineRepository
@@ -546,6 +546,19 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun createAfterBoostKeepsQuoteOfCreate() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
+        assertNotNull(repository.receiveBoost(boost("1", note("quote", "public", setOf()))))
+        val position = assertNotNull(repository.receive(note("quote", "public", setOf("dave")).copy(quoteUri = "https://other.example/notes/1")))
+        assertEquals("https://other.example/notes/1", assertNotNull(repository.viewablePost(accounts.getValue("dave"), position.member)).quoteUri)
+    }
+
+    @Test
     fun boosterKeyIsFoundFromRemoteBoosts() = withRepository { repositories, accounts ->
         repositories.remoteActorRepository.save(
             RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
@@ -569,7 +582,7 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", NOW, listOf(), "create", listOf(), null, listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", NOW, listOf(), "create", listOf(), null, null, null, listOf()),
         )
         val localNote = assertNotNull(repository.localPosition("local-1"))
         val note = assertNotNull(repository.receive(note("content", "public", setOf())))
@@ -621,7 +634,7 @@ class TimelineRepositoryTest {
 
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = visibility,
-        localRecipients = recipients, inReplyTo = null, summary = null, sensitive = false, publishedAt = NOW.plusSeconds(3600), receivedAt = NOW,
+        localRecipients = recipients, inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW.plusSeconds(3600), receivedAt = NOW,
         images = listOf(),
         emojis = listOf(),
     )

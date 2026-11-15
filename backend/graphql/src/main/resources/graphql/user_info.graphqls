@@ -22,6 +22,11 @@ type UserInfo {
     返信でないか、返信先を読めないか、サーバーに DOMAIN が無ければ null。返信先のサーバーが応えなければ、null とエラーを返す
     """
     replyTarget(postId: TimelinePostId!): TimelinePost @lazy
+    """
+    postId の投稿の引用先。postId には TimelinePost.id を渡す。読み方と返す投稿は replyTarget と同じ。
+    引用でないか、引用先を読めないか、サーバーに DOMAIN が無ければ null。引用先のサーバーが応えなければ、null とエラーを返す
+    """
+    quoteTarget(postId: TimelinePostId!): TimelinePost @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!

@@ -33,6 +33,7 @@ sealed interface UserProfileResult {
      * @param pinnableNoteId ログイン中のアカウントのプロフィールの投稿なら [UserApi.setPinned] に渡す id。固定できない投稿は null
      * @param reactionPostId [UserApi.setLiked] と [UserApi.setBoosted] に渡す id。本人がブーストした投稿は、ブーストされた元の投稿を指す。付け外しできない投稿は null
      * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
+     * @param hasQuoteTarget 引用か。引用先は [UserApi.quoteTarget] に [postId] を渡して取る
      */
     data class Post(
         val postId: String,
@@ -42,6 +43,7 @@ sealed interface UserProfileResult {
         val reactionPostId: String?,
         val body: UserPostBody,
         val boostedNoteAuthor: Author?,
+        val hasQuoteTarget: Boolean,
     )
 
     /**

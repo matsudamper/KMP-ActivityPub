@@ -63,6 +63,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
         pinned = pinned,
         followingGroupId = followingGroupId,
         hasReplyTarget = hasReplyTarget,
+        hasQuoteTarget = hasQuoteTarget,
     )
 }
 
@@ -135,6 +136,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     reactionPostId = reactionPostId,
     followingGroupId = followingGroupId,
     hasReplyTarget = hasReplyTarget,
+    hasQuoteTarget = hasQuoteTarget,
 )
 
 private fun UserHomeTimelineResult.Actor.toFields(): ActorFields = ActorFields(

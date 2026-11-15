@@ -59,6 +59,44 @@ private fun PostDetailContentReplyTargetErrorPreview() = PostDetailReplyTargetPr
     replyTargetLoader = PostDetailScreenUiState.ReplyTargetLoader.Error(AndroidPreviewReplyTargetErrorListener),
 )
 
+@Preview
+@Composable
+private fun PostDetailContentQuotePreview() = PostDetailQuotePreview(
+    quote = PostItemUiState.Quote.Loaded(
+        iconUrl = null,
+        displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+        acct = "@bob@remote.example",
+        body = createPostBodyText(content = "引用される投稿です", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+        listener = AndroidPreviewQuoteListener,
+    ),
+)
+
+@Preview
+@Composable
+private fun PostDetailContentQuoteLoadingPreview() = PostDetailQuotePreview(quote = PostItemUiState.Quote.Loading)
+
+@Preview
+@Composable
+private fun PostDetailContentQuoteUnavailablePreview() = PostDetailQuotePreview(quote = PostItemUiState.Quote.Unavailable)
+
+@Composable
+private fun PostDetailQuotePreview(quote: PostItemUiState.Quote) {
+    MaterialTheme {
+        PostDetailContent(
+            uiState = createLoadedUiState(
+                images = listOf(),
+                deleteNoteDialog = null,
+                mentionText = "",
+                replyTargetLoader = null,
+                quote = quote,
+                replyTargets = listOf(),
+            ),
+            snackbarHostState = SnackbarHostState(),
+            layout = PostDetailLayout.FullScreen,
+        )
+    }
+}
+
 @Composable
 private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiState.ReplyTargetLoader) {
     MaterialTheme {
@@ -68,6 +106,7 @@ private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiSt
                 deleteNoteDialog = null,
                 mentionText = "",
                 replyTargetLoader = replyTargetLoader,
+                quote = null,
                 replyTargets = listOf(
                     previewReplyTarget(displayName = "Bob", acct = "@bob@remote.example", content = "最初の投稿です"),
                     previewReplyTarget(displayName = "Carol", acct = "@carol@other.example", content = "@bob@remote.example それに返信します"),
@@ -91,6 +130,7 @@ private fun previewReplyTarget(displayName: String, acct: String, content: Strin
     fullPostedAt = "2026/11/01 20:00",
     linkPreviews = listOf(),
     images = listOf(),
+    quote = null,
     favouriteCountText = null,
     boostCountText = null,
     favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
@@ -116,6 +156,7 @@ private fun PostDetailLoadedPreview(
                 deleteNoteDialog = deleteNoteDialog,
                 mentionText = mentionText,
                 replyTargetLoader = null,
+                quote = null,
                 replyTargets = listOf(),
             ),
             snackbarHostState = SnackbarHostState(),
@@ -130,6 +171,7 @@ private fun createLoadedUiState(
     mentionText: String,
     replyTargetLoader: PostDetailScreenUiState.ReplyTargetLoader?,
     replyTargets: List<PostItemUiState>,
+    quote: PostItemUiState.Quote?,
 ): PostDetailScreenUiState {
     return PostDetailScreenUiState(
         content = PostDetailScreenUiState.Content.Loaded(
@@ -161,6 +203,7 @@ private fun createLoadedUiState(
                     ),
                 ),
                 images = images,
+                quote = quote,
                 favouriteCountText = "12",
                 boostCountText = "4",
                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
@@ -225,6 +268,7 @@ private fun PostDetailDialogPreviewContent(
                             deleteNoteDialog = null,
                             mentionText = "",
                             replyTargetLoader = null,
+                            quote = null,
                             replyTargets = listOf(),
                         ),
                         snackbarHostState = SnackbarHostState(),
@@ -311,6 +355,10 @@ private object AndroidPreviewFavouriteButtonListener : PostItemUiState.Favourite
 }
 
 private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewQuoteListener : PostItemUiState.QuoteListener {
     override fun onClick() = Unit
 }
 

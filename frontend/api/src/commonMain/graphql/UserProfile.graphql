@@ -81,6 +81,7 @@ fragment ProfilePostFields on ProfilePost {
     boostedByMe
     reactionPostId
     url
+    hasQuoteTarget
     boostedNoteAuthor {
         username
         host

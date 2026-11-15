@@ -134,6 +134,7 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
  * @param deleted 投稿者が投稿を消したか。ほかの項目は消される前のまま
  * @param boostUndone ブーストした相手がブーストを取り消したか。ほかの項目は取り消される前のまま
  * @param inReplyTo 返信先の投稿の id。返信でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の返信先
+ * @param quoteUri 引用した投稿の id。引用でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の引用先
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -160,6 +161,7 @@ data class TimelinePost(
     val deleted: Boolean,
     val boostUndone: Boolean,
     val inReplyTo: String?,
+    val quoteUri: String?,
 ) {
     /**
      * このサーバーの投稿の公開 id。他のサーバーの投稿は null
@@ -212,6 +214,7 @@ data class RemoteNoteInput(
     val visibility: String,
     val localRecipients: Set<String>,
     val inReplyTo: String?,
+    val quoteUri: String?,
     val summary: String?,
     val sensitive: Boolean,
     val publishedAt: Instant,

@@ -44,17 +44,21 @@ import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.ImageDropTarget
 import net.matsudamper.kmp.activitypub.frontend.ui.ImagePasteHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
+import net.matsudamper.kmp.activitypub.frontend.ui.PostQuoteCard
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 internal fun PostScreen(
+    target: PostScreenTarget,
     navigationIcon: PostNavigationIcon,
     onNavigateBack: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = rememberPostScreenUiState(
+        target = target,
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
     )
@@ -67,10 +71,11 @@ internal fun PostScreen(
  */
 @Composable
 internal fun rememberPostScreenUiState(
+    target: PostScreenTarget,
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
 ): PostScreenUiState {
-    val viewModel = koinViewModel<PostScreenViewModel>()
+    val viewModel = koinViewModel<PostScreenViewModel> { parametersOf(target) }
     val uiState by viewModel.uiStateFlow.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
@@ -177,6 +182,10 @@ internal fun PostContent(
                 onSubmitShortcut = uiState.listener::onPressPostShortcut,
                 modifier = Modifier.fillMaxWidth(),
             )
+            val quote = uiState.quote
+            if (quote != null) {
+                PostQuoteCard(quote = quote, textStyle = MaterialTheme.typography.bodyMedium)
+            }
             if (uiState.images.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),

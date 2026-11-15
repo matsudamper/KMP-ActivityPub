@@ -227,6 +227,14 @@ internal fun PostItem(
                     overflow = TextOverflow.Clip,
                 )
             }
+            val quote = uiState.quote
+            if (quote != null) {
+                PostQuoteCard(
+                    quote = quote,
+                    textStyle = sizes.secondaryTextStyle,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
             if (style == PostItemStyle.Detail && uiState.images.isNotEmpty()) {
                 PostImageGrid(
                     images = uiState.images,

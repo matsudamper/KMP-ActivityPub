@@ -79,6 +79,7 @@ internal class RepositoryNoteStore(
                 NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
             },
             inReplyTo = inReplyTo,
+            quote = quoteUri,
             mentions = mentions.map { mention -> NoteMention(actorId = mention.actorUri, acct = mention.acct) },
         )
 }

@@ -60,6 +60,7 @@ fragment TimelinePostFields on TimelinePost {
     reactionPostId
     followingGroupId
     hasReplyTarget
+    hasQuoteTarget
 }
 
 fragment ActorFields on Actor {

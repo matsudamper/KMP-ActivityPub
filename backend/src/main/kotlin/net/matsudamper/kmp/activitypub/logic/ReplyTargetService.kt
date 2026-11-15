@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.net.URI
+import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
@@ -11,8 +12,8 @@ import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
 import net.matsudamper.kotpub.note.NoteUrls
 
 /**
- * 返信の投稿から、返信先の投稿を引く。返信先を順にたどれるよう、返した投稿の id もまた渡せる。
- * 保存していない他のサーバーの返信先は、取ってきても保存しない。id は [UnsavedRemoteNoteId] にして、いいねやブーストを付けたときに保存させる
+ * 返信や引用の投稿から、返信先や引用先の投稿を引く。返信先を順にたどれるよう、返した投稿の id もまた渡せる。
+ * 保存していない他のサーバーの投稿は、取ってきても保存しない。id は [UnsavedRemoteNoteId] にして、いいねやブーストを付けたときに保存させる
  */
 class ReplyTargetService(
     private val domain: String,
@@ -22,34 +23,43 @@ class ReplyTargetService(
     /**
      * @param postId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id
      */
-    suspend fun replyTarget(viewer: AccountId, postId: String): ReplyTargetResult {
-        val inReplyTo = when (val lookup = inReplyToOf(viewer, postId)) {
-            is InReplyToLookup.Found -> lookup.objectUri
-            InReplyToLookup.NotFound -> return ReplyTargetResult.NotFound
-            InReplyToLookup.Unavailable -> return ReplyTargetResult.Unavailable
+    suspend fun replyTarget(viewer: AccountId, postId: String): ReplyTargetResult =
+        linkedPost(viewer = viewer, postId = postId, link = PostLink.Reply)
+
+    /**
+     * @param postId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id
+     */
+    suspend fun quoteTarget(viewer: AccountId, postId: String): ReplyTargetResult =
+        linkedPost(viewer = viewer, postId = postId, link = PostLink.Quote)
+
+    private suspend fun linkedPost(viewer: AccountId, postId: String, link: PostLink): ReplyTargetResult {
+        val linkedUri = when (val lookup = linkedUriOf(viewer, postId, link)) {
+            is LinkLookup.Found -> lookup.objectUri
+            LinkLookup.NotFound -> return ReplyTargetResult.NotFound
+            LinkLookup.Unavailable -> return ReplyTargetResult.Unavailable
         }
-        val localPublicId = localPublicIdOf(inReplyTo)
+        val localPublicId = localPublicIdOf(linkedUri)
         return if (localPublicId == null) {
-            remotePost(viewer, inReplyTo)
+            remotePost(viewer, linkedUri)
         } else {
             val member = timeline.localPosition(localPublicId)?.member ?: return ReplyTargetResult.NotFound
             timeline.viewablePost(viewer, member)?.let { ReplyTargetResult.Found(it) } ?: ReplyTargetResult.NotFound
         }
     }
 
-    private suspend fun inReplyToOf(viewer: AccountId, postId: String): InReplyToLookup {
+    private suspend fun linkedUriOf(viewer: AccountId, postId: String, link: PostLink): LinkLookup {
         val unsavedObjectUri = UnsavedRemoteNoteId.objectUriOf(postId)
         if (unsavedObjectUri == null) {
-            if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return InReplyToLookup.NotFound
-            return InReplyToLookup.of(timeline.viewablePost(viewer, postId)?.inReplyTo)
+            if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return LinkLookup.NotFound
+            return LinkLookup.of(timeline.viewablePost(viewer, postId)?.let(link::of))
         }
         // 表示した後に、いいねやブーストで保存されていることがある
         val stored = storedRemotePost(viewer, unsavedObjectUri)
-        if (stored != null) return InReplyToLookup.of(stored.inReplyTo)
+        if (stored != null) return LinkLookup.of(link.of(stored))
         return when (val fetched = unsavedNotes.fetch(unsavedObjectUri)) {
-            is RemoteNoteFetchResult.Found -> InReplyToLookup.of(fetched.note.inReplyTo)
-            RemoteNoteFetchResult.NotFound -> InReplyToLookup.NotFound
-            RemoteNoteFetchResult.Unavailable -> InReplyToLookup.Unavailable
+            is RemoteNoteFetchResult.Found -> LinkLookup.of(link.of(fetched.note))
+            RemoteNoteFetchResult.NotFound -> LinkLookup.NotFound
+            RemoteNoteFetchResult.Unavailable -> LinkLookup.Unavailable
         }
     }
 
@@ -100,6 +110,7 @@ class ReplyTargetService(
             deleted = false,
             boostUndone = false,
             inReplyTo = note.inReplyTo,
+            quoteUri = note.quoteUri,
         )
     }
 
@@ -113,16 +124,32 @@ class ReplyTargetService(
         return publicId.takeIf { runCatching { NoteUrls(domain, KotpubPublicNoteId(it)).noteUrl }.getOrNull() == uri }
     }
 
-    private sealed interface InReplyToLookup {
-        data class Found(val objectUri: String) : InReplyToLookup
+    private enum class PostLink {
+        Reply,
+        Quote,
+        ;
 
-        /** 返信でないか、読めない投稿 */
-        data object NotFound : InReplyToLookup
+        fun of(post: TimelinePost): String? = when (this) {
+            Reply -> post.inReplyTo
+            Quote -> post.quoteUri
+        }
 
-        data object Unavailable : InReplyToLookup
+        fun of(note: RemoteNoteInput): String? = when (this) {
+            Reply -> note.inReplyTo
+            Quote -> note.quoteUri
+        }
+    }
+
+    private sealed interface LinkLookup {
+        data class Found(val objectUri: String) : LinkLookup
+
+        /** 返信や引用でないか、読めない投稿 */
+        data object NotFound : LinkLookup
+
+        data object Unavailable : LinkLookup
 
         companion object {
-            fun of(inReplyTo: String?): InReplyToLookup = if (inReplyTo == null) NotFound else Found(inReplyTo)
+            fun of(linkedUri: String?): LinkLookup = if (linkedUri == null) NotFound else Found(linkedUri)
         }
     }
 }
@@ -131,12 +158,12 @@ sealed interface ReplyTargetResult {
     data class Found(val post: TimelinePost) : ReplyTargetResult
 
     /**
-     * 返信でないか、返信先が無いか読めない
+     * 返信や引用でないか、返信先や引用先が無いか読めない
      */
     data object NotFound : ReplyTargetResult
 
     /**
-     * 返信先のサーバーが応えなかった。時間を置けば取れることがある
+     * 返信先や引用先のサーバーが応えなかった。時間を置けば取れることがある
      */
     data object Unavailable : ReplyTargetResult
 }

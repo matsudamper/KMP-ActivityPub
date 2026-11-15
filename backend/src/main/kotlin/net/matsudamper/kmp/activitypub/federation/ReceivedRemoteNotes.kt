@@ -155,10 +155,11 @@ internal class ReceivedRemoteNotes(
 internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: Instant): RemoteNoteInput = RemoteNoteInput(
     objectUri = id,
     actorUri = attributedTo,
-    contentHtml = Jsoup.clean(content, Safelist.basic()),
+    contentHtml = Jsoup.clean(contentWithoutQuoteFallback(), Safelist.basic()),
     visibility = visibility.name.lowercase(),
     localRecipients = localRecipients,
     inReplyTo = inReplyTo,
+    quoteUri = quote,
     summary = summary?.let { Jsoup.clean(it, Safelist.none()) },
     sensitive = sensitive,
     publishedAt = published ?: now,
@@ -166,6 +167,17 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     images = attachments.mapNotNull { it.toImage() },
     emojis = emojis.toRecords(),
 )
+
+/**
+ * 引用を読めない相手向けに、Mastodon や Misskey は本文の末尾に `RE: 引用先の URL` を quote-inline のクラスで足す。
+ * 引用先は別に出すので、引用のときは落とす
+ */
+private fun ReceivedNote.contentWithoutQuoteFallback(): String {
+    if (quote == null) return content
+    val body = Jsoup.parseBodyFragment(content).body()
+    body.select(".quote-inline").remove()
+    return body.html()
+}
 
 // 動画や音声も添付で来る。画像だけを出すので、申告が画像のものだけを残す
 internal fun ReceivedNoteAttachment.toImage(): TimelinePostImage.Remote? {

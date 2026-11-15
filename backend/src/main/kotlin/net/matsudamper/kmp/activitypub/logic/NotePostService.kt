@@ -108,11 +108,12 @@ class NotePostService(
     }
 
     /**
-     * 画像があれば本文は空でもよい
+     * 画像があるか引用なら本文は空でもよい
      *
      * @param requestId 画面が送信ごとに作る ID。同じ ID で送り直されたら、新しく作らずに前の投稿を返す
      * @param imageIds [uploadImage] で置いた画像。付けた順に並ぶ
      * @param replyToPostId 返信するタイムラインの投稿の id。投稿者に宛てて、投稿者の inbox にも積む。返信でなければ null
+     * @param quotePostId 引用するタイムラインの投稿の id。投稿者の inbox にも積む。引用でなければ null
      */
     fun post(
         username: String,
@@ -120,6 +121,7 @@ class NotePostService(
         requestId: String,
         imageIds: List<NoteImagePublicId>,
         replyToPostId: String?,
+        quotePostId: String?,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
@@ -139,11 +141,17 @@ class NotePostService(
             } else {
                 resolveReply(sender = sender, accountId = account.id, replyToPostId = replyToPostId) ?: return PostNoteResult.ReplyTargetNotFound
             }
+        val quote =
+            if (quotePostId == null) {
+                null
+            } else {
+                resolveQuote(accountId = account.id, quotePostId = quotePostId) ?: return PostNoteResult.QuoteTargetNotFound
+            }
         val mention = reply?.mention
         val contentHtml =
             when (val composed = NoteComposer.compose(body = body, mentions = listOfNotNull(mention?.link))) {
                 is NoteComposer.ComposeResult.Composed -> composed.contentHtml
-                NoteComposer.ComposeResult.Empty -> if (imageIds.isEmpty()) return PostNoteResult.EmptyBody else ""
+                NoteComposer.ComposeResult.Empty -> if (imageIds.isEmpty() && quote == null) return PostNoteResult.EmptyBody else ""
                 NoteComposer.ComposeResult.TooLong -> return PostNoteResult.TooLong
             }
 
@@ -156,6 +164,7 @@ class NotePostService(
                     NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
                 },
                 inReplyTo = reply?.inReplyTo,
+                quote = quote?.objectUri,
                 mentions = listOfNotNull(mention).map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
             )
         val enqueued =
@@ -168,8 +177,10 @@ class NotePostService(
                     publishedAt = prepared.publishedAt,
                     images = images,
                     body = prepared.activityJson,
-                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + listOfNotNull(mention?.record?.inbox),
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + listOfNotNull(mention?.record?.inbox, quote?.authorInbox),
                     inReplyTo = reply?.inReplyTo,
+                    quoteUri = quote?.objectUri,
+                    quoteInbox = quote?.authorInbox,
                     mentions = listOfNotNull(mention?.record),
                 ),
             )
@@ -228,8 +239,8 @@ class NotePostService(
                     publicId = publicId,
                     deletedAt = clock.instant(),
                     body = prepared.activityJson,
-                    // 宛てた相手にも届けているので、消したことも伝える
-                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + note.mentions.mapNotNull { it.inbox },
+                    // 宛てた相手と引用した投稿の投稿者にも届けているので、消したことも伝える
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + note.mentions.mapNotNull { it.inbox } + listOfNotNull(note.quoteInbox),
                 ),
             )
         if (!deleted) return DeleteNoteResult.NotFound
@@ -288,6 +299,25 @@ class NotePostService(
             }
         }
 
+    /**
+     * @return 引用できない投稿なら null
+     */
+    private fun resolveQuote(
+        accountId: AccountId,
+        quotePostId: String,
+    ): Quote? =
+        when (val target = noteRepository.replyTarget(accountId = accountId, member = quotePostId)) {
+            null -> null
+
+            is ReplyTarget.Remote -> Quote(objectUri = target.objectUri, authorInbox = target.inbox)
+
+            is ReplyTarget.Local -> {
+                val author = directory.resolve(target.username) ?: return null
+                // このサーバーのアカウントには配らないので inbox は要らない
+                Quote(objectUri = NoteUrls(author.domain, KotpubPublicNoteId(target.publicId.value)).noteUrl, authorInbox = null)
+            }
+        }
+
     private fun noteUrl(
         domain: String,
         publicId: PublicNoteId,
@@ -299,6 +329,14 @@ class NotePostService(
     private class Reply(
         val inReplyTo: String,
         val mention: ReplyMention?,
+    )
+
+    /**
+     * @param authorInbox 引用した投稿の投稿者の inbox。このサーバーの投稿なら null
+     */
+    private class Quote(
+        val objectUri: String,
+        val authorInbox: String?,
     )
 
     /**
@@ -382,7 +420,7 @@ sealed interface PostNoteResult {
     ) : PostNoteResult
 
     /**
-     * 本文も画像も無い
+     * 本文も画像も無く、引用でもない
      */
     data object EmptyBody : PostNoteResult
 
@@ -399,6 +437,11 @@ sealed interface PostNoteResult {
      * 返信先の投稿が無いか、読めないか、消された
      */
     data object ReplyTargetNotFound : PostNoteResult
+
+    /**
+     * 引用する投稿が無いか、読めないか、消された
+     */
+    data object QuoteTargetNotFound : PostNoteResult
 
     /**
      * アカウントが無いか、鍵が無くてアクターとして扱えない

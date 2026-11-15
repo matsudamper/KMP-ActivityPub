@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import coil3.PlatformContext
 import coil3.request.ImageRequest
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 data class PostScreenUiState(
     val body: String,
@@ -18,6 +19,10 @@ data class PostScreenUiState(
      * 付けた順
      */
     val images: List<Image>,
+    /**
+     * 引用でなければ null
+     */
+    val quote: PostItemUiState.Quote?,
     val addImageButtonEnabled: Boolean,
     val addImageLoadingVisible: Boolean,
     val listener: Listener,

@@ -47,6 +47,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.QuoteTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.ReplyTargetQuery
@@ -228,6 +229,22 @@ class UserApi(
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
         val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
         val post = userInfo.replyTarget ?: return UserPostDetailResult.NotFound
+        return UserPostDetailResult.Found(post.timelinePostFields.toPost())
+    }
+
+    /**
+     * 引用先の投稿
+     *
+     * @param postId [UserHomeTimelineResult.Post.id]
+     * @return 引用でないか、引用先を読めなければ [UserPostDetailResult.NotFound]
+     */
+    suspend fun quoteTarget(postId: String): UserPostDetailResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostDetailResult.Failure("接続先が未設定")
+        val response = client.query(QuoteTargetQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
+        val post = userInfo.quoteTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
@@ -847,15 +864,25 @@ class UserApi(
 
     /**
      * @param replyToPostId 返信する [UserHomeTimelineResult.Post.id]。投稿者へのメンションが本文の先頭に付く。返信でなければ null
+     * @param quotePostId 引用する [UserHomeTimelineResult.Post.id]。引用でなければ null
      */
     suspend fun postNote(
         body: String,
         requestId: String,
         imageIds: List<String>,
         replyToPostId: String?,
+        quotePostId: String?,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
-        val response = client.mutation(UserPostNoteMutation(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = Optional.present(replyToPostId))).execute()
+        val mutation =
+            UserPostNoteMutation(
+                body = body,
+                requestId = requestId,
+                imageIds = imageIds,
+                replyToPostId = Optional.present(replyToPostId),
+                quotePostId = Optional.present(quotePostId),
+            )
+        val response = client.mutation(mutation).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
         val postNote = response.data?.user?.postNote ?: return UserPostNoteResult.Failure(response.failureMessage())
 
@@ -868,6 +895,7 @@ class UserApi(
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
             UserPostNoteFailure.REPLY_TARGET_NOT_FOUND -> UserPostNoteResult.ReplyTargetNotFound
+            UserPostNoteFailure.QUOTE_TARGET_NOT_FOUND -> UserPostNoteResult.QuoteTargetNotFound
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
         }
     }
@@ -1127,6 +1155,7 @@ class UserApi(
                     iconUrl = author.iconUrl,
                 )
             },
+            hasQuoteTarget = hasQuoteTarget,
         )
 
     private companion object {

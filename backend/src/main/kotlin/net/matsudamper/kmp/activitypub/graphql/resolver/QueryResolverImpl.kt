@@ -355,6 +355,7 @@ class QueryResolverImpl : QueryResolver {
             url = diContainer.noteShareUrls?.url(noteRef),
             boostCount = boostCount?.toInt(),
             boostedNoteAuthor = qlBoostedNoteAuthor,
+            hasQuoteTarget = hasQuoteTarget,
         )
     }
 }
