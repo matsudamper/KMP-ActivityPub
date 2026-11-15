@@ -49,10 +49,14 @@ private fun isEmojiElement(element: List<Int>): Boolean {
     val base = element.firstOrNull() ?: return false
     // 地域指示記号は 2 つ並べた国旗でしか絵文字にならない
     if (base in REGIONAL_INDICATORS) return false
+    // Extended_Pictographic には ⎈ のような絵文字ではない記号が、Emoji には数字や # が含まれるので、両方を見る
+    if (!Character.isEmoji(base)) return false
     if (!Character.isExtendedPictographic(base) && !Character.isEmojiPresentation(base)) return false
     val modifiers = element.drop(1)
     val allowed = modifiers.all { it == VARIATION_SELECTOR_16 || Character.isEmojiModifier(it) }
-    return allowed && modifiers.count { it == VARIATION_SELECTOR_16 } <= 1 && modifiers.count { Character.isEmojiModifier(it) } <= 1
+    val skinToneCount = modifiers.count { Character.isEmojiModifier(it) }
+    val skinToneAllowed = skinToneCount == 0 || (skinToneCount == 1 && Character.isEmojiModifierBase(base))
+    return allowed && modifiers.count { it == VARIATION_SELECTOR_16 } <= 1 && skinToneAllowed
 }
 
 // 家族の絵文字でも 11 コードポイントなので、余裕を持たせる

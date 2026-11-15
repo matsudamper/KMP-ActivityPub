@@ -14,7 +14,7 @@ class UnicodeEmojiValidationTest {
 
     @Test
     fun rejectsTextAndMoreThanOneEmoji() {
-        listOf("", "👍👍", "日本語", "a", ":kotlin:", "👍 ", "1", "#", "*", "1\u0301", "1\u0301\u20E3", "日\u20E3", "👍\u0301", "🇯", "🇯🇵🇺🇸").forEach { text ->
+        listOf("", "👍👍", "日本語", "a", ":kotlin:", "👍 ", "1", "#", "*", "1\u0301", "1\u0301\u20E3", "日\u20E3", "👍\u0301", "🇯", "🇯🇵🇺🇸", "⎈", "😀🏽").forEach { text ->
             assertFalse(isUnicodeEmoji(text), text)
         }
     }
