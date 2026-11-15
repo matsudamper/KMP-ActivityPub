@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
+import net.matsudamper.kmp.activitypub.logic.LocalNoteEmojiObjects
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
@@ -123,7 +124,8 @@ internal class Federation(
         imageStorage = imageStorage,
         clock = Clock.systemUTC(),
     )
-    private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls)
+    private val noteEmojiObjects = LocalNoteEmojiObjects(customEmojis = customEmojiService, customEmojiUrls = customEmojiUrls)
+    private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls, emojiObjects = noteEmojiObjects)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
@@ -168,6 +170,7 @@ internal class Federation(
             noteRepository = noteRepository,
             imageStorage = imageStorage,
             imageUrls = noteImageUrls,
+            emojiObjects = noteEmojiObjects,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
             clock = Clock.systemUTC(),

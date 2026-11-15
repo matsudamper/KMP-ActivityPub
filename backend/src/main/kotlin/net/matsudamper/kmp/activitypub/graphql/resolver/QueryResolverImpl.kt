@@ -351,7 +351,7 @@ class QueryResolverImpl : QueryResolver {
             linkUrls = body.linkUrls,
             mentions = body.mentions,
             images = body.images,
-            emojis = emojis.toQlCustomEmojis(diContainer),
+            emojis = createQlPostEmojis(noteRef = noteRef, contentHtml = contentHtml, remoteEmojis = emojis, diContainer = diContainer),
             favouriteCount = (favouriteCount ?: counts?.reportedFavouriteCount)?.toInt(),
             stamps = stamps.toQlPostStamps(diContainer),
             likedByMe = likedByMe,
