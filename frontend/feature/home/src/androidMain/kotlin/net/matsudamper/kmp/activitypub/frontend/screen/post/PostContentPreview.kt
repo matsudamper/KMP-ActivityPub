@@ -11,14 +11,39 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import coil3.request.ImageRequest
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
+import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 @Preview
 @Composable
 private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false),
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null),
+            navigationIcon = PostNavigationIcon.Back,
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PostContentQuotePreview() {
+    PostPreviewTheme {
+        PostContent(
+            uiState = previewUiState(
+                images = listOf(),
+                addImageLoadingVisible = false,
+                quote = PostItemUiState.Quote.Loaded(
+                    iconUrl = null,
+                    displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+                    acct = "@bob@remote.example",
+                    body = createPostBodyText(content = "引用する投稿です", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+                    listener = null,
+                ),
+            ),
             navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
@@ -39,6 +64,7 @@ private fun PostContentImagesPreview() {
                     )
                 },
                 addImageLoadingVisible = true,
+                quote = null,
             ),
             navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
@@ -49,6 +75,7 @@ private fun PostContentImagesPreview() {
 private fun previewUiState(
     images: List<PostScreenUiState.Image>,
     addImageLoadingVisible: Boolean,
+    quote: PostItemUiState.Quote?,
 ): PostScreenUiState =
     PostScreenUiState(
         body = "Kotlin 2.4 がリリースされました",
@@ -57,6 +84,7 @@ private fun previewUiState(
         backButtonEnabled = true,
         postButtonEnabled = true,
         images = images,
+        quote = quote,
         addImageButtonEnabled = addImageLoadingVisible.not(),
         addImageLoadingVisible = addImageLoadingVisible,
         listener = AndroidPreviewPostListener,

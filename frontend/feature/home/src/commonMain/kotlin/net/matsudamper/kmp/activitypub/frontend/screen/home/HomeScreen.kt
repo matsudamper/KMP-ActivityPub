@@ -116,6 +116,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImageInput
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
@@ -214,6 +215,10 @@ internal fun HomeScreen(
                 override fun navigateToPostDetail(postId: String) {
                     navigator.navigate(Screen.PostDetail(postId = postId))
                 }
+
+                override fun navigateToQuotePost(postId: String) {
+                    navigator.navigate(Screen.QuotePost(postId = postId))
+                }
             },
         )
     }
@@ -229,6 +234,7 @@ internal fun HomeScreen(
         if (maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH) {
             // 投稿の知らせはホームの下に出す。投稿カラムは閉じていることがある
             val postUiState = rememberPostScreenUiState(
+                target = PostScreenTarget.NewNote,
                 onNavigateBack = uiState.listener::onPostColumnFinished,
                 snackbarHostState = snackbarHostState,
             )

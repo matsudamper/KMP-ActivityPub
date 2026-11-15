@@ -23,6 +23,11 @@ sealed interface UserPostNoteResult {
      */
     data object ReplyTargetNotFound : UserPostNoteResult
 
+    /**
+     * 引用する投稿が無いか、読めないか、消された
+     */
+    data object QuoteTargetNotFound : UserPostNoteResult
+
     data class Failure(
         val message: String,
     ) : UserPostNoteResult
