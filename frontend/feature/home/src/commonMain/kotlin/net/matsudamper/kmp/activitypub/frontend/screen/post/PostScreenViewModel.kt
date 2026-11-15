@@ -183,7 +183,8 @@ internal class PostScreenViewModel(
                             requestId = requestId(),
                             images = state.images.map { it.image },
                             replyToPostId = null,
-                            quotePostId = (target as? PostScreenTarget.Quote)?.postId,
+                            // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
+                            quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -278,7 +279,12 @@ internal class PostScreenViewModel(
         )
 
     private fun ViewModelState.postable(): Boolean =
-        submitting.not() && loadingImage.not() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
+        submitting.not() && loadingImage.not() && quotePostable() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
+
+    /**
+     * 引用先を読み込めるまでは、どの投稿を引用するか決まらない
+     */
+    private fun ViewModelState.quotePostable(): Boolean = quote == null || quote is QuoteLoad.Loaded
 
     private fun ViewModelState.imageAddable(): Boolean = submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
 
