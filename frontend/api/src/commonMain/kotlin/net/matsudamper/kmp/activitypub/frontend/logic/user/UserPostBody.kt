@@ -5,8 +5,10 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  *
  * @param linkUrls カードにするリンク。OGP は [UserApi.linkPreviews] で別に取る
  * @param mentions [content] に書かれたメンション
- * @param favouriteCount 他のサーバーの投稿は数を受け取らないので null
- * @param boostCount 他のサーバーの投稿は数を受け取らないので null
+ * @param favouriteCount 他のサーバーの投稿は、相手のサーバーの数を取ったことがなければ null
+ * @param boostCount 他のサーバーの投稿は、相手のサーバーの数を取ったことがなければ null
+ * @param replyCount 他のサーバーの投稿は、このサーバーが知っている返信と、相手のサーバーの数の大きい方
+ * @param stampCountsReceived スタンプの数を受け取っているか。他のサーバーの投稿はスタンプを受け取らないので false
  * @param stamps 先に押された絵文字の順
  * @param emojis [content] と [summary] に入るカスタム絵文字
  * @param shareUrl 共有するときに渡す投稿の URL。作れなければ null
@@ -24,6 +26,8 @@ data class UserPostBody(
     val images: List<UserPostImage>,
     val favouriteCount: Int?,
     val boostCount: Int?,
+    val replyCount: Int,
+    val stampCountsReceived: Boolean,
     val stamps: List<UserPostStamp>,
     val emojis: List<UserCustomEmoji>,
     val shareUrl: String?,

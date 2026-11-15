@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserReaction
 import net.matsudamper.kmp.activitypub.frontend.logic.user.likeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withCounts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLikeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
@@ -211,6 +212,22 @@ internal class PostDetailScreenViewModel(
                 val mentionText = if (post is PostState.Loaded && state.mentionText.isEmpty()) initialMentionText(post.post) else state.mentionText
                 state.copy(post = post, mentionText = mentionText)
             }
+            if (post is PostState.Loaded) refreshCounts(post.post)
+        }
+    }
+
+    /**
+     * 他のサーバーの投稿は、開くまでこのサーバーが知っている数しか出ていないので、開いてから相手のサーバーの数に取り直す
+     */
+    private suspend fun refreshCounts(post: UserHomeTimelineResult.Post) {
+        val counts = api.postCounts(postId = post.id) ?: return
+        updatePosts(post.reactionPostId) { current ->
+            // 取っている間に押したいいねやブーストは、取った数に入っていないことがあるので、押した後の数のまま残す
+            val unchangedCounts = counts.copy(
+                favouriteCount = if (current.body.likeState() == post.body.likeState()) counts.favouriteCount else current.body.favouriteCount,
+                boostCount = if (current.body.boostedByMe == post.body.boostedByMe) counts.boostCount else current.body.boostCount,
+            )
+            current.copy(body = current.body.withCounts(unchangedCounts))
         }
     }
 
@@ -443,6 +460,8 @@ internal class PostDetailScreenViewModel(
                 state.copy(mentionText = if (loaded == null) "" else initialMentionText(loaded.post))
             }
             events.send { it.showMessage("メンションを送りました") }
+            val loaded = viewModelStateFlow.value.post as? PostState.Loaded
+            if (loaded != null) refreshCounts(loaded.post)
         }
     }
 

@@ -46,6 +46,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineLinkPreviews
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.MyProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PostCountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.QuoteTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
@@ -214,6 +215,20 @@ class UserApi(
         val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
         val post = userInfo.timelinePost ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
+    }
+
+    /**
+     * 他のサーバーの投稿は相手のサーバーから数を取り直すので遅い。個別投稿画面を開いたときに使う
+     *
+     * @param postId [UserHomeTimelineResult.Post.id]
+     * @return 取れなければ null
+     */
+    suspend fun postCounts(postId: String): UserPostCounts? {
+        val client = clients.awaitLoadedClient() ?: return null
+        val response = client.query(PostCountsQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return null
+        val counts = response.data?.userInfo?.postCounts ?: return null
+        return UserPostCounts(replyCount = counts.replyCount, favouriteCount = counts.favouriteCount, boostCount = counts.boostCount)
     }
 
     /**
@@ -1137,6 +1152,8 @@ class UserApi(
                 images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
                 favouriteCount = favouriteCount,
                 boostCount = boostCount,
+                replyCount = replyCount,
+                stampCountsReceived = stampCountsReceived,
                 stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode) },
                 emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 shareUrl = url,
