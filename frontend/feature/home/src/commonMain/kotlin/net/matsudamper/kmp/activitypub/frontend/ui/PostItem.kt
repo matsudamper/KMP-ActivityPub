@@ -560,37 +560,46 @@ private fun PostActions(
                 )
             }
             val boostButton = uiState.boostButton
-            TextButton(
-                onClick = { boostButton?.listener?.onClick() },
-                enabled = boostButton != null,
-                modifier = Modifier
-                    .weight(1f, fill = false).width(sizes.actionSlotWidth)
-                    .then(
-                        if (boostButton == null) {
-                            Modifier
-                        } else {
-                            Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
+            var boostMenuExpanded by remember { mutableStateOf(false) }
+            Box(modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth)) {
+                TextButton(
+                    onClick = { boostMenuExpanded = true },
+                    enabled = boostButton != null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (boostButton == null) {
+                                Modifier
+                            } else {
+                                Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
+                            },
+                        ),
+                    contentPadding = ActionButtonContentPadding,
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Repeat,
+                        contentDescription = "ブースト",
+                        modifier = Modifier.size(sizes.actionIconSize),
+                        tint = when {
+                            boostButton == null -> disabledIconColor
+                            boostButton.iconHighlighted -> BoostHighlightedColor
+                            else -> iconColor
                         },
-                    ),
-                contentPadding = ActionButtonContentPadding,
-            ) {
-                Icon(
-                    imageVector = AppIcons.Repeat,
-                    contentDescription = "ブースト",
-                    modifier = Modifier.size(sizes.actionIconSize),
-                    tint = when {
-                        boostButton == null -> disabledIconColor
-                        boostButton.iconHighlighted -> BoostHighlightedColor
-                        else -> iconColor
-                    },
-                )
-                Text(
-                    text = uiState.boostCountText.orEmpty(),
-                    modifier = Modifier.padding(start = 4.dp).weight(1f),
-                    style = sizes.countTextStyle,
-                    color = iconColor,
-                    maxLines = 1,
-                )
+                    )
+                    Text(
+                        text = uiState.boostCountText.orEmpty(),
+                        modifier = Modifier.padding(start = 4.dp).weight(1f),
+                        style = sizes.countTextStyle,
+                        color = iconColor,
+                        maxLines = 1,
+                    )
+                }
+                DropdownMenu(
+                    expanded = boostMenuExpanded,
+                    onDismissRequest = { boostMenuExpanded = false },
+                ) {
+                    PostMenuItems(menuItems = boostButton?.menuItems.orEmpty(), onItemClick = { boostMenuExpanded = false })
+                }
             }
             val favouriteButton = uiState.favouriteButton
             TextButton(
@@ -674,16 +683,27 @@ private fun PostMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            menuItems.forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(item.label) },
-                    onClick = {
-                        expanded = false
-                        item.listener.onClick()
-                    },
-                )
-            }
+            PostMenuItems(menuItems = menuItems, onItemClick = { expanded = false })
         }
+    }
+}
+
+/**
+ * @param onItemClick 項目の listener を呼ぶ前に呼ぶ
+ */
+@Composable
+internal fun PostMenuItems(
+    menuItems: List<PostItemUiState.MenuItem>,
+    onItemClick: () -> Unit,
+) {
+    menuItems.forEach { item ->
+        DropdownMenuItem(
+            text = { Text(item.label) },
+            onClick = {
+                onItemClick()
+                item.listener.onClick()
+            },
+        )
     }
 }
 

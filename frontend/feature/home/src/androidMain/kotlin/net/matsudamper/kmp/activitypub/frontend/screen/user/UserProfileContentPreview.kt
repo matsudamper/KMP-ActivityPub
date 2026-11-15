@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.previewBoostButton
 import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
 @OptIn(ExperimentalCoilApi::class)
@@ -73,7 +74,7 @@ private fun UserProfileContentPreview() {
                                 favouriteCountText = "12",
                                 boostCountText = "4",
                                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = true, listener = AndroidPreviewFavouriteButtonListener),
-                                boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+                                boostButton = previewBoostButton(boosted = false),
                                 reactionButton = null,
                                 stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4", selected = false, listener = null)),
                                 authorListener = null,
@@ -106,7 +107,7 @@ private fun UserProfileContentPreview() {
                                 favouriteCountText = null,
                                 boostCountText = null,
                                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-                                boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+                                boostButton = previewBoostButton(boosted = false),
                                 reactionButton = null,
                                 stamps = listOf(),
                                 authorListener = null,
@@ -168,7 +169,7 @@ private fun UserProfileContentLikesPreview() {
                             favouriteCountText = null,
                             boostCountText = null,
                             favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-                            boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+                            boostButton = previewBoostButton(boosted = false),
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
@@ -194,7 +195,7 @@ private fun UserProfileContentLikesPreview() {
                             favouriteCountText = "3",
                             boostCountText = null,
                             favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-                            boostButton = PostItemUiState.BoostButton(iconHighlighted = false, listener = AndroidPreviewBoostButtonListener),
+                            boostButton = previewBoostButton(boosted = false),
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
@@ -472,9 +473,5 @@ private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
 }
 
 private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
-    override fun onClick() = Unit
-}
-
-private object AndroidPreviewBoostButtonListener : PostItemUiState.BoostButtonListener {
     override fun onClick() = Unit
 }

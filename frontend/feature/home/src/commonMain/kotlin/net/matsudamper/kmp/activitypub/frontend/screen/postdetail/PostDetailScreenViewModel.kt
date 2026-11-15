@@ -42,7 +42,6 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
-import net.matsudamper.kmp.activitypub.frontend.screen.createQuoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
@@ -683,6 +682,7 @@ internal class PostDetailScreenViewModel(
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
             onToggleLike = { toggleLike(post) },
             onToggleBoost = { toggleBoost(post) },
+            onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.id) } } },
             onOpenReactionPicker = { openReactionPicker(post) },
             onClickStamp = { stamp ->
                 val body = currentPost(post.reactionPostId)?.body
@@ -732,8 +732,6 @@ internal class PostDetailScreenViewModel(
             menuItems =
             createOpenOriginalMenuItems(post.body.shareUrl) { url ->
                 viewModelScope.launch { events.send { it.openUrl(url) } }
-            } + createQuoteMenuItems(postId = post.id, body = post.body) { postId ->
-                viewModelScope.launch { events.send { it.navigateToQuotePost(postId) } }
             } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
                 createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
@@ -744,6 +742,7 @@ internal class PostDetailScreenViewModel(
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
             onToggleLike = { toggleLike(post) },
             onToggleBoost = { toggleBoost(post) },
+            onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.id) } } },
             onOpenReactionPicker = { openReactionPicker(post) },
             onClickStamp = { stamp ->
                 val body = currentPost(post.reactionPostId)?.body
