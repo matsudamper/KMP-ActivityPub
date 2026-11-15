@@ -137,7 +137,7 @@ internal class CustomEmojisScreenViewModel(
                             shortcodeInput = "",
                             pickedImage = null,
                             emojis = if (emojis is EmojisState.Loaded) {
-                                EmojisState.Loaded((emojis.emojis + result.emoji).sortedBy { it.shortcode })
+                                EmojisState.Loaded((emojis.emojis + result.emoji).distinctBy { it.id }.sortedBy { it.shortcode })
                             } else {
                                 emojis
                             },
