@@ -93,8 +93,8 @@ internal class FakeTimelineRepository : TimelineRepository {
         return storedFetchedNotes.filterKeys { objectUri -> notes.any { it.objectUri == objectUri } }
     }
 
-    override fun replies(viewer: AccountId, objectUri: String, limit: Int): List<TimelinePost> =
-        replies.filter { it.inReplyTo == objectUri }.take(limit)
+    override fun replies(viewer: AccountId, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost> =
+        replies.filter { it.inReplyTo == objectUri }.filterNot { reply -> reply.actorUri?.let(hidesAuthor) == true }.take(limit)
 
     override fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost> = likedPosts.take(limit)
 

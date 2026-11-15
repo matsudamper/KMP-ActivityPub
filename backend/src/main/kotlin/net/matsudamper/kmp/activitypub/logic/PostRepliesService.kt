@@ -20,7 +20,7 @@ class PostRepliesService(
     fun replies(viewer: AccountId, postId: String): List<TimelinePost> {
         val objectUri = objectUriOf(viewer, postId) ?: return listOf()
         val blockList = blockLists.of(viewer)
-        return timeline.replies(viewer, objectUri, REPLY_LIMIT).filterNot(blockList::hides)
+        return timeline.replies(viewer = viewer, objectUri = objectUri, limit = REPLY_LIMIT, hidesAuthor = blockList::hidesActor)
     }
 
     private fun objectUriOf(viewer: AccountId, postId: String): String? {

@@ -90,8 +90,9 @@ interface TimelineRepository {
      * 消された投稿は出さない
      *
      * @param objectUri 返信先の投稿の id
+     * @param hidesAuthor 他のサーバーの投稿者の URI を渡すと、その投稿を出さないなら true を返す。出さない投稿は [limit] に数えない
      */
-    fun replies(viewer: AccountId, objectUri: String, limit: Int): List<TimelinePost>
+    fun replies(viewer: AccountId, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost>
 
     /**
      * 他のサーバーの投稿を、いいねやブーストを付けたときに保存する。タイムラインには載せない。
