@@ -50,10 +50,11 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             favouriteCount = favouriteCount,
             boostCount = boostCount,
             replyCount = replyCount,
-            stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+            stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode) },
             emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
             shareUrl = url,
             likedByMe = likedByMe,
+            viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
             boostedByMe = boostedByMe,
         ),
         boostedBy = boostedBy?.actorFields?.toActor(),
@@ -126,9 +127,12 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     boostCount = body.boostCount,
     replyCount = body.replyCount,
     boostedBy = boostedBy?.let { booster -> TimelinePostFields.BoostedBy(__typename = "Actor", actorFields = booster.toFields()) },
-    stamps = body.stamps.map { stamp -> TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+    stamps = body.stamps.map { stamp ->
+        TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode)
+    },
     url = body.shareUrl,
     likedByMe = body.likedByMe == true,
+    viewerReaction = body.viewerReaction?.toFields(),
     boostedByMe = body.boostedByMe,
     reactionPostId = reactionPostId,
     followingGroupId = followingGroupId,
@@ -326,17 +330,31 @@ fun TimelinePostFields.withRemovals(removals: PostRemovals): TimelinePostFields 
 )
 
 /**
- * いいねを変えた結果を反映する。
+ * いいねを変えた結果を反映する。付けていたリアクションは外れる。
  * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、いいねは元の投稿に付くので、[reactionPostId] が同じものをまとめて切り替える
  */
-fun TimelinePostFields.withLiked(reactionPostId: String, liked: Boolean): TimelinePostFields {
-    if (this.reactionPostId != reactionPostId || likedByMe == liked) return this
-    // 数は自分のいいねの分だけ増減させる。他の人のいいねは取り直すまで分からない
+fun TimelinePostFields.withLiked(reactionPostId: String, liked: Boolean): TimelinePostFields =
+    withLikeState(reactionPostId = reactionPostId, state = if (liked) UserLikeState.Liked else UserLikeState.None)
+
+/**
+ * いいねかリアクションを変えた結果を反映する。
+ * 同じ投稿が元の投稿とブーストの両方で並ぶことがあり、どちらも元の投稿に付くので、[reactionPostId] が同じものをまとめて切り替える
+ */
+fun TimelinePostFields.withLikeState(reactionPostId: String, state: UserLikeState): TimelinePostFields {
+    if (this.reactionPostId != reactionPostId) return this
+    val body = toPost().body.withLikeState(state)
     return copy(
-        likedByMe = liked,
-        favouriteCount = favouriteCount?.let { count -> if (liked) count + 1 else (count - 1).coerceAtLeast(0) },
+        likedByMe = body.likedByMe == true,
+        viewerReaction = body.viewerReaction?.toFields(),
+        favouriteCount = body.favouriteCount,
+        stamps = body.stamps.map { stamp ->
+            TimelinePostFields.Stamp(__typename = "PostStamp", emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode)
+        },
     )
 }
+
+private fun UserViewerReaction.toFields(): TimelinePostFields.ViewerReaction =
+    TimelinePostFields.ViewerReaction(__typename = "ViewerReaction", emoji = emoji, imageUrl = imageUrl)
 
 /**
  * ブーストを変えた結果を反映する。

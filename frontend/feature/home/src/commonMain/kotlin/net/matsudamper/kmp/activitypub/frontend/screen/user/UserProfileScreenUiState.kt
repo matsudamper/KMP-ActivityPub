@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.user
 
 import androidx.compose.runtime.Immutable
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenuUiState
@@ -8,6 +9,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
 
 data class UserProfileScreenUiState(
@@ -16,6 +18,8 @@ data class UserProfileScreenUiState(
      * 出していなければ null
      */
     val deleteNoteDialog: DeleteNoteDialogUiState?,
+    val reactionPickerDialog: ReactionPickerDialogUiState?,
+    val reactionConfirmDialog: ReactionConfirmDialogUiState?,
     /**
      * 出していなければ null
      */

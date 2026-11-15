@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
 import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
+import net.matsudamper.kmp.activitypub.graphql.model.QlLocalCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLikePage
@@ -150,6 +151,19 @@ class QueryResolverImpl : QueryResolver {
         val hasPassword = GraphQlEngine.graphQlContext(env).userAccountId()?.let { accountService.hasPassword(it) }
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<Boolean?>(hasPassword).build())
+    }
+
+    override fun customEmojis(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLocalCustomEmoji>?>> {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val customEmojiService = diContainer.customEmojiService
+        val customEmojiUrls = diContainer.customEmojiUrls
+        val emojis = if (accountId == null || customEmojiService == null || customEmojiUrls == null) {
+            null
+        } else {
+            customEmojiService.all().map { it.toQlLocalCustomEmoji(viewer = accountId, urls = customEmojiUrls) }
+        }
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder<List<QlLocalCustomEmoji>?>(emojis).build())
     }
 
     override fun profile(env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlProfile?>> {

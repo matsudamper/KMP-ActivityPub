@@ -34,6 +34,8 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.BlockServerMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.BlockedAccountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.BlockedServersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.CustomEmojisQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteCustomEmojiMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
@@ -53,11 +55,13 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.SetBoostedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetFollowingMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetLikedMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.SetPinnedMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.SetReactionMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockAccountMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockServerMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UploadCustomEmojiMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadNoteImageMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLoginMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UserLogoutMutation
@@ -70,17 +74,21 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ProfilePostFiel
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.BlockAccountFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.BlockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteCustomEmojiFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.ReactionInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetBoostedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetLikedFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetPinnedFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetReactionFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockAccountFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UploadCustomEmojiFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UploadNoteImageFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UserLoginQuery
@@ -469,6 +477,113 @@ class UserApi(
             SetLikedFailure.FEDERATION_DISABLED,
             SetLikedFailure.UNKNOWN__,
             -> "いいねを変更できませんでした"
+        }
+    }
+
+    /**
+     * 投稿に付けるいいねかリアクションを [reaction] に置き換える。1 つの投稿に付けられるのはどちらか 1 つ
+     *
+     * @param postId [UserHomeTimelineResult.Post.reactionPostId] か [UserProfileResult.Post.reactionPostId]
+     * @param reaction null なら外す
+     * @return 失敗したときに見せる文言。変えられたら null
+     */
+    suspend fun setReaction(postId: String, reaction: UserReaction?): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val input = when (reaction) {
+            null -> Optional.absent()
+            is UserReaction.Unicode -> Optional.present(ReactionInput(unicode = Optional.present(reaction.emoji)))
+            is UserReaction.Custom -> Optional.present(ReactionInput(customEmojiShortcode = Optional.present(reaction.shortcode)))
+        }
+        val response = client.mutation(SetReactionMutation(postId = postId, reaction = input)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.setReaction ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+
+            SetReactionFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            SetReactionFailure.POST_NOT_FOUND -> "この投稿にはリアクションできません"
+
+            SetReactionFailure.INVALID_EMOJI -> "この絵文字は使えません"
+
+            SetReactionFailure.FEDERATION_DISABLED,
+            SetReactionFailure.UNKNOWN__,
+            -> "リアクションを変更できませんでした"
+        }
+    }
+
+    suspend fun customEmojis(): UserCustomEmojisResult {
+        val client = clients.client.value ?: return UserCustomEmojisResult.Failure("接続先が未設定")
+        val response = client.query(CustomEmojisQuery()).fetchPolicy(FetchPolicy.NetworkOnly).execute()
+        if (response.exception != null || response.hasErrors()) return UserCustomEmojisResult.Failure(response.failureMessage())
+        val emojis = response.data?.customEmojis ?: return UserCustomEmojisResult.Failure("カスタム絵文字を使えません")
+        return UserCustomEmojisResult.Success(
+            emojis.map { UserLocalCustomEmoji(id = it.id, shortcode = it.shortcode, imageUrl = it.imageUrl, deletable = it.deletable) },
+        )
+    }
+
+    /**
+     * @param shortcode コロンを含めない名前
+     * @param image PNG / JPEG / GIF / WebP。形式はサーバーが判定する
+     */
+    suspend fun uploadCustomEmoji(shortcode: String, image: ByteArray): UserUploadCustomEmojiResult {
+        val client = clients.client.value ?: return UserUploadCustomEmojiResult.Failure("接続先が未設定")
+        val upload =
+            DefaultUpload.Builder()
+                .content(image)
+                .contentType("application/octet-stream")
+                .fileName("image")
+                .build()
+        // multipart はプリフライト無しで別オリジンから送れるので、サーバーはこのヘッダーで弾いている
+        val response = client.mutation(UploadCustomEmojiMutation(shortcode = shortcode, image = upload)).addHttpHeader("Apollo-Require-Preflight", "true").execute()
+        if (response.exception != null || response.hasErrors()) return UserUploadCustomEmojiResult.Failure(response.failureMessage())
+        val result = response.data?.user?.uploadCustomEmoji ?: return UserUploadCustomEmojiResult.Failure(response.failureMessage())
+        val emoji = result.emoji
+        if (emoji != null) {
+            return UserUploadCustomEmojiResult.Success(
+                UserLocalCustomEmoji(id = emoji.id, shortcode = emoji.shortcode, imageUrl = emoji.imageUrl, deletable = emoji.deletable),
+            )
+        }
+        return UserUploadCustomEmojiResult.Failure(
+            when (result.failure) {
+                UploadCustomEmojiFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+                UploadCustomEmojiFailure.INVALID_SHORTCODE -> "名前は英数字と _ で 64 文字までにしてください"
+
+                UploadCustomEmojiFailure.DUPLICATE_SHORTCODE -> "同じ名前の絵文字があります"
+
+                UploadCustomEmojiFailure.TOO_LARGE -> "画像は 1MB までにしてください"
+
+                UploadCustomEmojiFailure.UNSUPPORTED_IMAGE -> "PNG / JPEG / GIF / WebP の画像を選んでください"
+
+                UploadCustomEmojiFailure.UNSUPPORTED_OPERATION -> "このサーバーでは絵文字を置けません"
+
+                UploadCustomEmojiFailure.INTERNAL_SERVER_ERROR,
+                UploadCustomEmojiFailure.UNKNOWN__,
+                null,
+                -> "絵文字を追加できませんでした"
+            },
+        )
+    }
+
+    /**
+     * @return 失敗したときに見せる文言。消せたら null
+     */
+    suspend fun deleteCustomEmoji(id: String): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(DeleteCustomEmojiMutation(id = id)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val result = response.data?.user?.deleteCustomEmoji ?: return response.failureMessage()
+        return when (result.failure) {
+            null -> null
+
+            DeleteCustomEmojiFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            DeleteCustomEmojiFailure.NOT_FOUND -> "この絵文字は消せません"
+
+            DeleteCustomEmojiFailure.UNSUPPORTED_OPERATION,
+            DeleteCustomEmojiFailure.UNKNOWN__,
+            -> "絵文字を削除できませんでした"
         }
     }
 
@@ -1010,10 +1125,11 @@ class UserApi(
                 favouriteCount = favouriteCount,
                 boostCount = boostCount,
                 replyCount = replyCount,
-                stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count) },
+                stamps = stamps.map { stamp -> UserPostStamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, count = stamp.count, customEmojiShortcode = stamp.customEmojiShortcode) },
                 emojis = emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
                 shareUrl = url,
                 likedByMe = likedByMe,
+                viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
                 boostedByMe = boostedByMe,
             ),
             boostedNoteAuthor = boostedNoteAuthor?.let { author ->

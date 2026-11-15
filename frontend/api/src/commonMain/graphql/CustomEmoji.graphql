@@ -1,0 +1,30 @@
+query CustomEmojis {
+    customEmojis {
+        id
+        shortcode
+        imageUrl
+        deletable
+    }
+}
+
+mutation UploadCustomEmoji($shortcode: String!, $image: Upload!) {
+    user {
+        uploadCustomEmoji(shortcode: $shortcode, image: $image) {
+            emoji {
+                id
+                shortcode
+                imageUrl
+                deletable
+            }
+            failure
+        }
+    }
+}
+
+mutation DeleteCustomEmoji($id: CustomEmojiId!) {
+    user {
+        deleteCustomEmoji(id: $id) {
+            failure
+        }
+    }
+}

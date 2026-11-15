@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.graphql.graphQlRoutes
 import net.matsudamper.kmp.activitypub.graphql.graphQlWebSocketRoutes
 import net.matsudamper.kmp.activitypub.graphql.resolver.ListedActorResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.MutationResolverImpl
+import net.matsudamper.kmp.activitypub.graphql.resolver.ProfilePostResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.QueryResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.SearchedUserResolverImpl
 import net.matsudamper.kmp.activitypub.graphql.resolver.SubscriptionResolverImpl
@@ -137,6 +138,7 @@ internal fun Application.module(deps: AppDependencies) {
                 UserMutationResolverImpl(),
                 SubscriptionResolverImpl(),
                 TimelinePostResolverImpl(),
+                ProfilePostResolverImpl(),
                 SearchedUserResolverImpl(),
                 ListedActorResolverImpl(),
             ),
@@ -179,6 +181,8 @@ internal fun Application.module(deps: AppDependencies) {
                 remoteProfileRefreshService = federation?.remoteProfileRefreshService,
                 replyTargetService = federation?.replyTargetService,
                 postCountService = federation?.postCountService,
+                customEmojiService = federation?.customEmojiService,
+                customEmojiUrls = federation?.customEmojiUrls,
             ),
         )
 

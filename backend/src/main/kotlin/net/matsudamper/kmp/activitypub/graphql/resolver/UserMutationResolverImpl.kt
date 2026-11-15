@@ -15,12 +15,15 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlBlockServerFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockServerResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlCreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlCreateFollowingGroupResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteCustomEmojiFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteCustomEmojiResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlReactionInput
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyResult
@@ -32,6 +35,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetLikedResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlSetPinnedResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetReactionFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlSetReactionResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockAccountFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockAccountResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerFailure
@@ -41,6 +46,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileQuery
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlUploadCustomEmojiFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUploadCustomEmojiResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUploadNoteImageFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserLoginFailure
@@ -57,21 +64,27 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BlockActorResult
 import net.matsudamper.kmp.activitypub.logic.BlockServerResult
 import net.matsudamper.kmp.activitypub.logic.CreateFollowingGroupResult
+import net.matsudamper.kmp.activitypub.logic.CustomEmojiUpload
+import net.matsudamper.kmp.activitypub.logic.DeleteCustomEmojiResult
 import net.matsudamper.kmp.activitypub.logic.DeleteNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
+import net.matsudamper.kmp.activitypub.logic.PostReaction
 import net.matsudamper.kmp.activitypub.logic.RenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
 import net.matsudamper.kmp.activitypub.logic.SetLikedResult
 import net.matsudamper.kmp.activitypub.logic.SetPinnedResult
+import net.matsudamper.kmp.activitypub.logic.SetReactionResult
 import net.matsudamper.kmp.activitypub.logic.UnblockActorResult
 import net.matsudamper.kmp.activitypub.logic.UnblockServerResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
+import net.matsudamper.kmp.activitypub.logic.UploadCustomEmojiResult
 import net.matsudamper.kmp.activitypub.logic.UploadNoteImageResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
@@ -415,6 +428,35 @@ class UserMutationResolverImpl : UserMutationResolver {
         return otelFuture { DataFetcherResult.Builder(setLiked(postId = postId, liked = liked, env = env)).build() }
     }
 
+    override fun setReaction(
+        userMutation: QlUserMutation,
+        postId: TimelinePostId,
+        reaction: QlReactionInput?,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlSetReactionResult>> {
+        // 保存していない投稿は相手のサーバーへ取りに行くので、待つ間スレッドを塞がない
+        return otelFuture { DataFetcherResult.Builder(setReaction(postId = postId, reaction = reaction, env = env)).build() }
+    }
+
+    override fun uploadCustomEmoji(
+        userMutation: QlUserMutation,
+        shortcode: String,
+        image: GraphQlUpload,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUploadCustomEmojiResult>> {
+        val result = uploadCustomEmoji(shortcode = shortcode, image = image, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    override fun deleteCustomEmoji(
+        userMutation: QlUserMutation,
+        id: CustomEmojiId,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlDeleteCustomEmojiResult>> {
+        val result = QlDeleteCustomEmojiResult(failure = deleteCustomEmoji(id = id, env = env))
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     override fun setBoosted(
         userMutation: QlUserMutation,
         postId: TimelinePostId,
@@ -574,6 +616,87 @@ class UserMutationResolverImpl : UserMutationResolver {
                 SetLikedResult.PostNotFound -> QlSetLikedFailure.POST_NOT_FOUND
             }
         return QlSetLikedResult(failure = failure)
+    }
+
+    private suspend fun setReaction(
+        postId: TimelinePostId,
+        reaction: QlReactionInput?,
+        env: DataFetchingEnvironment,
+    ): QlSetReactionResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val likeService =
+            diContainer.likeService
+                ?: return QlSetReactionResult(failure = QlSetReactionFailure.FEDERATION_DISABLED)
+        val unicode = reaction?.unicode
+        val customEmojiShortcode = reaction?.customEmojiShortcode
+        val postReaction = when {
+            reaction == null -> null
+            unicode != null && customEmojiShortcode != null -> return QlSetReactionResult(failure = QlSetReactionFailure.INVALID_EMOJI)
+            unicode != null -> PostReaction.Unicode(unicode)
+            customEmojiShortcode != null -> PostReaction.Custom(customEmojiShortcode)
+            else -> PostReaction.Like
+        }
+        val failure =
+            when (likeService.setReaction(accountId = GraphQlEngine.graphQlContext(env).userAccountId(), requestedPostId = postId.value, reaction = postReaction)) {
+                SetReactionResult.Updated -> null
+                SetReactionResult.NotLoggedIn -> QlSetReactionFailure.NOT_LOGGED_IN
+                SetReactionResult.PostNotFound -> QlSetReactionFailure.POST_NOT_FOUND
+                SetReactionResult.InvalidEmoji -> QlSetReactionFailure.INVALID_EMOJI
+            }
+        return QlSetReactionResult(failure = failure)
+    }
+
+    private fun uploadCustomEmoji(
+        shortcode: String,
+        image: GraphQlUpload,
+        env: DataFetchingEnvironment,
+    ): QlUploadCustomEmojiResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId =
+            GraphQlEngine.graphQlContext(env).userAccountId()
+                ?: return QlUploadCustomEmojiResult(emoji = null, failure = QlUploadCustomEmojiFailure.NOT_LOGGED_IN)
+        // セッションが残っていてもアカウントが消えていることがある
+        diContainer.accountService.account(accountId)
+            ?: return QlUploadCustomEmojiResult(emoji = null, failure = QlUploadCustomEmojiFailure.NOT_LOGGED_IN)
+        val customEmojiService = diContainer.customEmojiService
+        val customEmojiUrls = diContainer.customEmojiUrls
+        if (customEmojiService == null || customEmojiUrls == null) {
+            return QlUploadCustomEmojiResult(emoji = null, failure = QlUploadCustomEmojiFailure.UNSUPPORTED_OPERATION)
+        }
+        val failure =
+            when (val result = customEmojiService.upload(accountId = accountId, shortcode = shortcode, image = CustomEmojiUpload(size = image.size, openStream = image::openStream))) {
+                is UploadCustomEmojiResult.Uploaded -> return QlUploadCustomEmojiResult(
+                    emoji = result.emoji.toQlLocalCustomEmoji(viewer = accountId, urls = customEmojiUrls),
+                    failure = null,
+                )
+
+                UploadCustomEmojiResult.InvalidShortcode -> QlUploadCustomEmojiFailure.INVALID_SHORTCODE
+
+                UploadCustomEmojiResult.DuplicateShortcode -> QlUploadCustomEmojiFailure.DUPLICATE_SHORTCODE
+
+                UploadCustomEmojiResult.TooLarge -> QlUploadCustomEmojiFailure.TOO_LARGE
+
+                UploadCustomEmojiResult.UnsupportedImage -> QlUploadCustomEmojiFailure.UNSUPPORTED_IMAGE
+
+                UploadCustomEmojiResult.ImageStorageDisabled -> QlUploadCustomEmojiFailure.UNSUPPORTED_OPERATION
+
+                UploadCustomEmojiResult.UploadFailed -> QlUploadCustomEmojiFailure.INTERNAL_SERVER_ERROR
+            }
+        return QlUploadCustomEmojiResult(emoji = null, failure = failure)
+    }
+
+    private fun deleteCustomEmoji(
+        id: CustomEmojiId,
+        env: DataFetchingEnvironment,
+    ): QlDeleteCustomEmojiFailure? {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId() ?: return QlDeleteCustomEmojiFailure.NOT_LOGGED_IN
+        val customEmojiService = diContainer.customEmojiService ?: return QlDeleteCustomEmojiFailure.UNSUPPORTED_OPERATION
+        return when (customEmojiService.delete(accountId = accountId, id = id)) {
+            DeleteCustomEmojiResult.Deleted -> null
+            DeleteCustomEmojiResult.NotFound -> QlDeleteCustomEmojiFailure.NOT_FOUND
+            DeleteCustomEmojiResult.ImageStorageDisabled -> QlDeleteCustomEmojiFailure.UNSUPPORTED_OPERATION
+        }
     }
 
     private suspend fun setBoosted(

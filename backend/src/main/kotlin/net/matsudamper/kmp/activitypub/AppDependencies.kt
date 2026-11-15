@@ -129,6 +129,7 @@ class AppDependencies(
                 accountBoostRepository = repositories.accountBoostRepository,
                 stampRepository = repositories.stampRepository,
                 boostRepository = repositories.boostRepository,
+                customEmojiRepository = repositories.customEmojiRepository,
                 blockLists = blockLists,
                 noteCountRepository = repositories.noteCountRepository,
                 imageStorage = imageStorage,

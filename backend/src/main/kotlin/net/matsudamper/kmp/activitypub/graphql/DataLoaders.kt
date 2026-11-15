@@ -7,6 +7,7 @@ import io.opentelemetry.context.Context
 import net.matsudamper.kmp.activitypub.graphql.dataloader.DataLoaderDefine
 import net.matsudamper.kmp.activitypub.graphql.dataloader.FollowingDataLoaderDefine
 import net.matsudamper.kmp.activitypub.graphql.dataloader.PinnedNoteDataLoaderDefine
+import net.matsudamper.kmp.activitypub.graphql.dataloader.ViewerReactionDataLoaderDefine
 import org.dataloader.DataLoader
 import org.dataloader.DataLoaderRegistry
 
@@ -24,6 +25,10 @@ internal class DataLoaders(
 
     val pinnedNoteDataLoader by register {
         PinnedNoteDataLoaderDefine(diContainer.notePinService)
+    }
+
+    val viewerReactionDataLoader by register {
+        ViewerReactionDataLoaderDefine(diContainer.likeService)
     }
 
     private fun <K : Any, V : Any> register(initializer: () -> DataLoaderDefine<K, V>): DataLoaderRegister<K, V> {

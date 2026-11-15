@@ -41,7 +41,7 @@ internal class FakeStampRepository : StampRepository {
                 .filter { it.key.first == id }
                 .groupingBy { it.key.third to it.value.second }
                 .eachCount()
-                .map { (key, count) -> StampCount(emoji = key.first, emojiImageUrl = key.second, count = count.toLong()) }
+                .map { (key, count) -> StampCount(emoji = key.first, emojiImageUrl = key.second, count = count.toLong(), localCustomEmojiPublicId = null) }
                 .sortedByDescending { it.count }
         }
 }

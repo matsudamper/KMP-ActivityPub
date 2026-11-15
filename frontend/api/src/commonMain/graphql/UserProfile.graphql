@@ -72,8 +72,13 @@ fragment ProfilePostFields on ProfilePost {
         emoji
         imageUrl
         count
+        customEmojiShortcode
     }
     likedByMe
+    viewerReaction {
+        emoji
+        imageUrl
+    }
     boostedByMe
     reactionPostId
     url

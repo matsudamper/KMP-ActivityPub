@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 
 /**
@@ -19,6 +20,8 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param onOpenProfile 本文のメンションを押したとき。acct は `user@host`
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
+ * @param onOpenReactionPicker リアクションのアイコンを押したとき
+ * @param onClickStamp スタンプを押したとき
  */
 internal fun createPostItemUiState(
     actorLabel: PostActorLabel?,
@@ -43,6 +46,8 @@ internal fun createPostItemUiState(
     onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
+    onOpenReactionPicker: () -> Unit,
+    onClickStamp: (UserPostStamp) -> Unit,
     onVisible: () -> Unit,
 ): PostItemUiState {
     val shareUrl = body.shareUrl
@@ -105,9 +110,10 @@ internal fun createPostItemUiState(
         replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
-        favouriteButton = body.likedByMe?.let { liked ->
+        favouriteButton = body.likedByMe?.let {
             PostItemUiState.FavouriteButton(
-                iconHighlighted = liked,
+                // リアクションも Like で送るが、絵文字を付けたものはリアクションのアイコンに出す
+                iconHighlighted = body.plainLikedByMe,
                 listener = object : PostItemUiState.FavouriteButtonListener {
                     override fun onClick() {
                         onToggleLike()
@@ -125,9 +131,17 @@ internal fun createPostItemUiState(
                 },
             )
         },
-        stamps = body.stamps.map { stamp ->
-            PostItemUiState.Stamp(emoji = stamp.emoji, imageUrl = stamp.imageUrl, countText = stamp.count.toString())
+        // いいねとリアクションは同じ Like で送るので、いいねできる投稿だけリアクションできる
+        reactionButton = body.likedByMe?.let {
+            PostItemUiState.ReactionButton(
+                listener = object : PostItemUiState.ReactionButtonListener {
+                    override fun onClick() {
+                        onOpenReactionPicker()
+                    }
+                },
+            )
         },
+        stamps = createStamps(body = body, onClickStamp = onClickStamp),
         authorListener = when (authorTapAction) {
             is AuthorTapAction.OpenProfile -> object : PostItemUiState.AuthorListener {
                 override fun onClick() {
@@ -227,4 +241,42 @@ internal sealed interface PostActorLabel {
         override val actor: UserHomeTimelineResult.Actor,
         override val navigateToProfile: ((username: String) -> Unit)?,
     ) : PostActorLabel
+}
+
+/**
+ * 他のサーバーの投稿はスタンプを受け取らないので、自分のリアクションだけを数無しで並べる
+ */
+private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Unit): List<PostItemUiState.Stamp> {
+    val viewerReaction = body.viewerReaction
+    val countReceived = body.favouriteCount != null
+    val stamps = if (viewerReaction == null || body.stamps.any { it.isReactionOf(viewerReaction) }) {
+        body.stamps
+    } else {
+        body.stamps + UserPostStamp(
+            emoji = viewerReaction.emoji,
+            imageUrl = viewerReaction.imageUrl,
+            count = 1,
+            customEmojiShortcode = if (viewerReaction.imageUrl == null) null else viewerReaction.emoji.removeSurrounding(":"),
+        )
+    }
+    // いいねできない投稿にはリアクションもできない
+    val reactable = body.likedByMe != null
+    return stamps.map { stamp ->
+        val selected = viewerReaction != null && stamp.isReactionOf(viewerReaction)
+        PostItemUiState.Stamp(
+            emoji = stamp.emoji,
+            imageUrl = stamp.imageUrl,
+            countText = if (countReceived) stamp.count.toString() else null,
+            selected = selected,
+            listener = if (reactable && (selected || stamp.toReaction() != null)) {
+                object : PostItemUiState.StampListener {
+                    override fun onClick() {
+                        onClickStamp(stamp)
+                    }
+                }
+            } else {
+                null
+            },
+        )
+    }
 }

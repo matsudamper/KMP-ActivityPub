@@ -35,20 +35,26 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.AccountStreamEvent
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserFollowingGroup
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLikeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsPageResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLikesResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfilePostsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserReaction
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserSearchResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.likeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.needsReloadForPin
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.toUserSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withBoosted
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withFollowing
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withLikeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withNextPage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
@@ -60,15 +66,23 @@ import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
+import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
+import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
+import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
+import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
+import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.toLikeState
 import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -114,6 +128,8 @@ internal class HomeScreenViewModel(
                 profile = ProfileState.Loading,
                 myPosts = MyPostsState.Loading,
                 noteDeletion = NoteDeletionState.None,
+                reactionPicker = null,
+                reactionConfirmation = null,
                 userContentTab = ProfileContentTab.Posts,
                 timelineColumns = TimelineColumnsState(
                     settings = null,
@@ -151,6 +167,7 @@ internal class HomeScreenViewModel(
      * 返事を待たずに表示を切り替えるので、押している間かどうかは表示に使わない。続けて押されたときに送り違えないよう、返事までは受け付けない
      */
     private var likeChangingPostIds = setOf<String>()
+    private var reactionPickerOpenCount = 0
     private var boostChangingPostIds = setOf<String>()
 
     /**
@@ -968,19 +985,109 @@ internal class HomeScreenViewModel(
     }
 
     /**
+     * @param body 押す前の状態
+     */
+    private fun toggleLike(postId: String, body: UserPostBody) {
+        if (body.likedByMe == null) return
+        if (postId in likeChangingPostIds) return
+        val confirmation = decideLikeTap(postId, body)
+        if (confirmation != null) {
+            viewModelStateFlow.update { it.copy(reactionConfirmation = confirmation) }
+            return
+        }
+        val liked = body.plainLikedByMe
+        changeLikeState(postId = postId, current = body.likeState(), next = body.withLiked(!liked).likeState()) {
+            userApi.setLiked(postId = postId, liked = !liked)
+        }
+    }
+
+    /**
+     * @param body 開いたときの状態
+     */
+    private fun openReactionPicker(postId: String, body: UserPostBody) {
+        if (body.likedByMe == null) return
+        // 送っている途中の状態を開いたときの状態として持つと、両方失敗したときに送れていない状態へ戻してしまう
+        if (postId in likeChangingPostIds) return
+        reactionPickerOpenCount++
+        val target = ReactionPickerTarget(reactionPostId = postId, current = body.likeState(), requestKey = "reaction-picker-$reactionPickerOpenCount")
+        viewModelStateFlow.update { it.copy(reactionPicker = target) }
+    }
+
+    /**
+     * ピッカーで選んだとき
+     */
+    private fun pickReaction(target: ReactionPickerTarget, reaction: UserReaction) {
+        viewModelStateFlow.update { it.copy(reactionPicker = null) }
+        handleReactionDecision(decidePickedReaction(target.reactionPostId, target.current, reaction))
+    }
+
+    /**
+     * ピッカーの「リアクションを外す」を押したとき
+     */
+    private fun requestReactionRemoval(target: ReactionPickerTarget) {
+        val current = target.current as? UserLikeState.Reacted
+        viewModelStateFlow.update {
+            it.copy(
+                reactionPicker = null,
+                reactionConfirmation = current?.let { reacted -> ReactionConfirmation(target.reactionPostId, reacted, ReactionChange.Remove) },
+            )
+        }
+    }
+
+    /**
+     * @param body 押したときの状態
+     */
+    private fun clickStamp(reactionPostId: String, body: UserPostBody, stamp: UserPostStamp) {
+        if (reactionPostId in likeChangingPostIds) return
+        handleReactionDecision(decideStampTap(reactionPostId, body, stamp))
+    }
+
+    private fun handleReactionDecision(decision: ReactionDecision) {
+        when (decision) {
+            is ReactionDecision.Apply -> sendReaction(decision.reactionPostId, decision.current, decision.reaction)
+            is ReactionDecision.Confirm -> viewModelStateFlow.update { it.copy(reactionConfirmation = decision.confirmation) }
+            ReactionDecision.None -> Unit
+        }
+    }
+
+    private fun confirmReaction(confirmation: ReactionConfirmation) {
+        viewModelStateFlow.update { it.copy(reactionConfirmation = null) }
+        val reactionPostId = confirmation.reactionPostId
+        when (val next = confirmation.next) {
+            ReactionChange.Remove -> sendReaction(reactionPostId, confirmation.current, reaction = null)
+
+            is ReactionChange.React -> sendReaction(reactionPostId, confirmation.current, next.reaction)
+
+            ReactionChange.PlainLike -> changeLikeState(reactionPostId, confirmation.current, UserLikeState.Liked) {
+                userApi.setLiked(postId = reactionPostId, liked = true)
+            }
+        }
+    }
+
+    /**
+     * @param reaction null なら外す
+     */
+    private fun sendReaction(reactionPostId: String, current: UserLikeState, reaction: UserReaction?) {
+        changeLikeState(reactionPostId, current, reaction.toLikeState()) {
+            userApi.setReaction(postId = reactionPostId, reaction = reaction)
+        }
+    }
+
+    /**
+     * 返事を待たずに表示を切り替え、送れなかったら戻す。
      * 自分の投稿はタイムラインと自分のタブの両方に出るので、両方を切り替える
      *
-     * @param likedByMe 押す前の状態
+     * @param send 失敗したときに見せる文言を返す
      */
-    private fun toggleLike(postId: String, likedByMe: Boolean) {
+    private fun changeLikeState(postId: String, current: UserLikeState, next: UserLikeState, send: suspend () -> String?) {
         if (postId in likeChangingPostIds) return
         likeChangingPostIds = likeChangingPostIds + postId
         viewModelScope.launch {
             try {
-                applyLiked(postId = postId, liked = !likedByMe)
-                val error = userApi.setLiked(postId = postId, liked = !likedByMe)
+                applyLikeState(postId = postId, state = next)
+                val error = send()
                 if (error != null) {
-                    applyLiked(postId = postId, liked = likedByMe)
+                    applyLikeState(postId = postId, state = current)
                     events.send { it.showMessage(error) }
                 }
             } finally {
@@ -1002,15 +1109,15 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private suspend fun applyLiked(postId: String, liked: Boolean) {
-        timelineFeeds.updatePosts { it.withLiked(reactionPostId = postId, liked = liked) }
-        updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withLiked(reactionPostId = postId, liked = liked) }) }
+    private suspend fun applyLikeState(postId: String, state: UserLikeState) {
+        timelineFeeds.updatePosts { it.withLikeState(reactionPostId = postId, state = state) }
+        updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withLikeState(reactionPostId = postId, state = state) }) }
         viewModelStateFlow.update {
             val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
             it.copy(
                 myPosts = myPosts.copy(
-                    posts = myPosts.posts.withLiked(reactionPostId = postId, liked = liked),
-                    likes = myPosts.likes?.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withLiked(liked)) else post },
+                    posts = myPosts.posts.withLikeState(reactionPostId = postId, state = state),
+                    likes = myPosts.likes?.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withLikeState(state)) else post },
                 ),
             )
         }
@@ -1116,6 +1223,19 @@ internal class HomeScreenViewModel(
                 HomeScreenUiState.RailItem(column = column, selected = column == viewModelState.openedColumn)
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
+            reactionPickerDialog = viewModelState.reactionPicker?.let { target ->
+                target.toDialogUiState(
+                    onPick = { reaction -> pickReaction(target, reaction) },
+                    onRemove = { requestReactionRemoval(target) },
+                    onDismiss = { viewModelStateFlow.update { it.copy(reactionPicker = null) } },
+                )
+            },
+            reactionConfirmDialog = viewModelState.reactionConfirmation?.let { confirmation ->
+                confirmation.toDialogUiState(
+                    onConfirm = { confirmReaction(confirmation) },
+                    onDismiss = { viewModelStateFlow.update { it.copy(reactionConfirmation = null) } },
+                )
+            },
             addFollowingGroupDialog = followMenuController.addGroupDialog(followMenu),
             listener = listener,
         )
@@ -1219,13 +1339,20 @@ internal class HomeScreenViewModel(
                             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
                             onToggleLike = {
                                 val reactionPostId = post.reactionPostId
-                                val likedByMe = post.body.likedByMe
-                                if (reactionPostId != null && likedByMe != null) toggleLike(postId = reactionPostId, likedByMe = likedByMe)
+                                if (reactionPostId != null) toggleLike(postId = reactionPostId, body = post.body)
                             },
                             onToggleBoost = {
                                 val reactionPostId = post.reactionPostId
                                 val boostedByMe = post.body.boostedByMe
                                 if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
+                            },
+                            onOpenReactionPicker = {
+                                val reactionPostId = post.reactionPostId
+                                if (reactionPostId != null) openReactionPicker(postId = reactionPostId, body = post.body)
+                            },
+                            onClickStamp = { stamp ->
+                                val reactionPostId = post.reactionPostId
+                                if (reactionPostId != null) clickStamp(reactionPostId = reactionPostId, body = post.body, stamp = stamp)
                             },
                             onVisible = {
                                 if (post.body.linkUrls.isNotEmpty()) {
@@ -1277,14 +1404,13 @@ internal class HomeScreenViewModel(
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
             onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
-            onToggleLike = {
-                val likedByMe = post.body.likedByMe
-                if (likedByMe != null) toggleLike(postId = post.reactionPostId, likedByMe = likedByMe)
-            },
+            onToggleLike = { toggleLike(postId = post.reactionPostId, body = post.body) },
             onToggleBoost = {
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
+            onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
@@ -1465,14 +1591,13 @@ internal class HomeScreenViewModel(
             onOpenImage = { urls, index -> viewModelScope.launch { events.send { it.navigateToImage(urls, index) } } },
             onToggleImageBlur = { imageUrls, toggled -> toggleImageBlur(imageUrls, toggled) },
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
-            onToggleLike = {
-                val likedByMe = post.body.likedByMe
-                if (likedByMe != null) toggleLike(postId = post.reactionPostId, likedByMe = likedByMe)
-            },
+            onToggleLike = { toggleLike(postId = post.reactionPostId, body = post.body) },
             onToggleBoost = {
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
+            onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
@@ -1630,6 +1755,8 @@ internal class HomeScreenViewModel(
         val profile: ProfileState,
         val myPosts: MyPostsState,
         val noteDeletion: NoteDeletionState,
+        val reactionPicker: ReactionPickerTarget?,
+        val reactionConfirmation: ReactionConfirmation?,
         val userContentTab: ProfileContentTab,
         val timelineColumns: TimelineColumnsState,
     ) {

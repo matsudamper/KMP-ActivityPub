@@ -69,6 +69,10 @@ internal fun Route.federationRoutes(federation: Federation) {
     if (noteImageFiles != null) {
         noteImageRoutes(noteImageFiles)
     }
+    val customEmojiFiles = federation.customEmojiFiles
+    if (customEmojiFiles != null) {
+        customEmojiRoutes(files = customEmojiFiles, customEmojiService = federation.customEmojiService, urls = federation.customEmojiUrls)
+    }
 
     get("/users/{username}/followers") {
         val response =

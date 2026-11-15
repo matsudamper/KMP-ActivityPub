@@ -4,6 +4,8 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.ActorBlockService
 import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
+import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
+import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
 import net.matsudamper.kmp.activitypub.logic.FollowListService
 import net.matsudamper.kmp.activitypub.logic.FollowingGroupService
 import net.matsudamper.kmp.activitypub.logic.FollowingService
@@ -98,4 +100,12 @@ class DiContainer(
      * DOMAIN が無いとこのサーバーの投稿の URL を作れず、相手のサーバーにも取りに行けないので null
      */
     val postCountService: PostCountService?,
+    /**
+     * DOMAIN が無いと絵文字の URL を作れないので null
+     */
+    val customEmojiService: CustomEmojiService?,
+    /**
+     * DOMAIN が無いと絵文字の URL を作れないので null
+     */
+    val customEmojiUrls: CustomEmojiUrls?,
 )

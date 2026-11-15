@@ -14,6 +14,8 @@ import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.BoostService
+import net.matsudamper.kmp.activitypub.logic.CustomEmojiService
+import net.matsudamper.kmp.activitypub.logic.CustomEmojiUrls
 import net.matsudamper.kmp.activitypub.logic.LikeService
 import net.matsudamper.kmp.activitypub.logic.LinkPreviewService
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
@@ -33,6 +35,7 @@ import net.matsudamper.kmp.activitypub.logic.UploadedNoteImageCleaner
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
@@ -101,6 +104,7 @@ internal class Federation(
     accountBoostRepository: AccountBoostRepository,
     stampRepository: StampRepository,
     boostRepository: BoostRepository,
+    customEmojiRepository: CustomEmojiRepository,
     blockLists: BlockLists,
     noteCountRepository: NoteCountRepository,
     imageStorage: ImageStorage?,
@@ -113,6 +117,12 @@ internal class Federation(
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     val noteImageUrls: NoteImageUrls = NoteImageUrls(domain)
     val noteShareUrls: NoteShareUrls = NoteShareUrls(domain)
+    val customEmojiUrls: CustomEmojiUrls = CustomEmojiUrls(domain)
+    val customEmojiService: CustomEmojiService = CustomEmojiService(
+        customEmojis = customEmojiRepository,
+        imageStorage = imageStorage,
+        clock = Clock.systemUTC(),
+    )
     private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
@@ -183,6 +193,8 @@ internal class Federation(
             directory = directory,
             accountService = accountService,
             likes = likeRepository,
+            customEmojis = customEmojiService,
+            customEmojiUrls = customEmojiUrls,
             unsavedNotes = unsavedRemoteNotes,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
@@ -300,6 +312,11 @@ internal class Federation(
      * 画像の置き場が無ければ画像付きの投稿もできないので作らない
      */
     val noteImageFiles: NoteImageFiles? = imageStorage?.let { NoteImageFiles(noteRepository = noteRepository, imageStorage = it) }
+
+    /**
+     * 画像の置き場が無ければカスタム絵文字も置けないので作らない
+     */
+    val customEmojiFiles: CustomEmojiFiles? = imageStorage?.let { CustomEmojiFiles(customEmojiService = customEmojiService, imageStorage = it) }
 
     val uploadedNoteImageCleaner: UploadedNoteImageCleaner? =
         imageStorage?.let { UploadedNoteImageCleaner(noteRepository = noteRepository, imageStorage = it, clock = Clock.systemUTC()) }
