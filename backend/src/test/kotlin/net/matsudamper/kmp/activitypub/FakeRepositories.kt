@@ -3,19 +3,24 @@ package net.matsudamper.kmp.activitypub
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.Account
 import net.matsudamper.kmp.activitypub.repository.AccountCredential
+import net.matsudamper.kmp.activitypub.repository.AccountLike
 import net.matsudamper.kmp.activitypub.repository.AccountProfileDetail
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
 import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.BlockedActor
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.LikeReaction
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.ListedActor
+import net.matsudamper.kmp.activitypub.repository.LocalCustomEmoji
+import net.matsudamper.kmp.activitypub.repository.NewLocalCustomEmoji
 import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
@@ -32,6 +37,7 @@ import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NotificationId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
@@ -117,9 +123,10 @@ internal class FakeRepositories : Repositories {
     override val stampRepository: FakeStampRepository = FakeStampRepository()
     override val likeRepository: LikeRepository = object : LikeRepository {
         override fun target(accountId: AccountId, member: String): LikeTarget? = null
-        override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant): Boolean = false
+        override fun likeLocal(accountId: AccountId, member: String, likedAt: Instant, reaction: LikeReaction?): Boolean = false
         override fun unlikeLocal(accountId: AccountId, member: String): Boolean = false
         override fun likedLocalNotes(accountId: AccountId, notePublicIds: Set<PublicNoteId>): Set<PublicNoteId> = setOf()
+        override fun likesOf(accountId: AccountId, members: Set<String>): Map<String, AccountLike> = mapOf()
         override fun publishedLikes(username: String, before: LikedNotePosition?, limit: Int): List<PublishedLike> = listOf()
         override fun countPublishedLikes(username: String): Long = 0
         override fun likeAndEnqueue(like: OutgoingLike): Boolean = false
@@ -127,7 +134,7 @@ internal class FakeRepositories : Repositories {
             accountId: AccountId,
             member: String,
             now: Instant,
-            undoBody: (likeId: String, objectUri: String) -> String,
+            undoBody: (likeId: String, objectUri: String, reaction: LikeReaction?) -> String,
         ): Boolean = false
     }
     override val accountBoostRepository: FakeAccountBoostRepository = FakeAccountBoostRepository()
@@ -157,6 +164,15 @@ internal class FakeRepositories : Repositories {
         override fun remove(accountId: AccountId, host: String) {
             rows -= accountId to host
         }
+    }
+
+    override val customEmojiRepository: CustomEmojiRepository = object : CustomEmojiRepository {
+        override fun add(emoji: NewLocalCustomEmoji): LocalCustomEmoji? = null
+        override fun all(): List<LocalCustomEmoji> = listOf()
+        override fun findById(id: CustomEmojiId): LocalCustomEmoji? = null
+        override fun findByShortcode(shortcode: String): LocalCustomEmoji? = null
+        override fun findByPublicId(publicId: String): LocalCustomEmoji? = null
+        override fun delete(id: CustomEmojiId, accountId: AccountId): LocalCustomEmoji? = null
     }
 
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })

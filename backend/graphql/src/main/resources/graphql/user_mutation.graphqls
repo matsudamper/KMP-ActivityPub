@@ -58,6 +58,19 @@ type UserMutation {
     """
     setLiked(postId: TimelinePostId!, liked: Boolean!): SetLikedResult! @lazy
     """
+    ログインしているアカウントで、投稿に付けるいいねかリアクションを reaction に置き換える。1 つの投稿に付けられるのはどちらか 1 つ。
+    他のサーバーの投稿なら投稿者への Like を積み、前に付けていたものがあれば先に Undo を積む。
+    postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。reaction が null なら外す。既に望んだ状態なら何も積まずに成功する
+    """
+    setReaction(postId: TimelinePostId!, reaction: ReactionInput): SetReactionResult! @lazy
+    """
+    このサーバーのカスタム絵文字を置く。multipart で送る。PNG / JPEG / GIF / WebP で 1MiB まで。
+    shortcode はコロンを含めない英数字と _ で 64 文字まで。サーバーの全員が使える
+    """
+    uploadCustomEmoji(shortcode: String!, image: Upload!): UploadCustomEmojiResult! @lazy
+    "ログインしているアカウントが置いたカスタム絵文字を消す。既に付けたリアクションは残る"
+    deleteCustomEmoji(id: CustomEmojiId!): DeleteCustomEmojiResult! @lazy
+    """
     ログインしているアカウントで、このサーバーの投稿か、他のサーバーの公開の投稿をブーストするか外す。公開範囲に制限のある投稿はブーストできない。フォロワーと投稿者への Announce か Undo を積む。
     postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
     外すときは今読めない投稿でも、付けたブーストを外す
@@ -350,4 +363,59 @@ enum SetPinnedFailure {
     NOT_FOUND
     "固定している投稿が多すぎる。上限は 5 件"
     TOO_MANY_PINS
+}
+
+"unicode と customEmojiShortcode のどちらかを入れる。どちらも無ければ絵文字の無いいいね"
+input ReactionInput {
+    "Unicode の絵文字 1 つ"
+    unicode: String
+    "このサーバーのカスタム絵文字の shortcode。コロンを含めない"
+    customEmojiShortcode: String
+}
+
+type SetReactionResult {
+    "付け外しできたら null"
+    failure: SetReactionFailure
+}
+
+enum SetReactionFailure {
+    NOT_LOGGED_IN
+    "無いか、読めない投稿"
+    POST_NOT_FOUND
+    "絵文字 1 つではないか、無いカスタム絵文字。unicode と customEmojiShortcode の両方を入れたときも"
+    INVALID_EMOJI
+    "DOMAIN が無いので配れない"
+    FEDERATION_DISABLED
+}
+
+type UploadCustomEmojiResult {
+    "置けなければ null"
+    emoji: LocalCustomEmoji
+    failure: UploadCustomEmojiFailure
+}
+
+enum UploadCustomEmojiFailure {
+    NOT_LOGGED_IN
+    "shortcode が空か、使えない文字が入っているか、長すぎる"
+    INVALID_SHORTCODE
+    "同じ shortcode が既にある"
+    DUPLICATE_SHORTCODE
+    TOO_LARGE
+    UNSUPPORTED_IMAGE
+    "画像の置き場が無い"
+    UNSUPPORTED_OPERATION
+    INTERNAL_SERVER_ERROR
+}
+
+type DeleteCustomEmojiResult {
+    "消せたら null"
+    failure: DeleteCustomEmojiFailure
+}
+
+enum DeleteCustomEmojiFailure {
+    NOT_LOGGED_IN
+    "無いか、ログイン中のアカウントが置いた絵文字でない"
+    NOT_FOUND
+    "画像の置き場が無い"
+    UNSUPPORTED_OPERATION
 }

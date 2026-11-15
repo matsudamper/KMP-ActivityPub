@@ -45,6 +45,13 @@ data class PostItemUiState(
      * ブーストできない投稿は null で、ブーストのアイコンを押せなくする
      */
     val boostButton: BoostButton?,
+    /**
+     * リアクションできない投稿は null で、リアクションのアイコンを押せなくする
+     */
+    val reactionButton: ReactionButton?,
+    /**
+     * 先に押された絵文字の順
+     */
     val stamps: List<Stamp>,
     /**
      * 押しても移る先が無いときは null で、アイコンや名前を押せなくする
@@ -112,12 +119,24 @@ data class PostItemUiState(
     )
 
     /**
+     * 付けたリアクションはスタンプの方に出すので、ボタンはいつも同じ見た目にする
+     */
+    data class ReactionButton(
+        val listener: ReactionButtonListener,
+    )
+
+    /**
      * @param imageUrl カスタム絵文字の画像。null なら [emoji] の文字で見せる
+     * @param countText 数を受け取らない他のサーバーの投稿では null
+     * @param selected 自分が付けたリアクションか
+     * @param listener 押しても付けられない絵文字（他のサーバーのカスタム絵文字など）は null で、押せなくする
      */
     data class Stamp(
         val emoji: String,
         val imageUrl: String?,
-        val countText: String,
+        val countText: String?,
+        val selected: Boolean,
+        val listener: StampListener?,
     )
 
     /**
@@ -146,6 +165,16 @@ data class PostItemUiState(
 
     @Immutable
     interface BoostButtonListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface ReactionButtonListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface StampListener {
         fun onClick()
     }
 

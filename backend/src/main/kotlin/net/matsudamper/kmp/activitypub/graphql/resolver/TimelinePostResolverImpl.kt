@@ -6,6 +6,7 @@ import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
+import net.matsudamper.kmp.activitypub.graphql.model.QlViewerReaction
 import net.matsudamper.kmp.activitypub.graphql.model.TimelinePostResolver
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 
@@ -14,6 +15,9 @@ class TimelinePostResolverImpl : TimelinePostResolver {
         val pinnableNoteId = timelinePost.pinnableNoteId ?: return CompletableFuture.completedFuture(false).toDataFetcherResult()
         return GraphQlEngine.dataLoaders(env).pinnedNoteDataLoader.get(env).load(pinnableNoteId).toDataFetcherResult()
     }
+
+    override fun viewerReaction(timelinePost: QlTimelinePost, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlViewerReaction?>> =
+        loadViewerReaction(timelinePost.reactionPostId, env)
 
     /**
      * ブーストで載った投稿は、ブーストした相手の購読先に載る
