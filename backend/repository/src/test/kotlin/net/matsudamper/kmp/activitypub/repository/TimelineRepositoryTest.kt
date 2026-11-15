@@ -546,6 +546,19 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun createAfterBoostKeepsQuoteOfCreate() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
+        assertNotNull(repository.receiveBoost(boost("1", note("quote", "public", setOf()))))
+        val position = assertNotNull(repository.receive(note("quote", "public", setOf("dave")).copy(quoteUri = "https://other.example/notes/1")))
+        assertEquals("https://other.example/notes/1", assertNotNull(repository.viewablePost(accounts.getValue("dave"), position.member)).quoteUri)
+    }
+
+    @Test
     fun boosterKeyIsFoundFromRemoteBoosts() = withRepository { repositories, accounts ->
         repositories.remoteActorRepository.save(
             RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
