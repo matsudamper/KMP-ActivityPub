@@ -68,11 +68,13 @@ class NoteReplyRepositoryTest {
     @Test
     fun quoteIsRecordedOnLocalAndRemotePosts() = withRepository { repositories, alice ->
         repositories.followingRepository.add(alice, ACTOR, NOW)
-        repositories.deliveryQueueRepository.enqueueNote(notePost(username = "alice", publicId = "quote").copy(quoteUri = "$ACTOR/notes/1"))
+        repositories.deliveryQueueRepository.enqueueNote(notePost(username = "alice", publicId = "quote").copy(quoteUri = "$ACTOR/notes/1", quoteInbox = "$ACTOR/inbox"))
         val remote = assertNotNull(repositories.timelineRepository.receive(note("2", "public", setOf()).copy(quoteUri = "https://other.example/notes/3"))).member
         val local = checkNotNull(repositories.timelineRepository.localPosition("quote")).member
 
-        assertEquals("$ACTOR/notes/1", assertNotNull(repositories.noteRepository.find(PublicNoteId("quote"))).quoteUri)
+        val quote = assertNotNull(repositories.noteRepository.find(PublicNoteId("quote")))
+        assertEquals("$ACTOR/notes/1", quote.quoteUri)
+        assertEquals("$ACTOR/inbox", quote.quoteInbox)
         assertEquals("$ACTOR/notes/1", assertNotNull(repositories.timelineRepository.viewablePost(alice, local)).quoteUri)
         assertEquals("https://other.example/notes/3", assertNotNull(repositories.timelineRepository.viewablePost(alice, remote)).quoteUri)
     }
@@ -88,6 +90,7 @@ class NoteReplyRepositoryTest {
         inboxes = listOf(),
         inReplyTo = null,
         quoteUri = null,
+        quoteInbox = null,
         mentions = listOf(),
     )
 

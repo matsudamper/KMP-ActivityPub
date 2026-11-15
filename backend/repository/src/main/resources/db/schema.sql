@@ -107,7 +107,9 @@ CREATE TABLE notes (
     -- 返信先の投稿の id。返信でなければ NULL
     in_reply_to TEXT,
     -- 引用した投稿の id。引用でなければ NULL
-    quote_uri TEXT
+    quote_uri TEXT,
+    -- 引用した投稿の投稿者の inbox。投稿を消したときの Delete もここへ送る。引用でないか、このサーバーの投稿の引用なら NULL
+    quote_inbox TEXT
 );
 
 CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, public_id);

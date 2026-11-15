@@ -180,6 +180,7 @@ class NotePostService(
                     inboxes = followerRepository.findDeliveryInboxes(sender.username) + listOfNotNull(mention?.record?.inbox, quote?.authorInbox),
                     inReplyTo = reply?.inReplyTo,
                     quoteUri = quote?.objectUri,
+                    quoteInbox = quote?.authorInbox,
                     mentions = listOfNotNull(mention?.record),
                 ),
             )
@@ -238,8 +239,8 @@ class NotePostService(
                     publicId = publicId,
                     deletedAt = clock.instant(),
                     body = prepared.activityJson,
-                    // 宛てた相手にも届けているので、消したことも伝える
-                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + note.mentions.mapNotNull { it.inbox },
+                    // 宛てた相手と引用した投稿の投稿者にも届けているので、消したことも伝える
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + note.mentions.mapNotNull { it.inbox } + listOfNotNull(note.quoteInbox),
                 ),
             )
         if (!deleted) return DeleteNoteResult.NotFound

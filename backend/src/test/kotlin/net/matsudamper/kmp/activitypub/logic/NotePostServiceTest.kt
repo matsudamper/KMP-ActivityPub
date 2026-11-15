@@ -309,7 +309,7 @@ class NotePostServiceTest {
     }
 
     @Test
-    fun `他のサーバーの投稿を引用すると、引用先を載せて投稿者の inbox にも積み、宛てはしない`() {
+    fun `他のサーバーの投稿を引用すると、引用先を載せて投稿者の inbox にも積み、宛てはしないが消すときは伝える`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A)
         noteRepository.replyTargets["r1"] =
             ReplyTarget.Remote(
@@ -320,14 +320,19 @@ class NotePostServiceTest {
                 inbox = REMOTE_INBOX,
             )
 
-        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "これ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "r1"))
+        val posted =
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "これ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "r1"))
 
         val post = deliveryQueueRepository.posts.single()
         assertEquals("https://remote.example/notes/1", post.quoteUri)
+        assertEquals(REMOTE_INBOX, post.quoteInbox)
         assertEquals(listOf(INBOX_A, REMOTE_INBOX), post.inboxes)
         assertEquals(listOf(), post.mentions)
         val note = AppJson.parseToJsonElement(post.body).jsonObject.getValue("object").jsonObject
         assertEquals("https://remote.example/notes/1", note.getValue("quote").jsonPrimitive.content)
+
+        assertEquals(DeleteNoteResult.Deleted, service.delete(username = "user1", publicId = posted.publicId))
+        assertEquals(listOf(INBOX_A, REMOTE_INBOX), deliveryQueueRepository.noteDeletions.single().inboxes)
     }
 
     @Test

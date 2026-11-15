@@ -128,6 +128,7 @@ class StampRepositoryTest {
                 inboxes = listOf(),
                 inReplyTo = null,
                 quoteUri = null,
+                quoteInbox = null,
                 mentions = listOf(),
                 images = listOf(),
             ),

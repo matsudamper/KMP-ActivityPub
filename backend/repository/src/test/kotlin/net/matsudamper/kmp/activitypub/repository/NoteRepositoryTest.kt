@@ -306,6 +306,7 @@ class NoteRepositoryTest {
             inboxes = inboxes,
             inReplyTo = null,
             quoteUri = null,
+            quoteInbox = null,
             mentions = listOf(),
         )
 

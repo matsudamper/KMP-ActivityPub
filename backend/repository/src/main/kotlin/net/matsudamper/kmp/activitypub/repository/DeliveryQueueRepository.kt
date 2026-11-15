@@ -112,6 +112,7 @@ sealed interface EnqueueNoteResult {
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
  * @param inReplyTo 返信先の投稿の id。返信でなければ null
  * @param quoteUri 引用した投稿の id。引用でなければ null
+ * @param quoteInbox 引用した投稿の投稿者の inbox。[inboxes] にも入れる。引用でないか、このサーバーの投稿の引用なら null
  * @param mentions 宛てた順。宛てた相手の inbox は [inboxes] にも入れる
  */
 data class NotePost(
@@ -125,6 +126,7 @@ data class NotePost(
     val inboxes: List<String>,
     val inReplyTo: String?,
     val quoteUri: String?,
+    val quoteInbox: String?,
     val mentions: List<NoteMention>,
 )
 

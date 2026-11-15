@@ -114,6 +114,7 @@ data class NotePosition(
  * @param images 付けた順
  * @param inReplyTo 返信先の投稿の id。返信でなければ null
  * @param quoteUri 引用した投稿の id。引用でなければ null
+ * @param quoteInbox 引用した投稿の投稿者の inbox。投稿を消したときの Delete もここへ送る。引用でないか、このサーバーの投稿の引用なら null
  * @param mentions 宛てた順
  */
 data class Note(
@@ -124,6 +125,7 @@ data class Note(
     val images: List<NoteImage>,
     val inReplyTo: String?,
     val quoteUri: String?,
+    val quoteInbox: String?,
     val mentions: List<NoteMention>,
 )
 
