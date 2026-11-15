@@ -104,7 +104,7 @@ internal class PostScreenViewModel(
         if (target is PostScreenTarget.Quote) {
             viewModelScope.launch {
                 val quote = when (val result = api.postDetail(target.postId)) {
-                    is UserPostDetailResult.Found -> QuoteLoad.Loaded(result.post)
+                    is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
 
                     UserPostDetailResult.NotFound,
                     UserPostDetailResult.NotLoggedIn,

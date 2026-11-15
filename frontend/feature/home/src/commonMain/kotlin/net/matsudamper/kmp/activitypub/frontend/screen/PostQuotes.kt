@@ -19,11 +19,11 @@ internal sealed interface QuoteLoad {
 
 /**
  * @param postId [UserHomeTimelineResult.Post.id]
- * @return 取れなかったら [QuoteLoad.Unavailable]。ログインが切れていたら null で、読み込み前に戻す
+ * @return 取れなかったか、引用先が消されていたら [QuoteLoad.Unavailable]。ログインが切れていたら null で、読み込み前に戻す
  */
 internal suspend fun UserApi.loadQuote(postId: String): QuoteLoad? =
     when (val result = quoteTarget(postId)) {
-        is UserPostDetailResult.Found -> QuoteLoad.Loaded(result.post)
+        is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
 
         UserPostDetailResult.NotFound,
         is UserPostDetailResult.Failure,
