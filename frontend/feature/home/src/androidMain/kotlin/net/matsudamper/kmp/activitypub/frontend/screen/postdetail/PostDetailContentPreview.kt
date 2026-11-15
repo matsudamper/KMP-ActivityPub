@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.previewBoostButton
 
 @Preview
 @Composable
@@ -134,7 +135,7 @@ private fun previewReplyTarget(displayName: String, acct: String, content: Strin
     favouriteCountText = null,
     boostCountText = null,
     favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-    boostButton = PostItemUiState.BoostButton(iconHighlighted = false, menuItems = listOf()),
+    boostButton = previewBoostButton(boosted = false),
     reactionButton = null,
     stamps = listOf(),
     authorListener = null,
@@ -207,7 +208,7 @@ private fun createLoadedUiState(
                 favouriteCountText = "12",
                 boostCountText = "4",
                 favouriteButton = PostItemUiState.FavouriteButton(iconHighlighted = false, listener = AndroidPreviewFavouriteButtonListener),
-                boostButton = PostItemUiState.BoostButton(iconHighlighted = true, menuItems = listOf()),
+                boostButton = previewBoostButton(boosted = true),
                 reactionButton = PostItemUiState.ReactionButton(listener = AndroidPreviewReactionButtonListener),
                 stamps = listOf(
                     PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4", selected = false, listener = AndroidPreviewStampListener),

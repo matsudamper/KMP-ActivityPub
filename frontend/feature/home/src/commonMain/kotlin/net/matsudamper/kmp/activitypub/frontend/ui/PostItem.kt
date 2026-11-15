@@ -578,15 +578,7 @@ private fun PostActions(
                     expanded = boostMenuExpanded,
                     onDismissRequest = { boostMenuExpanded = false },
                 ) {
-                    boostButton?.menuItems.orEmpty().forEach { item ->
-                        DropdownMenuItem(
-                            text = { Text(item.label) },
-                            onClick = {
-                                boostMenuExpanded = false
-                                item.listener.onClick()
-                            },
-                        )
-                    }
+                    PostMenuItems(menuItems = boostButton?.menuItems.orEmpty(), onItemClick = { boostMenuExpanded = false })
                 }
             }
             val favouriteButton = uiState.favouriteButton
@@ -671,16 +663,27 @@ private fun PostMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            menuItems.forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(item.label) },
-                    onClick = {
-                        expanded = false
-                        item.listener.onClick()
-                    },
-                )
-            }
+            PostMenuItems(menuItems = menuItems, onItemClick = { expanded = false })
         }
+    }
+}
+
+/**
+ * @param onItemClick 項目の listener を呼ぶ前に呼ぶ
+ */
+@Composable
+internal fun PostMenuItems(
+    menuItems: List<PostItemUiState.MenuItem>,
+    onItemClick: () -> Unit,
+) {
+    menuItems.forEach { item ->
+        DropdownMenuItem(
+            text = { Text(item.label) },
+            onClick = {
+                onItemClick()
+                item.listener.onClick()
+            },
+        )
     }
 }
 

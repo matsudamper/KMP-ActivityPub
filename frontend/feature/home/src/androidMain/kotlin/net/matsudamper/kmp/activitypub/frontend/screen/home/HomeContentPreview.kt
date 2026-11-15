@@ -35,6 +35,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.previewBoostButton
 import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
 @Preview
@@ -923,10 +924,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         favouriteCountText = null,
         boostCountText = null,
         favouriteButton = null,
-        boostButton = PostItemUiState.BoostButton(
-            iconHighlighted = true,
-            menuItems = listOf(),
-        ),
+        boostButton = previewBoostButton(boosted = true),
         reactionButton = null,
         stamps = listOf(),
         authorListener = AndroidPreviewAuthorListener,
@@ -983,10 +981,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             iconHighlighted = true,
             listener = AndroidPreviewFavouriteButtonListener,
         ),
-        boostButton = PostItemUiState.BoostButton(
-            iconHighlighted = false,
-            menuItems = listOf(),
-        ),
+        boostButton = previewBoostButton(boosted = false),
         reactionButton = null,
         stamps = listOf(
             PostItemUiState.Stamp(emoji = "👍", imageUrl = null, countText = "5", selected = false, listener = null),
