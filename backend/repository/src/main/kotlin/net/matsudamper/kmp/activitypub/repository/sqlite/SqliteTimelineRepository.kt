@@ -401,6 +401,24 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    override fun replies(viewer: AccountId, objectUri: String, limit: Int): List<TimelinePost> = jooq.withConnection { dsl ->
+        val localIds = dsl.select(NOTES.ID).from(NOTES).where(NOTES.IN_REPLY_TO.eq(objectUri))
+            .orderBy(NOTES.PUBLISHED_AT, NOTES.ID).limit(limit)
+            .fetch(NOTES.ID).filterNotNull()
+        val remoteIds = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.IN_REPLY_TO.eq(objectUri))
+            .and(REMOTE_NOTES.DELETED_AT.isNull).and(dsl.remoteNoteViewableBy(viewer))
+            .orderBy(REMOTE_NOTES.PUBLISHED_AT, REMOTE_NOTES.ID).limit(limit)
+            .fetch(REMOTE_NOTES.ID).filterNotNull()
+        hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = localIds,
+            remoteIds = remoteIds,
+            localCondition = DSL.noCondition(),
+            remoteCondition = DSL.noCondition(),
+        ).sortedWith(compareBy<TimelinePost> { it.publishedAt }.thenBy { it.position.member }).take(limit)
+    }
+
     override fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost> = jooq.withConnection { dsl ->
         val likes = dsl.likedMembers(
             liker = DSL.value(liker.value),

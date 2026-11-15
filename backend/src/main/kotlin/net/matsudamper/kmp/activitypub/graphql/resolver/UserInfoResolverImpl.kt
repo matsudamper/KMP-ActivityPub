@@ -75,6 +75,16 @@ class UserInfoResolverImpl : UserInfoResolver {
             unavailableMessage = "引用先のサーバーから投稿を取れなかった",
         ) { quoteTarget(userInfo.id, postId.value) }
 
+    override fun replies(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlTimelinePost>>> =
+        otelSupplyAsync {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val replies = diContainer.postRepliesService?.replies(userInfo.id, postId.value).orEmpty()
+            val posts = replies.zip(replies.toQlTimelinePosts(diContainer)) { reply, mapped ->
+                if (diContainer.viewablePostService.isOwnedByViewer(userInfo.id, reply)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+            }
+            DataFetcherResult.Builder<List<QlTimelinePost>>(posts).build()
+        }
+
     override fun followingGroups(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlFollowingGroup>>> {
         val groups = GraphQlEngine.diContainer(env).followingGroupService.groups(userInfo.id).map { it.toQlFollowingGroup() }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(groups).build())

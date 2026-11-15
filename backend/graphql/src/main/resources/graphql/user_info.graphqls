@@ -27,6 +27,12 @@ type UserInfo {
     引用でないか、引用先を読めないか、サーバーに DOMAIN が無ければ null。引用先のサーバーが応えなければ、null とエラーを返す
     """
     quoteTarget(postId: TimelinePostId!): TimelinePost @lazy
+    """
+    postId の投稿への返信を古い順に 100 件まで。postId には TimelinePost.id を渡す。ブーストで載った投稿は、ブーストされた元の投稿への返信。
+    このサーバーが保存している投稿だけを返し、相手のサーバーへは取りに行かない。消された返信とブロックした相手の返信は入らない。
+    読めない投稿か、サーバーに DOMAIN が無ければ空
+    """
+    replies(postId: TimelinePostId!): [TimelinePost!]! @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!

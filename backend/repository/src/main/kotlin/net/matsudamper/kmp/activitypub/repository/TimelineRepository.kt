@@ -86,6 +86,14 @@ interface TimelineRepository {
     fun storedRemotePosts(viewer: AccountId, objectUris: Set<String>): List<TimelinePost>
 
     /**
+     * 保存済みの投稿のうち、[objectUri] の投稿への返信を古い順に返す。このサーバーの投稿は誰でも、他のサーバーの投稿は [viewablePost] と同じ範囲で返す。
+     * 消された投稿は出さない
+     *
+     * @param objectUri 返信先の投稿の id
+     */
+    fun replies(viewer: AccountId, objectUri: String, limit: Int): List<TimelinePost>
+
+    /**
      * 他のサーバーの投稿を、いいねやブーストを付けたときに保存する。タイムラインには載せない。
      * 公開と、公開タイムラインに載せない公開の投稿だけを保存する。投稿の id が投稿者と別のホストにあるものは保存しない。投稿者のアクターは記録済みであること
      *

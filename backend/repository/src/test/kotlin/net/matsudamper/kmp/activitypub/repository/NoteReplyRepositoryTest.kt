@@ -79,6 +79,35 @@ class NoteReplyRepositoryTest {
         assertEquals("https://other.example/notes/3", assertNotNull(repositories.timelineRepository.viewablePost(alice, remote)).quoteUri)
     }
 
+    @Test
+    fun repliesFromLocalAndRemotePostsAreListedOldestFirst() = withRepository { repositories, alice ->
+        val target = "$ACTOR/notes/1"
+        repositories.timelineRepository.receive(note("late", "public", setOf("alice")).copy(inReplyTo = target, publishedAt = NOW.plusSeconds(20)))
+        repositories.deliveryQueueRepository.enqueueNote(
+            notePost(username = "bob", publicId = "bob-reply").copy(inReplyTo = target, publishedAt = NOW.plusSeconds(10)),
+        )
+        repositories.timelineRepository.receive(note("early", "public", setOf("alice")).copy(inReplyTo = target))
+        repositories.timelineRepository.receive(note("other", "public", setOf("alice")).copy(inReplyTo = "$ACTOR/notes/2"))
+
+        val replies = repositories.timelineRepository.replies(alice, target, limit = 10)
+
+        assertEquals(
+            listOf(TimelineNoteRef.Remote("$ACTOR/notes/early"), TimelineNoteRef.Local(PublicNoteId("bob-reply")), TimelineNoteRef.Remote("$ACTOR/notes/late")),
+            replies.map { it.noteRef },
+        )
+        assertEquals(listOf(TimelineNoteRef.Remote("$ACTOR/notes/early")), repositories.timelineRepository.replies(alice, target, limit = 1).map { it.noteRef })
+    }
+
+    @Test
+    fun unreadableOrDeletedRepliesAreNotListed() = withRepository { repositories, alice ->
+        val target = "$ACTOR/notes/1"
+        repositories.timelineRepository.receive(note("direct", "direct", setOf("bob")).copy(inReplyTo = target))
+        repositories.timelineRepository.receive(note("deleted", "public", setOf("alice")).copy(inReplyTo = target))
+        repositories.timelineRepository.deleteRemote(ACTOR, "$ACTOR/notes/deleted", NOW)
+
+        assertEquals(listOf(), repositories.timelineRepository.replies(alice, target, limit = 10))
+    }
+
     private fun notePost(username: String, publicId: String): NotePost = NotePost(
         username = username,
         requestId = "request-$publicId",

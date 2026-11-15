@@ -116,6 +116,8 @@ CREATE INDEX notes_account_id_published_at ON notes (account_id, published_at, p
 
 CREATE INDEX notes_published_at ON notes (published_at, public_id);
 
+CREATE INDEX notes_in_reply_to ON notes (in_reply_to, published_at);
+
 -- 投稿に付けた画像。position は付けた順
 CREATE TABLE note_images (
     note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
@@ -242,6 +244,8 @@ CREATE TABLE remote_notes (
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);
+
+CREATE INDEX remote_notes_in_reply_to ON remote_notes (in_reply_to, published_at);
 
 CREATE TABLE remote_note_images (
     remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
