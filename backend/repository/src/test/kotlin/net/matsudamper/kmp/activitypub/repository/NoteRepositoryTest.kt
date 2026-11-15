@@ -305,6 +305,8 @@ class NoteRepositoryTest {
             body = "create-$publicId",
             inboxes = inboxes,
             inReplyTo = null,
+            quoteUri = null,
+            quoteInbox = null,
             mentions = listOf(),
         )
 

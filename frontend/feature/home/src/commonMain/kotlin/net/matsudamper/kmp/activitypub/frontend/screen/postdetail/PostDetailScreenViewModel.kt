@@ -32,6 +32,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.QuoteLoad
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
@@ -39,11 +40,14 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.screen.createQuoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.loadQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNoteSubmitResult
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNoteSubmitter
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
@@ -77,6 +81,7 @@ internal class PostDetailScreenViewModel(
                 mentionSending = false,
                 replyTargets = listOf(),
                 replyTargetLoad = ReplyTargetLoad.Waiting,
+                quotes = mapOf(),
             ),
         )
     private var loadJob: Job? = null
@@ -436,7 +441,7 @@ internal class PostDetailScreenViewModel(
             val error =
                 try {
                     val result =
-                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId)
+                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId, quotePostId = null)
                     when (result) {
                         // 画像を付けないので置けないことは無い
                         is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"
@@ -478,6 +483,8 @@ internal class PostDetailScreenViewModel(
 
             UserPostNoteResult.ReplyTargetNotFound -> "この投稿にはメンションできません"
 
+            // メンションでは引用しない
+            UserPostNoteResult.QuoteTargetNotFound,
             UserPostNoteResult.TooManyImages,
             UserPostNoteResult.ImageNotFound,
             -> "メンションを送れませんでした"
@@ -555,6 +562,32 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    /**
+     * 返信先の投稿にも引用はあるので、投稿の id ごとに持つ
+     */
+    private fun loadQuote(postId: String) {
+        if (postId in viewModelStateFlow.value.quotes) return
+        viewModelStateFlow.update { it.copy(quotes = it.quotes + (postId to QuoteLoad.Loading)) }
+        viewModelScope.launch {
+            val load = api.loadQuote(postId)
+            viewModelStateFlow.update { state ->
+                state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+            }
+        }
+    }
+
+    private fun createQuote(
+        post: UserHomeTimelineResult.Post,
+        viewModelState: ViewModelState,
+    ): PostItemUiState.Quote? =
+        createPostItemQuote(
+            hasQuoteTarget = post.hasQuoteTarget,
+            load = viewModelState.quotes[post.id],
+            onOpenPostDetail = { postId -> viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } } },
+            onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+        )
+
     private fun createUiState(viewModelState: ViewModelState): PostDetailScreenUiState {
         return PostDetailScreenUiState(
             content = when (val post = viewModelState.post) {
@@ -630,6 +663,7 @@ internal class PostDetailScreenViewModel(
             acct = createAcct(post),
             body = post.body,
             linkPreviews = listOf(),
+            quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
@@ -654,7 +688,11 @@ internal class PostDetailScreenViewModel(
                 val body = currentPost(post.reactionPostId)?.body
                 if (body != null) clickStamp(reactionPostId = post.reactionPostId, body = body, stamp = stamp)
             },
-            onVisible = {},
+            onVisible = {
+                if (post.hasQuoteTarget) {
+                    loadQuote(post.id)
+                }
+            },
         )
     }
 
@@ -684,6 +722,7 @@ internal class PostDetailScreenViewModel(
             acct = createAcct(post),
             body = post.body,
             linkPreviews = viewModelState.linkPreviews,
+            quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
@@ -693,6 +732,8 @@ internal class PostDetailScreenViewModel(
             menuItems =
             createOpenOriginalMenuItems(post.body.shareUrl) { url ->
                 viewModelScope.launch { events.send { it.openUrl(url) } }
+            } + createQuoteMenuItems(postId = post.id, body = post.body) { postId ->
+                viewModelScope.launch { events.send { it.navigateToQuotePost(postId) } }
             } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
                 createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
@@ -712,6 +753,9 @@ internal class PostDetailScreenViewModel(
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
                 }
+                if (post.hasQuoteTarget) {
+                    loadQuote(post.id)
+                }
             },
         )
     }
@@ -724,6 +768,8 @@ internal class PostDetailScreenViewModel(
         fun navigateToUserProfile(username: String)
 
         fun navigateToPostDetail(postId: String)
+
+        fun navigateToQuotePost(postId: String)
 
         fun openUrl(url: String)
 
@@ -746,6 +792,10 @@ internal class PostDetailScreenViewModel(
          */
         val replyTargets: List<UserHomeTimelineResult.Post>,
         val replyTargetLoad: ReplyTargetLoad,
+        /**
+         * 投稿の id ごとの引用先
+         */
+        val quotes: Map<String, QuoteLoad>,
     ) {
         fun mentionSendable(): Boolean = !mentionSending && mentionText.isNotBlank()
     }

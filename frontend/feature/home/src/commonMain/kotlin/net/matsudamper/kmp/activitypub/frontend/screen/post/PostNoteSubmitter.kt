@@ -26,12 +26,14 @@ internal class PostNoteSubmitter(
      * 前に置いた画像は投稿に付いているか、付かずにサーバーの期限で消える
      *
      * @param replyToPostId 返信するタイムラインの投稿の id。返信でなければ null
+     * @param quotePostId 引用するタイムラインの投稿の id。引用でなければ null
      */
     suspend fun submit(
         body: String,
         requestId: String,
         images: List<WebpImage>,
         replyToPostId: String?,
+        quotePostId: String?,
     ): PostNoteSubmitResult =
         scope.async {
             val imageIds =
@@ -41,7 +43,7 @@ internal class PostNoteSubmitter(
                         else -> return@async PostNoteSubmitResult.UploadFailed(uploaded)
                     }
                 }
-            PostNoteSubmitResult.Submitted(api.postNote(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = replyToPostId))
+            PostNoteSubmitResult.Submitted(api.postNote(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = replyToPostId, quotePostId = quotePostId))
         }.await()
 }
 

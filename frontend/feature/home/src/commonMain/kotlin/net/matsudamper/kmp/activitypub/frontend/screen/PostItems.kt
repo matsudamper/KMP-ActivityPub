@@ -13,6 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
+ * @param quote [createPostItemQuote] で作る。引用でなければ null
  * @param actorLabel 投稿の上に出す「〜がブースト」「〜がお気に入り」の行の元。出さなければ null
  * @param pinned プロフィールの先頭に固定されている投稿か
  * @param deleted 投稿者が投稿を消した後か
@@ -34,6 +35,7 @@ internal fun createPostItemUiState(
     acct: String,
     body: UserPostBody,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
+    quote: PostItemUiState.Quote?,
     sensitiveImagesBlurred: Boolean,
     blurToggledImageUrls: Set<String>,
     authorTapAction: AuthorTapAction,
@@ -108,6 +110,7 @@ internal fun createPostItemUiState(
             )
         },
         replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
+        quote = quote,
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
         favouriteButton = body.likedByMe?.let {

@@ -55,6 +55,10 @@ sealed interface UserHomeTimelineResult {
          * 返信か。返信先は [UserApi.replyTarget] で取る
          */
         val hasReplyTarget: Boolean,
+        /**
+         * 引用か。引用先は [UserApi.quoteTarget] で取る
+         */
+        val hasQuoteTarget: Boolean,
     )
 
     /**

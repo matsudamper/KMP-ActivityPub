@@ -61,7 +61,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val addressed = dsl.select(ACCOUNTS.ID).from(ACCOUNTS).where(ACCOUNTS.USERNAME.`in`(note.localRecipients)).fetch(ACCOUNTS.ID)
         if (followers.isEmpty() && addressed.isEmpty()) return@transaction null
         val id = insertRemoteNote(dsl, note, actorId, minOf(note.publishedAt, note.receivedAt).toEpochMilli(), viaBoost = false)
-            ?: takeOverBoostedNote(dsl, note.objectUri, actorId)
+            ?: takeOverBoostedNote(dsl, note.objectUri, actorId, note.quoteUri)
             ?: return@transaction null
         // ブーストで先に保存していた投稿は、そのときの位置に揃える
         val score = checkNotNull(dsl.select(REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(id)).fetchOne(REMOTE_NOTES.SCORE_MS))
@@ -270,6 +270,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             DSL.inline(null, String::class.java),
             DSL.inline(null, String::class.java),
             NOTES.IN_REPLY_TO,
+            NOTES.QUOTE_URI,
         ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.ID.`in`(localIds)).and(localCondition)
         val remote = dsl.select(
@@ -281,6 +282,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.VISIBILITY,
             REMOTE_NOTES.DELETED_AT,
             REMOTE_NOTES.IN_REPLY_TO,
+            REMOTE_NOTES.QUOTE_URI,
         ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(remoteCondition)
         val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -329,6 +331,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 record.value16() != null,
                 false,
                 record.value17(),
+                record.value18(),
             )
         }
     }
@@ -577,6 +580,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
+            .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.PUBLISHED_AT, StoredInstant.format(note.publishedAt))
@@ -623,6 +627,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
+            .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
             .where(REMOTE_NOTES.ID.eq(id))
             .execute()
         dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
@@ -646,9 +651,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
      *
      * @return ブーストで保存しただけの投稿だったらその id。通常の受信で保存済みなら null
      */
-    private fun takeOverBoostedNote(dsl: DSLContext, objectUri: String, authorId: Long): Long? {
+    private fun takeOverBoostedNote(dsl: DSLContext, objectUri: String, authorId: Long, quoteUri: String?): Long? {
         // 別の投稿者が先に同じ id で保存させた投稿は引き継がない
         val updated = dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.VIA_BOOST, 0L)
+            // ブーストで取ってきた中身は引用先を持たないことがあるので、届いた Create の引用先にする
+            .set(REMOTE_NOTES.QUOTE_URI, quoteUri)
             .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).and(REMOTE_NOTES.VIA_BOOST.eq(1L))
             .and(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(authorId))
             .execute()
@@ -686,6 +693,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val boostedNoteIds = dsl.boostedNoteIds(accountId, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, rows.map { checkNotNull(it.value3()) })
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
         val emojisByNote = dsl.remoteNoteEmojisById(rows.map { checkNotNull(it.value3()) })
+        // jOOQ の型付きの行は 22 列までなので、引用先は別に引く
+        val quoteUrisByNote = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI).from(REMOTE_NOTES)
+            .where(REMOTE_NOTES.ID.`in`(rows.map { checkNotNull(it.value3()) }))
+            .and(REMOTE_NOTES.QUOTE_URI.isNotNull)
+            .fetchMap(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI)
         val emojisByActor = dsl.remoteActorEmojisByUri(rows.flatMap { listOf(checkNotNull(it.value8()), checkNotNull(it.value13())) }.toSet())
         return rows.map { record ->
             val authorUri = checkNotNull(record.value8())
@@ -722,6 +734,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 deleted = record.value20() != null,
                 boostUndone = record.value21() != null,
                 inReplyTo = record.value22(),
+                quoteUri = quoteUrisByNote[record.value3()],
             )
         }
     }

@@ -90,6 +90,7 @@ private fun TimelinePost.toQlTimelinePost(
         hasReplyTarget = inReplyTo != null,
         replyCount = counts?.replyCount?.toInt() ?: 0,
         stampCountsReceived = noteRef is TimelineNoteRef.Local,
+        hasQuoteTarget = quoteUri != null,
     )
 }
 

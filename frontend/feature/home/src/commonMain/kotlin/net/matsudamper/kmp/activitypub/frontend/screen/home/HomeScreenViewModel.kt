@@ -66,6 +66,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
+import net.matsudamper.kmp.activitypub.frontend.screen.QuoteLoad
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
@@ -73,13 +74,16 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
+import net.matsudamper.kmp.activitypub.frontend.screen.createQuoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
 import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
+import net.matsudamper.kmp.activitypub.frontend.screen.loadQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.toLikeState
@@ -116,6 +120,7 @@ internal class HomeScreenViewModel(
                     catchingUpAfterReconnect = false,
                 ),
                 linkPreviews = mapOf(),
+                quotes = mapOf(),
                 imageBlur = ImageBlurState(
                     sensitiveImagesBlurred = true,
                     toggledImageUrls = setOf(),
@@ -1316,6 +1321,13 @@ internal class HomeScreenViewModel(
                             acct = if (boostedNoteAuthor == null) "@${profile.username}" else "@${boostedNoteAuthor.username}@${boostedNoteAuthor.host}",
                             body = post.body,
                             linkPreviews = viewModelState.linkPreviews[post.postId].orEmpty(),
+                            quote = createPostItemQuote(
+                                hasQuoteTarget = post.hasQuoteTarget,
+                                load = viewModelState.quotes[post.postId],
+                                onOpenPostDetail = ::navigateToPostDetail,
+                                onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+                                onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+                            ),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = if (boostedNoteAuthor == null) {
@@ -1358,6 +1370,9 @@ internal class HomeScreenViewModel(
                                 if (post.body.linkUrls.isNotEmpty()) {
                                     loadLinkPreviews(post.postId)
                                 }
+                                if (post.hasQuoteTarget) {
+                                    loadQuote(post.postId)
+                                }
                             },
                         )
                     },
@@ -1392,12 +1407,15 @@ internal class HomeScreenViewModel(
             acct = "@$profileAcct",
             body = post.body,
             linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
+            quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
             },
-            menuItems = createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            menuItems =
+            createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
+                createQuoteMenuItems(postId = post.id, body = post.body, onQuote = ::navigateToQuotePost),
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -1415,6 +1433,9 @@ internal class HomeScreenViewModel(
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
                 }
+                if (post.hasQuoteTarget) {
+                    loadQuote(post.id)
+                }
             },
         )
     }
@@ -1422,6 +1443,33 @@ internal class HomeScreenViewModel(
     private fun navigateToPostDetail(postId: String) {
         viewModelScope.launch { events.send { it.navigateToPostDetail(postId) } }
     }
+
+    private fun navigateToQuotePost(postId: String) {
+        viewModelScope.launch { events.send { it.navigateToQuotePost(postId) } }
+    }
+
+    private fun loadQuote(postId: String) {
+        if (postId in viewModelStateFlow.value.quotes) return
+        viewModelStateFlow.update { it.copy(quotes = it.quotes + (postId to QuoteLoad.Loading)) }
+        viewModelScope.launch {
+            val load = userApi.loadQuote(postId)
+            viewModelStateFlow.update { state ->
+                state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+            }
+        }
+    }
+
+    private fun createQuote(
+        post: UserHomeTimelineResult.Post,
+        viewModelState: ViewModelState,
+    ): PostItemUiState.Quote? =
+        createPostItemQuote(
+            hasQuoteTarget = post.hasQuoteTarget,
+            load = viewModelState.quotes[post.id],
+            onOpenPostDetail = ::navigateToPostDetail,
+            onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
+            onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+        )
 
     private fun createTimelineColumns(viewModelState: ViewModelState, feeds: Map<TimelineSource, TimelineFeeds.Feed>): List<HomeScreenUiState.TimelineColumn> {
         val columnsState = viewModelState.timelineColumns
@@ -1573,6 +1621,7 @@ internal class HomeScreenViewModel(
             acct = if (post.host == null) "@${post.username}" else "@${post.username}@${post.host}",
             body = post.body,
             linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
+            quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
@@ -1583,6 +1632,7 @@ internal class HomeScreenViewModel(
             },
             menuItems =
             createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
+                createQuoteMenuItems(postId = post.id, body = post.body, onQuote = ::navigateToQuotePost) +
                 createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
                 createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
@@ -1601,6 +1651,9 @@ internal class HomeScreenViewModel(
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
+                }
+                if (post.hasQuoteTarget) {
+                    loadQuote(post.id)
                 }
             },
         )
@@ -1699,6 +1752,8 @@ internal class HomeScreenViewModel(
         fun navigateToImage(urls: List<String>, index: Int)
 
         fun navigateToPostDetail(postId: String)
+
+        fun navigateToQuotePost(postId: String)
     }
 
     private companion object {
@@ -1749,6 +1804,10 @@ internal class HomeScreenViewModel(
         val timeline: TimelineState,
         val timelineStream: TimelineStreamState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
+        /**
+         * 投稿の id ごとの引用先
+         */
+        val quotes: Map<String, QuoteLoad>,
         val imageBlur: ImageBlurState,
         val notifications: NotificationsState,
         val search: SearchState,

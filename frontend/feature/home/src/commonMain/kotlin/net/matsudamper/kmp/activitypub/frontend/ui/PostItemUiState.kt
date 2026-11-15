@@ -34,6 +34,10 @@ data class PostItemUiState(
      */
     val replyCountText: String?,
     /**
+     * 引用でなければ null
+     */
+    val quote: Quote?,
+    /**
      * 1 件も無ければ null で、お気に入りのアイコンだけを出す
      */
     val favouriteCountText: String?,
@@ -89,6 +93,27 @@ data class PostItemUiState(
         val cancelledLabelVisible: Boolean,
         val listener: ActorLabelListener?,
     )
+
+    sealed interface Quote {
+        data object Loading : Quote
+
+        /**
+         * 引用先が消されたか、読めないか、引用先のサーバーが応えない
+         */
+        data object Unavailable : Quote
+
+        /**
+         * @param iconUrl 引用先の投稿者のプロフィール画像が無ければ null
+         * @param listener 押しても移る先が無いときは null で、押せなくする
+         */
+        data class Loaded(
+            val iconUrl: String?,
+            val displayName: TextWithEmojis,
+            val acct: String,
+            val body: TextWithEmojis,
+            val listener: QuoteListener?,
+        ) : Quote
+    }
 
     enum class ActorLabelIcon {
         Boost,
@@ -199,6 +224,11 @@ data class PostItemUiState(
 
     @Immutable
     interface ShareListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface QuoteListener {
         fun onClick()
     }
 

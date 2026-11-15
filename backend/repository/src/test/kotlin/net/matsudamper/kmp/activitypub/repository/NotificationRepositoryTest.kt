@@ -99,6 +99,8 @@ class NotificationRepositoryTest {
                     body = "create-note-1",
                     inboxes = listOf(),
                     inReplyTo = null,
+                    quoteUri = null,
+                    quoteInbox = null,
                     mentions = listOf(),
                     images = listOf(),
                 ),

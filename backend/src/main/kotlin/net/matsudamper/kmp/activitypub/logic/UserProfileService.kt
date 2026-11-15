@@ -212,6 +212,7 @@ class UserProfileService(
                 noteRef = TimelineNoteRef.Local(it.publicId),
                 boostCount = boostCounts[it.publicId],
                 boostedNoteAuthor = null,
+                hasQuoteTarget = it.quoteUri != null,
             )
         }.toMap()
         val boostPosts = takenBoosts.mapNotNull { post ->
@@ -473,6 +474,7 @@ class UserProfileService(
             noteRef = TimelineNoteRef.Remote(objectUri),
             boostCount = null,
             boostedNoteAuthor = null,
+            hasQuoteTarget = quoteUri != null,
         )
     }
 
@@ -498,6 +500,7 @@ class UserProfileService(
             noteRef = noteRef,
             boostCount = boostCount,
             boostedNoteAuthor = boostedNoteAuthor,
+            hasQuoteTarget = quoteUri != null,
         )
     }
 
@@ -760,6 +763,7 @@ data class ProfilePost(
     val boostedByMe: Boolean?,
     val reactionPostId: String?,
     val boostedNoteAuthor: ProfilePostAuthor?,
+    val hasQuoteTarget: Boolean,
 ) {
     /**
      * OGP は保存した投稿の本文から引くので、保存していない投稿は引けない

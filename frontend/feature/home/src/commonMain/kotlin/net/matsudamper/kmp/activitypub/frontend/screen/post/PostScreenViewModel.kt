@@ -10,16 +10,23 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
+import net.matsudamper.kmp.activitypub.frontend.screen.QuoteLoad
+import net.matsudamper.kmp.activitypub.frontend.screen.createQuote
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.WebpImage
 import net.matsudamper.kmp.activitypub.frontend.ui.WebpResult
+import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
 internal class PostScreenViewModel(
+    @InjectedParam private val target: PostScreenTarget,
     private val postNoteSubmitter: PostNoteSubmitter,
+    private val api: UserApi,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val events = EventSender<Event>()
@@ -32,6 +39,10 @@ internal class PostScreenViewModel(
                 loadingImage = false,
                 submitting = false,
                 error = null,
+                quote = when (target) {
+                    PostScreenTarget.NewNote -> null
+                    is PostScreenTarget.Quote -> QuoteLoad.Loading
+                },
             ),
         )
 
@@ -88,6 +99,22 @@ internal class PostScreenViewModel(
                 }
             }
         }.asStateFlow()
+
+    init {
+        if (target is PostScreenTarget.Quote) {
+            viewModelScope.launch {
+                val quote = when (val result = api.postDetail(target.postId)) {
+                    is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
+
+                    UserPostDetailResult.NotFound,
+                    UserPostDetailResult.NotLoggedIn,
+                    is UserPostDetailResult.Failure,
+                    -> QuoteLoad.Unavailable
+                }
+                viewModelStateFlow.update { it.copy(quote = quote) }
+            }
+        }
+    }
 
     /**
      * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、loadingImage が下りなくなる
@@ -156,6 +183,8 @@ internal class PostScreenViewModel(
                             requestId = requestId(),
                             images = state.images.map { it.image },
                             replyToPostId = null,
+                            // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
+                            quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -205,6 +234,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
             UserPostNoteResult.ReplyTargetNotFound -> "返信先の投稿が見つかりません"
+            UserPostNoteResult.QuoteTargetNotFound -> "引用する投稿が見つかりません"
             is UserPostNoteResult.Failure -> result.message
         }
 
@@ -239,13 +269,22 @@ internal class PostScreenViewModel(
                     listener = selected.removeListener,
                 )
             },
+            quote = viewModelState.quote?.let { load ->
+                // 書いている途中の本文を残すため、引用先の中身へは移らない
+                createQuote(load = load, onOpenPostDetail = null, onOpenUrl = {}, onOpenProfile = {})
+            },
             addImageButtonEnabled = viewModelState.imageAddable(),
             addImageLoadingVisible = viewModelState.loadingImage,
             listener = listener,
         )
 
     private fun ViewModelState.postable(): Boolean =
-        submitting.not() && loadingImage.not() && (body.isNotBlank() || images.isNotEmpty())
+        submitting.not() && loadingImage.not() && quotePostable() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
+
+    /**
+     * 引用先を読み込めるまでは、どの投稿を引用するか決まらない
+     */
+    private fun ViewModelState.quotePostable(): Boolean = quote == null || quote is QuoteLoad.Loaded
 
     private fun ViewModelState.imageAddable(): Boolean = submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
 
@@ -255,6 +294,10 @@ internal class PostScreenViewModel(
         val loadingImage: Boolean,
         val submitting: Boolean,
         val error: String?,
+        /**
+         * 引用でなければ null
+         */
+        val quote: QuoteLoad?,
     )
 
     /**
