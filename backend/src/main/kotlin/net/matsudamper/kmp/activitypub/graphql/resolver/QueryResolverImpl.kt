@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
+import net.matsudamper.kmp.activitypub.logic.PostCounts
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileLikeCursor
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesResult
@@ -38,6 +39,7 @@ import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.logic.memoized
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -78,7 +80,10 @@ class QueryResolverImpl : QueryResolver {
             }
             val page = when (result) {
                 is ProfilePostsResult.Found -> QlProfilePostPage(
-                    posts = result.page.posts.map { post -> post.toQlProfilePost(diContainer) },
+                    posts = result.page.posts.let { posts ->
+                        val countsByRef = diContainer.postCountService?.countsOf(posts.map { it.noteRef }.toSet()).orEmpty()
+                        posts.map { post -> post.toQlProfilePost(counts = countsByRef[post.noteRef], diContainer = diContainer) }
+                    },
                     nextCursor = result.page.nextCursor?.encode(),
                 )
 
@@ -312,7 +317,7 @@ class QueryResolverImpl : QueryResolver {
 
     private fun ProfileLink.toQlProfileLink(): QlProfileLink = QlProfileLink(name = name, url = url)
 
-    private fun ProfilePost.toQlProfilePost(diContainer: DiContainer): QlProfilePost {
+    private fun ProfilePost.toQlProfilePost(counts: PostCounts?, diContainer: DiContainer): QlProfilePost {
         val qlBoostedNoteAuthor = boostedNoteAuthor?.let { author ->
             QlPostAuthor(
                 username = author.username,
@@ -347,14 +352,16 @@ class QueryResolverImpl : QueryResolver {
             mentions = body.mentions,
             images = body.images,
             emojis = emojis.toQlCustomEmojis(diContainer),
-            favouriteCount = favouriteCount?.toInt(),
+            favouriteCount = (favouriteCount ?: counts?.reportedFavouriteCount)?.toInt(),
             stamps = stamps.toQlPostStamps(diContainer),
             likedByMe = likedByMe,
             boostedByMe = boostedByMe,
             reactionPostId = reactionPostId?.let(::TimelinePostId),
             url = diContainer.noteShareUrls?.url(noteRef),
-            boostCount = boostCount?.toInt(),
+            boostCount = (boostCount ?: counts?.reportedBoostCount)?.toInt(),
             boostedNoteAuthor = qlBoostedNoteAuthor,
+            replyCount = counts?.replyCount?.toInt() ?: 0,
+            stampCountsReceived = noteRef is TimelineNoteRef.Local,
             hasQuoteTarget = hasQuoteTarget,
         )
     }

@@ -539,6 +539,26 @@ private fun PostActions(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f, fill = false).width(sizes.actionSlotWidth)
+                    .padding(ActionButtonContentPadding),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Reply,
+                    contentDescription = "リプライ",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = iconColor,
+                )
+                Text(
+                    text = uiState.replyCountText.orEmpty(),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
+                    style = sizes.countTextStyle,
+                    color = iconColor,
+                    maxLines = 1,
+                )
+            }
             val boostButton = uiState.boostButton
             TextButton(
                 onClick = { boostButton?.listener?.onClick() },

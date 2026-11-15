@@ -109,6 +109,7 @@ internal fun createPostItemUiState(
                 onToggleBlur = { onToggleImageBlur(imageUrls, image.url !in blurToggledImageUrls) },
             )
         },
+        replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
         quote = quote,
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
@@ -250,7 +251,7 @@ internal sealed interface PostActorLabel {
  */
 private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Unit): List<PostItemUiState.Stamp> {
     val viewerReaction = body.viewerReaction
-    val countReceived = body.favouriteCount != null
+    val countReceived = body.stampCountsReceived
     val stamps = if (viewerReaction == null || body.stamps.any { it.isReactionOf(viewerReaction) }) {
         body.stamps
     } else {
