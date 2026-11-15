@@ -401,6 +401,33 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    override fun replies(viewer: AccountId, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost> = jooq.withConnection { dsl ->
+        val localIds = dsl.select(NOTES.ID).from(NOTES).where(NOTES.IN_REPLY_TO.eq(objectUri))
+            .orderBy(NOTES.PUBLISHED_AT, NOTES.ID).limit(limit)
+            .fetch(NOTES.ID).filterNotNull()
+        // 出さない投稿者の返信が古い側に固まっていても後ろの返信を返せるよう、件数で切らずに順に読んで、出す返信が limit に届いたら止める
+        val remoteIds = dsl.select(REMOTE_NOTES.ID, REMOTE_ACTORS.ACTOR_URI).from(REMOTE_NOTES)
+            .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+            .where(REMOTE_NOTES.IN_REPLY_TO.eq(objectUri))
+            .and(REMOTE_NOTES.DELETED_AT.isNull).and(dsl.remoteNoteViewableBy(viewer))
+            .orderBy(REMOTE_NOTES.PUBLISHED_AT, REMOTE_NOTES.ID)
+            .fetchLazy().use { cursor ->
+                cursor.asSequence()
+                    .filterNot { hidesAuthor(checkNotNull(it.get(REMOTE_ACTORS.ACTOR_URI))) }
+                    .take(limit)
+                    .map { checkNotNull(it.get(REMOTE_NOTES.ID)) }
+                    .toList()
+            }
+        hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = localIds,
+            remoteIds = remoteIds,
+            localCondition = DSL.noCondition(),
+            remoteCondition = DSL.noCondition(),
+        ).sortedWith(compareBy<TimelinePost> { it.publishedAt }.thenBy { it.position.member }).take(limit)
+    }
+
     override fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost> = jooq.withConnection { dsl ->
         val likes = dsl.likedMembers(
             liker = DSL.value(liker.value),

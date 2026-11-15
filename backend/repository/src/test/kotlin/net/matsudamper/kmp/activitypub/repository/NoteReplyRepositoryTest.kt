@@ -79,6 +79,53 @@ class NoteReplyRepositoryTest {
         assertEquals("https://other.example/notes/3", assertNotNull(repositories.timelineRepository.viewablePost(alice, remote)).quoteUri)
     }
 
+    @Test
+    fun repliesFromLocalAndRemotePostsAreListedOldestFirst() = withRepository { repositories, alice ->
+        val target = "$ACTOR/notes/1"
+        repositories.timelineRepository.receive(note("late", "public", setOf("alice")).copy(inReplyTo = target, publishedAt = NOW.plusSeconds(20)))
+        repositories.deliveryQueueRepository.enqueueNote(
+            notePost(username = "bob", publicId = "bob-reply").copy(inReplyTo = target, publishedAt = NOW.plusSeconds(10)),
+        )
+        repositories.timelineRepository.receive(note("early", "public", setOf("alice")).copy(inReplyTo = target))
+        repositories.timelineRepository.receive(note("other", "public", setOf("alice")).copy(inReplyTo = "$ACTOR/notes/2"))
+
+        val replies = repositories.timelineRepository.replies(alice, target, limit = 10) { false }
+
+        assertEquals(
+            listOf(TimelineNoteRef.Remote("$ACTOR/notes/early"), TimelineNoteRef.Local(PublicNoteId("bob-reply")), TimelineNoteRef.Remote("$ACTOR/notes/late")),
+            replies.map { it.noteRef },
+        )
+        assertEquals(listOf(TimelineNoteRef.Remote("$ACTOR/notes/early")), repositories.timelineRepository.replies(alice, target, limit = 1) { false }.map { it.noteRef })
+    }
+
+    @Test
+    fun repliesFromHiddenAuthorsDoNotCountTowardLimit() = withRepository { repositories, alice ->
+        val target = "$ACTOR/notes/1"
+        val hiddenActor = "https://hidden.example/users/hidden"
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(hiddenActor, "$hiddenActor/inbox", null, "key", RemoteActorProfileRecord("hidden", "Hidden", null, null, null, listOf())),
+            NOW,
+        )
+        repositories.timelineRepository.receive(
+            note("unused", "public", setOf("alice")).copy(objectUri = "$hiddenActor/notes/1", actorUri = hiddenActor, inReplyTo = target),
+        )
+        repositories.timelineRepository.receive(note("visible", "public", setOf("alice")).copy(inReplyTo = target, publishedAt = NOW.plusSeconds(10)))
+
+        val replies = repositories.timelineRepository.replies(alice, target, limit = 1) { actorUri -> actorUri == hiddenActor }
+
+        assertEquals(listOf(TimelineNoteRef.Remote("$ACTOR/notes/visible")), replies.map { it.noteRef })
+    }
+
+    @Test
+    fun unreadableOrDeletedRepliesAreNotListed() = withRepository { repositories, alice ->
+        val target = "$ACTOR/notes/1"
+        repositories.timelineRepository.receive(note("direct", "direct", setOf("bob")).copy(inReplyTo = target))
+        repositories.timelineRepository.receive(note("deleted", "public", setOf("alice")).copy(inReplyTo = target))
+        repositories.timelineRepository.deleteRemote(ACTOR, "$ACTOR/notes/deleted", NOW)
+
+        assertEquals(listOf(), repositories.timelineRepository.replies(alice, target, limit = 10) { false })
+    }
+
     private fun notePost(username: String, publicId: String): NotePost = NotePost(
         username = username,
         requestId = "request-$publicId",

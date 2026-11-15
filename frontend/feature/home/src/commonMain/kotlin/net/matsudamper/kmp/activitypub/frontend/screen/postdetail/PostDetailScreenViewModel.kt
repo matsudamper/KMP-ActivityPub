@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResul
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostRepliesResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserReaction
 import net.matsudamper.kmp.activitypub.frontend.logic.user.likeState
@@ -80,11 +81,14 @@ internal class PostDetailScreenViewModel(
                 mentionSending = false,
                 replyTargets = listOf(),
                 replyTargetLoad = ReplyTargetLoad.Waiting,
+                replies = listOf(),
+                repliesLoad = RepliesLoad.Loading,
                 quotes = mapOf(),
             ),
         )
     private var loadJob: Job? = null
     private var replyTargetJob: Job? = null
+    private var repliesJob: Job? = null
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -145,6 +149,13 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private val repliesErrorListener = object : PostDetailScreenUiState.Replies.Error.Listener {
+        override fun onClickRetry() {
+            val loaded = viewModelStateFlow.value.post as? PostState.Loaded ?: return
+            loadReplies(loaded.post.id)
+        }
+    }
+
     private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
         override fun onClickDelete() {
             deleteNote()
@@ -192,7 +203,16 @@ internal class PostDetailScreenViewModel(
     private fun load() {
         loadJob?.cancel()
         replyTargetJob?.cancel()
-        viewModelStateFlow.update { it.copy(post = PostState.Loading, replyTargets = listOf(), replyTargetLoad = ReplyTargetLoad.Waiting) }
+        repliesJob?.cancel()
+        viewModelStateFlow.update {
+            it.copy(
+                post = PostState.Loading,
+                replyTargets = listOf(),
+                replyTargetLoad = ReplyTargetLoad.Waiting,
+                replies = listOf(),
+                repliesLoad = RepliesLoad.Loading,
+            )
+        }
         loadJob = viewModelScope.launch {
             val post =
                 when (val result = api.postDetail(postId = postId)) {
@@ -212,7 +232,32 @@ internal class PostDetailScreenViewModel(
                 val mentionText = if (post is PostState.Loaded && state.mentionText.isEmpty()) initialMentionText(post.post) else state.mentionText
                 state.copy(post = post, mentionText = mentionText)
             }
-            if (post is PostState.Loaded) refreshCounts(post.post)
+            if (post is PostState.Loaded) {
+                loadReplies(post.post.id)
+                refreshCounts(post.post)
+            }
+        }
+    }
+
+    /**
+     * 取り直しでは、取れるまで今の返信を出したままにする
+     *
+     * @param loadedPostId 保存していない投稿の id で開いたときも、開いたときに保存した投稿の id で引く
+     */
+    private fun loadReplies(loadedPostId: String) {
+        repliesJob?.cancel()
+        viewModelStateFlow.update { it.copy(repliesLoad = RepliesLoad.Loading) }
+        repliesJob = viewModelScope.launch {
+            val result = api.replies(postId = loadedPostId)
+            viewModelStateFlow.update { state ->
+                when (result) {
+                    is UserPostRepliesResult.Success -> state.copy(replies = result.replies, repliesLoad = RepliesLoad.Loaded)
+
+                    UserPostRepliesResult.NotLoggedIn,
+                    is UserPostRepliesResult.Failure,
+                    -> state.copy(repliesLoad = RepliesLoad.Failed)
+                }
+            }
         }
     }
 
@@ -367,7 +412,7 @@ internal class PostDetailScreenViewModel(
     private fun currentPost(reactionPostId: String): UserHomeTimelineResult.Post? {
         val state = viewModelStateFlow.value
         val loaded = state.post as? PostState.Loaded
-        return (listOfNotNull(loaded?.post) + state.replyTargets).firstOrNull { it.reactionPostId == reactionPostId }
+        return (listOfNotNull(loaded?.post) + state.replyTargets + state.replies).firstOrNull { it.reactionPostId == reactionPostId }
     }
 
     /**
@@ -460,6 +505,7 @@ internal class PostDetailScreenViewModel(
                 state.copy(mentionText = if (loaded == null) "" else initialMentionText(loaded.post))
             }
             events.send { it.showMessage("メンションを送りました") }
+            loadReplies(replyToPostId)
             val loaded = viewModelStateFlow.value.post as? PostState.Loaded
             if (loaded != null) refreshCounts(loaded.post)
         }
@@ -522,7 +568,7 @@ internal class PostDetailScreenViewModel(
     }
 
     /**
-     * 同じ投稿が返信先と開いている投稿の両方に出ることがあるので、合うものすべてを変える
+     * 同じ投稿が返信先や返信と開いている投稿の両方に出ることがあるので、合うものすべてを変える
      */
     private fun updatePosts(reactionPostId: String, transform: (UserHomeTimelineResult.Post) -> UserHomeTimelineResult.Post) {
         val update = { post: UserHomeTimelineResult.Post -> if (post.reactionPostId == reactionPostId) transform(post) else post }
@@ -531,7 +577,7 @@ internal class PostDetailScreenViewModel(
                 is PostState.Loaded -> PostState.Loaded(update(current.post))
                 else -> current
             }
-            state.copy(post = post, replyTargets = state.replyTargets.map(update))
+            state.copy(post = post, replyTargets = state.replyTargets.map(update), replies = state.replies.map(update))
         }
     }
 
@@ -562,7 +608,7 @@ internal class PostDetailScreenViewModel(
     }
 
     /**
-     * 返信先の投稿にも引用はあるので、投稿の id ごとに持つ
+     * 返信先や返信の投稿にも引用はあるので、投稿の id ごとに持つ
      */
     private fun loadQuote(postId: String) {
         if (postId in viewModelStateFlow.value.quotes) return
@@ -594,8 +640,9 @@ internal class PostDetailScreenViewModel(
 
                 is PostState.Loaded -> PostDetailScreenUiState.Content.Loaded(
                     replyTargetLoader = createReplyTargetLoader(post.post, viewModelState),
-                    replyTargets = viewModelState.replyTargets.reversed().map { replyTarget -> createReplyTargetItem(replyTarget, viewModelState) },
+                    replyTargets = viewModelState.replyTargets.reversed().map { replyTarget -> createThreadPostItem(replyTarget, viewModelState) },
                     post = createPostItem(post.post, viewModelState),
+                    replies = createReplies(viewModelState),
                     mentionBox = PostDetailScreenUiState.MentionBox(
                         text = viewModelState.mentionText,
                         placeholder = "${createAcct(post.post)} へメンション",
@@ -643,10 +690,21 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private fun createReplies(viewModelState: ViewModelState): PostDetailScreenUiState.Replies {
+        val items = viewModelState.replies.map { reply ->
+            PostDetailScreenUiState.Reply(listKey = "reply-${reply.id}", post = createThreadPostItem(reply, viewModelState))
+        }
+        return when (viewModelState.repliesLoad) {
+            RepliesLoad.Loading -> PostDetailScreenUiState.Replies.Loading(items)
+            RepliesLoad.Loaded -> PostDetailScreenUiState.Replies.Loaded(items)
+            RepliesLoad.Failed -> PostDetailScreenUiState.Replies.Error(items, repliesErrorListener)
+        }
+    }
+
     /**
-     * 返信先は読み返すためのものなので、固定や削除は押して開いたその投稿の詳細で行う
+     * 開いている投稿の上下に並べる、返信先と返信。読み返すためのものなので、固定や削除は押して開いたその投稿の詳細で行う
      */
-    private fun createReplyTargetItem(
+    private fun createThreadPostItem(
         post: UserHomeTimelineResult.Post,
         viewModelState: ViewModelState,
     ): PostItemUiState {
@@ -792,6 +850,11 @@ internal class PostDetailScreenViewModel(
         val replyTargets: List<UserHomeTimelineResult.Post>,
         val replyTargetLoad: ReplyTargetLoad,
         /**
+         * 開いている投稿に付いた返信を、古い順に並べたもの
+         */
+        val replies: List<UserHomeTimelineResult.Post>,
+        val repliesLoad: RepliesLoad,
+        /**
          * 投稿の id ごとの引用先
          */
         val quotes: Map<String, QuoteLoad>,
@@ -804,6 +867,12 @@ internal class PostDetailScreenViewModel(
         Waiting,
         Loading,
         Unavailable,
+        Failed,
+    }
+
+    private enum class RepliesLoad {
+        Loading,
+        Loaded,
         Failed,
     }
 
