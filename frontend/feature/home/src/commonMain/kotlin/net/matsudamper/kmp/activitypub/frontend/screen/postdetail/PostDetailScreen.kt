@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -181,11 +182,11 @@ internal fun PostDetailContent(
                                         PostItem(uiState = content.post, style = PostItemStyle.Detail)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
-                                    itemsIndexed(
+                                    items(
                                         items = content.replies.items,
-                                        key = { index, _ -> "reply-$index" },
-                                    ) { _, reply ->
-                                        PostItem(uiState = reply, style = PostItemStyle.Timeline)
+                                        key = { reply -> reply.listKey },
+                                    ) { reply ->
+                                        PostItem(uiState = reply.post, style = PostItemStyle.Timeline)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
                                     when (val replies = content.replies) {

@@ -136,9 +136,15 @@ private fun PostDetailRepliesPreview(replies: PostDetailScreenUiState.Replies) {
     }
 }
 
-private fun previewReplies(): List<PostItemUiState> = listOf(
-    previewThreadPost(displayName = "Bob", acct = "@bob@remote.example", content = "@alice@example.social 返信です"),
-    previewThreadPost(displayName = "Carol", acct = "@carol@other.example", content = "@alice@example.social もう 1 つの返信です"),
+private fun previewReplies(): List<PostDetailScreenUiState.Reply> = listOf(
+    PostDetailScreenUiState.Reply(
+        listKey = "reply-bob",
+        post = previewThreadPost(displayName = "Bob", acct = "@bob@remote.example", content = "@alice@example.social 返信です"),
+    ),
+    PostDetailScreenUiState.Reply(
+        listKey = "reply-carol",
+        post = previewThreadPost(displayName = "Carol", acct = "@carol@other.example", content = "@alice@example.social もう 1 つの返信です"),
+    ),
 )
 
 @Composable

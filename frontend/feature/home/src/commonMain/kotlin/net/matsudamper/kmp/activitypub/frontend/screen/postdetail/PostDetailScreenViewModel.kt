@@ -691,7 +691,9 @@ internal class PostDetailScreenViewModel(
     }
 
     private fun createReplies(viewModelState: ViewModelState): PostDetailScreenUiState.Replies {
-        val items = viewModelState.replies.map { reply -> createThreadPostItem(reply, viewModelState) }
+        val items = viewModelState.replies.map { reply ->
+            PostDetailScreenUiState.Reply(listKey = "reply-${reply.id}", post = createThreadPostItem(reply, viewModelState))
+        }
         return when (viewModelState.repliesLoad) {
             RepliesLoad.Loading -> PostDetailScreenUiState.Replies.Loading(items)
             RepliesLoad.Loaded -> PostDetailScreenUiState.Replies.Loaded(items)

@@ -69,14 +69,14 @@ data class PostDetailScreenUiState(
         /**
          * 古い順。取り直している間と取り直せなかったときは、前に取れたものを出したままにする
          */
-        val items: List<PostItemUiState>
+        val items: List<Reply>
 
-        data class Loading(override val items: List<PostItemUiState>) : Replies
+        data class Loading(override val items: List<Reply>) : Replies
 
-        data class Loaded(override val items: List<PostItemUiState>) : Replies
+        data class Loaded(override val items: List<Reply>) : Replies
 
         data class Error(
-            override val items: List<PostItemUiState>,
+            override val items: List<Reply>,
             val listener: Listener,
         ) : Replies {
             @Immutable
@@ -85,6 +85,14 @@ data class PostDetailScreenUiState(
             }
         }
     }
+
+    /**
+     * @param listKey 取り直しで返信が増減しても、画像の横スクロールの位置などが別の返信に移らないよう、一覧の中で返信を見分ける
+     */
+    data class Reply(
+        val listKey: String,
+        val post: PostItemUiState,
+    )
 
     /**
      * 投稿の下に置く、投稿者へのメンションの入力欄
