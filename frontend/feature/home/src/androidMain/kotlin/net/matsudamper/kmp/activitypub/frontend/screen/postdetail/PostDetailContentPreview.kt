@@ -170,6 +170,7 @@ private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiSt
 }
 
 private fun previewThreadPost(displayName: String, acct: String, content: String) = PostItemUiState(
+    replyLabel = null,
     pinnedLabelVisible = false,
     deletedLabelVisible = false,
     actorLabel = null,
@@ -232,6 +233,7 @@ private fun createLoadedUiState(
             replyTargetLoader = replyTargetLoader,
             replyTargets = replyTargets,
             post = PostItemUiState(
+                replyLabel = null,
                 pinnedLabelVisible = false,
                 deletedLabelVisible = false,
                 actorLabel = null,

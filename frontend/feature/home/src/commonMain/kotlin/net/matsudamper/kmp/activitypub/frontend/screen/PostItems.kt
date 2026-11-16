@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  *
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param quote [createPostItemQuote] で作る。引用でなければ null
+ * @param replyLabel [createPostItemReplyLabel] で作る。「〜へのリプライ」の行を出さなければ null
  * @param actorLabel 投稿の上に出す「〜がブースト」「〜がお気に入り」の行の元。出さなければ null
  * @param pinned プロフィールの先頭に固定されている投稿か
  * @param deleted 投稿者が投稿を消した後か
@@ -26,6 +27,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param onClickStamp スタンプを押したとき
  */
 internal fun createPostItemUiState(
+    replyLabel: PostItemUiState.ReplyLabel?,
     actorLabel: PostActorLabel?,
     pinned: Boolean,
     deleted: Boolean,
@@ -57,6 +59,7 @@ internal fun createPostItemUiState(
     val shareUrl = body.shareUrl
     val imageUrls = body.images.map { it.url }
     return PostItemUiState(
+        replyLabel = replyLabel,
         actorLabel = actorLabel?.let { label ->
             val actor = label.actor
             PostItemUiState.ActorLabel(

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -165,6 +166,10 @@ internal fun PostItem(
         val actorLabel = uiState.actorLabel
         if (actorLabel != null) {
             ActorLabel(actorLabel = actorLabel, sizes = sizes)
+        }
+        val replyLabel = uiState.replyLabel
+        if (replyLabel != null) {
+            ReplyLabel(replyLabel = replyLabel, sizes = sizes)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -373,6 +378,72 @@ private fun DeletedLabel(sizes: PostItemSizes) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
         )
+    }
+}
+
+/**
+ * 返信先の投稿者が取れる前と後で投稿の高さが変わらないよう、取れる前もプロフィール画像の高さを取っておく
+ */
+@Composable
+private fun ReplyLabel(
+    replyLabel: PostItemUiState.ReplyLabel,
+    sizes: PostItemSizes,
+) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    val target = replyLabel.target
+    Row(
+        modifier = Modifier
+            .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
+            .then(if (target == null) Modifier else Modifier.clickable(onClick = target.listener::onClick))
+            .padding(horizontal = PostHorizontalPadding),
+        horizontalArrangement = Arrangement.spacedBy(PostIconHeaderSpacing),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.width(sizes.iconSize), contentAlignment = Alignment.CenterEnd) {
+            Icon(
+                imageVector = AppIcons.Reply,
+                contentDescription = null,
+                modifier = Modifier.size(sizes.actionIconSize),
+                tint = color,
+            )
+        }
+        Row(
+            modifier = Modifier.heightIn(min = ActorLabelIconSize),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (target == null) {
+                Text(
+                    text = "リプライ",
+                    style = sizes.secondaryTextStyle,
+                    color = color,
+                    maxLines = 1,
+                )
+            } else {
+                ProfileIcon(
+                    iconUrl = target.iconUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(ActorLabelIconSize)
+                        .clip(CircleShape),
+                )
+                EmojiText(
+                    modifier = Modifier.weight(1f, fill = false),
+                    text = target.name,
+                    style = sizes.secondaryTextStyle,
+                    color = color,
+                    fontWeight = null,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "へのリプライ",
+                    style = sizes.secondaryTextStyle,
+                    color = color,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

@@ -707,6 +707,7 @@ internal class UserProfileScreenViewModel(
                 val previews = viewModelState.linkPreviews[post.postId].orEmpty()
                 val boostedNoteAuthor = post.boostedNoteAuthor
                 createPostItemUiState(
+                    replyLabel = null,
                     pinned = post.pinned,
                     deleted = false,
                     boostUndone = false,
@@ -804,6 +805,7 @@ internal class UserProfileScreenViewModel(
         val host = post.host
         val profileAcct = if (host == null) post.username else "${post.username}@$host"
         return createPostItemUiState(
+            replyLabel = null,
             pinned = false,
             deleted = post.deleted,
             boostUndone = false,
