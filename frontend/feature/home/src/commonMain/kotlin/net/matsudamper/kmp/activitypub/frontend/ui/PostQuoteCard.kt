@@ -26,11 +26,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
- * 投稿の中に埋める引用先。読み込みの前後で高さが大きく変わらないよう、読み込み中も同じ枠を出す
+ * 投稿の中に埋める引用先。投稿の画面では返信先にも使う。読み込みの前後で高さが大きく変わらないよう、読み込み中も同じ枠を出す
  */
 @Composable
 internal fun PostQuoteCard(
     quote: PostItemUiState.Quote,
+    unavailableText: String,
     textStyle: TextStyle,
     modifier: Modifier = Modifier,
 ) {
@@ -56,7 +57,7 @@ internal fun PostQuoteCard(
 
             PostItemUiState.Quote.Unavailable -> {
                 Text(
-                    text = "引用先の投稿を表示できません",
+                    text = unavailableText,
                     style = textStyle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

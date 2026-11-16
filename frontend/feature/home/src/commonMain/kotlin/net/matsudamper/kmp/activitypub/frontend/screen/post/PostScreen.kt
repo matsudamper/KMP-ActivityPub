@@ -199,7 +199,7 @@ internal fun PostContent(
             )
             val quote = uiState.quote
             if (quote != null) {
-                PostQuoteCard(quote = quote, textStyle = MaterialTheme.typography.bodyMedium)
+                PostQuoteCard(quote = quote, unavailableText = "引用先の投稿を表示できません", textStyle = MaterialTheme.typography.bodyMedium)
             }
             if (uiState.images.isNotEmpty()) {
                 Row(
@@ -246,7 +246,46 @@ internal fun PostContent(
                     Text("投稿")
                 }
             }
+            val replyTarget = uiState.replyTarget
+            if (replyTarget != null) {
+                ReplyTarget(replyTarget = replyTarget)
+            }
         }
+    }
+}
+
+@Composable
+private fun ReplyTarget(replyTarget: PostScreenUiState.ReplyTarget) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = AppIcons.Reply,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "返信先",
+                modifier = Modifier.padding(start = 4.dp).weight(1f),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            IconButton(
+                onClick = replyTarget.listener::onClickRemove,
+                enabled = replyTarget.removeButtonEnabled,
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    imageVector = AppIcons.Close,
+                    contentDescription = "返信をやめる",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        PostQuoteCard(quote = replyTarget.post, unavailableText = "返信先の投稿を表示できません", textStyle = MaterialTheme.typography.bodyMedium)
     }
 }
 

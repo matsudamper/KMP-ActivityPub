@@ -29,6 +29,10 @@ data class PostScreenUiState(
      * 引用でなければ null
      */
     val quote: PostItemUiState.Quote?,
+    /**
+     * 返信でなければ null
+     */
+    val replyTarget: ReplyTarget?,
     val addImageButtonEnabled: Boolean,
     val addImageLoadingVisible: Boolean,
     val addEmojiButtonEnabled: Boolean,
@@ -46,6 +50,17 @@ data class PostScreenUiState(
         val removeButtonEnabled: Boolean,
         val listener: ImageListener,
     )
+
+    data class ReplyTarget(
+        val post: PostItemUiState.Quote,
+        val removeButtonEnabled: Boolean,
+        val listener: ReplyTargetListener,
+    )
+
+    @Immutable
+    interface ReplyTargetListener {
+        fun onClickRemove()
+    }
 
     @Immutable
     fun interface ImagePreview {
@@ -68,6 +83,13 @@ data class PostScreenUiState(
         fun onImagePicked(file: PickedImageFile)
 
         fun onClickAddEmoji()
+
+        /**
+         * 開いたままの投稿カラムで、タイムラインの投稿への返信を始めるとき
+         *
+         * @param postId 返信するホームタイムラインの投稿の id
+         */
+        fun onReplyRequested(postId: String)
 
         fun onClickPost()
 

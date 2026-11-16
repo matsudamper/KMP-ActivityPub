@@ -302,6 +302,15 @@ private fun ScreenContent(
             )
         }
 
+        is Screen.ReplyPost -> {
+            PostScreen(
+                target = PostScreenTarget.Reply(postId = screen.postId),
+                navigationIcon = PostNavigationIcon.Close,
+                onNavigateBack = navigator::back,
+                onClose = navigator::closeToHome,
+            )
+        }
+
         Screen.Settings -> {
             SettingsScreen(navigator = navigator)
         }
