@@ -512,6 +512,8 @@ class HomeScreenViewModelTest {
         override fun navigateToPostDetail(postId: String) = Unit
 
         override fun navigateToQuotePost(postId: String) = Unit
+
+        override fun openReply(postId: String) = Unit
     }
 
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {

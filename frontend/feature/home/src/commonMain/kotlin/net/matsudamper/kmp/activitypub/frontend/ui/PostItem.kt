@@ -246,6 +246,7 @@ internal fun PostItem(
             if (quote != null) {
                 PostQuoteCard(
                     quote = quote,
+                    unavailableText = "引用先の投稿を表示できません",
                     textStyle = sizes.secondaryTextStyle,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -620,17 +621,18 @@ private fun PostActions(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f, fill = false).width(sizes.actionSlotWidth)
-                    .padding(ActionButtonContentPadding),
-                verticalAlignment = Alignment.CenterVertically,
+            val replyListener = uiState.replyListener
+            TextButton(
+                onClick = { replyListener?.onClick() },
+                enabled = replyListener != null,
+                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
+                contentPadding = ActionButtonContentPadding,
             ) {
                 Icon(
                     imageVector = AppIcons.Reply,
                     contentDescription = "リプライ",
                     modifier = Modifier.size(sizes.actionIconSize),
-                    tint = iconColor,
+                    tint = if (replyListener == null) disabledIconColor else iconColor,
                 )
                 Text(
                     text = uiState.replyCountText.orEmpty(),

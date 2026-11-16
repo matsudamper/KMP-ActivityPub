@@ -563,6 +563,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
+                            replyListener = null,
                             quote = null,
                             favouriteCountText = null,
                             boostCountText = null,
@@ -712,6 +713,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
+                            replyListener = null,
                             quote = null,
                             favouriteCountText = null,
                             boostCountText = null,
@@ -840,6 +842,7 @@ private fun HomeColumnsPreview(
                             postButtonEnabled = false,
                             images = listOf(),
                             quote = null,
+                            replyTarget = null,
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
                             addEmojiButtonEnabled = true,
@@ -888,6 +891,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onResizeOpenedColumnEnd() = Unit
 
     override fun onPostColumnFinished() = Unit
+
+    override fun onReplyOpenedInPostColumn() = Unit
 
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 
@@ -1018,6 +1023,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
     override fun onClickAddEmoji() = Unit
 
+    override fun onReplyRequested(postId: String) = Unit
+
     override fun onClickPost() = Unit
 
     override fun onPressPostShortcut() = Unit
@@ -1063,6 +1070,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             ),
         ),
         replyCountText = null,
+        replyListener = null,
         quote = null,
         favouriteCountText = null,
         boostCountText = null,
@@ -1120,6 +1128,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             ),
         ),
         replyCountText = null,
+        replyListener = null,
         quote = null,
         favouriteCountText = "3",
         boostCountText = null,
@@ -1158,6 +1167,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         linkPreviews = listOf(),
         images = listOf(),
         replyCountText = null,
+        replyListener = null,
         quote = null,
         favouriteCountText = null,
         boostCountText = null,
