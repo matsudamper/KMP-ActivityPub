@@ -1071,7 +1071,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         reactionButton = null,
         stamps = listOf(),
         authorListener = AndroidPreviewAuthorListener,
-        translateButtonListener = null,
+        translateButtonListener = AndroidPreviewTranslateButtonListener,
         menuItems = listOf(),
         postListener = AndroidPreviewPostListener,
         shareListener = AndroidPreviewShareListener,
@@ -1169,7 +1169,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         shareListener = AndroidPreviewShareListener,
         menuItems = listOf(),
         authorListener = AndroidPreviewAuthorListener,
-        translateButtonListener = AndroidPreviewTranslateButtonListener,
+        translateButtonListener = null,
         listener = AndroidPreviewTimelineItemListener,
     ),
 )
