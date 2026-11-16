@@ -758,41 +758,20 @@ private fun HomeUserMediaContentPreview() {
     }
 }
 
-@Preview(widthDp = 1280, heightDp = 800)
-@Composable
-private fun HomeColumnsContentPreview() = HomeColumnsPreview(openedColumn = HomeScreenUiState.Column.Post, timelineColumnsEmptyMessage = null, secondColumnWidth = 400.dp)
-
-// 2 つ目のカラムは HomeScreenViewModel の COLUMN_MIN_WIDTH と同じ一番細い幅にして、操作が並びきるかを見る
-@Preview(widthDp = 1280, heightDp = 800)
-@Composable
-private fun HomeColumnsContentPreviewTimelineColumns() = HomeColumnsPreview(openedColumn = null, timelineColumnsEmptyMessage = null, secondColumnWidth = 240.dp)
-
-@Preview(widthDp = 1280, heightDp = 800)
-@Composable
-private fun HomeColumnsContentPreviewTimelineColumnsEmpty() = HomeColumnsPreview(
-    openedColumn = null,
-    timelineColumnsEmptyMessage = "表示するカラムがありません",
-    secondColumnWidth = 400.dp,
-)
-
 /**
- * @param timelineColumnsEmptyMessage null でなければカラムを全部消した状態にする
+ * カラム表示の部品を 1 枚にまとめて見る。
+ * 投稿カラム、通常の幅のカラム、HomeScreenViewModel の COLUMN_MIN_WIDTH と同じ一番細い幅のカラム、カラムが無いときの案内を並べる
  */
+@Preview(widthDp = 1600, heightDp = 800)
 @Composable
-private fun HomeColumnsPreview(
-    openedColumn: HomeScreenUiState.Column?,
-    timelineColumnsEmptyMessage: String?,
-    secondColumnWidth: Dp,
-) {
+private fun HomeColumnsContentPreview() {
+    val openedColumn = HomeScreenUiState.Column.Post
+    val timelineColumnsEmptyMessage = "表示するカラムがありません"
     HomePreviewTheme {
         HomeColumnsContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineColumns = if (timelineColumnsEmptyMessage == null) {
-                    previewTimelineColumns(previewColumnsPosts(), HomeScreenUiState.TimelineFooter.None, secondColumnWidth = secondColumnWidth)
-                } else {
-                    listOf()
-                },
+                timelineColumns = previewTimelineColumns(previewColumnsPosts(), HomeScreenUiState.TimelineFooter.None, secondColumnWidth = 240.dp),
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
