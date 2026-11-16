@@ -12,6 +12,11 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
  */
 interface DeliveryQueueRepository {
     fun enqueueFollow(accountId: AccountId, inbox: String, body: String, now: Instant)
+
+    /**
+     * このサーバーの投稿の引用を承認した Accept を積む
+     */
+    fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant)
     fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant)
 
     /**

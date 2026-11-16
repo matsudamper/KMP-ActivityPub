@@ -5,6 +5,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
  */
 internal object DeliveryQueueValues {
     const val KIND_ACCEPT_FOLLOW = "accept_follow"
+    const val KIND_ACCEPT_QUOTE = "accept_quote"
     const val KIND_FOLLOW = "follow"
     const val KIND_UNDO_FOLLOW = "undo_follow"
     const val KIND_CREATE_NOTE = "create_note"
