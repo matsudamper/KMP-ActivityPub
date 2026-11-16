@@ -30,6 +30,29 @@ query PostReplies($postId: TimelinePostId!) {
     }
 }
 
+query PostRevisions($postId: TimelinePostId!) {
+    userInfo {
+        postRevisions(postId: $postId) {
+            content
+            mentions {
+                start
+                end
+                acct
+            }
+            images {
+                url
+                thumbnailUrl
+                description
+            }
+            emojis {
+                name
+                imageUrl
+            }
+            revisedAt
+        }
+    }
+}
+
 query PostCounts($postId: TimelinePostId!) {
     userInfo {
         postCounts(postId: $postId) {

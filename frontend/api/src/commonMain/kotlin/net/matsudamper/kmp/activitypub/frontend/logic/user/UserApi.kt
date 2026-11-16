@@ -50,6 +50,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostCountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostRepliesQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PostRevisionsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.QuoteTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
@@ -263,6 +264,30 @@ class UserApi(
         val data = response.data ?: return UserPostRepliesResult.Failure(response.failureMessage())
         val userInfo = data.userInfo ?: return UserPostRepliesResult.NotLoggedIn
         return UserPostRepliesResult.Success(userInfo.replies.map { it.timelinePostFields.toPost() })
+    }
+
+    /**
+     * 投稿の版を古い順に。最後が今の版
+     *
+     * @param postId [UserHomeTimelineResult.Post.id]
+     */
+    suspend fun postRevisions(postId: String): UserPostRevisionsResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostRevisionsResult.Failure("接続先が未設定")
+        val response = client.query(PostRevisionsQuery(postId = postId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostRevisionsResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostRevisionsResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserPostRevisionsResult.NotLoggedIn
+        return UserPostRevisionsResult.Success(
+            userInfo.postRevisions.map { revision ->
+                UserPostRevisionsResult.Revision(
+                    content = revision.content,
+                    mentions = revision.mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
+                    images = revision.images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
+                    emojis = revision.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
+                    revisedAt = revision.revisedAt,
+                )
+            },
+        )
     }
 
     /**
@@ -1166,6 +1191,8 @@ class UserApi(
                     )
                 }
                 if (arrivedNotification != null) emit(AccountStreamEvent.NotificationArrived(arrivedNotification))
+                val updatedPost = event.timelinePostUpdated?.timelinePostFields?.toPost()
+                if (updatedPost != null) emit(AccountStreamEvent.PostUpdated(updatedPost))
             }
             .count()
         // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
@@ -1218,6 +1245,7 @@ class UserApi(
                 likedByMe = likedByMe,
                 viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
                 boostedByMe = boostedByMe,
+                edited = edited,
             ),
             boostedNoteAuthor = boostedNoteAuthor?.let { author ->
                 UserProfileResult.Author(

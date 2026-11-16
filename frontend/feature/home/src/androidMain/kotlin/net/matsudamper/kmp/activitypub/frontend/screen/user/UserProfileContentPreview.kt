@@ -59,6 +59,7 @@ private fun UserProfileContentPreview() {
                                 body = createPostBodyText(content = "今日はプロフィール画面を作っています。 https://kotlinlang.org/", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                                 postedAt = "2026-11-01T12:00:00Z",
                                 fullPostedAt = "2026/11/01 21:00",
+                                editedLabel = null,
                                 linkPreviews = listOf(
                                     PostItemUiState.LinkPreview(
                                         title = "Kotlin Programming Language",
@@ -100,6 +101,7 @@ private fun UserProfileContentPreview() {
                                 body = createPostBodyText(content = "フォローしていない人の投稿もブーストできます", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                                 postedAt = "2026-11-01T13:00:00Z",
                                 fullPostedAt = "2026/11/01 22:00",
+                                editedLabel = null,
                                 linkPreviews = listOf(),
                                 images = listOf(),
                                 replyCountText = null,
@@ -163,6 +165,7 @@ private fun UserProfileContentLikesPreview() {
                             body = createPostBodyText(content = "いいねした他のサーバーの投稿です", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                             postedAt = "2026-11-02T09:00:00Z",
                             fullPostedAt = "2026/11/02 18:00",
+                            editedLabel = null,
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
@@ -189,6 +192,7 @@ private fun UserProfileContentLikesPreview() {
                             body = createPostBodyText(content = "このサーバーの人の投稿にもいいねしています", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                             postedAt = "2026-11-01T12:00:00Z",
                             fullPostedAt = "2026/11/01 21:00",
+                            editedLabel = null,
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,

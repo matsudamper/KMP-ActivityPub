@@ -15,6 +15,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * @param likedByMe ログイン中のアカウントがいいねしているか。リアクションを付けていても true。いいねできない投稿は null
  * @param viewerReaction ログイン中のアカウントが付けたリアクション。付けていないか、絵文字の無いいいねなら null
  * @param boostedByMe ログイン中のアカウントがブーストしているか。ブーストできない投稿は null
+ * @param edited 投稿者が編集した投稿か。編集前の版は [UserApi.postRevisions] で取る
  */
 data class UserPostBody(
     val content: String,
@@ -34,6 +35,7 @@ data class UserPostBody(
     val likedByMe: Boolean?,
     val viewerReaction: UserViewerReaction?,
     val boostedByMe: Boolean?,
+    val edited: Boolean,
 ) {
     /**
      * 絵文字の無いいいねを付けているか。いいねとリアクションは同じ投稿に 1 つしか付けられない

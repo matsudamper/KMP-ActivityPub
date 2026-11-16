@@ -10,5 +10,8 @@ subscription AccountEvents {
         notificationArrived {
             ...NotificationFields
         }
+        timelinePostUpdated {
+            ...TimelinePostFields
+        }
     }
 }

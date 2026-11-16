@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param onQuote ブーストのアイコンから引用を選んだとき
  * @param onOpenReactionPicker リアクションのアイコンを押したとき
  * @param onClickStamp スタンプを押したとき
+ * @param onOpenRevisions 編集済みのラベルを押したとき。編集前の版を出さない場所では null
  */
 internal fun createPostItemUiState(
     actorLabel: PostActorLabel?,
@@ -52,6 +53,7 @@ internal fun createPostItemUiState(
     onQuote: () -> Unit,
     onOpenReactionPicker: () -> Unit,
     onClickStamp: (UserPostStamp) -> Unit,
+    onOpenRevisions: (() -> Unit)?,
     onVisible: () -> Unit,
 ): PostItemUiState {
     val shareUrl = body.shareUrl
@@ -98,6 +100,19 @@ internal fun createPostItemUiState(
             timeZone = TimeZone.currentSystemDefault(),
         ),
         fullPostedAt = createFullPostedAtText(publishedAt = body.publishedAt, timeZone = TimeZone.currentSystemDefault()),
+        editedLabel = if (body.edited) {
+            PostItemUiState.EditedLabel(
+                listener = onOpenRevisions?.let { openRevisions ->
+                    object : PostItemUiState.EditedLabelListener {
+                        override fun onClick() {
+                            openRevisions()
+                        }
+                    }
+                },
+            )
+        } else {
+            null
+        },
         linkPreviews = body.linkUrls.map { url ->
             createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
         },

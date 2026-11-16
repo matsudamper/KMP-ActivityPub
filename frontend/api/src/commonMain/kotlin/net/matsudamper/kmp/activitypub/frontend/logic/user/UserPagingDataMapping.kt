@@ -57,6 +57,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             likedByMe = likedByMe,
             viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
             boostedByMe = boostedByMe,
+            edited = edited,
         ),
         boostedBy = boostedBy?.actorFields?.toActor(),
         reactionPostId = reactionPostId,
@@ -141,6 +142,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     followingGroupId = followingGroupId,
     hasReplyTarget = hasReplyTarget,
     hasQuoteTarget = hasQuoteTarget,
+    edited = body.edited,
 )
 
 private fun UserHomeTimelineResult.Actor.toFields(): ActorFields = ActorFields(
@@ -332,6 +334,12 @@ fun TimelinePostFields.withRemovals(removals: PostRemovals): TimelinePostFields 
     deleted = deleted || id in removals.deletedPostIds,
     boostUndone = boostUndone || id in removals.boostUndonePostIds,
 )
+
+/**
+ * 投稿者が編集したか、付いたリアクションが増減した行を、届いた中身で置き換える。読み込んでいない行は何もしない
+ */
+fun TimelinePostFields.withUpdatedPost(updated: UserHomeTimelineResult.Post): TimelinePostFields =
+    if (id == updated.id) updated.toFields() else this
 
 /**
  * いいねを変えた結果を反映する。付けていたリアクションは外れる。

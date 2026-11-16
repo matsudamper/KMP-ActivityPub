@@ -98,6 +98,40 @@ private fun PostDetailContentQuoteLoadingPreview() = PostDetailQuotePreview(quot
 @Composable
 private fun PostDetailContentQuoteUnavailablePreview() = PostDetailQuotePreview(quote = PostItemUiState.Quote.Unavailable)
 
+@Preview(heightDp = 1000)
+@Composable
+private fun PostDetailContentEditedPreview() {
+    val uiState = createLoadedUiState(
+        images = listOf(),
+        deleteNoteDialog = null,
+        mentionText = "",
+        replyTargetLoader = null,
+        quote = null,
+        replyTargets = listOf(),
+        replies = PostDetailScreenUiState.Replies.Loaded(
+            listOf(
+                PostDetailScreenUiState.Reply(
+                    listKey = "edited",
+                    post = previewThreadPost(displayName = "Bob", acct = "@bob@remote.example", content = "編集した返信です")
+                        .copy(editedLabel = PostItemUiState.EditedLabel(listener = null)),
+                ),
+            ),
+        ),
+    )
+    val loaded = uiState.content as? PostDetailScreenUiState.Content.Loaded
+    MaterialTheme {
+        if (loaded != null) {
+            PostDetailContent(
+                uiState = uiState.copy(
+                    content = loaded.copy(post = loaded.post.copy(editedLabel = PostItemUiState.EditedLabel(listener = AndroidPreviewEditedLabelListener))),
+                ),
+                snackbarHostState = SnackbarHostState(),
+                layout = PostDetailLayout.FullScreen,
+            )
+        }
+    }
+}
+
 @Composable
 private fun PostDetailQuotePreview(quote: PostItemUiState.Quote) {
     MaterialTheme {
@@ -179,6 +213,7 @@ private fun previewThreadPost(displayName: String, acct: String, content: String
     body = createPostBodyText(content = content, mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
     postedAt = "1時間",
     fullPostedAt = "2026/11/01 20:00",
+    editedLabel = null,
     linkPreviews = listOf(),
     images = listOf(),
     replyCountText = null,
@@ -247,6 +282,7 @@ private fun createLoadedUiState(
                 ),
                 postedAt = "2026-11-01T12:00:00Z",
                 fullPostedAt = "2026/11/01 21:00",
+                editedLabel = null,
                 linkPreviews = listOf(
                     PostItemUiState.LinkPreview(
                         title = "Kotlin Programming Language",
@@ -286,6 +322,7 @@ private fun createLoadedUiState(
         deleteNoteDialog = deleteNoteDialog,
         reactionPickerDialog = null,
         reactionConfirmDialog = null,
+        postRevisionsDialog = null,
         listener = AndroidPreviewPostDetailListener,
     )
 }
@@ -355,6 +392,7 @@ private fun PostDetailContentNotFoundPreview() {
                 deleteNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
+                postRevisionsDialog = null,
                 listener = AndroidPreviewPostDetailListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -412,6 +450,10 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 }
 
 private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewEditedLabelListener : PostItemUiState.EditedLabelListener {
     override fun onClick() = Unit
 }
 

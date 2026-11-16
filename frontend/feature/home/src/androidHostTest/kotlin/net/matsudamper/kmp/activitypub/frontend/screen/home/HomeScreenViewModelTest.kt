@@ -343,6 +343,21 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun updatedPostReplacesTheLoadedRowWithEditedLabelAndStamps() = withViewModel { viewModel, engine ->
+        engine.responses.send { page(listOf("a", "b"), null) }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }
+
+        arrivals.send(postUpdated(id = "not-loaded", content = "載せていない行"))
+        arrivals.send(postUpdated(id = "b", content = "編集後"))
+
+        val items = viewModel.uiStateFlow.first { uiState -> uiState.mainColumnItems().any { it.editedLabel != null } }.mainColumnItems()
+        assertEquals(listOf("a", "編集後"), items.map { it.body.text.text })
+        assertEquals(listOf(false, true), items.map { it.editedLabel != null })
+        assertEquals(listOf(listOf(), listOf("👍")), items.map { item -> item.stamps.map { it.emoji } })
+    }
+
+    @Test
     fun postDeletedWhileItsPageIsBeingLoadedGetsTheDeletedLabel() = withViewModel { viewModel, engine ->
         engine.responses.send { page(listOf("a"), "next") }
         viewModel.uiStateFlow.value.listener.onScreenShown()
@@ -376,7 +391,7 @@ class HomeScreenViewModelTest {
         viewModel.uiStateFlow.first { it.mainColumnItems().size == 1 }
         arrivals.send(
             """{"__typename":"AccountEvent","timelinePostArrived":null,"timelinePostsDeleted":null,""" +
-                """"notificationArrived":${notification(id = "2", kind = "BOOST", actorName = "Carol", postId = "mine")}}""",
+                """"notificationArrived":${notification(id = "2", kind = "BOOST", actorName = "Carol", postId = "mine")},"timelinePostUpdated":null}""",
         )
 
         val items = viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }.mainColumnItems()
@@ -558,7 +573,7 @@ class HomeScreenViewModelTest {
         return """{"__typename":"TimelinePost","id":"$id","deleted":false,"boostUndone":false,"sortedAt":"$sortedAt","content":"$id","publishedAt":"2026-11-01",""" +
             """"author":${actor("Alice")},"summary":null,"sensitive":false,"linkUrls":[],"mentions":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,""" +
             """"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,""" +
-            """"boostedByMe":null,"reactionPostId":"$id","followingGroupId":$groupId,"hasReplyTarget":false,"hasQuoteTarget":false,"replyCount":0,"stampCountsReceived":true}"""
+            """"boostedByMe":null,"reactionPostId":"$id","followingGroupId":$groupId,"hasReplyTarget":false,"hasQuoteTarget":false,"edited":false,"replyCount":0,"stampCountsReceived":true}"""
     }
 
     private fun actor(displayName: String): String =
@@ -570,12 +585,20 @@ class HomeScreenViewModelTest {
     private fun postArrived(id: String): String = postArrivedEvent(post(id))
 
     private fun postArrivedEvent(post: String): String =
-        """{"__typename":"AccountEvent","timelinePostArrived":$post,"timelinePostsDeleted":null,"notificationArrived":null}"""
+        """{"__typename":"AccountEvent","timelinePostArrived":$post,"timelinePostsDeleted":null,"notificationArrived":null,"timelinePostUpdated":null}"""
+
+    private fun postUpdated(id: String, content: String): String {
+        val updated = post(id)
+            .replace(""""content":"$id"""", """"content":"$content"""")
+            .replace(""""edited":false""", """"edited":true""")
+            .replace(""""stamps":[]""", """"stamps":[{"__typename":"PostStamp","emoji":"👍","imageUrl":null,"count":1,"customEmojiShortcode":null}]""")
+        return """{"__typename":"AccountEvent","timelinePostArrived":null,"timelinePostsDeleted":null,"notificationArrived":null,"timelinePostUpdated":$updated}"""
+    }
 
     private fun postsDeleted(ids: List<String>): String {
         val postIds = ids.joinToString(",") { "\"$it\"" }
         return """{"__typename":"AccountEvent","timelinePostArrived":null,""" +
-            """"timelinePostsDeleted":{"__typename":"TimelinePostsDeleted","postIds":[$postIds],"boostUndonePostIds":[]},"notificationArrived":null}"""
+            """"timelinePostsDeleted":{"__typename":"TimelinePostsDeleted","postIds":[$postIds],"boostUndonePostIds":[]},"notificationArrived":null,"timelinePostUpdated":null}"""
     }
 
     private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()

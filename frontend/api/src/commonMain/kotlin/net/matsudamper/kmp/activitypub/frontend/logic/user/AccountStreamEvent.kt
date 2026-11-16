@@ -10,6 +10,11 @@ sealed interface AccountStreamEvent {
      */
     data class PostsRemoved(val removals: PostRemovals) : AccountStreamEvent
 
+    /**
+     * 投稿者が編集したか、付いたリアクションが増減した。[post] は変わった後の行
+     */
+    data class PostUpdated(val post: UserHomeTimelineResult.Post) : AccountStreamEvent
+
     data class NotificationArrived(val notification: UserNotificationsResult.Notification) : AccountStreamEvent
 
     data object WaitingToReconnect : AccountStreamEvent

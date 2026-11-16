@@ -53,6 +53,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
+import net.matsudamper.kmp.activitypub.frontend.ui.PostRevisionsDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -258,6 +259,10 @@ internal fun PostDetailContent(
     val reactionConfirmDialog = uiState.reactionConfirmDialog
     if (reactionConfirmDialog != null) {
         ReactionConfirmDialog(uiState = reactionConfirmDialog)
+    }
+    val postRevisionsDialog = uiState.postRevisionsDialog
+    if (postRevisionsDialog != null) {
+        PostRevisionsDialog(uiState = postRevisionsDialog)
     }
 }
 

@@ -521,6 +521,7 @@ private fun HomeUserContentPreview() {
                             body = createPostBodyText(content = "はじめての投稿", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                             postedAt = "3分前",
                             fullPostedAt = "2026/11/05 12:00",
+                            editedLabel = null,
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
@@ -666,6 +667,7 @@ private fun HomeUserMediaContentPreview() {
                             body = createPostBodyText(content = "はじめての投稿", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                             postedAt = "3分前",
                             fullPostedAt = "2026/11/05 12:00",
+                            editedLabel = null,
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
@@ -984,6 +986,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
         postedAt = "1分前",
         fullPostedAt = "2026/11/05 12:00",
+        editedLabel = null,
         linkPreviews = listOf(
             PostItemUiState.LinkPreview(
                 title = "Kotlin Programming Language",
@@ -1040,6 +1043,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         body = createPostBodyText(content = "Compose Multiplatform :compose: で Web と Android の画面を共有している :kotlin:", mentions = listOf(), emojis = PreviewEmojis, onOpenUrl = {}, onOpenProfile = {}),
         postedAt = "5分前",
         fullPostedAt = "2026/11/05 12:00",
+        editedLabel = null,
         linkPreviews = listOf(),
         images = listOf(
             PostItemUiState.Image(
@@ -1098,6 +1102,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
         postedAt = "1分前",
         fullPostedAt = "2026/11/05 12:00",
+        editedLabel = null,
         linkPreviews = listOf(),
         images = listOf(),
         replyCountText = null,

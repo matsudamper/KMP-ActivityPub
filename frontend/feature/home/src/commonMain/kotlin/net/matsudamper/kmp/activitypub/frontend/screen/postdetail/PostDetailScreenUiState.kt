@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.PostRevisionsDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialogUiState
 
 data class PostDetailScreenUiState(
@@ -14,6 +15,7 @@ data class PostDetailScreenUiState(
     val deleteNoteDialog: DeleteNoteDialogUiState?,
     val reactionPickerDialog: ReactionPickerDialogUiState?,
     val reactionConfirmDialog: ReactionConfirmDialogUiState?,
+    val postRevisionsDialog: PostRevisionsDialogUiState?,
     val listener: Listener,
 ) {
     sealed interface Content {
