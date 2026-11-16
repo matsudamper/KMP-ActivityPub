@@ -34,3 +34,12 @@ query HomeScreenResolveUser($query: String!) {
         followingGroupId
     }
 }
+
+query HomeScreenSearchPosts($query: String!, $after: String) {
+    searchPosts(query: $query, after: $after) {
+        posts {
+            ...TimelinePostFields
+        }
+        nextCursor
+    }
+}

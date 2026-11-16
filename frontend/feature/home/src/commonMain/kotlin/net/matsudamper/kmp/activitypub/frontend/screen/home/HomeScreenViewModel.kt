@@ -41,6 +41,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsPageResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLikesResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfilePostsResult
@@ -127,6 +128,7 @@ internal class HomeScreenViewModel(
                 notifications = NotificationsState.Loading,
                 search = SearchState(
                     query = "",
+                    target = SearchTarget.Users,
                     result = SearchResultState.NotSearched,
                 ),
                 profile = ProfileState.Loading,
@@ -402,6 +404,14 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private val searchTargetListeners: Map<SearchTarget, HomeScreenUiState.SearchTargetListener> = SearchTarget.entries.associateWith { target ->
+        object : HomeScreenUiState.SearchTargetListener {
+            override fun onClick() {
+                changeSearchTarget(target)
+            }
+        }
+    }
+
     private val deleteNoteDialogListener = object : DeleteNoteDialogUiState.Listener {
         override fun onClickDelete() {
             deleteNote()
@@ -446,6 +456,7 @@ internal class HomeScreenViewModel(
             userApi.pinChanges.collect { change ->
                 timelineFeeds.updatePosts { it.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
                 updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }) }
+                updateSearchedPosts { posts -> posts.map { post -> if (post.pinnableNoteId == change.noteId) post.copy(pinned = change.pinned) else post } }
                 val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
                 if (myPosts != null && myPosts.posts.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
                     loadMyPosts(myPosts.owner)
@@ -765,6 +776,10 @@ internal class HomeScreenViewModel(
             return
         }
         updateSearchResult { SearchResultState.Loading }
+        if (viewModelStateFlow.value.search.target == SearchTarget.Posts) {
+            searchJob = viewModelScope.launch { searchPosts(trimmedQuery) }
+            return
+        }
         if (isResolveQuery(trimmedQuery)) {
             searchJob = viewModelScope.launch { resolveUser(trimmedQuery) }
             return
@@ -881,8 +896,55 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private suspend fun searchPosts(query: String) {
+        when (val result = userApi.searchPosts(query = query, after = null)) {
+            is UserPostSearchResult.Success -> {
+                updateSearchResult { SearchResultState.PostsLoaded(query = query, posts = result.posts, nextCursor = result.nextCursor) }
+            }
+
+            is UserPostSearchResult.Failure -> {
+                updateSearchResult { SearchResultState.NotSearched }
+                events.send { it.showMessage(result.message) }
+            }
+        }
+    }
+
+    private suspend fun loadMoreSearchedPosts(loaded: SearchResultState.PostsLoaded, after: String) {
+        when (val result = userApi.searchPosts(query = loaded.query, after = after)) {
+            is UserPostSearchResult.Success -> updateSearchResult { current ->
+                // 読んでいる間に付けたいいねなどを落とさないよう、今の一覧に足す
+                if (current is SearchResultState.PostsLoaded && current.query == loaded.query && current.nextCursor == after) {
+                    current.copy(posts = current.posts + result.posts, nextCursor = result.nextCursor)
+                } else {
+                    current
+                }
+            }
+
+            is UserPostSearchResult.Failure -> events.send { it.showMessage(result.message) }
+        }
+    }
+
+    private fun updateSearchedPosts(transform: (List<UserHomeTimelineResult.Post>) -> List<UserHomeTimelineResult.Post>) {
+        updateSearchResult { result ->
+            if (result is SearchResultState.PostsLoaded) result.copy(posts = transform(result.posts)) else result
+        }
+    }
+
+    private fun changeSearchTarget(target: SearchTarget) {
+        if (viewModelStateFlow.value.search.target == target) return
+        updateSearch { it.copy(target = target) }
+        // 前の種類の結果を残さないよう、同じ文字で探し直す
+        search(query = viewModelStateFlow.value.search.query)
+    }
+
     private fun loadMoreSearchResult() {
         if (searchJob?.isActive == true) return
+        val searchedPosts = viewModelStateFlow.value.search.result as? SearchResultState.PostsLoaded
+        if (searchedPosts != null) {
+            val after = searchedPosts.nextCursor ?: return
+            searchJob = viewModelScope.launch { loadMoreSearchedPosts(loaded = searchedPosts, after = after) }
+            return
+        }
         val paging = searchPaging ?: return
         val loaded = viewModelStateFlow.value.search.result as? SearchResultState.Loaded ?: return
         if (loaded.nextCursor == null) return
@@ -1125,6 +1187,7 @@ internal class HomeScreenViewModel(
                 ),
             )
         }
+        updateSearchedPosts { posts -> posts.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withLikeState(state)) else post } }
     }
 
     /**
@@ -1159,6 +1222,7 @@ internal class HomeScreenViewModel(
                 ),
             )
         }
+        updateSearchedPosts { posts -> posts.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post } }
     }
 
     private fun deleteNote() {
@@ -1194,6 +1258,7 @@ internal class HomeScreenViewModel(
                 ),
             )
         }
+        updateSearchedPosts { posts -> posts.filterNot { post -> post.deletableNoteId == noteId } }
     }
 
     private fun createUiState(
@@ -1215,7 +1280,21 @@ internal class HomeScreenViewModel(
             notifications = createNotifications(viewModelState),
             search = HomeScreenUiState.Search(
                 query = viewModelState.search.query,
-                result = createSearchResult(viewModelState.search, followMenu),
+                queryLabel = when (viewModelState.search.target) {
+                    SearchTarget.Users -> "ユーザーを検索"
+                    SearchTarget.Posts -> "投稿を検索"
+                },
+                targets = SearchTarget.entries.map { target ->
+                    HomeScreenUiState.SearchTarget(
+                        label = when (target) {
+                            SearchTarget.Users -> "ユーザー"
+                            SearchTarget.Posts -> "投稿"
+                        },
+                        selected = target == viewModelState.search.target,
+                        listener = searchTargetListeners.getValue(target),
+                    )
+                },
+                result = createSearchResult(viewModelState, followMenu),
             ),
             profile = createProfile(profile),
             userContentTab = viewModelState.userContentTab,
@@ -1662,8 +1741,8 @@ internal class HomeScreenViewModel(
         viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
 
-    private fun createSearchResult(search: SearchState, followMenu: FollowMenuController.Snapshot): HomeScreenUiState.SearchResult {
-        return when (val result = search.result) {
+    private fun createSearchResult(viewModelState: ViewModelState, followMenu: FollowMenuController.Snapshot): HomeScreenUiState.SearchResult {
+        return when (val result = viewModelState.search.result) {
             SearchResultState.NotSearched -> HomeScreenUiState.SearchResult.NotSearched
 
             SearchResultState.Loading -> HomeScreenUiState.SearchResult.Loading
@@ -1672,6 +1751,12 @@ internal class HomeScreenViewModel(
                 accounts = result.users.map { user ->
                     createSearchAccount(user, followMenu)
                 },
+                loadMoreButtonVisible = result.nextCursor != null,
+            )
+
+            is SearchResultState.PostsLoaded -> HomeScreenUiState.SearchResult.PostsLoaded(
+                items = result.posts.map { post -> createTimelinePostItem(viewModelState = viewModelState, post = post, actorLabel = null) },
+                emptyMessage = if (result.posts.isEmpty()) SEARCH_EMPTY_MESSAGE else null,
                 loadMoreButtonVisible = result.nextCursor != null,
             )
         }
@@ -1781,6 +1866,7 @@ internal class HomeScreenViewModel(
         const val TIMELINE_COLUMNS_NOT_SAVED_MESSAGE = "カラムの設定を端末に保存できませんでした"
         const val NOTIFICATIONS_SOURCE_NAME = "通知"
         const val NOTIFICATIONS_EMPTY_MESSAGE = "通知はありません"
+        const val SEARCH_EMPTY_MESSAGE = "検索結果はありません"
     }
 
     private enum class TimelineLoadTrigger {
@@ -1922,8 +2008,14 @@ internal class HomeScreenViewModel(
 
     private data class SearchState(
         val query: String,
+        val target: SearchTarget,
         val result: SearchResultState,
     )
+
+    private enum class SearchTarget {
+        Users,
+        Posts,
+    }
 
     private sealed interface SearchResultState {
         data object NotSearched : SearchResultState
@@ -1933,6 +2025,15 @@ internal class HomeScreenViewModel(
         data class Loaded(
             val query: String,
             val users: List<UserSearchResult.User>,
+            val nextCursor: String?,
+        ) : SearchResultState
+
+        /**
+         * @param query 続きを読むときに渡す、検索したときの文字
+         */
+        data class PostsLoaded(
+            val query: String,
+            val posts: List<UserHomeTimelineResult.Post>,
             val nextCursor: String?,
         ) : SearchResultState
     }
