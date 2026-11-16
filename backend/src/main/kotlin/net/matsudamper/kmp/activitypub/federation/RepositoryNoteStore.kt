@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.federation
 
+import net.matsudamper.kmp.activitypub.logic.NoteEmojiObjects
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NotePosition as RepositoryNotePosition
@@ -15,6 +16,7 @@ import net.matsudamper.kotpub.note.StoredNote
 internal class RepositoryNoteStore(
     private val noteRepository: NoteRepository,
     private val imageUrls: NoteImageUrls,
+    private val emojiObjects: NoteEmojiObjects,
 ) : NoteStore {
     override fun find(publicId: KotpubPublicNoteId): StoredNote? = noteRepository.find(publicId.toRepository())?.toStored()
 
@@ -81,6 +83,6 @@ internal class RepositoryNoteStore(
             inReplyTo = inReplyTo,
             quote = quoteUri,
             mentions = mentions.map { mention -> NoteMention(actorId = mention.actorUri, acct = mention.acct) },
-            emojis = listOf(),
+            emojis = emojiObjects.find(contentHtml),
         )
 }

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
+import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.ImageDropTarget
 import net.matsudamper.kmp.activitypub.frontend.ui.ImagePasteHandler
@@ -118,6 +119,10 @@ internal fun PostContentWithImageInput(
     ) {
         PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
     }
+    val emojiPickerDialog = uiState.emojiPickerDialog
+    if (emojiPickerDialog != null) {
+        ReactionPickerDialog(dialogUiState = emojiPickerDialog)
+    }
 }
 
 /**
@@ -180,6 +185,8 @@ internal fun PostContent(
                 enabled = uiState.inputEnabled,
                 hasError = uiState.inputHasError,
                 onSubmitShortcut = uiState.listener::onPressPostShortcut,
+                insertion = uiState.bodyInsertion,
+                onHandleInsertion = uiState.listener::onBodyInsertionHandled,
                 modifier = Modifier.fillMaxWidth(),
             )
             val quote = uiState.quote
@@ -213,6 +220,15 @@ internal fun PostContent(
                     if (uiState.addImageLoadingVisible) {
                         CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
                     }
+                }
+                IconButton(
+                    onClick = uiState.listener::onClickAddEmoji,
+                    enabled = uiState.addEmojiButtonEnabled,
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Emoticon,
+                        contentDescription = "絵文字を追加",
+                    )
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 Button(

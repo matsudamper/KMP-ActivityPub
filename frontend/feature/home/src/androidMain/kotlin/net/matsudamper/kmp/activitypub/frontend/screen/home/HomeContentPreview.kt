@@ -788,6 +788,7 @@ private fun HomeColumnsPreview(
                     PostContent(
                         uiState = PostScreenUiState(
                             body = "",
+                            bodyInsertion = null,
                             inputHasError = false,
                             inputEnabled = true,
                             backButtonEnabled = true,
@@ -796,6 +797,8 @@ private fun HomeColumnsPreview(
                             quote = null,
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
+                            addEmojiButtonEnabled = true,
+                            emojiPickerDialog = null,
                             listener = AndroidPreviewPostScreenListener,
                         ),
                         navigationIcon = PostNavigationIcon.Close,
@@ -955,9 +958,13 @@ private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
 private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
 
+    override fun onBodyInsertionHandled() = Unit
+
     override fun onClickAddImage() = Unit
 
     override fun onImagePicked(file: PickedImageFile) = Unit
+
+    override fun onClickAddEmoji() = Unit
 
     override fun onClickPost() = Unit
 

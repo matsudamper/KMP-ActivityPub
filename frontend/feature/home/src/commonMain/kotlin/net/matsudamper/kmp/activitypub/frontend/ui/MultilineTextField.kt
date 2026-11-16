@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 
 /**
  * @param onSubmitShortcut Ctrl+Enter で呼ばれる。null なら改行のまま
+ * @param insertion カーソルの位置に入れる文字。入れたら [onHandleInsertion] を呼ぶ。入れるものが無ければ null
  */
 @Composable
 internal expect fun MultilineTextField(
@@ -16,5 +17,7 @@ internal expect fun MultilineTextField(
     enabled: Boolean,
     hasError: Boolean,
     onSubmitShortcut: (() -> Unit)?,
+    insertion: TextInsertion?,
+    onHandleInsertion: () -> Unit,
     modifier: Modifier = Modifier,
 )

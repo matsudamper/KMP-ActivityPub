@@ -1,8 +1,13 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import kotlinx.browser.document
 import net.matsudamper.frontend.component.HtmlFormComponents
+import org.w3c.dom.HTMLTextAreaElement
 
 @Composable
 internal actual fun MultilineTextField(
@@ -14,8 +19,28 @@ internal actual fun MultilineTextField(
     enabled: Boolean,
     hasError: Boolean,
     onSubmitShortcut: (() -> Unit)?,
+    insertion: TextInsertion?,
+    onHandleInsertion: () -> Unit,
     modifier: Modifier,
 ) {
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentOnHandleInsertion by rememberUpdatedState(onHandleInsertion)
+    LaunchedEffect(insertion) {
+        if (insertion == null) return@LaunchedEffect
+        val textArea = document.getElementById(inputId) as? HTMLTextAreaElement
+        if (textArea != null) {
+            // フォーカスがある間は value を渡しても textarea に反映されないので、textarea を直接書き換える
+            val inserted = insertion.insertInto(
+                current = textArea.value,
+                selectionStart = textArea.selectionStart ?: textArea.value.length,
+                selectionEnd = textArea.selectionEnd ?: textArea.value.length,
+            )
+            textArea.value = inserted.text
+            textArea.setSelectionRange(inserted.caret, inserted.caret)
+            currentOnValueChange(inserted.text)
+        }
+        currentOnHandleInsertion()
+    }
     HtmlFormComponents.PlatformTextArea(
         value = value,
         onValueChange = onValueChange,

@@ -25,6 +25,7 @@ import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.StoredActorNames
+import net.matsudamper.kotpub.emoji.EmojiObject
 import net.matsudamper.kotpub.json.AppJson
 import net.matsudamper.kotpub.note.NotePublisher
 
@@ -43,11 +44,12 @@ class NotePostServiceTest {
     private val service =
         NotePostService(
             directory = ActorDirectory(domain = DOMAIN, stored = OnlyUser1),
-            publisher = NotePublisher(RepositoryNoteStore(noteRepository, imageUrls), null),
+            publisher = NotePublisher(RepositoryNoteStore(noteRepository, imageUrls, BlobcatOnly), null),
             accountService = AccountService(accountRepository),
             noteRepository = noteRepository,
             imageStorage = imageStorage,
             imageUrls = imageUrls,
+            emojiObjects = BlobcatOnly,
             followerRepository = followerRepository,
             deliveryQueueRepository = deliveryQueueRepository,
             clock = object : Clock() {
@@ -77,6 +79,18 @@ class NotePostServiceTest {
         assertTrue(post.body.contains("\"Create\""))
         assertEquals(1, enqueuedCount)
         assertEquals(1, timelinePosts.size)
+    }
+
+    @Test
+    fun `本文に入れたこのサーバーのカスタム絵文字を、配る Note に Emoji として載せる`() {
+        service.post(username = "user1", body = "hello :blobcat: :unknown:", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null)
+
+        val post = deliveryQueueRepository.posts.single()
+        assertEquals("<p>hello :blobcat: :unknown:</p>", post.contentHtml)
+        val tag = AppJson.parseToJsonElement(post.body).jsonObject.getValue("object").jsonObject.getValue("tag").jsonArray.single().jsonObject
+        assertEquals("Emoji", tag.getValue("type").jsonPrimitive.content)
+        assertEquals(":blobcat:", tag.getValue("name").jsonPrimitive.content)
+        assertEquals(BLOBCAT.icon.url, tag.getValue("icon").jsonObject.getValue("url").jsonPrimitive.content)
     }
 
     @Test
@@ -374,8 +388,17 @@ class NotePostServiceTest {
             usernames.mapNotNull { username -> find(username)?.let { username to it } }.toMap()
     }
 
+    private object BlobcatOnly : NoteEmojiObjects {
+        override fun find(contentHtml: String): List<EmojiObject> = if (":blobcat:" in contentHtml) listOf(BLOBCAT) else listOf()
+    }
+
     private companion object {
         const val DOMAIN = "example.com"
+        val BLOBCAT = EmojiObject(
+            id = "https://example.com/emojis/1",
+            name = ":blobcat:",
+            icon = EmojiObject.Icon(url = "https://example.com/custom-emojis/1", mediaType = "image/png"),
+        )
         const val INBOX_A = "https://a.example/inbox"
         const val INBOX_B = "https://b.example/inbox"
         const val REQUEST_ID = "request-1"
