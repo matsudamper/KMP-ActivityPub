@@ -5,6 +5,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -13,6 +14,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.logic.BlockLists
+import net.matsudamper.kmp.activitypub.repository.PostRevision
+import net.matsudamper.kmp.activitypub.repository.PostRevisionPosition
 import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelineRecipient
@@ -448,6 +451,28 @@ class TimelineServiceTest {
         service.publishBoostUndone(listOf("b1"))
 
         assertEquals(AccountEvent.PostsDeleted(deletedMembers = listOf(), boostUndoneMembers = listOf("b1")), recipientEvent.await())
+    }
+
+    @Test
+    fun revisionPagesContinueFromTheLastRevisionOfThePreviousPage() {
+        val repository = FakeTimelineRepository()
+        val revisions = listOf(PostRevisionPosition.Current, PostRevisionPosition.Past(2), PostRevisionPosition.Past(1)).map { position ->
+            PostRevision(position = position, contentHtml = "<p>$position</p>", summary = null, sensitive = false, images = listOf(), revisedAt = Instant.EPOCH)
+        }
+        val revisionsRepository = object : TimelineRepository by repository {
+            override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision> =
+                revisions.drop(if (olderThan == null) 0 else revisions.indexOfFirst { it.position == olderThan } + 1).take(limit)
+        }
+        val service =
+            TimelineService(revisionsRepository, FakeRepositories().followingGroupRepository, noBlocks, FakeTimelineStore(repository.events), AccountEvents(revisionsRepository), Clock.systemUTC())
+
+        val first = assertNotNull(service.revisionsPage(AccountId(1), "r1", null, 2))
+        val second = assertNotNull(service.revisionsPage(AccountId(1), "r1", first.nextCursor, 2))
+
+        assertEquals(revisions.take(2), first.revisions)
+        assertEquals(revisions.drop(2), second.revisions)
+        assertEquals(null, second.nextCursor)
+        assertEquals(null, service.revisionsPage(AccountId(1), "不正な id", null, 2))
     }
 
     @Test

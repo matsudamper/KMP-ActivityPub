@@ -57,6 +57,7 @@ tasks.named<GraphQLCodegenGradleTask>("graphqlCodegen") {
             "PublicNoteId" to "net.matsudamper.kmp.activitypub.shared.PublicNoteId",
             "FollowingGroupId" to "net.matsudamper.kmp.activitypub.shared.FollowingGroupId",
             "TimelinePostId" to "net.matsudamper.kmp.activitypub.shared.TimelinePostId",
+            "PostRevisionId" to "net.matsudamper.kmp.activitypub.shared.PostRevisionId",
             "NotificationId" to "net.matsudamper.kmp.activitypub.shared.NotificationId",
             "CustomEmojiId" to "net.matsudamper.kmp.activitypub.shared.CustomEmojiId",
             "Upload" to "net.matsudamper.kmp.activitypub.graphql.GraphQlUpload",

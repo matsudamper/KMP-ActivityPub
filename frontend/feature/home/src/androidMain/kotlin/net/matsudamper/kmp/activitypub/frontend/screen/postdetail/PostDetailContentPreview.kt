@@ -324,7 +324,6 @@ private fun createLoadedUiState(
         deleteNoteDialog = deleteNoteDialog,
         reactionPickerDialog = null,
         reactionConfirmDialog = null,
-        postRevisionsDialog = null,
         listener = AndroidPreviewPostDetailListener,
     )
 }
@@ -394,7 +393,6 @@ private fun PostDetailContentNotFoundPreview() {
                 deleteNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
-                postRevisionsDialog = null,
                 listener = AndroidPreviewPostDetailListener,
             ),
             snackbarHostState = SnackbarHostState(),

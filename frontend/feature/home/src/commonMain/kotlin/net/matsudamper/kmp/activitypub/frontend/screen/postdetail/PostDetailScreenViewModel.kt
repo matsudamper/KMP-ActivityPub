@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
@@ -21,7 +20,6 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostRepliesResult
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostRevisionsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserReaction
 import net.matsudamper.kmp.activitypub.frontend.logic.user.likeState
@@ -41,11 +39,8 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
-import net.matsudamper.kmp.activitypub.frontend.screen.createFullPostedAtText
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
-import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
-import net.matsudamper.kmp.activitypub.frontend.screen.createPostImage
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.decideLikeTap
@@ -60,7 +55,6 @@ import net.matsudamper.kmp.activitypub.frontend.screen.toLikeState
 import net.matsudamper.kmp.activitypub.frontend.screen.withBlurToggled
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
-import net.matsudamper.kmp.activitypub.frontend.ui.PostRevisionsDialogUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -90,11 +84,9 @@ internal class PostDetailScreenViewModel(
                 replies = listOf(),
                 repliesLoad = RepliesLoad.Loading,
                 quotes = mapOf(),
-                revisions = null,
             ),
         )
     private var loadJob: Job? = null
-    private var revisionsJob: Job? = null
     private var replyTargetJob: Job? = null
     private var repliesJob: Job? = null
 
@@ -171,26 +163,6 @@ internal class PostDetailScreenViewModel(
 
         override fun onDismiss() {
             viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.dismiss()) }
-        }
-    }
-
-    private val postRevisionsDialogListener = object : PostRevisionsDialogUiState.Listener {
-        override fun onClickOlder() {
-            moveRevision(by = -1)
-        }
-
-        override fun onClickNewer() {
-            moveRevision(by = 1)
-        }
-
-        override fun onClickRetry() {
-            val postId = viewModelStateFlow.value.revisions?.postId ?: return
-            openRevisions(postId)
-        }
-
-        override fun onDismiss() {
-            revisionsJob?.cancel()
-            viewModelStateFlow.update { it.copy(revisions = null) }
         }
     }
 
@@ -698,7 +670,6 @@ internal class PostDetailScreenViewModel(
                     onDismiss = { viewModelStateFlow.update { it.copy(reactionConfirmation = null) } },
                 )
             },
-            postRevisionsDialog = viewModelState.revisions?.let { createPostRevisionsDialog(it, viewModelState.blurToggledImageUrls) },
             listener = listener,
         )
     }
@@ -785,73 +756,6 @@ internal class PostDetailScreenViewModel(
         )
     }
 
-    private fun openRevisions(postId: String) {
-        revisionsJob?.cancel()
-        viewModelStateFlow.update { it.copy(revisions = RevisionsState(postId = postId, load = RevisionsLoad.Loading)) }
-        revisionsJob = viewModelScope.launch {
-            val load = when (val result = api.postRevisions(postId)) {
-                is UserPostRevisionsResult.Success -> if (result.revisions.isEmpty()) {
-                    RevisionsLoad.Failed
-                } else {
-                    RevisionsLoad.Loaded(revisions = result.revisions, index = result.revisions.lastIndex)
-                }
-
-                UserPostRevisionsResult.NotLoggedIn, is UserPostRevisionsResult.Failure -> RevisionsLoad.Failed
-            }
-            viewModelStateFlow.update { state ->
-                if (state.revisions?.postId == postId) state.copy(revisions = RevisionsState(postId = postId, load = load)) else state
-            }
-        }
-    }
-
-    private fun moveRevision(by: Int) {
-        viewModelStateFlow.update { state ->
-            val revisions = state.revisions ?: return@update state
-            val loaded = revisions.load as? RevisionsLoad.Loaded ?: return@update state
-            state.copy(revisions = revisions.copy(load = loaded.copy(index = (loaded.index + by).coerceIn(loaded.revisions.indices))))
-        }
-    }
-
-    private fun createPostRevisionsDialog(
-        revisions: RevisionsState,
-        blurToggledImageUrls: Set<String>,
-    ): PostRevisionsDialogUiState = PostRevisionsDialogUiState(
-        content = when (val load = revisions.load) {
-            RevisionsLoad.Loading -> PostRevisionsDialogUiState.Content.Loading
-
-            RevisionsLoad.Failed -> PostRevisionsDialogUiState.Content.Error
-
-            is RevisionsLoad.Loaded -> {
-                val revision = load.revisions[load.index]
-                val imageUrls = revision.images.map { it.url }
-                PostRevisionsDialogUiState.Content.Loaded(
-                    positionText = "${load.index + 1} / ${load.revisions.size}",
-                    revisedAt = createFullPostedAtText(publishedAt = revision.revisedAt, timeZone = TimeZone.currentSystemDefault()),
-                    body = createPostBodyText(
-                        content = revision.content,
-                        mentions = revision.mentions,
-                        emojis = revision.emojis,
-                        onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
-                        onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
-                    ),
-                    images = revision.images.mapIndexed { index, image ->
-                        createPostImage(
-                            image = image,
-                            sensitive = revision.sensitive,
-                            sensitiveImagesBlurred = true,
-                            blurToggled = image.url in blurToggledImageUrls,
-                            onOpen = { viewModelScope.launch { events.send { it.navigateToImage(imageUrls, index) } } },
-                            onToggleBlur = { toggleImageBlur(imageUrls, image.url !in blurToggledImageUrls) },
-                        )
-                    },
-                    olderButtonEnabled = load.index > 0,
-                    newerButtonEnabled = load.index < load.revisions.lastIndex,
-                )
-            }
-        },
-        listener = postRevisionsDialogListener,
-    )
-
     private fun createAcct(post: UserHomeTimelineResult.Post): String {
         val host = post.host
         return if (host == null) "@${post.username}" else "@${post.username}@$host"
@@ -905,7 +809,7 @@ internal class PostDetailScreenViewModel(
                 val body = currentPost(post.reactionPostId)?.body
                 if (body != null) clickStamp(reactionPostId = post.reactionPostId, body = body, stamp = stamp)
             },
-            onOpenRevisions = { openRevisions(post.id) },
+            onOpenRevisions = { viewModelScope.launch { events.send { it.navigateToPostRevisions(post.id) } } },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
@@ -929,6 +833,8 @@ internal class PostDetailScreenViewModel(
         fun navigateToPostDetail(postId: String)
 
         fun navigateToQuotePost(postId: String)
+
+        fun navigateToPostRevisions(postId: String)
 
         fun openUrl(url: String)
 
@@ -960,35 +866,8 @@ internal class PostDetailScreenViewModel(
          * 投稿の id ごとの引用先
          */
         val quotes: Map<String, QuoteLoad>,
-        /**
-         * 編集履歴のダイアログ。出していなければ null
-         */
-        val revisions: RevisionsState?,
     ) {
         fun mentionSendable(): Boolean = !mentionSending && mentionText.isNotBlank()
-    }
-
-    /**
-     * @param postId 版を取る投稿の [UserHomeTimelineResult.Post.id]
-     */
-    private data class RevisionsState(
-        val postId: String,
-        val load: RevisionsLoad,
-    )
-
-    private sealed interface RevisionsLoad {
-        data object Loading : RevisionsLoad
-
-        data object Failed : RevisionsLoad
-
-        /**
-         * @param revisions 古い順。空ではない
-         * @param index 出している版の [revisions] での位置
-         */
-        data class Loaded(
-            val revisions: List<UserPostRevisionsResult.Revision>,
-            val index: Int,
-        ) : RevisionsLoad
     }
 
     private enum class ReplyTargetLoad {

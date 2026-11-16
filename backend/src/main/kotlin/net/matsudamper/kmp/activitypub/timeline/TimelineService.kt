@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.PostRevision
+import net.matsudamper.kmp.activitypub.repository.PostRevisionPosition
 import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
@@ -131,12 +132,23 @@ class TimelineService(
     }
 
     /**
+     * 投稿の版を新しい順に 1 ページ返す。最初が今の版
+     *
      * @param member [TimelinePosition.member] の値
+     * @param cursor 前のページの [PostRevisionPage.nextCursor]。null なら今の版から
      * @return [viewablePost] で開けない投稿なら null
      */
-    fun revisions(viewer: AccountId, member: String): List<PostRevision>? {
+    fun revisionsPage(viewer: AccountId, member: String, cursor: String?, limit: Int): PostRevisionPage? {
         if (!member.matches(TimelineCursor.MEMBER_PATTERN)) return null
-        return repository.revisions(viewer, member)
+        val olderThan = cursor?.let { PostRevisionCursor.decode(it) }
+        require(cursor == null || olderThan != null) { "cursor が読めない" }
+        val pageSize = limit.coerceIn(1, 100)
+        val revisions = repository.revisions(viewer, member, olderThan, pageSize + 1) ?: return null
+        val selected = revisions.take(pageSize)
+        return PostRevisionPage(
+            revisions = selected,
+            nextCursor = if (revisions.size > pageSize) selected.lastOrNull()?.let { PostRevisionCursor.encode(it.position) } else null,
+        )
     }
 
     override fun invalidate(accountId: AccountId) {
@@ -184,6 +196,20 @@ class TimelineService(
 }
 
 data class TimelinePage(val posts: List<TimelinePost>, val nextCursor: String?)
+
+data class PostRevisionPage(val revisions: List<PostRevision>, val nextCursor: String?)
+
+object PostRevisionCursor {
+    private const val CURRENT = "current"
+
+    fun encode(position: PostRevisionPosition): String = when (position) {
+        PostRevisionPosition.Current -> CURRENT
+        is PostRevisionPosition.Past -> position.revisionId.toString()
+    }
+
+    fun decode(cursor: String): PostRevisionPosition? =
+        if (cursor == CURRENT) PostRevisionPosition.Current else cursor.toLongOrNull()?.let { PostRevisionPosition.Past(it) }
+}
 
 object TimelineCursor {
     internal val MEMBER_PATTERN = Regex("[lrba][1-9][0-9]*")

@@ -44,12 +44,13 @@ interface TimelineRepository {
     fun reviseRemote(note: RemoteNoteInput, reportedEditedAt: Instant?): List<String>
 
     /**
-     * [viewablePost] で [viewer] が開ける投稿の版を、古い順に返す。最後が今の版。編集されていなければ今の版だけ。
+     * [viewablePost] で [viewer] が開ける投稿の版を、新しい順に返す。最初が今の版。編集されていなければ今の版だけ。
      * ブーストならブーストした元の投稿の版
      *
+     * @param olderThan この版より古い版を返す。null なら今の版から
      * @return 開けない投稿か、[member] が無ければ null
      */
-    fun revisions(viewer: AccountId, member: String): List<PostRevision>?
+    fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>?
     fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long)
 
     /**
@@ -224,11 +225,24 @@ data class TimelinePost(
 }
 
 /**
+ * 投稿の版の並びの中での位置
+ */
+sealed interface PostRevisionPosition {
+    data object Current : PostRevisionPosition
+
+    /**
+     * @param revisionId 編集される前の版の id。大きいほど新しい
+     */
+    data class Past(val revisionId: Long) : PostRevisionPosition
+}
+
+/**
  * 投稿のある時点の中身
  *
  * @param revisedAt この版になった時刻。最初の版は投稿した時刻
  */
 data class PostRevision(
+    val position: PostRevisionPosition,
     val contentHtml: String,
     val summary: String?,
     val sensitive: Boolean,

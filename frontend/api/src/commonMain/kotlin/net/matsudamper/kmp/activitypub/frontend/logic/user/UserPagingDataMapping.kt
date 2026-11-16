@@ -4,6 +4,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PostRevisionsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
@@ -181,6 +182,42 @@ fun TimelineQuery.Data.withFirstPage(firstPage: TimelineQuery.Data): TimelineQue
             timeline = firstPageTimeline.copy(
                 posts = firstPageTimeline.posts + loadedTimeline.posts.drop(joinIndex + 1),
                 nextCursor = loadedTimeline.nextCursor,
+            ),
+        ),
+    )
+}
+
+fun PostRevisionsQuery.Data.toUserPostRevisionsResult(): UserPostRevisionsResult {
+    val info = userInfo ?: return UserPostRevisionsResult.NotLoggedIn
+    val page = info.postRevisions ?: return UserPostRevisionsResult.NotFound
+    return UserPostRevisionsResult.Success(
+        revisions = page.revisions.map { revision ->
+            UserPostRevisionsResult.Revision(
+                id = revision.id,
+                content = revision.content,
+                sensitive = revision.sensitive,
+                mentions = revision.mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
+                images = revision.images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
+                emojis = revision.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
+                revisedAt = revision.revisedAt,
+            )
+        },
+        nextCursor = page.nextCursor,
+    )
+}
+
+/**
+ * 続きのページを後ろにつなぐ。どちらかが読めていなければ null
+ */
+fun PostRevisionsQuery.Data.withNextPage(page: PostRevisionsQuery.Data): PostRevisionsQuery.Data? {
+    val beforeUserInfo = userInfo ?: return null
+    val beforeRevisions = beforeUserInfo.postRevisions ?: return null
+    val pageRevisions = page.userInfo?.postRevisions ?: return null
+    return copy(
+        userInfo = beforeUserInfo.copy(
+            postRevisions = beforeRevisions.copy(
+                revisions = beforeRevisions.revisions + pageRevisions.revisions,
+                nextCursor = pageRevisions.nextCursor,
             ),
         ),
     )

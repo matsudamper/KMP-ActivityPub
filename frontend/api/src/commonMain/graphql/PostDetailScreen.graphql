@@ -30,26 +30,30 @@ query PostReplies($postId: TimelinePostId!) {
     }
 }
 
-query PostRevisions($postId: TimelinePostId!) {
+query PostRevisions($postId: TimelinePostId!, $after: String, $limit: Int!) {
     userInfo {
-        postRevisions(postId: $postId) {
-            content
-            sensitive
-            mentions {
-                start
-                end
-                acct
+        postRevisions(postId: $postId, after: $after, limit: $limit) {
+            revisions {
+                id
+                content
+                sensitive
+                mentions {
+                    start
+                    end
+                    acct
+                }
+                images {
+                    url
+                    thumbnailUrl
+                    description
+                }
+                emojis {
+                    name
+                    imageUrl
+                }
+                revisedAt
             }
-            images {
-                url
-                thumbnailUrl
-                description
-            }
-            emojis {
-                name
-                imageUrl
-            }
-            revisedAt
+            nextCursor
         }
     }
 }

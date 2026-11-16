@@ -17,6 +17,9 @@ scalar FollowingGroupId
 """
 scalar TimelinePostId
 
+"投稿の版の識別子。同じ投稿の版の中でだけ一意"
+scalar PostRevisionId
+
 "通知の識別子"
 scalar NotificationId
 

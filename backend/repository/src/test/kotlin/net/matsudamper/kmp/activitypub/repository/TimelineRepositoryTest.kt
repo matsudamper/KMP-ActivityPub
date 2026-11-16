@@ -79,7 +79,7 @@ class TimelineRepositoryTest {
         assertTrue(repository.reviseRemote(original.copy(contentHtml = "<p>未保存</p>"), NOW.plusSeconds(10)).isEmpty())
         val saved = assertNotNull(repository.receive(original))
         assertNull(repository.hydrate(alice, listOf(saved.member)).single().editedAt)
-        assertEquals(listOf("<p>本文</p>"), assertNotNull(repository.revisions(alice, saved.member)).map { it.contentHtml })
+        assertEquals(listOf("<p>本文</p>"), assertNotNull(repository.revisions(alice, saved.member, null, 10)).map { it.contentHtml })
 
         assertTrue(repository.reviseRemote(original.copy(actorUri = "https://other.example/actor", contentHtml = "<p>他人</p>"), NOW.plusSeconds(10)).isEmpty())
         assertTrue(repository.reviseRemote(original, null).isEmpty())
@@ -92,15 +92,22 @@ class TimelineRepositoryTest {
         val post = repository.hydrate(alice, listOf(saved.member)).single()
         assertEquals("<p>2 回目</p>", post.contentHtml)
         assertEquals(NOW.plusSeconds(30), post.editedAt)
+        val newestFirst = assertNotNull(repository.revisions(alice, saved.member, null, 10))
         assertEquals(
             listOf(
-                PostRevision("<p>本文</p>", null, false, listOf(TimelinePostImage.Remote("https://remote.example/a.png", null)), original.publishedAt),
-                PostRevision("<p>1 回目</p>", null, false, listOf(), NOW.plusSeconds(20)),
-                PostRevision("<p>2 回目</p>", "注意", false, listOf(), NOW.plusSeconds(30)),
+                Triple("<p>2 回目</p>", "注意", NOW.plusSeconds(30)),
+                Triple("<p>1 回目</p>", null, NOW.plusSeconds(20)),
+                Triple("<p>本文</p>", null, original.publishedAt),
             ),
-            repository.revisions(alice, saved.member),
+            newestFirst.map { Triple(it.contentHtml, it.summary, it.revisedAt) },
         )
-        assertNull(repository.revisions(alice, "r999"))
+        assertEquals(listOf(listOf(), listOf(), listOf<TimelinePostImage>(TimelinePostImage.Remote("https://remote.example/a.png", null))), newestFirst.map { it.images })
+        assertEquals(PostRevisionPosition.Current, newestFirst.first().position)
+        // 続きは前のページの最後の版より古いものだけ
+        assertEquals(newestFirst.take(2), repository.revisions(alice, saved.member, null, 2))
+        assertEquals(newestFirst.drop(1), repository.revisions(alice, saved.member, PostRevisionPosition.Current, 10))
+        assertEquals(newestFirst.drop(2), repository.revisions(alice, saved.member, newestFirst[1].position, 10))
+        assertNull(repository.revisions(alice, "r999", null, 10))
     }
 
     @Test
@@ -118,7 +125,7 @@ class TimelineRepositoryTest {
         val post = repository.hydrate(alice, listOf(saved.member)).single()
         assertEquals("<p>本文</p>", post.contentHtml)
         assertEquals(NOW.plusSeconds(30), post.editedAt)
-        assertEquals(1, assertNotNull(repository.revisions(alice, saved.member)).size)
+        assertEquals(1, assertNotNull(repository.revisions(alice, saved.member, null, 10)).size)
     }
 
     @Test

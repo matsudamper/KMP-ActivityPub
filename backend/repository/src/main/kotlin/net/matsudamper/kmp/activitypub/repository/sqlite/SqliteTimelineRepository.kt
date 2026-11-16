@@ -5,6 +5,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
 import net.matsudamper.kmp.activitypub.repository.PostRevision
+import net.matsudamper.kmp.activitypub.repository.PostRevisionPosition
 import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
@@ -120,6 +121,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
         if (storedEditedAt != null && !editedAt.isAfter(storedEditedAt)) return@transaction listOf()
         val storedRevision = PostRevision(
+            position = PostRevisionPosition.Current,
             contentHtml = checkNotNull(stored.get(REMOTE_NOTES.CONTENT_HTML)),
             summary = stored.get(REMOTE_NOTES.SUMMARY),
             sensitive = stored.get(REMOTE_NOTES.SENSITIVE) == 1L,
@@ -148,17 +150,27 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         members
     }
 
-    override fun revisions(viewer: AccountId, member: String): List<PostRevision>? {
+    override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? {
         val post = viewablePost(viewer, member) ?: return null
-        val current = PostRevision(
-            contentHtml = post.contentHtml,
-            summary = post.summary,
-            sensitive = post.sensitive,
-            images = post.images,
-            revisedAt = post.editedAt ?: post.publishedAt,
-        )
-        val remoteNoteId = TimelineMembers.remoteNoteIdOf(post.reactionMember) ?: return listOf(current)
-        return jooq.withConnection { dsl -> remoteNoteRevisions(dsl, remoteNoteId) } + current
+        val current = if (olderThan == null) {
+            listOf(
+                PostRevision(
+                    position = PostRevisionPosition.Current,
+                    contentHtml = post.contentHtml,
+                    summary = post.summary,
+                    sensitive = post.sensitive,
+                    images = post.images,
+                    revisedAt = post.editedAt ?: post.publishedAt,
+                ),
+            )
+        } else {
+            listOf()
+        }
+        val remoteNoteId = TimelineMembers.remoteNoteIdOf(post.reactionMember) ?: return current.take(limit)
+        val pastLimit = limit - current.size
+        if (pastLimit <= 0) return current.take(limit)
+        val olderThanRevisionId = (olderThan as? PostRevisionPosition.Past)?.revisionId
+        return current + jooq.withConnection { dsl -> remoteNoteRevisions(dsl, remoteNoteId, olderThanRevisionId, pastLimit) }
     }
 
     override fun hasRemoteNote(objectUri: String): Boolean = jooq.withConnection { dsl ->
@@ -742,17 +754,12 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    private fun remoteNoteRevisions(dsl: DSLContext, remoteNoteId: Long): List<PostRevision> {
-        val imagesByRevision = dsl.select(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.URL, REMOTE_NOTE_REVISION_IMAGES.DESCRIPTION)
-            .from(REMOTE_NOTE_REVISION_IMAGES).join(REMOTE_NOTE_REVISIONS).on(REMOTE_NOTE_REVISIONS.ID.eq(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID))
-            .where(REMOTE_NOTE_REVISIONS.REMOTE_NOTE_ID.eq(remoteNoteId))
-            .orderBy(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.POSITION)
-            .fetch()
-            .groupBy(
-                keySelector = { it.value1() },
-                valueTransform = { TimelinePostImage.Remote(url = checkNotNull(it.value2()), description = it.value3()) },
-            )
-        return dsl.select(
+    /**
+     * @param olderThanRevisionId この id より古い版を返す。null なら最後に残した版から
+     * @return 新しい順
+     */
+    private fun remoteNoteRevisions(dsl: DSLContext, remoteNoteId: Long, olderThanRevisionId: Long?, limit: Int): List<PostRevision> {
+        val revisions = dsl.select(
             REMOTE_NOTE_REVISIONS.ID,
             REMOTE_NOTE_REVISIONS.CONTENT_HTML,
             REMOTE_NOTE_REVISIONS.SUMMARY,
@@ -760,16 +767,30 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTE_REVISIONS.REVISED_AT,
         ).from(REMOTE_NOTE_REVISIONS)
             .where(REMOTE_NOTE_REVISIONS.REMOTE_NOTE_ID.eq(remoteNoteId))
-            .orderBy(REMOTE_NOTE_REVISIONS.ID)
-            .fetch { record ->
-                PostRevision(
-                    contentHtml = checkNotNull(record.value2()),
-                    summary = record.value3(),
-                    sensitive = record.value4() == 1L,
-                    images = imagesByRevision[record.value1()].orEmpty(),
-                    revisedAt = StoredInstant.parse(checkNotNull(record.value5())),
-                )
-            }
+            .and(if (olderThanRevisionId == null) DSL.noCondition() else REMOTE_NOTE_REVISIONS.ID.lt(olderThanRevisionId))
+            .orderBy(REMOTE_NOTE_REVISIONS.ID.desc())
+            .limit(limit)
+            .fetch()
+        val revisionIds = revisions.map { it.value1() }
+        val imagesByRevision = dsl.select(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.URL, REMOTE_NOTE_REVISION_IMAGES.DESCRIPTION)
+            .from(REMOTE_NOTE_REVISION_IMAGES)
+            .where(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID.`in`(revisionIds))
+            .orderBy(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.POSITION)
+            .fetch()
+            .groupBy(
+                keySelector = { it.value1() },
+                valueTransform = { TimelinePostImage.Remote(url = checkNotNull(it.value2()), description = it.value3()) },
+            )
+        return revisions.map { record ->
+            PostRevision(
+                position = PostRevisionPosition.Past(checkNotNull(record.value1())),
+                contentHtml = checkNotNull(record.value2()),
+                summary = record.value3(),
+                sensitive = record.value4() == 1L,
+                images = imagesByRevision[record.value1()].orEmpty(),
+                revisedAt = StoredInstant.parse(checkNotNull(record.value5())),
+            )
+        }
     }
 
     /**

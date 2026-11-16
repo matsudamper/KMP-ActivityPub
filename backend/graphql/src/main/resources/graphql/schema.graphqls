@@ -204,8 +204,15 @@ type TimelinePost {
     edited: Boolean!
 }
 
+type PostRevisionPage {
+    revisions: [PostRevision!]!
+    nextCursor: String
+}
+
 "投稿のある時点の中身。それぞれ TimelinePost の同じ名前の項目と同じ意味"
 type PostRevision {
+    "版の並びの中でこの版を見分ける。同じ投稿の中でだけ一意"
+    id: PostRevisionId!
     content: String!
     summary: String
     sensitive: Boolean!

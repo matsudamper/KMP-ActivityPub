@@ -395,7 +395,7 @@ private fun EditedLabel(editedLabel: PostItemUiState.EditedLabel, sizes: PostIte
         )
     } else {
         Text(
-            text = "編集済み（履歴）",
+            text = "編集済み",
             modifier = Modifier.clickable(onClick = listener::onClick),
             style = sizes.secondaryTextStyle,
             color = MaterialTheme.colorScheme.primary,

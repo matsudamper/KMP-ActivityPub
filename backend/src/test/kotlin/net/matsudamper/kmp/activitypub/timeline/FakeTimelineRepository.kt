@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
 import net.matsudamper.kmp.activitypub.repository.PostRevision
+import net.matsudamper.kmp.activitypub.repository.PostRevisionPosition
 import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
@@ -55,7 +56,7 @@ internal class FakeTimelineRepository : TimelineRepository {
         return listOf()
     }
 
-    override fun revisions(viewer: AccountId, member: String): List<PostRevision>? = null
+    override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? = null
     override fun hasRemoteNote(objectUri: String): Boolean = received.any { it.objectUri == objectUri }
     override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> = listOf()
     override fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long) = Unit

@@ -56,6 +56,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailLayout
 import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.postrevisions.PostRevisionsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.security.SecurityScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
@@ -351,6 +352,10 @@ private fun ScreenContent(
                 navigator = navigator,
                 layout = if (inDialog) PostDetailLayout.Dialog else PostDetailLayout.FullScreen,
             )
+        }
+
+        is Screen.PostRevisions -> {
+            PostRevisionsScreen(postId = screen.postId, navigator = navigator)
         }
 
         is Screen.Image -> {

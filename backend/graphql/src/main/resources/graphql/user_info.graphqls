@@ -39,10 +39,11 @@ type UserInfo {
     """
     replies(postId: TimelinePostId!): [TimelinePost!]! @lazy
     """
-    postId の投稿の版を古い順に返す。最後が今の版。postId には TimelinePost.id を渡す。ブーストで載った投稿は、ブーストされた元の投稿の版。
-    このサーバーが編集を受け取った分だけを返し、相手のサーバーへは取りに行かない。編集を受け取っていなければ今の版だけ。開けない投稿なら空
+    postId の投稿の版を新しい順に返す。最初が今の版。postId には TimelinePost.id を渡す。ブーストで載った投稿は、ブーストされた元の投稿の版。
+    after には前回の nextCursor を渡す。このサーバーが編集を受け取った分だけを返し、相手のサーバーへは取りに行かない。
+    編集を受け取っていなければ今の版だけ。開けない投稿なら null
     """
-    postRevisions(postId: TimelinePostId!): [PostRevision!]! @lazy
+    postRevisions(postId: TimelinePostId!, after: String, limit: Int!): PostRevisionPage @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!
