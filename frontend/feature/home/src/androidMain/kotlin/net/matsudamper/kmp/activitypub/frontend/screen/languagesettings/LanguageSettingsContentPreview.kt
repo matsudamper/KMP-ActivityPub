@@ -22,7 +22,7 @@ private fun LanguageSettingsContentInvalidDarkPreview() {
             uiState = previewLanguageSettingsUiState.copy(
                 languageInput = "日本語",
                 languageInputError = true,
-                languageInputSupportingText = "有効な言語ではありません。ja や en-US のように入力してください",
+                languageInputSupportingText = "有効な言語ではありません。例: ja, en-US",
                 translateButtonSwitchChecked = false,
                 saveButtonEnabled = false,
             ),
@@ -35,7 +35,7 @@ private val previewLanguageSettingsUiState = LanguageSettingsScreenUiState(
     languageInput = "ja",
     languageInputEnabled = true,
     languageInputError = false,
-    languageInputSupportingText = "ja や en-US のような言語コード",
+    languageInputSupportingText = "例: ja, en-US",
     translateButtonSwitchChecked = true,
     translateButtonSwitchEnabled = true,
     saveButtonEnabled = true,

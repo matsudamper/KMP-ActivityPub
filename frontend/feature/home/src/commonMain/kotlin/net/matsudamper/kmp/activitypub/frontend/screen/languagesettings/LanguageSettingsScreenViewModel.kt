@@ -107,9 +107,9 @@ internal class LanguageSettingsScreenViewModel(
             languageInputError = languageInputError,
             languageInputSupportingText =
             if (languageInputError) {
-                "有効な言語ではありません。ja や en-US のように入力してください"
+                "有効な言語ではありません。例: ja, en-US"
             } else {
-                "ja や en-US のような言語コード"
+                "例: ja, en-US"
             },
             translateButtonSwitchChecked = viewModelState.translateButtonVisible,
             translateButtonSwitchEnabled = inputEnabled,
