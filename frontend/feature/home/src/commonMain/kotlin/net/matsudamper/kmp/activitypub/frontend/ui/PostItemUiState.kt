@@ -70,6 +70,10 @@ data class PostItemUiState(
      */
     val authorListener: AuthorListener?,
     /**
+     * 投稿の言語が日本語以外と分かっているときだけ。それ以外は null で、翻訳のボタンを出さない
+     */
+    val translateButtonListener: TranslateButtonListener?,
+    /**
      * 空ならメニューのボタンを出さない
      */
     val menuItems: List<MenuItem>,
@@ -237,6 +241,11 @@ data class PostItemUiState(
 
     @Immutable
     interface AuthorListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface TranslateButtonListener {
         fun onClick()
     }
 

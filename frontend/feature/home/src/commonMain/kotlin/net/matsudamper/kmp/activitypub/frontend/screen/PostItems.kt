@@ -172,6 +172,14 @@ internal fun createPostItemUiState(
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
         },
+        translateButtonListener = if (isOtherThanJapanese(body.language)) {
+            object : PostItemUiState.TranslateButtonListener {
+                // 翻訳はまだ作っていない
+                override fun onClick() = Unit
+            }
+        } else {
+            null
+        },
         menuItems = menuItems,
         postListener = when (postTapAction) {
             is PostTapAction.OpenPostDetail -> object : PostItemUiState.PostListener {
@@ -300,4 +308,12 @@ private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Un
             },
         )
     }
+}
+
+/**
+ * 言語が分からない投稿は日本語かもしれないので false
+ */
+private fun isOtherThanJapanese(languageTag: String?): Boolean {
+    if (languageTag == null) return false
+    return !languageTag.substringBefore('-').equals("ja", ignoreCase = true)
 }
