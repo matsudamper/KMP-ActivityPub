@@ -103,6 +103,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     boostUndone = boostUndone,
     sortedAt = sortedAt,
     content = body.content,
+    language = body.language,
     publishedAt = body.publishedAt,
     author = TimelinePostFields.Author(
         __typename = "Actor",
