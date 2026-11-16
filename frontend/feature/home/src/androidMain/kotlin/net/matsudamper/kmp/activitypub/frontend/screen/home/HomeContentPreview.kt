@@ -186,6 +186,43 @@ private fun TimelineHeaderDividerNewPostsHiddenAbovePreview() {
 
 @Preview
 @Composable
+private fun TimelineReplyItemsPreview() {
+    HomePreviewTheme {
+        Surface {
+            Column {
+                val post = previewTimelinePosts().first()
+                val replyLabel = PostItemUiState.ReplyLabel(
+                    target = PostItemUiState.ReplyLabelTarget(
+                        iconUrl = null,
+                        name = createTextWithEmojis(text = "Alice :kotlin:", emojis = PreviewEmojis),
+                        listener = AndroidPreviewReplyLabelListener,
+                    ),
+                )
+                listOf(
+                    post.copy(replyLabel = replyLabel),
+                    post.copy(
+                        replyLabel = replyLabel,
+                        actorLabel = PostItemUiState.ActorLabel(
+                            icon = PostItemUiState.ActorLabelIcon.Boost,
+                            actorName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+                            actionText = "がブースト",
+                            iconUrl = null,
+                            cancelledLabelVisible = false,
+                            listener = AndroidPreviewActorLabelListener,
+                        ),
+                    ),
+                    post.copy(replyLabel = PostItemUiState.ReplyLabel(target = null)),
+                ).forEach { item ->
+                    PostItem(uiState = item, style = PostItemStyle.Timeline)
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
 private fun TimelineNotificationAndDeletedItemsPreview() {
     HomePreviewTheme {
         Surface {
@@ -513,6 +550,7 @@ private fun HomeUserContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            replyLabel = null,
                             pinnedLabelVisible = false,
                             deletedLabelVisible = false,
                             actorLabel = null,
@@ -660,6 +698,7 @@ private fun HomeUserMediaContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            replyLabel = null,
                             pinnedLabelVisible = false,
                             deletedLabelVisible = false,
                             actorLabel = null,
@@ -911,6 +950,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
     override fun onClick() = Unit
 }
 
+private object AndroidPreviewReplyLabelListener : PostItemUiState.ReplyLabelListener {
+    override fun onClick() = Unit
+}
+
 private object AndroidPreviewActorLabelListener : PostItemUiState.ActorLabelListener {
     override fun onClick() = Unit
 }
@@ -978,6 +1021,7 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
 private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
+        replyLabel = null,
         pinnedLabelVisible = false,
         deletedLabelVisible = false,
         actorLabel = null,
@@ -1027,6 +1071,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         listener = AndroidPreviewTimelineItemListener,
     ),
     PostItemUiState(
+        replyLabel = null,
         pinnedLabelVisible = false,
         deletedLabelVisible = false,
         actorLabel = PostItemUiState.ActorLabel(
@@ -1092,6 +1137,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
 
 private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
+        replyLabel = null,
         pinnedLabelVisible = false,
         deletedLabelVisible = false,
         actorLabel = null,
