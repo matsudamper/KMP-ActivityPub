@@ -67,5 +67,5 @@ private object AndroidPreviewEditingListener : FollowingGroupsScreenUiState.Edit
 }
 
 private object AndroidPreviewFollowingGroupsListener : FollowingGroupsScreenUiState.Listener {
-    override fun onClickClose() = Unit
+    override fun onClickBack() = Unit
 }

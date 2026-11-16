@@ -82,9 +82,9 @@ internal class SecurityScreenViewModel(
                 viewModelStateFlow.update { it.copy(passwordDeleteDialog = PasswordDeleteDialogState.Hidden) }
             }
 
-            override fun onClickClose() {
+            override fun onClickBack() {
                 viewModelScope.launch {
-                    events.send { it.closeToHome() }
+                    events.send { it.navigateBack() }
                 }
             }
         }
@@ -339,7 +339,7 @@ internal class SecurityScreenViewModel(
             passwordDeleteDialog == PasswordDeleteDialogState.Deleting
 
     internal interface Event {
-        fun closeToHome()
+        fun navigateBack()
 
         fun showMessage(message: String)
     }

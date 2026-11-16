@@ -32,8 +32,8 @@ internal class BlockedServersScreenViewModel(
 
     private val listener =
         object : BlockedServersScreenUiState.Listener {
-            override fun onClickClose() {
-                viewModelScope.launch { events.send { it.closeToHome() } }
+            override fun onClickBack() {
+                viewModelScope.launch { events.send { it.navigateBack() } }
             }
 
             override fun onChangeServerInput(value: String) {
@@ -187,7 +187,7 @@ internal class BlockedServersScreenViewModel(
     )
 
     internal interface Event {
-        fun closeToHome()
+        fun navigateBack()
 
         fun showMessage(message: String)
     }

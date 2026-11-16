@@ -44,7 +44,7 @@ data class BlockedAccountsScreenUiState(
 
     @Immutable
     interface Listener {
-        fun onClickClose()
+        fun onClickBack()
 
         fun onClickRetry()
     }

@@ -66,7 +66,7 @@ private object AndroidPreviewAccountListener : BlockedAccountsScreenUiState.Acco
 }
 
 private object AndroidPreviewBlockedAccountsListener : BlockedAccountsScreenUiState.Listener {
-    override fun onClickClose() = Unit
+    override fun onClickBack() = Unit
 
     override fun onClickRetry() = Unit
 }

@@ -54,8 +54,8 @@ internal fun SecurityScreen(
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
             object : SecurityScreenViewModel.Event {
-                override fun closeToHome() {
-                    navigator.closeToHome()
+                override fun navigateBack() {
+                    navigator.back()
                 }
 
                 override fun showMessage(message: String) {
@@ -81,10 +81,10 @@ internal fun SecurityContent(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = uiState.listener::onClickClose) {
+                IconButton(onClick = uiState.listener::onClickBack) {
                     Icon(
-                        imageVector = AppIcons.Close,
-                        contentDescription = "閉じる",
+                        imageVector = AppIcons.ArrowBack,
+                        contentDescription = "戻る",
                     )
                 }
                 Text(

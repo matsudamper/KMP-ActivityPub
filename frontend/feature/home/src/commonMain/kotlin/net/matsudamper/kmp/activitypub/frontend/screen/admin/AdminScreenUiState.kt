@@ -34,6 +34,6 @@ data class AdminScreenUiState(
 
     @Immutable
     interface Listener {
-        fun onClickClose()
+        fun onClickBack()
     }
 }

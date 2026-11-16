@@ -37,8 +37,8 @@ internal class CustomEmojisScreenViewModel(
     private var loadJob: Job? = null
 
     private val listener = object : CustomEmojisScreenUiState.Listener {
-        override fun onClickClose() {
-            viewModelScope.launch { events.send { it.closeToHome() } }
+        override fun onClickBack() {
+            viewModelScope.launch { events.send { it.navigateBack() } }
         }
 
         override fun onChangeShortcodeInput(value: String) {
@@ -216,7 +216,7 @@ internal class CustomEmojisScreenViewModel(
     }
 
     internal interface Event {
-        fun closeToHome()
+        fun navigateBack()
 
         fun openImagePicker()
 

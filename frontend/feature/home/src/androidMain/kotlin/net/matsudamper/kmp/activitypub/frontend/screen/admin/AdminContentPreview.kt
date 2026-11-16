@@ -40,7 +40,7 @@ private fun AdminContentDeniedPreview() {
 }
 
 private object AndroidPreviewAdminListener : AdminScreenUiState.Listener {
-    override fun onClickClose() = Unit
+    override fun onClickBack() = Unit
 }
 
 private object AndroidPreviewRemoteProfileRefreshListener : AdminScreenUiState.RemoteProfileRefreshListener {

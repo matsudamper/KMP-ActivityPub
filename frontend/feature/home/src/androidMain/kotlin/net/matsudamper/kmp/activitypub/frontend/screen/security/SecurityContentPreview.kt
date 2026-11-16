@@ -154,5 +154,5 @@ private object AndroidPreviewSecurityListener : SecurityScreenUiState.Listener {
 
     override fun onDismissDeletePasswordDialog() = Unit
 
-    override fun onClickClose() = Unit
+    override fun onClickBack() = Unit
 }
