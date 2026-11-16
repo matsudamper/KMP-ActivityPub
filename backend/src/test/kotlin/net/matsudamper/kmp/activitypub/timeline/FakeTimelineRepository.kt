@@ -111,7 +111,9 @@ internal class FakeTimelineRepository : TimelineRepository {
         hidesAuthor: (actorUri: String) -> Boolean,
         matchesContent: (contentHtml: String) -> Boolean,
     ): List<TimelinePost> = searchablePosts
-        .filter { post -> before == null || post.publishedAt < before.publishedAt }
+        .filter { post ->
+            before == null || post.publishedAt < before.publishedAt || (post.publishedAt == before.publishedAt && post.position.member < before.member)
+        }
         .filter { post -> post.actorUri?.let(hidesAuthor) != true && matchesContent(post.contentHtml) }
         .take(limit)
 
