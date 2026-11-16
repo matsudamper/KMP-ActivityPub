@@ -1,13 +1,19 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.tooling.preview.Preview
+import net.matsudamper.kmp.activitypub.frontend.screen.ProfileEditDialogFrame
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 @Preview
@@ -59,6 +65,48 @@ private fun ProfileEditContentPreview() {
             ),
             snackbarHostState = SnackbarHostState(),
         )
+    }
+}
+
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun ProfileEditContentDialogPreview() {
+    MaterialTheme {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            ProfileEditDialogFrame {
+                ProfileEditContent(
+                    uiState = ProfileEditScreenUiState(
+                        content = ProfileEditScreenUiState.Content.Loaded(
+                            iconPreview = null,
+                            iconLoadingVisible = false,
+                            currentIconUrl = null,
+                            iconSelectButtonEnabled = true,
+                            headerPreview = null,
+                            headerLoadingVisible = false,
+                            currentHeaderUrl = null,
+                            headerSelectButtonEnabled = true,
+                            displayName = "ユーザー1",
+                            displayNameInputEnabled = true,
+                            displayNameHasError = false,
+                            summary = "",
+                            summaryInputEnabled = true,
+                            summaryHasError = false,
+                            links = listOf(),
+                            addLinkButtonEnabled = true,
+                            likesPublic = false,
+                            likesPublicSwitchEnabled = true,
+                            saveButtonEnabled = true,
+                        ),
+                        backButtonEnabled = true,
+                        listener = AndroidPreviewProfileEditListener,
+                    ),
+                    snackbarHostState = SnackbarHostState(),
+                )
+            }
+        }
     }
 }
 
