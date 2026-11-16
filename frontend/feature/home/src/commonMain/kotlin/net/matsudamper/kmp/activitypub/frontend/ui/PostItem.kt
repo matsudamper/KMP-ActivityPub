@@ -80,6 +80,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
+import net.matsudamper.kmp.activitypub.frontend.ui.layout.FirstFitWidthLayout
 
 internal enum class PostItemStyle {
     /** 並べて流し読みするので、文字を小さめにし、画像は横にスクロールして投稿 1 件の高さを抑える */
@@ -98,6 +99,7 @@ private class PostItemSizes(
     val iconSize: Dp,
     val actionIconSize: Dp,
     val actionSlotWidth: Dp,
+    val iconOnlyActionSlotWidth: Dp,
     val stampImageHeight: Dp,
 )
 
@@ -113,6 +115,7 @@ private fun PostItemStyle.sizes(): PostItemSizes {
             iconSize = 46.dp,
             actionIconSize = 24.dp,
             actionSlotWidth = 76.dp,
+            iconOnlyActionSlotWidth = 40.dp,
             stampImageHeight = 18.dp,
         )
 
@@ -124,6 +127,7 @@ private fun PostItemStyle.sizes(): PostItemSizes {
             iconSize = 56.dp,
             actionIconSize = 28.dp,
             actionSlotWidth = 88.dp,
+            iconOnlyActionSlotWidth = 48.dp,
             stampImageHeight = 22.dp,
         )
     }
@@ -604,30 +608,53 @@ private fun PostActions(
     sizes: PostItemSizes,
     shareButtonVisible: Boolean,
 ) {
-    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val disabledIconColor = iconColor.copy(alpha = 0.38f)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // 狭い画面で操作が並びきらなくても、メニュー（削除・ピン留め）を押せるよう、残りの幅だけを操作に使う
-        Row(
+        FirstFitWidthLayout(
+            candidates = listOf(
+                { PostActionButtons(uiState = uiState, sizes = sizes, shareButtonVisible = shareButtonVisible, countsVisible = true) },
+                // 数まで並びきらない幅では、数を出さずにアイコンだけを詰めて並べる
+                { PostActionButtons(uiState = uiState, sizes = sizes, shareButtonVisible = shareButtonVisible, countsVisible = false) },
+            ),
             modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
+        )
+        if (uiState.menuItems.isNotEmpty()) {
+            PostMenu(menuItems = uiState.menuItems, sizes = sizes)
+        }
+    }
+}
+
+/**
+ * @param countsVisible false なら数を出さず、アイコンだけを詰めた幅で並べる
+ */
+@Composable
+private fun PostActionButtons(
+    uiState: PostItemUiState,
+    sizes: PostItemSizes,
+    shareButtonVisible: Boolean,
+    countsVisible: Boolean,
+) {
+    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val disabledIconColor = iconColor.copy(alpha = 0.38f)
+    val slotWidth = if (countsVisible) sizes.actionSlotWidth else sizes.iconOnlyActionSlotWidth
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        val replyListener = uiState.replyListener
+        TextButton(
+            onClick = { replyListener?.onClick() },
+            enabled = replyListener != null,
+            modifier = Modifier.weight(1f, fill = false).width(slotWidth),
+            contentPadding = ActionButtonContentPadding,
         ) {
-            val replyListener = uiState.replyListener
-            TextButton(
-                onClick = { replyListener?.onClick() },
-                enabled = replyListener != null,
-                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
-                contentPadding = ActionButtonContentPadding,
-            ) {
-                Icon(
-                    imageVector = AppIcons.Reply,
-                    contentDescription = "リプライ",
-                    modifier = Modifier.size(sizes.actionIconSize),
-                    tint = if (replyListener == null) disabledIconColor else iconColor,
-                )
+            Icon(
+                imageVector = AppIcons.Reply,
+                contentDescription = "リプライ",
+                modifier = Modifier.size(sizes.actionIconSize),
+                tint = if (replyListener == null) disabledIconColor else iconColor,
+            )
+            if (countsVisible) {
                 Text(
                     text = uiState.replyCountText.orEmpty(),
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
@@ -636,33 +663,35 @@ private fun PostActions(
                     maxLines = 1,
                 )
             }
-            val boostButton = uiState.boostButton
-            var boostMenuExpanded by remember { mutableStateOf(false) }
-            Box(modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth)) {
-                TextButton(
-                    onClick = { boostMenuExpanded = true },
-                    enabled = boostButton != null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                            if (boostButton == null) {
-                                Modifier
-                            } else {
-                                Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
-                            },
-                        ),
-                    contentPadding = ActionButtonContentPadding,
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Repeat,
-                        contentDescription = "ブースト",
-                        modifier = Modifier.size(sizes.actionIconSize),
-                        tint = when {
-                            boostButton == null -> disabledIconColor
-                            boostButton.iconHighlighted -> BoostHighlightedColor
-                            else -> iconColor
+        }
+        val boostButton = uiState.boostButton
+        var boostMenuExpanded by remember { mutableStateOf(false) }
+        Box(modifier = Modifier.weight(1f, fill = false).width(slotWidth)) {
+            TextButton(
+                onClick = { boostMenuExpanded = true },
+                enabled = boostButton != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (boostButton == null) {
+                            Modifier
+                        } else {
+                            Modifier.semantics { stateDescription = if (boostButton.iconHighlighted) "ブースト済み" else "未ブースト" }
                         },
-                    )
+                    ),
+                contentPadding = ActionButtonContentPadding,
+            ) {
+                Icon(
+                    imageVector = AppIcons.Repeat,
+                    contentDescription = "ブースト",
+                    modifier = Modifier.size(sizes.actionIconSize),
+                    tint = when {
+                        boostButton == null -> disabledIconColor
+                        boostButton.iconHighlighted -> BoostHighlightedColor
+                        else -> iconColor
+                    },
+                )
+                if (countsVisible) {
                     Text(
                         text = uiState.boostCountText.orEmpty(),
                         modifier = Modifier.padding(start = 4.dp).weight(1f),
@@ -671,26 +700,28 @@ private fun PostActions(
                         maxLines = 1,
                     )
                 }
-                DropdownMenu(
-                    expanded = boostMenuExpanded,
-                    onDismissRequest = { boostMenuExpanded = false },
-                ) {
-                    PostMenuItems(menuItems = boostButton?.menuItems.orEmpty(), onItemClick = { boostMenuExpanded = false })
-                }
             }
-            val favouriteButton = uiState.favouriteButton
-            TextButton(
-                onClick = { favouriteButton?.listener?.onClick() },
-                enabled = favouriteButton != null,
-                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
-                contentPadding = ActionButtonContentPadding,
+            DropdownMenu(
+                expanded = boostMenuExpanded,
+                onDismissRequest = { boostMenuExpanded = false },
             ) {
-                Icon(
-                    imageVector = AppIcons.Star,
-                    contentDescription = "お気に入り",
-                    modifier = Modifier.size(sizes.actionIconSize),
-                    tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
-                )
+                PostMenuItems(menuItems = boostButton?.menuItems.orEmpty(), onItemClick = { boostMenuExpanded = false })
+            }
+        }
+        val favouriteButton = uiState.favouriteButton
+        TextButton(
+            onClick = { favouriteButton?.listener?.onClick() },
+            enabled = favouriteButton != null,
+            modifier = Modifier.weight(1f, fill = false).width(slotWidth),
+            contentPadding = ActionButtonContentPadding,
+        ) {
+            Icon(
+                imageVector = AppIcons.Star,
+                contentDescription = "お気に入り",
+                modifier = Modifier.size(sizes.actionIconSize),
+                tint = if (favouriteButton?.iconHighlighted == true) FavouriteHighlightedColor else iconColor,
+            )
+            if (countsVisible) {
                 Text(
                     text = uiState.favouriteCountText.orEmpty(),
                     modifier = Modifier.padding(start = 4.dp).weight(1f),
@@ -699,41 +730,42 @@ private fun PostActions(
                     maxLines = 1,
                 )
             }
-            val reactionButton = uiState.reactionButton
+        }
+        val reactionButton = uiState.reactionButton
+        TextButton(
+            onClick = { reactionButton?.listener?.onClick() },
+            enabled = reactionButton != null,
+            modifier = Modifier.weight(1f, fill = false).width(slotWidth),
+            contentPadding = ActionButtonContentPadding,
+        ) {
+            Icon(
+                imageVector = AppIcons.Emoticon,
+                contentDescription = "リアクション",
+                modifier = Modifier.size(sizes.actionIconSize),
+                tint = if (reactionButton == null) disabledIconColor else iconColor,
+            )
+            if (countsVisible) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+        if (shareButtonVisible) {
+            val shareListener = uiState.shareListener
             TextButton(
-                onClick = { reactionButton?.listener?.onClick() },
-                enabled = reactionButton != null,
-                modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
+                onClick = { shareListener?.onClick() },
+                enabled = shareListener != null,
+                modifier = Modifier.weight(1f, fill = false).width(slotWidth),
                 contentPadding = ActionButtonContentPadding,
             ) {
                 Icon(
-                    imageVector = AppIcons.Emoticon,
-                    contentDescription = "リアクション",
+                    imageVector = AppIcons.Share,
+                    contentDescription = "共有",
                     modifier = Modifier.size(sizes.actionIconSize),
-                    tint = if (reactionButton == null) disabledIconColor else iconColor,
+                    tint = if (shareListener == null) disabledIconColor else iconColor,
                 )
-                Spacer(modifier = Modifier.weight(1f))
-            }
-            if (shareButtonVisible) {
-                val shareListener = uiState.shareListener
-                TextButton(
-                    onClick = { shareListener?.onClick() },
-                    enabled = shareListener != null,
-                    modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
-                    contentPadding = ActionButtonContentPadding,
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Share,
-                        contentDescription = "共有",
-                        modifier = Modifier.size(sizes.actionIconSize),
-                        tint = if (shareListener == null) disabledIconColor else iconColor,
-                    )
+                if (countsVisible) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
-        }
-        if (uiState.menuItems.isNotEmpty()) {
-            PostMenu(menuItems = uiState.menuItems, sizes = sizes)
         }
     }
 }
