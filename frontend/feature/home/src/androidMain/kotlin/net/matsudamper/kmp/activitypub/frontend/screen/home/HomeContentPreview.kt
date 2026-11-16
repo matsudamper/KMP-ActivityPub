@@ -539,10 +539,12 @@ private fun HomeUserContentPreview() {
                         ),
                     ),
                     emptyMessage = null,
+                    postsFooter = HomeScreenUiState.TimelineFooter.None,
                     media = listOf(),
                     mediaEmptyMessage = "表示できるメディアはありません",
                     likes = listOf(),
                     likesEmptyMessage = "表示できるいいねはありません",
+                    likesFooter = HomeScreenUiState.TimelineFooter.None,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
@@ -597,10 +599,12 @@ private fun HomeUserMediaEmptyContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(),
                     emptyMessage = "表示できる投稿はありません",
+                    postsFooter = HomeScreenUiState.TimelineFooter.None,
                     media = listOf(),
                     mediaEmptyMessage = "表示できるメディアはありません",
                     likes = listOf(),
                     likesEmptyMessage = "表示できるいいねはありません",
+                    likesFooter = HomeScreenUiState.TimelineFooter.None,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
@@ -680,6 +684,7 @@ private fun HomeUserMediaContentPreview() {
                         ),
                     ),
                     emptyMessage = null,
+                    postsFooter = HomeScreenUiState.TimelineFooter.None,
                     media = List(5) { index ->
                         ProfileMediaUiState(
                             url = "https://example.com/media/$index.png",
@@ -691,6 +696,7 @@ private fun HomeUserMediaContentPreview() {
                     mediaEmptyMessage = null,
                     likes = listOf(),
                     likesEmptyMessage = "表示できるいいねはありません",
+                    likesFooter = HomeScreenUiState.TimelineFooter.None,
                 ),
                 userTabIconUrl = "https://example.com/icon.png",
                 openedColumn = null,
@@ -869,6 +875,10 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onClickRetryUserPosts() = Unit
 
     override fun onClickUserContentTab(tab: ProfileContentTab) = Unit
+
+    override fun onScrolledToUserContentEnd() = Unit
+
+    override fun onClickRetryLoadMoreUserContent() = Unit
 
     override fun onClickFollowing() = Unit
 

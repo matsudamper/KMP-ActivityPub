@@ -1051,6 +1051,21 @@ internal fun UserTabContent(
             }
 
             is HomeScreenUiState.Profile.Loaded -> {
+                val selectedGridState = pagerState.gridState(userContentTab)
+                val loadedPosts = userPosts as? HomeScreenUiState.UserPosts.Loaded
+                // メディアのタブでは、画像の無い続きを読んでも表示の件数が増えない。投稿の件数で見張り直し、末尾にいる間は続きを読み進める
+                LaunchedEffect(selectedGridState, listener, loadedPosts?.items?.size, loadedPosts?.likes?.size) {
+                    // 件数も比べ、続きを読んでもまだ末尾が見えているときにもう一度知らせる
+                    snapshotFlow {
+                        val layoutInfo = selectedGridState.layoutInfo
+                        val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                        val nearEnd = lastVisibleIndex != null && lastVisibleIndex >= layoutInfo.totalItemsCount - 5
+                        nearEnd to layoutInfo.totalItemsCount
+                    }
+                        .distinctUntilChanged()
+                        .filter { (nearEnd, _) -> nearEnd }
+                        .collect { listener.onScrolledToUserContentEnd() }
+                }
                 ProfileContentPager(
                     state = pagerState,
                     tabs = OWN_PROFILE_TABS,
@@ -1090,6 +1105,7 @@ internal fun UserTabContent(
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
+                                    userContentFooter(footer = userPosts.postsFooter, onClickRetry = listener::onClickRetryLoadMoreUserContent)
                                 }
 
                                 ProfileContentTab.Media -> {
@@ -1100,6 +1116,7 @@ internal fun UserTabContent(
                                     items(userPosts.media) { media ->
                                         ProfileMediaGridItem(media = media, modifier = Modifier.padding(1.dp))
                                     }
+                                    userContentFooter(footer = userPosts.postsFooter, onClickRetry = listener::onClickRetryLoadMoreUserContent)
                                 }
 
                                 ProfileContentTab.Likes -> {
@@ -1116,6 +1133,7 @@ internal fun UserTabContent(
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
+                                    userContentFooter(footer = userPosts.likesFooter, onClickRetry = listener::onClickRetryLoadMoreUserContent)
                                 }
                             }
                         }
@@ -1134,6 +1152,32 @@ private val OWN_PROFILE_TABS = listOf(ProfileContentTab.Posts, ProfileContentTab
 
 private fun LazyGridScope.fullLineItem(content: @Composable () -> Unit) {
     item(span = { GridItemSpan(maxLineSpan) }) { content() }
+}
+
+private fun LazyGridScope.userContentFooter(
+    footer: HomeScreenUiState.TimelineFooter,
+    onClickRetry: () -> Unit,
+) {
+    when (footer) {
+        HomeScreenUiState.TimelineFooter.None -> Unit
+
+        HomeScreenUiState.TimelineFooter.Loading -> fullLineItem {
+            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+
+        is HomeScreenUiState.TimelineFooter.Error -> fullLineItem {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(footer.message, color = MaterialTheme.colorScheme.error)
+                Button(onClick = onClickRetry) { Text("再読み込み") }
+            }
+        }
+    }
 }
 
 @Composable
