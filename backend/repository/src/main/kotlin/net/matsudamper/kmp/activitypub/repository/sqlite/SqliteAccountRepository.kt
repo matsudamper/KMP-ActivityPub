@@ -18,7 +18,7 @@ internal class SqliteAccountRepository(
 ) : AccountRepository {
     override fun findById(id: AccountId): Account? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH)
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH, ACCOUNTS.HEADER_PATH)
             .from(ACCOUNTS)
             .where(ACCOUNTS.ID.eq(id.value))
             .fetchOne()
@@ -29,6 +29,7 @@ internal class SqliteAccountRepository(
                     createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
                     displayName = record.get(ACCOUNTS.DISPLAY_NAME),
                     iconPath = record.get(ACCOUNTS.ICON_PATH),
+                    headerPath = record.get(ACCOUNTS.HEADER_PATH),
                 )
             }
     }
@@ -41,7 +42,7 @@ internal class SqliteAccountRepository(
 
     override fun findByUsername(username: String): Account? = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH)
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH, ACCOUNTS.HEADER_PATH)
             .from(ACCOUNTS)
             .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
             .fetchOne()
@@ -52,6 +53,7 @@ internal class SqliteAccountRepository(
                     createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
                     displayName = record.get(ACCOUNTS.DISPLAY_NAME),
                     iconPath = record.get(ACCOUNTS.ICON_PATH),
+                    headerPath = record.get(ACCOUNTS.HEADER_PATH),
                 )
             }
     }
@@ -62,7 +64,7 @@ internal class SqliteAccountRepository(
         limit: Int,
     ): List<Account> = jooq.withConnection { dsl ->
         dsl
-            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH)
+            .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH, ACCOUNTS.HEADER_PATH)
             .from(ACCOUNTS)
             .where(ACCOUNTS.USERNAME.containsIgnoreCase(keyword.lowercase()))
             .and(
@@ -82,6 +84,7 @@ internal class SqliteAccountRepository(
                     createdAt = StoredInstant.parse(checkNotNull(record.get(ACCOUNTS.CREATED_AT))),
                     displayName = record.get(ACCOUNTS.DISPLAY_NAME),
                     iconPath = record.get(ACCOUNTS.ICON_PATH),
+                    headerPath = record.get(ACCOUNTS.HEADER_PATH),
                 )
             }
     }

@@ -42,6 +42,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockAccountResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUnblockServerResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileHeaderFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileHeaderResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileIconResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlUpdateProfileQuery
@@ -78,6 +80,7 @@ import net.matsudamper.kmp.activitypub.logic.SetPinnedResult
 import net.matsudamper.kmp.activitypub.logic.SetReactionResult
 import net.matsudamper.kmp.activitypub.logic.UnblockActorResult
 import net.matsudamper.kmp.activitypub.logic.UnblockServerResult
+import net.matsudamper.kmp.activitypub.logic.UpdateHeaderResult
 import net.matsudamper.kmp.activitypub.logic.UpdateIconResult
 import net.matsudamper.kmp.activitypub.logic.UpdateProfileResult
 import net.matsudamper.kmp.activitypub.logic.UploadCustomEmojiResult
@@ -416,6 +419,15 @@ class UserMutationResolverImpl : UserMutationResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUpdateProfileIconResult>> {
         val result = updateProfileIcon(icon = icon, env = env)
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
+    override fun updateProfileHeader(
+        userMutation: QlUserMutation,
+        header: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUpdateProfileHeaderResult>> {
+        val result = updateProfileHeader(header = header, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -768,5 +780,38 @@ class UserMutationResolverImpl : UserMutationResolver {
             }
         val iconUrl = if (failure == null) diContainer.profileIconUrls?.find(account.username) else null
         return QlUpdateProfileIconResult(iconUrl = iconUrl, failure = failure)
+    }
+
+    private fun updateProfileHeader(
+        header: String,
+        env: DataFetchingEnvironment,
+    ): QlUpdateProfileHeaderResult {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId =
+            GraphQlEngine.graphQlContext(env).userAccountId()
+                ?: return QlUpdateProfileHeaderResult(headerUrl = null, failure = QlUpdateProfileHeaderFailure.NOT_LOGGED_IN)
+        // セッションが残っていてもアカウントが消えていることがある
+        val account =
+            diContainer.accountService.account(accountId)
+                ?: return QlUpdateProfileHeaderResult(headerUrl = null, failure = QlUpdateProfileHeaderFailure.NOT_LOGGED_IN)
+        val profileUpdateService =
+            diContainer.profileUpdateService
+                ?: return QlUpdateProfileHeaderResult(headerUrl = null, failure = QlUpdateProfileHeaderFailure.FEDERATION_DISABLED)
+        val headerBytes =
+            runCatching { Base64.Default.decode(header) }.getOrNull()
+                ?: return QlUpdateProfileHeaderResult(headerUrl = null, failure = QlUpdateProfileHeaderFailure.UNSUPPORTED_IMAGE)
+
+        val failure =
+            when (profileUpdateService.updateHeader(username = account.username, header = headerBytes)) {
+                UpdateHeaderResult.Updated -> null
+                UpdateHeaderResult.TooLarge -> QlUpdateProfileHeaderFailure.TOO_LARGE
+                UpdateHeaderResult.DimensionsTooLarge -> QlUpdateProfileHeaderFailure.DIMENSIONS_TOO_LARGE
+                UpdateHeaderResult.Unsupported -> QlUpdateProfileHeaderFailure.UNSUPPORTED_IMAGE
+                UpdateHeaderResult.ImageStorageDisabled -> QlUpdateProfileHeaderFailure.UNSUPPORTED_OPERATION
+                UpdateHeaderResult.UploadFailed -> QlUpdateProfileHeaderFailure.INTERNAL_SERVER_ERROR
+                UpdateHeaderResult.AccountNotFound -> QlUpdateProfileHeaderFailure.NOT_LOGGED_IN
+            }
+        val headerUrl = if (failure == null) diContainer.profileHeaderUrls?.find(account.username) else null
+        return QlUpdateProfileHeaderResult(headerUrl = headerUrl, failure = failure)
     }
 }

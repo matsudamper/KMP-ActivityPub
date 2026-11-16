@@ -63,6 +63,13 @@ internal fun Route.federationRoutes(federation: Federation) {
             call.respondEndpoint(response)
         }
     }
+    val actorHeaderEndpoint = federation.actorHeaderEndpoint
+    if (actorHeaderEndpoint != null) {
+        get("/users/{username}${ActorUrls.HEADER_PATH}") {
+            val response = actorHeaderEndpoint.get(username = call.parameters["username"], version = call.request.queryParameters["v"])
+            call.respondEndpoint(response)
+        }
+    }
 
     remoteImageProxyRoutes(federation.remoteImageProxy)
     val noteImageFiles = federation.noteImageFiles

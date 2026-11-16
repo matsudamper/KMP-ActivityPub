@@ -1,13 +1,19 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.tooling.preview.Preview
+import net.matsudamper.kmp.activitypub.frontend.screen.ProfileEditDialogFrame
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
 @Preview
@@ -16,11 +22,16 @@ private fun ProfileEditContentPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Loaded(
                     iconPreview = null,
                     iconLoadingVisible = false,
                     currentIconUrl = null,
                     iconSelectButtonEnabled = true,
+                    headerPreview = null,
+                    headerLoadingVisible = false,
+                    currentHeaderUrl = null,
+                    headerSelectButtonEnabled = true,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -58,12 +69,56 @@ private fun ProfileEditContentPreview() {
     }
 }
 
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun ProfileEditContentDialogPreview() {
+    MaterialTheme {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            ProfileEditDialogFrame {
+                ProfileEditContent(
+                    uiState = ProfileEditScreenUiState(
+                        title = "プロフィールを編集",
+                        content = ProfileEditScreenUiState.Content.Loaded(
+                            iconPreview = null,
+                            iconLoadingVisible = false,
+                            currentIconUrl = null,
+                            iconSelectButtonEnabled = true,
+                            headerPreview = null,
+                            headerLoadingVisible = false,
+                            currentHeaderUrl = null,
+                            headerSelectButtonEnabled = true,
+                            displayName = "ユーザー1",
+                            displayNameInputEnabled = true,
+                            displayNameHasError = false,
+                            summary = "",
+                            summaryInputEnabled = true,
+                            summaryHasError = false,
+                            links = listOf(),
+                            addLinkButtonEnabled = true,
+                            likesPublic = false,
+                            likesPublicSwitchEnabled = true,
+                            saveButtonEnabled = true,
+                        ),
+                        backButtonEnabled = true,
+                        listener = AndroidPreviewProfileEditListener,
+                    ),
+                    snackbarHostState = SnackbarHostState(),
+                )
+            }
+        }
+    }
+}
+
 @Preview
 @Composable
 private fun ProfileEditContentErrorPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Error(message = "ネットワークエラー"),
                 backButtonEnabled = true,
                 listener = AndroidPreviewProfileEditListener,
@@ -79,6 +134,7 @@ private fun ProfileEditContentIconUploadingPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Loaded(
                     iconLoadingVisible = true,
                     iconPreview = ImageBitmap(width = 72, height = 72).apply {
@@ -86,6 +142,10 @@ private fun ProfileEditContentIconUploadingPreview() {
                     },
                     currentIconUrl = null,
                     iconSelectButtonEnabled = false,
+                    headerPreview = null,
+                    headerLoadingVisible = false,
+                    currentHeaderUrl = null,
+                    headerSelectButtonEnabled = false,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -106,10 +166,80 @@ private fun ProfileEditContentIconUploadingPreview() {
     }
 }
 
+@Preview
+@Composable
+private fun ProfileEditContentHeaderUploadingPreview() {
+    MaterialTheme {
+        ProfileEditContent(
+            uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
+                content = ProfileEditScreenUiState.Content.Loaded(
+                    iconLoadingVisible = false,
+                    iconPreview = null,
+                    currentIconUrl = null,
+                    iconSelectButtonEnabled = false,
+                    headerPreview = ImageBitmap(width = 300, height = 100).apply {
+                        Canvas(this).drawRect(0f, 0f, 300f, 100f, Paint().apply { color = Color(0xFFD98C4A) })
+                    },
+                    headerLoadingVisible = true,
+                    currentHeaderUrl = null,
+                    headerSelectButtonEnabled = false,
+                    displayName = "ユーザー1",
+                    displayNameInputEnabled = true,
+                    displayNameHasError = false,
+                    summary = "",
+                    summaryInputEnabled = true,
+                    summaryHasError = false,
+                    links = listOf(),
+                    addLinkButtonEnabled = true,
+                    likesPublic = false,
+                    likesPublicSwitchEnabled = true,
+                    saveButtonEnabled = false,
+                ),
+                backButtonEnabled = false,
+                listener = AndroidPreviewProfileEditListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ProfileEditContentHeaderCropPreview() {
+    MaterialTheme {
+        ProfileEditContent(
+            uiState = ProfileEditScreenUiState(
+                title = "ヘッダーの範囲を選ぶ",
+                content = ProfileEditScreenUiState.Content.HeaderCrop(
+                    image = ImageBitmap(width = 300, height = 400).apply {
+                        val canvas = Canvas(this)
+                        canvas.drawRect(0f, 0f, 300f, 200f, Paint().apply { color = Color(0xFF4A90D9) })
+                        canvas.drawRect(0f, 200f, 300f, 400f, Paint().apply { color = Color(0xFFD98C4A) })
+                    },
+                    cropTopRatio = 0.5f,
+                    cropHeightRatio = 0.25f,
+                ),
+                backButtonEnabled = true,
+                listener = AndroidPreviewProfileEditListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.Listener {
     override fun onClickSelectIcon() = Unit
 
     override fun onIconPicked(file: PickedImageFile) = Unit
+
+    override fun onClickSelectHeader() = Unit
+
+    override fun onHeaderPicked(file: PickedImageFile) = Unit
+
+    override fun onHeaderCropMoved(cropTopRatio: Float) = Unit
+
+    override fun onClickHeaderCropConfirm() = Unit
 
     override fun onDisplayNameChanged(text: String) = Unit
 
