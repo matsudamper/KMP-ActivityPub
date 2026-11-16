@@ -597,6 +597,7 @@ private fun StampEmoji(
 /**
  * 数が届く前と後で投稿の高さが変わらないよう、お気に入りが 0 件でも行ごと出しておく。
  * 数の桁で隣が動かないよう、操作ごとに同じ幅を取る
+ * 数の有無でアイコンが動かないよう、アイコンは操作の幅の真ん中に置き、数は右半分に出す
  */
 @Composable
 private fun PostActions(
@@ -622,6 +623,7 @@ private fun PostActions(
                 modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
                 contentPadding = ActionButtonContentPadding,
             ) {
+                Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     imageVector = AppIcons.Reply,
                     contentDescription = "リプライ",
@@ -630,7 +632,7 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.replyCountText.orEmpty(),
-                    modifier = Modifier.padding(start = 4.dp),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
@@ -653,6 +655,7 @@ private fun PostActions(
                         ),
                     contentPadding = ActionButtonContentPadding,
                 ) {
+                    Spacer(modifier = Modifier.weight(1f))
                     Icon(
                         imageVector = AppIcons.Repeat,
                         contentDescription = "ブースト",
@@ -665,7 +668,7 @@ private fun PostActions(
                     )
                     Text(
                         text = uiState.boostCountText.orEmpty(),
-                        modifier = Modifier.padding(start = 4.dp),
+                        modifier = Modifier.padding(start = 4.dp).weight(1f),
                         style = sizes.countTextStyle,
                         color = iconColor,
                         maxLines = 1,
@@ -685,6 +688,7 @@ private fun PostActions(
                 modifier = Modifier.weight(1f, fill = false).width(sizes.actionSlotWidth),
                 contentPadding = ActionButtonContentPadding,
             ) {
+                Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     imageVector = AppIcons.Star,
                     contentDescription = "お気に入り",
@@ -693,7 +697,7 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.favouriteCountText.orEmpty(),
-                    modifier = Modifier.padding(start = 4.dp),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
@@ -736,7 +740,8 @@ private fun PostActions(
     }
 }
 
-private val ActionButtonContentPadding = PaddingValues(horizontal = 8.dp)
+// 数を出す右半分の幅を確保するため、左右の余白を取らない
+private val ActionButtonContentPadding = PaddingValues(horizontal = 0.dp)
 
 internal val FavouriteHighlightedColor = Color(0xFFF5B400)
 
