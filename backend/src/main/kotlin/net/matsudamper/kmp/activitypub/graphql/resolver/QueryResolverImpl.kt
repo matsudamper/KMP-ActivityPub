@@ -242,7 +242,10 @@ class QueryResolverImpl : QueryResolver {
             val result = accountId?.let { viewer ->
                 val page = diContainer.postSearchService.search(viewer = viewer, query = query, cursor = cursor)
                 QlPostSearchResult(
-                    posts = page.posts.toQlTimelinePosts(diContainer),
+                    // 他の人の投稿も見つかるので、消したり固定したりできるのは見ているアカウントの投稿だけにする
+                    posts = page.posts.zip(page.posts.toQlTimelinePosts(diContainer)) { post, mapped ->
+                        if (diContainer.viewablePostService.isOwnedByViewer(viewer, post)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+                    },
                     nextCursor = page.nextCursor?.encode(),
                 )
             }
