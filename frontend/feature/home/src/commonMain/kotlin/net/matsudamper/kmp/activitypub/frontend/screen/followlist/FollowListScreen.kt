@@ -63,8 +63,8 @@ internal fun FollowListScreen(
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
             object : FollowListScreenViewModel.Event {
-                override fun closeToHome() {
-                    navigator.closeToHome()
+                override fun navigateBack() {
+                    navigator.back()
                 }
 
                 override fun navigateToUserProfile(username: String) {
@@ -94,10 +94,10 @@ internal fun FollowListContent(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = uiState.listener::onClickClose) {
+                IconButton(onClick = uiState.listener::onClickBack) {
                     Icon(
-                        imageVector = AppIcons.Close,
-                        contentDescription = "閉じる",
+                        imageVector = AppIcons.ArrowBack,
+                        contentDescription = "戻る",
                     )
                 }
                 Text(

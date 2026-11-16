@@ -60,7 +60,7 @@ data class FollowListScreenUiState(
 
     @Immutable
     interface Listener {
-        fun onClickClose()
+        fun onClickBack()
 
         fun onClickRetry()
 

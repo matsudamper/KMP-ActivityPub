@@ -51,6 +51,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateStatus
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginGateViewModel
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginRequestContent
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.postdetail.PostDetailLayout
@@ -282,11 +283,22 @@ private fun ScreenContent(
         }
 
         Screen.Post -> {
-            PostScreen(target = PostScreenTarget.NewNote, onNavigateBack = navigator::back, onClose = navigator::closeToHome)
+            // ホームからしか開かないので、閉じるのと戻るのが同じになる
+            PostScreen(
+                target = PostScreenTarget.NewNote,
+                navigationIcon = PostNavigationIcon.Back,
+                onNavigateBack = navigator::back,
+                onClose = navigator::back,
+            )
         }
 
         is Screen.QuotePost -> {
-            PostScreen(target = PostScreenTarget.Quote(postId = screen.postId), onNavigateBack = navigator::back, onClose = navigator::closeToHome)
+            PostScreen(
+                target = PostScreenTarget.Quote(postId = screen.postId),
+                navigationIcon = PostNavigationIcon.Close,
+                onNavigateBack = navigator::back,
+                onClose = navigator::closeToHome,
+            )
         }
 
         Screen.Settings -> {

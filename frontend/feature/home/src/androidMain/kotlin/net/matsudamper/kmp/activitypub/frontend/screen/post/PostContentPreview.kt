@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
+            navigationIcon = PostNavigationIcon.Back,
             uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null),
             snackbarHostState = SnackbarHostState(),
         )
@@ -32,6 +33,7 @@ private fun PostContentPreview() {
 private fun PostContentQuotePreview() {
     PostPreviewTheme {
         PostContent(
+            navigationIcon = PostNavigationIcon.Back,
             uiState = previewUiState(
                 images = listOf(),
                 addImageLoadingVisible = false,
@@ -53,6 +55,7 @@ private fun PostContentQuotePreview() {
 private fun PostContentImagesPreview() {
     PostPreviewTheme {
         PostContent(
+            navigationIcon = PostNavigationIcon.Back,
             uiState = previewUiState(
                 images = List(3) {
                     PostScreenUiState.Image(

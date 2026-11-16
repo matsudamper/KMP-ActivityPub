@@ -53,6 +53,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 internal fun PostScreen(
     target: PostScreenTarget,
+    navigationIcon: PostNavigationIcon,
     onNavigateBack: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -63,7 +64,7 @@ internal fun PostScreen(
         onClose = onClose,
         snackbarHostState = snackbarHostState,
     )
-    PostContentWithImageInput(uiState = uiState, snackbarHostState = snackbarHostState)
+    PostContentWithImageInput(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
 }
 
 /**
@@ -114,6 +115,7 @@ internal fun rememberPostScreenUiState(
 @Composable
 internal fun PostContentWithImageInput(
     uiState: PostScreenUiState,
+    navigationIcon: PostNavigationIcon,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
@@ -122,13 +124,22 @@ internal fun PostContentWithImageInput(
         onDrop = uiState.listener::onImagePicked,
         modifier = modifier.fillMaxSize(),
     ) {
-        PostContent(uiState = uiState, snackbarHostState = snackbarHostState)
+        PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
     }
+}
+
+/**
+ * 押すと前の画面に戻るだけなら戻る、重ねた画面やカラムを閉じるなら閉じる
+ */
+internal enum class PostNavigationIcon {
+    Back,
+    Close,
 }
 
 @Composable
 internal fun PostContent(
     uiState: PostScreenUiState,
+    navigationIcon: PostNavigationIcon,
     snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
@@ -144,10 +155,17 @@ internal fun PostContent(
                     onClick = uiState.listener::onClickClose,
                     enabled = uiState.closeButtonEnabled,
                 ) {
-                    Icon(
-                        imageVector = AppIcons.Close,
-                        contentDescription = "投稿を閉じる",
-                    )
+                    when (navigationIcon) {
+                        PostNavigationIcon.Back -> Icon(
+                            imageVector = AppIcons.ArrowBack,
+                            contentDescription = "戻る",
+                        )
+
+                        PostNavigationIcon.Close -> Icon(
+                            imageVector = AppIcons.Close,
+                            contentDescription = "投稿を閉じる",
+                        )
+                    }
                 }
                 Text(
                     text = "投稿",

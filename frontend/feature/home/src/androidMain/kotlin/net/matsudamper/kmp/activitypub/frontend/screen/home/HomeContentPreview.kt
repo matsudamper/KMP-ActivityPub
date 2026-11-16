@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
@@ -785,6 +786,7 @@ private fun HomeColumnsPreview(
             postColumn = { modifier ->
                 Box(modifier = modifier) {
                     PostContent(
+                        navigationIcon = PostNavigationIcon.Close,
                         uiState = PostScreenUiState(
                             body = "",
                             inputHasError = false,

@@ -61,7 +61,7 @@ private fun ProfileEditContentPreview() {
                     likesPublicSwitchEnabled = true,
                     saveButtonEnabled = true,
                 ),
-                closeButtonEnabled = true,
+                backButtonEnabled = true,
                 listener = AndroidPreviewProfileEditListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -102,7 +102,7 @@ private fun ProfileEditContentDialogPreview() {
                             likesPublicSwitchEnabled = true,
                             saveButtonEnabled = true,
                         ),
-                        closeButtonEnabled = true,
+                        backButtonEnabled = true,
                         listener = AndroidPreviewProfileEditListener,
                     ),
                     snackbarHostState = SnackbarHostState(),
@@ -120,7 +120,7 @@ private fun ProfileEditContentErrorPreview() {
             uiState = ProfileEditScreenUiState(
                 title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Error(message = "ネットワークエラー"),
-                closeButtonEnabled = true,
+                backButtonEnabled = true,
                 listener = AndroidPreviewProfileEditListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -158,7 +158,7 @@ private fun ProfileEditContentIconUploadingPreview() {
                     likesPublicSwitchEnabled = true,
                     saveButtonEnabled = false,
                 ),
-                closeButtonEnabled = false,
+                backButtonEnabled = false,
                 listener = AndroidPreviewProfileEditListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -196,7 +196,7 @@ private fun ProfileEditContentHeaderUploadingPreview() {
                     likesPublicSwitchEnabled = true,
                     saveButtonEnabled = false,
                 ),
-                closeButtonEnabled = false,
+                backButtonEnabled = false,
                 listener = AndroidPreviewProfileEditListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -220,7 +220,7 @@ private fun ProfileEditContentHeaderCropPreview() {
                     cropTopRatio = 0.5f,
                     cropHeightRatio = 0.25f,
                 ),
-                closeButtonEnabled = true,
+                backButtonEnabled = true,
                 listener = AndroidPreviewProfileEditListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -265,5 +265,5 @@ private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.List
 
     override fun onClickRetry() = Unit
 
-    override fun onClickClose() = Unit
+    override fun onClickBack() = Unit
 }

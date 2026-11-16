@@ -102,7 +102,7 @@ private fun FollowListPreviewTheme(content: @Composable () -> Unit) {
 }
 
 private object AndroidPreviewFollowListListener : FollowListScreenUiState.Listener {
-    override fun onClickClose() = Unit
+    override fun onClickBack() = Unit
 
     override fun onClickRetry() = Unit
 

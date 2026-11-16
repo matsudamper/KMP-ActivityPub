@@ -84,9 +84,9 @@ internal class SettingsScreenViewModel(
                 }
             }
 
-            override fun onClickClose() {
+            override fun onClickBack() {
                 viewModelScope.launch {
-                    events.send { it.closeToHome() }
+                    events.send { it.navigateBack() }
                 }
             }
 
@@ -202,7 +202,7 @@ internal class SettingsScreenViewModel(
     }
 
     internal interface Event {
-        fun closeToHome()
+        fun navigateBack()
 
         fun navigateToSecurity()
 

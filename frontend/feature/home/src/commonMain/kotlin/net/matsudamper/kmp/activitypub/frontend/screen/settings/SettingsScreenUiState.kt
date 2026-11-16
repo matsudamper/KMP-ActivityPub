@@ -37,7 +37,7 @@ data class SettingsScreenUiState(
 
         fun onClickGitHubRelease()
 
-        fun onClickClose()
+        fun onClickBack()
 
         fun onClickLogout()
     }
