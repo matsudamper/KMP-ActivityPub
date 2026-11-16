@@ -4,7 +4,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
+/**
+ * @param title 上のバーに出す。ヘッダーの範囲を選んでいる間は変わる
+ */
 data class ProfileEditScreenUiState(
+    val title: String,
     val content: Content,
     val backButtonEnabled: Boolean,
     val listener: Listener,
@@ -21,7 +25,6 @@ data class ProfileEditScreenUiState(
          * @param currentIconUrl 保存済みのプロフィール画像。未設定なら null
          * @param headerPreview 選んで送った（送っている）ヘッダー。あれば [currentHeaderUrl] より優先して出す
          * @param currentHeaderUrl 保存済みのヘッダー。未設定なら null
-         * @param headerCropDialog 選んだ画像が縦に長く、使う範囲を選んでいる間だけ出す
          */
         data class Loaded(
             val iconPreview: ImageBitmap?,
@@ -32,7 +35,6 @@ data class ProfileEditScreenUiState(
             val headerLoadingVisible: Boolean,
             val currentHeaderUrl: String?,
             val headerSelectButtonEnabled: Boolean,
-            val headerCropDialog: HeaderCropDialog?,
             val displayName: String,
             val displayNameInputEnabled: Boolean,
             val displayNameHasError: Boolean,
@@ -45,18 +47,20 @@ data class ProfileEditScreenUiState(
             val likesPublicSwitchEnabled: Boolean,
             val saveButtonEnabled: Boolean,
         ) : Content
-    }
 
-    /**
-     * @param image 横幅をヘッダーに合わせた画像。縦は切らずに全部出す
-     * @param cropTopRatio 選んでいる範囲の位置。0 で一番上、1 で一番下
-     * @param cropHeightRatio 選んでいる範囲の高さの、[image] の高さに対する割合
-     */
-    data class HeaderCropDialog(
-        val image: ImageBitmap,
-        val cropTopRatio: Float,
-        val cropHeightRatio: Float,
-    )
+        /**
+         * 選んだ画像が縦に長く、ヘッダーに使う範囲を選んでいる間。戻ると選ばずに編集に戻る
+         *
+         * @param image 横幅をヘッダーに合わせた画像。縦は切らずに全部出す
+         * @param cropTopRatio 選んでいる範囲の位置。0 で一番上、1 で一番下
+         * @param cropHeightRatio 選んでいる範囲の高さの、[image] の高さに対する割合
+         */
+        data class HeaderCrop(
+            val image: ImageBitmap,
+            val cropTopRatio: Float,
+            val cropHeightRatio: Float,
+        ) : Content
+    }
 
     /**
      * @param title カードの見出し。何件目かを出す
@@ -81,13 +85,11 @@ data class ProfileEditScreenUiState(
         fun onHeaderPicked(file: PickedImageFile)
 
         /**
-         * @param cropTopRatio [HeaderCropDialog.cropTopRatio] と同じ。範囲の外の値も渡してよい
+         * @param cropTopRatio [Content.HeaderCrop.cropTopRatio] と同じ。範囲の外の値も渡してよい
          */
         fun onHeaderCropMoved(cropTopRatio: Float)
 
         fun onClickHeaderCropConfirm()
-
-        fun onClickHeaderCropCancel()
 
         fun onDisplayNameChanged(text: String)
 

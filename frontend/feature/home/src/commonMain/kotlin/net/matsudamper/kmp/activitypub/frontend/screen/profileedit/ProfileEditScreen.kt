@@ -47,6 +47,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
@@ -92,6 +95,12 @@ internal fun ProfileEditScreen(
         )
     }
 
+    // 範囲を選んでいる間の戻る操作は、画面を閉じずに編集に戻す
+    NavigationBackHandler(
+        state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+        isBackEnabled = uiState.content is ProfileEditScreenUiState.Content.HeaderCrop,
+        onBackCompleted = uiState.listener::onClickBack,
+    )
     ProfileEditContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
@@ -119,7 +128,7 @@ internal fun ProfileEditContent(
                     )
                 }
                 Text(
-                    text = "プロフィールを編集",
+                    text = uiState.title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -154,6 +163,13 @@ internal fun ProfileEditContent(
                         listener = uiState.listener,
                     )
                 }
+
+                is ProfileEditScreenUiState.Content.HeaderCrop -> {
+                    HeaderCropContent(
+                        content = content,
+                        listener = uiState.listener,
+                    )
+                }
             }
         }
     }
@@ -164,10 +180,6 @@ private fun LoadedContent(
     content: ProfileEditScreenUiState.Content.Loaded,
     listener: ProfileEditScreenUiState.Listener,
 ) {
-    val headerCropDialog = content.headerCropDialog
-    if (headerCropDialog != null) {
-        HeaderCropDialog(dialog = headerCropDialog, listener = listener)
-    }
     Column(
         modifier = Modifier
             .fillMaxSize()

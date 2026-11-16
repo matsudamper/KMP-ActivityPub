@@ -22,6 +22,7 @@ private fun ProfileEditContentPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Loaded(
                     iconPreview = null,
                     iconLoadingVisible = false,
@@ -31,7 +32,6 @@ private fun ProfileEditContentPreview() {
                     headerLoadingVisible = false,
                     currentHeaderUrl = null,
                     headerSelectButtonEnabled = true,
-                    headerCropDialog = null,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -80,6 +80,7 @@ private fun ProfileEditContentDialogPreview() {
             ProfileEditDialogFrame {
                 ProfileEditContent(
                     uiState = ProfileEditScreenUiState(
+                        title = "プロフィールを編集",
                         content = ProfileEditScreenUiState.Content.Loaded(
                             iconPreview = null,
                             iconLoadingVisible = false,
@@ -89,7 +90,6 @@ private fun ProfileEditContentDialogPreview() {
                             headerLoadingVisible = false,
                             currentHeaderUrl = null,
                             headerSelectButtonEnabled = true,
-                            headerCropDialog = null,
                             displayName = "ユーザー1",
                             displayNameInputEnabled = true,
                             displayNameHasError = false,
@@ -118,6 +118,7 @@ private fun ProfileEditContentErrorPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Error(message = "ネットワークエラー"),
                 backButtonEnabled = true,
                 listener = AndroidPreviewProfileEditListener,
@@ -133,6 +134,7 @@ private fun ProfileEditContentIconUploadingPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Loaded(
                     iconLoadingVisible = true,
                     iconPreview = ImageBitmap(width = 72, height = 72).apply {
@@ -144,7 +146,6 @@ private fun ProfileEditContentIconUploadingPreview() {
                     headerLoadingVisible = false,
                     currentHeaderUrl = null,
                     headerSelectButtonEnabled = false,
-                    headerCropDialog = null,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -171,6 +172,7 @@ private fun ProfileEditContentHeaderUploadingPreview() {
     MaterialTheme {
         ProfileEditContent(
             uiState = ProfileEditScreenUiState(
+                title = "プロフィールを編集",
                 content = ProfileEditScreenUiState.Content.Loaded(
                     iconLoadingVisible = false,
                     iconPreview = null,
@@ -182,7 +184,6 @@ private fun ProfileEditContentHeaderUploadingPreview() {
                     headerLoadingVisible = true,
                     currentHeaderUrl = null,
                     headerSelectButtonEnabled = false,
-                    headerCropDialog = null,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -205,19 +206,24 @@ private fun ProfileEditContentHeaderUploadingPreview() {
 
 @Preview
 @Composable
-private fun HeaderCropDialogContentPreview() {
+private fun ProfileEditContentHeaderCropPreview() {
     MaterialTheme {
-        HeaderCropDialogContent(
-            dialog = ProfileEditScreenUiState.HeaderCropDialog(
-                image = ImageBitmap(width = 300, height = 400).apply {
-                    val canvas = Canvas(this)
-                    canvas.drawRect(0f, 0f, 300f, 200f, Paint().apply { color = Color(0xFF4A90D9) })
-                    canvas.drawRect(0f, 200f, 300f, 400f, Paint().apply { color = Color(0xFFD98C4A) })
-                },
-                cropTopRatio = 0.5f,
-                cropHeightRatio = 0.25f,
+        ProfileEditContent(
+            uiState = ProfileEditScreenUiState(
+                title = "ヘッダーの範囲を選ぶ",
+                content = ProfileEditScreenUiState.Content.HeaderCrop(
+                    image = ImageBitmap(width = 300, height = 400).apply {
+                        val canvas = Canvas(this)
+                        canvas.drawRect(0f, 0f, 300f, 200f, Paint().apply { color = Color(0xFF4A90D9) })
+                        canvas.drawRect(0f, 200f, 300f, 400f, Paint().apply { color = Color(0xFFD98C4A) })
+                    },
+                    cropTopRatio = 0.5f,
+                    cropHeightRatio = 0.25f,
+                ),
+                backButtonEnabled = true,
+                listener = AndroidPreviewProfileEditListener,
             ),
-            listener = AndroidPreviewProfileEditListener,
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -234,8 +240,6 @@ private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.List
     override fun onHeaderCropMoved(cropTopRatio: Float) = Unit
 
     override fun onClickHeaderCropConfirm() = Unit
-
-    override fun onClickHeaderCropCancel() = Unit
 
     override fun onDisplayNameChanged(text: String) = Unit
 

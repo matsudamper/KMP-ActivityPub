@@ -78,12 +78,6 @@ internal class ProfileEditScreenViewModel(
                         confirmHeaderCrop()
                     }
 
-                    override fun onClickHeaderCropCancel() {
-                        viewModelStateFlow.update { state ->
-                            if (state is ViewModelState.Loaded) state.copy(headerCrop = null) else state
-                        }
-                    }
-
                     override fun onDisplayNameChanged(text: String) {
                         updateEditing { it.copy(displayName = text) }
                     }
@@ -137,6 +131,12 @@ internal class ProfileEditScreenViewModel(
                     }
 
                     override fun onClickBack() {
+                        // 範囲を選んでいる間の戻るは、選ばずに編集に戻る
+                        val state = viewModelStateFlow.value
+                        if (state is ViewModelState.Loaded && state.headerCrop != null) {
+                            viewModelStateFlow.value = state.copy(headerCrop = null)
+                            return
+                        }
                         // 保存中に閉じると、保存できたかどうかを画面に出せない
                         if (viewModelStateFlow.value.saving()) return
                         viewModelScope.launch {
@@ -450,55 +450,63 @@ internal class ProfileEditScreenViewModel(
         listener: ProfileEditScreenUiState.Listener,
     ): ProfileEditScreenUiState =
         ProfileEditScreenUiState(
+            title = if (viewModelState.headerCrop() == null) "プロフィールを編集" else "ヘッダーの範囲を選ぶ",
             content = when (viewModelState) {
                 ViewModelState.Loading -> ProfileEditScreenUiState.Content.Loading
-
                 is ViewModelState.Failed -> ProfileEditScreenUiState.Content.Error(viewModelState.message)
-
-                is ViewModelState.Loaded -> ProfileEditScreenUiState.Content.Loaded(
-                    iconPreview = viewModelState.iconPreview,
-                    iconLoadingVisible = viewModelState.processingIcon,
-                    currentIconUrl = viewModelState.currentIconUrl,
-                    iconSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
-                    headerPreview = viewModelState.headerPreview,
-                    headerLoadingVisible = viewModelState.processingHeader,
-                    currentHeaderUrl = viewModelState.currentHeaderUrl,
-                    headerSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
-                    headerCropDialog = viewModelState.headerCrop?.let { headerCrop ->
-                        ProfileEditScreenUiState.HeaderCropDialog(
-                            image = headerCrop.source,
-                            cropTopRatio = headerCrop.topRatio,
-                            cropHeightRatio = headerCrop.source.headerCropHeight().toFloat() / headerCrop.source.height,
-                        )
-                    },
-                    displayName = viewModelState.displayName,
-                    displayNameInputEnabled = viewModelState.saving.not(),
-                    displayNameHasError = viewModelState.errorField == ErrorField.DisplayName,
-                    summary = viewModelState.summary,
-                    summaryInputEnabled = viewModelState.saving.not(),
-                    summaryHasError = viewModelState.errorField == ErrorField.Summary,
-                    links = viewModelState.links.mapIndexed { index, link ->
-                        ProfileEditScreenUiState.Link(
-                            title = "リンク ${index + 1}",
-                            name = link.name,
-                            url = link.url,
-                            inputEnabled = viewModelState.saving.not(),
-                            hasError = viewModelState.errorField == ErrorField.Links,
-                            removeButtonEnabled = viewModelState.saving.not(),
-                        )
-                    },
-                    addLinkButtonEnabled = viewModelState.saving.not() && viewModelState.links.size < MAX_LINK_COUNT,
-                    likesPublic = viewModelState.likesPublic,
-                    likesPublicSwitchEnabled = viewModelState.saving.not(),
-                    saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
-                )
+                is ViewModelState.Loaded -> createLoadedContent(viewModelState)
             },
-            // 画像を送っている途中で閉じると送信が止まる
-            backButtonEnabled = viewModelState.saving().not() && viewModelState.processingImage().not(),
+            // 画像を送っている途中で閉じると送信が止まる。範囲を選んでいる間は、戻ると編集に戻る
+            backButtonEnabled = viewModelState.saving().not() && viewModelState.sendingImage().not(),
             listener = listener,
         )
 
+    private fun createLoadedContent(viewModelState: ViewModelState.Loaded): ProfileEditScreenUiState.Content {
+        val headerCrop = viewModelState.headerCrop
+        if (headerCrop != null) {
+            return ProfileEditScreenUiState.Content.HeaderCrop(
+                image = headerCrop.source,
+                cropTopRatio = headerCrop.topRatio,
+                cropHeightRatio = headerCrop.source.headerCropHeight().toFloat() / headerCrop.source.height,
+            )
+        }
+        return ProfileEditScreenUiState.Content.Loaded(
+            iconPreview = viewModelState.iconPreview,
+            iconLoadingVisible = viewModelState.processingIcon,
+            currentIconUrl = viewModelState.currentIconUrl,
+            iconSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
+            headerPreview = viewModelState.headerPreview,
+            headerLoadingVisible = viewModelState.processingHeader,
+            currentHeaderUrl = viewModelState.currentHeaderUrl,
+            headerSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
+            displayName = viewModelState.displayName,
+            displayNameInputEnabled = viewModelState.saving.not(),
+            displayNameHasError = viewModelState.errorField == ErrorField.DisplayName,
+            summary = viewModelState.summary,
+            summaryInputEnabled = viewModelState.saving.not(),
+            summaryHasError = viewModelState.errorField == ErrorField.Summary,
+            links = viewModelState.links.mapIndexed { index, link ->
+                ProfileEditScreenUiState.Link(
+                    title = "リンク ${index + 1}",
+                    name = link.name,
+                    url = link.url,
+                    inputEnabled = viewModelState.saving.not(),
+                    hasError = viewModelState.errorField == ErrorField.Links,
+                    removeButtonEnabled = viewModelState.saving.not(),
+                )
+            },
+            addLinkButtonEnabled = viewModelState.saving.not() && viewModelState.links.size < MAX_LINK_COUNT,
+            likesPublic = viewModelState.likesPublic,
+            likesPublicSwitchEnabled = viewModelState.saving.not(),
+            saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
+        )
+    }
+
     private fun ViewModelState.saving(): Boolean = this is ViewModelState.Loaded && saving
+
+    private fun ViewModelState.headerCrop(): HeaderCrop? = (this as? ViewModelState.Loaded)?.headerCrop
+
+    private fun ViewModelState.sendingImage(): Boolean = this is ViewModelState.Loaded && (processingIcon || processingHeader)
 
     /**
      * プロフィール画像とヘッダーは同時に送らない。どちらの Update も Actor の全体を載せるので、後から積んだ方が先の画像を古い値に戻す。
