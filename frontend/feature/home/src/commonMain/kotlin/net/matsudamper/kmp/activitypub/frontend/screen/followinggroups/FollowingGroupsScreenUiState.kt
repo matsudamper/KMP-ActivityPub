@@ -41,6 +41,6 @@ data class FollowingGroupsScreenUiState(
 
     @Immutable
     interface Listener {
-        fun onClickBack()
+        fun onClickClose()
     }
 }

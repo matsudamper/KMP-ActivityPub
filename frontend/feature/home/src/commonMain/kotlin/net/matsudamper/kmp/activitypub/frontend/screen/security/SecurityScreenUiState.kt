@@ -81,6 +81,6 @@ data class SecurityScreenUiState(
 
         fun onDismissDeletePasswordDialog()
 
-        fun onClickBack()
+        fun onClickClose()
     }
 }

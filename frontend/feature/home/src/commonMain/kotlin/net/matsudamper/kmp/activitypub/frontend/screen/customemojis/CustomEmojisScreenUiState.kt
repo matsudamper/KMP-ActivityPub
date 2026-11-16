@@ -58,7 +58,7 @@ data class CustomEmojisScreenUiState(
 
     @Immutable
     interface Listener {
-        fun onClickBack()
+        fun onClickClose()
 
         fun onChangeShortcodeInput(value: String)
 

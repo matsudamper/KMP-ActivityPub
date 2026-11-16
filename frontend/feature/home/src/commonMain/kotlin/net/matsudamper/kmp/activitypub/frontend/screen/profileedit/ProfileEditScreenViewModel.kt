@@ -130,7 +130,7 @@ internal class ProfileEditScreenViewModel(
                         load()
                     }
 
-                    override fun onClickBack() {
+                    override fun onClickClose() {
                         // 範囲を選んでいる間の戻るは、選ばずに編集に戻る
                         val state = viewModelStateFlow.value
                         if (state is ViewModelState.Loaded && state.headerCrop != null) {
@@ -140,7 +140,7 @@ internal class ProfileEditScreenViewModel(
                         // 保存中に閉じると、保存できたかどうかを画面に出せない
                         if (viewModelStateFlow.value.saving()) return
                         viewModelScope.launch {
-                            events.send { it.navigateBack() }
+                            events.send { it.closeToHome() }
                         }
                     }
                 },
@@ -457,7 +457,7 @@ internal class ProfileEditScreenViewModel(
                 is ViewModelState.Loaded -> createLoadedContent(viewModelState)
             },
             // 画像を送っている途中で閉じると送信が止まる。範囲を選んでいる間は、戻ると編集に戻る
-            backButtonEnabled = viewModelState.saving().not() && viewModelState.sendingImage().not(),
+            closeButtonEnabled = viewModelState.saving().not() && viewModelState.sendingImage().not(),
             listener = listener,
         )
 
@@ -574,6 +574,8 @@ internal class ProfileEditScreenViewModel(
         fun openHeaderImagePicker()
 
         fun navigateBack()
+
+        fun closeToHome()
 
         fun showMessage(message: String)
     }

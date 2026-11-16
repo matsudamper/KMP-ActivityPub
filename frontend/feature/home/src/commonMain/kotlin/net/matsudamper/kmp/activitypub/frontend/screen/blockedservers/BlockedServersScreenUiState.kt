@@ -44,7 +44,7 @@ data class BlockedServersScreenUiState(
 
     @Immutable
     interface Listener {
-        fun onClickBack()
+        fun onClickClose()
 
         fun onChangeServerInput(value: String)
 

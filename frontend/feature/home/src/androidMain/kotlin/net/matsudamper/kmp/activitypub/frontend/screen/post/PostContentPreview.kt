@@ -22,7 +22,6 @@ private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
             uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null),
-            navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -44,7 +43,6 @@ private fun PostContentQuotePreview() {
                     listener = null,
                 ),
             ),
-            navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -66,7 +64,6 @@ private fun PostContentImagesPreview() {
                 addImageLoadingVisible = true,
                 quote = null,
             ),
-            navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -81,7 +78,7 @@ private fun previewUiState(
         body = "Kotlin 2.4 がリリースされました",
         inputHasError = false,
         inputEnabled = true,
-        backButtonEnabled = true,
+        closeButtonEnabled = true,
         postButtonEnabled = true,
         images = images,
         quote = quote,
@@ -112,7 +109,7 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
 
     override fun onPressPostShortcut() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 }
 
 private object AndroidPreviewImageListener : PostScreenUiState.ImageListener {

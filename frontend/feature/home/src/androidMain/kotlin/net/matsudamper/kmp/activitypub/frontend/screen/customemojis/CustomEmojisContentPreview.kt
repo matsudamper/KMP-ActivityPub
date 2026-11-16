@@ -63,7 +63,7 @@ private object AndroidPreviewDeleteButtonListener : CustomEmojisScreenUiState.De
 }
 
 private object AndroidPreviewListener : CustomEmojisScreenUiState.Listener {
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 
     override fun onChangeShortcodeInput(value: String) = Unit
 

@@ -78,11 +78,11 @@ internal class PostScreenViewModel(
                         post()
                     }
 
-                    override fun onClickBack() {
+                    override fun onClickClose() {
                         // 送信中に閉じると、投稿できたかどうかを画面に出せない
                         if (viewModelStateFlow.value.submitting) return
                         viewModelScope.launch {
-                            events.send { it.navigateBack() }
+                            events.send { it.closeToHome() }
                         }
                     }
                 },
@@ -259,7 +259,7 @@ internal class PostScreenViewModel(
             body = viewModelState.body,
             inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
-            backButtonEnabled = viewModelState.submitting.not(),
+            closeButtonEnabled = viewModelState.submitting.not(),
             postButtonEnabled = viewModelState.postable(),
             images =
             viewModelState.images.map { selected ->
@@ -327,6 +327,8 @@ internal class PostScreenViewModel(
 
     internal interface Event {
         fun navigateBack()
+
+        fun closeToHome()
 
         fun openImagePicker()
 

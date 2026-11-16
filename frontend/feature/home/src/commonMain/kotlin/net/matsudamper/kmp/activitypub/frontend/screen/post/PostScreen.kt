@@ -53,16 +53,17 @@ import org.koin.core.parameter.parametersOf
 @Composable
 internal fun PostScreen(
     target: PostScreenTarget,
-    navigationIcon: PostNavigationIcon,
     onNavigateBack: () -> Unit,
+    onClose: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val uiState = rememberPostScreenUiState(
         target = target,
         onNavigateBack = onNavigateBack,
+        onClose = onClose,
         snackbarHostState = snackbarHostState,
     )
-    PostContentWithImageInput(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+    PostContentWithImageInput(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
 /**
@@ -73,6 +74,7 @@ internal fun PostScreen(
 internal fun rememberPostScreenUiState(
     target: PostScreenTarget,
     onNavigateBack: () -> Unit,
+    onClose: () -> Unit,
     snackbarHostState: SnackbarHostState,
 ): PostScreenUiState {
     val viewModel = koinViewModel<PostScreenViewModel> { parametersOf(target) }
@@ -80,12 +82,17 @@ internal fun rememberPostScreenUiState(
     val coroutineScope = rememberCoroutineScope()
     val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
     val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
+    val currentOnClose by rememberUpdatedState(onClose)
 
     LaunchedEffect(viewModel.eventHandler, pickImage, snackbarHostState) {
         viewModel.eventHandler.collect(
             object : PostScreenViewModel.Event {
                 override fun navigateBack() {
                     currentOnNavigateBack()
+                }
+
+                override fun closeToHome() {
+                    currentOnClose()
                 }
 
                 override fun openImagePicker() {
@@ -107,7 +114,6 @@ internal fun rememberPostScreenUiState(
 @Composable
 internal fun PostContentWithImageInput(
     uiState: PostScreenUiState,
-    navigationIcon: PostNavigationIcon,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
@@ -116,22 +122,13 @@ internal fun PostContentWithImageInput(
         onDrop = uiState.listener::onImagePicked,
         modifier = modifier.fillMaxSize(),
     ) {
-        PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
+        PostContent(uiState = uiState, snackbarHostState = snackbarHostState)
     }
-}
-
-/**
- * 画面として開いたときは戻る、カラムとして開いたときは閉じる
- */
-internal enum class PostNavigationIcon {
-    Back,
-    Close,
 }
 
 @Composable
 internal fun PostContent(
     uiState: PostScreenUiState,
-    navigationIcon: PostNavigationIcon,
     snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
@@ -144,20 +141,13 @@ internal fun PostContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
-                    onClick = uiState.listener::onClickBack,
-                    enabled = uiState.backButtonEnabled,
+                    onClick = uiState.listener::onClickClose,
+                    enabled = uiState.closeButtonEnabled,
                 ) {
-                    when (navigationIcon) {
-                        PostNavigationIcon.Back -> Icon(
-                            imageVector = AppIcons.ArrowBack,
-                            contentDescription = "戻る",
-                        )
-
-                        PostNavigationIcon.Close -> Icon(
-                            imageVector = AppIcons.Close,
-                            contentDescription = "投稿を閉じる",
-                        )
-                    }
+                    Icon(
+                        imageVector = AppIcons.Close,
+                        contentDescription = "投稿を閉じる",
+                    )
                 }
                 Text(
                     text = "投稿",

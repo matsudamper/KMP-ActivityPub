@@ -67,7 +67,7 @@ private object AndroidPreviewServerListener : BlockedServersScreenUiState.Server
 }
 
 private object AndroidPreviewBlockedServersListener : BlockedServersScreenUiState.Listener {
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 
     override fun onChangeServerInput(value: String) = Unit
 

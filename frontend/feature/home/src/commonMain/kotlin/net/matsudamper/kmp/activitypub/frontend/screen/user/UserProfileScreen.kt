@@ -91,8 +91,8 @@ internal fun UserProfileScreen(
     )
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(object : UserProfileScreenViewModel.Event {
-            override fun navigateBack() {
-                navigator.back()
+            override fun closeToHome() {
+                navigator.closeToHome()
             }
 
             override fun showMessage(message: String) {
@@ -140,8 +140,8 @@ internal fun UserProfileContent(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = uiState.listener::onClickBack) {
-                    Icon(imageVector = AppIcons.ArrowBack, contentDescription = "戻る")
+                IconButton(onClick = uiState.listener::onClickClose) {
+                    Icon(imageVector = AppIcons.Close, contentDescription = "閉じる")
                 }
                 Text(
                     text = "プロフィール",

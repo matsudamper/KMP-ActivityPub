@@ -35,9 +35,9 @@ internal class AdminScreenViewModel(
 
     private val listener =
         object : AdminScreenUiState.Listener {
-            override fun onClickBack() {
+            override fun onClickClose() {
                 viewModelScope.launch {
-                    events.send { it.navigateBack() }
+                    events.send { it.closeToHome() }
                 }
             }
         }
@@ -152,7 +152,7 @@ internal class AdminScreenViewModel(
     }
 
     internal interface Event {
-        fun navigateBack()
+        fun closeToHome()
 
         fun showMessage(message: String)
     }

@@ -217,6 +217,30 @@ class BrowserHistoryTest {
         }
     }
 
+    @Test
+    fun closingToHomeFromDirectlyOpenedProfileLeavesHome() = runTest {
+        withContext(Dispatchers.Default) {
+            withTimeout(10_000) {
+                window.history.replaceState(null, "", Screen.UserProfile("bob").path)
+                val backStack = NavBackStack<NavKey>(*BrowserHistory.initialScreens(Screen.Login).toTypedArray())
+                val navigator = Navigator(backStack)
+                val sync = BrowserHistory.BackStackHistorySync(backStack, Screen.Login)
+                sync.start()
+                try {
+                    navigator.navigate(Screen.PostDetail(postId = "1"))
+                    sync.onBackStackChanged(backStack.toList())
+                    awaitPopState {
+                        navigator.closeToHome()
+                        sync.onBackStackChanged(backStack.toList())
+                    }
+                    assertHome(backStack, Screen.Home.Tab.Timeline)
+                } finally {
+                    sync.stop()
+                }
+            }
+        }
+    }
+
     private fun assertHome(backStack: NavBackStack<NavKey>, tab: Screen.Home.Tab) {
         val home = Screen.Home(tab)
         assertEquals(listOf(home), backStack.toList())

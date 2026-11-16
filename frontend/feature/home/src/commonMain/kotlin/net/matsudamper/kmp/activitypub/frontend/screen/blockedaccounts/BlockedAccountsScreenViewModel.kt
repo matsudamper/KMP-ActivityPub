@@ -30,8 +30,8 @@ internal class BlockedAccountsScreenViewModel(
 
     private val listener =
         object : BlockedAccountsScreenUiState.Listener {
-            override fun onClickBack() {
-                viewModelScope.launch { events.send { it.navigateBack() } }
+            override fun onClickClose() {
+                viewModelScope.launch { events.send { it.closeToHome() } }
             }
 
             override fun onClickRetry() {
@@ -147,7 +147,7 @@ internal class BlockedAccountsScreenViewModel(
     )
 
     internal interface Event {
-        fun navigateBack()
+        fun closeToHome()
 
         fun showMessage(message: String)
     }

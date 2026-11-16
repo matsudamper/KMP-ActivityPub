@@ -24,7 +24,6 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
-import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
@@ -790,7 +789,7 @@ private fun HomeColumnsPreview(
                             body = "",
                             inputHasError = false,
                             inputEnabled = true,
-                            backButtonEnabled = true,
+                            closeButtonEnabled = true,
                             postButtonEnabled = false,
                             images = listOf(),
                             quote = null,
@@ -798,7 +797,6 @@ private fun HomeColumnsPreview(
                             addImageLoadingVisible = false,
                             listener = AndroidPreviewPostScreenListener,
                         ),
-                        navigationIcon = PostNavigationIcon.Close,
                         snackbarHostState = SnackbarHostState(),
                     )
                 }
@@ -963,7 +961,7 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
     override fun onPressPostShortcut() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 }
 
 private fun previewTimelinePosts(): List<PostItemUiState> = listOf(

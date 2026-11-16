@@ -55,8 +55,8 @@ internal fun SettingsScreen(
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(
             object : SettingsScreenViewModel.Event {
-                override fun navigateBack() {
-                    navigator.back()
+                override fun closeToHome() {
+                    navigator.closeToHome()
                 }
 
                 override fun navigateToSecurity() {
@@ -114,10 +114,10 @@ internal fun SettingsContent(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = uiState.listener::onClickBack) {
+                IconButton(onClick = uiState.listener::onClickClose) {
                     Icon(
-                        imageVector = AppIcons.ArrowBack,
-                        contentDescription = "戻る",
+                        imageVector = AppIcons.Close,
+                        contentDescription = "閉じる",
                     )
                 }
                 Text(

@@ -118,8 +118,8 @@ internal class PostDetailScreenViewModel(
             load()
         }
 
-        override fun onClickBack() {
-            viewModelScope.launch { events.send { it.navigateBack() } }
+        override fun onClickClose() {
+            viewModelScope.launch { events.send { it.closeToHome() } }
         }
     }
 
@@ -819,6 +819,8 @@ internal class PostDetailScreenViewModel(
 
     internal interface Event {
         fun navigateBack()
+
+        fun closeToHome()
 
         fun showMessage(message: String)
 

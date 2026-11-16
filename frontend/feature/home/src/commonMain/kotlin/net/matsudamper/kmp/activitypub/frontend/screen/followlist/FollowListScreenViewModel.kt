@@ -59,9 +59,9 @@ internal class FollowListScreenViewModel(
         }
 
     private val listener = object : FollowListScreenUiState.Listener {
-        override fun onClickBack() {
+        override fun onClickClose() {
             viewModelScope.launch {
-                events.send { it.navigateBack() }
+                events.send { it.closeToHome() }
             }
         }
 
@@ -228,7 +228,7 @@ internal class FollowListScreenViewModel(
     }
 
     internal interface Event {
-        fun navigateBack()
+        fun closeToHome()
 
         fun navigateToUserProfile(username: String)
 

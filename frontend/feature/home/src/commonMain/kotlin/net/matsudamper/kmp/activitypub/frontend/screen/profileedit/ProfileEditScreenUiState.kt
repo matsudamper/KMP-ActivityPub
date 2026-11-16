@@ -10,7 +10,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 data class ProfileEditScreenUiState(
     val title: String,
     val content: Content,
-    val backButtonEnabled: Boolean,
+    val closeButtonEnabled: Boolean,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -115,6 +115,6 @@ data class ProfileEditScreenUiState(
 
         fun onClickRetry()
 
-        fun onClickBack()
+        fun onClickClose()
     }
 }

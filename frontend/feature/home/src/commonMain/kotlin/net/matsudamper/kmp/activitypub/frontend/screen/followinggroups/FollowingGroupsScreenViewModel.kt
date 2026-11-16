@@ -38,9 +38,9 @@ internal class FollowingGroupsScreenViewModel(
 
     private val listener =
         object : FollowingGroupsScreenUiState.Listener {
-            override fun onClickBack() {
+            override fun onClickClose() {
                 viewModelScope.launch {
-                    events.send { it.navigateBack() }
+                    events.send { it.closeToHome() }
                 }
             }
         }
@@ -133,7 +133,7 @@ internal class FollowingGroupsScreenViewModel(
     }
 
     internal interface Event {
-        fun navigateBack()
+        fun closeToHome()
 
         fun showMessage(message: String)
     }

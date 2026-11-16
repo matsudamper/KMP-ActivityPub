@@ -88,6 +88,10 @@ internal fun ProfileEditScreen(
                     navigator.back()
                 }
 
+                override fun closeToHome() {
+                    navigator.closeToHome()
+                }
+
                 override fun showMessage(message: String) {
                     coroutineScope.launch { snackbarHostState.showSnackbar(message) }
                 }
@@ -99,7 +103,7 @@ internal fun ProfileEditScreen(
     NavigationBackHandler(
         state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
         isBackEnabled = uiState.content is ProfileEditScreenUiState.Content.HeaderCrop,
-        onBackCompleted = uiState.listener::onClickBack,
+        onBackCompleted = uiState.listener::onClickClose,
     )
     ProfileEditContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
@@ -119,12 +123,12 @@ internal fun ProfileEditContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
-                    onClick = uiState.listener::onClickBack,
-                    enabled = uiState.backButtonEnabled,
+                    onClick = uiState.listener::onClickClose,
+                    enabled = uiState.closeButtonEnabled,
                 ) {
                     Icon(
-                        imageVector = AppIcons.ArrowBack,
-                        contentDescription = "戻る",
+                        imageVector = AppIcons.Close,
+                        contentDescription = "閉じる",
                     )
                 }
                 Text(

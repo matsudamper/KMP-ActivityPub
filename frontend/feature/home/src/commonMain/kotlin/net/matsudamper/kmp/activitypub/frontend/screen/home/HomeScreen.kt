@@ -116,7 +116,6 @@ import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImageInput
-import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
@@ -239,6 +238,7 @@ internal fun HomeScreen(
             val postUiState = rememberPostScreenUiState(
                 target = PostScreenTarget.NewNote,
                 onNavigateBack = uiState.listener::onPostColumnFinished,
+                onClose = uiState.listener::onPostColumnFinished,
                 snackbarHostState = snackbarHostState,
             )
             val postColumnSnackbarHostState = remember { SnackbarHostState() }
@@ -250,7 +250,6 @@ internal fun HomeScreen(
                     Box(modifier = modifier) {
                         PostContentWithImageInput(
                             uiState = postUiState,
-                            navigationIcon = PostNavigationIcon.Close,
                             snackbarHostState = postColumnSnackbarHostState,
                         )
                     }

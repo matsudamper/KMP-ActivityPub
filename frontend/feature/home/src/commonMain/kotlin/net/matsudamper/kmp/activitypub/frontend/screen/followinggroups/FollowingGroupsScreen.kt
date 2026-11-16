@@ -59,8 +59,8 @@ internal fun FollowingGroupsScreen(
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
             object : FollowingGroupsScreenViewModel.Event {
-                override fun navigateBack() {
-                    navigator.back()
+                override fun closeToHome() {
+                    navigator.closeToHome()
                 }
 
                 override fun showMessage(message: String) {
@@ -86,10 +86,10 @@ internal fun FollowingGroupsContent(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = uiState.listener::onClickBack) {
+                IconButton(onClick = uiState.listener::onClickClose) {
                     Icon(
-                        imageVector = AppIcons.ArrowBack,
-                        contentDescription = "戻る",
+                        imageVector = AppIcons.Close,
+                        contentDescription = "閉じる",
                     )
                 }
                 Text(

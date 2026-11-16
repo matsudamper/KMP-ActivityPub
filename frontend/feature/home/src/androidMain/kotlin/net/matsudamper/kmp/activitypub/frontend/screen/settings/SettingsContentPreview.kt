@@ -71,7 +71,7 @@ private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
 
     override fun onClickGitHubRelease() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 
     override fun onClickLogout() = Unit
 }

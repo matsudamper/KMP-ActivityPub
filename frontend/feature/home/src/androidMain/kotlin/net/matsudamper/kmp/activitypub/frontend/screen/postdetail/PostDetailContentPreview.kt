@@ -366,7 +366,7 @@ private fun PostDetailContentNotFoundPreview() {
 private object AndroidPreviewPostDetailListener : PostDetailScreenUiState.Listener {
     override fun onClickRetry() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 }
 
 private object AndroidPreviewReplyTargetLoadingListener : PostDetailScreenUiState.ReplyTargetLoader.Loading.Listener {
