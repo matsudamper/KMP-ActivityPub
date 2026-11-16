@@ -355,7 +355,18 @@ internal class Federation(
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
-    val quoteAuthorizationEndpoint: QuoteAuthorizationEndpoint = QuoteAuthorizationEndpoint(domain = domain, notes = notes)
+    private val quoteApprovals =
+        QueuedQuoteApprovals(
+            localActors = localActors,
+            accountRepository = accountRepository,
+            deliveryQueueRepository = deliveryQueueRepository,
+            blocks = inboxBlocks,
+            clock = Clock.systemUTC(),
+            onEnqueued = deliveryQueueWorker::wakeUp,
+        )
+
+    val quoteAuthorizationEndpoint: QuoteAuthorizationEndpoint =
+        QuoteAuthorizationEndpoint(domain = domain, notes = notes, approvals = quoteApprovals)
 
     val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, AccountBoostOutbox(accountBoostRepository), null)
 
@@ -421,13 +432,7 @@ internal class Federation(
                         domain = domain,
                         notes = notes,
                         remoteActors = remoteActors,
-                        approvals = QueuedQuoteApprovals(
-                            accountRepository = accountRepository,
-                            deliveryQueueRepository = deliveryQueueRepository,
-                            blocks = inboxBlocks,
-                            clock = Clock.systemUTC(),
-                            onEnqueued = deliveryQueueWorker::wakeUp,
-                        ),
+                        approvals = quoteApprovals,
                     ),
                     UpdateActorHandler(followers),
                     CreateNoteHandler(receivedNotes),
