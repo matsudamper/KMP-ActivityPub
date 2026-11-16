@@ -1291,7 +1291,11 @@ internal class HomeScreenViewModel(
                 val profile = myPosts.owner
                 val displayName = profile.displayName ?: profile.username
                 // ブーストした他の人の投稿の画像は、自分のメディアに含めない
-                val media = createProfileMedia(myPosts.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
+                val media = createProfileMedia(
+                    posts = myPosts.posts.filter { it.boostedNoteAuthor == null },
+                    sensitiveImagesBlurred = true,
+                    onOpenPost = ::navigateToPostDetail,
+                )
                 HomeScreenUiState.UserPosts.Loaded(
                     items = myPosts.posts.map { post ->
                         val boostedNoteAuthor = post.boostedNoteAuthor

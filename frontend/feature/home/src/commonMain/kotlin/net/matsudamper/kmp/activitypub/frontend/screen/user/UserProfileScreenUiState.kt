@@ -30,6 +30,10 @@ data class UserProfileScreenUiState(
     val blockDialog: BlockDialog?,
     val openOriginalMenuItemVisible: Boolean,
     /**
+     * 閲覧注意の画像を隠している間は true。ボタンのアイコンと説明が変わる
+     */
+    val sensitiveImagesBlurred: Boolean,
+    /**
      * サーバーとアカウントのブロック。このサーバーのユーザーには出さない
      */
     val blockMenuItemsVisible: Boolean,
@@ -107,6 +111,8 @@ data class UserProfileScreenUiState(
         fun onClickTab(tab: ProfileContentTab)
 
         fun onClickOpenOriginal()
+
+        fun onClickSensitiveImagesVisibility()
 
         fun onClickBlockServer()
 

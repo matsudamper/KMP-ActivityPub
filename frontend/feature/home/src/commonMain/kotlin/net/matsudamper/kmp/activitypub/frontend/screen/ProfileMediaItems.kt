@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
  */
 internal fun createProfileMedia(
     posts: List<UserProfileResult.Post>,
+    sensitiveImagesBlurred: Boolean,
     onOpenPost: (postId: String) -> Unit,
 ): List<ProfileMediaUiState> {
     return posts.flatMap { post ->
@@ -20,7 +21,7 @@ internal fun createProfileMedia(
             ProfileMediaUiState(
                 url = image.thumbnailUrl,
                 description = image.description,
-                blurred = post.body.sensitive,
+                blurred = post.body.sensitive && sensitiveImagesBlurred,
                 listener = listener,
             )
         }

@@ -131,6 +131,7 @@ private fun UserProfileContentPreview() {
                     addFollowingGroupDialog = null,
                     blockDialog = null,
                     openOriginalMenuItemVisible = true,
+                    sensitiveImagesBlurred = true,
                     blockMenuItemsVisible = true,
                     listener = AndroidPreviewUserProfileListener,
                 ),
@@ -279,6 +280,7 @@ private fun UserProfileContentMediaPreview() {
                 addFollowingGroupDialog = null,
                 blockDialog = null,
                 openOriginalMenuItemVisible = true,
+                sensitiveImagesBlurred = true,
                 blockMenuItemsVisible = true,
                 listener = AndroidPreviewUserProfileListener,
             ),
@@ -336,6 +338,7 @@ private fun UserProfileContentNotFoundPreview() {
                 addFollowingGroupDialog = null,
                 blockDialog = null,
                 openOriginalMenuItemVisible = false,
+                sensitiveImagesBlurred = true,
                 blockMenuItemsVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
@@ -434,6 +437,7 @@ private val LocalUserUiState = UserProfileScreenUiState(
     addFollowingGroupDialog = null,
     blockDialog = null,
     openOriginalMenuItemVisible = true,
+    sensitiveImagesBlurred = true,
     blockMenuItemsVisible = false,
     listener = AndroidPreviewUserProfileListener,
 )
@@ -454,6 +458,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onScrolledToEnd() = Unit
 
     override fun onClickRetryLoadMore() = Unit
+
+    override fun onClickSensitiveImagesVisibility() = Unit
 }
 
 private object AndroidPreviewMediaListener : ProfileMediaUiState.Listener {
