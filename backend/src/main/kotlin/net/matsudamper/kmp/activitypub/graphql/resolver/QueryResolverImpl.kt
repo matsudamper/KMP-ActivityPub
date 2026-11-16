@@ -12,6 +12,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
 import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlLocalCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLikePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLink
@@ -29,6 +30,7 @@ import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ActorListCursor
 import net.matsudamper.kmp.activitypub.logic.ActorListPage
 import net.matsudamper.kmp.activitypub.logic.PostCounts
+import net.matsudamper.kmp.activitypub.logic.PostSearchCursor
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileLikeCursor
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesResult
@@ -226,6 +228,29 @@ class QueryResolverImpl : QueryResolver {
                 ),
             ).build(),
         )
+    }
+
+    override fun searchPosts(
+        query: String,
+        after: String?,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlPostSearchResult?>> {
+        val cursor = after?.let { PostSearchCursor.decode(it) ?: throw GraphQlClientException("after が読めない") }
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelSupplyAsync {
+            val result = accountId?.let { viewer ->
+                val page = diContainer.postSearchService.search(viewer = viewer, query = query, cursor = cursor)
+                QlPostSearchResult(
+                    // 他の人の投稿も見つかるので、消したり固定したりできるのは見ているアカウントの投稿だけにする
+                    posts = page.posts.zip(page.posts.toQlTimelinePosts(diContainer)) { post, mapped ->
+                        if (diContainer.viewablePostService.isOwnedByViewer(viewer, post)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+                    },
+                    nextCursor = page.nextCursor?.encode(),
+                )
+            }
+            DataFetcherResult.Builder<QlPostSearchResult?>(result).build()
+        }
     }
 
     override fun resolveUser(

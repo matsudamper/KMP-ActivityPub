@@ -41,6 +41,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchPostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeTimelineLinkPreviewsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.LoginGateQuery
@@ -867,6 +868,23 @@ class UserApi(
                     ),
                 )
             },
+        )
+    }
+
+    /**
+     * 本文で投稿を探す
+     *
+     * @param after 最初のページなら null。続きは前回の [UserPostSearchResult.Success.nextCursor]
+     */
+    suspend fun searchPosts(query: String, after: String?): UserPostSearchResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostSearchResult.Failure("接続先が未設定")
+        val response = client.query(HomeScreenSearchPostsQuery(query = query, after = Optional.present(after))).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostSearchResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostSearchResult.Failure(response.failureMessage())
+        val page = data.searchPosts ?: return UserPostSearchResult.Failure("ログインしていません")
+        return UserPostSearchResult.Success(
+            posts = page.posts.map { it.timelinePostFields.toPost() },
+            nextCursor = page.nextCursor,
         )
     }
 

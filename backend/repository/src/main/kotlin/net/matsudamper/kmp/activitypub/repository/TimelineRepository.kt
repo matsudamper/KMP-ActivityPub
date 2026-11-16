@@ -109,7 +109,31 @@ interface TimelineRepository {
      * @param before この位置より古いいいねを返す。null なら最新から
      */
     fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost>
+
+    /**
+     * 保存済みの投稿のうち本文が [matchesContent] に合うものを、投稿した新しい順に返す。このサーバーの投稿は誰でも、
+     * 他のサーバーの投稿は [viewer] が読めるものと公開のものを返す。公開タイムラインに載せない公開の投稿は、探されたくない投稿なので読めるものに限る。
+     * 消された投稿は出さない
+     *
+     * @param before この位置より古い投稿を返す。null なら最新から
+     * @param hidesAuthor 他のサーバーの投稿者の URI を渡すと、その投稿を出さないなら true を返す。出さない投稿は [limit] に数えない
+     * @param matchesContent 本文の HTML を渡すと、出す投稿なら true を返す。合わない投稿は [limit] に数えない
+     */
+    fun searchPosts(
+        viewer: AccountId,
+        before: PublishedNotePosition?,
+        limit: Int,
+        hidesAuthor: (actorUri: String) -> Boolean,
+        matchesContent: (contentHtml: String) -> Boolean,
+    ): List<TimelinePost>
 }
+
+/**
+ * 投稿した時刻で並べた投稿の続きを指す位置
+ *
+ * @param member 投稿の member。同じ時刻の投稿を並べる
+ */
+data class PublishedNotePosition(val publishedAt: Instant, val member: String)
 
 data class LikedTimelinePost(val post: TimelinePost, val position: LikedNotePosition)
 

@@ -47,6 +47,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -924,7 +925,7 @@ internal fun SearchTabContent(
             value = search.query,
             onValueChange = listener::onSearchQueryChanged,
             onImeAction = listener::onSearch,
-            label = "ユーザーを検索",
+            label = search.queryLabel,
             kind = SingleLineTextFieldKind.Plain,
             autofill = null,
             formId = null,
@@ -936,6 +937,7 @@ internal fun SearchTabContent(
             hasError = false,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         )
+        SearchTargetTabRow(targets = search.targets)
         when (val result = search.result) {
             HomeScreenUiState.SearchResult.NotSearched -> Unit
 
@@ -970,6 +972,49 @@ internal fun SearchTabContent(
                     }
                 }
             }
+
+            is HomeScreenUiState.SearchResult.PostsLoaded -> {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    val emptyMessage = result.emptyMessage
+                    if (emptyMessage != null) {
+                        item {
+                            SearchMessage(text = emptyMessage)
+                        }
+                    }
+                    items(result.items) { item ->
+                        PostItem(uiState = item, style = PostItemStyle.Timeline)
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    if (result.loadMoreButtonVisible) {
+                        item {
+                            TextButton(
+                                onClick = listener::onClickLoadMoreSearchResult,
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            ) {
+                                Text("さらに読み込む")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchTargetTabRow(
+    targets: List<HomeScreenUiState.SearchTarget>,
+) {
+    SecondaryTabRow(
+        selectedTabIndex = targets.indexOfFirst { it.selected }.coerceAtLeast(0),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        targets.forEach { target ->
+            Tab(
+                selected = target.selected,
+                onClick = target.listener::onClick,
+                text = { Text(target.label) },
+            )
         }
     }
 }
