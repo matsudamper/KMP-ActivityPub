@@ -720,7 +720,15 @@ internal class HomeScreenViewModel(
                 current
             } else {
                 when (result) {
-                    is UserProfilePostsResult.Success -> current.copy(posts = current.posts + result.posts, next = result.nextCursor.toNextMyPostsPage())
+                    is UserProfilePostsResult.Success -> {
+                        // 最初のページで固定していた投稿は、読んだ後に固定を外すと続きのページにも出る
+                        val loadedPostIds = current.posts.map { it.postId }.toSet()
+                        current.copy(
+                            posts = current.posts + result.posts.filterNot { it.postId in loadedPostIds },
+                            next = result.nextCursor.toNextMyPostsPage(),
+                        )
+                    }
+
                     is UserProfilePostsResult.Failure -> current.copy(loadErrorMessage = result.message)
                 }
             }
@@ -2206,7 +2214,8 @@ internal class HomeScreenViewModel(
     /**
      * 画面に戻るたびに最初のページを読み直すので、読み進めた続きは捨てずに残す。捨てると戻るたびに読み進めた位置を失う。
      * 最初のページから外れた投稿（消した投稿など）を残さないよう、続きは最初のページと重なる最後の投稿より後ろだけにする。
-     * 固定した投稿は古くても最初のページの先頭に来るので、重なりの位置には使わない。使うと間の投稿を捨ててしまう
+     * 固定した投稿は古くても最初のページの先頭に来るので、重なりの位置には使わない。使うと間の投稿を捨ててしまう。
+     * 重なりまでの投稿が最初のページから消えていたら（固定を外した古い投稿など）、続きの位置が合わないので読み直す
      */
     private fun <T> MyPostsPages<T>?.withFirstPageReloaded(
         firstPage: List<T>,
@@ -2219,8 +2228,10 @@ internal class HomeScreenViewModel(
         val loadedPosts = this?.posts.orEmpty()
         val overlapEnd = loadedPosts.indexOfLast { idOf(it) in overlapIds } + 1
         val firstPageOverlapsLoaded = overlapEnd > 0
+        val loadedHeadKept = loadedPosts.take(overlapEnd).all { idOf(it) in firstPageIds }
         val loadedContinuation = loadedPosts.drop(overlapEnd).filterNot { idOf(it) in firstPageIds }
-        return if (this != null && firstPageOverlapsLoaded && loadedContinuation.isNotEmpty()) {
+        val continuationExists = nextCursor != null
+        return if (this != null && firstPageOverlapsLoaded && loadedHeadKept && continuationExists && loadedContinuation.isNotEmpty()) {
             copy(posts = firstPage + loadedContinuation)
         } else {
             MyPostsPages(posts = firstPage, next = nextCursor.toNextMyPostsPage(), loadErrorMessage = null)
