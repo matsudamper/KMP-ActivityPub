@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
+import net.matsudamper.kmp.activitypub.logic.PostSearchService
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
@@ -46,6 +47,7 @@ class DiContainer(
     val actorBlockService: ActorBlockService,
     val blockLists: BlockLists,
     val userSearchService: UserSearchService,
+    val postSearchService: PostSearchService,
     val userProfileService: UserProfileService,
     val profileLikesService: ProfileLikesService,
     val viewablePostService: ViewablePostService,

@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.timeline
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
+import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
@@ -27,6 +28,11 @@ internal class FakeTimelineRepository : TimelineRepository {
     val storeRequests = mutableListOf<RemoteNoteInput>()
     val likedPosts = mutableListOf<LikedTimelinePost>()
     val replies = mutableListOf<TimelinePost>()
+
+    /**
+     * 検索できる投稿。投稿した新しい順に入れる
+     */
+    val searchablePosts = mutableListOf<TimelinePost>()
 
     var interested = true
     override fun receptionInterest(actorUri: String, localRecipients: Set<String>): RemoteNoteReceptionInterest =
@@ -97,6 +103,17 @@ internal class FakeTimelineRepository : TimelineRepository {
         replies.filter { it.inReplyTo == objectUri }.filterNot { reply -> reply.actorUri?.let(hidesAuthor) == true }.take(limit)
 
     override fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost> = likedPosts.take(limit)
+
+    override fun searchPosts(
+        viewer: AccountId,
+        before: PublishedNotePosition?,
+        limit: Int,
+        hidesAuthor: (actorUri: String) -> Boolean,
+        matchesContent: (contentHtml: String) -> Boolean,
+    ): List<TimelinePost> = searchablePosts
+        .filter { post -> before == null || post.publishedAt < before.publishedAt }
+        .filter { post -> post.actorUri?.let(hidesAuthor) != true && matchesContent(post.contentHtml) }
+        .take(limit)
 
     private fun sorted(): List<TimelinePosition> = positions.sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })
 }
