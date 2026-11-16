@@ -163,6 +163,24 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun refetchedNoteWithANewerEditKeepsTheStoredContentAsARevision() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf())
+        val saved = assertNotNull(repository.receive(original))
+
+        repository.storeFetchedNotes(alice, listOf(original.copy(contentHtml = "<p>取り直した編集</p>", editedAt = NOW.plusSeconds(30))))
+        // 同じ編集の Update が後から届いても、版を重ねない
+        repository.reviseRemote(original.copy(contentHtml = "<p>取り直した編集</p>", editedAt = NOW.plusSeconds(30)))
+
+        assertEquals(
+            listOf("<p>取り直した編集</p>", "<p>本文</p>"),
+            assertNotNull(repository.revisions(alice, saved.member, null, 10)).map { it.contentHtml },
+        )
+    }
+
+    @Test
     fun editThatOnlyChangesEmojiImagesReplacesTheEmojisWithoutAddingARevision() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")

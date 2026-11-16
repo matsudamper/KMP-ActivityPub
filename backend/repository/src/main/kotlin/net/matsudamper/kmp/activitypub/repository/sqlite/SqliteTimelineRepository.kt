@@ -804,12 +804,14 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     /**
      * 保存済みの公開している投稿を、相手のサーバーから取り直した内容に書き換える。保存した後に編集されていることがある。
      * 公開範囲も取り直した値にする。どちらも公開している範囲の中での変更に限る。位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない。
-     * 取り直している間に届いた新しい編集を巻き戻さないよう、取り直した内容が保存済みの編集より古ければ書き換えない
+     * 取り直している間に届いた新しい編集を巻き戻さないよう、取り直した内容が保存済みの編集より古ければ書き換えない。
+     * 取り直した内容が保存済みより新しい編集なら、Update を受けたときと同じく書き換える前の版を残す
      *
      * @return 保存済みの投稿の id。保存していなければ null
      */
     private fun refreshFetchedNote(dsl: DSLContext, note: RemoteNoteInput): Long? {
-        val stored = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.EDITED_AT).from(REMOTE_NOTES)
+        val stored = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.EDITED_AT, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.PUBLISHED_AT)
+            .from(REMOTE_NOTES)
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri))
             .and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri))
@@ -820,6 +822,18 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val storedEditedAt = stored.value2()?.let { StoredInstant.parse(it) }
         val fetchedEditedAt = note.editedAt
         if (storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))) return id
+        if (fetchedEditedAt != null && (storedEditedAt == null || fetchedEditedAt.isAfter(storedEditedAt))) {
+            val storedRevision = PostRevision(
+                position = PostRevisionPosition.Current,
+                contentHtml = checkNotNull(stored.value3()),
+                summary = stored.value4(),
+                sensitive = stored.value5() == 1L,
+                images = remoteImages(dsl, listOf(id))["r$id"].orEmpty(),
+                revisedAt = storedEditedAt ?: StoredInstant.parse(checkNotNull(stored.value6())),
+            )
+            val fetched = storedRevision.copy(contentHtml = note.contentHtml, summary = note.summary, sensitive = note.sensitive, images = note.images)
+            if (fetched != storedRevision) insertRemoteNoteRevision(dsl, id, storedRevision)
+        }
         dsl.update(REMOTE_NOTES)
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
