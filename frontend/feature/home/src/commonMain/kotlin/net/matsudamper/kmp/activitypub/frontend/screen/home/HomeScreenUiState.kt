@@ -271,7 +271,11 @@ data class HomeScreenUiState(
             val message: String,
         ) : Profile
 
+        /**
+         * @param headerUrl ヘッダー画像が無ければ null
+         */
         data class Loaded(
+            val headerUrl: String?,
             val iconUrl: String?,
             val displayName: String,
             val acct: String,
