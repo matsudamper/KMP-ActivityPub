@@ -19,7 +19,7 @@ data class PostScreenUiState(
     /**
      * 閉じると送信の結果を画面に出せないので、送信の途中は false になる
      */
-    val backButtonEnabled: Boolean,
+    val closeButtonEnabled: Boolean,
     val postButtonEnabled: Boolean,
     /**
      * 付けた順
@@ -73,6 +73,6 @@ data class PostScreenUiState(
 
         fun onPressPostShortcut()
 
-        fun onClickBack()
+        fun onClickClose()
     }
 }

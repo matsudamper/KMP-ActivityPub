@@ -65,6 +65,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentPager
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileHeaderImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
@@ -91,8 +92,8 @@ internal fun UserProfileScreen(
     )
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(object : UserProfileScreenViewModel.Event {
-            override fun navigateBack() {
-                navigator.back()
+            override fun closeToHome() {
+                navigator.closeToHome()
             }
 
             override fun showMessage(message: String) {
@@ -140,8 +141,8 @@ internal fun UserProfileContent(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = uiState.listener::onClickBack) {
-                    Icon(imageVector = AppIcons.ArrowBack, contentDescription = "戻る")
+                IconButton(onClick = uiState.listener::onClickClose) {
+                    Icon(imageVector = AppIcons.Close, contentDescription = "閉じる")
                 }
                 Text(
                     text = "プロフィール",
@@ -421,22 +422,6 @@ private fun EmptyMessage(text: String) {
     )
 }
 
-/**
- * 読み込みの前後で下の要素が動かないよう、比率で高さを決めて先に場所を取る
- */
-@Composable
-private fun ProfileHeaderImage(headerUrl: String) {
-    AsyncImage(
-        model = headerUrl,
-        contentDescription = "ヘッダー画像",
-        contentScale = ContentScale.Crop,
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(PROFILE_HEADER_ASPECT_RATIO)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-    )
-}
-
 @Composable
 private fun ProfileHeader(
     profile: UserProfileScreenUiState.Content.Loaded,
@@ -472,7 +457,5 @@ private fun ProfileHeader(
         }
     }
 }
-
-private const val PROFILE_HEADER_ASPECT_RATIO = 3f
 
 private const val LOAD_MORE_THRESHOLD = 5

@@ -7,6 +7,10 @@ import androidx.compose.runtime.Immutable
  */
 data class PostItemUiState(
     /**
+     * 投稿の上に出す「〜へのリプライ」の行。[actorLabel] と投稿の間に出す。出さなければ null
+     */
+    val replyLabel: ReplyLabel?,
+    /**
      * 投稿の上に出す「〜がブースト」「〜がお気に入り」の行。フォローしている相手のブーストとして載った投稿と、通知で使う。それ以外は null
      */
     val actorLabel: ActorLabel?,
@@ -103,6 +107,22 @@ data class PostItemUiState(
      */
     data class EditedLabel(
         val listener: EditedLabelListener?,
+    )
+
+    /**
+     * @param target 返信先の投稿者。まだ取れていないか、取れなければ null で、「リプライ」とだけ出す
+     */
+    data class ReplyLabel(
+        val target: ReplyLabelTarget?,
+    )
+
+    /**
+     * @param iconUrl 返信先の投稿者のプロフィール画像が無ければ null
+     */
+    data class ReplyLabelTarget(
+        val iconUrl: String?,
+        val name: TextWithEmojis,
+        val listener: ReplyLabelListener,
     )
 
     sealed interface Quote {
@@ -213,6 +233,11 @@ data class PostItemUiState(
 
     @Immutable
     interface StampListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface ReplyLabelListener {
         fun onClick()
     }
 

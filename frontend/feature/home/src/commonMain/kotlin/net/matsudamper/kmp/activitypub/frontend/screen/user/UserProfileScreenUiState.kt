@@ -106,7 +106,7 @@ data class UserProfileScreenUiState(
     interface Listener {
         fun onClickRetry()
 
-        fun onClickBack()
+        fun onClickClose()
 
         fun onClickTab(tab: ProfileContentTab)
 

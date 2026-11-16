@@ -186,6 +186,43 @@ private fun TimelineHeaderDividerNewPostsHiddenAbovePreview() {
 
 @Preview
 @Composable
+private fun TimelineReplyItemsPreview() {
+    HomePreviewTheme {
+        Surface {
+            Column {
+                val post = previewTimelinePosts().first()
+                val replyLabel = PostItemUiState.ReplyLabel(
+                    target = PostItemUiState.ReplyLabelTarget(
+                        iconUrl = null,
+                        name = createTextWithEmojis(text = "Alice :kotlin:", emojis = PreviewEmojis),
+                        listener = AndroidPreviewReplyLabelListener,
+                    ),
+                )
+                listOf(
+                    post.copy(replyLabel = replyLabel),
+                    post.copy(
+                        replyLabel = replyLabel,
+                        actorLabel = PostItemUiState.ActorLabel(
+                            icon = PostItemUiState.ActorLabelIcon.Boost,
+                            actorName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+                            actionText = "がブースト",
+                            iconUrl = null,
+                            cancelledLabelVisible = false,
+                            listener = AndroidPreviewActorLabelListener,
+                        ),
+                    ),
+                    post.copy(replyLabel = PostItemUiState.ReplyLabel(target = null)),
+                ).forEach { item ->
+                    PostItem(uiState = item, style = PostItemStyle.Timeline)
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
 private fun TimelineNotificationAndDeletedItemsPreview() {
     HomePreviewTheme {
         Surface {
@@ -498,6 +535,7 @@ private fun HomeUserContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
+                    headerUrl = "https://example.com/header.png",
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
@@ -512,6 +550,7 @@ private fun HomeUserContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            replyLabel = null,
                             pinnedLabelVisible = false,
                             deletedLabelVisible = false,
                             actorLabel = null,
@@ -586,6 +625,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
+                    headerUrl = null,
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
@@ -646,6 +686,7 @@ private fun HomeUserMediaContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
+                    headerUrl = null,
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
@@ -658,6 +699,7 @@ private fun HomeUserMediaContentPreview() {
                 userPosts = HomeScreenUiState.UserPosts.Loaded(
                     items = listOf(
                         PostItemUiState(
+                            replyLabel = null,
                             pinnedLabelVisible = false,
                             deletedLabelVisible = false,
                             actorLabel = null,
@@ -788,12 +830,13 @@ private fun HomeColumnsPreview(
             postColumn = { modifier ->
                 Box(modifier = modifier) {
                     PostContent(
+                        navigationIcon = PostNavigationIcon.Close,
                         uiState = PostScreenUiState(
                             body = "",
                             bodyInsertion = null,
                             inputHasError = false,
                             inputEnabled = true,
-                            backButtonEnabled = true,
+                            closeButtonEnabled = true,
                             postButtonEnabled = false,
                             images = listOf(),
                             quote = null,
@@ -803,7 +846,6 @@ private fun HomeColumnsPreview(
                             emojiPickerDialog = null,
                             listener = AndroidPreviewPostScreenListener,
                         ),
-                        navigationIcon = PostNavigationIcon.Close,
                         snackbarHostState = SnackbarHostState(),
                     )
                 }
@@ -910,6 +952,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
     override fun onClick() = Unit
 }
 
+private object AndroidPreviewReplyLabelListener : PostItemUiState.ReplyLabelListener {
+    override fun onClick() = Unit
+}
+
 private object AndroidPreviewActorLabelListener : PostItemUiState.ActorLabelListener {
     override fun onClick() = Unit
 }
@@ -972,11 +1018,12 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
     override fun onPressPostShortcut() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 }
 
 private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
+        replyLabel = null,
         pinnedLabelVisible = false,
         deletedLabelVisible = false,
         actorLabel = null,
@@ -1027,6 +1074,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         listener = AndroidPreviewTimelineItemListener,
     ),
     PostItemUiState(
+        replyLabel = null,
         pinnedLabelVisible = false,
         deletedLabelVisible = false,
         actorLabel = PostItemUiState.ActorLabel(
@@ -1093,6 +1141,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
 
 private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
     PostItemUiState(
+        replyLabel = null,
         pinnedLabelVisible = false,
         deletedLabelVisible = false,
         actorLabel = null,

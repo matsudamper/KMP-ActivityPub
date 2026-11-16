@@ -118,8 +118,8 @@ internal class UserProfileScreenViewModel(
             load()
         }
 
-        override fun onClickBack() {
-            viewModelScope.launch { events.send { it.navigateBack() } }
+        override fun onClickClose() {
+            viewModelScope.launch { events.send { it.closeToHome() } }
         }
 
         override fun onClickTab(tab: ProfileContentTab) {
@@ -707,6 +707,7 @@ internal class UserProfileScreenViewModel(
                 val previews = viewModelState.linkPreviews[post.postId].orEmpty()
                 val boostedNoteAuthor = post.boostedNoteAuthor
                 createPostItemUiState(
+                    replyLabel = null,
                     pinned = post.pinned,
                     deleted = false,
                     boostUndone = false,
@@ -805,6 +806,7 @@ internal class UserProfileScreenViewModel(
         val host = post.host
         val profileAcct = if (host == null) post.username else "${post.username}@$host"
         return createPostItemUiState(
+            replyLabel = null,
             pinned = false,
             deleted = post.deleted,
             boostUndone = false,
@@ -875,7 +877,7 @@ internal class UserProfileScreenViewModel(
     private fun String?.toNextPosts(): NextPosts = if (this == null) NextPosts.End else NextPosts.After(this)
 
     internal interface Event {
-        fun navigateBack()
+        fun closeToHome()
 
         fun showMessage(message: String)
 

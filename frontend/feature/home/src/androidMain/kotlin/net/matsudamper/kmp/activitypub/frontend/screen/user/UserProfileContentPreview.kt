@@ -50,6 +50,7 @@ private fun UserProfileContentPreview() {
                         selectedTab = ProfileContentTab.Posts,
                         posts = listOf(
                             PostItemUiState(
+                                replyLabel = null,
                                 pinnedLabelVisible = true,
                                 deletedLabelVisible = false,
                                 actorLabel = null,
@@ -85,6 +86,7 @@ private fun UserProfileContentPreview() {
                                 listener = AndroidPreviewPostItemListener,
                             ),
                             PostItemUiState(
+                                replyLabel = null,
                                 pinnedLabelVisible = false,
                                 deletedLabelVisible = false,
                                 actorLabel = PostItemUiState.ActorLabel(
@@ -156,6 +158,7 @@ private fun UserProfileContentLikesPreview() {
                     selectedTab = ProfileContentTab.Likes,
                     likes = listOf(
                         PostItemUiState(
+                            replyLabel = null,
                             pinnedLabelVisible = false,
                             deletedLabelVisible = false,
                             actorLabel = null,
@@ -183,6 +186,7 @@ private fun UserProfileContentLikesPreview() {
                             listener = AndroidPreviewPostItemListener,
                         ),
                         PostItemUiState(
+                            replyLabel = null,
                             pinnedLabelVisible = false,
                             deletedLabelVisible = false,
                             actorLabel = null,
@@ -449,7 +453,7 @@ private val LocalUserUiState = UserProfileScreenUiState(
 private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.Listener {
     override fun onClickRetry() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 
     override fun onClickTab(tab: ProfileContentTab) = Unit
 

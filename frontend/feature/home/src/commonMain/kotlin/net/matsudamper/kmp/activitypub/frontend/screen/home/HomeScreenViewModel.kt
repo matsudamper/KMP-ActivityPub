@@ -72,10 +72,12 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
+import net.matsudamper.kmp.activitypub.frontend.screen.ReplyTargetAuthorLoad
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
+import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemReplyLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createProfileMedia
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
@@ -84,6 +86,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.decidePickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.decideStampTap
 import net.matsudamper.kmp.activitypub.frontend.screen.dismiss
 import net.matsudamper.kmp.activitypub.frontend.screen.loadQuote
+import net.matsudamper.kmp.activitypub.frontend.screen.loadReplyTargetAuthor
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
 import net.matsudamper.kmp.activitypub.frontend.screen.toDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.toLikeState
@@ -121,6 +124,7 @@ internal class HomeScreenViewModel(
                 ),
                 linkPreviews = mapOf(),
                 quotes = mapOf(),
+                replyTargetAuthors = mapOf(),
                 imageBlur = ImageBlurState(
                     sensitiveImagesBlurred = true,
                     toggledImageUrls = setOf(),
@@ -1446,6 +1450,7 @@ internal class HomeScreenViewModel(
             ProfileState.Loading -> HomeScreenUiState.Profile.Loading
 
             is ProfileState.Loaded -> HomeScreenUiState.Profile.Loaded(
+                headerUrl = profile.profile.headerUrl,
                 iconUrl = profile.profile.iconUrl,
                 displayName = profile.profile.displayName ?: profile.profile.username,
                 acct = "@${profile.profile.username}",
@@ -1490,6 +1495,7 @@ internal class HomeScreenViewModel(
                     items = posts.posts.map { post ->
                         val boostedNoteAuthor = post.boostedNoteAuthor
                         createPostItemUiState(
+                            replyLabel = null,
                             pinned = post.pinned,
                             deleted = false,
                             boostUndone = false,
@@ -1599,6 +1605,7 @@ internal class HomeScreenViewModel(
         val host = post.host
         val profileAcct = if (host == null) post.username else "${post.username}@$host"
         return createPostItemUiState(
+            replyLabel = null,
             pinned = false,
             deleted = post.deleted,
             boostUndone = false,
@@ -1657,6 +1664,17 @@ internal class HomeScreenViewModel(
             val load = userApi.loadQuote(postId)
             viewModelStateFlow.update { state ->
                 state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+            }
+        }
+    }
+
+    private fun loadReplyTargetAuthor(postId: String) {
+        if (postId in viewModelStateFlow.value.replyTargetAuthors) return
+        viewModelStateFlow.update { it.copy(replyTargetAuthors = it.replyTargetAuthors + (postId to ReplyTargetAuthorLoad.Loading)) }
+        viewModelScope.launch {
+            val load = userApi.loadReplyTargetAuthor(postId)
+            viewModelStateFlow.update { state ->
+                state.copy(replyTargetAuthors = if (load == null) state.replyTargetAuthors - postId else state.replyTargetAuthors + (postId to load))
             }
         }
     }
@@ -1813,6 +1831,11 @@ internal class HomeScreenViewModel(
         actorLabel: PostActorLabel?,
     ): PostItemUiState {
         return createPostItemUiState(
+            replyLabel = createPostItemReplyLabel(
+                hasReplyTarget = post.hasReplyTarget,
+                load = viewModelState.replyTargetAuthors[post.id],
+                onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
+            ),
             pinned = false,
             deleted = post.deleted,
             boostUndone = post.boostUndone,
@@ -1857,6 +1880,9 @@ internal class HomeScreenViewModel(
                 }
                 if (post.hasQuoteTarget) {
                     loadQuote(post.id)
+                }
+                if (post.hasReplyTarget) {
+                    loadReplyTargetAuthor(post.id)
                 }
             },
         )
@@ -2018,6 +2044,10 @@ internal class HomeScreenViewModel(
          * 投稿の id ごとの引用先
          */
         val quotes: Map<String, QuoteLoad>,
+        /**
+         * 投稿の id ごとの返信先の投稿者
+         */
+        val replyTargetAuthors: Map<String, ReplyTargetAuthorLoad>,
         val imageBlur: ImageBlurState,
         val notifications: NotificationsState,
         val search: SearchState,

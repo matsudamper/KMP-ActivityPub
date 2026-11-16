@@ -132,6 +132,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentPager
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentPagerState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileHeaderImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinks
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
@@ -239,6 +240,7 @@ internal fun HomeScreen(
             val postUiState = rememberPostScreenUiState(
                 target = PostScreenTarget.NewNote,
                 onNavigateBack = uiState.listener::onPostColumnFinished,
+                onClose = uiState.listener::onPostColumnFinished,
                 snackbarHostState = snackbarHostState,
             )
             val postColumnSnackbarHostState = remember { SnackbarHostState() }
@@ -1072,6 +1074,12 @@ internal fun UserTabContent(
                     selectedTab = userContentTab,
                     onSelectTab = listener::onClickUserContentTab,
                     header = {
+                        val headerUrl = profile.headerUrl
+                        if (headerUrl != null) {
+                            item {
+                                ProfileHeaderImage(headerUrl = headerUrl)
+                            }
+                        }
                         item {
                             UserProfileHeader(profile = profile, listener = listener)
                         }

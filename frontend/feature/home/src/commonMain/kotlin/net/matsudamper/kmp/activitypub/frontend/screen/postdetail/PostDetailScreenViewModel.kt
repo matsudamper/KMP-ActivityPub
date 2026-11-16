@@ -126,8 +126,8 @@ internal class PostDetailScreenViewModel(
             load()
         }
 
-        override fun onClickBack() {
-            viewModelScope.launch { events.send { it.navigateBack() } }
+        override fun onClickClose() {
+            viewModelScope.launch { events.send { it.closeToHome() } }
         }
     }
 
@@ -739,6 +739,7 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
+            replyLabel = null,
             pinned = false,
             deleted = post.deleted,
             boostUndone = false,
@@ -859,6 +860,7 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
+            replyLabel = null,
             pinned = false,
             deleted = post.deleted,
             boostUndone = post.boostUndone,
@@ -914,6 +916,8 @@ internal class PostDetailScreenViewModel(
 
     internal interface Event {
         fun navigateBack()
+
+        fun closeToHome()
 
         fun showMessage(message: String)
 

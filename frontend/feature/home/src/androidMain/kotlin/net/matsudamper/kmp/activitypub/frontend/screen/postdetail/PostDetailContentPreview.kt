@@ -204,6 +204,7 @@ private fun PostDetailReplyTargetPreview(replyTargetLoader: PostDetailScreenUiSt
 }
 
 private fun previewThreadPost(displayName: String, acct: String, content: String) = PostItemUiState(
+    replyLabel = null,
     pinnedLabelVisible = false,
     deletedLabelVisible = false,
     actorLabel = null,
@@ -267,6 +268,7 @@ private fun createLoadedUiState(
             replyTargetLoader = replyTargetLoader,
             replyTargets = replyTargets,
             post = PostItemUiState(
+                replyLabel = null,
                 pinnedLabelVisible = false,
                 deletedLabelVisible = false,
                 actorLabel = null,
@@ -404,7 +406,7 @@ private fun PostDetailContentNotFoundPreview() {
 private object AndroidPreviewPostDetailListener : PostDetailScreenUiState.Listener {
     override fun onClickRetry() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 }
 
 private object AndroidPreviewReplyTargetLoadingListener : PostDetailScreenUiState.ReplyTargetLoader.Loading.Listener {
