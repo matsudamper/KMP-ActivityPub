@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import kotlin.coroutines.resume
 import kotlin.js.ExperimentalWasmJsInterop
@@ -131,7 +132,7 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
 /**
  * 展開する前に寸法を確かめる理由は [toProfileIconOrNull] と同じ
  */
-internal actual fun ByteArray.toProfileHeaderOrNull(widthPx: Int, heightPx: Int): ProfileHeaderImage? =
+internal actual fun ByteArray.toProfileHeaderSourceOrNull(widthPx: Int, heightPx: Int): ImageBitmap? =
     runCatching {
         val codec = Codec.makeFromData(Data.makeFromBytes(this))
         val pixelCount = codec.width.toLong() * codec.height
@@ -139,26 +140,55 @@ internal actual fun ByteArray.toProfileHeaderOrNull(widthPx: Int, heightPx: Int)
         if (pixelCount > MAX_DECODED_PIXELS) return@runCatching null
 
         val image = Image.makeFromEncoded(this)
-        val crop = ProfileHeaderCrop.of(sourceWidth = image.width, sourceHeight = image.height, widthPx = widthPx, heightPx = heightPx)
-        val surface = Surface.makeRasterN32Premul(crop.outputWidth, crop.outputHeight)
+        val crop = ProfileHeaderSourceCrop.of(sourceWidth = image.width, sourceHeight = image.height, widthPx = widthPx, heightPx = heightPx)
         try {
-            surface.canvas.drawImageRect(
-                image,
-                Rect.makeXYWH(crop.left.toFloat(), crop.top.toFloat(), crop.cropWidth.toFloat(), crop.cropHeight.toFloat()),
-                Rect.makeWH(crop.outputWidth.toFloat(), crop.outputHeight.toFloat()),
-                // 既定の最近傍で大きく縮めるとギザギザになる
-                FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
-                null,
-                true,
-            )
-            val header = surface.makeImageSnapshot()
-            val jpeg = header.encodeToData(EncodedImageFormat.JPEG, HEADER_JPEG_QUALITY)?.bytes ?: return@runCatching null
-            ProfileHeaderImage(jpeg = jpeg, bitmap = header.toComposeImageBitmap())
+            image.redraw(
+                source = Rect.makeXYWH(crop.left.toFloat(), 0f, crop.cropWidth.toFloat(), image.height.toFloat()),
+                outputWidth = crop.outputWidth,
+                outputHeight = crop.outputHeight,
+            ).toComposeImageBitmap()
         } finally {
-            surface.close()
             image.close()
         }
     }.getOrNull()
+
+internal actual fun ImageBitmap.toProfileHeaderOrNull(top: Int, height: Int): ProfileHeaderImage? =
+    runCatching {
+        val image = Image.makeFromBitmap(asSkiaBitmap())
+        try {
+            val header = image.redraw(
+                source = Rect.makeXYWH(0f, top.toFloat(), width.toFloat(), height.toFloat()),
+                outputWidth = width,
+                outputHeight = height,
+            )
+            val jpeg = header.encodeToData(EncodedImageFormat.JPEG, HEADER_JPEG_QUALITY)?.bytes ?: return@runCatching null
+            ProfileHeaderImage(jpeg = jpeg, bitmap = header.toComposeImageBitmap())
+        } finally {
+            image.close()
+        }
+    }.getOrNull()
+
+private fun Image.redraw(
+    source: Rect,
+    outputWidth: Int,
+    outputHeight: Int,
+): Image {
+    val surface = Surface.makeRasterN32Premul(outputWidth, outputHeight)
+    try {
+        surface.canvas.drawImageRect(
+            this,
+            source,
+            Rect.makeWH(outputWidth.toFloat(), outputHeight.toFloat()),
+            // 既定の最近傍で大きく縮めるとギザギザになる
+            FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+            null,
+            true,
+        )
+        return surface.makeImageSnapshot()
+    } finally {
+        surface.close()
+    }
+}
 
 private const val HEADER_JPEG_QUALITY = 90
 

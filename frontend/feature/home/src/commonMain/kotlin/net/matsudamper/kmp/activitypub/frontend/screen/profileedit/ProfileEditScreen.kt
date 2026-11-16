@@ -164,6 +164,10 @@ private fun LoadedContent(
     content: ProfileEditScreenUiState.Content.Loaded,
     listener: ProfileEditScreenUiState.Listener,
 ) {
+    val headerCropDialog = content.headerCropDialog
+    if (headerCropDialog != null) {
+        HeaderCropDialog(dialog = headerCropDialog, listener = listener)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()

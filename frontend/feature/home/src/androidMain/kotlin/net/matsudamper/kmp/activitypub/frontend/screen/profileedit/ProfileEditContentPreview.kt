@@ -31,6 +31,7 @@ private fun ProfileEditContentPreview() {
                     headerLoadingVisible = false,
                     currentHeaderUrl = null,
                     headerSelectButtonEnabled = true,
+                    headerCropDialog = null,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -88,6 +89,7 @@ private fun ProfileEditContentDialogPreview() {
                             headerLoadingVisible = false,
                             currentHeaderUrl = null,
                             headerSelectButtonEnabled = true,
+                            headerCropDialog = null,
                             displayName = "ユーザー1",
                             displayNameInputEnabled = true,
                             displayNameHasError = false,
@@ -142,6 +144,7 @@ private fun ProfileEditContentIconUploadingPreview() {
                     headerLoadingVisible = false,
                     currentHeaderUrl = null,
                     headerSelectButtonEnabled = false,
+                    headerCropDialog = null,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -179,6 +182,7 @@ private fun ProfileEditContentHeaderUploadingPreview() {
                     headerLoadingVisible = true,
                     currentHeaderUrl = null,
                     headerSelectButtonEnabled = false,
+                    headerCropDialog = null,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -199,6 +203,25 @@ private fun ProfileEditContentHeaderUploadingPreview() {
     }
 }
 
+@Preview
+@Composable
+private fun HeaderCropDialogContentPreview() {
+    MaterialTheme {
+        HeaderCropDialogContent(
+            dialog = ProfileEditScreenUiState.HeaderCropDialog(
+                image = ImageBitmap(width = 300, height = 400).apply {
+                    val canvas = Canvas(this)
+                    canvas.drawRect(0f, 0f, 300f, 200f, Paint().apply { color = Color(0xFF4A90D9) })
+                    canvas.drawRect(0f, 200f, 300f, 400f, Paint().apply { color = Color(0xFFD98C4A) })
+                },
+                cropTopRatio = 0.5f,
+                cropHeightRatio = 0.25f,
+            ),
+            listener = AndroidPreviewProfileEditListener,
+        )
+    }
+}
+
 private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.Listener {
     override fun onClickSelectIcon() = Unit
 
@@ -207,6 +230,12 @@ private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.List
     override fun onClickSelectHeader() = Unit
 
     override fun onHeaderPicked(file: PickedImageFile) = Unit
+
+    override fun onHeaderCropMoved(cropTopRatio: Float) = Unit
+
+    override fun onClickHeaderCropConfirm() = Unit
+
+    override fun onClickHeaderCropCancel() = Unit
 
     override fun onDisplayNameChanged(text: String) = Unit
 

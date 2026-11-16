@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.exifinterface.media.ExifInterface
@@ -90,7 +91,7 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
 /**
  * 間引き方と向きの扱いは [toProfileIconOrNull] と同じ。切り抜く範囲は回した後の向きで決める
  */
-internal actual fun ByteArray.toProfileHeaderOrNull(widthPx: Int, heightPx: Int): ProfileHeaderImage? {
+internal actual fun ByteArray.toProfileHeaderSourceOrNull(widthPx: Int, heightPx: Int): ImageBitmap? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(this, 0, size, bounds)
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
@@ -101,11 +102,16 @@ internal actual fun ByteArray.toProfileHeaderOrNull(widthPx: Int, heightPx: Int)
     val decoded = BitmapFactory.decodeByteArray(this, 0, size, BitmapFactory.Options().apply { inSampleSize = sampleSize }) ?: return null
 
     val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), true)
-    val crop = ProfileHeaderCrop.of(sourceWidth = oriented.width, sourceHeight = oriented.height, widthPx = widthPx, heightPx = heightPx)
+    val crop = ProfileHeaderSourceCrop.of(sourceWidth = oriented.width, sourceHeight = oriented.height, widthPx = widthPx, heightPx = heightPx)
     val matrix = Matrix().apply {
-        postScale(crop.outputWidth.toFloat() / crop.cropWidth, crop.outputHeight.toFloat() / crop.cropHeight)
+        postScale(crop.outputWidth.toFloat() / crop.cropWidth, crop.outputHeight.toFloat() / oriented.height)
     }
-    val header = Bitmap.createBitmap(oriented, crop.left, crop.top, crop.cropWidth, crop.cropHeight, matrix, true)
+    return Bitmap.createBitmap(oriented, crop.left, 0, crop.cropWidth, oriented.height, matrix, true).asImageBitmap()
+}
+
+internal actual fun ImageBitmap.toProfileHeaderOrNull(top: Int, height: Int): ProfileHeaderImage? {
+    val source = asAndroidBitmap()
+    val header = Bitmap.createBitmap(source, 0, top, source.width, height)
     val jpeg = ByteArrayOutputStream().also { header.compress(Bitmap.CompressFormat.JPEG, HEADER_JPEG_QUALITY, it) }.toByteArray()
     return ProfileHeaderImage(jpeg = jpeg, bitmap = header.asImageBitmap())
 }

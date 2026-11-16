@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileHeaderImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIconImage
 import net.matsudamper.kmp.activitypub.frontend.ui.toProfileHeaderOrNull
+import net.matsudamper.kmp.activitypub.frontend.ui.toProfileHeaderSourceOrNull
 import net.matsudamper.kmp.activitypub.frontend.ui.toProfileIconOrNull
 import org.koin.core.annotation.KoinViewModel
 
@@ -59,6 +61,27 @@ internal class ProfileEditScreenViewModel(
 
                     override fun onHeaderPicked(file: PickedImageFile) {
                         pickHeader(file)
+                    }
+
+                    override fun onHeaderCropMoved(cropTopRatio: Float) {
+                        viewModelStateFlow.update { state ->
+                            val headerCrop = (state as? ViewModelState.Loaded)?.headerCrop
+                            if (state is ViewModelState.Loaded && headerCrop != null) {
+                                state.copy(headerCrop = headerCrop.copy(topRatio = cropTopRatio.coerceIn(0f, 1f)))
+                            } else {
+                                state
+                            }
+                        }
+                    }
+
+                    override fun onClickHeaderCropConfirm() {
+                        confirmHeaderCrop()
+                    }
+
+                    override fun onClickHeaderCropCancel() {
+                        viewModelStateFlow.update { state ->
+                            if (state is ViewModelState.Loaded) state.copy(headerCrop = null) else state
+                        }
                     }
 
                     override fun onDisplayNameChanged(text: String) {
@@ -152,6 +175,7 @@ internal class ProfileEditScreenViewModel(
                         headerPreview = null,
                         processingHeader = false,
                         currentHeaderUrl = result.headerUrl,
+                        headerCrop = null,
                         displayName = result.displayName.orEmpty(),
                         summary = result.summary.orEmpty(),
                         links = result.links,
@@ -255,7 +279,8 @@ internal class ProfileEditScreenViewModel(
         }
 
     /**
-     * 選んだらそのまま送る。理由は [pickIcon] と同じ
+     * 横幅を合わせて縦が収まればそのまま送る。縦がはみ出すなら、使う範囲を選ばせてから送る。
+     * 読み込みを viewModelScope で行う理由は [pickIcon] と同じ
      */
     private fun pickHeader(file: PickedImageFile) {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
@@ -263,60 +288,103 @@ internal class ProfileEditScreenViewModel(
         viewModelStateFlow.value = state.copy(processingHeader = true)
 
         viewModelScope.launch {
-            val header = readHeader(file)
-            if (header == null) {
+            val source = readHeaderSource(file)
+            if (source == null) {
                 viewModelStateFlow.update { current ->
                     if (current is ViewModelState.Loaded) current.copy(processingHeader = false) else current
                 }
                 return@launch
             }
-
-            // 送っている間も選んだ画像を出す。失敗したら前の表示に戻す
-            val previousPreview = (viewModelStateFlow.value as? ViewModelState.Loaded)?.headerPreview
-            viewModelStateFlow.update { current ->
-                if (current is ViewModelState.Loaded) current.copy(headerPreview = header.bitmap) else current
-            }
-            val result = api.updateProfileHeader(header = header.jpeg)
-            viewModelStateFlow.update { current ->
-                when {
-                    current !is ViewModelState.Loaded -> current
-
-                    result is UserUpdateProfileHeaderResult.Success -> current.copy(
-                        currentHeaderUrl = result.headerUrl ?: current.currentHeaderUrl,
-                        processingHeader = false,
-                    )
-
-                    else -> current.copy(headerPreview = previousPreview, processingHeader = false)
+            // 丸めで 1px はみ出すだけのときは選ばせずに上から切る
+            if (source.height - source.headerCropHeight() > 1) {
+                viewModelStateFlow.update { current ->
+                    if (current is ViewModelState.Loaded) {
+                        current.copy(processingHeader = false, headerCrop = HeaderCrop(source = source, topRatio = 0.5f))
+                    } else {
+                        current
+                    }
                 }
+                return@launch
             }
-            val message =
-                when (result) {
-                    is UserUpdateProfileHeaderResult.Success -> "ヘッダー画像を変更しました"
-                    UserUpdateProfileHeaderResult.NotLoggedIn -> "ログインしていません"
-                    UserUpdateProfileHeaderResult.TooLarge -> "画像が大きすぎます。2MB までにしてください"
-                    UserUpdateProfileHeaderResult.DimensionsTooLarge -> "画像が大きすぎます。横 ${HEADER_WIDTH_PX}px、縦 ${HEADER_HEIGHT_PX}px までにしてください"
-                    UserUpdateProfileHeaderResult.UnsupportedImage -> "PNG / JPEG / GIF / WebP の画像にしてください"
-                    UserUpdateProfileHeaderResult.UnsupportedOperation -> "このサーバーでは受け付けていない操作です"
-                    UserUpdateProfileHeaderResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
-                    UserUpdateProfileHeaderResult.FederationDisabled -> "サーバーがプロフィールの更新を配れる設定になっていません"
-                    is UserUpdateProfileHeaderResult.Failure -> result.message
-                }
-            events.send { it.showMessage(message) }
+            uploadHeader(source = source, top = 0)
         }
+    }
+
+    private fun confirmHeaderCrop() {
+        val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+        val headerCrop = state.headerCrop ?: return
+        if (state.saving || state.processingIcon || state.processingHeader) return
+        viewModelStateFlow.value = state.copy(headerCrop = null, processingHeader = true)
+
+        val source = headerCrop.source
+        val top = ((source.height - source.headerCropHeight()) * headerCrop.topRatio).roundToInt()
+        viewModelScope.launch {
+            uploadHeader(source = source, top = top)
+        }
+    }
+
+    /**
+     * 呼ぶ前に processingHeader を立てておく。終わったら下ろす
+     */
+    private suspend fun uploadHeader(
+        source: ImageBitmap,
+        top: Int,
+    ) {
+        // JPEG への書き出しは画面を止めるほど重い
+        val header = withContext(Dispatchers.Default) { source.toProfileHeaderOrNull(top = top, height = source.headerCropHeight()) }
+        if (header == null) {
+            viewModelStateFlow.update { current ->
+                if (current is ViewModelState.Loaded) current.copy(processingHeader = false) else current
+            }
+            events.send { it.showMessage("画像として読み込めませんでした") }
+            return
+        }
+
+        // 送っている間も選んだ画像を出す。失敗したら前の表示に戻す
+        val previousPreview = (viewModelStateFlow.value as? ViewModelState.Loaded)?.headerPreview
+        viewModelStateFlow.update { current ->
+            if (current is ViewModelState.Loaded) current.copy(headerPreview = header.bitmap) else current
+        }
+        val result = api.updateProfileHeader(header = header.jpeg)
+        viewModelStateFlow.update { current ->
+            when {
+                current !is ViewModelState.Loaded -> current
+
+                result is UserUpdateProfileHeaderResult.Success -> current.copy(
+                    currentHeaderUrl = result.headerUrl ?: current.currentHeaderUrl,
+                    processingHeader = false,
+                )
+
+                else -> current.copy(headerPreview = previousPreview, processingHeader = false)
+            }
+        }
+        val message =
+            when (result) {
+                is UserUpdateProfileHeaderResult.Success -> "ヘッダー画像を変更しました"
+                UserUpdateProfileHeaderResult.NotLoggedIn -> "ログインしていません"
+                UserUpdateProfileHeaderResult.TooLarge -> "画像が大きすぎます。2MB までにしてください"
+                UserUpdateProfileHeaderResult.DimensionsTooLarge -> "画像が大きすぎます。横 ${HEADER_WIDTH_PX}px、縦 ${HEADER_HEIGHT_PX}px までにしてください"
+                UserUpdateProfileHeaderResult.UnsupportedImage -> "PNG / JPEG / GIF / WebP の画像にしてください"
+                UserUpdateProfileHeaderResult.UnsupportedOperation -> "このサーバーでは受け付けていない操作です"
+                UserUpdateProfileHeaderResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
+                UserUpdateProfileHeaderResult.FederationDisabled -> "サーバーがプロフィールの更新を配れる設定になっていません"
+                is UserUpdateProfileHeaderResult.Failure -> result.message
+            }
+        events.send { it.showMessage(message) }
     }
 
     /**
      * 読めなければメッセージを出して null
      */
-    private suspend fun readHeader(file: PickedImageFile): ProfileHeaderImage? =
+    private suspend fun readHeaderSource(file: PickedImageFile): ImageBitmap? =
         when (val result = file.read(maxBytes = MAX_SOURCE_IMAGE_BYTES)) {
             is PickedImageFile.ReadResult.Success -> {
-                // 展開と JPEG への書き出しは画面を止めるほど重い
-                val header = withContext(Dispatchers.Default) {
-                    result.bytes.toProfileHeaderOrNull(widthPx = HEADER_WIDTH_PX, heightPx = HEADER_HEIGHT_PX)
+                // 展開と縮小は画面を止めるほど重い
+                val source = withContext(Dispatchers.Default) {
+                    result.bytes.toProfileHeaderSourceOrNull(widthPx = HEADER_WIDTH_PX, heightPx = HEADER_HEIGHT_PX)
                 }
-                if (header == null) events.send { it.showMessage("画像として読み込めませんでした") }
-                header
+                if (source == null) events.send { it.showMessage("画像として読み込めませんでした") }
+                source
             }
 
             PickedImageFile.ReadResult.TooLarge -> {
@@ -329,6 +397,11 @@ internal class ProfileEditScreenViewModel(
                 null
             }
         }
+
+    /**
+     * 横幅に合わせたときのヘッダーの高さ。元が低ければ元の高さ
+     */
+    private fun ImageBitmap.headerCropHeight(): Int = minOf(height, (width.toLong() * HEADER_HEIGHT_PX / HEADER_WIDTH_PX).toInt().coerceAtLeast(1))
 
     private fun save() {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
@@ -391,6 +464,13 @@ internal class ProfileEditScreenViewModel(
                     headerLoadingVisible = viewModelState.processingHeader,
                     currentHeaderUrl = viewModelState.currentHeaderUrl,
                     headerSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
+                    headerCropDialog = viewModelState.headerCrop?.let { headerCrop ->
+                        ProfileEditScreenUiState.HeaderCropDialog(
+                            image = headerCrop.source,
+                            cropTopRatio = headerCrop.topRatio,
+                            cropHeightRatio = headerCrop.source.headerCropHeight().toFloat() / headerCrop.source.height,
+                        )
+                    },
                     displayName = viewModelState.displayName,
                     displayNameInputEnabled = viewModelState.saving.not(),
                     displayNameHasError = viewModelState.errorField == ErrorField.DisplayName,
@@ -421,9 +501,10 @@ internal class ProfileEditScreenViewModel(
     private fun ViewModelState.saving(): Boolean = this is ViewModelState.Loaded && saving
 
     /**
-     * プロフィール画像とヘッダーは同時に送らない。どちらの Update も Actor の全体を載せるので、後から積んだ方が先の画像を古い値に戻す
+     * プロフィール画像とヘッダーは同時に送らない。どちらの Update も Actor の全体を載せるので、後から積んだ方が先の画像を古い値に戻す。
+     * ヘッダーの範囲を選んでいる間も、決めればすぐ送るので同じに扱う
      */
-    private fun ViewModelState.processingImage(): Boolean = this is ViewModelState.Loaded && (processingIcon || processingHeader)
+    private fun ViewModelState.processingImage(): Boolean = this is ViewModelState.Loaded && (processingIcon || processingHeader || headerCrop != null)
 
     sealed interface ViewModelState {
         data object Loading : ViewModelState
@@ -437,6 +518,7 @@ internal class ProfileEditScreenViewModel(
          * @param processingIcon 選んだ画像を読んで、縮めて、送っている途中
          * @param headerPreview 送った、または送っている画像。取り直さずにすぐ出す
          * @param processingHeader 選んだ画像を読んで、縮めて、送っている途中
+         * @param headerCrop 縦に長い画像を選び、使う範囲を選んでいる途中
          */
         data class Loaded(
             val iconPreview: ImageBitmap?,
@@ -445,6 +527,7 @@ internal class ProfileEditScreenViewModel(
             val headerPreview: ImageBitmap?,
             val processingHeader: Boolean,
             val currentHeaderUrl: String?,
+            val headerCrop: HeaderCrop?,
             val displayName: String,
             val summary: String,
             val links: List<UserProfileLink>,
@@ -453,6 +536,15 @@ internal class ProfileEditScreenViewModel(
             val errorField: ErrorField?,
         ) : ViewModelState
     }
+
+    /**
+     * @param source 横幅をヘッダーに合わせた画像
+     * @param topRatio 使う範囲の位置。0 で一番上、1 で一番下
+     */
+    data class HeaderCrop(
+        val source: ImageBitmap,
+        val topRatio: Float,
+    )
 
     enum class ErrorField {
         DisplayName,

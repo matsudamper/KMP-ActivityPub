@@ -59,11 +59,17 @@ internal class ProfileIconImage(
 )
 
 /**
- * 中央を [widthPx]:[heightPx] に切り抜き、[widthPx] x [heightPx] に収まる JPEG に描き直す。元が小さければ拡大しない。
- * PNG だと写真はサーバーの上限を超えやすいので JPEG にする。
+ * ヘッダーの範囲を選ぶ元の画像にする。[widthPx]:[heightPx] より横長なら左右の中央を切り抜き、横幅を [widthPx] に収める。
+ * 縦長なら縦は切らずに残し、どこを使うかは [toProfileHeaderOrNull] で決める。元が小さければ拡大しない。
  * 画像として読めないか、画素数が大きすぎて展開できなければ null
  */
-internal expect fun ByteArray.toProfileHeaderOrNull(widthPx: Int, heightPx: Int): ProfileHeaderImage?
+internal expect fun ByteArray.toProfileHeaderSourceOrNull(widthPx: Int, heightPx: Int): ImageBitmap?
+
+/**
+ * 上から [top] の位置で高さ [height] を切り出し、JPEG に書き出す。
+ * PNG だと写真はサーバーの上限を超えやすいので JPEG にする。書き出せなければ null
+ */
+internal expect fun ImageBitmap.toProfileHeaderOrNull(top: Int, height: Int): ProfileHeaderImage?
 
 /**
  * @param jpeg 送る画像。写真の位置情報などのメタデータは描き直したときに落ちる
@@ -75,13 +81,11 @@ internal class ProfileHeaderImage(
 )
 
 /**
- * 元の画像の中央から切り抜く範囲と、描き直す大きさ
+ * [toProfileHeaderSourceOrNull] で元の画像から切り抜く範囲と、描き直す大きさ
  */
-internal class ProfileHeaderCrop private constructor(
+internal class ProfileHeaderSourceCrop private constructor(
     val left: Int,
-    val top: Int,
     val cropWidth: Int,
-    val cropHeight: Int,
     val outputWidth: Int,
     val outputHeight: Int,
 ) {
@@ -91,17 +95,14 @@ internal class ProfileHeaderCrop private constructor(
             sourceHeight: Int,
             widthPx: Int,
             heightPx: Int,
-        ): ProfileHeaderCrop {
+        ): ProfileHeaderSourceCrop {
             val sourceIsWider = sourceWidth.toLong() * heightPx > sourceHeight.toLong() * widthPx
             val cropWidth = if (sourceIsWider) (sourceHeight.toLong() * widthPx / heightPx).toInt().coerceAtLeast(1) else sourceWidth
-            val cropHeight = if (sourceIsWider) sourceHeight else (sourceWidth.toLong() * heightPx / widthPx).toInt().coerceAtLeast(1)
             val outputWidth = minOf(cropWidth, widthPx)
-            val outputHeight = (cropHeight.toLong() * outputWidth / cropWidth).toInt().coerceIn(1, heightPx)
-            return ProfileHeaderCrop(
+            val outputHeight = (sourceHeight.toLong() * outputWidth / cropWidth).toInt().coerceAtLeast(1)
+            return ProfileHeaderSourceCrop(
                 left = (sourceWidth - cropWidth) / 2,
-                top = (sourceHeight - cropHeight) / 2,
                 cropWidth = cropWidth,
-                cropHeight = cropHeight,
                 outputWidth = outputWidth,
                 outputHeight = outputHeight,
             )
