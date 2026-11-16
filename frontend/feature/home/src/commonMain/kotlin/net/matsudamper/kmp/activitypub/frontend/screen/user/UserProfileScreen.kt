@@ -120,6 +120,10 @@ internal fun UserProfileScreen(
                 navigator.navigate(Screen.QuotePost(postId = postId))
             }
 
+            override fun navigateToReplyPost(postId: String) {
+                navigator.navigate(Screen.ReplyPost(postId = postId))
+            }
+
             override fun navigateToUserProfile(username: String) {
                 navigator.navigate(Screen.UserProfile(username = username))
             }
