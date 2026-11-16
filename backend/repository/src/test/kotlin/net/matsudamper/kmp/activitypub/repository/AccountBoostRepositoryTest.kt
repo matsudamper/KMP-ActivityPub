@@ -381,7 +381,7 @@ class AccountBoostRepositoryTest {
     private fun undoBody(id: String): String = """{"type":"Undo","object":"$id"}"""
 
     private fun note(id: String): RemoteNoteInput = RemoteNoteInput(
-        objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = id,
+        objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", language = null, visibility = id,
         localRecipients = setOf(), inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
         images = listOf(),
         emojis = listOf(),

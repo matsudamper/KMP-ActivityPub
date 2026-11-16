@@ -356,7 +356,7 @@ class RemoteNoteReceptionTest {
     )
 
     private fun note(to: List<String>): ReceivedNote = ReceivedNote(
-        "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", Instant.EPOCH, to, listOf(), null, null, null, false, NoteVisibility.Public, listOf(), listOf(),
+        "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", null, Instant.EPOCH, to, listOf(), null, null, null, false, NoteVisibility.Public, listOf(), listOf(),
     )
 
     private class Fixture(openTelemetry: OpenTelemetry) {

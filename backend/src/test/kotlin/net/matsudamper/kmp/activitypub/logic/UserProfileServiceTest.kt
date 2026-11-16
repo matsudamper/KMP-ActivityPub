@@ -709,6 +709,7 @@ class UserProfileServiceTest {
             objectUri = noteUri,
             actorUri = actorUri,
             contentHtml = contentHtml,
+            language = null,
             visibility = "public",
             localRecipients = setOf(),
             inReplyTo = null,

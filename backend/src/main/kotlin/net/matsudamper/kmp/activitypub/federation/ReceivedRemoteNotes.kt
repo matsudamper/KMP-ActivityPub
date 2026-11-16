@@ -156,6 +156,7 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     objectUri = id,
     actorUri = attributedTo,
     contentHtml = Jsoup.clean(contentWithoutQuoteFallback(), Safelist.basic()),
+    language = language,
     visibility = visibility.name.lowercase(),
     localRecipients = localRecipients,
     inReplyTo = inReplyTo,

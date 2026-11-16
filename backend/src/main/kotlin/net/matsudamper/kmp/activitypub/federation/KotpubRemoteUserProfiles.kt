@@ -76,6 +76,7 @@ internal class KotpubRemoteUserProfiles(
         objectUri = id,
         actorUri = actorUri,
         contentHtml = Jsoup.clean(contentHtml, Safelist.basic()),
+        language = language,
         visibility = if (unlisted) "unlisted" else "public",
         localRecipients = setOf(),
         inReplyTo = null,

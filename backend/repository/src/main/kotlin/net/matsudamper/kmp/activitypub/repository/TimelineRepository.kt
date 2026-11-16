@@ -244,6 +244,10 @@ data class RemoteNoteInput(
     val objectUri: String,
     val actorUri: String,
     val contentHtml: String,
+    /**
+     * BCP 47 の言語タグ。相手のサーバーが付けていなければ null
+     */
+    val language: String?,
     val visibility: String,
     val localRecipients: Set<String>,
     val inReplyTo: String?,
