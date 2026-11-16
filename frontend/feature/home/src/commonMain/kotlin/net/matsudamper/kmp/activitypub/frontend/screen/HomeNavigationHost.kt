@@ -79,7 +79,7 @@ fun HomeNavigationHost(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
-            sceneStrategies = listOf(RootDialogSceneStrategy(), DialogSceneStrategy()),
+            sceneStrategies = listOf(SingleDialogSceneStrategy()),
             popTransitionSpec = { fadeIn() togetherWith fadeOut() },
             predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
             entryProvider = { key ->
