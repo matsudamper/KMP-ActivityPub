@@ -738,7 +738,7 @@ private fun PostActions(
     }
 }
 
-private val ActionButtonContentPadding = PaddingValues(horizontal = 8.dp)
+private val ActionButtonContentPadding = PaddingValues(horizontal = 4.dp)
 
 internal val FavouriteHighlightedColor = Color(0xFFF5B400)
 
