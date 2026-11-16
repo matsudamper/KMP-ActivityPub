@@ -7,6 +7,8 @@ CREATE TABLE accounts (
     display_name TEXT,
     -- 画像の置き場の中でのプロフィール画像の場所。未設定なら NULL
     icon_path TEXT,
+    -- 画像の置き場の中でのプロフィールヘッダーの場所。未設定なら NULL
+    header_path TEXT,
     last_active_at TEXT,
     -- プロフィールの説明文。プレーンテキスト。未設定なら NULL
     summary TEXT,

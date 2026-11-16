@@ -37,6 +37,7 @@ class PasskeyServiceTest {
             createdAt = Instant.EPOCH,
             displayName = null,
             iconPath = null,
+            headerPath = null,
         )
     private val authenticator = TestAuthenticator(TestPasskeyAlgorithm.ES256)
 
@@ -66,14 +67,14 @@ class PasskeyServiceTest {
     @Test
     fun `別のアカウントの user handle を名乗るとログインできない`() {
         registerAndGetUserHandle(account)
-        val otherOptions = parse(service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH, displayName = null, iconPath = null)))
+        val otherOptions = parse(service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH, displayName = null, iconPath = null, headerPath = null)))
 
         assertNull(login(userHandle = otherOptions.userHandle()))
     }
 
     @Test
     fun `別のアカウント向けの challenge では登録できない`() {
-        val otherOptions = parse(service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH, displayName = null, iconPath = null)))
+        val otherOptions = parse(service.registrationOptions(Account(id = AccountId(2), username = "user2", createdAt = Instant.EPOCH, displayName = null, iconPath = null, headerPath = null)))
 
         assertEquals(PasskeyService.RegistrationResult.NotAccepted, register(account, challenge = otherOptions.challenge()))
     }
