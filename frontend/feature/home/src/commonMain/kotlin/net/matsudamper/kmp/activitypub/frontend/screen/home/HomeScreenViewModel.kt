@@ -1448,6 +1448,7 @@ internal class HomeScreenViewModel(
             ProfileState.Loading -> HomeScreenUiState.Profile.Loading
 
             is ProfileState.Loaded -> HomeScreenUiState.Profile.Loaded(
+                headerUrl = profile.profile.headerUrl,
                 iconUrl = profile.profile.iconUrl,
                 displayName = profile.profile.displayName ?: profile.profile.username,
                 acct = "@${profile.profile.username}",

@@ -535,6 +535,7 @@ private fun HomeUserContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
+                    headerUrl = "https://example.com/header.png",
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
@@ -623,6 +624,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
+                    headerUrl = null,
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
@@ -683,6 +685,7 @@ private fun HomeUserMediaContentPreview() {
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
+                    headerUrl = null,
                     iconUrl = "https://example.com/icon.png",
                     displayName = "ユーザー1",
                     acct = "@user1",
