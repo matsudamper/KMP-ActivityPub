@@ -285,13 +285,18 @@ data class HomeScreenUiState(
     sealed interface UserPosts {
         data object Loading : UserPosts
 
+        /**
+         * @param postsFooter 投稿とメディアの末尾に出す。メディアは投稿の画像なので、続きの読み込みも投稿と同じ
+         */
         data class Loaded(
             val items: List<PostItemUiState>,
             val emptyMessage: String?,
+            val postsFooter: TimelineFooter,
             val media: List<ProfileMediaUiState>,
             val mediaEmptyMessage: String?,
             val likes: List<PostItemUiState>,
             val likesEmptyMessage: String?,
+            val likesFooter: TimelineFooter,
         ) : UserPosts
 
         data object LoadFailed : UserPosts
@@ -369,6 +374,10 @@ data class HomeScreenUiState(
         fun onClickRetryUserPosts()
 
         fun onClickUserContentTab(tab: ProfileContentTab)
+
+        fun onScrolledToUserContentEnd()
+
+        fun onClickRetryLoadMoreUserContent()
 
         fun onClickFollowing()
 
