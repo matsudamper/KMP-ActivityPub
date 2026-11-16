@@ -21,6 +21,10 @@ private fun ProfileEditContentPreview() {
                     iconLoadingVisible = false,
                     currentIconUrl = null,
                     iconSelectButtonEnabled = true,
+                    headerPreview = null,
+                    headerLoadingVisible = false,
+                    currentHeaderUrl = null,
+                    headerSelectButtonEnabled = true,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -86,6 +90,47 @@ private fun ProfileEditContentIconUploadingPreview() {
                     },
                     currentIconUrl = null,
                     iconSelectButtonEnabled = false,
+                    headerPreview = null,
+                    headerLoadingVisible = false,
+                    currentHeaderUrl = null,
+                    headerSelectButtonEnabled = false,
+                    displayName = "ユーザー1",
+                    displayNameInputEnabled = true,
+                    displayNameHasError = false,
+                    summary = "",
+                    summaryInputEnabled = true,
+                    summaryHasError = false,
+                    links = listOf(),
+                    addLinkButtonEnabled = true,
+                    likesPublic = false,
+                    likesPublicSwitchEnabled = true,
+                    saveButtonEnabled = false,
+                ),
+                backButtonEnabled = false,
+                listener = AndroidPreviewProfileEditListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ProfileEditContentHeaderUploadingPreview() {
+    MaterialTheme {
+        ProfileEditContent(
+            uiState = ProfileEditScreenUiState(
+                content = ProfileEditScreenUiState.Content.Loaded(
+                    iconLoadingVisible = false,
+                    iconPreview = null,
+                    currentIconUrl = null,
+                    iconSelectButtonEnabled = false,
+                    headerPreview = ImageBitmap(width = 300, height = 100).apply {
+                        Canvas(this).drawRect(0f, 0f, 300f, 100f, Paint().apply { color = Color(0xFFD98C4A) })
+                    },
+                    headerLoadingVisible = true,
+                    currentHeaderUrl = null,
+                    headerSelectButtonEnabled = false,
                     displayName = "ユーザー1",
                     displayNameInputEnabled = true,
                     displayNameHasError = false,
@@ -110,6 +155,10 @@ private object AndroidPreviewProfileEditListener : ProfileEditScreenUiState.List
     override fun onClickSelectIcon() = Unit
 
     override fun onIconPicked(file: PickedImageFile) = Unit
+
+    override fun onClickSelectHeader() = Unit
+
+    override fun onHeaderPicked(file: PickedImageFile) = Unit
 
     override fun onDisplayNameChanged(text: String) = Unit
 

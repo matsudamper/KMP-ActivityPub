@@ -19,12 +19,18 @@ data class ProfileEditScreenUiState(
         /**
          * @param iconPreview 選んで送った（送っている）画像。あれば [currentIconUrl] より優先して出す
          * @param currentIconUrl 保存済みのプロフィール画像。未設定なら null
+         * @param headerPreview 選んで送った（送っている）ヘッダー。あれば [currentHeaderUrl] より優先して出す
+         * @param currentHeaderUrl 保存済みのヘッダー。未設定なら null
          */
         data class Loaded(
             val iconPreview: ImageBitmap?,
             val iconLoadingVisible: Boolean,
             val currentIconUrl: String?,
             val iconSelectButtonEnabled: Boolean,
+            val headerPreview: ImageBitmap?,
+            val headerLoadingVisible: Boolean,
+            val currentHeaderUrl: String?,
+            val headerSelectButtonEnabled: Boolean,
             val displayName: String,
             val displayNameInputEnabled: Boolean,
             val displayNameHasError: Boolean,
@@ -56,6 +62,10 @@ data class ProfileEditScreenUiState(
         fun onClickSelectIcon()
 
         fun onIconPicked(file: PickedImageFile)
+
+        fun onClickSelectHeader()
+
+        fun onHeaderPicked(file: PickedImageFile)
 
         fun onDisplayNameChanged(text: String)
 

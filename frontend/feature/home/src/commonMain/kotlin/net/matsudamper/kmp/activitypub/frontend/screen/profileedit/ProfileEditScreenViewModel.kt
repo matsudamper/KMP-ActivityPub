@@ -15,10 +15,13 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLink
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileHeaderResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileIconResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUpdateProfileResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.ProfileHeaderImage
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIconImage
+import net.matsudamper.kmp.activitypub.frontend.ui.toProfileHeaderOrNull
 import net.matsudamper.kmp.activitypub.frontend.ui.toProfileIconOrNull
 import org.koin.core.annotation.KoinViewModel
 
@@ -45,6 +48,17 @@ internal class ProfileEditScreenViewModel(
 
                     override fun onIconPicked(file: PickedImageFile) {
                         pickIcon(file)
+                    }
+
+                    override fun onClickSelectHeader() {
+                        if (viewModelStateFlow.value.saving()) return
+                        viewModelScope.launch {
+                            events.send { it.openHeaderImagePicker() }
+                        }
+                    }
+
+                    override fun onHeaderPicked(file: PickedImageFile) {
+                        pickHeader(file)
                     }
 
                     override fun onDisplayNameChanged(text: String) {
@@ -135,6 +149,9 @@ internal class ProfileEditScreenViewModel(
                         iconPreview = null,
                         processingIcon = false,
                         currentIconUrl = result.iconUrl,
+                        headerPreview = null,
+                        processingHeader = false,
+                        currentHeaderUrl = result.headerUrl,
                         displayName = result.displayName.orEmpty(),
                         summary = result.summary.orEmpty(),
                         links = result.links,
@@ -168,7 +185,7 @@ internal class ProfileEditScreenViewModel(
      */
     private fun pickIcon(file: PickedImageFile) {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
-        if (state.saving || state.processingIcon) return
+        if (state.saving || state.processingImage()) return
         viewModelStateFlow.value = state.copy(processingIcon = true)
 
         viewModelScope.launch {
@@ -218,7 +235,7 @@ internal class ProfileEditScreenViewModel(
      * 読めなければメッセージを出して null
      */
     private suspend fun readIcon(file: PickedImageFile): ProfileIconImage? =
-        when (val result = file.read(maxBytes = MAX_SOURCE_ICON_BYTES)) {
+        when (val result = file.read(maxBytes = MAX_SOURCE_IMAGE_BYTES)) {
             is PickedImageFile.ReadResult.Success -> {
                 // 展開と PNG への書き出しは画面を止めるほど重い
                 val icon = withContext(Dispatchers.Default) { result.bytes.toProfileIconOrNull(sidePx = ICON_SIDE_PX) }
@@ -237,10 +254,86 @@ internal class ProfileEditScreenViewModel(
             }
         }
 
+    /**
+     * 選んだらそのまま送る。理由は [pickIcon] と同じ
+     */
+    private fun pickHeader(file: PickedImageFile) {
+        val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
+        if (state.saving || state.processingImage()) return
+        viewModelStateFlow.value = state.copy(processingHeader = true)
+
+        viewModelScope.launch {
+            val header = readHeader(file)
+            if (header == null) {
+                viewModelStateFlow.update { current ->
+                    if (current is ViewModelState.Loaded) current.copy(processingHeader = false) else current
+                }
+                return@launch
+            }
+
+            // 送っている間も選んだ画像を出す。失敗したら前の表示に戻す
+            val previousPreview = (viewModelStateFlow.value as? ViewModelState.Loaded)?.headerPreview
+            viewModelStateFlow.update { current ->
+                if (current is ViewModelState.Loaded) current.copy(headerPreview = header.bitmap) else current
+            }
+            val result = api.updateProfileHeader(header = header.jpeg)
+            viewModelStateFlow.update { current ->
+                when {
+                    current !is ViewModelState.Loaded -> current
+
+                    result is UserUpdateProfileHeaderResult.Success -> current.copy(
+                        currentHeaderUrl = result.headerUrl ?: current.currentHeaderUrl,
+                        processingHeader = false,
+                    )
+
+                    else -> current.copy(headerPreview = previousPreview, processingHeader = false)
+                }
+            }
+            val message =
+                when (result) {
+                    is UserUpdateProfileHeaderResult.Success -> "ヘッダー画像を変更しました"
+                    UserUpdateProfileHeaderResult.NotLoggedIn -> "ログインしていません"
+                    UserUpdateProfileHeaderResult.TooLarge -> "画像が大きすぎます。2MB までにしてください"
+                    UserUpdateProfileHeaderResult.DimensionsTooLarge -> "画像が大きすぎます。横 ${HEADER_WIDTH_PX}px、縦 ${HEADER_HEIGHT_PX}px までにしてください"
+                    UserUpdateProfileHeaderResult.UnsupportedImage -> "PNG / JPEG / GIF / WebP の画像にしてください"
+                    UserUpdateProfileHeaderResult.UnsupportedOperation -> "このサーバーでは受け付けていない操作です"
+                    UserUpdateProfileHeaderResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
+                    UserUpdateProfileHeaderResult.FederationDisabled -> "サーバーがプロフィールの更新を配れる設定になっていません"
+                    is UserUpdateProfileHeaderResult.Failure -> result.message
+                }
+            events.send { it.showMessage(message) }
+        }
+    }
+
+    /**
+     * 読めなければメッセージを出して null
+     */
+    private suspend fun readHeader(file: PickedImageFile): ProfileHeaderImage? =
+        when (val result = file.read(maxBytes = MAX_SOURCE_IMAGE_BYTES)) {
+            is PickedImageFile.ReadResult.Success -> {
+                // 展開と JPEG への書き出しは画面を止めるほど重い
+                val header = withContext(Dispatchers.Default) {
+                    result.bytes.toProfileHeaderOrNull(widthPx = HEADER_WIDTH_PX, heightPx = HEADER_HEIGHT_PX)
+                }
+                if (header == null) events.send { it.showMessage("画像として読み込めませんでした") }
+                header
+            }
+
+            PickedImageFile.ReadResult.TooLarge -> {
+                events.send { it.showMessage("画像ファイルが大きすぎます。20MB までにしてください") }
+                null
+            }
+
+            PickedImageFile.ReadResult.Error -> {
+                events.send { it.showMessage("画像ファイルを読み込めませんでした") }
+                null
+            }
+        }
+
     private fun save() {
         val state = viewModelStateFlow.value as? ViewModelState.Loaded ?: return
         // 保存できたら画面を閉じるので、画像を送っている途中だと送信が止まる
-        if (state.saving || state.processingIcon) return
+        if (state.saving || state.processingImage()) return
 
         viewModelStateFlow.value = state.copy(saving = true, errorField = null)
         viewModelScope.launch {
@@ -293,7 +386,11 @@ internal class ProfileEditScreenViewModel(
                     iconPreview = viewModelState.iconPreview,
                     iconLoadingVisible = viewModelState.processingIcon,
                     currentIconUrl = viewModelState.currentIconUrl,
-                    iconSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
+                    iconSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
+                    headerPreview = viewModelState.headerPreview,
+                    headerLoadingVisible = viewModelState.processingHeader,
+                    currentHeaderUrl = viewModelState.currentHeaderUrl,
+                    headerSelectButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
                     displayName = viewModelState.displayName,
                     displayNameInputEnabled = viewModelState.saving.not(),
                     displayNameHasError = viewModelState.errorField == ErrorField.DisplayName,
@@ -313,17 +410,20 @@ internal class ProfileEditScreenViewModel(
                     addLinkButtonEnabled = viewModelState.saving.not() && viewModelState.links.size < MAX_LINK_COUNT,
                     likesPublic = viewModelState.likesPublic,
                     likesPublicSwitchEnabled = viewModelState.saving.not(),
-                    saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingIcon.not(),
+                    saveButtonEnabled = viewModelState.saving.not() && viewModelState.processingImage().not(),
                 )
             },
             // 画像を送っている途中で閉じると送信が止まる
-            backButtonEnabled = viewModelState.saving().not() && viewModelState.processingIcon().not(),
+            backButtonEnabled = viewModelState.saving().not() && viewModelState.processingImage().not(),
             listener = listener,
         )
 
     private fun ViewModelState.saving(): Boolean = this is ViewModelState.Loaded && saving
 
-    private fun ViewModelState.processingIcon(): Boolean = this is ViewModelState.Loaded && processingIcon
+    /**
+     * プロフィール画像とヘッダーは同時に送らない。どちらの Update も Actor の全体を載せるので、後から積んだ方が先の画像を古い値に戻す
+     */
+    private fun ViewModelState.processingImage(): Boolean = this is ViewModelState.Loaded && (processingIcon || processingHeader)
 
     sealed interface ViewModelState {
         data object Loading : ViewModelState
@@ -335,11 +435,16 @@ internal class ProfileEditScreenViewModel(
         /**
          * @param iconPreview 送った、または送っている画像。取り直さずにすぐ出す
          * @param processingIcon 選んだ画像を読んで、縮めて、送っている途中
+         * @param headerPreview 送った、または送っている画像。取り直さずにすぐ出す
+         * @param processingHeader 選んだ画像を読んで、縮めて、送っている途中
          */
         data class Loaded(
             val iconPreview: ImageBitmap?,
             val processingIcon: Boolean,
             val currentIconUrl: String?,
+            val headerPreview: ImageBitmap?,
+            val processingHeader: Boolean,
+            val currentHeaderUrl: String?,
             val displayName: String,
             val summary: String,
             val links: List<UserProfileLink>,
@@ -366,6 +471,8 @@ internal class ProfileEditScreenViewModel(
     internal interface Event {
         fun openImagePicker()
 
+        fun openHeaderImagePicker()
+
         fun navigateBack()
 
         fun showMessage(message: String)
@@ -375,12 +482,18 @@ internal class ProfileEditScreenViewModel(
         /**
          * 選んだファイルを読む上限。縮めて送るので、スマートフォンの写真がそのまま収まる大きさにする
          */
-        private const val MAX_SOURCE_ICON_BYTES = 20 * 1024 * 1024
+        private const val MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024
 
         /**
          * 送る前に縮める大きさ。サーバーはこれを超える縦横を受け付けない
          */
         private const val ICON_SIDE_PX = 400
+
+        /**
+         * 送る前に縮める大きさ。サーバーはこれを超える縦横を受け付けない
+         */
+        private const val HEADER_WIDTH_PX = 1500
+        private const val HEADER_HEIGHT_PX = 500
 
         /**
          * サーバーが受け付けるリンクの数

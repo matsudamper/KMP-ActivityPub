@@ -87,6 +87,31 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     return ProfileIconImage(png = png, bitmap = icon.asImageBitmap())
 }
 
+/**
+ * 間引き方と向きの扱いは [toProfileIconOrNull] と同じ。切り抜く範囲は回した後の向きで決める
+ */
+internal actual fun ByteArray.toProfileHeaderOrNull(widthPx: Int, heightPx: Int): ProfileHeaderImage? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(this, 0, size, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+    // 回すと縦横が入れ替わるので、短い辺でも横幅の目標を下回らないところまでしか間引かない
+    val shortestSide = minOf(bounds.outWidth, bounds.outHeight)
+    val sampleSize = generateSequence(1) { it * 2 }.takeWhile { shortestSide / it >= widthPx }.lastOrNull() ?: 1
+    val decoded = BitmapFactory.decodeByteArray(this, 0, size, BitmapFactory.Options().apply { inSampleSize = sampleSize }) ?: return null
+
+    val oriented = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, orientationMatrix(readExifOrientation()), true)
+    val crop = ProfileHeaderCrop.of(sourceWidth = oriented.width, sourceHeight = oriented.height, widthPx = widthPx, heightPx = heightPx)
+    val matrix = Matrix().apply {
+        postScale(crop.outputWidth.toFloat() / crop.cropWidth, crop.outputHeight.toFloat() / crop.cropHeight)
+    }
+    val header = Bitmap.createBitmap(oriented, crop.left, crop.top, crop.cropWidth, crop.cropHeight, matrix, true)
+    val jpeg = ByteArrayOutputStream().also { header.compress(Bitmap.CompressFormat.JPEG, HEADER_JPEG_QUALITY, it) }.toByteArray()
+    return ProfileHeaderImage(jpeg = jpeg, bitmap = header.asImageBitmap())
+}
+
+private const val HEADER_JPEG_QUALITY = 90
+
 internal class ContentUriImageFile(
     private val context: Context,
     private val uri: Uri,

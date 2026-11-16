@@ -129,6 +129,40 @@ internal actual fun ByteArray.toProfileIconOrNull(sidePx: Int): ProfileIconImage
     }.getOrNull()
 
 /**
+ * 展開する前に寸法を確かめる理由は [toProfileIconOrNull] と同じ
+ */
+internal actual fun ByteArray.toProfileHeaderOrNull(widthPx: Int, heightPx: Int): ProfileHeaderImage? =
+    runCatching {
+        val codec = Codec.makeFromData(Data.makeFromBytes(this))
+        val pixelCount = codec.width.toLong() * codec.height
+        codec.close()
+        if (pixelCount > MAX_DECODED_PIXELS) return@runCatching null
+
+        val image = Image.makeFromEncoded(this)
+        val crop = ProfileHeaderCrop.of(sourceWidth = image.width, sourceHeight = image.height, widthPx = widthPx, heightPx = heightPx)
+        val surface = Surface.makeRasterN32Premul(crop.outputWidth, crop.outputHeight)
+        try {
+            surface.canvas.drawImageRect(
+                image,
+                Rect.makeXYWH(crop.left.toFloat(), crop.top.toFloat(), crop.cropWidth.toFloat(), crop.cropHeight.toFloat()),
+                Rect.makeWH(crop.outputWidth.toFloat(), crop.outputHeight.toFloat()),
+                // 既定の最近傍で大きく縮めるとギザギザになる
+                FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+                null,
+                true,
+            )
+            val header = surface.makeImageSnapshot()
+            val jpeg = header.encodeToData(EncodedImageFormat.JPEG, HEADER_JPEG_QUALITY)?.bytes ?: return@runCatching null
+            ProfileHeaderImage(jpeg = jpeg, bitmap = header.toComposeImageBitmap())
+        } finally {
+            surface.close()
+            image.close()
+        }
+    }.getOrNull()
+
+private const val HEADER_JPEG_QUALITY = 90
+
+/**
  * 元のファイルは丸ごと読まずに Worker へ渡し、書き出した WebP も Blob のまま持つ
  */
 private suspend fun File.toWebp(maxBytes: Int): WebpResult {
