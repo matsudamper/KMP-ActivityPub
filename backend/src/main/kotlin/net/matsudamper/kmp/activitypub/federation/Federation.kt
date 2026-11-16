@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
+import net.matsudamper.kmp.activitypub.logic.ProfileHeaderUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
@@ -53,6 +54,7 @@ import net.matsudamper.kmp.activitypub.timeline.AccountEvents
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
+import net.matsudamper.kotpub.actor.ActorHeaderEndpoint
 import net.matsudamper.kotpub.actor.ActorIconEndpoint
 import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
@@ -127,7 +129,7 @@ internal class Federation(
     private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls)
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
-    private val actorAppearances = AccountActorAppearances(accountService = accountService, iconAvailable = imageStorage != null)
+    private val actorAppearances = AccountActorAppearances(accountService = accountService, imageAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
     private val receivedNotifications = ReceivedNotifications(notificationRepository, accountEvents)
     private val inboxBlocks = InboxBlocks(accountRepository, noteRepository, blockLists)
@@ -317,6 +319,14 @@ internal class Federation(
         }
 
     /**
+     * 画像の置き場が無ければ作らない。Actor にも `image` を出さない
+     */
+    val actorHeaderEndpoint: ActorHeaderEndpoint? =
+        imageStorage?.let { storage ->
+            ActorHeaderEndpoint(directory = directory, headers = AccountActorHeaders(accountService = accountService, imageStorage = storage))
+        }
+
+    /**
      * 画像の置き場が無ければ画像付きの投稿もできないので作らない
      */
     val noteImageFiles: NoteImageFiles? = imageStorage?.let { NoteImageFiles(noteRepository = noteRepository, imageStorage = it) }
@@ -333,6 +343,12 @@ internal class Federation(
         ProfileIconUrls { username ->
             val iconVersion = actorAppearances.find(username).iconVersion
             if (iconVersion == null) null else directory.resolve(username)?.icon(iconVersion)
+        }
+
+    val profileHeaderUrls: ProfileHeaderUrls =
+        ProfileHeaderUrls { username ->
+            val headerVersion = actorAppearances.find(username).headerVersion
+            if (headerVersion == null) null else directory.resolve(username)?.header(headerVersion)
         }
 
     val remoteImageProxy: RemoteImageProxy =

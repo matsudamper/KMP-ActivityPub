@@ -87,6 +87,18 @@ class ProfileUpdateRepositoryTest {
     }
 
     @Test
+    fun `新しいプロフィールヘッダーの場所を書き、渡さなければ今の場所のまま`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.updateProfile(profileUpdate(displayName = null, body = "update-1").copy(newHeaderPath = "users/1/profile-header/a"))
+            assertEquals("users/1/profile-header/a", repositories.accountRepository.findByUsername("user1")?.headerPath)
+
+            queue.updateProfile(profileUpdate(displayName = "名前", body = "update-2"))
+            assertEquals("users/1/profile-header/a", repositories.accountRepository.findByUsername("user1")?.headerPath)
+        }
+    }
+
+    @Test
     fun `表示名を Keep にすると今の表示名のまま`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
@@ -166,6 +178,7 @@ class ProfileUpdateRepositoryTest {
             links = ProfileValueChange.Keep,
             likesPublic = ProfileValueChange.Keep,
             newIconPath = null,
+            newHeaderPath = null,
             updatedAt = NOW,
             body = body,
             inboxes = INBOXES + INBOXES.first(),

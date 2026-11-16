@@ -4,7 +4,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 
+/**
+ * @param title 上のバーに出す。ヘッダーの範囲を選んでいる間は変わる
+ */
 data class ProfileEditScreenUiState(
+    val title: String,
     val content: Content,
     val backButtonEnabled: Boolean,
     val listener: Listener,
@@ -19,12 +23,18 @@ data class ProfileEditScreenUiState(
         /**
          * @param iconPreview 選んで送った（送っている）画像。あれば [currentIconUrl] より優先して出す
          * @param currentIconUrl 保存済みのプロフィール画像。未設定なら null
+         * @param headerPreview 選んで送った（送っている）ヘッダー。あれば [currentHeaderUrl] より優先して出す
+         * @param currentHeaderUrl 保存済みのヘッダー。未設定なら null
          */
         data class Loaded(
             val iconPreview: ImageBitmap?,
             val iconLoadingVisible: Boolean,
             val currentIconUrl: String?,
             val iconSelectButtonEnabled: Boolean,
+            val headerPreview: ImageBitmap?,
+            val headerLoadingVisible: Boolean,
+            val currentHeaderUrl: String?,
+            val headerSelectButtonEnabled: Boolean,
             val displayName: String,
             val displayNameInputEnabled: Boolean,
             val displayNameHasError: Boolean,
@@ -36,6 +46,19 @@ data class ProfileEditScreenUiState(
             val likesPublic: Boolean,
             val likesPublicSwitchEnabled: Boolean,
             val saveButtonEnabled: Boolean,
+        ) : Content
+
+        /**
+         * 選んだ画像が縦に長く、ヘッダーに使う範囲を選んでいる間。戻ると選ばずに編集に戻る
+         *
+         * @param image 横幅をヘッダーに合わせた画像。縦は切らずに全部出す
+         * @param cropTopRatio 選んでいる範囲の位置。0 で一番上、1 で一番下
+         * @param cropHeightRatio 選んでいる範囲の高さの、[image] の高さに対する割合
+         */
+        data class HeaderCrop(
+            val image: ImageBitmap,
+            val cropTopRatio: Float,
+            val cropHeightRatio: Float,
         ) : Content
     }
 
@@ -56,6 +79,17 @@ data class ProfileEditScreenUiState(
         fun onClickSelectIcon()
 
         fun onIconPicked(file: PickedImageFile)
+
+        fun onClickSelectHeader()
+
+        fun onHeaderPicked(file: PickedImageFile)
+
+        /**
+         * @param cropTopRatio [Content.HeaderCrop.cropTopRatio] と同じ。範囲の外の値も渡してよい
+         */
+        fun onHeaderCropMoved(cropTopRatio: Float)
+
+        fun onClickHeaderCropConfirm()
 
         fun onDisplayNameChanged(text: String)
 

@@ -58,6 +58,58 @@ internal class ProfileIconImage(
     val bitmap: ImageBitmap,
 )
 
+/**
+ * ヘッダーの範囲を選ぶ元の画像にする。[widthPx]:[heightPx] より横長なら左右の中央を切り抜き、横幅を [widthPx] に収める。
+ * 縦長なら縦は切らずに残し、どこを使うかは [toProfileHeaderOrNull] で決める。元が小さければ拡大しない。
+ * 画像として読めないか、画素数が大きすぎて展開できなければ null
+ */
+internal expect fun ByteArray.toProfileHeaderSourceOrNull(widthPx: Int, heightPx: Int): ImageBitmap?
+
+/**
+ * 上から [top] の位置で高さ [height] を切り出し、JPEG に書き出す。
+ * PNG だと写真はサーバーの上限を超えやすいので JPEG にする。書き出せなければ null
+ */
+internal expect fun ImageBitmap.toProfileHeaderOrNull(top: Int, height: Int): ProfileHeaderImage?
+
+/**
+ * @param jpeg 送る画像。写真の位置情報などのメタデータは描き直したときに落ちる
+ * @param bitmap [jpeg] と同じ絵。プレビューに出す
+ */
+internal class ProfileHeaderImage(
+    val jpeg: ByteArray,
+    val bitmap: ImageBitmap,
+)
+
+/**
+ * [toProfileHeaderSourceOrNull] で元の画像から切り抜く範囲と、描き直す大きさ
+ */
+internal class ProfileHeaderSourceCrop private constructor(
+    val left: Int,
+    val cropWidth: Int,
+    val outputWidth: Int,
+    val outputHeight: Int,
+) {
+    companion object {
+        fun of(
+            sourceWidth: Int,
+            sourceHeight: Int,
+            widthPx: Int,
+            heightPx: Int,
+        ): ProfileHeaderSourceCrop {
+            val sourceIsWider = sourceWidth.toLong() * heightPx > sourceHeight.toLong() * widthPx
+            val cropWidth = if (sourceIsWider) (sourceHeight.toLong() * widthPx / heightPx).toInt().coerceAtLeast(1) else sourceWidth
+            val outputWidth = minOf(cropWidth, widthPx)
+            val outputHeight = (sourceHeight.toLong() * outputWidth / cropWidth).toInt().coerceAtLeast(1)
+            return ProfileHeaderSourceCrop(
+                left = (sourceWidth - cropWidth) / 2,
+                cropWidth = cropWidth,
+                outputWidth = outputWidth,
+                outputHeight = outputHeight,
+            )
+        }
+    }
+}
+
 sealed interface WebpResult {
     class Success(
         val image: WebpImage,

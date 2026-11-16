@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -90,6 +91,7 @@ fun HomeNavigationHost(
                         key is Screen.Image -> ImageViewerDialogMetadata
                         key is Screen.UserProfile && openAsDialog -> UserProfileDialogMetadata
                         key is Screen.PostDetail && openAsDialog -> PostDetailDialogMetadata
+                        key is Screen.ProfileEdit && openAsDialog -> ProfileEditDialogMetadata
                         else -> mapOf()
                     },
                 ) { screenKey ->
@@ -105,6 +107,15 @@ fun HomeNavigationHost(
                         }
                     } else if (screen is Screen.PostDetail && openAsDialog) {
                         PostDetailDialogFrame(onDismissRequest = navigator::back) {
+                            ScreenEntryContent(
+                                screen = screen,
+                                navigator = navigator,
+                                serverSettingUiState = serverSettingUiState,
+                                inDialog = true,
+                            )
+                        }
+                    } else if (screen is Screen.ProfileEdit && openAsDialog) {
+                        ProfileEditDialogFrame {
                             ScreenEntryContent(
                                 screen = screen,
                                 navigator = navigator,
@@ -148,18 +159,42 @@ internal fun PostDetailDialogFrame(
     onDismissRequest: () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    UpperDialogFrame(maxWidth = POST_DETAIL_DIALOG_MAX_WIDTH, onClickOutside = onDismissRequest, content = content)
+}
+
+/**
+ * 置き方は [PostDetailDialogFrame] と同じ。外側を押しても閉じない。入力の途中で閉じると書いたものが消える
+ */
+@Composable
+internal fun ProfileEditDialogFrame(content: @Composable () -> Unit) {
+    UpperDialogFrame(maxWidth = PROFILE_EDIT_DIALOG_MAX_WIDTH, onClickOutside = null, content = content)
+}
+
+/**
+ * @param onClickOutside null なら外側を押しても何もしない
+ */
+@Composable
+private fun UpperDialogFrame(
+    maxWidth: Dp,
+    onClickOutside: (() -> Unit)?,
+    content: @Composable () -> Unit,
+) {
     Layout(
         modifier = Modifier.fillMaxSize(),
         content = {
             // ダイアログが画面全体を覆うので、外側を押して閉じるのはプラットフォームに頼らずここで受ける
             Spacer(
-                modifier = Modifier.pointerInput(onDismissRequest) {
-                    detectTapGestures(onTap = { onDismissRequest() })
+                modifier = if (onClickOutside == null) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(onClickOutside) {
+                        detectTapGestures(onTap = { onClickOutside() })
+                    }
                 },
             )
             Surface(
                 modifier = Modifier
-                    .widthIn(max = POST_DETAIL_DIALOG_MAX_WIDTH)
+                    .widthIn(max = maxWidth)
                     .fillMaxWidth(0.9f),
                 shape = MaterialTheme.shapes.large,
             ) {
@@ -168,7 +203,7 @@ internal fun PostDetailDialogFrame(
         },
     ) { measurables, constraints ->
         val outsideArea = measurables[0].measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight))
-        val verticalMargin = (constraints.maxHeight * POST_DETAIL_DIALOG_VERTICAL_MARGIN_RATIO).roundToInt()
+        val verticalMargin = (constraints.maxHeight * UPPER_DIALOG_VERTICAL_MARGIN_RATIO).roundToInt()
         val dialog = measurables[1].measure(
             constraints.copy(
                 minWidth = 0,
@@ -316,10 +351,15 @@ private fun ScreenContent(
 private val USER_PROFILE_DIALOG_MAX_WIDTH = 600.dp
 
 private val POST_DETAIL_DIALOG_MAX_WIDTH = 1000.dp
-private const val POST_DETAIL_DIALOG_VERTICAL_MARGIN_RATIO = 0.05f
+private const val UPPER_DIALOG_VERTICAL_MARGIN_RATIO = 0.05f
+
+private val PROFILE_EDIT_DIALOG_MAX_WIDTH = 600.dp
 
 private val PostDetailDialogMetadata: Map<String, Any> =
     DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false))
+
+private val ProfileEditDialogMetadata: Map<String, Any> =
+    DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false))
 
 private val UserProfileDialogMetadata: Map<String, Any> =
     DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false))
