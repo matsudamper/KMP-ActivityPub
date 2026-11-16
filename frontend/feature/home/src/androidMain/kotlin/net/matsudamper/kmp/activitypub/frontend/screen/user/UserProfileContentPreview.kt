@@ -80,7 +80,7 @@ private fun UserProfileContentPreview() {
                                 reactionButton = null,
                                 stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4", selected = false, listener = null)),
                                 authorListener = null,
-                                menuItems = listOf(),
+                                menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                                 postListener = null,
                                 shareListener = null,
                                 listener = AndroidPreviewPostItemListener,
@@ -115,7 +115,7 @@ private fun UserProfileContentPreview() {
                                 reactionButton = null,
                                 stamps = listOf(),
                                 authorListener = null,
-                                menuItems = listOf(),
+                                menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                                 postListener = null,
                                 shareListener = null,
                                 listener = AndroidPreviewPostItemListener,
@@ -180,7 +180,7 @@ private fun UserProfileContentLikesPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
-                            menuItems = listOf(),
+                            menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = null,
                             listener = AndroidPreviewPostItemListener,
@@ -208,7 +208,7 @@ private fun UserProfileContentLikesPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
-                            menuItems = listOf(),
+                            menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = null,
                             listener = AndroidPreviewPostItemListener,
@@ -487,5 +487,9 @@ private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
 }
 
 private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewMenuItemListener : PostItemUiState.MenuItemListener {
     override fun onClick() = Unit
 }
