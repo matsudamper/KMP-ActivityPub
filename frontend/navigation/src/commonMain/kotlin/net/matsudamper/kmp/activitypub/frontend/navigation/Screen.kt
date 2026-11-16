@@ -194,6 +194,24 @@ sealed interface Screen : NavKey {
     }
 
     /**
+     * @param postId 返信するホームタイムラインの投稿の id
+     */
+    @Serializable
+    data class ReplyPost(
+        val postId: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(POST_ID_PARAMETER to postId)
+        override val parentScreen: Screen get() = PostDetail(postId = postId)
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val POST_ID_PARAMETER: String = "postId"
+            val PATH_PATTERN: PathPattern = PathPattern("/posts/{$POST_ID_PARAMETER}/reply")
+        }
+    }
+
+    /**
      * 開いていた画面に重ねて出す。画像の URL は `/` などを含むので、まとめてパスの 1 階層に収まるよう Base64 にする
      *
      * @param urls 左右に送って見られる画像。URL は改行を含まないので改行でつないで 1 つにする
@@ -259,6 +277,9 @@ sealed interface Screen : NavKey {
                 },
                 QuotePost.PATH_PATTERN to { parameters ->
                     QuotePost(postId = parameters.getValue(QuotePost.POST_ID_PARAMETER))
+                },
+                ReplyPost.PATH_PATTERN to { parameters ->
+                    ReplyPost(postId = parameters.getValue(ReplyPost.POST_ID_PARAMETER))
                 },
                 Image.PATH_PATTERN to { parameters ->
                     Image.fromPathParameters(

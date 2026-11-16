@@ -243,6 +243,10 @@ internal class HomeScreenViewModel(
             }
         }
 
+        override fun onReplyOpenedInPostColumn() {
+            viewModelStateFlow.update { it.copy(openedColumn = HomeScreenUiState.Column.Post) }
+        }
+
         override fun onPostColumnFinished() {
             onClickCloseColumn(HomeScreenUiState.Column.Post)
             // 単独の投稿画面から戻るときはホームの再表示で読み直すが、カラムではホームが出たままなので、ここで同じものを読み直す。
@@ -1555,6 +1559,7 @@ internal class HomeScreenViewModel(
                                 val boostedByMe = post.body.boostedByMe
                                 if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                             },
+                            onReply = { openReply(post.postId) },
                             onQuote = { navigateToQuotePost(post.postId) },
                             onOpenReactionPicker = {
                                 val reactionPostId = post.reactionPostId
@@ -1631,6 +1636,7 @@ internal class HomeScreenViewModel(
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onReply = { openReply(post.id) },
             onQuote = { navigateToQuotePost(post.id) },
             onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
@@ -1651,6 +1657,10 @@ internal class HomeScreenViewModel(
 
     private fun navigateToQuotePost(postId: String) {
         viewModelScope.launch { events.send { it.navigateToQuotePost(postId) } }
+    }
+
+    private fun openReply(postId: String) {
+        viewModelScope.launch { events.send { it.openReply(postId) } }
     }
 
     private fun loadQuote(postId: String) {
@@ -1866,6 +1876,7 @@ internal class HomeScreenViewModel(
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onReply = { openReply(post.id) },
             onQuote = { navigateToQuotePost(post.id) },
             onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
@@ -1984,6 +1995,11 @@ internal class HomeScreenViewModel(
         fun navigateToPostDetail(postId: String)
 
         fun navigateToQuotePost(postId: String)
+
+        /**
+         * 投稿カラムを出せる幅なら投稿カラムで、出せなければ投稿の画面で返信を書く
+         */
+        fun openReply(postId: String)
     }
 
     private companion object {

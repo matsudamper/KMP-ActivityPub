@@ -22,6 +22,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * @param onOpenProfile 本文のメンションを押したとき。acct は `user@host`
  * @param onOpenImage urls は左右に送って見られる投稿の画像すべて
  * @param onToggleImageBlur 1枚の開け閉めを同じ投稿の画像すべてに連動させるため、投稿の画像すべてと、開け閉め後の toggled を渡す
+ * @param onReply リプライのアイコンを押したとき
  * @param onQuote ブーストのアイコンから引用を選んだとき
  * @param onOpenReactionPicker リアクションのアイコンを押したとき
  * @param onClickStamp スタンプを押したとき
@@ -51,6 +52,7 @@ internal fun createPostItemUiState(
     onShare: (url: String) -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
+    onReply: () -> Unit,
     onQuote: () -> Unit,
     onOpenReactionPicker: () -> Unit,
     onClickStamp: (UserPostStamp) -> Unit,
@@ -115,6 +117,15 @@ internal fun createPostItemUiState(
             )
         },
         replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
+        replyListener = if (deleted) {
+            null
+        } else {
+            object : PostItemUiState.ReplyListener {
+                override fun onClick() {
+                    onReply()
+                }
+            }
+        },
         quote = quote,
         favouriteCountText = body.favouriteCount?.takeIf { it > 0 }?.toString(),
         boostCountText = body.boostCount?.takeIf { it > 0 }?.toString(),
