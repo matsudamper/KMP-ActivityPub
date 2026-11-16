@@ -803,18 +803,23 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     /**
      * 保存済みの公開している投稿を、相手のサーバーから取り直した内容に書き換える。保存した後に編集されていることがある。
-     * 公開範囲も取り直した値にする。どちらも公開している範囲の中での変更に限る。位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない
+     * 公開範囲も取り直した値にする。どちらも公開している範囲の中での変更に限る。位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない。
+     * 取り直している間に届いた新しい編集を巻き戻さないよう、取り直した内容が保存済みの編集より古ければ書き換えない
      *
-     * @return 書き換えた投稿の id。保存していなければ null
+     * @return 保存済みの投稿の id。保存していなければ null
      */
     private fun refreshFetchedNote(dsl: DSLContext, note: RemoteNoteInput): Long? {
-        val id = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
+        val stored = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.EDITED_AT).from(REMOTE_NOTES)
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri))
             .and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri))
             .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
-            .fetchOne(REMOTE_NOTES.ID)
+            .fetchOne()
             ?: return null
+        val id = checkNotNull(stored.value1())
+        val storedEditedAt = stored.value2()?.let { StoredInstant.parse(it) }
+        val fetchedEditedAt = note.editedAt
+        if (storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))) return id
         dsl.update(REMOTE_NOTES)
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
@@ -824,9 +829,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
             .where(REMOTE_NOTES.ID.eq(id))
             .execute()
-        val editedAt = note.editedAt
-        if (editedAt != null) {
-            dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
+        if (fetchedEditedAt != null) {
+            dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(fetchedEditedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
         }
         dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
         insertRemoteNoteImages(dsl, id, note.images)

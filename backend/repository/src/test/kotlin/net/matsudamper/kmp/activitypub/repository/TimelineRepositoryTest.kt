@@ -144,6 +144,25 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun refetchedNoteOlderThanTheStoredEditDoesNotRevertIt() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf())
+        val saved = assertNotNull(repository.receive(original))
+        val latest = original.copy(contentHtml = "<p>最新</p>", editedAt = NOW.plusSeconds(30))
+        repository.reviseRemote(latest)
+
+        // 取り直しを始めた後に届いた編集より、取り直した内容の方が古い
+        repository.storeFetchedNotes(alice, listOf(original.copy(contentHtml = "<p>途中</p>", editedAt = NOW.plusSeconds(20))))
+        repository.storeFetchedNotes(alice, listOf(original))
+
+        val post = repository.hydrate(alice, listOf(saved.member)).single()
+        assertEquals("<p>最新</p>", post.contentHtml)
+        assertEquals(NOW.plusSeconds(30), post.editedAt)
+    }
+
+    @Test
     fun editThatOnlyChangesEmojiImagesReplacesTheEmojisWithoutAddingARevision() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
