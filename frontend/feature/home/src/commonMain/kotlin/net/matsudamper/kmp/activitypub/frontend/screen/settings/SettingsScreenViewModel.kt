@@ -48,6 +48,12 @@ internal class SettingsScreenViewModel(
                 }
             }
 
+            override fun onClickLanguage() {
+                viewModelScope.launch {
+                    events.send { it.navigateToLanguageSettings() }
+                }
+            }
+
             override fun onClickFollowingGroups() {
                 viewModelScope.launch {
                     events.send { it.navigateToFollowingGroups() }
@@ -205,6 +211,8 @@ internal class SettingsScreenViewModel(
         fun navigateBack()
 
         fun navigateToSecurity()
+
+        fun navigateToLanguageSettings()
 
         fun navigateToFollowingGroups()
 
