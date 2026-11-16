@@ -710,6 +710,7 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
+            replyLabel = null,
             pinned = false,
             deleted = post.deleted,
             boostUndone = false,
@@ -765,6 +766,7 @@ internal class PostDetailScreenViewModel(
     ): PostItemUiState {
         val host = post.host
         return createPostItemUiState(
+            replyLabel = null,
             pinned = false,
             deleted = post.deleted,
             boostUndone = post.boostUndone,
