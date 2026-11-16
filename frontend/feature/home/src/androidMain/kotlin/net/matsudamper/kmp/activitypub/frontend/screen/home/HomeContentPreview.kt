@@ -121,7 +121,7 @@ private fun TimelineTabsMenuItemsPreview() {
     MaterialTheme {
         Surface(tonalElevation = 3.dp, shadowElevation = 3.dp) {
             TimelineTabsMenuItems(
-                selectedColumn = previewTimelineColumns(items = listOf(), footer = HomeScreenUiState.TimelineFooter.None).first(),
+                selectedColumn = previewTimelineColumns(items = listOf(), footer = HomeScreenUiState.TimelineFooter.None, width = 400.dp).first(),
                 addItemEnabled = true,
                 onClickAdd = {},
                 onItemClick = {},
@@ -277,7 +277,7 @@ private fun HomeTimelinePreview(
         HomeContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewTimelinePosts(), footer) else listOf(),
+                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewTimelinePosts(), footer, width = 400.dp) else listOf(),
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = timelineColumnEditDialog,
@@ -760,15 +760,43 @@ private fun HomeUserMediaContentPreview() {
 
 @Preview(widthDp = 1280, heightDp = 800)
 @Composable
-private fun HomeColumnsContentPreview() = HomeColumnsPreview(openedColumn = HomeScreenUiState.Column.Post, timelineColumnsEmptyMessage = null)
+private fun HomeColumnsContentPreview() = HomeColumnsPreview(
+    openedColumn = HomeScreenUiState.Column.Post,
+    timelineColumnsEmptyMessage = null,
+    posts = previewColumnsPosts(),
+    columnWidth = 400.dp,
+)
 
 @Preview(widthDp = 1280, heightDp = 800)
 @Composable
-private fun HomeColumnsContentPreviewTimelineColumns() = HomeColumnsPreview(openedColumn = null, timelineColumnsEmptyMessage = null)
+private fun HomeColumnsContentPreviewTimelineColumns() = HomeColumnsPreview(
+    openedColumn = null,
+    timelineColumnsEmptyMessage = null,
+    posts = previewColumnsPosts(),
+    columnWidth = 400.dp,
+)
+
+/**
+ * カラムを一番細くしたとき。操作が並びきるかを見る
+ */
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun HomeColumnsContentPreviewTimelineColumnsNarrowest() = HomeColumnsPreview(
+    openedColumn = null,
+    timelineColumnsEmptyMessage = null,
+    posts = previewTimelinePosts(),
+    // HomeScreenViewModel の COLUMN_MIN_WIDTH と同じ幅
+    columnWidth = 240.dp,
+)
 
 @Preview(widthDp = 1280, heightDp = 800)
 @Composable
-private fun HomeColumnsContentPreviewTimelineColumnsEmpty() = HomeColumnsPreview(openedColumn = null, timelineColumnsEmptyMessage = "表示するカラムがありません")
+private fun HomeColumnsContentPreviewTimelineColumnsEmpty() = HomeColumnsPreview(
+    openedColumn = null,
+    timelineColumnsEmptyMessage = "表示するカラムがありません",
+    posts = listOf(),
+    columnWidth = 400.dp,
+)
 
 /**
  * @param timelineColumnsEmptyMessage null でなければカラムを全部消した状態にする
@@ -777,12 +805,14 @@ private fun HomeColumnsContentPreviewTimelineColumnsEmpty() = HomeColumnsPreview
 private fun HomeColumnsPreview(
     openedColumn: HomeScreenUiState.Column?,
     timelineColumnsEmptyMessage: String?,
+    posts: List<PostItemUiState>,
+    columnWidth: Dp,
 ) {
     HomePreviewTheme {
         HomeColumnsContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewColumnsPosts(), HomeScreenUiState.TimelineFooter.None) else listOf(),
+                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(posts, HomeScreenUiState.TimelineFooter.None, width = columnWidth) else listOf(),
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
@@ -1175,7 +1205,11 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
     ),
 )
 
-private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScreenUiState.TimelineFooter): List<HomeScreenUiState.TimelineColumn> = listOf(
+private fun previewTimelineColumns(
+    items: List<PostItemUiState>,
+    footer: HomeScreenUiState.TimelineFooter,
+    width: Dp,
+): List<HomeScreenUiState.TimelineColumn> = listOf(
     HomeScreenUiState.TimelineColumn(
         title = "メイン",
         listStateKey = "home",
@@ -1184,7 +1218,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         selected = true,
         fontSize = AppFontSize.Medium,
         fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "中"),
-        width = 400.dp,
+        width = width,
         listener = AndroidPreviewTimelineColumnListener,
     ),
     HomeScreenUiState.TimelineColumn(
@@ -1195,7 +1229,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
         selected = false,
         fontSize = AppFontSize.Large,
         fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = "大"),
-        width = 400.dp,
+        width = width,
         listener = AndroidPreviewTimelineColumnListener,
     ),
 )
