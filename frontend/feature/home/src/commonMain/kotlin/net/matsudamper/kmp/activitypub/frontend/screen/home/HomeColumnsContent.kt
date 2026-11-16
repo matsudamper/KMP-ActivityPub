@@ -85,6 +85,7 @@ internal fun HomeColumnsContent(
                                     listState = tabListStates.notifications,
                                     notifications = uiState.notifications,
                                     listener = uiState.listener,
+                                    shareButtonVisible = false,
                                     modifier = contentModifier,
                                 )
                             }
@@ -100,6 +101,7 @@ internal fun HomeColumnsContent(
                                     listState = tabListStates.search,
                                     search = uiState.search,
                                     listener = uiState.listener,
+                                    shareButtonVisible = false,
                                     modifier = contentModifier,
                                 )
                             }
@@ -117,6 +119,7 @@ internal fun HomeColumnsContent(
                                     userContentTab = uiState.userContentTab,
                                     userPosts = uiState.userPosts,
                                     listener = uiState.listener,
+                                    shareButtonVisible = false,
                                     modifier = contentModifier,
                                 )
                             }
@@ -156,6 +159,7 @@ internal fun HomeColumnsContent(
                                         loadMoreAtEndEnabled = true,
                                         listener = uiState.listener,
                                         columnListener = timelineColumn.listener,
+                                        shareButtonVisible = false,
                                         modifier = contentModifier,
                                     )
                                 }

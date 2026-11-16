@@ -218,7 +218,7 @@ internal fun UserProfileContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = true)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
@@ -246,7 +246,7 @@ internal fun UserProfileContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = true)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }

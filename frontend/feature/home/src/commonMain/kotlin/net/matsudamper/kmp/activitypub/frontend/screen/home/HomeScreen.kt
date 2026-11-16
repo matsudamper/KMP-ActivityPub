@@ -460,6 +460,7 @@ internal fun HomeContent(
                         listState = tabListStates.notifications,
                         notifications = uiState.notifications,
                         listener = uiState.listener,
+                        shareButtonVisible = true,
                         modifier = contentModifier,
                     )
                 }
@@ -469,6 +470,7 @@ internal fun HomeContent(
                         listState = tabListStates.search,
                         search = uiState.search,
                         listener = uiState.listener,
+                        shareButtonVisible = true,
                         modifier = contentModifier,
                     )
                 }
@@ -480,6 +482,7 @@ internal fun HomeContent(
                         userContentTab = uiState.userContentTab,
                         userPosts = uiState.userPosts,
                         listener = uiState.listener,
+                        shareButtonVisible = true,
                         modifier = contentModifier,
                     )
                 }
@@ -667,6 +670,7 @@ private fun TimelineColumnsPager(
                 loadMoreAtEndEnabled = column.selected,
                 listener = uiState.listener,
                 columnListener = column.listener,
+                shareButtonVisible = true,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -826,6 +830,7 @@ internal fun TimelineTabContent(
     loadMoreAtEndEnabled: Boolean,
     listener: HomeScreenUiState.Listener,
     columnListener: HomeScreenUiState.TimelineColumnListener,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     LaunchedEffect(listState, columnListener, timelineItems.size, footer, loadMoreAtEndEnabled) {
@@ -854,7 +859,7 @@ internal fun TimelineTabContent(
                 .then(wheelPullToRefreshBlocker.modifier),
         ) {
             items(timelineItems) { item ->
-                PostItem(uiState = item, style = PostItemStyle.Timeline)
+                PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             when (footer) {
@@ -931,6 +936,7 @@ internal fun SearchTabContent(
     listState: LazyListState,
     search: HomeScreenUiState.Search,
     listener: HomeScreenUiState.Listener,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // 一覧の状態は画面で持ち続けるので、検索し直したら前の結果での位置を引き継がない
@@ -1002,7 +1008,7 @@ internal fun SearchTabContent(
                         }
                     }
                     items(result.items) { item ->
-                        PostItem(uiState = item, style = PostItemStyle.Timeline)
+                        PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                     if (result.loadMoreButtonVisible) {
@@ -1046,6 +1052,7 @@ internal fun UserTabContent(
     userContentTab: ProfileContentTab,
     userPosts: HomeScreenUiState.UserPosts,
     listener: HomeScreenUiState.Listener,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -1127,7 +1134,7 @@ internal fun UserTabContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
@@ -1155,7 +1162,7 @@ internal fun UserTabContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }

@@ -33,6 +33,7 @@ internal fun NotificationsTabContent(
     listState: LazyListState,
     notifications: HomeScreenUiState.Notifications,
     listener: HomeScreenUiState.Listener,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -62,6 +63,7 @@ internal fun NotificationsTabContent(
                     listState = listState,
                     notifications = notifications,
                     listener = listener,
+                    shareButtonVisible = shareButtonVisible,
                 )
             }
         }
@@ -73,6 +75,7 @@ private fun LoadedNotifications(
     listState: LazyListState,
     notifications: HomeScreenUiState.Notifications.Loaded,
     listener: HomeScreenUiState.Listener,
+    shareButtonVisible: Boolean,
 ) {
     // 読み直しの間は続きを読まないので、読み直しが終わったときにも末尾にいるかを確かめ直す
     LaunchedEffect(listState, listener, notifications.items.size, notifications.footer, notifications.refreshing) {
@@ -110,7 +113,7 @@ private fun LoadedNotifications(
                 }
             }
             items(notifications.items) { item ->
-                PostItem(uiState = item, style = PostItemStyle.Timeline)
+                PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             when (val footer = notifications.footer) {

@@ -131,11 +131,14 @@ private fun PostItemStyle.sizes(): PostItemSizes {
 
 /**
  * タイムラインやプロフィールに並べる投稿 1 件
+ *
+ * @param shareButtonVisible 共有はメニューからもできるので、操作の幅が足りない所では false にしてボタンを外す
  */
 @Composable
 internal fun PostItem(
     uiState: PostItemUiState,
     style: PostItemStyle,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val sizes = style.sizes()
@@ -292,7 +295,7 @@ internal fun PostItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            PostActions(uiState = uiState, sizes = sizes)
+            PostActions(uiState = uiState, sizes = sizes, shareButtonVisible = shareButtonVisible)
             if (uiState.stamps.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -599,6 +602,7 @@ private fun StampEmoji(
 private fun PostActions(
     uiState: PostItemUiState,
     sizes: PostItemSizes,
+    shareButtonVisible: Boolean,
 ) {
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
     val disabledIconColor = iconColor.copy(alpha = 0.38f)
@@ -710,17 +714,19 @@ private fun PostActions(
                 )
                 Spacer(modifier = Modifier.weight(1f))
             }
-            val shareListener = uiState.shareListener
-            IconButton(
-                onClick = { shareListener?.onClick() },
-                enabled = shareListener != null,
-            ) {
-                Icon(
-                    imageVector = AppIcons.Share,
-                    contentDescription = "共有",
-                    modifier = Modifier.size(sizes.actionIconSize),
-                    tint = if (shareListener == null) disabledIconColor else iconColor,
-                )
+            if (shareButtonVisible) {
+                val shareListener = uiState.shareListener
+                IconButton(
+                    onClick = { shareListener?.onClick() },
+                    enabled = shareListener != null,
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Share,
+                        contentDescription = "共有",
+                        modifier = Modifier.size(sizes.actionIconSize),
+                        tint = if (shareListener == null) disabledIconColor else iconColor,
+                    )
+                }
             }
         }
         if (uiState.menuItems.isNotEmpty()) {

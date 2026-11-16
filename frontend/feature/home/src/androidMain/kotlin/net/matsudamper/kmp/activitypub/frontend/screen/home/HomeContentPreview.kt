@@ -175,10 +175,10 @@ private fun TimelineHeaderDividerNewPostsHiddenAbovePreview() {
             Column {
                 Text(text = "先頭にいる", modifier = Modifier.padding(16.dp))
                 TimelineHeaderDivider(newPostsHiddenAbove = false)
-                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline, shareButtonVisible = true)
                 Text(text = "先頭から離れている", modifier = Modifier.padding(16.dp))
                 TimelineHeaderDivider(newPostsHiddenAbove = true)
-                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline, shareButtonVisible = true)
             }
         }
     }
@@ -213,7 +213,7 @@ private fun TimelineReplyItemsPreview() {
                     ),
                     post.copy(replyLabel = PostItemUiState.ReplyLabel(target = null)),
                 ).forEach { item ->
-                    PostItem(uiState = item, style = PostItemStyle.Timeline)
+                    PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = true)
                     HorizontalDivider()
                 }
             }
@@ -253,7 +253,7 @@ private fun TimelineNotificationAndDeletedItemsPreview() {
                     notifiedPost.copy(deletedLabelVisible = true),
                     posts[1].copy(deletedLabelVisible = true),
                 ).forEach { item ->
-                    PostItem(uiState = item, style = PostItemStyle.Timeline)
+                    PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = true)
                     HorizontalDivider()
                 }
             }
