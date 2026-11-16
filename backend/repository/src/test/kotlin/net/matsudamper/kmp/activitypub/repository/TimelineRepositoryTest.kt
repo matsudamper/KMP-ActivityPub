@@ -144,6 +144,21 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun editThatOnlyChangesEmojiImagesReplacesTheEmojisWithoutAddingARevision() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf()).copy(emojis = listOf(CustomEmojiRecord(name = ":blob:", imageUrl = "https://remote.example/old.png")))
+        val saved = assertNotNull(repository.receive(original))
+        val replaced = listOf(CustomEmojiRecord(name = ":blob:", imageUrl = "https://remote.example/new.png"))
+
+        assertEquals(listOf(saved.member), repository.reviseRemote(original.copy(emojis = replaced, editedAt = NOW.plusSeconds(30))))
+
+        assertEquals(replaced, repository.hydrate(alice, listOf(saved.member)).single().emojis)
+        assertEquals(1, assertNotNull(repository.revisions(alice, saved.member, null, 10)).size)
+    }
+
+    @Test
     fun hydratedRemoteNoteCarriesNoteAndAuthorCustomEmojis() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")

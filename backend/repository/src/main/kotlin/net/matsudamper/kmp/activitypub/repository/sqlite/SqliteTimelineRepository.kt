@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.net.URI
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
 import net.matsudamper.kmp.activitypub.repository.PostRevision
@@ -133,6 +134,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         if (revised.copy(revisedAt = storedRevision.revisedAt) == storedRevision) {
             if (note.editedAt == null) return@transaction listOf()
             dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
+            // 版には絵文字を残さないので、絵文字の画像だけが変わった編集もここに来る
+            replaceRemoteNoteEmojis(dsl, id, note.emojis)
             return@transaction members
         }
         insertRemoteNoteRevision(dsl, id, storedRevision)
@@ -145,9 +148,13 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .execute()
         dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
         insertRemoteNoteImages(dsl, id, note.images)
-        dsl.deleteFrom(REMOTE_NOTE_EMOJIS).where(REMOTE_NOTE_EMOJIS.REMOTE_NOTE_ID.eq(id)).execute()
-        dsl.insertRemoteNoteEmojis(id, note.emojis)
+        replaceRemoteNoteEmojis(dsl, id, note.emojis)
         members
+    }
+
+    private fun replaceRemoteNoteEmojis(dsl: DSLContext, remoteNoteId: Long, emojis: List<CustomEmojiRecord>) {
+        dsl.deleteFrom(REMOTE_NOTE_EMOJIS).where(REMOTE_NOTE_EMOJIS.REMOTE_NOTE_ID.eq(remoteNoteId)).execute()
+        dsl.insertRemoteNoteEmojis(remoteNoteId, emojis)
     }
 
     override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? {
