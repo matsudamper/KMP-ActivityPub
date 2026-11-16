@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
+import net.matsudamper.kmp.activitypub.frontend.screen.home.SensitiveImagesVisibilityButton
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
@@ -149,6 +150,10 @@ internal fun UserProfileContent(
                     fontWeight = FontWeight.Bold,
                 )
                 if (uiState.openOriginalMenuItemVisible) {
+                    SensitiveImagesVisibilityButton(
+                        sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
+                        onClick = uiState.listener::onClickSensitiveImagesVisibility,
+                    )
                     TopBarMenu(
                         blockMenuItemsVisible = uiState.blockMenuItemsVisible,
                         listener = uiState.listener,
