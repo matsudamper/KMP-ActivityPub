@@ -201,10 +201,6 @@ internal fun PostContent(
             if (quote != null) {
                 PostQuoteCard(quote = quote, unavailableText = "引用先の投稿を表示できません", textStyle = MaterialTheme.typography.bodyMedium)
             }
-            val replyTarget = uiState.replyTarget
-            if (replyTarget != null) {
-                ReplyTarget(replyTarget = replyTarget)
-            }
             if (uiState.images.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -249,6 +245,10 @@ internal fun PostContent(
                 ) {
                     Text("投稿")
                 }
+            }
+            val replyTarget = uiState.replyTarget
+            if (replyTarget != null) {
+                ReplyTarget(replyTarget = replyTarget)
             }
         }
     }
