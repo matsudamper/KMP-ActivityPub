@@ -432,6 +432,7 @@ internal class Federation(
                         domain = domain,
                         notes = notes,
                         remoteActors = remoteActors,
+                        remoteNotes = remoteNotes,
                         approvals = quoteApprovals,
                     ),
                     UpdateActorHandler(followers),
