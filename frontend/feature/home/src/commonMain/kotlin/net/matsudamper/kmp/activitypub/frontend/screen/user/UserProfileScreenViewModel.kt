@@ -78,6 +78,7 @@ internal class UserProfileScreenViewModel(
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 quotes = mapOf(),
+                sensitiveImagesBlurred = true,
                 blurToggledImageUrls = setOf(),
                 selectedTab = ProfileContentTab.Posts,
                 noteDeletion = NoteDeletionState.None,
@@ -139,6 +140,15 @@ internal class UserProfileScreenViewModel(
 
         override fun onClickRetryLoadMore() {
             if (viewModelStateFlow.value.selectedTab == ProfileContentTab.Likes) loadMoreLikes() else loadMore()
+        }
+
+        override fun onClickSensitiveImagesVisibility() {
+            viewModelStateFlow.update {
+                it.copy(
+                    sensitiveImagesBlurred = !it.sensitiveImagesBlurred,
+                    blurToggledImageUrls = setOf(),
+                )
+            }
         }
 
         override fun onClickOpenOriginal() {
@@ -588,6 +598,7 @@ internal class UserProfileScreenViewModel(
                 is BlockState.Blocking -> createBlockDialog(target = block.target, buttonsEnabled = false)
             },
             openOriginalMenuItemVisible = viewModelState.profile is ProfileState.Loaded,
+            sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
             blockMenuItemsVisible = (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
             listener = listener,
         )
@@ -656,7 +667,11 @@ internal class UserProfileScreenViewModel(
         val profile = loaded.profile
         val posts = loaded.posts
         val acct = "@${profile.username}@${profile.host}"
-        val media = createProfileMedia(posts.posts.filter { it.boostedNoteAuthor == null }, ::navigateToPostDetail)
+        val media = createProfileMedia(
+            posts = posts.posts.filter { it.boostedNoteAuthor == null },
+            sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
+            onOpenPost = ::navigateToPostDetail,
+        )
         return UserProfileScreenUiState.Content.Loaded(
             acct = acct,
             iconUrl = profile.iconUrl,
@@ -723,7 +738,7 @@ internal class UserProfileScreenViewModel(
                         onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                         onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
                     ),
-                    sensitiveImagesBlurred = true,
+                    sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
                     authorTapAction = if (boostedNoteAuthor == null) {
                         AuthorTapAction.AlreadyOnAuthorProfile
@@ -806,7 +821,7 @@ internal class UserProfileScreenViewModel(
                 onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                 onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
             ),
-            sensitiveImagesBlurred = true,
+            sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
@@ -882,6 +897,7 @@ internal class UserProfileScreenViewModel(
          * 投稿の id ごとの引用先
          */
         val quotes: Map<String, QuoteLoad>,
+        val sensitiveImagesBlurred: Boolean,
         val blurToggledImageUrls: Set<String>,
         val selectedTab: ProfileContentTab,
         val noteDeletion: NoteDeletionState,
