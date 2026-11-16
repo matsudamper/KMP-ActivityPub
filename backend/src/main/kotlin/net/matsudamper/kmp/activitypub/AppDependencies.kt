@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.NotePinService
 import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
+import net.matsudamper.kmp.activitypub.logic.PostSearchService
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ServerBlockService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
@@ -163,6 +164,11 @@ class AppDependencies(
             remoteUserLookup = federation?.remoteUserLookup,
             localDomain = checkNotNull(env.domain) { "DOMAIN を指定すること" },
         )
+
+    val postSearchService: PostSearchService = PostSearchService(
+        timeline = repositories.timelineRepository,
+        blockLists = blockLists,
+    )
 
     val userProfileService: UserProfileService = UserProfileService(
         accounts = repositories.accountRepository,

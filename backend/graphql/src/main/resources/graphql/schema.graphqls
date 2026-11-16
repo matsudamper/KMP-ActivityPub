@@ -30,6 +30,12 @@ type Query {
     """
     searchUsers(query: String!, after: String): UserSearchResult!
     """
+    本文の一部で、このサーバーが保存している投稿を、投稿した新しい順に探す。空白で区切ると、すべてを本文に含む投稿を探す。
+    このサーバーの投稿と、他のサーバーの投稿のうちログイン中のアカウントが読めるものと公開のものから探す。
+    after には前回の nextCursor を渡す。ログインしていなければ null
+    """
+    searchPosts(query: String!, after: String): PostSearchResult
+    """
     `@user@host` か URL から 1 人を引く。このサーバーのユーザーも同じ書き方で引ける。
     他のサーバーへの問い合わせはログイン中に限る。見つからなければ null
     """

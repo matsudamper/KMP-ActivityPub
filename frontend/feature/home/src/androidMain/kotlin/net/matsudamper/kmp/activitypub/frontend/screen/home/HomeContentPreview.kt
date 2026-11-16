@@ -251,6 +251,8 @@ private fun HomeTimelinePreview(
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
@@ -290,6 +292,8 @@ private fun HomeSearchContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(
                             HomeScreenUiState.SearchAccount(
@@ -359,6 +363,8 @@ private fun HomeNotificationsContentPreview() {
                 ),
                 search = HomeScreenUiState.Search(
                     query = "",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
@@ -398,9 +404,56 @@ private fun HomeSearchEmptyContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(),
                         loadMoreButtonVisible = false,
+                    ),
+                ),
+                profile = HomeScreenUiState.Profile.Loading,
+                userContentTab = ProfileContentTab.Posts,
+                userPosts = HomeScreenUiState.UserPosts.Loading,
+                userTabIconUrl = null,
+                openedColumn = null,
+                openedColumnWidth = 400.dp,
+                railItems = listOf(),
+                deleteNoteDialog = null,
+                reactionPickerDialog = null,
+                reactionConfirmDialog = null,
+                addFollowingGroupDialog = null,
+                listener = AndroidPreviewHomeListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
+            tabListStates = rememberHomeTabListStates(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun HomeSearchPostsContentPreview() {
+    HomePreviewTheme {
+        HomeContent(
+            uiState = HomeScreenUiState(
+                selectedTab = HomeScreenUiState.Tab.Search,
+                timelineColumns = listOf(),
+                timelineColumnsEmptyMessage = null,
+                addTimelineColumnButtonEnabled = true,
+                timelineColumnEditDialog = null,
+                timelineColumnDeleteDialog = null,
+                timelineRefreshing = false,
+                timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
+                sensitiveImagesBlurred = true,
+                notifications = HomeScreenUiState.Notifications.Loading,
+                search = HomeScreenUiState.Search(
+                    query = "kotlin",
+                    queryLabel = "投稿を検索",
+                    targets = previewSearchTargets(selectedLabel = "投稿"),
+                    result = HomeScreenUiState.SearchResult.PostsLoaded(
+                        items = previewTimelinePosts(),
+                        emptyMessage = null,
+                        loadMoreButtonVisible = true,
                     ),
                 ),
                 profile = HomeScreenUiState.Profile.Loading,
@@ -440,6 +493,8 @@ private fun HomeUserContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
@@ -523,6 +578,8 @@ private fun HomeUserMediaEmptyContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
@@ -579,6 +636,8 @@ private fun HomeUserMediaContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
                 profile = HomeScreenUiState.Profile.Loaded(
@@ -684,6 +743,8 @@ private fun HomeColumnsPreview(
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
+                    queryLabel = "ユーザーを検索",
+                    targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(
                             HomeScreenUiState.SearchAccount(
@@ -870,6 +931,15 @@ private object AndroidPreviewImageListener : PostItemUiState.ImageListener {
 private object AndroidPreviewSearchAccountListener : HomeScreenUiState.SearchAccountListener {
     override fun onClick() = Unit
 }
+
+private object AndroidPreviewSearchTargetListener : HomeScreenUiState.SearchTargetListener {
+    override fun onClick() = Unit
+}
+
+private fun previewSearchTargets(selectedLabel: String): List<HomeScreenUiState.SearchTarget> =
+    listOf("ユーザー", "投稿").map { label ->
+        HomeScreenUiState.SearchTarget(label = label, selected = label == selectedLabel, listener = AndroidPreviewSearchTargetListener)
+    }
 
 private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
     override fun onClick() = Unit

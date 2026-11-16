@@ -214,9 +214,20 @@ data class HomeScreenUiState(
         ) : Notifications
     }
 
+    /**
+     * @param targets 探すものの切り替え。並べる順
+     */
     data class Search(
         val query: String,
+        val queryLabel: String,
+        val targets: List<SearchTarget>,
         val result: SearchResult,
+    )
+
+    data class SearchTarget(
+        val label: String,
+        val selected: Boolean,
+        val listener: SearchTargetListener,
     )
 
     sealed interface SearchResult {
@@ -226,6 +237,15 @@ data class HomeScreenUiState(
 
         data class Loaded(
             val accounts: List<SearchAccount>,
+            val loadMoreButtonVisible: Boolean,
+        ) : SearchResult
+
+        /**
+         * @param emptyMessage 見つかった投稿があれば null
+         */
+        data class PostsLoaded(
+            val items: List<PostItemUiState>,
+            val emptyMessage: String?,
             val loadMoreButtonVisible: Boolean,
         ) : SearchResult
     }
@@ -279,6 +299,11 @@ data class HomeScreenUiState(
 
     @Immutable
     interface SearchAccountListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface SearchTargetListener {
         fun onClick()
     }
 

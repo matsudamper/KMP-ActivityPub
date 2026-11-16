@@ -4,6 +4,7 @@ import java.net.URI
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
+import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
@@ -444,6 +445,35 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             remoteCondition = DSL.noCondition(),
         ).associateBy { it.position.member }
         likes.mapNotNull { like -> posts[like.member]?.let { LikedTimelinePost(post = it, position = like) } }
+    }
+
+    override fun searchPosts(
+        viewer: AccountId,
+        before: PublishedNotePosition?,
+        limit: Int,
+        hidesAuthor: (actorUri: String) -> Boolean,
+        matchesContent: (contentHtml: String) -> Boolean,
+    ): List<TimelinePost> = jooq.withConnection { dsl ->
+        val searchableRemote = REMOTE_NOTES.DELETED_AT.isNull
+            .and(dsl.remoteNoteReadableBy(viewer).or(REMOTE_NOTES.VISIBILITY.eq(SEARCHABLE_UNREADABLE_REMOTE_NOTE_VISIBILITY)))
+        // 合わない投稿が新しい側に固まっていても古い投稿を返せるよう、件数で切らずに順に読んで、出す投稿が limit に届いたら止める
+        val members = dsl.publishedMembers(remoteCondition = searchableRemote, before = before).use { cursor ->
+            cursor.asSequence()
+                .map { checkNotNull(it.value2()) }
+                .chunked(SEARCH_SCAN_CHUNK_SIZE)
+                .flatMap { chunk -> dsl.membersToShow(members = chunk, hidesAuthor = hidesAuthor, matchesContent = matchesContent) }
+                .take(limit)
+                .toList()
+        }
+        val posts = hydrateNotes(
+            dsl = dsl,
+            viewer = viewer,
+            localIds = members.mapNotNull { TimelineMembers.localNoteIdOf(it) },
+            remoteIds = members.mapNotNull { TimelineMembers.remoteNoteIdOf(it) },
+            localCondition = DSL.noCondition(),
+            remoteCondition = DSL.noCondition(),
+        ).associateBy { it.position.member }
+        members.mapNotNull { posts[it] }
     }
 
     override fun accountBoosts(booster: AccountId, viewer: AccountId?, before: TimelinePosition?, limit: Int): List<TimelinePost> = jooq.withConnection { dsl ->

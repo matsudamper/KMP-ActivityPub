@@ -156,6 +156,7 @@ internal fun Application.module(deps: AppDependencies) {
                 notificationService = deps.notificationService,
                 accountService = deps.accountService,
                 userSearchService = deps.userSearchService,
+                postSearchService = deps.postSearchService,
                 userProfileService = deps.userProfileService,
                 profileLikesService = deps.profileLikesService,
                 viewablePostService = ViewablePostService(timeline = deps.timelineService, accounts = deps.accountService, unsavedNotes = federation?.unsavedRemoteNotes),

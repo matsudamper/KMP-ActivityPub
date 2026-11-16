@@ -101,6 +101,12 @@ type UserSearchResult {
     nextCursor: String
 }
 
+type PostSearchResult {
+    posts: [TimelinePost!]!
+    "続きが無ければ null"
+    nextCursor: String
+}
+
 "検索で見つかったユーザー"
 type SearchedUser {
     actorUri: String
