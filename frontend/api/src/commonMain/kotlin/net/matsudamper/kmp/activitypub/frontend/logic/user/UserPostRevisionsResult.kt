@@ -16,6 +16,7 @@ sealed interface UserPostRevisionsResult {
      */
     data class Revision(
         val content: String,
+        val sensitive: Boolean,
         val mentions: List<UserPostMention>,
         val images: List<UserPostImage>,
         val emojis: List<UserCustomEmoji>,

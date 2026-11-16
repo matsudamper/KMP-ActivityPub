@@ -281,6 +281,7 @@ class UserApi(
             userInfo.postRevisions.map { revision ->
                 UserPostRevisionsResult.Revision(
                     content = revision.content,
+                    sensitive = revision.sensitive,
                     mentions = revision.mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
                     images = revision.images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
                     emojis = revision.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },

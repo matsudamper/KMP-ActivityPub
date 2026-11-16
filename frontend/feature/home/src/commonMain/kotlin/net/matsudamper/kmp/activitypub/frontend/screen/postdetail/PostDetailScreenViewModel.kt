@@ -698,7 +698,7 @@ internal class PostDetailScreenViewModel(
                     onDismiss = { viewModelStateFlow.update { it.copy(reactionConfirmation = null) } },
                 )
             },
-            postRevisionsDialog = viewModelState.revisions?.let(::createPostRevisionsDialog),
+            postRevisionsDialog = viewModelState.revisions?.let { createPostRevisionsDialog(it, viewModelState.blurToggledImageUrls) },
             listener = listener,
         )
     }
@@ -812,7 +812,10 @@ internal class PostDetailScreenViewModel(
         }
     }
 
-    private fun createPostRevisionsDialog(revisions: RevisionsState): PostRevisionsDialogUiState = PostRevisionsDialogUiState(
+    private fun createPostRevisionsDialog(
+        revisions: RevisionsState,
+        blurToggledImageUrls: Set<String>,
+    ): PostRevisionsDialogUiState = PostRevisionsDialogUiState(
         content = when (val load = revisions.load) {
             RevisionsLoad.Loading -> PostRevisionsDialogUiState.Content.Loading
 
@@ -834,11 +837,11 @@ internal class PostDetailScreenViewModel(
                     images = revision.images.mapIndexed { index, image ->
                         createPostImage(
                             image = image,
-                            sensitive = false,
-                            sensitiveImagesBlurred = false,
-                            blurToggled = false,
+                            sensitive = revision.sensitive,
+                            sensitiveImagesBlurred = true,
+                            blurToggled = image.url in blurToggledImageUrls,
                             onOpen = { viewModelScope.launch { events.send { it.navigateToImage(imageUrls, index) } } },
-                            onToggleBlur = {},
+                            onToggleBlur = { toggleImageBlur(imageUrls, image.url !in blurToggledImageUrls) },
                         )
                     },
                     olderButtonEnabled = load.index > 0,

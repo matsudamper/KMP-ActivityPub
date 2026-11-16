@@ -34,6 +34,7 @@ query PostRevisions($postId: TimelinePostId!) {
     userInfo {
         postRevisions(postId: $postId) {
             content
+            sensitive
             mentions {
                 start
                 end

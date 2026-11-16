@@ -43,10 +43,9 @@ internal class ReceivedRemoteNotes(
     }
 
     override suspend fun update(note: ReceivedNote) {
-        val now = clock.instant()
         // 宛先は変えないので、このサーバーの宛先は引かない
-        val revised = note.toRemoteNoteInput(localRecipients = setOf(), now = now)
-        timeline.publishUpdated(repository.reviseRemote(revised, editedAt = note.updated ?: now))
+        val revised = note.toRemoteNoteInput(localRecipients = setOf(), now = clock.instant())
+        timeline.publishUpdated(repository.reviseRemote(revised, reportedEditedAt = note.updated))
     }
 
     override suspend fun delete(actorId: String, objectId: String) {

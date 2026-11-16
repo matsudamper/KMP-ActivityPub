@@ -82,7 +82,7 @@ class TimelineRepositoryTest {
         assertEquals(listOf("<p>本文</p>"), assertNotNull(repository.revisions(alice, saved.member)).map { it.contentHtml })
 
         assertTrue(repository.reviseRemote(original.copy(actorUri = "https://other.example/actor", contentHtml = "<p>他人</p>"), NOW.plusSeconds(10)).isEmpty())
-        assertTrue(repository.reviseRemote(original, NOW.plusSeconds(10)).isEmpty())
+        assertTrue(repository.reviseRemote(original, null).isEmpty())
         val firstEdit = original.copy(contentHtml = "<p>1 回目</p>", images = listOf())
         assertEquals(listOf(saved.member), repository.reviseRemote(firstEdit, NOW.plusSeconds(20)))
         assertEquals(listOf(saved.member), repository.reviseRemote(firstEdit.copy(contentHtml = "<p>2 回目</p>", summary = "注意"), NOW.plusSeconds(30)))
@@ -101,6 +101,24 @@ class TimelineRepositoryTest {
             repository.revisions(alice, saved.member),
         )
         assertNull(repository.revisions(alice, "r999"))
+    }
+
+    @Test
+    fun unchangedEditStillAdvancesEditTimeSoAnOlderEditCannotRevertIt() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf())
+        val saved = assertNotNull(repository.receive(original))
+
+        // 本文を元に戻した最後の編集が、途中の編集より先に届く
+        assertEquals(listOf(saved.member), repository.reviseRemote(original, NOW.plusSeconds(30)))
+        assertTrue(repository.reviseRemote(original.copy(contentHtml = "<p>途中</p>"), NOW.plusSeconds(20)).isEmpty())
+
+        val post = repository.hydrate(alice, listOf(saved.member)).single()
+        assertEquals("<p>本文</p>", post.contentHtml)
+        assertEquals(NOW.plusSeconds(30), post.editedAt)
+        assertEquals(1, assertNotNull(repository.revisions(alice, saved.member)).size)
     }
 
     @Test
