@@ -630,7 +630,7 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.replyCountText.orEmpty(),
-                    modifier = Modifier.padding(start = 4.dp),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
@@ -665,7 +665,7 @@ private fun PostActions(
                     )
                     Text(
                         text = uiState.boostCountText.orEmpty(),
-                        modifier = Modifier.padding(start = 4.dp),
+                        modifier = Modifier.padding(start = 4.dp).weight(1f),
                         style = sizes.countTextStyle,
                         color = iconColor,
                         maxLines = 1,
@@ -693,7 +693,7 @@ private fun PostActions(
                 )
                 Text(
                     text = uiState.favouriteCountText.orEmpty(),
-                    modifier = Modifier.padding(start = 4.dp),
+                    modifier = Modifier.padding(start = 4.dp).weight(1f),
                     style = sizes.countTextStyle,
                     color = iconColor,
                     maxLines = 1,
@@ -712,6 +712,7 @@ private fun PostActions(
                     modifier = Modifier.size(sizes.actionIconSize),
                     tint = if (reactionButton == null) disabledIconColor else iconColor,
                 )
+                Spacer(modifier = Modifier.weight(1f))
             }
             if (shareButtonVisible) {
                 val shareListener = uiState.shareListener
@@ -727,6 +728,7 @@ private fun PostActions(
                         modifier = Modifier.size(sizes.actionIconSize),
                         tint = if (shareListener == null) disabledIconColor else iconColor,
                     )
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
