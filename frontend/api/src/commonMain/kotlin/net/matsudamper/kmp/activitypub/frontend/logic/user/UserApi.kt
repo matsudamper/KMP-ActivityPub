@@ -1202,6 +1202,7 @@ class UserApi(
             reactionPostId = reactionPostId,
             body = UserPostBody(
                 content = content,
+                language = language,
                 publishedAt = publishedAt,
                 summary = summary,
                 sensitive = sensitive,

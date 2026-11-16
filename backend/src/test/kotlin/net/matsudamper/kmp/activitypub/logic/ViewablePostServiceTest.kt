@@ -25,6 +25,7 @@ class ViewablePostServiceTest {
     private val storedPost = TimelinePost(
         position = TimelinePosition(1, "r1"),
         contentHtml = "<p>保存した投稿</p>",
+        language = null,
         publishedAt = Instant.EPOCH,
         actorUri = "https://remote.example/users/bob",
         username = "bob",

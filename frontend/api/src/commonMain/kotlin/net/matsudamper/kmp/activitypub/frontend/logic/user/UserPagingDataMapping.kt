@@ -41,6 +41,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
         iconUrl = authorFields.iconUrl,
         body = UserPostBody(
             content = content,
+            language = language,
             publishedAt = publishedAt,
             summary = summary,
             sensitive = sensitive,

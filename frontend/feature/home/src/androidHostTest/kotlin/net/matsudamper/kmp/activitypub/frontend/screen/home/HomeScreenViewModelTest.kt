@@ -555,7 +555,7 @@ class HomeScreenViewModelTest {
 
     private fun post(id: String, followingGroupId: String?, sortedAt: String): String {
         val groupId = if (followingGroupId == null) "null" else "\"$followingGroupId\""
-        return """{"__typename":"TimelinePost","id":"$id","deleted":false,"boostUndone":false,"sortedAt":"$sortedAt","content":"$id","publishedAt":"2026-11-01",""" +
+        return """{"__typename":"TimelinePost","id":"$id","deleted":false,"boostUndone":false,"sortedAt":"$sortedAt","content":"$id","language":null,"publishedAt":"2026-11-01",""" +
             """"author":${actor("Alice")},"summary":null,"sensitive":false,"linkUrls":[],"mentions":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,""" +
             """"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,""" +
             """"boostedByMe":null,"reactionPostId":"$id","followingGroupId":$groupId,"hasReplyTarget":false,"hasQuoteTarget":false,"replyCount":0,"stampCountsReceived":true}"""

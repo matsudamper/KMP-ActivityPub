@@ -15,6 +15,7 @@ fragment TimelinePostFields on TimelinePost {
     boostUndone
     sortedAt
     content
+    language
     publishedAt
     author {
         ...ActorFields

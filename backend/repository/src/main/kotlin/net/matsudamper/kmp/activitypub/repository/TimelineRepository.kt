@@ -172,6 +172,10 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
 data class TimelinePost(
     val position: TimelinePosition,
     val contentHtml: String,
+    /**
+     * BCP 47 の言語タグ。このサーバーの投稿と、相手のサーバーが付けていない投稿は null
+     */
+    val language: String?,
     val publishedAt: Instant,
     val actorUri: String?,
     val username: String,

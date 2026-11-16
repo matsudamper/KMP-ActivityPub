@@ -65,6 +65,7 @@ class PostRepliesServiceTest {
     private fun remoteReply(member: String, host: String, inReplyTo: String): TimelinePost = TimelinePost(
         position = TimelinePosition(1, member),
         contentHtml = "<p>返信</p>",
+        language = null,
         publishedAt = Instant.EPOCH,
         actorUri = "https://$host/users/$member",
         username = member,

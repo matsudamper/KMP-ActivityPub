@@ -87,6 +87,7 @@ class ReplyTargetService(
         return TimelinePost(
             position = TimelinePosition(note.publishedAt.toEpochMilli(), unsavedId),
             contentHtml = note.contentHtml,
+            language = note.language,
             publishedAt = note.publishedAt,
             actorUri = author.actorUri,
             username = author.username,

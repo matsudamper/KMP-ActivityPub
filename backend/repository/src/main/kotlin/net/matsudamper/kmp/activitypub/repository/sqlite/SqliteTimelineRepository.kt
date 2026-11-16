@@ -272,6 +272,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             DSL.inline(null, String::class.java),
             NOTES.IN_REPLY_TO,
             NOTES.QUOTE_URI,
+            DSL.inline(null, String::class.java),
         ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.ID.`in`(localIds)).and(localCondition)
         val remote = dsl.select(
@@ -284,6 +285,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.DELETED_AT,
             REMOTE_NOTES.IN_REPLY_TO,
             REMOTE_NOTES.QUOTE_URI,
+            REMOTE_NOTES.LANGUAGE,
         ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(remoteCondition)
         val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -307,6 +309,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             TimelinePost(
                 TimelinePosition(record.value9() ?: published.toEpochMilli(), member),
                 checkNotNull(record.value2()),
+                record.value19(),
                 published,
                 actor,
                 checkNotNull(record.value4()),
@@ -752,7 +755,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val boostedNoteIds = dsl.boostedNoteIds(accountId, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, rows.map { checkNotNull(it.value3()) })
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
         val emojisByNote = dsl.remoteNoteEmojisById(rows.map { checkNotNull(it.value3()) })
-        // jOOQ の型付きの行は 22 列までなので、引用先は別に引く
+        // jOOQ の型付きの行は 22 列までなので、引用先と言語は別に引く
+        val languagesByNote = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.LANGUAGE).from(REMOTE_NOTES)
+            .where(REMOTE_NOTES.ID.`in`(rows.map { checkNotNull(it.value3()) }))
+            .and(REMOTE_NOTES.LANGUAGE.isNotNull)
+            .fetchMap(REMOTE_NOTES.ID, REMOTE_NOTES.LANGUAGE)
         val quoteUrisByNote = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI).from(REMOTE_NOTES)
             .where(REMOTE_NOTES.ID.`in`(rows.map { checkNotNull(it.value3()) }))
             .and(REMOTE_NOTES.QUOTE_URI.isNotNull)
@@ -764,6 +771,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             TimelinePost(
                 position = TimelinePosition(checkNotNull(record.value2()), "b${record.value1()}"),
                 contentHtml = checkNotNull(record.value4()),
+                language = languagesByNote[record.value3()],
                 publishedAt = StoredInstant.parse(checkNotNull(record.value5())),
                 actorUri = authorUri,
                 username = record.value9() ?: authorUri,

@@ -152,6 +152,8 @@ type TimelinePost {
     "タイムラインに並べる時刻。新しい順に並ぶ。複数の購読先を 1 つのカラムに混ぜるときに使う"
     sortedAt: String!
     content: String!
+    "BCP 47 の言語タグ。このサーバーの投稿と、相手のサーバーが付けていない投稿は null"
+    language: String
     publishedAt: String!
     author: Actor!
     summary: String

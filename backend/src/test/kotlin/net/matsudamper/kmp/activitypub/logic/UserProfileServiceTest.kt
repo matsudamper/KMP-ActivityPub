@@ -726,6 +726,7 @@ class UserProfileServiceTest {
         TimelinePost(
             position = TimelinePosition(1, "r1"),
             contentHtml = contentHtml,
+            language = null,
             publishedAt = Instant.EPOCH,
             actorUri = actorUri,
             username = "bob",
