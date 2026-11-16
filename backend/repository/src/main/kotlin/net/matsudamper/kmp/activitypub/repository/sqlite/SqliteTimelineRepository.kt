@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.net.URI
 import java.time.Instant
+import java.util.Locale
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
 import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
@@ -309,7 +310,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             TimelinePost(
                 TimelinePosition(record.value9() ?: published.toEpochMilli(), member),
                 checkNotNull(record.value2()),
-                record.value19(),
+                record.value19()?.let { Locale.forLanguageTag(it) },
                 published,
                 actor,
                 checkNotNull(record.value4()),
@@ -638,7 +639,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.OBJECT_URI, note.objectUri)
             .set(REMOTE_NOTES.REMOTE_ACTOR_ID, actorId)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
-            .set(REMOTE_NOTES.LANGUAGE, note.language)
+            .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
             .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
@@ -685,7 +686,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         dsl.update(REMOTE_NOTES)
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
-            .set(REMOTE_NOTES.LANGUAGE, note.language)
+            .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
@@ -771,7 +772,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             TimelinePost(
                 position = TimelinePosition(checkNotNull(record.value2()), "b${record.value1()}"),
                 contentHtml = checkNotNull(record.value4()),
-                language = languagesByNote[record.value3()],
+                language = languagesByNote[record.value3()]?.let { Locale.forLanguageTag(it) },
                 publishedAt = StoredInstant.parse(checkNotNull(record.value5())),
                 actorUri = authorUri,
                 username = record.value9() ?: authorUri,

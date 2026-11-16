@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.logic
 import java.net.URI
 import java.time.Instant
 import java.util.Base64
+import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
@@ -751,9 +752,9 @@ sealed interface ProfilePostsResult {
 data class ProfilePost(
     val contentHtml: String,
     /**
-     * BCP 47 の言語タグ。このサーバーの投稿と、相手のサーバーが付けていない投稿は null
+     * このサーバーの投稿と、相手のサーバーが付けていない投稿は null
      */
-    val language: String?,
+    val language: Locale?,
     val publishedAt: String,
     val summary: String?,
     val sensitive: Boolean,

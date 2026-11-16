@@ -44,7 +44,7 @@ private fun TimelinePost.toQlTimelinePost(
         boostUndone = boostUndone,
         sortedAt = Instant.ofEpochMilli(position.score).toString(),
         content = body.content,
-        language = language,
+        language = language?.toLanguageTag(),
         publishedAt = publishedAt.toString(),
         author = QlActor(
             actorUri = actorUri,
