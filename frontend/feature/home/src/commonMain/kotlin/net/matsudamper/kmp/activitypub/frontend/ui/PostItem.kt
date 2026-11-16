@@ -163,13 +163,13 @@ internal fun PostItem(
         if (uiState.deletedLabelVisible) {
             DeletedLabel(sizes = sizes)
         }
-        val replyLabel = uiState.replyLabel
-        if (replyLabel != null) {
-            ReplyLabel(replyLabel = replyLabel, sizes = sizes)
-        }
         val actorLabel = uiState.actorLabel
         if (actorLabel != null) {
             ActorLabel(actorLabel = actorLabel, sizes = sizes)
+        }
+        val replyLabel = uiState.replyLabel
+        if (replyLabel != null) {
+            ReplyLabel(replyLabel = replyLabel, sizes = sizes)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

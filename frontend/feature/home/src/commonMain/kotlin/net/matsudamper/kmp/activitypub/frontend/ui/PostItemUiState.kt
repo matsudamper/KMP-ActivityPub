@@ -7,7 +7,7 @@ import androidx.compose.runtime.Immutable
  */
 data class PostItemUiState(
     /**
-     * 投稿の上に出す「〜へのリプライ」の行。[actorLabel] より上に出す。出さなければ null
+     * 投稿の上に出す「〜へのリプライ」の行。[actorLabel] と投稿の間に出す。出さなければ null
      */
     val replyLabel: ReplyLabel?,
     /**
