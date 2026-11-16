@@ -30,6 +30,10 @@ internal class SqliteDeliveryQueueRepository(
         jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_FOLLOW) }
     }
 
+    override fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant) {
+        jooq.withConnection { dsl -> enqueueFollowing(dsl, accountId, inbox, body, now, DeliveryQueueValues.KIND_ACCEPT_QUOTE) }
+    }
+
     override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) {
         jooq.transaction { dsl ->
             val matchingFollow = DELIVERY_QUEUE.ACCOUNT_ID.eq(accountId.value)

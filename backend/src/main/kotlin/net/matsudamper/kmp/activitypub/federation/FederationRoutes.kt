@@ -126,6 +126,18 @@ internal fun Route.federationRoutes(federation: Federation) {
         call.respondEndpoint(response)
     }
 
+    get("/notes/{publicId}/quote_authorizations/{token}") {
+        val response =
+            withOpenTelemetryContext {
+                federation.quoteAuthorizationEndpoint.get(
+                    call.parameters["publicId"],
+                    call.parameters["token"],
+                    call.request.header(HttpHeaders.Accept),
+                )
+            }
+        call.respondEndpoint(response)
+    }
+
     post("/users/{username}/inbox") {
         val request = call.toIncomingInboxRequest()
         val response =

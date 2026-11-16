@@ -83,6 +83,8 @@ import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
 import net.matsudamper.kotpub.note.NotePublisher
 import net.matsudamper.kotpub.note.OutboxEndpoint
+import net.matsudamper.kotpub.quote.QuoteAuthorizationEndpoint
+import net.matsudamper.kotpub.quote.QuoteRequestHandler
 import net.matsudamper.kotpub.webfinger.HttpWebFingerLookup
 import net.matsudamper.kotpub.webfinger.WebFingerEndpoint
 
@@ -353,6 +355,8 @@ internal class Federation(
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
+    val quoteAuthorizationEndpoint: QuoteAuthorizationEndpoint = QuoteAuthorizationEndpoint(domain = domain, notes = notes)
+
     val outboxEndpoint: OutboxEndpoint = OutboxEndpoint(directory, notes, AccountBoostOutbox(accountBoostRepository), null)
 
     val featuredEndpoint: FeaturedEndpoint =
@@ -412,6 +416,18 @@ internal class Federation(
                         ),
                         boosts = UndoBoostHandler(boosts = boosts, earlyUndone = favourites),
                         follows = UndoFollowHandler(directory = directory, followers = followers),
+                    ),
+                    QuoteRequestHandler(
+                        domain = domain,
+                        notes = notes,
+                        remoteActors = remoteActors,
+                        approvals = QueuedQuoteApprovals(
+                            accountRepository = accountRepository,
+                            deliveryQueueRepository = deliveryQueueRepository,
+                            blocks = inboxBlocks,
+                            clock = Clock.systemUTC(),
+                            onEnqueued = deliveryQueueWorker::wakeUp,
+                        ),
                     ),
                     UpdateActorHandler(followers),
                     CreateNoteHandler(receivedNotes),
