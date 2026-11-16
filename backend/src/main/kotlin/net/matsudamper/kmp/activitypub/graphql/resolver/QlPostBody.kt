@@ -8,6 +8,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlPostStamp
 import net.matsudamper.kmp.activitypub.logic.htmlToPlainTextWithMentions
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.StampCount
+import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
@@ -65,6 +66,30 @@ internal fun List<StampCount>.toQlPostStamps(diContainer: DiContainer): List<QlP
 // 画像を中継できないときは :name: の文字のまま見せる
 internal fun List<CustomEmojiRecord>.toQlCustomEmojis(diContainer: DiContainer): List<QlCustomEmoji> = mapNotNull { emoji ->
     diContainer.remoteImageProxy?.proxyUrlOf(emoji.imageUrl)?.let { QlCustomEmoji(name = emoji.name, imageUrl = it) }
+}
+
+/**
+ * このサーバーの投稿の絵文字は記録していないので、本文から引く
+ *
+ * @param remoteEmojis 他のサーバーの投稿に付いてきた絵文字
+ */
+internal fun createQlPostEmojis(
+    noteRef: TimelineNoteRef,
+    contentHtml: String,
+    remoteEmojis: List<CustomEmojiRecord>,
+    diContainer: DiContainer,
+): List<QlCustomEmoji> = when (noteRef) {
+    is TimelineNoteRef.Remote -> remoteEmojis.toQlCustomEmojis(diContainer)
+
+    is TimelineNoteRef.Local -> {
+        val urls = diContainer.customEmojiUrls
+        if (urls == null) {
+            listOf()
+        } else {
+            diContainer.customEmojiService?.findInNoteContent(contentHtml).orEmpty()
+                .map { emoji -> QlCustomEmoji(name = ":${emoji.shortcode}:", imageUrl = urls.imageUrl(emoji.publicId)) }
+        }
+    }
 }
 
 internal fun createQlPostImage(url: String, description: String?): QlPostImage = QlPostImage(

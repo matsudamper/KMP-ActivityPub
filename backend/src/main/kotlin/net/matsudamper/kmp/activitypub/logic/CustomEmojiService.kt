@@ -36,6 +36,17 @@ class CustomEmojiService(
     fun findByPublicId(publicId: String): LocalCustomEmoji? = customEmojis.findByPublicId(publicId)
 
     /**
+     * このサーバーの投稿の本文に `:shortcode:` の形で入っている絵文字。
+     * 投稿には記録せず本文から引き直すので、消した絵文字は後から見ても画像にならない
+     */
+    fun findInNoteContent(contentHtml: String): List<LocalCustomEmoji> =
+        SHORTCODE_IN_CONTENT.findAll(contentHtml)
+            .map { it.groupValues[1] }
+            .distinct()
+            .mapNotNull(customEmojis::findByShortcode)
+            .toList()
+
+    /**
      * @param shortcode コロンを含めない名前。英数字と `_` だけ
      */
     fun upload(accountId: AccountId, shortcode: String, image: CustomEmojiUpload): UploadCustomEmojiResult {
@@ -110,6 +121,7 @@ class CustomEmojiService(
 
     private companion object {
         val SHORTCODE_PATTERN = Regex("[A-Za-z0-9_]{1,64}")
+        val SHORTCODE_IN_CONTENT = Regex(":(${SHORTCODE_PATTERN.pattern}):")
         const val MAX_IMAGE_BYTES = 1024 * 1024
     }
 }

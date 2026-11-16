@@ -44,6 +44,7 @@ class NotePostService(
     private val noteRepository: NoteRepository,
     private val imageStorage: ImageStorage?,
     private val imageUrls: NoteImageUrls,
+    private val emojiObjects: NoteEmojiObjects,
     private val followerRepository: FollowerRepository,
     private val deliveryQueueRepository: DeliveryQueueRepository,
     private val clock: Clock,
@@ -166,7 +167,7 @@ class NotePostService(
                 inReplyTo = reply?.inReplyTo,
                 quote = quote?.objectUri,
                 mentions = listOfNotNull(mention).map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
-                emojis = listOf(),
+                emojis = emojiObjects.find(contentHtml),
             )
         val enqueued =
             deliveryQueueRepository.enqueueNote(

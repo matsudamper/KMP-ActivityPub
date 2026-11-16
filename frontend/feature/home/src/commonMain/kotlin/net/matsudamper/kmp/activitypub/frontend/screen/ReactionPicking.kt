@@ -29,6 +29,7 @@ internal fun ReactionPickerTarget.toDialogUiState(
     onDismiss: () -> Unit,
 ): ReactionPickerDialogUiState = ReactionPickerDialogUiState(
     requestKey = requestKey,
+    title = "リアクション",
     removeButtonVisible = current is UserLikeState.Reacted,
     listener = object : ReactionPickerDialogUiState.Listener {
         override fun onPick(reaction: PickedReaction) {
