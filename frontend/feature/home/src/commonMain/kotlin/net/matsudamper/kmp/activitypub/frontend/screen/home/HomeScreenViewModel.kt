@@ -1372,7 +1372,7 @@ internal class HomeScreenViewModel(
                 // ブーストした他の人の投稿の画像は、自分のメディアに含めない
                 val media = createProfileMedia(
                     posts = myPosts.posts.filter { it.boostedNoteAuthor == null },
-                    sensitiveImagesBlurred = true,
+                    sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                     onOpenPost = ::navigateToPostDetail,
                 )
                 HomeScreenUiState.UserPosts.Loaded(

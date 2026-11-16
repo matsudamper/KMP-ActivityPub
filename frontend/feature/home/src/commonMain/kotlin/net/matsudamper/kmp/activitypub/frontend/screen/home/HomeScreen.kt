@@ -354,11 +354,11 @@ internal fun HomeContent(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                     )
+                    SensitiveImagesVisibilityButton(
+                        sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
+                        onClick = uiState.listener::onClickSensitiveImagesVisibility,
+                    )
                     if (uiState.selectedTab == HomeScreenUiState.Tab.Home) {
-                        SensitiveImagesVisibilityButton(
-                            sensitiveImagesBlurred = uiState.sensitiveImagesBlurred,
-                            onClick = uiState.listener::onClickSensitiveImagesVisibility,
-                        )
                         TimelineStreamStatusButton(
                             status = uiState.timelineStreamStatus,
                             onClick = uiState.listener::onClickTimelineStreamStatus,
