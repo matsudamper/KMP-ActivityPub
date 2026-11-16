@@ -341,9 +341,9 @@ class RemoteNoteReceptionTest {
         val fixture = Fixture(OpenTelemetry.noop())
         val editedAt = Instant.parse("2026-08-10T01:00:00Z")
         fixture.receiver.update(note(listOf()).copy(updated = editedAt))
-        val (revised, revisedAt) = fixture.repositories.timelineRepository.revised.single()
+        val revised = fixture.repositories.timelineRepository.revised.single()
         assertEquals("<p>本文</p>", revised.contentHtml)
-        assertEquals(editedAt, revisedAt)
+        assertEquals(editedAt, revised.editedAt)
     }
 
     @Test

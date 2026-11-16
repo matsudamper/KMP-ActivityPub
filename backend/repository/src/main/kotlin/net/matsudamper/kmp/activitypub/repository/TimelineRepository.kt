@@ -35,13 +35,13 @@ interface TimelineRepository {
     /**
      * 投稿者が編集した投稿を届いた内容に書き換え、書き換える前の版を残す。公開範囲と位置は変えない。
      * 配送は順番どおりとは限らないので、編集した時刻が保存済みの編集より新しくなければ書き換えない。
-     * 本文も注意書きも画像も変わっていなければ版は残さない。そのときも [reportedEditedAt] があれば編集した時刻は進め、それより古い編集で巻き戻さない
+     * [RemoteNoteInput.editedAt] が無ければ [RemoteNoteInput.receivedAt] に編集したものとして扱う。
+     * 本文も注意書きも画像も変わっていなければ版は残さない。そのときも [RemoteNoteInput.editedAt] があれば編集した時刻は進め、それより古い編集で巻き戻さない
      *
-     * @param reportedEditedAt 投稿者のサーバーが付けた、編集した時刻。付いていなければ null で、[RemoteNoteInput.receivedAt] に編集したものとして扱う
      * @return 中身か編集した時刻が変わったタイムラインの member。投稿そのものと、それをブーストした行。
      *   保存していないか、消されているか、[RemoteNoteInput.actorUri] の投稿でないか、何も変えなかったら空
      */
-    fun reviseRemote(note: RemoteNoteInput, reportedEditedAt: Instant?): List<String>
+    fun reviseRemote(note: RemoteNoteInput): List<String>
 
     /**
      * [viewablePost] で [viewer] が開ける投稿の版を、新しい順に返す。最初が今の版。編集されていなければ今の版だけ。
@@ -300,6 +300,7 @@ data class RemoteNoteInput(
     val sensitive: Boolean,
     val publishedAt: Instant,
     val receivedAt: Instant,
+    val editedAt: Instant?,
     val images: List<TimelinePostImage.Remote>,
     val emojis: List<CustomEmojiRecord>,
 )

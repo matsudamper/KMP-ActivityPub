@@ -111,8 +111,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         dsl.markRemoteNoteDeleted(actorUri = actorUri, objectUri = objectUri, deletedAt = deletedAt)
     }
 
-    override fun reviseRemote(note: RemoteNoteInput, reportedEditedAt: Instant?): List<String> = jooq.transaction { dsl ->
-        val editedAt = reportedEditedAt ?: note.receivedAt
+    override fun reviseRemote(note: RemoteNoteInput): List<String> = jooq.transaction { dsl ->
+        val editedAt = note.editedAt ?: note.receivedAt
         val stored = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.PUBLISHED_AT, REMOTE_NOTES.EDITED_AT)
             .from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri)).and(REMOTE_NOTES.DELETED_AT.isNull)
@@ -131,7 +131,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val revised = storedRevision.copy(contentHtml = note.contentHtml, summary = note.summary, sensitive = note.sensitive, images = note.images, revisedAt = editedAt)
         val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
         if (revised.copy(revisedAt = storedRevision.revisedAt) == storedRevision) {
-            if (reportedEditedAt == null) return@transaction listOf()
+            if (note.editedAt == null) return@transaction listOf()
             dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
             return@transaction members
         }
@@ -711,6 +711,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.PUBLISHED_AT, StoredInstant.format(note.publishedAt))
             .set(REMOTE_NOTES.RECEIVED_AT, StoredInstant.format(note.receivedAt))
+            .set(REMOTE_NOTES.EDITED_AT, note.editedAt?.let { StoredInstant.format(it) })
             .set(REMOTE_NOTES.SCORE_MS, score)
             .set(REMOTE_NOTES.VIA_BOOST, if (viaBoost) 1L else 0L)
             .onConflict(REMOTE_NOTES.OBJECT_URI).doNothing()
@@ -816,6 +817,10 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
             .where(REMOTE_NOTES.ID.eq(id))
             .execute()
+        val editedAt = note.editedAt
+        if (editedAt != null) {
+            dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
+        }
         dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
         insertRemoteNoteImages(dsl, id, note.images)
         dsl.deleteFrom(REMOTE_NOTE_EMOJIS).where(REMOTE_NOTE_EMOJIS.REMOTE_NOTE_ID.eq(id)).execute()

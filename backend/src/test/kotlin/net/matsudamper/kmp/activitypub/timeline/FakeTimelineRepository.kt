@@ -24,7 +24,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     val events = mutableListOf<String>()
     val received = mutableListOf<RemoteNoteInput>()
     val receivedBoosts = mutableListOf<RemoteBoostInput>()
-    val revised = mutableListOf<Pair<RemoteNoteInput, Instant?>>()
+    val revised = mutableListOf<RemoteNoteInput>()
     val actorPosts = mutableListOf<TimelinePost>()
     val accountBoosts = mutableListOf<TimelinePost>()
     val storedFetchedNotes = mutableMapOf<String, TimelinePost>()
@@ -51,8 +51,8 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
 
     override fun deleteRemote(actorUri: String, objectUri: String, deletedAt: Instant): List<String> = listOf()
-    override fun reviseRemote(note: RemoteNoteInput, reportedEditedAt: Instant?): List<String> {
-        revised.add(note to reportedEditedAt)
+    override fun reviseRemote(note: RemoteNoteInput): List<String> {
+        revised.add(note)
         return listOf()
     }
 

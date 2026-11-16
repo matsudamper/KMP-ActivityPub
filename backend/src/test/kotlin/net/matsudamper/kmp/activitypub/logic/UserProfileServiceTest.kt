@@ -717,6 +717,7 @@ class UserProfileServiceTest {
             sensitive = false,
             publishedAt = publishedAt,
             receivedAt = publishedAt,
+            editedAt = null,
             images = listOf(),
             emojis = listOf(),
         )
