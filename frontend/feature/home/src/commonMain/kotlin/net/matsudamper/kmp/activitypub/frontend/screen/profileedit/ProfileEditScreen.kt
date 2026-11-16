@@ -194,7 +194,7 @@ private fun LoadedContent(
                 hasError = content.summaryHasError,
                 onSubmitShortcut = null,
                 insertion = null,
-                onInsertionHandled = {},
+                onHandleInsertion = {},
                 modifier = Modifier.fillMaxWidth(),
             )
         }

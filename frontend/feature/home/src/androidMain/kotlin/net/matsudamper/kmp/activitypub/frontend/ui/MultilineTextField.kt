@@ -32,7 +32,7 @@ internal actual fun MultilineTextField(
     hasError: Boolean,
     onSubmitShortcut: (() -> Unit)?,
     insertion: TextInsertion?,
-    onInsertionHandled: () -> Unit,
+    onHandleInsertion: () -> Unit,
     modifier: Modifier,
 ) {
     var editedValue by remember { mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) }
@@ -40,7 +40,7 @@ internal actual fun MultilineTextField(
     val fieldValue = if (editedValue.text == value) editedValue else TextFieldValue(text = value, selection = TextRange(value.length))
     val currentFieldValue by rememberUpdatedState(fieldValue)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val currentOnInsertionHandled by rememberUpdatedState(onInsertionHandled)
+    val currentOnHandleInsertion by rememberUpdatedState(onHandleInsertion)
     LaunchedEffect(insertion) {
         if (insertion == null) return@LaunchedEffect
         val inserted = insertion.insertInto(
@@ -50,7 +50,7 @@ internal actual fun MultilineTextField(
         )
         editedValue = TextFieldValue(text = inserted.text, selection = TextRange(inserted.caret))
         currentOnValueChange(inserted.text)
-        currentOnInsertionHandled()
+        currentOnHandleInsertion()
     }
     OutlinedTextField(
         value = fieldValue,

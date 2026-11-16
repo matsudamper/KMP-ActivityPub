@@ -20,11 +20,11 @@ internal actual fun MultilineTextField(
     hasError: Boolean,
     onSubmitShortcut: (() -> Unit)?,
     insertion: TextInsertion?,
-    onInsertionHandled: () -> Unit,
+    onHandleInsertion: () -> Unit,
     modifier: Modifier,
 ) {
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val currentOnInsertionHandled by rememberUpdatedState(onInsertionHandled)
+    val currentOnHandleInsertion by rememberUpdatedState(onHandleInsertion)
     LaunchedEffect(insertion) {
         if (insertion == null) return@LaunchedEffect
         val textArea = document.getElementById(inputId) as? HTMLTextAreaElement
@@ -39,7 +39,7 @@ internal actual fun MultilineTextField(
             textArea.setSelectionRange(inserted.caret, inserted.caret)
             currentOnValueChange(inserted.text)
         }
-        currentOnInsertionHandled()
+        currentOnHandleInsertion()
     }
     HtmlFormComponents.PlatformTextArea(
         value = value,
