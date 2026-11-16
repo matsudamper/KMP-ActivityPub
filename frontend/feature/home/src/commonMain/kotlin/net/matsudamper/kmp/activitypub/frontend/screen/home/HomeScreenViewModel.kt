@@ -153,6 +153,8 @@ internal class HomeScreenViewModel(
     private var searchWatchJob: Job? = null
     private var profileJob: Job? = null
     private var myPostsRetryJob: Job? = null
+    private var myPostsLoadMoreJob: Job? = null
+    private var myLikesLoadMoreJob: Job? = null
     private var timelineJob: Job? = null
     private var timelineLoadRequested = false
     private var pullToRefreshIndicatorJob: Job? = null
@@ -327,6 +329,22 @@ internal class HomeScreenViewModel(
             viewModelStateFlow.update { it.copy(userContentTab = tab) }
         }
 
+        override fun onScrolledToUserContentEnd() {
+            // 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押したときだけ読み直す
+            val loaded = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded ?: return
+            if (viewModelStateFlow.value.userContentTab == ProfileContentTab.Likes) {
+                if (loaded.likes.loadErrorMessage != null) return
+                loadMoreMyLikes()
+            } else {
+                if (loaded.posts.loadErrorMessage != null) return
+                loadMoreMyPosts()
+            }
+        }
+
+        override fun onClickRetryLoadMoreUserContent() {
+            if (viewModelStateFlow.value.userContentTab == ProfileContentTab.Likes) loadMoreMyLikes() else loadMoreMyPosts()
+        }
+
         override fun onClickFollowing() {
             viewModelScope.launch {
                 events.send { it.navigateToFollowing() }
@@ -458,13 +476,10 @@ internal class HomeScreenViewModel(
                 updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }) }
                 updateSearchedPosts { posts -> posts.map { post -> if (post.pinnableNoteId == change.noteId) post.copy(pinned = change.pinned) else post } }
                 val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
-                if (myPosts != null && myPosts.posts.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
+                if (myPosts != null && myPosts.posts.posts.needsReloadForPin(pinnableNoteId = change.noteId, pinned = change.pinned)) {
                     loadMyPosts(myPosts.owner)
                 } else {
-                    viewModelStateFlow.update {
-                        val loaded = it.myPosts as? MyPostsState.Loaded ?: return@update it
-                        it.copy(myPosts = loaded.copy(posts = loaded.posts.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned)))
-                    }
+                    updateMyPosts { posts -> posts.withPinned(pinnableNoteId = change.noteId, pinned = change.pinned) }
                 }
             }
         }
@@ -657,12 +672,125 @@ internal class HomeScreenViewModel(
         // 名前やアイコンは自分のプロフィールで読んでいるので、投稿だけを読む
         when (val result = userApi.userProfilePosts(acct = owner.username, after = null)) {
             is UserProfilePostsResult.Success -> {
-                val likes = (userApi.userProfileLikes(acct = owner.username, after = null) as? UserProfileLikesResult.Success)?.posts
-                viewModelStateFlow.update { it.copy(myPosts = MyPostsState.Loaded(owner = owner, posts = result.posts, likes = likes)) }
+                val likesResult = userApi.userProfileLikes(acct = owner.username, after = null)
+                viewModelStateFlow.update { state ->
+                    val current = state.myPosts as? MyPostsState.Loaded
+                    state.copy(
+                        myPosts = MyPostsState.Loaded(
+                            owner = owner,
+                            posts = current?.posts.withFirstPageReloaded(firstPage = result.posts, nextCursor = result.nextCursor, idOf = { it.postId }, isPinned = { it.pinned }),
+                            likes = when (likesResult) {
+                                is UserProfileLikesResult.Success ->
+                                    current?.likes.withFirstPageReloaded(firstPage = likesResult.posts, nextCursor = likesResult.nextCursor, idOf = { it.id }, isPinned = { false })
+
+                                UserProfileLikesResult.Hidden -> MyPostsPages(posts = listOf(), next = NextMyPostsPage.End, loadErrorMessage = null)
+
+                                is UserProfileLikesResult.Failure -> if (current == null || current.likes.next == NextMyPostsPage.FirstPage) {
+                                    MyPostsPages(posts = listOf(), next = NextMyPostsPage.FirstPage, loadErrorMessage = likesResult.message)
+                                } else {
+                                    current.likes
+                                }
+                            },
+                        ),
+                    )
+                }
             }
 
             is UserProfilePostsResult.Failure -> myPostsFailed(owner, result.message)
         }
+    }
+
+    private fun loadMoreMyPosts() {
+        if (myPostsLoadMoreJob?.isActive == true) return
+        val loaded = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded ?: return
+        val next = loaded.posts.next
+        if (next == NextMyPostsPage.End) return
+        updateMyPostsPages { it.copy(loadErrorMessage = null) }
+        myPostsLoadMoreJob = viewModelScope.launch { loadMyPostsPage(username = loaded.owner.username, next = next) }
+    }
+
+    /**
+     * 続きが空でもまだ先があれば、続けて読む。固定した投稿だけのページなどは表示が増えず、画面の末尾の見張りでは読み進められない
+     */
+    private tailrec suspend fun loadMyPostsPage(username: String, next: NextMyPostsPage) {
+        val result = userApi.userProfilePosts(acct = username, after = (next as? NextMyPostsPage.After)?.cursor)
+        updateMyPostsPages { current ->
+            // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
+            if (current.next != next) {
+                current
+            } else {
+                when (result) {
+                    is UserProfilePostsResult.Success -> {
+                        // 最初のページで固定していた投稿は、読んだ後に固定を外すと続きのページにも出る
+                        val loadedPostIds = current.posts.map { it.postId }.toSet()
+                        current.copy(
+                            posts = current.posts + result.posts.filterNot { it.postId in loadedPostIds },
+                            next = result.nextCursor.toNextMyPostsPage(),
+                        )
+                    }
+
+                    is UserProfilePostsResult.Failure -> current.copy(loadErrorMessage = result.message)
+                }
+            }
+        }
+        val nextCursor = (result as? UserProfilePostsResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
+        val continuation = NextMyPostsPage.After(nextCursor)
+        val applied = (viewModelStateFlow.value.myPosts as? MyPostsState.Loaded)?.posts?.next == continuation
+        if (applied) loadMyPostsPage(username = username, next = continuation)
+    }
+
+    private fun loadMoreMyLikes() {
+        if (myLikesLoadMoreJob?.isActive == true) return
+        val loaded = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded ?: return
+        val next = loaded.likes.next
+        if (next == NextMyPostsPage.End) return
+        updateMyLikesPages { it.copy(loadErrorMessage = null) }
+        myLikesLoadMoreJob = viewModelScope.launch { loadMyLikesPage(username = loaded.owner.username, next = next) }
+    }
+
+    /**
+     * 続きが空でもまだ先があれば、続けて読む。開けない投稿だけのページは表示が増えず、画面の末尾の見張りでは読み進められない
+     */
+    private tailrec suspend fun loadMyLikesPage(username: String, next: NextMyPostsPage) {
+        val result = userApi.userProfileLikes(acct = username, after = (next as? NextMyPostsPage.After)?.cursor)
+        updateMyLikesPages { current ->
+            // 読んでいる間に読み直していたら、読み直した一覧に古い続きを足さない
+            if (current.next != next) {
+                current
+            } else {
+                when (result) {
+                    is UserProfileLikesResult.Success -> current.copy(posts = current.posts + result.posts, next = result.nextCursor.toNextMyPostsPage())
+                    UserProfileLikesResult.Hidden -> current.copy(next = NextMyPostsPage.End)
+                    is UserProfileLikesResult.Failure -> current.copy(loadErrorMessage = result.message)
+                }
+            }
+        }
+        val nextCursor = (result as? UserProfileLikesResult.Success)?.takeIf { it.posts.isEmpty() }?.nextCursor ?: return
+        val continuation = NextMyPostsPage.After(nextCursor)
+        val applied = (viewModelStateFlow.value.myPosts as? MyPostsState.Loaded)?.likes?.next == continuation
+        if (applied) loadMyLikesPage(username = username, next = continuation)
+    }
+
+    private fun updateMyPostsPages(transform: (MyPostsPages<UserProfileResult.Post>) -> MyPostsPages<UserProfileResult.Post>) {
+        viewModelStateFlow.update {
+            val loaded = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            it.copy(myPosts = loaded.copy(posts = transform(loaded.posts)))
+        }
+    }
+
+    private fun updateMyLikesPages(transform: (MyPostsPages<UserHomeTimelineResult.Post>) -> MyPostsPages<UserHomeTimelineResult.Post>) {
+        viewModelStateFlow.update {
+            val loaded = it.myPosts as? MyPostsState.Loaded ?: return@update it
+            it.copy(myPosts = loaded.copy(likes = transform(loaded.likes)))
+        }
+    }
+
+    private fun updateMyPosts(transform: (List<UserProfileResult.Post>) -> List<UserProfileResult.Post>) {
+        updateMyPostsPages { it.copy(posts = transform(it.posts)) }
+    }
+
+    private fun updateMyLikes(transform: (List<UserHomeTimelineResult.Post>) -> List<UserHomeTimelineResult.Post>) {
+        updateMyLikesPages { it.copy(posts = transform(it.posts)) }
     }
 
     /**
@@ -1178,15 +1306,8 @@ internal class HomeScreenViewModel(
     private suspend fun applyLikeState(postId: String, state: UserLikeState) {
         timelineFeeds.updatePosts { it.withLikeState(reactionPostId = postId, state = state) }
         updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withLikeState(reactionPostId = postId, state = state) }) }
-        viewModelStateFlow.update {
-            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(
-                myPosts = myPosts.copy(
-                    posts = myPosts.posts.withLikeState(reactionPostId = postId, state = state),
-                    likes = myPosts.likes?.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withLikeState(state)) else post },
-                ),
-            )
-        }
+        updateMyPosts { posts -> posts.withLikeState(reactionPostId = postId, state = state) }
+        updateMyLikes { likes -> likes.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withLikeState(state)) else post } }
         updateSearchedPosts { posts -> posts.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withLikeState(state)) else post } }
     }
 
@@ -1213,15 +1334,8 @@ internal class HomeScreenViewModel(
     private suspend fun applyBoosted(postId: String, boosted: Boolean) {
         timelineFeeds.updatePosts { it.withBoosted(reactionPostId = postId, boosted = boosted) }
         updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withBoosted(reactionPostId = postId, boosted = boosted) }) }
-        viewModelStateFlow.update {
-            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(
-                myPosts = myPosts.copy(
-                    posts = myPosts.posts.withBoosted(reactionPostId = postId, boosted = boosted),
-                    likes = myPosts.likes?.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post },
-                ),
-            )
-        }
+        updateMyPosts { posts -> posts.withBoosted(reactionPostId = postId, boosted = boosted) }
+        updateMyLikes { likes -> likes.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post } }
         updateSearchedPosts { posts -> posts.map { post -> if (post.reactionPostId == postId) post.copy(body = post.body.withBoosted(boosted)) else post } }
     }
 
@@ -1249,15 +1363,8 @@ internal class HomeScreenViewModel(
     private suspend fun removeDeletedNote(noteId: String) {
         timelineFeeds.removeNote(noteId)
         updateLoadedNotifications { it.copy(data = it.data.withoutNote(noteId)) }
-        viewModelStateFlow.update {
-            val myPosts = it.myPosts as? MyPostsState.Loaded ?: return@update it
-            it.copy(
-                myPosts = myPosts.copy(
-                    posts = myPosts.posts.filterNot { post -> post.deletableNoteId == noteId },
-                    likes = myPosts.likes?.filterNot { post -> post.deletableNoteId == noteId },
-                ),
-            )
-        }
+        updateMyPosts { posts -> posts.filterNot { post -> post.deletableNoteId == noteId } }
+        updateMyLikes { likes -> likes.filterNot { post -> post.deletableNoteId == noteId } }
         updateSearchedPosts { posts -> posts.filterNot { post -> post.deletableNoteId == noteId } }
     }
 
@@ -1370,13 +1477,15 @@ internal class HomeScreenViewModel(
                 val profile = myPosts.owner
                 val displayName = profile.displayName ?: profile.username
                 // ブーストした他の人の投稿の画像は、自分のメディアに含めない
+                val posts = myPosts.posts
+                val likes = myPosts.likes
                 val media = createProfileMedia(
-                    posts = myPosts.posts.filter { it.boostedNoteAuthor == null },
-                    sensitiveImagesBlurred = true,
+                    posts = posts.posts.filter { it.boostedNoteAuthor == null },
+                    sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                     onOpenPost = ::navigateToPostDetail,
                 )
                 HomeScreenUiState.UserPosts.Loaded(
-                    items = myPosts.posts.map { post ->
+                    items = posts.posts.map { post ->
                         val boostedNoteAuthor = post.boostedNoteAuthor
                         createPostItemUiState(
                             pinned = post.pinned,
@@ -1459,17 +1568,24 @@ internal class HomeScreenViewModel(
                             },
                         )
                     },
-                    emptyMessage = if (myPosts.posts.isEmpty()) "表示できる投稿はありません" else null,
+                    emptyMessage = if (posts.posts.isEmpty() && posts.next == NextMyPostsPage.End) "表示できる投稿はありません" else null,
+                    postsFooter = createUserPostsFooter(posts),
                     media = media,
-                    mediaEmptyMessage = if (media.isEmpty()) "表示できるメディアはありません" else null,
-                    likes = myPosts.likes.orEmpty().map { post -> createMyLikedPostItem(post, viewModelState) },
-                    likesEmptyMessage = when {
-                        myPosts.likes == null -> "いいねを読めませんでした"
-                        myPosts.likes.isEmpty() -> "表示できるいいねはありません"
-                        else -> null
-                    },
+                    mediaEmptyMessage = if (media.isEmpty() && posts.next == NextMyPostsPage.End) "表示できるメディアはありません" else null,
+                    likes = likes.posts.map { post -> createMyLikedPostItem(post, viewModelState) },
+                    likesEmptyMessage = if (likes.posts.isEmpty() && likes.next == NextMyPostsPage.End) "表示できるいいねはありません" else null,
+                    likesFooter = createUserPostsFooter(likes),
                 )
             }
+        }
+    }
+
+    private fun createUserPostsFooter(pages: MyPostsPages<*>): HomeScreenUiState.TimelineFooter {
+        val loadErrorMessage = pages.loadErrorMessage
+        return when {
+            loadErrorMessage != null -> HomeScreenUiState.TimelineFooter.Error(loadErrorMessage)
+            pages.next != NextMyPostsPage.End -> HomeScreenUiState.TimelineFooter.Loading
+            else -> HomeScreenUiState.TimelineFooter.None
         }
     }
 
@@ -2059,12 +2175,12 @@ internal class HomeScreenViewModel(
 
         /**
          * @param owner 投稿の主。名前やアイコンを出す
-         * @param likes いいねした投稿の最初のページ。読めなければ null
+         * @param likes いいねした投稿。最初のページを読めなかった間は [NextMyPostsPage.FirstPage] のまま
          */
         data class Loaded(
             val owner: UserMyProfileResult.Found,
-            val posts: List<UserProfileResult.Post>,
-            val likes: List<UserHomeTimelineResult.Post>?,
+            val posts: MyPostsPages<UserProfileResult.Post>,
+            val likes: MyPostsPages<UserHomeTimelineResult.Post>,
         ) : MyPostsState
 
         /**
@@ -2073,6 +2189,53 @@ internal class HomeScreenViewModel(
         data class LoadFailed(
             val owner: UserMyProfileResult.Found,
         ) : MyPostsState
+    }
+
+    /**
+     * @param next 次に読むページ
+     * @param loadErrorMessage 続きを読めなかったときの理由。読めていれば null
+     */
+    private data class MyPostsPages<T>(
+        val posts: List<T>,
+        val next: NextMyPostsPage,
+        val loadErrorMessage: String?,
+    )
+
+    private sealed interface NextMyPostsPage {
+        data object FirstPage : NextMyPostsPage
+
+        data class After(val cursor: String) : NextMyPostsPage
+
+        data object End : NextMyPostsPage
+    }
+
+    private fun String?.toNextMyPostsPage(): NextMyPostsPage = if (this == null) NextMyPostsPage.End else NextMyPostsPage.After(this)
+
+    /**
+     * 画面に戻るたびに最初のページを読み直すので、読み進めた続きは捨てずに残す。捨てると戻るたびに読み進めた位置を失う。
+     * 最初のページから外れた投稿（消した投稿など）を残さないよう、続きは最初のページと重なる最後の投稿より後ろだけにする。
+     * 固定した投稿は古くても最初のページの先頭に来るので、重なりの位置には使わない。使うと間の投稿を捨ててしまう。
+     * 重なりまでの投稿が最初のページから消えていたら（固定を外した古い投稿など）、続きの位置が合わないので読み直す
+     */
+    private fun <T> MyPostsPages<T>?.withFirstPageReloaded(
+        firstPage: List<T>,
+        nextCursor: String?,
+        idOf: (T) -> String,
+        isPinned: (T) -> Boolean,
+    ): MyPostsPages<T> {
+        val firstPageIds = firstPage.map(idOf).toSet()
+        val overlapIds = firstPage.filterNot(isPinned).map(idOf).toSet()
+        val loadedPosts = this?.posts.orEmpty()
+        val overlapEnd = loadedPosts.indexOfLast { idOf(it) in overlapIds } + 1
+        val firstPageOverlapsLoaded = overlapEnd > 0
+        val loadedHeadKept = loadedPosts.take(overlapEnd).all { idOf(it) in firstPageIds }
+        val loadedContinuation = loadedPosts.drop(overlapEnd).filterNot { idOf(it) in firstPageIds }
+        val continuationExists = nextCursor != null
+        return if (this != null && firstPageOverlapsLoaded && loadedHeadKept && continuationExists && loadedContinuation.isNotEmpty()) {
+            copy(posts = firstPage + loadedContinuation)
+        } else {
+            MyPostsPages(posts = firstPage, next = nextCursor.toNextMyPostsPage(), loadErrorMessage = null)
+        }
     }
 }
 
