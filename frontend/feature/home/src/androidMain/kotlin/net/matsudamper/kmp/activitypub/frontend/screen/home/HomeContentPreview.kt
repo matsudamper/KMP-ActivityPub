@@ -789,12 +789,13 @@ private fun HomeColumnsPreview(
             postColumn = { modifier ->
                 Box(modifier = modifier) {
                     PostContent(
+                        navigationIcon = PostNavigationIcon.Close,
                         uiState = PostScreenUiState(
                             body = "",
                             bodyInsertion = null,
                             inputHasError = false,
                             inputEnabled = true,
-                            backButtonEnabled = true,
+                            closeButtonEnabled = true,
                             postButtonEnabled = false,
                             images = listOf(),
                             quote = null,
@@ -804,7 +805,6 @@ private fun HomeColumnsPreview(
                             emojiPickerDialog = null,
                             listener = AndroidPreviewPostScreenListener,
                         ),
-                        navigationIcon = PostNavigationIcon.Close,
                         snackbarHostState = SnackbarHostState(),
                     )
                 }
@@ -973,7 +973,7 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
     override fun onPressPostShortcut() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 }
 
 private fun previewTimelinePosts(): List<PostItemUiState> = listOf(

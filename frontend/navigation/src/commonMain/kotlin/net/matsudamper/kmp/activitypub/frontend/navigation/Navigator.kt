@@ -36,6 +36,21 @@ class Navigator(
     }
 
     /**
+     * 重ねた画面をすべて捨ててホームを出す。
+     * URL で直接開くとホームが積まれていないので、そのときはホームだけにする
+     */
+    fun closeToHome() {
+        val homeIndex = backStack.indexOfFirst { it is Screen.Home }.takeIf { it >= 0 }
+        if (homeIndex == null) {
+            replaceAll(Screen.Home.Timeline)
+        } else {
+            while (backStack.lastIndex > homeIndex) {
+                backStack.removeAt(backStack.lastIndex)
+            }
+        }
+    }
+
+    /**
      * [screen] が積んであればそこまで戻り、無ければ積む。
      * 同じ画面を 2 つ積むと、画面ごとの状態の保存先がぶつかる
      */

@@ -445,7 +445,7 @@ private val LocalUserUiState = UserProfileScreenUiState(
 private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.Listener {
     override fun onClickRetry() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 
     override fun onClickTab(tab: ProfileContentTab) = Unit
 

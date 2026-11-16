@@ -57,6 +57,7 @@ internal object BrowserHistory {
         private var syncedStack: List<NavKey> = listOf()
         private var stackBottomHistoryIndex = 0
         private var currentHistoryIndex = 0
+        private var awaitingOwnGo = false
         private val popStateListener: (Event) -> Unit = { event ->
             onPopState(historyEntryOf((event as PopStateEvent).state))
         }
@@ -106,9 +107,10 @@ internal object BrowserHistory {
                 }
 
                 targetHistoryIndex < currentHistoryIndex -> {
-                    // go は非同期で popstate が後から来る。その時点で積み上げは既に一致しているので何も起きない
+                    // go は非同期で popstate が後から来る
                     window.history.go(targetHistoryIndex - currentHistoryIndex)
                     currentHistoryIndex = targetHistoryIndex
+                    awaitingOwnGo = true
                 }
 
                 else -> {
@@ -122,6 +124,15 @@ internal object BrowserHistory {
         }
 
         private fun onPopState(historyEntry: HistoryEntry?) {
+            val arrivedByOwnGo = awaitingOwnGo && historyEntry?.index == currentHistoryIndex
+            awaitingOwnGo = false
+            if (arrivedByOwnGo) {
+                // 積み上げは既に戻してある。戻りながら下の画面を置き換えていると履歴の中身が古く、
+                // それに合わせると置き換える前の画面に戻ってしまうので、履歴のほうを今の積み上げで書き直す
+                window.history.replaceState(historyStateOf(currentHistoryIndex, backStack), "", pathOf(backStack.last()))
+                syncedStack = backStack.toList()
+                return
+            }
             val screen = screenOf(path = window.location.pathname, unknownPathScreen = unknownPathScreen)
             if (historyEntry == null) {
                 // このアプリが積んでいない履歴。位置が分からないので、そこを起点に積み直す

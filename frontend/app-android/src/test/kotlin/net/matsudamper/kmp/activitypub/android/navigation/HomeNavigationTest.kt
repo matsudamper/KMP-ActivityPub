@@ -92,6 +92,33 @@ class HomeNavigationTest {
     }
 
     @Test
+    fun closeToHomeRemovesEveryScreenAboveHome() {
+        val search = Screen.Home(Screen.Home.Tab.Search)
+        val backStack = NavBackStack<NavKey>(search)
+        val navigator = Navigator(backStack)
+        val profile = Screen.UserProfile("bob@remote.example")
+        val postDetail = Screen.PostDetail(postId = "1")
+
+        navigator.navigate(profile)
+        navigator.navigate(postDetail)
+        navigator.back()
+        assertEquals(listOf(search, profile), backStack.toList())
+        navigator.navigate(postDetail)
+        navigator.closeToHome()
+        assertEquals(listOf(search), backStack.toList())
+    }
+
+    @Test
+    fun closeToHomeWithoutHomeLeavesOnlyTimeline() {
+        val backStack = NavBackStack<NavKey>(Screen.UserProfile("bob@remote.example"))
+        val navigator = Navigator(backStack)
+
+        navigator.navigate(Screen.PostDetail(postId = "1"))
+        navigator.closeToHome()
+        assertEquals(listOf(Screen.Home.Timeline), backStack.toList())
+    }
+
+    @Test
     fun brokenImagePathIsUnknown() {
         assertNull(Screen.fromPath("/image/%%%"))
     }
