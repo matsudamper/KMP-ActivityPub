@@ -193,6 +193,7 @@ internal class FakeAccountRepository(
     private val passwordDeletedIds = mutableSetOf<AccountId>()
     private val publicKeyPems = mutableMapOf<AccountId, String>()
     private val iconPaths = mutableMapOf<AccountId, String>()
+    private val headerPaths = mutableMapOf<AccountId, String>()
 
     fun add(
         username: String,
@@ -216,6 +217,13 @@ internal class FakeAccountRepository(
         iconPath: String,
     ) {
         iconPaths[id] = iconPath
+    }
+
+    fun setHeaderPath(
+        id: AccountId,
+        headerPath: String,
+    ) {
+        headerPaths[id] = headerPath
     }
 
     override fun findById(id: AccountId): Account? =
@@ -260,7 +268,7 @@ internal class FakeAccountRepository(
     }
 
     private fun AccountCredential.toAccount(): Account =
-        Account(id = id, username = username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[id])
+        Account(id = id, username = username, createdAt = Instant.EPOCH, displayName = null, iconPath = iconPaths[id], headerPath = headerPaths[id])
 }
 
 internal class FakeRemoteActorRepository : RemoteActorRepository {

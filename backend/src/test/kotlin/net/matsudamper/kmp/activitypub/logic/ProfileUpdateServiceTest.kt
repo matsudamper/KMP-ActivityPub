@@ -265,6 +265,65 @@ class ProfileUpdateServiceTest {
         assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
     }
 
+    @Test
+    fun `プロフィールヘッダーを置いて Update の image に新しい画像の URL を載せ、前の画像を消す`() {
+        val oldPath = ImagePath("users/${user1Id.value}/profile-header/old")
+        imageStorage.images[oldPath] = ImageStorage.GetResult.Success(bytes = PNG, contentType = "image/png")
+        accountRepository.setHeaderPath(user1Id, oldPath.value)
+
+        assertEquals(UpdateHeaderResult.Updated, service.updateHeader(username = "user1", header = PNG))
+
+        val update = deliveryQueueRepository.profileUpdates.single()
+        assertNull(update.newIconPath)
+        val newPath = ImagePath(assertNotNull(update.newHeaderPath))
+        assertTrue(newPath.value.startsWith("2026/10/users/${user1Id.value}/profile-header/"))
+        assertEquals("image/png", imageStorage.images.getValue(newPath).contentType)
+        assertFalse(oldPath in imageStorage.images)
+        val actor = Json.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
+        val headerUrl = actor.getValue("image").jsonObject.getValue("url").jsonPrimitive.content
+        assertEquals("https://$DOMAIN/users/user1/header?v=${ProfileHeaderPaths.version(newPath)}", headerUrl)
+    }
+
+    @Test
+    fun `プロフィール画像を変えるときは今のヘッダーのまま`() {
+        assertEquals(UpdateIconResult.Updated, service.updateIcon(username = "user1", icon = PNG))
+
+        assertNull(deliveryQueueRepository.profileUpdates.single().newHeaderPath)
+    }
+
+    @Test
+    fun `横か縦が上限を超えるプロフィールヘッダーは置かない`() {
+        assertEquals(
+            UpdateHeaderResult.DimensionsTooLarge,
+            service.updateHeader(username = "user1", header = TestProfileIcons.read("1501x3.png")),
+        )
+        assertEquals(
+            UpdateHeaderResult.DimensionsTooLarge,
+            service.updateHeader(username = "user1", header = TestProfileIcons.read("5x501.png")),
+        )
+
+        assertEquals(mapOf(), imageStorage.images)
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
+    @Test
+    fun `大きすぎるプロフィールヘッダーは置かない`() {
+        val header = PNG + ByteArray(ProfileUpdateService.MAX_HEADER_BYTES)
+
+        assertEquals(UpdateHeaderResult.TooLarge, service.updateHeader(username = "user1", header = header))
+
+        assertEquals(mapOf(), imageStorage.images)
+    }
+
+    @Test
+    fun `画像の置き場が無ければプロフィールヘッダーを変えられない`() {
+        val service = createService(imageStorage = null)
+
+        assertEquals(UpdateHeaderResult.ImageStorageDisabled, service.updateHeader(username = "user1", header = PNG))
+
+        assertEquals(listOf(), deliveryQueueRepository.profileUpdates)
+    }
+
     private fun ProfileUpdateService.updateDisplayName(
         username: String,
         displayName: String,

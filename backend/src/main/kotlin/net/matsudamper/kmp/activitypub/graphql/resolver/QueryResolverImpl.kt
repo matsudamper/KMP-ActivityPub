@@ -60,7 +60,12 @@ class QueryResolverImpl : QueryResolver {
                 } else {
                     QlUserProfile(
                         user = profile.user.toQlSearchedUser(env),
-                        headerUrl = profile.headerUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = profile.user.updatedAt) },
+                        headerUrl =
+                        if (profile.user.isLocal) {
+                            diContainer.profileHeaderUrls?.find(profile.user.username)
+                        } else {
+                            profile.headerUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = profile.user.updatedAt) }
+                        },
                         biography = profile.biography,
                         links = profile.links.map { it.toQlProfileLink() },
                         viewerIsOwner = profile.viewerIsOwner,
@@ -183,6 +188,7 @@ class QueryResolverImpl : QueryResolver {
                     username = account.username,
                     displayName = account.displayName,
                     iconUrl = diContainer.profileIconUrls?.find(account.username),
+                    headerUrl = diContainer.profileHeaderUrls?.find(account.username),
                     summary = profileDetail.summary,
                     links = profileDetail.links.map { it.toQlProfileLink() },
                     likesPublic = profileDetail.likesPublic,

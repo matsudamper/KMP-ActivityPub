@@ -62,6 +62,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.SetReactionMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockAccountMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockServerMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileHeaderMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UploadCustomEmojiMutation
@@ -89,6 +90,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.SetReactionFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockAccountFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UnblockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileHeaderFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileIconFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UpdateProfileQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.UploadCustomEmojiFailure
@@ -1027,6 +1029,7 @@ class UserApi(
             username = profile.username,
             displayName = profile.displayName,
             iconUrl = profile.iconUrl,
+            headerUrl = profile.headerUrl,
             summary = profile.summary,
             links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
             likesPublic = profile.likesPublic,
@@ -1091,6 +1094,28 @@ class UserApi(
             UpdateProfileIconFailure.INTERNAL_SERVER_ERROR -> UserUpdateProfileIconResult.InternalServerError
             UpdateProfileIconFailure.FEDERATION_DISABLED -> UserUpdateProfileIconResult.FederationDisabled
             UpdateProfileIconFailure.UNKNOWN__ -> UserUpdateProfileIconResult.Failure("Unknown")
+        }
+    }
+
+    /**
+     * @param header 画像ファイルの中身
+     */
+    suspend fun updateProfileHeader(header: ByteArray): UserUpdateProfileHeaderResult {
+        val client = clients.client.value ?: return UserUpdateProfileHeaderResult.Failure("接続先が未設定")
+        val response = client.mutation(UpdateProfileHeaderMutation(header = Base64.Default.encode(header))).execute()
+        if (response.exception != null || response.hasErrors()) return UserUpdateProfileHeaderResult.Failure(response.failureMessage())
+        val updateProfileHeader = response.data?.user?.updateProfileHeader ?: return UserUpdateProfileHeaderResult.Failure(response.failureMessage())
+
+        return when (updateProfileHeader.failure) {
+            null -> UserUpdateProfileHeaderResult.Success(headerUrl = updateProfileHeader.headerUrl)
+            UpdateProfileHeaderFailure.NOT_LOGGED_IN -> UserUpdateProfileHeaderResult.NotLoggedIn
+            UpdateProfileHeaderFailure.TOO_LARGE -> UserUpdateProfileHeaderResult.TooLarge
+            UpdateProfileHeaderFailure.DIMENSIONS_TOO_LARGE -> UserUpdateProfileHeaderResult.DimensionsTooLarge
+            UpdateProfileHeaderFailure.UNSUPPORTED_IMAGE -> UserUpdateProfileHeaderResult.UnsupportedImage
+            UpdateProfileHeaderFailure.UNSUPPORTED_OPERATION -> UserUpdateProfileHeaderResult.UnsupportedOperation
+            UpdateProfileHeaderFailure.INTERNAL_SERVER_ERROR -> UserUpdateProfileHeaderResult.InternalServerError
+            UpdateProfileHeaderFailure.FEDERATION_DISABLED -> UserUpdateProfileHeaderResult.FederationDisabled
+            UpdateProfileHeaderFailure.UNKNOWN__ -> UserUpdateProfileHeaderResult.Failure("Unknown")
         }
     }
 

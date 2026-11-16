@@ -206,6 +206,7 @@ internal class SqliteDeliveryQueueRepository(
                 },
             )
             .set(ACCOUNTS.ICON_PATH, update.newIconPath?.let { DSL.value(it) } ?: ACCOUNTS.ICON_PATH)
+            .set(ACCOUNTS.HEADER_PATH, update.newHeaderPath?.let { DSL.value(it) } ?: ACCOUNTS.HEADER_PATH)
             .where(ACCOUNTS.ID.eq(accountId))
             .execute()
 

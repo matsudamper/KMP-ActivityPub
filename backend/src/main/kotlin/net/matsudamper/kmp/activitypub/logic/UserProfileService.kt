@@ -575,7 +575,7 @@ data class RemoteUserProfile(
 )
 
 /**
- * @param headerUrl ヘッダー画像の取得元。中継する前の相手の URL。このサーバーのユーザーは設定できないので null
+ * @param headerUrl 他のサーバーのユーザーのヘッダー画像の取得元。中継する前の相手の URL。このサーバーのユーザーは Actor の `image` の URL を別に引くので null
  * @param biography プレーンテキスト
  * @param links 他のサーバーのユーザーのものは受け取っていないので空
  * @param viewerIsOwner 見ているアカウント本人のプロフィールか。他のサーバーのユーザーは本人になりえないので false

@@ -4,6 +4,7 @@ sealed interface UserMyProfileResult {
     /**
      * @param displayName 未設定なら null
      * @param iconUrl プロフィール画像が無ければ null
+     * @param headerUrl プロフィールヘッダーが無ければ null
      * @param summary 未設定なら null
      * @param likesPublic いいねした投稿の一覧を公開しているか
      */
@@ -11,6 +12,7 @@ sealed interface UserMyProfileResult {
         val username: String,
         val displayName: String?,
         val iconUrl: String?,
+        val headerUrl: String?,
         val summary: String?,
         val links: List<UserProfileLink>,
         val likesPublic: Boolean,

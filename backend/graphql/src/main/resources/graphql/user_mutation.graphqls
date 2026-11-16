@@ -53,6 +53,11 @@ type UserMutation {
     """
     updateProfileIcon(icon: String!): UpdateProfileIconResult! @lazy
     """
+    ログインしているアカウントのプロフィールヘッダーを差し替え、フォロワーへの Update を積む。
+    header は画像を base64 にしたもの。PNG / JPEG / GIF / WebP で 2MiB まで、横 1500px・縦 500px まで
+    """
+    updateProfileHeader(header: String!): UpdateProfileHeaderResult! @lazy
+    """
     ログインしているアカウントで、投稿にいいねを付けるか外す。他のサーバーの投稿なら投稿者への Like か Undo を積む。
     postId は TimelinePost.reactionPostId か ProfilePost.reactionPostId。既に望んだ状態なら何も積まずに成功する。
     外すときは今読めない投稿でも、付けたいいねを外す
@@ -421,4 +426,26 @@ enum DeleteCustomEmojiFailure {
     NOT_FOUND
     "画像の置き場が無い"
     UNSUPPORTED_OPERATION
+}
+
+type UpdateProfileHeaderResult {
+    "差し替えた画像の URL。失敗したら null"
+    headerUrl: String
+    failure: UpdateProfileHeaderFailure
+}
+
+enum UpdateProfileHeaderFailure {
+    NOT_LOGGED_IN
+    "大きすぎる。上限は 2MiB"
+    TOO_LARGE
+    "横が 1500px か、縦が 500px を超えている"
+    DIMENSIONS_TOO_LARGE
+    "base64 として読めないか、PNG / JPEG / GIF / WebP ではない"
+    UNSUPPORTED_IMAGE
+    "このサーバーでは受け付けない操作"
+    UNSUPPORTED_OPERATION
+    "サーバー内部の失敗。時間をおいて送り直せば通ることがある"
+    INTERNAL_SERVER_ERROR
+    "サーバーに DOMAIN が無く、更新を配れない"
+    FEDERATION_DISABLED
 }

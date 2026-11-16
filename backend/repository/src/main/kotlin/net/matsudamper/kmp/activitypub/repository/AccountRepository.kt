@@ -46,6 +46,7 @@ interface AccountRepository {
 /**
  * @param displayName 未設定なら null
  * @param iconPath 画像の置き場の中でのプロフィール画像の場所。未設定なら null
+ * @param headerPath 画像の置き場の中でのプロフィールヘッダーの場所。未設定なら null
  */
 data class Account(
     val id: AccountId,
@@ -53,6 +54,7 @@ data class Account(
     val createdAt: Instant,
     val displayName: String?,
     val iconPath: String?,
+    val headerPath: String?,
 )
 
 /**

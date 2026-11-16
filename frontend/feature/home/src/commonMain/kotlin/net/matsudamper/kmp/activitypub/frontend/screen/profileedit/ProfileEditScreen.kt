@@ -1,12 +1,14 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.profileedit
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -45,7 +47,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import kotlinx.coroutines.launch
+import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
@@ -65,12 +71,17 @@ internal fun ProfileEditScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val pickIcon = rememberImagePicker(onPick = uiState.listener::onIconPicked)
+    val pickHeader = rememberImagePicker(onPick = uiState.listener::onHeaderPicked)
 
-    LaunchedEffect(viewModel.eventHandler, navigator, pickIcon) {
+    LaunchedEffect(viewModel.eventHandler, navigator, pickIcon, pickHeader) {
         viewModel.eventHandler.collect(
             object : ProfileEditScreenViewModel.Event {
                 override fun openImagePicker() {
                     pickIcon()
+                }
+
+                override fun openHeaderImagePicker() {
+                    pickHeader()
                 }
 
                 override fun navigateBack() {
@@ -84,6 +95,12 @@ internal fun ProfileEditScreen(
         )
     }
 
+    // 範囲を選んでいる間の戻る操作は、画面を閉じずに編集に戻す
+    NavigationBackHandler(
+        state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
+        isBackEnabled = uiState.content is ProfileEditScreenUiState.Content.HeaderCrop,
+        onBackCompleted = uiState.listener::onClickBack,
+    )
     ProfileEditContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
@@ -111,7 +128,7 @@ internal fun ProfileEditContent(
                     )
                 }
                 Text(
-                    text = "プロフィールを編集",
+                    text = uiState.title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -146,6 +163,13 @@ internal fun ProfileEditContent(
                         listener = uiState.listener,
                     )
                 }
+
+                is ProfileEditScreenUiState.Content.HeaderCrop -> {
+                    HeaderCropContent(
+                        content = content,
+                        listener = uiState.listener,
+                    )
+                }
             }
         }
     }
@@ -164,6 +188,7 @@ private fun LoadedContent(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Section(title = "基本情報") {
+            HeaderRow(content = content, listener = listener)
             IconRow(content = content, listener = listener)
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SingleLineTextField(
@@ -282,6 +307,50 @@ private fun SupportingText(text: String) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+@Composable
+private fun HeaderRow(
+    content: ProfileEditScreenUiState.Content.Loaded,
+    listener: ProfileEditScreenUiState.Listener,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(PROFILE_HEADER_ASPECT_RATIO)
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            val headerPreview = content.headerPreview
+            val currentHeaderUrl = content.currentHeaderUrl
+            if (headerPreview != null) {
+                Image(
+                    bitmap = headerPreview,
+                    contentDescription = "ヘッダー画像",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else if (currentHeaderUrl != null) {
+                AsyncImage(
+                    model = currentHeaderUrl,
+                    contentDescription = "ヘッダー画像",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            if (content.headerLoadingVisible) {
+                CircularProgressIndicator()
+            }
+        }
+        OutlinedButton(
+            onClick = listener::onClickSelectHeader,
+            enabled = content.headerSelectButtonEnabled,
+        ) {
+            Text("ヘッダー画像を選ぶ")
+        }
+    }
 }
 
 @Composable
@@ -404,3 +473,5 @@ private const val DISPLAY_NAME_INPUT_ID = "profile-edit-display-name"
 private const val SUMMARY_INPUT_ID = "profile-edit-summary"
 private const val LINK_NAME_INPUT_ID_PREFIX = "profile-edit-link-name-"
 private const val LINK_URL_INPUT_ID_PREFIX = "profile-edit-link-url-"
+
+private const val PROFILE_HEADER_ASPECT_RATIO = 3f

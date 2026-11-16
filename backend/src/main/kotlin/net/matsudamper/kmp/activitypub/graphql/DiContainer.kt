@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
 import net.matsudamper.kmp.activitypub.logic.PostSearchService
+import net.matsudamper.kmp.activitypub.logic.ProfileHeaderUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ProfileUpdateService
@@ -75,6 +76,10 @@ class DiContainer(
      * DOMAIN が無いと Actor の URL を作れないので null
      */
     val profileIconUrls: ProfileIconUrls?,
+    /**
+     * DOMAIN が無いと Actor の URL を作れないので null
+     */
+    val profileHeaderUrls: ProfileHeaderUrls?,
     /**
      * DOMAIN が無いと画像の URL を作れないので null
      */

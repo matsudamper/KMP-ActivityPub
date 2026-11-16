@@ -153,6 +153,7 @@ data class NoteDeletion(
  * @param likesPublic 書き換えないなら [ProfileValueChange.Keep]
  * @param newIconPath 新しく置いたプロフィール画像の場所。null なら今の場所のまま。
  *   読んだ値を書き戻すと、間に別の更新が差し替えて消した画像を指してしまう
+ * @param newHeaderPath 新しく置いたプロフィールヘッダーの場所。null なら今の場所のまま。理由は [newIconPath] と同じ
  * @param body 宛先すべてに同じものを送る Update のアクティビティ。プロフィールの全体を載せる
  */
 data class ProfileUpdate(
@@ -162,6 +163,7 @@ data class ProfileUpdate(
     val links: ProfileValueChange<List<ProfileLink>>,
     val likesPublic: ProfileValueChange<Boolean>,
     val newIconPath: String?,
+    val newHeaderPath: String?,
     val updatedAt: Instant,
     val body: String,
     val inboxes: List<String>,

@@ -3,6 +3,7 @@ query MyProfile {
         username
         displayName
         iconUrl
+        headerUrl
         summary
         links {
             name
@@ -26,6 +27,15 @@ mutation UpdateProfileIcon($icon: String!) {
     user {
         updateProfileIcon(icon: $icon) {
             iconUrl
+            failure
+        }
+    }
+}
+
+mutation UpdateProfileHeader($header: String!) {
+    user {
+        updateProfileHeader(header: $header) {
+            headerUrl
             failure
         }
     }
