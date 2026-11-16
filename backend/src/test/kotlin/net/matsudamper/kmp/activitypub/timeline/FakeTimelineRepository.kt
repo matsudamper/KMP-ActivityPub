@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.timeline
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
+import net.matsudamper.kmp.activitypub.repository.PostRevision
 import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
@@ -22,6 +23,7 @@ internal class FakeTimelineRepository : TimelineRepository {
     val events = mutableListOf<String>()
     val received = mutableListOf<RemoteNoteInput>()
     val receivedBoosts = mutableListOf<RemoteBoostInput>()
+    val revised = mutableListOf<Pair<RemoteNoteInput, Instant>>()
     val actorPosts = mutableListOf<TimelinePost>()
     val accountBoosts = mutableListOf<TimelinePost>()
     val storedFetchedNotes = mutableMapOf<String, TimelinePost>()
@@ -48,6 +50,12 @@ internal class FakeTimelineRepository : TimelineRepository {
     }
 
     override fun deleteRemote(actorUri: String, objectUri: String, deletedAt: Instant): List<String> = listOf()
+    override fun reviseRemote(note: RemoteNoteInput, editedAt: Instant): List<String> {
+        revised.add(note to editedAt)
+        return listOf()
+    }
+
+    override fun revisions(viewer: AccountId, member: String): List<PostRevision>? = null
     override fun hasRemoteNote(objectUri: String): Boolean = received.any { it.objectUri == objectUri }
     override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> = listOf()
     override fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long) = Unit
@@ -72,7 +80,7 @@ internal class FakeTimelineRepository : TimelineRepository {
             TimelineNoteRef.Local(
                 PublicNoteId(it.member),
             ),
-            null, null, false, false, null, null,
+            null, null, false, false, null, null, null,
         )
     }
 

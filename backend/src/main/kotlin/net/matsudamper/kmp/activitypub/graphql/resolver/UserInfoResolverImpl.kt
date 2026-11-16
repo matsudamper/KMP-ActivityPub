@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostCounts
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostRevision
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
@@ -99,6 +100,36 @@ class UserInfoResolverImpl : UserInfoResolver {
                 if (diContainer.viewablePostService.isOwnedByViewer(userInfo.id, reply)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
             }
             DataFetcherResult.Builder<List<QlTimelinePost>>(posts).build()
+        }
+
+    override fun postRevisions(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlPostRevision>>> =
+        otelSupplyAsync {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val post = diContainer.timelineService.viewablePost(userInfo.id, postId.value)
+            val revisions = if (post == null) {
+                listOf()
+            } else {
+                diContainer.timelineService.revisions(userInfo.id, postId.value).orEmpty().map { revision ->
+                    val body = createQlPostBody(
+                        contentHtml = revision.contentHtml,
+                        summary = revision.summary,
+                        sensitive = revision.sensitive,
+                        images = revision.images,
+                        linkUrlsEnabled = false,
+                        diContainer = diContainer,
+                    )
+                    QlPostRevision(
+                        content = body.content,
+                        summary = body.summary,
+                        sensitive = body.sensitive,
+                        mentions = body.mentions,
+                        images = body.images,
+                        emojis = createQlPostEmojis(noteRef = post.noteRef, contentHtml = revision.contentHtml, remoteEmojis = post.emojis, diContainer = diContainer),
+                        revisedAt = revision.revisedAt.toString(),
+                    )
+                }
+            }
+            DataFetcherResult.Builder<List<QlPostRevision>>(revisions).build()
         }
 
     override fun followingGroups(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlFollowingGroup>>> {

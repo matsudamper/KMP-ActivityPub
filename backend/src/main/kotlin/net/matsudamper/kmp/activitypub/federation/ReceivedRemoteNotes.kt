@@ -42,6 +42,13 @@ internal class ReceivedRemoteNotes(
         inOpenTelemetrySuspendSpan(tracer, "Inbox.Create", false) { span -> saveInSpan(note, span) }
     }
 
+    override suspend fun update(note: ReceivedNote) {
+        val now = clock.instant()
+        // 宛先は変えないので、このサーバーの宛先は引かない
+        val revised = note.toRemoteNoteInput(localRecipients = setOf(), now = now)
+        timeline.publishUpdated(repository.reviseRemote(revised, editedAt = note.updated ?: now))
+    }
+
     override suspend fun delete(actorId: String, objectId: String) {
         timeline.publishDeleted(deleteRemoteNote(actorId, objectId))
     }

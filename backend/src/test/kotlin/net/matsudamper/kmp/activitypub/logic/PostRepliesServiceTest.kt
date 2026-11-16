@@ -88,6 +88,7 @@ class PostRepliesServiceTest {
         boostUndone = false,
         inReplyTo = inReplyTo,
         quoteUri = null,
+        editedAt = null,
     )
 
     private companion object {

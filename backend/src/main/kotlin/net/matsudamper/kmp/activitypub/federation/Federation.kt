@@ -76,6 +76,7 @@ import net.matsudamper.kotpub.inbox.UndoFollowHandler
 import net.matsudamper.kotpub.inbox.UndoHandler
 import net.matsudamper.kotpub.inbox.UndoReactionHandler
 import net.matsudamper.kotpub.inbox.UpdateActorHandler
+import net.matsudamper.kotpub.inbox.UpdateHandler
 import net.matsudamper.kotpub.like.LikedEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoEndpoint
 import net.matsudamper.kotpub.nodeinfo.NodeInfoSoftware
@@ -137,8 +138,8 @@ internal class Federation(
     private val webPages = FrontendWebPageUrls(domain)
     private val receivedNotifications = ReceivedNotifications(notificationRepository, accountEvents)
     private val inboxBlocks = InboxBlocks(accountRepository, noteRepository, blockLists)
-    private val favourites = RecordedFavourites(favouriteRepository, receivedNotifications, inboxBlocks)
-    private val stamps = RecordedStamps(stampRepository, inboxBlocks)
+    private val favourites = RecordedFavourites(favouriteRepository, receivedNotifications, inboxBlocks, timeline)
+    private val stamps = RecordedStamps(stampRepository, inboxBlocks, timeline)
     private val receivedNotes = ReceivedRemoteNotes(
         timelineRepository,
         remoteActors,
@@ -206,6 +207,7 @@ internal class Federation(
             unsavedNotes = unsavedRemoteNotes,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
+            onLocalReactionsChanged = { member -> timeline.publishUpdated(listOf(member)) },
         )
 
     val replyTargetService: ReplyTargetService =
@@ -454,7 +456,7 @@ internal class Federation(
                         remoteNotes = remoteNotes,
                         approvals = quoteApprovals,
                     ),
-                    UpdateActorHandler(followers),
+                    UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes),
                     CreateNoteHandler(receivedNotes),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),

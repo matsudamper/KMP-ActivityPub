@@ -8,12 +8,14 @@ import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
+import net.matsudamper.kmp.activitypub.repository.PostRevision
 import net.matsudamper.kmp.activitypub.repository.TimelineCachePolicy
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
 import net.matsudamper.kmp.activitypub.telemetry.inOpenTelemetrySpan
 import org.slf4j.LoggerFactory
@@ -109,6 +111,32 @@ class TimelineService(
      */
     fun publishBoostUndone(members: List<String>) {
         publishToRecipients(members) { recipients, member -> events.publishBoostUndone(recipients, listOf(member)) }
+    }
+
+    /**
+     * 投稿者が編集したか、付いたリアクションが増減した行を、それを載せているアカウントへ知らせる
+     *
+     * @param members 中身が変わったタイムラインの member
+     */
+    fun publishUpdated(members: List<String>) {
+        publishToRecipients(members) { recipients, member -> events.publishUpdate(recipients, member) }
+    }
+
+    /**
+     * このサーバーの投稿に付いたリアクションが増減したことを、投稿者へ知らせる
+     */
+    fun publishReactionsChanged(notePublicId: PublicNoteId) {
+        val position = repository.localPosition(notePublicId.value) ?: return
+        publishUpdated(listOf(position.member))
+    }
+
+    /**
+     * @param member [TimelinePosition.member] の値
+     * @return [viewablePost] で開けない投稿なら null
+     */
+    fun revisions(viewer: AccountId, member: String): List<PostRevision>? {
+        if (!member.matches(TimelineCursor.MEMBER_PATTERN)) return null
+        return repository.revisions(viewer, member)
     }
 
     override fun invalidate(accountId: AccountId) {

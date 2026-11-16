@@ -748,6 +748,7 @@ class UserProfileServiceTest {
             boostUndone = false,
             inReplyTo = null,
             quoteUri = null,
+            editedAt = null,
         )
 
     private companion object {

@@ -449,6 +449,24 @@ class TimelineServiceTest {
 
         assertEquals(AccountEvent.PostsDeleted(deletedMembers = listOf(), boostUndoneMembers = listOf("b1")), recipientEvent.await())
     }
+
+    @Test
+    fun updatedMembersAreStreamedAsTheRecipientsOwnRow() = runBlocking {
+        val recipient = AccountId(1)
+        val repository = FakeTimelineRepository()
+        repository.positions.add(TimelinePosition(1, "r1"))
+        val recipientsRepository = object : TimelineRepository by repository {
+            override fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient> =
+                if (after == null) listOf(TimelineRecipient(recipient, null)) else listOf()
+        }
+        val events = AccountEvents(recipientsRepository)
+        val service = TimelineService(recipientsRepository, FakeRepositories().followingGroupRepository, noBlocks, FakeTimelineStore(repository.events), events, Clock.systemUTC())
+        val recipientEvent = async(start = CoroutineStart.UNDISPATCHED) { events.events(recipient).first() }
+
+        service.publishUpdated(listOf("r1"))
+
+        assertEquals(AccountEvent.PostUpdated(repository.hydrate(recipient, listOf("r1")).single()), recipientEvent.await())
+    }
 }
 
 internal class FakeTimelineStore(private val events: MutableList<String>) : TimelineStore {

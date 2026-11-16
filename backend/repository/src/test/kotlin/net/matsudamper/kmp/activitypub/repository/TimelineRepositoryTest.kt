@@ -71,6 +71,39 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun revisedRemoteNoteKeepsEarlierRevisionsAndIgnoresStaleOrUnchangedEdits() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf()).copy(images = listOf(TimelinePostImage.Remote("https://remote.example/a.png", null)))
+        assertTrue(repository.reviseRemote(original.copy(contentHtml = "<p>未保存</p>"), NOW.plusSeconds(10)).isEmpty())
+        val saved = assertNotNull(repository.receive(original))
+        assertNull(repository.hydrate(alice, listOf(saved.member)).single().editedAt)
+        assertEquals(listOf("<p>本文</p>"), assertNotNull(repository.revisions(alice, saved.member)).map { it.contentHtml })
+
+        assertTrue(repository.reviseRemote(original.copy(actorUri = "https://other.example/actor", contentHtml = "<p>他人</p>"), NOW.plusSeconds(10)).isEmpty())
+        assertTrue(repository.reviseRemote(original, NOW.plusSeconds(10)).isEmpty())
+        val firstEdit = original.copy(contentHtml = "<p>1 回目</p>", images = listOf())
+        assertEquals(listOf(saved.member), repository.reviseRemote(firstEdit, NOW.plusSeconds(20)))
+        assertEquals(listOf(saved.member), repository.reviseRemote(firstEdit.copy(contentHtml = "<p>2 回目</p>", summary = "注意"), NOW.plusSeconds(30)))
+        // 遅れて届いた古い編集で巻き戻さない
+        assertTrue(repository.reviseRemote(firstEdit, NOW.plusSeconds(20)).isEmpty())
+
+        val post = repository.hydrate(alice, listOf(saved.member)).single()
+        assertEquals("<p>2 回目</p>", post.contentHtml)
+        assertEquals(NOW.plusSeconds(30), post.editedAt)
+        assertEquals(
+            listOf(
+                PostRevision("<p>本文</p>", null, false, listOf(TimelinePostImage.Remote("https://remote.example/a.png", null)), original.publishedAt),
+                PostRevision("<p>1 回目</p>", null, false, listOf(), NOW.plusSeconds(20)),
+                PostRevision("<p>2 回目</p>", "注意", false, listOf(), NOW.plusSeconds(30)),
+            ),
+            repository.revisions(alice, saved.member),
+        )
+        assertNull(repository.revisions(alice, "r999"))
+    }
+
+    @Test
     fun hydratedRemoteNoteCarriesNoteAndAuthorCustomEmojis() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
