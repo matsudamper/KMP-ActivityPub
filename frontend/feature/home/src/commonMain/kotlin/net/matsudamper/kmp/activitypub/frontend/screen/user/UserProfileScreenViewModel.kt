@@ -118,8 +118,8 @@ internal class UserProfileScreenViewModel(
             load()
         }
 
-        override fun onClickBack() {
-            viewModelScope.launch { events.send { it.navigateBack() } }
+        override fun onClickClose() {
+            viewModelScope.launch { events.send { it.closeToHome() } }
         }
 
         override fun onClickTab(tab: ProfileContentTab) {
@@ -875,7 +875,7 @@ internal class UserProfileScreenViewModel(
     private fun String?.toNextPosts(): NextPosts = if (this == null) NextPosts.End else NextPosts.After(this)
 
     internal interface Event {
-        fun navigateBack()
+        fun closeToHome()
 
         fun showMessage(message: String)
 

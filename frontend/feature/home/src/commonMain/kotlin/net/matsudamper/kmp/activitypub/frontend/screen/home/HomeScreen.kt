@@ -240,6 +240,7 @@ internal fun HomeScreen(
             val postUiState = rememberPostScreenUiState(
                 target = PostScreenTarget.NewNote,
                 onNavigateBack = uiState.listener::onPostColumnFinished,
+                onClose = uiState.listener::onPostColumnFinished,
                 snackbarHostState = snackbarHostState,
             )
             val postColumnSnackbarHostState = remember { SnackbarHostState() }

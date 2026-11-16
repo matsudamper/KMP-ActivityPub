@@ -116,6 +116,6 @@ data class PostDetailScreenUiState(
     interface Listener {
         fun onClickRetry()
 
-        fun onClickBack()
+        fun onClickClose()
     }
 }

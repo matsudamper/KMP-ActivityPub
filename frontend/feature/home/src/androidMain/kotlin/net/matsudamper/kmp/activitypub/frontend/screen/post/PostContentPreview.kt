@@ -21,8 +21,8 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null),
             navigationIcon = PostNavigationIcon.Back,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -33,6 +33,7 @@ private fun PostContentPreview() {
 private fun PostContentQuotePreview() {
     PostPreviewTheme {
         PostContent(
+            navigationIcon = PostNavigationIcon.Back,
             uiState = previewUiState(
                 images = listOf(),
                 addImageLoadingVisible = false,
@@ -44,7 +45,6 @@ private fun PostContentQuotePreview() {
                     listener = null,
                 ),
             ),
-            navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -55,6 +55,7 @@ private fun PostContentQuotePreview() {
 private fun PostContentImagesPreview() {
     PostPreviewTheme {
         PostContent(
+            navigationIcon = PostNavigationIcon.Back,
             uiState = previewUiState(
                 images = List(3) {
                     PostScreenUiState.Image(
@@ -66,7 +67,6 @@ private fun PostContentImagesPreview() {
                 addImageLoadingVisible = true,
                 quote = null,
             ),
-            navigationIcon = PostNavigationIcon.Back,
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -82,7 +82,7 @@ private fun previewUiState(
         bodyInsertion = null,
         inputHasError = false,
         inputEnabled = true,
-        backButtonEnabled = true,
+        closeButtonEnabled = true,
         postButtonEnabled = true,
         images = images,
         quote = quote,
@@ -119,7 +119,7 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
 
     override fun onPressPostShortcut() = Unit
 
-    override fun onClickBack() = Unit
+    override fun onClickClose() = Unit
 }
 
 private object AndroidPreviewImageListener : PostScreenUiState.ImageListener {

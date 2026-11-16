@@ -80,7 +80,7 @@ fun HomeNavigationHost(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
-            sceneStrategies = listOf(RootDialogSceneStrategy(), DialogSceneStrategy()),
+            sceneStrategies = listOf(SingleDialogSceneStrategy()),
             popTransitionSpec = { fadeIn() togetherWith fadeOut() },
             predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
             entryProvider = { key ->
@@ -283,11 +283,22 @@ private fun ScreenContent(
         }
 
         Screen.Post -> {
-            PostScreen(target = PostScreenTarget.NewNote, navigationIcon = PostNavigationIcon.Back, onNavigateBack = navigator::back)
+            // ホームからしか開かないので、閉じるのと戻るのが同じになる
+            PostScreen(
+                target = PostScreenTarget.NewNote,
+                navigationIcon = PostNavigationIcon.Back,
+                onNavigateBack = navigator::back,
+                onClose = navigator::back,
+            )
         }
 
         is Screen.QuotePost -> {
-            PostScreen(target = PostScreenTarget.Quote(postId = screen.postId), navigationIcon = PostNavigationIcon.Back, onNavigateBack = navigator::back)
+            PostScreen(
+                target = PostScreenTarget.Quote(postId = screen.postId),
+                navigationIcon = PostNavigationIcon.Close,
+                onNavigateBack = navigator::back,
+                onClose = navigator::closeToHome,
+            )
         }
 
         Screen.Settings -> {
