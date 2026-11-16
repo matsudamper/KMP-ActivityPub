@@ -678,10 +678,10 @@ internal class HomeScreenViewModel(
                     state.copy(
                         myPosts = MyPostsState.Loaded(
                             owner = owner,
-                            posts = current?.posts.withFirstPageReloaded(firstPage = result.posts, nextCursor = result.nextCursor) { it.postId },
+                            posts = current?.posts.withFirstPageReloaded(firstPage = result.posts, nextCursor = result.nextCursor, idOf = { it.postId }, isPinned = { it.pinned }),
                             likes = when (likesResult) {
                                 is UserProfileLikesResult.Success ->
-                                    current?.likes.withFirstPageReloaded(firstPage = likesResult.posts, nextCursor = likesResult.nextCursor) { it.id }
+                                    current?.likes.withFirstPageReloaded(firstPage = likesResult.posts, nextCursor = likesResult.nextCursor, idOf = { it.id }, isPinned = { false })
 
                                 UserProfileLikesResult.Hidden -> MyPostsPages(posts = listOf(), next = NextMyPostsPage.End, loadErrorMessage = null)
 
@@ -2205,13 +2205,21 @@ internal class HomeScreenViewModel(
 
     /**
      * 画面に戻るたびに最初のページを読み直すので、読み進めた続きは捨てずに残す。捨てると戻るたびに読み進めた位置を失う。
-     * 最初のページから外れた投稿（消した投稿など）を残さないよう、続きは最初のページと重なる最後の投稿より後ろだけにする
+     * 最初のページから外れた投稿（消した投稿など）を残さないよう、続きは最初のページと重なる最後の投稿より後ろだけにする。
+     * 固定した投稿は古くても最初のページの先頭に来るので、重なりの位置には使わない。使うと間の投稿を捨ててしまう
      */
-    private fun <T> MyPostsPages<T>?.withFirstPageReloaded(firstPage: List<T>, nextCursor: String?, idOf: (T) -> String): MyPostsPages<T> {
+    private fun <T> MyPostsPages<T>?.withFirstPageReloaded(
+        firstPage: List<T>,
+        nextCursor: String?,
+        idOf: (T) -> String,
+        isPinned: (T) -> Boolean,
+    ): MyPostsPages<T> {
         val firstPageIds = firstPage.map(idOf).toSet()
+        val overlapIds = firstPage.filterNot(isPinned).map(idOf).toSet()
         val loadedPosts = this?.posts.orEmpty()
-        val loadedContinuation = loadedPosts.drop(loadedPosts.indexOfLast { idOf(it) in firstPageIds } + 1)
-        val firstPageOverlapsLoaded = loadedContinuation.size < loadedPosts.size
+        val overlapEnd = loadedPosts.indexOfLast { idOf(it) in overlapIds } + 1
+        val firstPageOverlapsLoaded = overlapEnd > 0
+        val loadedContinuation = loadedPosts.drop(overlapEnd).filterNot { idOf(it) in firstPageIds }
         return if (this != null && firstPageOverlapsLoaded && loadedContinuation.isNotEmpty()) {
             copy(posts = firstPage + loadedContinuation)
         } else {
