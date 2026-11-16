@@ -31,7 +31,7 @@ internal class AndroidLanguageSettingStore(
         }
         .map { setting ->
             LanguageSetting(
-                languageTag = LanguageTag.parse(setting.languageTag.ifEmpty { Locale.getDefault().language }),
+                languageTag = LanguageTag.parse(setting.languageTag.ifEmpty { Locale.getDefault().toLanguageSubtags() }),
                 translateButtonVisible = setting.translateButtonVisible,
             )
         }
@@ -49,6 +49,12 @@ internal class AndroidLanguageSettingStore(
             false
         }
 }
+
+/**
+ * toLanguageTag は `-u-ca-japanese` のような拡張も付けるので、言語・文字体系・地域だけを取り出す
+ */
+private fun Locale.toLanguageSubtags(): String =
+    listOf(language, script, country).filter { it.isNotEmpty() }.joinToString("-")
 
 private val Context.languageSettingDataStore: DataStore<LanguageSettingProto> by dataStore(
     fileName = "language_setting.pb",
