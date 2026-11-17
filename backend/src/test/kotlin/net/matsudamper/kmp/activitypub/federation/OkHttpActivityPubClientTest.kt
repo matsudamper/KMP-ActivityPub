@@ -18,6 +18,17 @@ class OkHttpActivityPubClientTest {
     }
 
     @Test
+    fun リダイレクトを追わないGETでもIPアドレスで書かれた内側の宛先には取りに行かない() = runTest {
+        OkHttpActivityPubClient().use { client ->
+            val failure = runCatching {
+                client.getSingleHop(url = "https://127.0.0.1/users/alice", headers = mapOf(), maxBodyBytes = 1024) { _, _ -> true }
+            }.exceptionOrNull()
+
+            assertIs<NonPublicAddressException>(failure)
+        }
+    }
+
+    @Test
     fun IPアドレスで書かれた内側の宛先には送らない() = runTest {
         OkHttpActivityPubClient().use { client ->
             val failure = runCatching {
