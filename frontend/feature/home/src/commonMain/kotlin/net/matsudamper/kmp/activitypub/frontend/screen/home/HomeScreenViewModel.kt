@@ -695,9 +695,11 @@ internal class HomeScreenViewModel(
                 val likesResult = userApi.userProfileLikes(acct = owner.username, after = null)
                 viewModelStateFlow.update { state ->
                     val current = state.myPosts as? MyPostsState.Loaded
+                    // 読んでいる間にプロフィールが変わっていたら、読み始めたときの内容で戻さない
+                    val latestOwner = (state.profile as? ProfileState.Loaded)?.profile?.takeIf { it.username == owner.username } ?: owner
                     state.copy(
                         myPosts = MyPostsState.Loaded(
-                            owner = owner,
+                            owner = latestOwner,
                             posts = current?.posts.withFirstPageReloaded(firstPage = result.posts, nextCursor = result.nextCursor, idOf = { it.postId }, isPinned = { it.pinned }),
                             likes = when (likesResult) {
                                 is UserProfileLikesResult.Success ->
