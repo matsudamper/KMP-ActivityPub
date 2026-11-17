@@ -748,6 +748,7 @@ internal class PostDetailScreenViewModel(
                 val body = currentPost(post.reactionPostId)?.body
                 if (body != null) clickStamp(reactionPostId = post.reactionPostId, body = body, stamp = stamp)
             },
+            onOpenRevisions = null,
             onVisible = {
                 if (post.hasQuoteTarget) {
                     loadQuote(post.id)
@@ -810,6 +811,7 @@ internal class PostDetailScreenViewModel(
                 val body = currentPost(post.reactionPostId)?.body
                 if (body != null) clickStamp(reactionPostId = post.reactionPostId, body = body, stamp = stamp)
             },
+            onOpenRevisions = { viewModelScope.launch { events.send { it.navigateToPostRevisions(post.id) } } },
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
@@ -835,6 +837,8 @@ internal class PostDetailScreenViewModel(
         fun navigateToQuotePost(postId: String)
 
         fun navigateToReplyPost(postId: String)
+
+        fun navigateToPostRevisions(postId: String)
 
         fun openUrl(url: String)
 

@@ -213,12 +213,22 @@ internal fun PostItem(
                 }
             }
             when (style) {
-                PostItemStyle.Timeline -> Text(
-                    text = uiState.postedAt,
-                    style = sizes.secondaryTextStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
+                PostItemStyle.Timeline -> Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = uiState.postedAt,
+                        style = sizes.secondaryTextStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                    if (uiState.editedLabel != null) {
+                        Text(
+                            text = "編集済み",
+                            style = sizes.secondaryTextStyle,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
+                }
 
                 PostItemStyle.Detail -> Unit
             }
@@ -302,12 +312,21 @@ internal fun PostItem(
                 }
             }
             if (style == PostItemStyle.Detail) {
-                Text(
-                    text = uiState.fullPostedAt,
+                Row(
                     modifier = Modifier.padding(top = 8.dp),
-                    style = sizes.secondaryTextStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = uiState.fullPostedAt,
+                        style = sizes.secondaryTextStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val editedLabel = uiState.editedLabel
+                    if (editedLabel != null) {
+                        EditedLabel(editedLabel = editedLabel, sizes = sizes)
+                    }
+                }
             }
             PostActions(uiState = uiState, sizes = sizes, shareButtonVisible = shareButtonVisible)
             if (uiState.stamps.isNotEmpty()) {
@@ -376,6 +395,28 @@ private fun PinnedLabel(sizes: PostItemSizes) {
             text = "ピン留め",
             style = sizes.secondaryTextStyle,
             color = color,
+        )
+    }
+}
+
+/**
+ * 押せるときは、編集前の版を出せると分かるよう色を変える
+ */
+@Composable
+private fun EditedLabel(editedLabel: PostItemUiState.EditedLabel, sizes: PostItemSizes) {
+    val listener = editedLabel.listener
+    if (listener == null) {
+        Text(
+            text = "編集済み",
+            style = sizes.secondaryTextStyle,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        Text(
+            text = "編集済み",
+            modifier = Modifier.clickable(onClick = listener::onClick),
+            style = sizes.secondaryTextStyle,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }

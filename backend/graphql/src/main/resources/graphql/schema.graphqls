@@ -129,6 +129,8 @@ type AccountEvent {
     timelinePostsDeleted: TimelinePostsDeleted
     "自分の投稿に届いたお気に入りかブースト"
     notificationArrived: Notification
+    "既に載っている行の中身が変わった。投稿者による編集と、付いたリアクションの増減。載せていない行なら何もしなくてよい"
+    timelinePostUpdated: TimelinePost
 }
 
 type TimelinePostsDeleted {
@@ -200,6 +202,28 @@ type TimelinePost {
     stampCountsReceived: Boolean!
     "引用なら true。ブーストで載った投稿は、ブーストされた元の投稿が引用か。引用先は UserInfo.quoteTarget で取る"
     hasQuoteTarget: Boolean!
+    "投稿者が編集していれば true。ブーストで載った投稿は、ブーストされた元の投稿が編集されたか。編集前の版は UserInfo.postRevisions で取る。このサーバーの投稿は編集できないので false"
+    edited: Boolean!
+}
+
+type PostRevisionPage {
+    revisions: [PostRevision!]!
+    nextCursor: String
+}
+
+"投稿のある時点の中身。それぞれ TimelinePost の同じ名前の項目と同じ意味"
+type PostRevision {
+    "版の並びの中でこの版を見分ける。同じ投稿の中でだけ一意"
+    id: PostRevisionId!
+    content: String!
+    summary: String
+    sensitive: Boolean!
+    mentions: [PostMention!]!
+    images: [PostImage!]!
+    "今の版に入るカスタム絵文字。前の版にしか無かった絵文字は入らない"
+    emojis: [CustomEmoji!]!
+    "この版になった時刻。最初の版は投稿した時刻"
+    revisedAt: String!
 }
 
 "投稿者、ブーストした相手、通知を送ってきた相手"

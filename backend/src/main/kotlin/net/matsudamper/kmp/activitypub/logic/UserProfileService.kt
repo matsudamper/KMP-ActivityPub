@@ -215,6 +215,7 @@ class UserProfileService(
                 boostCount = boostCounts[it.publicId],
                 boostedNoteAuthor = null,
                 hasQuoteTarget = it.quoteUri != null,
+                edited = false,
             )
         }.toMap()
         val boostPosts = takenBoosts.mapNotNull { post ->
@@ -479,6 +480,7 @@ class UserProfileService(
             boostCount = null,
             boostedNoteAuthor = null,
             hasQuoteTarget = quoteUri != null,
+            edited = false,
         )
     }
 
@@ -506,6 +508,7 @@ class UserProfileService(
             boostCount = boostCount,
             boostedNoteAuthor = boostedNoteAuthor,
             hasQuoteTarget = quoteUri != null,
+            edited = editedAt != null,
         )
     }
 
@@ -748,6 +751,7 @@ sealed interface ProfilePostsResult {
  * @param noteRef 投稿を外から指すための元
  * @param boostCount 他のサーバーから届いたブーストの数。他のサーバーの投稿は数を受け取らないので null
  * @param boostedNoteAuthor プロフィールの本人がブーストした投稿なら、その投稿者。本人の投稿は null
+ * @param edited 投稿者が編集した投稿か。編集を受け取っていない投稿と、このサーバーの投稿は false
  */
 data class ProfilePost(
     val contentHtml: String,
@@ -773,6 +777,7 @@ data class ProfilePost(
     val reactionPostId: String?,
     val boostedNoteAuthor: ProfilePostAuthor?,
     val hasQuoteTarget: Boolean,
+    val edited: Boolean,
 ) {
     /**
      * OGP は保存した投稿の本文から引くので、保存していない投稿は引けない

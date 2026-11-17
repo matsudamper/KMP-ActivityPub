@@ -395,6 +395,7 @@ class QueryResolverImpl : QueryResolver {
             replyCount = counts?.replyCount?.toInt() ?: 0,
             stampCountsReceived = noteRef is TimelineNoteRef.Local,
             hasQuoteTarget = hasQuoteTarget,
+            edited = edited,
         )
     }
 }

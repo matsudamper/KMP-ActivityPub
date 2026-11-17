@@ -85,6 +85,8 @@ type ProfilePost {
     boostedNoteAuthor: PostAuthor
     "引用なら true。引用先は id を UserInfo.quoteTarget に渡して取る。他のサーバーの outbox から取った投稿は引用かどうかを受け取らないので false"
     hasQuoteTarget: Boolean!
+    "投稿者が編集していれば true。ブーストした投稿は、ブーストされた元の投稿が編集されたか。他のサーバーの outbox から取った投稿と、このサーバーの投稿は false"
+    edited: Boolean!
 }
 
 type PostAuthor {

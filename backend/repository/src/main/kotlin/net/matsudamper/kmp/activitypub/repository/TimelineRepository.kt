@@ -32,6 +32,26 @@ interface TimelineRepository {
      * [member] を載せるアカウントを、アカウントの id 順に [after] より後ろから返す
      */
     fun recipients(member: String, activeSince: Instant, after: AccountId?, limit: Int): List<TimelineRecipient>
+
+    /**
+     * 投稿者が編集した投稿を届いた内容に書き換え、書き換える前の版を残す。公開範囲と位置は変えない。
+     * 配送は順番どおりとは限らないので、編集した時刻が保存済みの編集より新しくなければ書き換えない。
+     * [RemoteNoteInput.editedAt] が無ければ [RemoteNoteInput.receivedAt] に編集したものとして扱う。ただし保存済みの編集があれば、前後を決められないので書き換えない。
+     * 本文も注意書きも画像も変わっていなければ版は残さない。そのときも [RemoteNoteInput.editedAt] があれば編集した時刻は進め、それより古い編集で巻き戻さない
+     *
+     * @return 中身か編集した時刻が変わったタイムラインの member。投稿そのものと、それをブーストした行。
+     *   保存していないか、消されているか、[RemoteNoteInput.actorUri] の投稿でないか、何も変えなかったら空
+     */
+    fun reviseRemote(note: RemoteNoteInput): List<String>
+
+    /**
+     * [viewablePost] で [viewer] が開ける投稿の版を、新しい順に返す。最初が今の版。編集されていなければ今の版だけ。
+     * ブーストならブーストした元の投稿の版
+     *
+     * @param olderThan この版より古い版を返す。null なら今の版から
+     * @return 開けない投稿か、[member] が無ければ null
+     */
+    fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>?
     fun touch(accountId: AccountId, now: Instant, updateIntervalSeconds: Long)
 
     /**
@@ -169,6 +189,7 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
  * @param boostUndone ブーストした相手がブーストを取り消したか。ほかの項目は取り消される前のまま
  * @param inReplyTo 返信先の投稿の id。返信でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の返信先
  * @param quoteUri 引用した投稿の id。引用でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の引用先
+ * @param editedAt 投稿者が最後に編集した時刻。編集を受け取っていなければ null。ブーストで載った投稿は、ブーストされた元の投稿の編集
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -200,12 +221,39 @@ data class TimelinePost(
     val boostUndone: Boolean,
     val inReplyTo: String?,
     val quoteUri: String?,
+    val editedAt: Instant?,
 ) {
     /**
      * このサーバーの投稿の公開 id。他のサーバーの投稿は null
      */
     val localPublicId: PublicNoteId? get() = (noteRef as? TimelineNoteRef.Local)?.publicId
 }
+
+/**
+ * 投稿の版の並びの中での位置
+ */
+sealed interface PostRevisionPosition {
+    data object Current : PostRevisionPosition
+
+    /**
+     * @param revisionId 編集される前の版の id。大きいほど新しい
+     */
+    data class Past(val revisionId: Long) : PostRevisionPosition
+}
+
+/**
+ * 投稿のある時点の中身
+ *
+ * @param revisedAt この版になった時刻。最初の版は投稿した時刻
+ */
+data class PostRevision(
+    val position: PostRevisionPosition,
+    val contentHtml: String,
+    val summary: String?,
+    val sensitive: Boolean,
+    val images: List<TimelinePostImage>,
+    val revisedAt: Instant,
+)
 
 sealed interface TimelineNoteRef {
     data class Local(val publicId: PublicNoteId) : TimelineNoteRef
@@ -261,6 +309,7 @@ data class RemoteNoteInput(
     val sensitive: Boolean,
     val publishedAt: Instant,
     val receivedAt: Instant,
+    val editedAt: Instant?,
     val images: List<TimelinePostImage.Remote>,
     val emojis: List<CustomEmojiRecord>,
 )

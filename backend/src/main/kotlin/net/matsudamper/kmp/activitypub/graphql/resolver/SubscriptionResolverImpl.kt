@@ -56,6 +56,7 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             timelinePostArrived = listOf(post).toQlTimelinePosts(diContainer).single(),
             timelinePostsDeleted = null,
             notificationArrived = null,
+            timelinePostUpdated = null,
         )
 
         is AccountEvent.PostsDeleted -> QlAccountEvent(
@@ -65,12 +66,21 @@ class SubscriptionResolverImpl : SubscriptionResolver {
                 boostUndonePostIds = boostUndoneMembers.map { TimelinePostId(it) },
             ),
             notificationArrived = null,
+            timelinePostUpdated = null,
         )
 
         is AccountEvent.NotificationArrived -> QlAccountEvent(
             timelinePostArrived = null,
             timelinePostsDeleted = null,
             notificationArrived = notification.toQlNotification(listOf(post).toQlTimelinePosts(diContainer).single(), diContainer),
+            timelinePostUpdated = null,
+        )
+
+        is AccountEvent.PostUpdated -> QlAccountEvent(
+            timelinePostArrived = null,
+            timelinePostsDeleted = null,
+            notificationArrived = null,
+            timelinePostUpdated = listOf(post).toQlTimelinePosts(diContainer).single(),
         )
     }
 

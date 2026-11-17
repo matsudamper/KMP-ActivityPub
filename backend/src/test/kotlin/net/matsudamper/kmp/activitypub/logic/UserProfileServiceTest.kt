@@ -718,6 +718,7 @@ class UserProfileServiceTest {
             sensitive = false,
             publishedAt = publishedAt,
             receivedAt = publishedAt,
+            editedAt = null,
             images = listOf(),
             emojis = listOf(),
         )
@@ -750,6 +751,7 @@ class UserProfileServiceTest {
             boostUndone = false,
             inReplyTo = null,
             quoteUri = null,
+            editedAt = null,
         )
 
     private companion object {

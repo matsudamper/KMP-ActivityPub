@@ -104,6 +104,10 @@ internal fun PostDetailScreen(
                 navigator.navigate(Screen.ReplyPost(postId = postId))
             }
 
+            override fun navigateToPostRevisions(postId: String) {
+                navigator.navigate(Screen.PostRevisions(postId = postId))
+            }
+
             override fun openUrl(url: String) {
                 uriHandler.openUri(url)
             }

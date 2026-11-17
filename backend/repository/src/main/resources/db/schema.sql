@@ -249,6 +249,8 @@ CREATE TABLE remote_notes (
     counts_fetched_at TEXT,
     -- 引用した投稿の id。引用でなければ NULL
     quote_uri TEXT,
+    -- 投稿者が最後に編集した時刻。編集を受け取っていなければ NULL
+    edited_at TEXT,
     -- BCP 47 の言語タグ。相手のサーバーが付けていなければ NULL
     language TEXT
 );
@@ -272,6 +274,27 @@ CREATE TABLE remote_note_emojis (
     name TEXT NOT NULL,
     image_url TEXT NOT NULL,
     PRIMARY KEY (remote_note_id, name)
+);
+
+-- 他のサーバーの投稿の、編集される前の版。今の版は remote_notes にある
+CREATE TABLE remote_note_revisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    content_html TEXT NOT NULL,
+    summary TEXT,
+    "sensitive" INTEGER NOT NULL,
+    -- この版になった時刻。最初の版は投稿した時刻
+    revised_at TEXT NOT NULL
+);
+
+CREATE INDEX remote_note_revisions_note ON remote_note_revisions (remote_note_id, id);
+
+CREATE TABLE remote_note_revision_images (
+    revision_id INTEGER NOT NULL REFERENCES remote_note_revisions (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT,
+    PRIMARY KEY (revision_id, position)
 );
 
 CREATE TABLE remote_note_recipients (

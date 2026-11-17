@@ -98,6 +98,7 @@ class PostSearchServiceTest {
                 boostUndone = false,
                 inReplyTo = null,
                 quoteUri = null,
+                editedAt = null,
             ),
         )
     }

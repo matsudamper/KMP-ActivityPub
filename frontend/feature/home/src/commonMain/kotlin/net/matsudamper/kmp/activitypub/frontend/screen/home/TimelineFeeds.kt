@@ -27,6 +27,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedNotificati
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withArrivedPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPosts
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withRemovals
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withUpdatedPost
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 
 /**
@@ -101,6 +102,10 @@ internal class TimelineFeeds(
 
     suspend fun onNotificationArrived(notification: UserNotificationsResult.Notification) {
         readers[TimelineSource.Notifications]?.onNotificationArrived(notification)
+    }
+
+    suspend fun onPostUpdated(post: UserHomeTimelineResult.Post) {
+        updatePosts { it.withUpdatedPost(post) }
     }
 
     suspend fun onPostsRemoved(removals: PostRemovals) {

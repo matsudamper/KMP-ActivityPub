@@ -337,6 +337,16 @@ class RemoteNoteReceptionTest {
     }
 
     @Test
+    fun editedNoteIsSanitizedAndRevisedAtTheSendersEditTime() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        val editedAt = Instant.parse("2026-08-10T01:00:00Z")
+        fixture.receiver.update(note(listOf()).copy(updated = editedAt))
+        val revised = fixture.repositories.timelineRepository.revised.single()
+        assertEquals("<p>本文</p>", revised.contentHtml)
+        assertEquals(editedAt, revised.editedAt)
+    }
+
+    @Test
     fun boostsOfUnfollowedActorDoNotFetchActors() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false

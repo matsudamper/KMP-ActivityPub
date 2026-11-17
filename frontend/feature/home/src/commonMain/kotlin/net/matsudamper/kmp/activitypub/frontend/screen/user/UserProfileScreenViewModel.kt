@@ -785,6 +785,7 @@ internal class UserProfileScreenViewModel(
                         val reactionPostId = post.reactionPostId
                         if (reactionPostId != null) clickStamp(reactionPostId = reactionPostId, body = post.body, stamp = stamp)
                     },
+                    onOpenRevisions = null,
                     onVisible = {
                         if (post.body.linkUrls.isNotEmpty()) {
                             loadLinkPreviews(post.postId)
@@ -851,6 +852,7 @@ internal class UserProfileScreenViewModel(
             onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.id) } } },
             onOpenReactionPicker = { openReactionPicker(reactionPostId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
+            onOpenRevisions = null,
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)

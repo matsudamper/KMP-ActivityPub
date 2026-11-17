@@ -4,6 +4,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PostRevisionsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorFields
 import net.matsudamper.kmp.activitypub.frontend.graphql.fragment.ActorListFields
@@ -58,6 +59,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             likedByMe = likedByMe,
             viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
             boostedByMe = boostedByMe,
+            edited = edited,
         ),
         boostedBy = boostedBy?.actorFields?.toActor(),
         reactionPostId = reactionPostId,
@@ -143,6 +145,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     followingGroupId = followingGroupId,
     hasReplyTarget = hasReplyTarget,
     hasQuoteTarget = hasQuoteTarget,
+    edited = body.edited,
 )
 
 private fun UserHomeTimelineResult.Actor.toFields(): ActorFields = ActorFields(
@@ -181,6 +184,42 @@ fun TimelineQuery.Data.withFirstPage(firstPage: TimelineQuery.Data): TimelineQue
             timeline = firstPageTimeline.copy(
                 posts = firstPageTimeline.posts + loadedTimeline.posts.drop(joinIndex + 1),
                 nextCursor = loadedTimeline.nextCursor,
+            ),
+        ),
+    )
+}
+
+fun PostRevisionsQuery.Data.toUserPostRevisionsResult(): UserPostRevisionsResult {
+    val info = userInfo ?: return UserPostRevisionsResult.NotLoggedIn
+    val page = info.postRevisions ?: return UserPostRevisionsResult.NotFound
+    return UserPostRevisionsResult.Success(
+        revisions = page.revisions.map { revision ->
+            UserPostRevisionsResult.Revision(
+                id = revision.id,
+                content = revision.content,
+                sensitive = revision.sensitive,
+                mentions = revision.mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
+                images = revision.images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
+                emojis = revision.emojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
+                revisedAt = revision.revisedAt,
+            )
+        },
+        nextCursor = page.nextCursor,
+    )
+}
+
+/**
+ * 続きのページを後ろにつなぐ。どちらかが読めていなければ null
+ */
+fun PostRevisionsQuery.Data.withNextPage(page: PostRevisionsQuery.Data): PostRevisionsQuery.Data? {
+    val beforeUserInfo = userInfo ?: return null
+    val beforeRevisions = beforeUserInfo.postRevisions ?: return null
+    val pageRevisions = page.userInfo?.postRevisions ?: return null
+    return copy(
+        userInfo = beforeUserInfo.copy(
+            postRevisions = beforeRevisions.copy(
+                revisions = beforeRevisions.revisions + pageRevisions.revisions,
+                nextCursor = pageRevisions.nextCursor,
             ),
         ),
     )
@@ -334,6 +373,12 @@ fun TimelinePostFields.withRemovals(removals: PostRemovals): TimelinePostFields 
     deleted = deleted || id in removals.deletedPostIds,
     boostUndone = boostUndone || id in removals.boostUndonePostIds,
 )
+
+/**
+ * 投稿者が編集したか、付いたリアクションが増減した行を、届いた中身で置き換える。読み込んでいない行は何もしない
+ */
+fun TimelinePostFields.withUpdatedPost(updated: UserHomeTimelineResult.Post): TimelinePostFields =
+    if (id == updated.id) updated.toFields() else this
 
 /**
  * いいねを変えた結果を反映する。付けていたリアクションは外れる。

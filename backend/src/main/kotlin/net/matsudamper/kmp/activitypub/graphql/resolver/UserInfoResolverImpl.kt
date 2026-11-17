@@ -11,6 +11,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostCounts
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostRevision
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostRevisionPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
@@ -20,7 +22,9 @@ import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetResult
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
+import net.matsudamper.kmp.activitypub.shared.PostRevisionId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
+import net.matsudamper.kmp.activitypub.timeline.PostRevisionCursor
 
 class UserInfoResolverImpl : UserInfoResolver {
     override fun timeline(
@@ -99,6 +103,47 @@ class UserInfoResolverImpl : UserInfoResolver {
                 if (diContainer.viewablePostService.isOwnedByViewer(userInfo.id, reply)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
             }
             DataFetcherResult.Builder<List<QlTimelinePost>>(posts).build()
+        }
+
+    override fun postRevisions(
+        userInfo: QlUserInfo,
+        postId: TimelinePostId,
+        after: String?,
+        limit: Int,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlPostRevisionPage?>> =
+        otelSupplyAsync {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val post = diContainer.timelineService.viewablePost(userInfo.id, postId.value)
+            val page = if (post == null) null else diContainer.timelineService.revisionsPage(userInfo.id, postId.value, after, limit)
+            val result = if (post == null || page == null) {
+                null
+            } else {
+                QlPostRevisionPage(
+                    revisions = page.revisions.map { revision ->
+                        val body = createQlPostBody(
+                            contentHtml = revision.contentHtml,
+                            summary = revision.summary,
+                            sensitive = revision.sensitive,
+                            images = revision.images,
+                            linkUrlsEnabled = false,
+                            diContainer = diContainer,
+                        )
+                        QlPostRevision(
+                            id = PostRevisionId(PostRevisionCursor.encode(revision.position)),
+                            content = body.content,
+                            summary = body.summary,
+                            sensitive = body.sensitive,
+                            mentions = body.mentions,
+                            images = body.images,
+                            emojis = createQlPostEmojis(noteRef = post.noteRef, contentHtml = revision.contentHtml, remoteEmojis = post.emojis, diContainer = diContainer),
+                            revisedAt = revision.revisedAt.toString(),
+                        )
+                    },
+                    nextCursor = page.nextCursor,
+                )
+            }
+            DataFetcherResult.Builder<QlPostRevisionPage?>(result).build()
         }
 
     override fun followingGroups(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlFollowingGroup>>> {

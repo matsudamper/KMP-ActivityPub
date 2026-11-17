@@ -53,7 +53,7 @@ class NoteCountRepositoryTest {
 
     private fun note(id: String, visibility: String, inReplyTo: String?): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", language = null, visibility = visibility,
-        localRecipients = setOf("alice"), inReplyTo = inReplyTo, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
+        localRecipients = setOf("alice"), inReplyTo = inReplyTo, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW, editedAt = null,
         images = listOf(),
         emojis = listOf(),
     )

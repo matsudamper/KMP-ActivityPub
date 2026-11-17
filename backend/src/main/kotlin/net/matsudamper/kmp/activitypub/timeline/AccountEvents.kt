@@ -44,6 +44,14 @@ class AccountEvents(
         signals.tryEmit(Signal.Deletion(recipients.toSet(), AccountEvent.PostsDeleted(deletedMembers = listOf(), boostUndoneMembers = members)))
     }
 
+    /**
+     * @param member 中身が変わったタイムラインの member
+     */
+    fun publishUpdate(recipients: List<AccountId>, member: String) {
+        if (recipients.isEmpty()) return
+        signals.tryEmit(Signal.Update(recipients.toSet(), member))
+    }
+
     fun publishNotification(notification: ReceivedNotification) {
         signals.tryEmit(Signal.Notification(notification))
     }
@@ -60,6 +68,8 @@ class AccountEvents(
 
                     is Signal.Deletion -> signal.event
 
+                    is Signal.Update -> repository.hydrate(accountId, listOf(signal.member)).singleOrNull()?.let { AccountEvent.PostUpdated(it) }
+
                     is Signal.Notification -> repository.hydrate(accountId, listOf(signal.notification.noteMember)).singleOrNull()
                         ?.let { AccountEvent.NotificationArrived(signal.notification, it) }
                 }
@@ -71,6 +81,8 @@ class AccountEvents(
         class Arrival(override val recipients: Set<AccountId>, val position: TimelinePosition) : Signal
 
         class Deletion(override val recipients: Set<AccountId>, val event: AccountEvent.PostsDeleted) : Signal
+
+        class Update(override val recipients: Set<AccountId>, val member: String) : Signal
 
         class Notification(val notification: ReceivedNotification) : Signal {
             override val recipients: Set<AccountId> = setOf(notification.accountId)
@@ -86,6 +98,11 @@ sealed interface AccountEvent {
      * @param boostUndoneMembers ブーストした相手がブーストを取り消したタイムラインの member
      */
     data class PostsDeleted(val deletedMembers: List<String>, val boostUndoneMembers: List<String>) : AccountEvent
+
+    /**
+     * @param post 投稿者が編集したか、付いたリアクションが増減した後の行
+     */
+    data class PostUpdated(val post: TimelinePost) : AccountEvent
 
     /**
      * @param post お気に入りかブーストをされた投稿
