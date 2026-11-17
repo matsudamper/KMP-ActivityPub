@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.InstanceActorKeyRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
@@ -58,6 +59,7 @@ import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorHeaderEndpoint
 import net.matsudamper.kotpub.actor.ActorIconEndpoint
 import net.matsudamper.kotpub.actor.HttpRemoteActors
+import net.matsudamper.kotpub.actor.InstanceActorEndpoint
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
 import net.matsudamper.kotpub.httpsignature.HttpSignatureSigner
@@ -117,17 +119,18 @@ internal class Federation(
     blockLists: BlockLists,
     noteCountRepository: NoteCountRepository,
     imageStorage: ImageStorage?,
+    instanceActorKeyRepository: InstanceActorKeyRepository,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
-    private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
-    private val localActors = LocalActors(directory = directory, accountService = accountService)
+    private val instanceActor = storedInstanceActor(domain = domain, keys = instanceActorKeyRepository)
     private val httpClient = SignedFetchActivityPubHttpClient(
         client = OkHttpActivityPubClient(),
-        signingActor = OldestAccountFetchSigner(accountService = accountService, localActors = localActors),
+        signingActor = instanceActor,
         signer = HttpSignatureSigner(),
     )
     private val publicAddressHttpClient = PublicAddressHttpClient()
+    private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     val noteImageUrls: NoteImageUrls = NoteImageUrls(domain)
     val noteShareUrls: NoteShareUrls = NoteShareUrls(domain)
@@ -139,6 +142,7 @@ internal class Federation(
     )
     private val noteEmojiObjects = LocalNoteEmojiObjects(customEmojis = customEmojiService, customEmojiUrls = customEmojiUrls)
     private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls, emojiObjects = noteEmojiObjects)
+    private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, imageAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
@@ -276,7 +280,9 @@ internal class Federation(
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
 
-    val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
+    val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory = directory, instanceActor = instanceActor.urls)
+
+    val instanceActorEndpoint: InstanceActorEndpoint = InstanceActorEndpoint(instanceActor)
 
     /**
      * アカウントは CLI からしか作れないので、誰でも登録できるとは出さない

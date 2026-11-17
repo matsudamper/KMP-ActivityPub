@@ -11,6 +11,7 @@ import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.InstanceActorKeyRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
@@ -48,6 +49,7 @@ internal class SqliteRepositories(
     override val serverBlockRepository: ServerBlockRepository = SqliteServerBlockRepository(jooq)
     override val customEmojiRepository: CustomEmojiRepository = SqliteCustomEmojiRepository(jooq)
     override val actorBlockRepository: ActorBlockRepository = SqliteActorBlockRepository(jooq)
+    override val instanceActorKeyRepository: InstanceActorKeyRepository = SqliteInstanceActorKeyRepository(jooq)
 
     override val passkeyRepository: PasskeyRepository = SqlitePasskeyRepository(jooq)
 

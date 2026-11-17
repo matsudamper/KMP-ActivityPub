@@ -11,11 +11,6 @@ interface AccountRepository {
 
     fun countAll(): Long
 
-    /**
-     * 最初に登録したアカウントの名前。アカウントが無ければ null
-     */
-    fun findOldestUsername(): String?
-
     fun findByUsername(username: String): Account?
 
     /**

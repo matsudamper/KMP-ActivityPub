@@ -22,6 +22,7 @@ import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kotpub.activitypub.ActivityPubContentTypes
 import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorUrls
+import net.matsudamper.kotpub.actor.InstanceActorUrls
 import net.matsudamper.kotpub.collection.COLLECTION_CURSOR_PARAM
 import net.matsudamper.kotpub.http.EndpointResponse
 import net.matsudamper.kotpub.http.RequestHeaders
@@ -49,6 +50,10 @@ internal fun Route.federationRoutes(federation: Federation) {
 
     get("/users/{username}") {
         call.respondActor(federation.actorEndpoint)
+    }
+
+    get(InstanceActorUrls.ACTOR_PATH) {
+        call.respondEndpoint(federation.instanceActorEndpoint.get(accept = call.request.header(HttpHeaders.Accept)))
     }
 
     // Mastodon と同じく、プロフィールページの URL でも ActivityPub の取得なら Actor を返す

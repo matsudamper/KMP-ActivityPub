@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.InstanceActorKeyRepository
 import net.matsudamper.kmp.activitypub.repository.LikeReaction
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
@@ -176,6 +177,15 @@ internal class FakeRepositories : Repositories {
         override fun delete(id: CustomEmojiId, accountId: AccountId): LocalCustomEmoji? = null
     }
 
+    override val instanceActorKeyRepository: InstanceActorKeyRepository = object : InstanceActorKeyRepository {
+        private val stored = mutableListOf<String>()
+
+        override fun findOrCreatePrivateKeyPem(newPrivateKeyPem: () -> String): String {
+            if (stored.isEmpty()) stored += newPrivateKeyPem()
+            return stored.first()
+        }
+    }
+
     override val passkeyRepository: PasskeyRepository = FakePasskeyRepository(hasPassword = { accountRepository.hasPassword(it) })
 
     override fun close() = Unit
@@ -230,8 +240,6 @@ internal class FakeAccountRepository(
         rows.firstOrNull { it.id == id }?.toAccount()
 
     override fun countAll(): Long = rows.size.toLong()
-
-    override fun findOldestUsername(): String? = rows.firstOrNull()?.username
 
     override fun findByUsername(username: String): Account? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.toAccount()
