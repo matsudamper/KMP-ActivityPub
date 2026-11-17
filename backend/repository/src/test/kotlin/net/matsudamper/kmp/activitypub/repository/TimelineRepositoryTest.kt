@@ -88,6 +88,8 @@ class TimelineRepositoryTest {
         assertEquals(listOf(saved.member), repository.reviseRemote(firstEdit.copy(contentHtml = "<p>2 回目</p>", summary = "注意", editedAt = NOW.plusSeconds(30))))
         // 遅れて届いた古い編集で巻き戻さない
         assertTrue(repository.reviseRemote(firstEdit.copy(editedAt = NOW.plusSeconds(20))).isEmpty())
+        // 編集時刻の無い Update は前後を決められないので、保存済みの編集を書き換えない
+        assertTrue(repository.reviseRemote(original.copy(receivedAt = NOW.plusSeconds(3600))).isEmpty())
 
         val post = repository.hydrate(alice, listOf(saved.member)).single()
         assertEquals("<p>2 回目</p>", post.contentHtml)

@@ -35,7 +35,7 @@ interface TimelineRepository {
     /**
      * 投稿者が編集した投稿を届いた内容に書き換え、書き換える前の版を残す。公開範囲と位置は変えない。
      * 配送は順番どおりとは限らないので、編集した時刻が保存済みの編集より新しくなければ書き換えない。
-     * [RemoteNoteInput.editedAt] が無ければ [RemoteNoteInput.receivedAt] に編集したものとして扱う。
+     * [RemoteNoteInput.editedAt] が無ければ [RemoteNoteInput.receivedAt] に編集したものとして扱う。ただし保存済みの編集があれば、前後を決められないので書き換えない。
      * 本文も注意書きも画像も変わっていなければ版は残さない。そのときも [RemoteNoteInput.editedAt] があれば編集した時刻は進め、それより古い編集で巻き戻さない
      *
      * @return 中身か編集した時刻が変わったタイムラインの member。投稿そのものと、それをブーストした行。

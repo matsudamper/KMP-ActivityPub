@@ -120,7 +120,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .fetchOne() ?: return@transaction listOf()
         val id = checkNotNull(stored.get(REMOTE_NOTES.ID))
         val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
-        if (storedEditedAt != null && !editedAt.isAfter(storedEditedAt)) return@transaction listOf()
+        // 受け取った時刻では編集の前後を決められないので、編集時刻の付いた編集を、時刻の無い Update では書き換えない
+        if (storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))) return@transaction listOf()
         val storedRevision = PostRevision(
             position = PostRevisionPosition.Current,
             contentHtml = checkNotNull(stored.get(REMOTE_NOTES.CONTENT_HTML)),
@@ -157,8 +158,13 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         dsl.insertRemoteNoteEmojis(remoteNoteId, emojis)
     }
 
-    override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? {
-        val post = viewablePost(viewer, member) ?: return null
+    // 今の版と前の版を別々に読むと、間に編集が入ったときに今の版が抜けて同じ版が 2 つ並ぶ
+    override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? = jooq.withConnection { dsl ->
+        revisions(dsl, viewer, member, olderThan, limit)
+    }
+
+    private fun revisions(dsl: DSLContext, viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? {
+        val post = viewablePost(dsl, viewer, member) ?: return null
         val current = if (olderThan == null) {
             listOf(
                 PostRevision(
@@ -177,7 +183,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val pastLimit = limit - current.size
         if (pastLimit <= 0) return current.take(limit)
         val olderThanRevisionId = (olderThan as? PostRevisionPosition.Past)?.revisionId
-        return current + jooq.withConnection { dsl -> remoteNoteRevisions(dsl, remoteNoteId, olderThanRevisionId, pastLimit) }
+        return current + remoteNoteRevisions(dsl, remoteNoteId, olderThanRevisionId, pastLimit)
     }
 
     override fun hasRemoteNote(objectUri: String): Boolean = jooq.withConnection { dsl ->
@@ -274,7 +280,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? = jooq.withConnection { dsl ->
+    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? = jooq.withConnection { dsl -> viewablePost(dsl, viewer, member) }
+
+    private fun viewablePost(dsl: DSLContext, viewer: AccountId, member: String): TimelinePost? {
         val notes = hydrateNotes(
             dsl = dsl,
             viewer = viewer,
@@ -286,7 +294,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val accountBoostIds = listOfNotNull(TimelineMembers.accountBoostIdOf(member))
         val boosts = boostedPosts(dsl, viewer, listOfNotNull(TimelineMembers.boostIdOf(member))) +
             if (accountBoostIds.isEmpty()) listOf() else accountBoostedPosts(dsl, viewer, ACCOUNT_BOOSTS.ID.`in`(accountBoostIds))
-        (notes + boosts).firstOrNull()
+        return (notes + boosts).firstOrNull()
     }
 
     override fun contentHtml(viewer: AccountId, member: String): String? = jooq.withConnection { dsl ->
