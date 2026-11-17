@@ -195,7 +195,7 @@ private fun previewThreadPost(displayName: String, acct: String, content: String
     translateButtonListener = null,
     postListener = null,
     shareListener = null,
-    menuItems = listOf(),
+    menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
     listener = AndroidPreviewPostItemListener,
 )
 
@@ -277,7 +277,10 @@ private fun createLoadedUiState(
                 translateButtonListener = null,
                 postListener = null,
                 shareListener = null,
-                menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
+                menuItems = listOf(
+                    PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener),
+                    PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener),
+                ),
                 listener = AndroidPreviewPostItemListener,
             ),
             replies = replies,

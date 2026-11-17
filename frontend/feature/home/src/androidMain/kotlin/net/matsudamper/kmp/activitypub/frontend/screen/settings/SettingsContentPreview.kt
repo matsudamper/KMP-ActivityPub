@@ -60,6 +60,8 @@ private object AndroidPreviewRadioOptionListener : SettingsScreenUiState.RadioOp
 private object AndroidPreviewSettingsListener : SettingsScreenUiState.Listener {
     override fun onClickSecurity() = Unit
 
+    override fun onClickLanguage() = Unit
+
     override fun onClickFollowingGroups() = Unit
 
     override fun onClickBlockedServers() = Unit

@@ -183,18 +183,18 @@ internal fun PostDetailContent(
                                         items = content.replyTargets,
                                         key = { index, _ -> "reply-target-${content.replyTargets.size - index}" },
                                     ) { _, replyTarget ->
-                                        PostItem(uiState = replyTarget, style = PostItemStyle.Timeline)
+                                        PostItem(uiState = replyTarget, style = PostItemStyle.Timeline, shareButtonVisible = true)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
                                     item(key = POST_KEY) {
-                                        PostItem(uiState = content.post, style = PostItemStyle.Detail)
+                                        PostItem(uiState = content.post, style = PostItemStyle.Detail, shareButtonVisible = true)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
                                     items(
                                         items = content.replies.items,
                                         key = { reply -> reply.listKey },
                                     ) { reply ->
-                                        PostItem(uiState = reply.post, style = PostItemStyle.Timeline)
+                                        PostItem(uiState = reply.post, style = PostItemStyle.Timeline, shareButtonVisible = true)
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                     }
                                     when (val replies = content.replies) {

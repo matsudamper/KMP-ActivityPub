@@ -76,6 +76,14 @@ sealed interface Screen : NavKey {
     }
 
     @Serializable
+    data object LanguageSettings : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/settings/language")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Settings
+        override val loginRequired: Boolean get() = true
+    }
+
+    @Serializable
     data object FollowingGroups : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/settings/following-groups")
         override val pathParameters: Map<String, String> get() = mapOf()
@@ -261,6 +269,7 @@ sealed interface Screen : NavKey {
                 Post.pathPattern to { _ -> Post },
                 Settings.pathPattern to { _ -> Settings },
                 Security.pathPattern to { _ -> Security },
+                LanguageSettings.pathPattern to { _ -> LanguageSettings },
                 FollowingGroups.pathPattern to { _ -> FollowingGroups },
                 BlockedServers.pathPattern to { _ -> BlockedServers },
                 CustomEmojis.pathPattern to { _ -> CustomEmojis },

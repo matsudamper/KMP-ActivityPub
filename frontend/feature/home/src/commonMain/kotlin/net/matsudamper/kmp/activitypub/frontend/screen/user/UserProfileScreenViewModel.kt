@@ -243,6 +243,12 @@ internal class UserProfileScreenViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            // 本人のプロフィールなら、プロフィール編集で変えた内容をここで反映する
+            api.watchUserProfile(username = username).collect { profile ->
+                updateProfile { state -> if (state is ProfileState.Loaded) state.copy(profile = profile) else state }
+            }
+        }
         load()
     }
 
