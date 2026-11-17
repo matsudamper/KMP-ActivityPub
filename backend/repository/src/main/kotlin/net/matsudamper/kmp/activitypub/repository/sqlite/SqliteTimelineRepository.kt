@@ -68,7 +68,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val addressed = dsl.select(ACCOUNTS.ID).from(ACCOUNTS).where(ACCOUNTS.USERNAME.`in`(note.localRecipients)).fetch(ACCOUNTS.ID)
         if (followers.isEmpty() && addressed.isEmpty()) return@transaction null
         val id = insertRemoteNote(dsl, note, actorId, minOf(note.publishedAt, note.receivedAt).toEpochMilli(), viaBoost = false)
-            ?: takeOverBoostedNote(dsl, note.objectUri, actorId, note.quoteUri)
+            ?: takeOverBoostedNote(dsl, note, actorId)
             ?: return@transaction null
         // ブーストで先に保存していた投稿は、そのときの位置に揃える
         val score = checkNotNull(dsl.select(REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(id)).fetchOne(REMOTE_NOTES.SCORE_MS))
@@ -886,16 +886,17 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
      *
      * @return ブーストで保存しただけの投稿だったらその id。通常の受信で保存済みなら null
      */
-    private fun takeOverBoostedNote(dsl: DSLContext, objectUri: String, authorId: Long, quoteUri: String?): Long? {
+    private fun takeOverBoostedNote(dsl: DSLContext, note: RemoteNoteInput, authorId: Long): Long? {
         // 別の投稿者が先に同じ id で保存させた投稿は引き継がない
         val updated = dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.VIA_BOOST, 0L)
-            // ブーストで取ってきた中身は引用先を持たないことがあるので、届いた Create の引用先にする
-            .set(REMOTE_NOTES.QUOTE_URI, quoteUri)
-            .where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).and(REMOTE_NOTES.VIA_BOOST.eq(1L))
+            // ブーストで取ってきた中身は引用先や言語を持たないことがあるので、届いた Create のものにする
+            .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
+            .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+            .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).and(REMOTE_NOTES.VIA_BOOST.eq(1L))
             .and(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(authorId))
             .execute()
         if (updated == 0) return null
-        return dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(objectUri)).fetchOne(REMOTE_NOTES.ID)
+        return dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID)
     }
 
     private fun existingPublishedNoteId(dsl: DSLContext, objectUri: String): Long? =

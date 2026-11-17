@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
+import java.util.Locale
 import kotlin.io.path.createTempDirectory
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -670,6 +671,37 @@ class TimelineRepositoryTest {
         val position = assertNotNull(repository.receive(note("mention", "public", setOf("dave"))))
         assertEquals(listOf(position), repository.page(accounts.getValue("dave"), null, null, 10))
         assertNull(repository.receive(note("mention", "public", setOf("dave"))))
+    }
+
+    @Test
+    fun remoteNoteLanguageIsSavedAndRewrittenByEdits() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val english = note("1", "public", setOf()).copy(language = Locale.forLanguageTag("en"))
+        val saved = assertNotNull(repository.receive(english))
+        assertEquals(Locale.forLanguageTag("en"), repository.hydrate(alice, listOf(saved.member)).single().language)
+
+        repository.reviseRemote(english.copy(language = Locale.forLanguageTag("zh-TW"), editedAt = NOW.plusSeconds(10)))
+        assertEquals(Locale.forLanguageTag("zh-TW"), repository.hydrate(alice, listOf(saved.member)).single().language)
+
+        val unknownLanguage = assertNotNull(repository.receive(note("2", "public", setOf())))
+        assertNull(repository.hydrate(alice, listOf(unknownLanguage.member)).single().language)
+    }
+
+    @Test
+    fun createAfterBoostKeepsLanguageOfCreate() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
+        val boosted = assertNotNull(repository.receiveBoost(boost("1", note("language", "public", setOf()))))
+        assertNull(repository.hydrate(accounts.getValue("alice"), listOf(boosted.member)).single().language)
+        val position = assertNotNull(repository.receive(note("language", "public", setOf("dave")).copy(language = Locale.forLanguageTag("en"))))
+        assertEquals(Locale.forLanguageTag("en"), assertNotNull(repository.viewablePost(accounts.getValue("dave"), position.member)).language)
+        assertEquals(Locale.forLanguageTag("en"), repository.hydrate(accounts.getValue("alice"), listOf(boosted.member)).single().language)
     }
 
     @Test
