@@ -466,6 +466,18 @@ internal class HomeScreenViewModel(
 
     init {
         viewModelScope.launch {
+            // プロフィール編集で変えた内容は、ホームを出したままでも読み直さずにここで反映する
+            userApi.watchMyProfile().collect { profile ->
+                viewModelStateFlow.update { state ->
+                    val myPosts = state.myPosts
+                    state.copy(
+                        profile = if (state.profile is ProfileState.Loaded) ProfileState.Loaded(profile) else state.profile,
+                        myPosts = if (myPosts is MyPostsState.Loaded) myPosts.copy(owner = profile) else myPosts,
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
             userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
         }
         viewModelScope.launch {
