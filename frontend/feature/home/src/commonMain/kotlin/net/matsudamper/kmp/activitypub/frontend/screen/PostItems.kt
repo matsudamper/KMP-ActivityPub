@@ -13,7 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 /**
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
- * @param onToggleTranslation 翻訳のボタンを押したとき。訳す本文と、その言語を渡す
+ * @param onToggleTranslation 翻訳のボタンを押したとき
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param quote [createPostItemQuote] で作る。引用でなければ null
  * @param replyLabel [createPostItemReplyLabel] で作る。「〜へのリプライ」の行を出さなければ null
@@ -54,7 +54,7 @@ internal fun createPostItemUiState(
     onOpenImage: (urls: List<String>, index: Int) -> Unit,
     onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
     onShare: (url: String) -> Unit,
-    onToggleTranslation: (sourceText: String, sourceLanguageTag: String) -> Unit,
+    onToggleTranslation: (PostTranslationSource) -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
     onReply: () -> Unit,
@@ -66,7 +66,9 @@ internal fun createPostItemUiState(
 ): PostItemUiState {
     val shareUrl = body.shareUrl
     val imageUrls = body.images.map { it.url }
-    val translated = translation.progressBySourceText[body.content] as? PostTranslationProgress.Translated
+    val translationSource = body.language?.let { PostTranslationSource(text = body.content, languageTag = it) }
+    val translationProgress = translationSource?.let { translation.progressBySource[it] }
+    val translated = translationProgress as? PostTranslationProgress.Translated
     return PostItemUiState(
         replyLabel = replyLabel,
         actorLabel = actorLabel?.let { label ->
@@ -204,7 +206,11 @@ internal fun createPostItemUiState(
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
         },
-        translateButton = createTranslateButton(body = body, translation = translation, onToggleTranslation = onToggleTranslation),
+        translateButton = if (translationSource == null) {
+            null
+        } else {
+            createTranslateButton(source = translationSource, progress = translationProgress, translation = translation, onToggleTranslation = onToggleTranslation)
+        },
         menuItems = createShareMenuItems(shareUrl = shareUrl, onShare = onShare) + menuItems,
         postListener = when (postTapAction) {
             is PostTapAction.OpenPostDetail -> object : PostItemUiState.PostListener {
@@ -350,14 +356,13 @@ private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Un
 }
 
 private fun createTranslateButton(
-    body: UserPostBody,
+    source: PostTranslationSource,
+    progress: PostTranslationProgress?,
     translation: PostTranslationState,
-    onToggleTranslation: (sourceText: String, sourceLanguageTag: String) -> Unit,
+    onToggleTranslation: (PostTranslationSource) -> Unit,
 ): PostItemUiState.TranslateButton? {
-    val sourceLanguageTag = body.language
-    if (!translation.translatorSupported || sourceLanguageTag == null) return null
-    if (!isWrittenInOtherLanguage(postLanguageTag = sourceLanguageTag, viewerLanguage = translation.viewerLanguage)) return null
-    val progress = translation.progressBySourceText[body.content]
+    if (!translation.translatorSupported) return null
+    if (!isWrittenInOtherLanguage(postLanguageTag = source.languageTag, viewerLanguage = translation.viewerLanguage)) return null
     return PostItemUiState.TranslateButton(
         text = when (progress) {
             null -> "翻訳"
@@ -367,7 +372,7 @@ private fun createTranslateButton(
         enabled = progress != PostTranslationProgress.Translating,
         listener = object : PostItemUiState.TranslateButtonListener {
             override fun onClick() {
-                onToggleTranslation(body.content, sourceLanguageTag)
+                onToggleTranslation(source)
             }
         },
     )

@@ -25,13 +25,13 @@ class PostTranslationsTest {
         )
         runCurrent()
 
-        translations.toggle(sourceText = "hello", sourceLanguageTag = "en")
-        assertEquals(PostTranslationProgress.Translating, translations.stateFlow.value.progressBySourceText["hello"])
+        translations.toggle(PostTranslationSource(text = "hello", languageTag = "en"))
+        assertEquals(PostTranslationProgress.Translating, translations.stateFlow.value.progressBySource[PostTranslationSource(text = "hello", languageTag = "en")])
         runCurrent()
-        assertEquals(PostTranslationProgress.Translated("こんにちは"), translations.stateFlow.value.progressBySourceText["hello"])
+        assertEquals(PostTranslationProgress.Translated("こんにちは"), translations.stateFlow.value.progressBySource[PostTranslationSource(text = "hello", languageTag = "en")])
 
-        translations.toggle(sourceText = "hello", sourceLanguageTag = "en")
-        assertEquals(mapOf(), translations.stateFlow.value.progressBySourceText)
+        translations.toggle(PostTranslationSource(text = "hello", languageTag = "en"))
+        assertEquals(mapOf(), translations.stateFlow.value.progressBySource)
         assertEquals(0, failedCount)
     }
 
@@ -45,13 +45,13 @@ class PostTranslationsTest {
             onFailed = {},
         )
         runCurrent()
-        translations.toggle(sourceText = "hello", sourceLanguageTag = "en")
+        translations.toggle(PostTranslationSource(text = "hello", languageTag = "en"))
         runCurrent()
-        translations.toggle(sourceText = "bye", sourceLanguageTag = "en")
+        translations.toggle(PostTranslationSource(text = "bye", languageTag = "en"))
 
         languageSettingStore.languageSetting.value = LanguageSetting(languageTag = LanguageTag.parse("en"), translateButtonVisible = true)
         runCurrent()
-        assertEquals(mapOf(), translations.stateFlow.value.progressBySourceText)
+        assertEquals(mapOf(), translations.stateFlow.value.progressBySource)
     }
 
     @Test
@@ -65,9 +65,9 @@ class PostTranslationsTest {
         )
         runCurrent()
 
-        translations.toggle(sourceText = "hello", sourceLanguageTag = "en")
+        translations.toggle(PostTranslationSource(text = "hello", languageTag = "en"))
         runCurrent()
-        assertEquals(mapOf(), translations.stateFlow.value.progressBySourceText)
+        assertEquals(mapOf(), translations.stateFlow.value.progressBySource)
         assertEquals(1, failedCount)
     }
 }

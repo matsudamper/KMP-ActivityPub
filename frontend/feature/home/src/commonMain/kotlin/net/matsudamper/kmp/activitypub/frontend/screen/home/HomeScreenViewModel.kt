@@ -126,7 +126,7 @@ internal class HomeScreenViewModel(
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
-                translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySourceText = mapOf()),
+                translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySource = mapOf()),
                 selectedTab = selectedTab,
                 openedColumn = null,
                 columnWidths = mapOf(),

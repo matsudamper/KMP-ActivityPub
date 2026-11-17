@@ -88,7 +88,7 @@ internal class UserProfileScreenViewModel(
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
-                translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySourceText = mapOf()),
+                translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySource = mapOf()),
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 quotes = mapOf(),
