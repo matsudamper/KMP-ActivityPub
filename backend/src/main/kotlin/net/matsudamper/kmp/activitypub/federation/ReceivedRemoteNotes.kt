@@ -42,6 +42,9 @@ internal class ReceivedRemoteNotes(
         inOpenTelemetrySuspendSpan(tracer, "Inbox.Create", false) { span -> saveInSpan(note, span) }
     }
 
+    // 投稿の編集はまだ反映していない。kotpub 1.28.0 までは Update が届かなかったので、挙動は変わらない
+    override suspend fun update(note: ReceivedNote) = Unit
+
     override suspend fun delete(actorId: String, objectId: String) {
         timeline.publishDeleted(deleteRemoteNote(actorId, objectId))
     }
