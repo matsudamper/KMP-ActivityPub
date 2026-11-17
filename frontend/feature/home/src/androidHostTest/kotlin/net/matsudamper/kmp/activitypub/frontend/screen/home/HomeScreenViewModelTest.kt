@@ -42,6 +42,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
 import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
 import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
+import net.matsudamper.kmp.activitypub.frontend.logic.language.TextTranslator
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
@@ -567,6 +568,7 @@ class HomeScreenViewModelTest {
             columnSettingStore,
             FakeColumnWidthStore(),
             FakeLanguageSettingStore(),
+            FakeTextTranslator(),
         )
         try {
             block(viewModel, engine)
@@ -635,6 +637,12 @@ class HomeScreenViewModelTest {
         override val languageSettingFlow: Flow<LanguageSetting> = emptyFlow()
 
         override suspend fun save(languageTag: LanguageTag, translateButtonVisible: Boolean): Boolean = true
+    }
+
+    private class FakeTextTranslator : TextTranslator {
+        override val supported: Boolean = false
+
+        override suspend fun translate(text: String, sourceLanguageTag: String, targetLanguage: LanguageTag): String? = null
     }
 
     private class FakeTimelineColumnSettingStore(initialColumns: List<TimelineColumnSetting>) : TimelineColumnSettingStore {

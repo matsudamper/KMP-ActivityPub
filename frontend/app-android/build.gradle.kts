@@ -110,6 +110,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation(libs.play.services.auth.blockstore)
+    implementation(libs.mlkit.translate)
     implementation(libs.androidx.credentials)
     // Android 13 以前は Google Play 開発者サービス経由でパスキーを扱う
     implementation(libs.androidx.credentials.play.services.auth)

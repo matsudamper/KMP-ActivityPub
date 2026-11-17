@@ -27,7 +27,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
 import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
-import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
+import net.matsudamper.kmp.activitypub.frontend.logic.language.TextTranslator
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
@@ -67,8 +67,11 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.POST_TRANSLATION_FAILED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.PostTranslationState
+import net.matsudamper.kmp.activitypub.frontend.screen.PostTranslations
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.QuoteLoad
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
@@ -110,13 +113,20 @@ internal class HomeScreenViewModel(
     private val timelineColumnSettingStore: TimelineColumnSettingStore,
     private val columnWidthStore: ColumnWidthStore,
     private val languageSettingStore: LanguageSettingStore,
+    private val textTranslator: TextTranslator,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
+    private val postTranslations = PostTranslations(
+        translator = textTranslator,
+        languageSettingStore = languageSettingStore,
+        coroutineScope = viewModelScope,
+        onFailed = { viewModelScope.launch { events.send { it.showMessage(POST_TRANSLATION_FAILED_MESSAGE) } } },
+    )
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
-                viewerLanguage = null,
+                translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySourceText = mapOf()),
                 selectedTab = selectedTab,
                 openedColumn = null,
                 columnWidths = mapOf(),
@@ -534,8 +544,8 @@ internal class HomeScreenViewModel(
             }
         }
         viewModelScope.launch {
-            languageSettingStore.languageSettingFlow.collect { setting ->
-                viewModelStateFlow.update { it.copy(viewerLanguage = setting.languageTag) }
+            postTranslations.stateFlow.collect { translation ->
+                viewModelStateFlow.update { it.copy(translation = translation) }
             }
         }
         viewModelScope.launch {
@@ -1557,7 +1567,8 @@ internal class HomeScreenViewModel(
                                 onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
                             ),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
-                            viewerLanguage = viewModelState.viewerLanguage,
+                            translation = viewModelState.translation,
+                            onToggleTranslation = postTranslations::toggle,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = if (boostedNoteAuthor == null) {
                                 AuthorTapAction.AlreadyOnAuthorProfile
@@ -1649,7 +1660,8 @@ internal class HomeScreenViewModel(
             linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
-            viewerLanguage = viewModelState.viewerLanguage,
+            translation = viewModelState.translation,
+            onToggleTranslation = postTranslations::toggle,
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
@@ -1885,7 +1897,8 @@ internal class HomeScreenViewModel(
             linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
-            viewerLanguage = viewModelState.viewerLanguage,
+            translation = viewModelState.translation,
+            onToggleTranslation = postTranslations::toggle,
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val host = post.host
@@ -2072,10 +2085,7 @@ internal class HomeScreenViewModel(
     }
 
     private data class ViewModelState(
-        /**
-         * 設定した言語。まだ読めていないか、決まっていなければ null
-         */
-        val viewerLanguage: LanguageTag?,
+        val translation: PostTranslationState,
         val selectedTab: HomeScreenUiState.Tab,
         /**
          * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null

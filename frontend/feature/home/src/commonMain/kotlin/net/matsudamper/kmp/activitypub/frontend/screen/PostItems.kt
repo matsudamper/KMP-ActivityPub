@@ -13,7 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 /**
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
- * @param viewerLanguage 設定した言語。分からなければ null
+ * @param onToggleTranslation 翻訳のボタンを押したとき。訳す本文と、その言語を渡す
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param quote [createPostItemQuote] で作る。引用でなければ null
  * @param replyLabel [createPostItemReplyLabel] で作る。「〜へのリプライ」の行を出さなければ null
@@ -41,7 +41,7 @@ internal fun createPostItemUiState(
     displayNameEmojis: List<UserCustomEmoji>,
     acct: String,
     body: UserPostBody,
-    viewerLanguage: LanguageTag?,
+    translation: PostTranslationState,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
     quote: PostItemUiState.Quote?,
     sensitiveImagesBlurred: Boolean,
@@ -54,6 +54,7 @@ internal fun createPostItemUiState(
     onOpenImage: (urls: List<String>, index: Int) -> Unit,
     onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
     onShare: (url: String) -> Unit,
+    onToggleTranslation: (sourceText: String, sourceLanguageTag: String) -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
     onReply: () -> Unit,
@@ -65,6 +66,7 @@ internal fun createPostItemUiState(
 ): PostItemUiState {
     val shareUrl = body.shareUrl
     val imageUrls = body.images.map { it.url }
+    val translated = translation.progressBySourceText[body.content] as? PostTranslationProgress.Translated
     return PostItemUiState(
         replyLabel = replyLabel,
         actorLabel = actorLabel?.let { label ->
@@ -96,8 +98,9 @@ internal fun createPostItemUiState(
         displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,
         body = createPostBodyText(
-            content = body.content,
-            mentions = body.mentions,
+            content = translated?.text ?: body.content,
+            // 訳すと文字の位置がずれるので、メンションは原文のときだけ押せる
+            mentions = if (translated == null) body.mentions else listOf(),
             emojis = body.emojis,
             onOpenUrl = onOpenUrl,
             onOpenProfile = onOpenProfile,
@@ -201,14 +204,7 @@ internal fun createPostItemUiState(
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
         },
-        translateButtonListener = if (isWrittenInOtherLanguage(postLanguageTag = body.language, viewerLanguage = viewerLanguage)) {
-            object : PostItemUiState.TranslateButtonListener {
-                // 翻訳はまだ作っていない
-                override fun onClick() = Unit
-            }
-        } else {
-            null
-        },
+        translateButton = createTranslateButton(body = body, translation = translation, onToggleTranslation = onToggleTranslation),
         menuItems = createShareMenuItems(shareUrl = shareUrl, onShare = onShare) + menuItems,
         postListener = when (postTapAction) {
             is PostTapAction.OpenPostDetail -> object : PostItemUiState.PostListener {
@@ -353,11 +349,35 @@ private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Un
     }
 }
 
+private fun createTranslateButton(
+    body: UserPostBody,
+    translation: PostTranslationState,
+    onToggleTranslation: (sourceText: String, sourceLanguageTag: String) -> Unit,
+): PostItemUiState.TranslateButton? {
+    val sourceLanguageTag = body.language
+    if (!translation.translatorSupported || sourceLanguageTag == null) return null
+    if (!isWrittenInOtherLanguage(postLanguageTag = sourceLanguageTag, viewerLanguage = translation.viewerLanguage)) return null
+    val progress = translation.progressBySourceText[body.content]
+    return PostItemUiState.TranslateButton(
+        text = when (progress) {
+            null -> "翻訳"
+            PostTranslationProgress.Translating -> "翻訳中"
+            is PostTranslationProgress.Translated -> "原文を表示"
+        },
+        enabled = progress != PostTranslationProgress.Translating,
+        listener = object : PostItemUiState.TranslateButtonListener {
+            override fun onClick() {
+                onToggleTranslation(body.content, sourceLanguageTag)
+            }
+        },
+    )
+}
+
 /**
- * 地域や文字体系が違っても、言語が同じなら同じとみなす。どちらかの言語が分からなければ、違うとは言えないので false
+ * 地域や文字体系が違っても、言語が同じなら同じとみなす。設定した言語が分からなければ、違うとは言えないので false
  */
-private fun isWrittenInOtherLanguage(postLanguageTag: String?, viewerLanguage: LanguageTag?): Boolean {
-    if (postLanguageTag == null || viewerLanguage == null) return false
+private fun isWrittenInOtherLanguage(postLanguageTag: String, viewerLanguage: LanguageTag?): Boolean {
+    if (viewerLanguage == null) return false
     return !primaryLanguageOf(postLanguageTag).equals(primaryLanguageOf(viewerLanguage.value), ignoreCase = true)
 }
 
