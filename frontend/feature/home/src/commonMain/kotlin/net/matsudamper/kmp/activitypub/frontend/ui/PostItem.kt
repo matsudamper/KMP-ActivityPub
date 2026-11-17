@@ -38,6 +38,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -235,11 +236,10 @@ internal fun PostItem(
         }
         val translateButton = uiState.translateButton
         if (translateButton != null) {
-            TextButton(
+            OutlinedButton(
                 onClick = translateButton.listener::onClick,
                 enabled = translateButton.enabled,
                 modifier = Modifier.align(Alignment.Start),
-                contentPadding = ActionButtonContentPadding,
             ) {
                 Text(text = translateButton.text, style = sizes.secondaryTextStyle)
             }
