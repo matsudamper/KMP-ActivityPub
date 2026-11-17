@@ -78,6 +78,19 @@ private fun PostContentReplyPreview() {
     }
 }
 
+/** ソフトウェアキーボードで高さが詰まったときに、投稿ボタンまでスクロールで届くことを確かめる */
+@Preview(heightDp = 240)
+@Composable
+private fun PostContentShortHeightPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Back,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 @Preview
 @Composable
 private fun PostContentImagesPreview() {
