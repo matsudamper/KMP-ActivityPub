@@ -183,7 +183,7 @@ internal fun createPostItemUiState(
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
         },
-        menuItems = menuItems,
+        menuItems = createShareMenuItems(shareUrl = shareUrl, onShare = onShare) + menuItems,
         postListener = when (postTapAction) {
             is PostTapAction.OpenPostDetail -> object : PostItemUiState.PostListener {
                 override fun onClick() {
@@ -207,6 +207,20 @@ internal fun createPostItemUiState(
                 onVisible()
             }
         },
+    )
+}
+
+private fun createShareMenuItems(shareUrl: String?, onShare: (url: String) -> Unit): List<PostItemUiState.MenuItem> {
+    if (shareUrl == null) return listOf()
+    return listOf(
+        PostItemUiState.MenuItem(
+            label = "共有",
+            listener = object : PostItemUiState.MenuItemListener {
+                override fun onClick() {
+                    onShare(shareUrl)
+                }
+            },
+        ),
     )
 }
 
