@@ -36,6 +36,25 @@ class PostTranslationsTest {
     }
 
     @Test
+    fun changingTheViewerLanguageDiscardsTranslations() = runTest {
+        val languageSettingStore = FakeLanguageSettingStore()
+        val translations = PostTranslations(
+            translator = FakeTextTranslator(translatedBySourceText = mapOf("hello" to "こんにちは", "bye" to "さようなら")),
+            languageSettingStore = languageSettingStore,
+            coroutineScope = backgroundScope,
+            onFailed = {},
+        )
+        runCurrent()
+        translations.toggle(sourceText = "hello", sourceLanguageTag = "en")
+        runCurrent()
+        translations.toggle(sourceText = "bye", sourceLanguageTag = "en")
+
+        languageSettingStore.languageSetting.value = LanguageSetting(languageTag = LanguageTag.parse("en"), translateButtonVisible = true)
+        runCurrent()
+        assertEquals(mapOf(), translations.stateFlow.value.progressBySourceText)
+    }
+
+    @Test
     fun failedTranslationKeepsTheOriginalAndReports() = runTest {
         var failedCount = 0
         val translations = PostTranslations(
@@ -60,8 +79,9 @@ private class FakeTextTranslator(private val translatedBySourceText: Map<String,
 }
 
 private class FakeLanguageSettingStore : LanguageSettingStore {
-    override val languageSettingFlow: Flow<LanguageSetting> =
-        MutableStateFlow(LanguageSetting(languageTag = LanguageTag.parse("ja"), translateButtonVisible = true))
+    val languageSetting = MutableStateFlow(LanguageSetting(languageTag = LanguageTag.parse("ja"), translateButtonVisible = true))
+
+    override val languageSettingFlow: Flow<LanguageSetting> = languageSetting
 
     override suspend fun save(languageTag: LanguageTag, translateButtonVisible: Boolean): Boolean = true
 }

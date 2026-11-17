@@ -29,7 +29,14 @@ internal class PostTranslations(
     init {
         coroutineScope.launch {
             languageSettingStore.languageSettingFlow.collect { setting ->
-                mutableStateFlow.update { it.copy(viewerLanguage = setting.languageTag) }
+                mutableStateFlow.update { state ->
+                    if (state.viewerLanguage == setting.languageTag) {
+                        state
+                    } else {
+                        // 前の言語への訳を残すと、ボタンが消えて原文に戻せなくなることがある
+                        state.copy(viewerLanguage = setting.languageTag, progressBySourceText = mapOf())
+                    }
+                }
             }
         }
     }
@@ -49,6 +56,8 @@ internal class PostTranslations(
                 updateProgress { it + (sourceText to PostTranslationProgress.Translating) }
                 coroutineScope.launch {
                     val translated = translator.translate(text = sourceText, sourceLanguageTag = sourceLanguageTag, targetLanguage = targetLanguage)
+                    // 訳している間に設定の言語が変わったら、前の言語への訳なので捨てる
+                    if (mutableStateFlow.value.viewerLanguage != targetLanguage) return@launch
                     if (translated == null) {
                         updateProgress { it - sourceText }
                         onFailed()
