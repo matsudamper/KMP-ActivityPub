@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockAccountResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockServerResult
@@ -69,12 +71,14 @@ internal class UserProfileScreenViewModel(
     private val api: UserApi,
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
     private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
+    private val languageSettingStore: LanguageSettingStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
+                viewerLanguage = null,
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 quotes = mapOf(),
@@ -209,6 +213,11 @@ internal class UserProfileScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            languageSettingStore.languageSettingFlow.collect { setting ->
+                viewModelStateFlow.update { it.copy(viewerLanguage = setting.languageTag) }
+            }
+        }
         viewModelScope.launch {
             // ほかの画面で消した投稿もここで外す
             api.deletedNoteIds.collect { noteId ->
@@ -746,6 +755,7 @@ internal class UserProfileScreenViewModel(
                         onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
                     ),
                     sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
+                    viewerLanguage = viewModelState.viewerLanguage,
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
                     authorTapAction = if (boostedNoteAuthor == null) {
                         AuthorTapAction.AlreadyOnAuthorProfile
@@ -832,6 +842,7 @@ internal class UserProfileScreenViewModel(
                 onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
             ),
             sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
+            viewerLanguage = viewModelState.viewerLanguage,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
@@ -905,6 +916,10 @@ internal class UserProfileScreenViewModel(
     }
 
     private data class ViewModelState(
+        /**
+         * 設定した言語。まだ読めていないか、決まっていなければ null
+         */
+        val viewerLanguage: LanguageTag?,
         val profile: ProfileState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         /**

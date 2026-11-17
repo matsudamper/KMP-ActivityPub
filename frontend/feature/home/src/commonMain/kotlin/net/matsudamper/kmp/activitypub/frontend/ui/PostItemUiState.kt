@@ -78,7 +78,7 @@ data class PostItemUiState(
      */
     val authorListener: AuthorListener?,
     /**
-     * 投稿の言語が日本語以外と分かっているときだけ。それ以外は null で、翻訳のボタンを出さない
+     * 投稿の言語が設定した言語と違うと分かっているときだけ。それ以外は null で、翻訳のボタンを出さない
      */
     val translateButtonListener: TranslateButtonListener?,
     /**

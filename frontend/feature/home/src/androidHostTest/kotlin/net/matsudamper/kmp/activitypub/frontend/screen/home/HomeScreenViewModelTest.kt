@@ -39,6 +39,9 @@ import com.apollographql.apollo.network.NetworkTransport
 import com.apollographql.apollo.network.http.HttpEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSetting
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
@@ -563,6 +566,7 @@ class HomeScreenViewModelTest {
             CreateOpenOriginalMenuItemsUseCase(),
             columnSettingStore,
             FakeColumnWidthStore(),
+            FakeLanguageSettingStore(),
         )
         try {
             block(viewModel, engine)
@@ -626,6 +630,12 @@ class HomeScreenViewModelTest {
     private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()
 
     private fun HomeScreenUiState.mainColumnFooter(): HomeScreenUiState.TimelineFooter? = timelineColumns.firstOrNull()?.footer
+
+    private class FakeLanguageSettingStore : LanguageSettingStore {
+        override val languageSettingFlow: Flow<LanguageSetting> = emptyFlow()
+
+        override suspend fun save(languageTag: LanguageTag, translateButtonVisible: Boolean): Boolean = true
+    }
 
     private class FakeTimelineColumnSettingStore(initialColumns: List<TimelineColumnSetting>) : TimelineColumnSettingStore {
         val columns = MutableStateFlow(initialColumns)

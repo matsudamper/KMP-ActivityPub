@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLikeState
@@ -65,12 +67,14 @@ internal class PostDetailScreenViewModel(
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
     private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
     private val postNoteSubmitter: PostNoteSubmitter,
+    private val languageSettingStore: LanguageSettingStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
+                viewerLanguage = null,
                 post = PostState.Loading,
                 linkPreviews = listOf(),
                 blurToggledImageUrls = setOf(),
@@ -181,6 +185,11 @@ internal class PostDetailScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            languageSettingStore.languageSettingFlow.collect { setting ->
+                viewModelStateFlow.update { it.copy(viewerLanguage = setting.languageTag) }
+            }
+        }
         viewModelScope.launch {
             // ほかの画面で変えた固定もここで反映する
             api.pinChanges.collect { change ->
@@ -723,6 +732,7 @@ internal class PostDetailScreenViewModel(
             linkPreviews = listOf(),
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
+            viewerLanguage = viewModelState.viewerLanguage,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val username = if (host == null) post.username else "${post.username}@$host"
@@ -786,6 +796,7 @@ internal class PostDetailScreenViewModel(
             linkPreviews = viewModelState.linkPreviews,
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
+            viewerLanguage = viewModelState.viewerLanguage,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val username = if (host == null) post.username else "${post.username}@$host"
@@ -848,6 +859,10 @@ internal class PostDetailScreenViewModel(
     }
 
     private data class ViewModelState(
+        /**
+         * 設定した言語。まだ読めていないか、決まっていなければ null
+         */
+        val viewerLanguage: LanguageTag?,
         val post: PostState,
         val linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
         val blurToggledImageUrls: Set<String>,

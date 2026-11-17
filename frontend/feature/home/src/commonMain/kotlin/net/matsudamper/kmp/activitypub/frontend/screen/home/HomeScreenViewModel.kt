@@ -26,6 +26,8 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQue
 import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.logic.CursorPagingModel
 import net.matsudamper.kmp.activitypub.frontend.logic.UpdateOperationResponseResult
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
@@ -107,12 +109,14 @@ internal class HomeScreenViewModel(
     private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
     private val timelineColumnSettingStore: TimelineColumnSettingStore,
     private val columnWidthStore: ColumnWidthStore,
+    private val languageSettingStore: LanguageSettingStore,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
+                viewerLanguage = null,
                 selectedTab = selectedTab,
                 openedColumn = null,
                 columnWidths = mapOf(),
@@ -527,6 +531,11 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             columnWidthStore.widthsFlow.collect { widths ->
                 viewModelStateFlow.update { it.copy(columnWidths = widths) }
+            }
+        }
+        viewModelScope.launch {
+            languageSettingStore.languageSettingFlow.collect { setting ->
+                viewModelStateFlow.update { it.copy(viewerLanguage = setting.languageTag) }
             }
         }
         viewModelScope.launch {
@@ -1548,6 +1557,7 @@ internal class HomeScreenViewModel(
                                 onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
                             ),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+                            viewerLanguage = viewModelState.viewerLanguage,
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = if (boostedNoteAuthor == null) {
                                 AuthorTapAction.AlreadyOnAuthorProfile
@@ -1639,6 +1649,7 @@ internal class HomeScreenViewModel(
             linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+            viewerLanguage = viewModelState.viewerLanguage,
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
@@ -1874,6 +1885,7 @@ internal class HomeScreenViewModel(
             linkPreviews = viewModelState.linkPreviews[post.id].orEmpty(),
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
+            viewerLanguage = viewModelState.viewerLanguage,
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val host = post.host
@@ -2060,6 +2072,10 @@ internal class HomeScreenViewModel(
     }
 
     private data class ViewModelState(
+        /**
+         * 設定した言語。まだ読めていないか、決まっていなければ null
+         */
+        val viewerLanguage: LanguageTag?,
         val selectedTab: HomeScreenUiState.Tab,
         /**
          * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null

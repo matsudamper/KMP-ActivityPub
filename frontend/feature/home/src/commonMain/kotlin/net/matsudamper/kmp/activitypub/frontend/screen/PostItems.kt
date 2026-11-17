@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen
 
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
@@ -12,6 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 /**
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
+ * @param viewerLanguage 設定した言語。分からなければ null
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param quote [createPostItemQuote] で作る。引用でなければ null
  * @param replyLabel [createPostItemReplyLabel] で作る。「〜へのリプライ」の行を出さなければ null
@@ -39,6 +41,7 @@ internal fun createPostItemUiState(
     displayNameEmojis: List<UserCustomEmoji>,
     acct: String,
     body: UserPostBody,
+    viewerLanguage: LanguageTag?,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
     quote: PostItemUiState.Quote?,
     sensitiveImagesBlurred: Boolean,
@@ -198,7 +201,7 @@ internal fun createPostItemUiState(
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
         },
-        translateButtonListener = if (isOtherThanJapanese(body.language)) {
+        translateButtonListener = if (isWrittenInOtherLanguage(postLanguageTag = body.language, viewerLanguage = viewerLanguage)) {
             object : PostItemUiState.TranslateButtonListener {
                 // 翻訳はまだ作っていない
                 override fun onClick() = Unit
@@ -351,9 +354,11 @@ private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Un
 }
 
 /**
- * 言語が分からない投稿は日本語かもしれないので false
+ * 地域や文字体系が違っても、言語が同じなら同じとみなす。どちらかの言語が分からなければ、違うとは言えないので false
  */
-private fun isOtherThanJapanese(languageTag: String?): Boolean {
-    if (languageTag == null) return false
-    return !languageTag.substringBefore('-').equals("ja", ignoreCase = true)
+private fun isWrittenInOtherLanguage(postLanguageTag: String?, viewerLanguage: LanguageTag?): Boolean {
+    if (postLanguageTag == null || viewerLanguage == null) return false
+    return !primaryLanguageOf(postLanguageTag).equals(primaryLanguageOf(viewerLanguage.value), ignoreCase = true)
 }
+
+private fun primaryLanguageOf(languageTag: String): String = languageTag.substringBefore('-')
