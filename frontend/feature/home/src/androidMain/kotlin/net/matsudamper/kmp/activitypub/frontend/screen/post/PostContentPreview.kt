@@ -22,7 +22,7 @@ private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
             navigationIcon = PostNavigationIcon.Back,
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null),
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -43,6 +43,34 @@ private fun PostContentQuotePreview() {
                     acct = "@bob@remote.example",
                     body = createPostBodyText(content = "引用する投稿です", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                     listener = null,
+                ),
+                replyTarget = null,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PostContentReplyPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Close,
+            uiState = previewUiState(
+                images = listOf(),
+                addImageLoadingVisible = false,
+                quote = null,
+                replyTarget = PostScreenUiState.ReplyTarget(
+                    post = PostItemUiState.Quote.Loaded(
+                        iconUrl = null,
+                        displayName = createTextWithEmojis(text = "Bob", emojis = listOf()),
+                        acct = "@bob@remote.example",
+                        body = createPostBodyText(content = "返信する投稿です", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+                        listener = null,
+                    ),
+                    removeButtonEnabled = true,
+                    listener = AndroidPreviewReplyTargetListener,
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
@@ -66,6 +94,7 @@ private fun PostContentImagesPreview() {
                 },
                 addImageLoadingVisible = true,
                 quote = null,
+                replyTarget = null,
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -76,6 +105,7 @@ private fun previewUiState(
     images: List<PostScreenUiState.Image>,
     addImageLoadingVisible: Boolean,
     quote: PostItemUiState.Quote?,
+    replyTarget: PostScreenUiState.ReplyTarget?,
 ): PostScreenUiState =
     PostScreenUiState(
         body = "Kotlin 2.4 がリリースされました",
@@ -86,6 +116,7 @@ private fun previewUiState(
         postButtonEnabled = true,
         images = images,
         quote = quote,
+        replyTarget = replyTarget,
         addImageButtonEnabled = addImageLoadingVisible.not(),
         addImageLoadingVisible = addImageLoadingVisible,
         addEmojiButtonEnabled = true,
@@ -104,6 +135,10 @@ private fun PostPreviewTheme(content: @Composable () -> Unit) {
     }
 }
 
+private object AndroidPreviewReplyTargetListener : PostScreenUiState.ReplyTargetListener {
+    override fun onClickRemove() = Unit
+}
+
 private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
 
@@ -114,6 +149,8 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onImagePicked(file: PickedImageFile) = Unit
 
     override fun onClickAddEmoji() = Unit
+
+    override fun onReplyRequested(postId: String) = Unit
 
     override fun onClickPost() = Unit
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,11 +46,21 @@ internal class PostScreenViewModel(
                 emojiPickerRequestKey = null,
                 bodyInsertion = null,
                 quote = when (target) {
-                    PostScreenTarget.NewNote -> null
+                    PostScreenTarget.NewNote, is PostScreenTarget.Reply -> null
                     is PostScreenTarget.Quote -> QuoteLoad.Loading
                 },
+                replyTarget = initialReplyToPostId()?.let { postId -> ReplyTarget(postId = postId, load = QuoteLoad.Loading) },
             ),
         )
+    private var replyTargetJob: Job? = null
+
+    private val replyTargetListener =
+        object : PostScreenUiState.ReplyTargetListener {
+            override fun onClickRemove() {
+                if (viewModelStateFlow.value.submitting) return
+                changeReplyTarget(postId = null)
+            }
+        }
 
     private val emojiPickerListener =
         object : ReactionPickerDialogUiState.Listener {
@@ -99,6 +110,12 @@ internal class PostScreenViewModel(
                         addImage(file)
                     }
 
+                    override fun onReplyRequested(postId: String) {
+                        // 送信中に返信先を替えると、送り終えたときに新しい返信先まで消してしまう
+                        if (viewModelStateFlow.value.submitting) return
+                        changeReplyTarget(postId = postId)
+                    }
+
                     override fun onClickPost() {
                         post()
                     }
@@ -141,6 +158,48 @@ internal class PostScreenViewModel(
                     -> QuoteLoad.Unavailable
                 }
                 viewModelStateFlow.update { it.copy(quote = quote) }
+            }
+        }
+        val replyTarget = viewModelStateFlow.value.replyTarget
+        if (replyTarget != null) loadReplyTarget(replyTarget.postId)
+    }
+
+    /**
+     * 外した後に画面が作り直されても、開いたときの返信先に戻さない
+     */
+    private fun initialReplyToPostId(): String? =
+        if (savedStateHandle.contains(REPLY_TO_POST_ID_KEY)) {
+            savedStateHandle.get<String>(REPLY_TO_POST_ID_KEY)?.takeIf { it.isNotEmpty() }
+        } else {
+            (target as? PostScreenTarget.Reply)?.postId
+        }
+
+    /**
+     * @param postId 返信をやめるなら null
+     */
+    private fun changeReplyTarget(postId: String?) {
+        if (postId == viewModelStateFlow.value.replyTarget?.postId) return
+        savedStateHandle[REPLY_TO_POST_ID_KEY] = postId.orEmpty()
+        renewRequestId()
+        replyTargetJob?.cancel()
+        viewModelStateFlow.update { state ->
+            state.copy(replyTarget = postId?.let { ReplyTarget(postId = it, load = QuoteLoad.Loading) }, error = null)
+        }
+        if (postId != null) loadReplyTarget(postId)
+    }
+
+    private fun loadReplyTarget(postId: String) {
+        replyTargetJob = viewModelScope.launch {
+            val load = when (val result = api.postDetail(postId)) {
+                is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
+
+                UserPostDetailResult.NotFound,
+                UserPostDetailResult.NotLoggedIn,
+                is UserPostDetailResult.Failure,
+                -> QuoteLoad.Unavailable
+            }
+            viewModelStateFlow.update { state ->
+                if (state.replyTarget?.postId == postId) state.copy(replyTarget = state.replyTarget.copy(load = load)) else state
             }
         }
     }
@@ -219,7 +278,8 @@ internal class PostScreenViewModel(
                             body = state.body,
                             requestId = requestId(),
                             images = state.images.map { it.image },
-                            replyToPostId = null,
+                            // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと返信できない
+                            replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
                             quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
                         )
@@ -236,8 +296,9 @@ internal class PostScreenViewModel(
                 return@launch
             }
             savedStateHandle[BODY_KEY] = ""
+            savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
             renewRequestId()
-            viewModelStateFlow.update { it.copy(body = "", images = listOf()) }
+            viewModelStateFlow.update { it.copy(body = "", images = listOf(), replyTarget = null) }
             state.images.forEach { it.image.release() }
             events.send { it.navigateBack() }
         }
@@ -311,6 +372,14 @@ internal class PostScreenViewModel(
                 // 書いている途中の本文を残すため、引用先の中身へは移らない
                 createQuote(load = load, onOpenPostDetail = null, onOpenUrl = {}, onOpenProfile = {})
             },
+            replyTarget = viewModelState.replyTarget?.let { replyTarget ->
+                PostScreenUiState.ReplyTarget(
+                    // 書いている途中の本文を残すため、返信先の中身へは移らない
+                    post = createQuote(load = replyTarget.load, onOpenPostDetail = null, onOpenUrl = {}, onOpenProfile = {}),
+                    removeButtonEnabled = viewModelState.submitting.not(),
+                    listener = replyTargetListener,
+                )
+            },
             addImageButtonEnabled = viewModelState.imageAddable(),
             addImageLoadingVisible = viewModelState.loadingImage,
             addEmojiButtonEnabled = viewModelState.submitting.not(),
@@ -326,12 +395,17 @@ internal class PostScreenViewModel(
         )
 
     private fun ViewModelState.postable(): Boolean =
-        submitting.not() && loadingImage.not() && quotePostable() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
+        submitting.not() && loadingImage.not() && quotePostable() && replyPostable() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
 
     /**
      * 引用先を読み込めるまでは、どの投稿を引用するか決まらない
      */
     private fun ViewModelState.quotePostable(): Boolean = quote == null || quote is QuoteLoad.Loaded
+
+    /**
+     * 返信先を読み込めるまでは、どの投稿に返信するか決まらない
+     */
+    private fun ViewModelState.replyPostable(): Boolean = replyTarget == null || replyTarget.load is QuoteLoad.Loaded
 
     private fun ViewModelState.imageAddable(): Boolean = submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
 
@@ -353,6 +427,18 @@ internal class PostScreenViewModel(
          * 引用でなければ null
          */
         val quote: QuoteLoad?,
+        /**
+         * 返信でなければ null
+         */
+        val replyTarget: ReplyTarget?,
+    )
+
+    /**
+     * @param postId 返信先に選んだホームタイムラインの投稿の id
+     */
+    private data class ReplyTarget(
+        val postId: String,
+        val load: QuoteLoad,
     )
 
     /**
@@ -393,6 +479,7 @@ internal class PostScreenViewModel(
 
 private const val BODY_KEY = "body"
 private const val REQUEST_ID_KEY = "requestId"
+private const val REPLY_TO_POST_ID_KEY = "replyToPostId"
 
 /**
  * サーバーの 1 投稿あたりの上限

@@ -63,6 +63,10 @@ internal fun SettingsScreen(
                     navigator.navigate(Screen.Security)
                 }
 
+                override fun navigateToLanguageSettings() {
+                    navigator.navigate(Screen.LanguageSettings)
+                }
+
                 override fun navigateToFollowingGroups() {
                     navigator.navigate(Screen.FollowingGroups)
                 }
@@ -139,6 +143,8 @@ internal fun SettingsContent(
                 RadioOptionSection(title = "リンクの開き方", options = uiState.linkOpenOptions)
                 HorizontalDivider()
             }
+            LanguageItem(listener = uiState.listener)
+            HorizontalDivider()
             FollowingGroupsItem(listener = uiState.listener)
             HorizontalDivider()
             BlockedServersItem(listener = uiState.listener)
@@ -203,6 +209,30 @@ private fun RadioOptionSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LanguageItem(
+    listener: SettingsScreenUiState.Listener,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = listener::onClickLanguage)
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "言語",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "言語と翻訳ボタンの表示",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

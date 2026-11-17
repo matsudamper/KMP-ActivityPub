@@ -741,6 +741,7 @@ internal class PostDetailScreenViewModel(
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
             onToggleLike = { toggleLike(post) },
             onToggleBoost = { toggleBoost(post) },
+            onReply = { viewModelScope.launch { events.send { it.navigateToReplyPost(post.id) } } },
             onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.id) } } },
             onOpenReactionPicker = { openReactionPicker(post) },
             onClickStamp = { stamp ->
@@ -802,6 +803,7 @@ internal class PostDetailScreenViewModel(
             onShare = { url -> viewModelScope.launch { events.send { it.shareUrl(url) } } },
             onToggleLike = { toggleLike(post) },
             onToggleBoost = { toggleBoost(post) },
+            onReply = { viewModelScope.launch { events.send { it.navigateToReplyPost(post.id) } } },
             onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.id) } } },
             onOpenReactionPicker = { openReactionPicker(post) },
             onClickStamp = { stamp ->
@@ -831,6 +833,8 @@ internal class PostDetailScreenViewModel(
         fun navigateToPostDetail(postId: String)
 
         fun navigateToQuotePost(postId: String)
+
+        fun navigateToReplyPost(postId: String)
 
         fun openUrl(url: String)
 

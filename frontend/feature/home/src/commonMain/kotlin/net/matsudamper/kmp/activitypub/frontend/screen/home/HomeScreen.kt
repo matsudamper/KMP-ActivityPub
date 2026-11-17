@@ -58,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -118,6 +119,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImageInput
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
@@ -160,6 +162,8 @@ internal fun HomeScreen(
         onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
     )
     val tabListStates = rememberHomeTabListStates()
+    // 投稿カラムはカラムを並べるレイアウトにしか無い。無い間は null
+    var postColumnListener by remember { mutableStateOf<PostScreenUiState.Listener?>(null) }
 
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, tabListStates) {
         viewModel.eventHandler.collect(
@@ -223,6 +227,16 @@ internal fun HomeScreen(
                 override fun navigateToQuotePost(postId: String) {
                     navigator.navigate(Screen.QuotePost(postId = postId))
                 }
+
+                override fun openReply(postId: String) {
+                    val postColumn = postColumnListener
+                    if (postColumn == null) {
+                        navigator.navigate(Screen.ReplyPost(postId = postId))
+                    } else {
+                        postColumn.onReplyRequested(postId)
+                        uiState.listener.onReplyOpenedInPostColumn()
+                    }
+                }
             },
         )
     }
@@ -243,6 +257,10 @@ internal fun HomeScreen(
                 onClose = uiState.listener::onPostColumnFinished,
                 snackbarHostState = snackbarHostState,
             )
+            DisposableEffect(postUiState.listener) {
+                postColumnListener = postUiState.listener
+                onDispose { postColumnListener = null }
+            }
             val postColumnSnackbarHostState = remember { SnackbarHostState() }
             HomeColumnsContent(
                 uiState = uiState,

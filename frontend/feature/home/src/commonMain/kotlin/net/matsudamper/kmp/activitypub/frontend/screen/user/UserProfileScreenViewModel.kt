@@ -775,6 +775,7 @@ internal class UserProfileScreenViewModel(
                         val boostedByMe = post.body.boostedByMe
                         if (reactionPostId != null && boostedByMe != null) toggleBoost(postId = reactionPostId, boostedByMe = boostedByMe)
                     },
+                    onReply = { viewModelScope.launch { events.send { it.navigateToReplyPost(post.postId) } } },
                     onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.postId) } } },
                     onOpenReactionPicker = {
                         val reactionPostId = post.reactionPostId
@@ -846,6 +847,7 @@ internal class UserProfileScreenViewModel(
                 val boostedByMe = post.body.boostedByMe
                 if (boostedByMe != null) toggleBoost(postId = post.reactionPostId, boostedByMe = boostedByMe)
             },
+            onReply = { viewModelScope.launch { events.send { it.navigateToReplyPost(post.id) } } },
             onQuote = { viewModelScope.launch { events.send { it.navigateToQuotePost(post.id) } } },
             onOpenReactionPicker = { openReactionPicker(reactionPostId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
@@ -894,6 +896,8 @@ internal class UserProfileScreenViewModel(
         fun navigateToPostDetail(postId: String)
 
         fun navigateToQuotePost(postId: String)
+
+        fun navigateToReplyPost(postId: String)
 
         fun navigateToUserProfile(username: String)
     }
