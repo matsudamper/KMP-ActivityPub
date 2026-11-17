@@ -48,6 +48,26 @@ class AccountRepositoryTest {
     }
 
     @Test
+    fun `最初に登録したアカウントの名前を引く`() {
+        TestSchema.applyTo(dbPath)
+        insertAccountRow("user2")
+        insertAccountRow("user1")
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertEquals("user2", repositories.accountRepository.findOldestUsername())
+        }
+    }
+
+    @Test
+    fun `アカウントが無ければ最初のアカウントの名前は無い`() {
+        TestSchema.applyTo(dbPath)
+
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            assertNull(repositories.accountRepository.findOldestUsername())
+        }
+    }
+
+    @Test
     fun `登録したアカウントの数を数える`() {
         TestSchema.applyTo(dbPath)
         insertAccountRow("user1")

@@ -40,6 +40,10 @@ internal class SqliteAccountRepository(
             .fetchOne(0, Long::class.java) ?: 0L
     }
 
+    override fun findOldestUsername(): String? = jooq.withConnection { dsl ->
+        dsl.select(ACCOUNTS.USERNAME).from(ACCOUNTS).orderBy(ACCOUNTS.ID).limit(1).fetchOne(ACCOUNTS.USERNAME)
+    }
+
     override fun findByUsername(username: String): Account? = jooq.withConnection { dsl ->
         dsl
             .select(ACCOUNTS.ID, ACCOUNTS.USERNAME, ACCOUNTS.CREATED_AT, ACCOUNTS.DISPLAY_NAME, ACCOUNTS.ICON_PATH, ACCOUNTS.HEADER_PATH)

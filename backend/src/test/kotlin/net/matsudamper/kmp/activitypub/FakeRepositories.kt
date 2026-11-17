@@ -231,6 +231,8 @@ internal class FakeAccountRepository(
 
     override fun countAll(): Long = rows.size.toLong()
 
+    override fun findOldestUsername(): String? = rows.firstOrNull()?.username
+
     override fun findByUsername(username: String): Account? =
         rows.firstOrNull { it.username.lowercase() == username.lowercase() }?.toAccount()
 
