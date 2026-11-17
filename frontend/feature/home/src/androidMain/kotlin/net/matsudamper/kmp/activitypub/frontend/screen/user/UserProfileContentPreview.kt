@@ -72,6 +72,7 @@ private fun UserProfileContentPreview() {
                                 ),
                                 images = listOf(),
                                 replyCountText = "2",
+                                replyListener = null,
                                 quote = null,
                                 favouriteCountText = "12",
                                 boostCountText = "4",
@@ -80,7 +81,7 @@ private fun UserProfileContentPreview() {
                                 reactionButton = null,
                                 stamps = listOf(PostItemUiState.Stamp(emoji = "❤️", imageUrl = null, countText = "4", selected = false, listener = null)),
                                 authorListener = null,
-                                menuItems = listOf(),
+                                menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                                 postListener = null,
                                 shareListener = null,
                                 listener = AndroidPreviewPostItemListener,
@@ -107,6 +108,7 @@ private fun UserProfileContentPreview() {
                                 linkPreviews = listOf(),
                                 images = listOf(),
                                 replyCountText = null,
+                                replyListener = null,
                                 quote = null,
                                 favouriteCountText = null,
                                 boostCountText = null,
@@ -115,7 +117,7 @@ private fun UserProfileContentPreview() {
                                 reactionButton = null,
                                 stamps = listOf(),
                                 authorListener = null,
-                                menuItems = listOf(),
+                                menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                                 postListener = null,
                                 shareListener = null,
                                 listener = AndroidPreviewPostItemListener,
@@ -172,6 +174,7 @@ private fun UserProfileContentLikesPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
+                            replyListener = null,
                             quote = null,
                             favouriteCountText = null,
                             boostCountText = null,
@@ -180,7 +183,7 @@ private fun UserProfileContentLikesPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
-                            menuItems = listOf(),
+                            menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = null,
                             listener = AndroidPreviewPostItemListener,
@@ -200,6 +203,7 @@ private fun UserProfileContentLikesPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
+                            replyListener = null,
                             quote = null,
                             favouriteCountText = "3",
                             boostCountText = null,
@@ -208,7 +212,7 @@ private fun UserProfileContentLikesPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
-                            menuItems = listOf(),
+                            menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = null,
                             listener = AndroidPreviewPostItemListener,
@@ -487,5 +491,9 @@ private object AndroidPreviewProfileLinkListener : ProfileLinkUiState.Listener {
 }
 
 private object AndroidPreviewFavouriteButtonListener : PostItemUiState.FavouriteButtonListener {
+    override fun onClick() = Unit
+}
+
+private object AndroidPreviewMenuItemListener : PostItemUiState.MenuItemListener {
     override fun onClick() = Unit
 }

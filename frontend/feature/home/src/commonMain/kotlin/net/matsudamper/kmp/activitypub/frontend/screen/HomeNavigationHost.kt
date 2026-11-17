@@ -44,6 +44,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.followlist.FollowListScre
 import net.matsudamper.kmp.activitypub.frontend.screen.home.COLUMNS_LAYOUT_MIN_WIDTH
 import net.matsudamper.kmp.activitypub.frontend.screen.home.HomeScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.image.ImageViewerScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.languagesettings.LanguageSettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.LoginScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.login.ServerSettingUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.logingate.LoginCheckFailedContent
@@ -302,12 +303,25 @@ private fun ScreenContent(
             )
         }
 
+        is Screen.ReplyPost -> {
+            PostScreen(
+                target = PostScreenTarget.Reply(postId = screen.postId),
+                navigationIcon = PostNavigationIcon.Close,
+                onNavigateBack = navigator::back,
+                onClose = navigator::closeToHome,
+            )
+        }
+
         Screen.Settings -> {
             SettingsScreen(navigator = navigator)
         }
 
         Screen.Security -> {
             SecurityScreen(navigator = navigator)
+        }
+
+        Screen.LanguageSettings -> {
+            LanguageSettingsScreen(navigator = navigator)
         }
 
         Screen.FollowingGroups -> {

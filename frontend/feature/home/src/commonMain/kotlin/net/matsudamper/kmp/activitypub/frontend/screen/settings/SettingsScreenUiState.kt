@@ -25,6 +25,8 @@ data class SettingsScreenUiState(
     interface Listener {
         fun onClickSecurity()
 
+        fun onClickLanguage()
+
         fun onClickFollowingGroups()
 
         fun onClickBlockedServers()

@@ -42,6 +42,10 @@ data class PostItemUiState(
      */
     val replyCountText: String?,
     /**
+     * 消された投稿は null で、リプライのアイコンを押せなくする
+     */
+    val replyListener: ReplyListener?,
+    /**
      * 引用でなければ null
      */
     val quote: Quote?,
@@ -233,6 +237,11 @@ data class PostItemUiState(
 
     @Immutable
     interface StampListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface ReplyListener {
         fun onClick()
     }
 

@@ -120,6 +120,10 @@ internal fun UserProfileScreen(
                 navigator.navigate(Screen.QuotePost(postId = postId))
             }
 
+            override fun navigateToReplyPost(postId: String) {
+                navigator.navigate(Screen.ReplyPost(postId = postId))
+            }
+
             override fun navigateToUserProfile(username: String) {
                 navigator.navigate(Screen.UserProfile(username = username))
             }
@@ -214,7 +218,7 @@ internal fun UserProfileContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = true)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
@@ -242,7 +246,7 @@ internal fun UserProfileContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = true)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }

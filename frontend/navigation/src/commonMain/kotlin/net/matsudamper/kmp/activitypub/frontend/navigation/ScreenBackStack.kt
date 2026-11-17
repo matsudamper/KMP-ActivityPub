@@ -28,6 +28,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
             subclass(Screen.Post::class)
             subclass(Screen.Settings::class)
             subclass(Screen.Security::class)
+            subclass(Screen.LanguageSettings::class)
             subclass(Screen.FollowingGroups::class)
             subclass(Screen.BlockedServers::class)
             subclass(Screen.CustomEmojis::class)
@@ -39,6 +40,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
             subclass(Screen.UserProfile::class)
             subclass(Screen.PostDetail::class)
             subclass(Screen.QuotePost::class)
+            subclass(Screen.ReplyPost::class)
             subclass(Screen.PostRevisions::class)
             subclass(Screen.Image::class)
         }

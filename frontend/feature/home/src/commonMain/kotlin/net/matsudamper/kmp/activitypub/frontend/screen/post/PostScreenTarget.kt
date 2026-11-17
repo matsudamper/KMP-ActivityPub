@@ -10,4 +10,9 @@ internal sealed interface PostScreenTarget {
      * @param postId 引用するホームタイムラインの投稿の id
      */
     data class Quote(val postId: String) : PostScreenTarget
+
+    /**
+     * @param postId 返信するホームタイムラインの投稿の id
+     */
+    data class Reply(val postId: String) : PostScreenTarget
 }

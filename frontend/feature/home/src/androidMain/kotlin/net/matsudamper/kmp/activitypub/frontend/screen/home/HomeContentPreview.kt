@@ -175,10 +175,10 @@ private fun TimelineHeaderDividerNewPostsHiddenAbovePreview() {
             Column {
                 Text(text = "先頭にいる", modifier = Modifier.padding(16.dp))
                 TimelineHeaderDivider(newPostsHiddenAbove = false)
-                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline, shareButtonVisible = true)
                 Text(text = "先頭から離れている", modifier = Modifier.padding(16.dp))
                 TimelineHeaderDivider(newPostsHiddenAbove = true)
-                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline)
+                PostItem(uiState = previewTimelinePosts().first(), style = PostItemStyle.Timeline, shareButtonVisible = true)
             }
         }
     }
@@ -213,7 +213,7 @@ private fun TimelineReplyItemsPreview() {
                     ),
                     post.copy(replyLabel = PostItemUiState.ReplyLabel(target = null)),
                 ).forEach { item ->
-                    PostItem(uiState = item, style = PostItemStyle.Timeline)
+                    PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = true)
                     HorizontalDivider()
                 }
             }
@@ -253,7 +253,7 @@ private fun TimelineNotificationAndDeletedItemsPreview() {
                     notifiedPost.copy(deletedLabelVisible = true),
                     posts[1].copy(deletedLabelVisible = true),
                 ).forEach { item ->
-                    PostItem(uiState = item, style = PostItemStyle.Timeline)
+                    PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = true)
                     HorizontalDivider()
                 }
             }
@@ -564,6 +564,7 @@ private fun HomeUserContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
+                            replyListener = null,
                             quote = null,
                             favouriteCountText = null,
                             boostCountText = null,
@@ -572,7 +573,7 @@ private fun HomeUserContentPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
-                            menuItems = listOf(),
+                            menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
@@ -713,6 +714,7 @@ private fun HomeUserMediaContentPreview() {
                             linkPreviews = listOf(),
                             images = listOf(),
                             replyCountText = null,
+                            replyListener = null,
                             quote = null,
                             favouriteCountText = null,
                             boostCountText = null,
@@ -721,7 +723,7 @@ private fun HomeUserMediaContentPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
-                            menuItems = listOf(),
+                            menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = AndroidPreviewShareListener,
                             listener = AndroidPreviewTimelineItemListener,
@@ -760,29 +762,63 @@ private fun HomeUserMediaContentPreview() {
 
 @Preview(widthDp = 1280, heightDp = 800)
 @Composable
-private fun HomeColumnsContentPreview() = HomeColumnsPreview(openedColumn = HomeScreenUiState.Column.Post, timelineColumnsEmptyMessage = null)
-
-@Preview(widthDp = 1280, heightDp = 800)
-@Composable
-private fun HomeColumnsContentPreviewTimelineColumns() = HomeColumnsPreview(openedColumn = null, timelineColumnsEmptyMessage = null)
-
-@Preview(widthDp = 1280, heightDp = 800)
-@Composable
-private fun HomeColumnsContentPreviewTimelineColumnsEmpty() = HomeColumnsPreview(openedColumn = null, timelineColumnsEmptyMessage = "表示するカラムがありません")
+private fun HomeColumnsContentPreview() = HomeColumnsPreview(
+    openedColumn = HomeScreenUiState.Column.Post,
+    timelineColumnsEmptyMessage = null,
+    timelineColumns = previewTimelineColumns(previewColumnsPosts(), HomeScreenUiState.TimelineFooter.None),
+)
 
 /**
- * @param timelineColumnsEmptyMessage null でなければカラムを全部消した状態にする
+ * 文字の大きさの小と大、カラムの幅の通常と一番細い幅（HomeScreenViewModel の COLUMN_MIN_WIDTH）を組み合わせて並べる
+ */
+@Preview(widthDp = 1440, heightDp = 800)
+@Composable
+private fun HomeColumnsContentPreviewTimelineColumns() = HomeColumnsPreview(
+    openedColumn = null,
+    timelineColumnsEmptyMessage = null,
+    timelineColumns = listOf(
+        AppFontSize.Small to 400.dp,
+        AppFontSize.Small to 240.dp,
+        AppFontSize.Large to 400.dp,
+        AppFontSize.Large to 240.dp,
+    ).map { (fontSize, width) ->
+        val fontSizeLabel = if (fontSize == AppFontSize.Small) "小" else "大"
+        HomeScreenUiState.TimelineColumn(
+            title = "$fontSizeLabel ${width.value.toInt()}dp",
+            listStateKey = "${fontSize.name}-$width",
+            items = previewTimelinePosts().take(1),
+            footer = HomeScreenUiState.TimelineFooter.None,
+            selected = false,
+            fontSize = fontSize,
+            fontSizeMenuItems = previewFontSizeMenuItems(checkedLabel = fontSizeLabel),
+            width = width,
+            listener = AndroidPreviewTimelineColumnListener,
+        )
+    },
+)
+
+@Preview(widthDp = 1280, heightDp = 800)
+@Composable
+private fun HomeColumnsContentPreviewTimelineColumnsEmpty() = HomeColumnsPreview(
+    openedColumn = null,
+    timelineColumnsEmptyMessage = "表示するカラムがありません",
+    timelineColumns = listOf(),
+)
+
+/**
+ * @param timelineColumnsEmptyMessage カラムが無いときの案内。カラムを並べるときは null
  */
 @Composable
 private fun HomeColumnsPreview(
     openedColumn: HomeScreenUiState.Column?,
     timelineColumnsEmptyMessage: String?,
+    timelineColumns: List<HomeScreenUiState.TimelineColumn>,
 ) {
     HomePreviewTheme {
         HomeColumnsContent(
             uiState = HomeScreenUiState(
                 selectedTab = HomeScreenUiState.Tab.Home,
-                timelineColumns = if (timelineColumnsEmptyMessage == null) previewTimelineColumns(previewColumnsPosts(), HomeScreenUiState.TimelineFooter.None) else listOf(),
+                timelineColumns = timelineColumns,
                 timelineColumnsEmptyMessage = timelineColumnsEmptyMessage,
                 addTimelineColumnButtonEnabled = true,
                 timelineColumnEditDialog = null,
@@ -840,6 +876,7 @@ private fun HomeColumnsPreview(
                             postButtonEnabled = false,
                             images = listOf(),
                             quote = null,
+                            replyTarget = null,
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
                             addEmojiButtonEnabled = true,
@@ -888,6 +925,8 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
     override fun onResizeOpenedColumnEnd() = Unit
 
     override fun onPostColumnFinished() = Unit
+
+    override fun onReplyOpenedInPostColumn() = Unit
 
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 
@@ -1014,6 +1053,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
     override fun onClickAddEmoji() = Unit
 
+    override fun onReplyRequested(postId: String) = Unit
+
     override fun onClickPost() = Unit
 
     override fun onPressPostShortcut() = Unit
@@ -1059,16 +1100,17 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
                 listener = AndroidPreviewImageListener,
             ),
         ),
-        replyCountText = null,
+        replyCountText = "123",
+        replyListener = null,
         quote = null,
-        favouriteCountText = null,
-        boostCountText = null,
+        favouriteCountText = "12345",
+        boostCountText = "1234",
         favouriteButton = null,
         boostButton = previewBoostButton(boosted = true),
         reactionButton = null,
         stamps = listOf(),
         authorListener = AndroidPreviewAuthorListener,
-        menuItems = listOf(),
+        menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
         postListener = AndroidPreviewPostListener,
         shareListener = AndroidPreviewShareListener,
         listener = AndroidPreviewTimelineItemListener,
@@ -1117,6 +1159,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             ),
         ),
         replyCountText = null,
+        replyListener = null,
         quote = null,
         favouriteCountText = "3",
         boostCountText = null,
@@ -1132,7 +1175,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             PostItemUiState.Stamp(emoji = ":kotlin:", imageUrl = "https://example.com/kotlin.png", countText = "1", selected = false, listener = null),
         ),
         authorListener = AndroidPreviewAuthorListener,
-        menuItems = listOf(PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
+        menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener), PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
         postListener = AndroidPreviewPostListener,
         shareListener = AndroidPreviewShareListener,
         listener = AndroidPreviewTimelineItemListener,
@@ -1155,6 +1198,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         linkPreviews = listOf(),
         images = listOf(),
         replyCountText = null,
+        replyListener = null,
         quote = null,
         favouriteCountText = null,
         boostCountText = null,
@@ -1164,7 +1208,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         stamps = listOf(),
         postListener = AndroidPreviewPostListener,
         shareListener = AndroidPreviewShareListener,
-        menuItems = listOf(),
+        menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
         authorListener = AndroidPreviewAuthorListener,
         listener = AndroidPreviewTimelineItemListener,
     ),

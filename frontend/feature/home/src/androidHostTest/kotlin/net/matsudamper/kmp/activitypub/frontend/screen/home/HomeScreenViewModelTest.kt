@@ -59,6 +59,8 @@ class HomeScreenViewModelTest {
     private val allColumn = TimelineColumnSetting(id = "all", name = "全部", sources = setOf(TimelineSource.MainGroup, TimelineSource.FollowingGroup("1")), fontSize = TimelineFontSize.Medium)
     private val columnSettingStore = FakeTimelineColumnSettingStore(listOf(mainColumn))
     private var followingGroupsResponse = """{"errors":[{"message":"購読の仕分け先は見ない"}]}"""
+    private var myProfileResponse = """{"errors":[{"message":"プロフィールは見ない"}]}"""
+    private lateinit var userApi: UserApi
 
     @Test
     fun postsAreSplitIntoColumnsByCheckedSources() = withViewModel { viewModel, engine ->
@@ -476,6 +478,18 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun headerChangedWhileHomeIsShownReplacesProfileHeaderWithoutReload() = withViewModel { viewModel, _ ->
+        myProfileResponse = myProfile(headerUrl = "https://example.com/h1")
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+        viewModel.uiStateFlow.first { it.profileHeaderUrl() == "https://example.com/h1" }
+        myProfileResponse = """{"errors":[{"message":"読み直さない"}]}"""
+
+        userApi.updateProfileHeader(header = byteArrayOf())
+
+        viewModel.uiStateFlow.first { it.profileHeaderUrl() == "https://example.com/h2" }
+    }
+
+    @Test
     fun pressingSelectedTabAgainScrollsToTopInsteadOfNavigating() = withViewModel { viewModel, _ ->
         val receivedEvents = Channel<String>(Channel.UNLIMITED)
         val collectJob = backgroundScope.launch {
@@ -527,6 +541,8 @@ class HomeScreenViewModelTest {
         override fun navigateToPostDetail(postId: String) = Unit
 
         override fun navigateToQuotePost(postId: String) = Unit
+
+        override fun openReply(postId: String) = Unit
     }
 
     private fun withViewModel(block: suspend TestScope.(HomeScreenViewModel, QueueEngine) -> Unit) = runTest {
@@ -537,9 +553,10 @@ class HomeScreenViewModelTest {
             override val client = MutableStateFlow<ApolloClient?>(apolloClient)
             override suspend fun awaitLoadedClient(): ApolloClient? = client.value
         }
+        userApi = UserApi(source)
         val viewModel = HomeScreenViewModel(
             HomeScreenUiState.Tab.Home,
-            UserApi(source),
+            userApi,
             object : PostedAtRefreshTicker {
                 override val ticks: Flow<Unit> = emptyFlow()
             },
@@ -601,6 +618,11 @@ class HomeScreenViewModelTest {
             """"timelinePostsDeleted":{"__typename":"TimelinePostsDeleted","postIds":[$postIds],"boostUndonePostIds":[]},"notificationArrived":null,"timelinePostUpdated":null}"""
     }
 
+    private fun myProfile(headerUrl: String): String =
+        """{"data":{"profile":{"__typename":"Profile","username":"me","displayName":null,"iconUrl":null,"headerUrl":"$headerUrl","summary":null,"links":[],"likesPublic":false,"followingCount":0,"followersCount":0}}}"""
+
+    private fun HomeScreenUiState.profileHeaderUrl(): String? = (profile as? HomeScreenUiState.Profile.Loaded)?.headerUrl
+
     private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()
 
     private fun HomeScreenUiState.mainColumnFooter(): HomeScreenUiState.TimelineFooter? = timelineColumns.firstOrNull()?.footer
@@ -639,7 +661,10 @@ class HomeScreenViewModelTest {
             // タイムラインと同時に読むので、並べた応答を取り合わないよう別に返す
             val body = Buffer().also { request.body?.writeTo(it) }.readUtf8()
             if (body.contains("\"operationName\":\"MyProfile\"")) {
-                return HttpResponse.Builder(200).body(Buffer().writeUtf8("""{"errors":[{"message":"プロフィールは見ない"}]}""")).build()
+                return HttpResponse.Builder(200).body(Buffer().writeUtf8(myProfileResponse)).build()
+            }
+            if (body.contains("\"operationName\":\"UpdateProfileHeader\"")) {
+                return response(UPDATED_HEADER_RESPONSE)
             }
             if (body.contains("\"operationName\":\"FollowingGroups\"")) {
                 return HttpResponse.Builder(200).body(Buffer().writeUtf8(followingGroupsResponse)).build()
@@ -672,3 +697,5 @@ class HomeScreenViewModelTest {
 }
 
 private const val NEWS_GROUP_RESPONSE = """{"data":{"userInfo":{"__typename":"UserInfo","id":"me","followingGroups":[{"__typename":"FollowingGroup","id":"1","name":"ニュース"}],"mainGroupName":"メイン"}}}"""
+private const val UPDATED_HEADER_RESPONSE =
+    """{"data":{"user":{"__typename":"UserMutation","updateProfileHeader":{"__typename":"UpdateProfileHeaderResult","headerUrl":"https://example.com/h2","failure":null}}}}"""

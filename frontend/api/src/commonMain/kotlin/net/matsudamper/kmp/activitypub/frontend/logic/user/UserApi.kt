@@ -4,6 +4,7 @@ import kotlin.io.encoding.Base64
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -13,6 +14,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.count
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
@@ -23,10 +27,12 @@ import com.apollographql.apollo.ApolloClient
 import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.DefaultUpload
 import com.apollographql.apollo.api.Optional
+import com.apollographql.apollo.api.Query
 import com.apollographql.cache.normalized.FetchPolicy
 import com.apollographql.cache.normalized.apolloStore
 import com.apollographql.cache.normalized.doNotStore
 import com.apollographql.cache.normalized.fetchPolicy
+import com.apollographql.cache.normalized.watch
 import net.matsudamper.kmp.activitypub.frontend.graphql.AccountEventsSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.AdminAccessQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.BlockAccountMutation
@@ -138,6 +144,12 @@ class UserApi(
      * [setBoosted] で変えられたブースト。どの画面で変えても、同じ投稿を出している画面がここで表示を合わせる
      */
     val boostChanges = boostChangesFlow.asSharedFlow()
+
+    /**
+     * [userProfile] に渡して本人のプロフィールが返った username。同じアカウントでも `name` と `name@host` でキャッシュが分かれるので、
+     * 自分のプロフィールを変えたときに書き換える先を覚えておく
+     */
+    private val ownUserProfileUsernames = MutableStateFlow(setOf<String>())
     val ready: Flow<Boolean> = clients.client.map { it != null }.distinctUntilChanged()
 
     fun isReady(): Boolean = clients.client.value != null
@@ -738,6 +750,7 @@ class UserApi(
             null -> {
                 // 別のアカウントで取得した内容を出さない
                 client.apolloStore.clearAll()
+                ownUserProfileUsernames.value = setOf()
                 client.closeSubscriptionConnection()
                 forgetFollowingGroups()
                 UserLoginResult.Success
@@ -755,6 +768,7 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserLogoutResult.Failure(response.failureMessage())
         if (response.data?.user?.logout != true) return UserLogoutResult.Failure(response.failureMessage())
         client.apolloStore.clearAll()
+        ownUserProfileUsernames.value = setOf()
         client.closeSubscriptionConnection()
         forgetFollowingGroups()
 
@@ -820,23 +834,17 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserProfileResult.Failure(response.failureMessage())
         val data = response.data ?: return UserProfileResult.Failure(response.failureMessage())
         val profile = data.userProfile ?: return UserProfileResult.NotFound
-        val user = profile.user
+        if (profile.viewerIsOwner) ownUserProfileUsernames.update { it + username }
 
-        return UserProfileResult.Found(
-            actorUri = user.actorUri,
-            username = user.username,
-            host = user.host,
-            displayName = user.displayName,
-            displayNameEmojis = user.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
-            iconUrl = user.iconUrl,
-            following = user.following,
-            followingGroupId = user.followingGroupId,
-            headerUrl = profile.headerUrl,
-            biography = profile.biography,
-            links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
-            viewerIsOwner = profile.viewerIsOwner,
-        )
+        return profile.toFound()
     }
+
+    /**
+     * [userProfile] で読んだ内容がキャッシュで書き換わるたびに流す。自分のプロフィールを変えると、変えた後の内容が流れる。
+     * [userProfile] でまだ読めていない間は何も流さない
+     */
+    fun watchUserProfile(username: String): Flow<UserProfileResult.Found> =
+        watchCache(UserProfileQuery(username = username)).mapNotNull { it.userProfile?.toFound() }
 
     /**
      * プロフィールの投稿。[userProfile] とは別に読むので、プロフィールは投稿を待たずに出せる
@@ -1041,18 +1049,15 @@ class UserApi(
         val data = response.data ?: return UserMyProfileResult.Failure(response.failureMessage())
         val profile = data.profile ?: return UserMyProfileResult.NotLoggedIn
 
-        return UserMyProfileResult.Found(
-            username = profile.username,
-            displayName = profile.displayName,
-            iconUrl = profile.iconUrl,
-            headerUrl = profile.headerUrl,
-            summary = profile.summary,
-            links = profile.links.map { UserProfileLink(name = it.name, url = it.url) },
-            likesPublic = profile.likesPublic,
-            followingCount = profile.followingCount,
-            followersCount = profile.followersCount,
-        )
+        return profile.toFound()
     }
+
+    /**
+     * [myProfile] で読んだ内容がキャッシュで書き換わるたびに流す。プロフィールを変えると、変えた後の内容が流れる。
+     * [myProfile] でまだ読めていない間は何も流さない
+     */
+    fun watchMyProfile(): Flow<UserMyProfileResult.Found> =
+        watchCache(MyProfileQuery()).mapNotNull { it.profile?.toFound() }
 
     /**
      * @param displayName 空なら未設定に戻す
@@ -1078,6 +1083,9 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileResult.Failure(response.failureMessage())
         val updateProfile = response.data?.user?.updateProfile ?: return UserUpdateProfileResult.Failure(response.failureMessage())
 
+        // サーバーが空の行を捨てたり空文字を未設定に直したりするので、送った値ではなく読み直した値をキャッシュに入れる
+        if (updateProfile.failure == null) refetchOwnProfiles(client)
+
         return when (updateProfile.failure) {
             null -> UserUpdateProfileResult.Success
             UpdateProfileFailure.NOT_LOGGED_IN -> UserUpdateProfileResult.NotLoggedIn
@@ -1100,8 +1108,16 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileIconResult.Failure(response.failureMessage())
         val updateProfileIcon = response.data?.user?.updateProfileIcon ?: return UserUpdateProfileIconResult.Failure(response.failureMessage())
 
+        val iconUrl = updateProfileIcon.iconUrl
+        if (updateProfileIcon.failure == null && iconUrl != null) {
+            client.updateCachedOwnProfiles(
+                myProfile = { it.copy(iconUrl = iconUrl) },
+                userProfile = { it.copy(user = it.user.copy(iconUrl = iconUrl)) },
+            )
+        }
+
         return when (updateProfileIcon.failure) {
-            null -> UserUpdateProfileIconResult.Success(iconUrl = updateProfileIcon.iconUrl)
+            null -> UserUpdateProfileIconResult.Success(iconUrl = iconUrl)
             UpdateProfileIconFailure.NOT_LOGGED_IN -> UserUpdateProfileIconResult.NotLoggedIn
             UpdateProfileIconFailure.TOO_LARGE -> UserUpdateProfileIconResult.TooLarge
             UpdateProfileIconFailure.DIMENSIONS_TOO_LARGE -> UserUpdateProfileIconResult.DimensionsTooLarge
@@ -1122,8 +1138,16 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return UserUpdateProfileHeaderResult.Failure(response.failureMessage())
         val updateProfileHeader = response.data?.user?.updateProfileHeader ?: return UserUpdateProfileHeaderResult.Failure(response.failureMessage())
 
+        val headerUrl = updateProfileHeader.headerUrl
+        if (updateProfileHeader.failure == null && headerUrl != null) {
+            client.updateCachedOwnProfiles(
+                myProfile = { it.copy(headerUrl = headerUrl) },
+                userProfile = { it.copy(headerUrl = headerUrl) },
+            )
+        }
+
         return when (updateProfileHeader.failure) {
-            null -> UserUpdateProfileHeaderResult.Success(headerUrl = updateProfileHeader.headerUrl)
+            null -> UserUpdateProfileHeaderResult.Success(headerUrl = headerUrl)
             UpdateProfileHeaderFailure.NOT_LOGGED_IN -> UserUpdateProfileHeaderResult.NotLoggedIn
             UpdateProfileHeaderFailure.TOO_LARGE -> UserUpdateProfileHeaderResult.TooLarge
             UpdateProfileHeaderFailure.DIMENSIONS_TOO_LARGE -> UserUpdateProfileHeaderResult.DimensionsTooLarge
@@ -1134,6 +1158,80 @@ class UserApi(
             UpdateProfileHeaderFailure.UNKNOWN__ -> UserUpdateProfileHeaderResult.Failure("Unknown")
         }
     }
+
+    /**
+     * キャッシュがまだ無い間は何も流さない
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <D : Query.Data> watchCache(query: Query<D>): Flow<D> =
+        clients.client
+            .flatMapLatest { client ->
+                client?.query(query)
+                    ?.fetchPolicy(FetchPolicy.CacheOnly)
+                    ?.watch()
+                    ?: emptyFlow()
+            }
+            .filter { it.exception == null && it.errors.isNullOrEmpty() }
+            .mapNotNull { it.data }
+
+    /**
+     * 変更の戻り値で分かった内容を、取得し直さずに自分のプロフィールのキャッシュへ書く。キャッシュが無いものは何もしない
+     */
+    private suspend fun ApolloClient.updateCachedOwnProfiles(
+        myProfile: (MyProfileQuery.Profile) -> MyProfileQuery.Profile,
+        userProfile: (UserProfileQuery.UserProfile) -> UserProfileQuery.UserProfile,
+    ) {
+        updateCache(MyProfileQuery()) { data -> data.copy(profile = data.profile?.let(myProfile)) }
+        ownUserProfileUsernames.value.forEach { username ->
+            updateCache(UserProfileQuery(username = username)) { data -> data.copy(userProfile = data.userProfile?.let(userProfile)) }
+        }
+    }
+
+    private suspend fun <D : Query.Data> ApolloClient.updateCache(query: Query<D>, transform: (D) -> D) {
+        val cached = apolloStore.readOperation(query)
+        if (!cached.errors.isNullOrEmpty()) return
+        val data = cached.data ?: return
+        apolloStore.writeOperation(operation = query, data = transform(data), publish = true)
+    }
+
+    /**
+     * 読めなくても、変更そのものは通っているので失敗にしない。キャッシュは古いままになる
+     */
+    private suspend fun refetchOwnProfiles(client: ApolloClient) {
+        client.query(MyProfileQuery()).execute()
+        ownUserProfileUsernames.value.forEach { username ->
+            client.query(UserProfileQuery(username = username)).execute()
+        }
+    }
+
+    private fun MyProfileQuery.Profile.toFound(): UserMyProfileResult.Found =
+        UserMyProfileResult.Found(
+            username = username,
+            displayName = displayName,
+            iconUrl = iconUrl,
+            headerUrl = headerUrl,
+            summary = summary,
+            links = links.map { UserProfileLink(name = it.name, url = it.url) },
+            likesPublic = likesPublic,
+            followingCount = followingCount,
+            followersCount = followersCount,
+        )
+
+    private fun UserProfileQuery.UserProfile.toFound(): UserProfileResult.Found =
+        UserProfileResult.Found(
+            actorUri = user.actorUri,
+            username = user.username,
+            host = user.host,
+            displayName = user.displayName,
+            displayNameEmojis = user.displayNameEmojis.map { emoji -> UserCustomEmoji(name = emoji.name, imageUrl = emoji.imageUrl) },
+            iconUrl = user.iconUrl,
+            following = user.following,
+            followingGroupId = user.followingGroupId,
+            headerUrl = headerUrl,
+            biography = biography,
+            links = links.map { UserProfileLink(name = it.name, url = it.url) },
+            viewerIsOwner = viewerIsOwner,
+        )
 
     /**
      * @param version 読み込みを始めてから変わったかを見分けるため、書き換えるたびに増やす

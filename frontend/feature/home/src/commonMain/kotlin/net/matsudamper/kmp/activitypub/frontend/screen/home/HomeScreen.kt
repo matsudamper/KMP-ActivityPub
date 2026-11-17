@@ -58,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -118,6 +119,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImageInput
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
+import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
@@ -160,6 +162,8 @@ internal fun HomeScreen(
         onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
     )
     val tabListStates = rememberHomeTabListStates()
+    // 投稿カラムはカラムを並べるレイアウトにしか無い。無い間は null
+    var postColumnListener by remember { mutableStateOf<PostScreenUiState.Listener?>(null) }
 
     LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, tabListStates) {
         viewModel.eventHandler.collect(
@@ -223,6 +227,16 @@ internal fun HomeScreen(
                 override fun navigateToQuotePost(postId: String) {
                     navigator.navigate(Screen.QuotePost(postId = postId))
                 }
+
+                override fun openReply(postId: String) {
+                    val postColumn = postColumnListener
+                    if (postColumn == null) {
+                        navigator.navigate(Screen.ReplyPost(postId = postId))
+                    } else {
+                        postColumn.onReplyRequested(postId)
+                        uiState.listener.onReplyOpenedInPostColumn()
+                    }
+                }
             },
         )
     }
@@ -243,6 +257,10 @@ internal fun HomeScreen(
                 onClose = uiState.listener::onPostColumnFinished,
                 snackbarHostState = snackbarHostState,
             )
+            DisposableEffect(postUiState.listener) {
+                postColumnListener = postUiState.listener
+                onDispose { postColumnListener = null }
+            }
             val postColumnSnackbarHostState = remember { SnackbarHostState() }
             HomeColumnsContent(
                 uiState = uiState,
@@ -442,6 +460,7 @@ internal fun HomeContent(
                         listState = tabListStates.notifications,
                         notifications = uiState.notifications,
                         listener = uiState.listener,
+                        shareButtonVisible = true,
                         modifier = contentModifier,
                     )
                 }
@@ -451,6 +470,7 @@ internal fun HomeContent(
                         listState = tabListStates.search,
                         search = uiState.search,
                         listener = uiState.listener,
+                        shareButtonVisible = true,
                         modifier = contentModifier,
                     )
                 }
@@ -462,6 +482,7 @@ internal fun HomeContent(
                         userContentTab = uiState.userContentTab,
                         userPosts = uiState.userPosts,
                         listener = uiState.listener,
+                        shareButtonVisible = true,
                         modifier = contentModifier,
                     )
                 }
@@ -649,6 +670,7 @@ private fun TimelineColumnsPager(
                 loadMoreAtEndEnabled = column.selected,
                 listener = uiState.listener,
                 columnListener = column.listener,
+                shareButtonVisible = true,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -808,6 +830,7 @@ internal fun TimelineTabContent(
     loadMoreAtEndEnabled: Boolean,
     listener: HomeScreenUiState.Listener,
     columnListener: HomeScreenUiState.TimelineColumnListener,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     LaunchedEffect(listState, columnListener, timelineItems.size, footer, loadMoreAtEndEnabled) {
@@ -836,7 +859,7 @@ internal fun TimelineTabContent(
                 .then(wheelPullToRefreshBlocker.modifier),
         ) {
             items(timelineItems) { item ->
-                PostItem(uiState = item, style = PostItemStyle.Timeline)
+                PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             when (footer) {
@@ -913,6 +936,7 @@ internal fun SearchTabContent(
     listState: LazyListState,
     search: HomeScreenUiState.Search,
     listener: HomeScreenUiState.Listener,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // 一覧の状態は画面で持ち続けるので、検索し直したら前の結果での位置を引き継がない
@@ -984,7 +1008,7 @@ internal fun SearchTabContent(
                         }
                     }
                     items(result.items) { item ->
-                        PostItem(uiState = item, style = PostItemStyle.Timeline)
+                        PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                     if (result.loadMoreButtonVisible) {
@@ -1028,6 +1052,7 @@ internal fun UserTabContent(
     userContentTab: ProfileContentTab,
     userPosts: HomeScreenUiState.UserPosts,
     listener: HomeScreenUiState.Listener,
+    shareButtonVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier) {
@@ -1109,7 +1134,7 @@ internal fun UserTabContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
@@ -1137,7 +1162,7 @@ internal fun UserTabContent(
                                         span = { GridItemSpan(maxLineSpan) },
                                     ) { post ->
                                         Column {
-                                            PostItem(uiState = post, style = PostItemStyle.Timeline)
+                                            PostItem(uiState = post, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
                                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                                         }
                                     }
