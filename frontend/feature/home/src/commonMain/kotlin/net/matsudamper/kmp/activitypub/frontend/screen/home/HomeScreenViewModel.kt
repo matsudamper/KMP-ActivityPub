@@ -60,6 +60,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withNextPage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withPosts
+import net.matsudamper.kmp.activitypub.frontend.logic.user.withUpdatedPost
 import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
@@ -974,6 +975,11 @@ internal class HomeScreenViewModel(
 
                     is AccountStreamEvent.PostsRemoved -> timelineFeeds.onPostsRemoved(event.removals)
 
+                    is AccountStreamEvent.PostUpdated -> {
+                        timelineFeeds.onPostUpdated(event.post)
+                        updateLoadedNotifications { it.copy(data = it.data.withPosts { post -> post.withUpdatedPost(event.post) }) }
+                    }
+
                     is AccountStreamEvent.NotificationArrived -> timelineFeeds.onNotificationArrived(event.notification)
 
                     AccountStreamEvent.WaitingToReconnect -> {
@@ -1581,6 +1587,7 @@ internal class HomeScreenViewModel(
                                 val reactionPostId = post.reactionPostId
                                 if (reactionPostId != null) clickStamp(reactionPostId = reactionPostId, body = post.body, stamp = stamp)
                             },
+                            onOpenRevisions = null,
                             onVisible = {
                                 if (post.body.linkUrls.isNotEmpty()) {
                                     loadLinkPreviews(post.postId)
@@ -1652,6 +1659,7 @@ internal class HomeScreenViewModel(
             onQuote = { navigateToQuotePost(post.id) },
             onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
+            onOpenRevisions = null,
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)
@@ -1892,6 +1900,7 @@ internal class HomeScreenViewModel(
             onQuote = { navigateToQuotePost(post.id) },
             onOpenReactionPicker = { openReactionPicker(postId = post.reactionPostId, body = post.body) },
             onClickStamp = { stamp -> clickStamp(reactionPostId = post.reactionPostId, body = post.body, stamp = stamp) },
+            onOpenRevisions = null,
             onVisible = {
                 if (post.body.linkUrls.isNotEmpty()) {
                     loadLinkPreviews(post.id)

@@ -111,6 +111,7 @@ class ReplyTargetService(
             boostUndone = false,
             inReplyTo = note.inReplyTo,
             quoteUri = note.quoteUri,
+            editedAt = null,
         )
     }
 

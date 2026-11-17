@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.NotificationId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
+import net.matsudamper.kmp.activitypub.shared.PostRevisionId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 
@@ -69,6 +70,13 @@ object GraphQlScalars {
             .newScalar()
             .name("CustomEmojiId")
             .coercing(LongIdCoercing(name = "CustomEmojiId", type = CustomEmojiId::class.java, wrap = ::CustomEmojiId, unwrap = CustomEmojiId::value))
+            .build()
+
+    val postRevisionId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("PostRevisionId")
+            .coercing(StringIdCoercing(name = "PostRevisionId", type = PostRevisionId::class.java, wrap = ::PostRevisionId, unwrap = PostRevisionId::value))
             .build()
 
     val timelinePostId: GraphQLScalarType =

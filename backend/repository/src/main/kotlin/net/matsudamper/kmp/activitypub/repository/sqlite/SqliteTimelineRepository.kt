@@ -2,8 +2,11 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.net.URI
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
+import net.matsudamper.kmp.activitypub.repository.PostRevision
+import net.matsudamper.kmp.activitypub.repository.PostRevisionPosition
 import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
@@ -30,6 +33,8 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_LIKES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_RECIPIENTS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_REVISIONS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_NOTE_REVISION_IMAGES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
@@ -105,6 +110,80 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     override fun deleteRemote(actorUri: String, objectUri: String, deletedAt: Instant): List<String> = jooq.transaction { dsl ->
         dsl.markRemoteNoteDeleted(actorUri = actorUri, objectUri = objectUri, deletedAt = deletedAt)
+    }
+
+    override fun reviseRemote(note: RemoteNoteInput): List<String> = jooq.transaction { dsl ->
+        val editedAt = note.editedAt ?: note.receivedAt
+        val stored = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.PUBLISHED_AT, REMOTE_NOTES.EDITED_AT)
+            .from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
+            .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri)).and(REMOTE_NOTES.DELETED_AT.isNull)
+            .fetchOne() ?: return@transaction listOf()
+        val id = checkNotNull(stored.get(REMOTE_NOTES.ID))
+        val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
+        // 受け取った時刻では編集の前後を決められないので、編集時刻の付いた編集を、時刻の無い Update では書き換えない
+        if (storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))) return@transaction listOf()
+        val storedRevision = PostRevision(
+            position = PostRevisionPosition.Current,
+            contentHtml = checkNotNull(stored.get(REMOTE_NOTES.CONTENT_HTML)),
+            summary = stored.get(REMOTE_NOTES.SUMMARY),
+            sensitive = stored.get(REMOTE_NOTES.SENSITIVE) == 1L,
+            images = remoteImages(dsl, listOf(id))["r$id"].orEmpty(),
+            revisedAt = storedEditedAt ?: StoredInstant.parse(checkNotNull(stored.get(REMOTE_NOTES.PUBLISHED_AT))),
+        )
+        val revised = storedRevision.copy(contentHtml = note.contentHtml, summary = note.summary, sensitive = note.sensitive, images = note.images, revisedAt = editedAt)
+        val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
+        if (revised.copy(revisedAt = storedRevision.revisedAt) == storedRevision) {
+            if (note.editedAt == null) return@transaction listOf()
+            dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
+            // 版には絵文字を残さないので、絵文字の画像だけが変わった編集もここに来る
+            replaceRemoteNoteEmojis(dsl, id, note.emojis)
+            return@transaction members
+        }
+        insertRemoteNoteRevision(dsl, id, storedRevision)
+        dsl.update(REMOTE_NOTES)
+            .set(REMOTE_NOTES.CONTENT_HTML, revised.contentHtml)
+            .set(REMOTE_NOTES.SUMMARY, revised.summary)
+            .set(REMOTE_NOTES.SENSITIVE, if (revised.sensitive) 1L else 0L)
+            .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
+            .where(REMOTE_NOTES.ID.eq(id))
+            .execute()
+        dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
+        insertRemoteNoteImages(dsl, id, note.images)
+        replaceRemoteNoteEmojis(dsl, id, note.emojis)
+        members
+    }
+
+    private fun replaceRemoteNoteEmojis(dsl: DSLContext, remoteNoteId: Long, emojis: List<CustomEmojiRecord>) {
+        dsl.deleteFrom(REMOTE_NOTE_EMOJIS).where(REMOTE_NOTE_EMOJIS.REMOTE_NOTE_ID.eq(remoteNoteId)).execute()
+        dsl.insertRemoteNoteEmojis(remoteNoteId, emojis)
+    }
+
+    // 今の版と前の版を別々に読むと、間に編集が入ったときに今の版が抜けて同じ版が 2 つ並ぶ
+    override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? = jooq.withConnection { dsl ->
+        revisions(dsl, viewer, member, olderThan, limit)
+    }
+
+    private fun revisions(dsl: DSLContext, viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? {
+        val post = viewablePost(dsl, viewer, member) ?: return null
+        val current = if (olderThan == null) {
+            listOf(
+                PostRevision(
+                    position = PostRevisionPosition.Current,
+                    contentHtml = post.contentHtml,
+                    summary = post.summary,
+                    sensitive = post.sensitive,
+                    images = post.images,
+                    revisedAt = post.editedAt ?: post.publishedAt,
+                ),
+            )
+        } else {
+            listOf()
+        }
+        val remoteNoteId = TimelineMembers.remoteNoteIdOf(post.reactionMember) ?: return current.take(limit)
+        val pastLimit = limit - current.size
+        if (pastLimit <= 0) return current.take(limit)
+        val olderThanRevisionId = (olderThan as? PostRevisionPosition.Past)?.revisionId
+        return current + remoteNoteRevisions(dsl, remoteNoteId, olderThanRevisionId, pastLimit)
     }
 
     override fun hasRemoteNote(objectUri: String): Boolean = jooq.withConnection { dsl ->
@@ -201,7 +280,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? = jooq.withConnection { dsl ->
+    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? = jooq.withConnection { dsl -> viewablePost(dsl, viewer, member) }
+
+    private fun viewablePost(dsl: DSLContext, viewer: AccountId, member: String): TimelinePost? {
         val notes = hydrateNotes(
             dsl = dsl,
             viewer = viewer,
@@ -213,7 +294,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val accountBoostIds = listOfNotNull(TimelineMembers.accountBoostIdOf(member))
         val boosts = boostedPosts(dsl, viewer, listOfNotNull(TimelineMembers.boostIdOf(member))) +
             if (accountBoostIds.isEmpty()) listOf() else accountBoostedPosts(dsl, viewer, ACCOUNT_BOOSTS.ID.`in`(accountBoostIds))
-        (notes + boosts).firstOrNull()
+        return (notes + boosts).firstOrNull()
     }
 
     override fun contentHtml(viewer: AccountId, member: String): String? = jooq.withConnection { dsl ->
@@ -272,6 +353,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             DSL.inline(null, String::class.java),
             NOTES.IN_REPLY_TO,
             NOTES.QUOTE_URI,
+            DSL.inline(null, String::class.java),
         ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.ID.`in`(localIds)).and(localCondition)
         val remote = dsl.select(
@@ -284,6 +366,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.DELETED_AT,
             REMOTE_NOTES.IN_REPLY_TO,
             REMOTE_NOTES.QUOTE_URI,
+            REMOTE_NOTES.EDITED_AT,
         ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(remoteCondition)
         val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -333,6 +416,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 false,
                 record.value17(),
                 record.value18(),
+                record.value19()?.let { StoredInstant.parse(it) },
             )
         }
     }
@@ -642,6 +726,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.PUBLISHED_AT, StoredInstant.format(note.publishedAt))
             .set(REMOTE_NOTES.RECEIVED_AT, StoredInstant.format(note.receivedAt))
+            .set(REMOTE_NOTES.EDITED_AT, note.editedAt?.let { StoredInstant.format(it) })
             .set(REMOTE_NOTES.SCORE_MS, score)
             .set(REMOTE_NOTES.VIA_BOOST, if (viaBoost) 1L else 0L)
             .onConflict(REMOTE_NOTES.OBJECT_URI).doNothing()
@@ -664,20 +749,99 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
+    private fun insertRemoteNoteRevision(dsl: DSLContext, remoteNoteId: Long, revision: PostRevision) {
+        val revisionId = checkNotNull(
+            dsl.insertInto(REMOTE_NOTE_REVISIONS)
+                .set(REMOTE_NOTE_REVISIONS.REMOTE_NOTE_ID, remoteNoteId)
+                .set(REMOTE_NOTE_REVISIONS.CONTENT_HTML, revision.contentHtml)
+                .set(REMOTE_NOTE_REVISIONS.SUMMARY, revision.summary)
+                .set(REMOTE_NOTE_REVISIONS.SENSITIVE, if (revision.sensitive) 1L else 0L)
+                .set(REMOTE_NOTE_REVISIONS.REVISED_AT, StoredInstant.format(revision.revisedAt))
+                .returning(REMOTE_NOTE_REVISIONS.ID)
+                .fetchOne(REMOTE_NOTE_REVISIONS.ID),
+        )
+        revision.images.filterIsInstance<TimelinePostImage.Remote>().forEachIndexed { index, image ->
+            dsl.insertInto(REMOTE_NOTE_REVISION_IMAGES)
+                .set(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, revisionId)
+                .set(REMOTE_NOTE_REVISION_IMAGES.POSITION, index.toLong())
+                .set(REMOTE_NOTE_REVISION_IMAGES.URL, image.url)
+                .set(REMOTE_NOTE_REVISION_IMAGES.DESCRIPTION, image.description)
+                .execute()
+        }
+    }
+
+    /**
+     * @param olderThanRevisionId この id より古い版を返す。null なら最後に残した版から
+     * @return 新しい順
+     */
+    private fun remoteNoteRevisions(dsl: DSLContext, remoteNoteId: Long, olderThanRevisionId: Long?, limit: Int): List<PostRevision> {
+        val revisions = dsl.select(
+            REMOTE_NOTE_REVISIONS.ID,
+            REMOTE_NOTE_REVISIONS.CONTENT_HTML,
+            REMOTE_NOTE_REVISIONS.SUMMARY,
+            REMOTE_NOTE_REVISIONS.SENSITIVE,
+            REMOTE_NOTE_REVISIONS.REVISED_AT,
+        ).from(REMOTE_NOTE_REVISIONS)
+            .where(REMOTE_NOTE_REVISIONS.REMOTE_NOTE_ID.eq(remoteNoteId))
+            .and(if (olderThanRevisionId == null) DSL.noCondition() else REMOTE_NOTE_REVISIONS.ID.lt(olderThanRevisionId))
+            .orderBy(REMOTE_NOTE_REVISIONS.ID.desc())
+            .limit(limit)
+            .fetch()
+        val revisionIds = revisions.map { it.value1() }
+        val imagesByRevision = dsl.select(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.URL, REMOTE_NOTE_REVISION_IMAGES.DESCRIPTION)
+            .from(REMOTE_NOTE_REVISION_IMAGES)
+            .where(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID.`in`(revisionIds))
+            .orderBy(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.POSITION)
+            .fetch()
+            .groupBy(
+                keySelector = { it.value1() },
+                valueTransform = { TimelinePostImage.Remote(url = checkNotNull(it.value2()), description = it.value3()) },
+            )
+        return revisions.map { record ->
+            PostRevision(
+                position = PostRevisionPosition.Past(checkNotNull(record.value1())),
+                contentHtml = checkNotNull(record.value2()),
+                summary = record.value3(),
+                sensitive = record.value4() == 1L,
+                images = imagesByRevision[record.value1()].orEmpty(),
+                revisedAt = StoredInstant.parse(checkNotNull(record.value5())),
+            )
+        }
+    }
+
     /**
      * 保存済みの公開している投稿を、相手のサーバーから取り直した内容に書き換える。保存した後に編集されていることがある。
-     * 公開範囲も取り直した値にする。どちらも公開している範囲の中での変更に限る。位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない
+     * 公開範囲も取り直した値にする。どちらも公開している範囲の中での変更に限る。位置は変えない。[RemoteNoteInput.actorUri] の投稿でなければ書き換えない。
+     * 取り直している間に届いた新しい編集を巻き戻さないよう、取り直した内容が保存済みの編集より古ければ書き換えない。
+     * 取り直した内容が保存済みより新しい編集なら、Update を受けたときと同じく書き換える前の版を残す
      *
-     * @return 書き換えた投稿の id。保存していなければ null
+     * @return 保存済みの投稿の id。保存していなければ null
      */
     private fun refreshFetchedNote(dsl: DSLContext, note: RemoteNoteInput): Long? {
-        val id = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES)
+        val stored = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.EDITED_AT, REMOTE_NOTES.CONTENT_HTML, REMOTE_NOTES.SUMMARY, REMOTE_NOTES.SENSITIVE, REMOTE_NOTES.PUBLISHED_AT)
+            .from(REMOTE_NOTES)
             .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri))
             .and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri))
             .and(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
-            .fetchOne(REMOTE_NOTES.ID)
+            .fetchOne()
             ?: return null
+        val id = checkNotNull(stored.value1())
+        val storedEditedAt = stored.value2()?.let { StoredInstant.parse(it) }
+        val fetchedEditedAt = note.editedAt
+        if (storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))) return id
+        if (fetchedEditedAt != null && (storedEditedAt == null || fetchedEditedAt.isAfter(storedEditedAt))) {
+            val storedRevision = PostRevision(
+                position = PostRevisionPosition.Current,
+                contentHtml = checkNotNull(stored.value3()),
+                summary = stored.value4(),
+                sensitive = stored.value5() == 1L,
+                images = remoteImages(dsl, listOf(id))["r$id"].orEmpty(),
+                revisedAt = storedEditedAt ?: StoredInstant.parse(checkNotNull(stored.value6())),
+            )
+            val fetched = storedRevision.copy(contentHtml = note.contentHtml, summary = note.summary, sensitive = note.sensitive, images = note.images)
+            if (fetched != storedRevision) insertRemoteNoteRevision(dsl, id, storedRevision)
+        }
         dsl.update(REMOTE_NOTES)
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
@@ -687,6 +851,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
             .where(REMOTE_NOTES.ID.eq(id))
             .execute()
+        if (fetchedEditedAt != null) {
+            dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(fetchedEditedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
+        }
         dsl.deleteFrom(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.eq(id)).execute()
         insertRemoteNoteImages(dsl, id, note.images)
         dsl.deleteFrom(REMOTE_NOTE_EMOJIS).where(REMOTE_NOTE_EMOJIS.REMOTE_NOTE_ID.eq(id)).execute()
@@ -750,11 +917,10 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val boostedNoteIds = dsl.boostedNoteIds(accountId, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, rows.map { checkNotNull(it.value3()) })
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
         val emojisByNote = dsl.remoteNoteEmojisById(rows.map { checkNotNull(it.value3()) })
-        // jOOQ の型付きの行は 22 列までなので、引用先は別に引く
-        val quoteUrisByNote = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI).from(REMOTE_NOTES)
+        // jOOQ の型付きの行は 22 列までなので、引用先と編集した時刻は別に引く
+        val quoteAndEditByNote = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI, REMOTE_NOTES.EDITED_AT).from(REMOTE_NOTES)
             .where(REMOTE_NOTES.ID.`in`(rows.map { checkNotNull(it.value3()) }))
-            .and(REMOTE_NOTES.QUOTE_URI.isNotNull)
-            .fetchMap(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI)
+            .fetch().associateBy { it.value1() }
         val emojisByActor = dsl.remoteActorEmojisByUri(rows.flatMap { listOf(checkNotNull(it.value8()), checkNotNull(it.value13())) }.toSet())
         return rows.map { record ->
             val authorUri = checkNotNull(record.value8())
@@ -791,7 +957,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 deleted = record.value20() != null,
                 boostUndone = record.value21() != null,
                 inReplyTo = record.value22(),
-                quoteUri = quoteUrisByNote[record.value3()],
+                quoteUri = quoteAndEditByNote[record.value3()]?.value2(),
+                editedAt = quoteAndEditByNote[record.value3()]?.value3()?.let { StoredInstant.parse(it) },
             )
         }
     }

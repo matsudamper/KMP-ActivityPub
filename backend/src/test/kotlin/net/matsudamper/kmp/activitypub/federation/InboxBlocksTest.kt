@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.federation
 
+import java.time.Clock
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -10,6 +11,8 @@ import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.timeline.AccountEvents
+import net.matsudamper.kmp.activitypub.timeline.FakeTimelineStore
+import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.actor.RemoteActor
 import net.matsudamper.kotpub.actor.RemoteActorProfile
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
@@ -23,10 +26,19 @@ class InboxBlocksTest {
         repositories.noteRepository,
         BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
     )
+    private val accountEvents = AccountEvents(repositories.timelineRepository)
     private val favourites = RecordedFavourites(
         repositories.favouriteRepository,
-        ReceivedNotifications(repositories.notificationRepository, AccountEvents(repositories.timelineRepository)),
+        ReceivedNotifications(repositories.notificationRepository, accountEvents),
         inboxBlocks,
+        TimelineService(
+            repositories.timelineRepository,
+            repositories.followingGroupRepository,
+            BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
+            FakeTimelineStore(mutableListOf()),
+            accountEvents,
+            Clock.systemUTC(),
+        ),
     )
 
     init {

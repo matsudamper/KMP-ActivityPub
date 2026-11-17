@@ -113,7 +113,7 @@ class PostSearchRepositoryTest {
 
     private fun note(id: String, contentHtml: String): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = contentHtml, visibility = "public",
-        localRecipients = setOf(), inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW,
+        localRecipients = setOf(), inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW, editedAt = null,
         images = listOf(),
         emojis = listOf(),
     )

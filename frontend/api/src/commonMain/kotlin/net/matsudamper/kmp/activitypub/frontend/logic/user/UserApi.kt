@@ -56,6 +56,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.NotificationsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostCountsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostDetailScreenQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.PostRepliesQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.PostRevisionsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.QuoteTargetQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.RemoteProfileRefreshSubscription
 import net.matsudamper.kmp.activitypub.frontend.graphql.RenameFollowingGroupMutation
@@ -275,6 +276,21 @@ class UserApi(
         val data = response.data ?: return UserPostRepliesResult.Failure(response.failureMessage())
         val userInfo = data.userInfo ?: return UserPostRepliesResult.NotLoggedIn
         return UserPostRepliesResult.Success(userInfo.replies.map { it.timelinePostFields.toPost() })
+    }
+
+    /**
+     * 投稿の版を新しい順に。最初が今の版
+     *
+     * @param postId [UserHomeTimelineResult.Post.id]
+     */
+    fun postRevisionsPaging(postId: String): CursorPagingModel<PostRevisionsQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = PostRevisionsQuery(postId = postId, after = Optional.present(null), limit = POST_REVISIONS_PAGE_SIZE),
+            queryAfter = { cursor -> PostRevisionsQuery(postId = postId, after = Optional.present(cursor), limit = POST_REVISIONS_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.postRevisions?.nextCursor },
+            appendPage = { before, page -> before.withNextPage(page) },
+        )
     }
 
     /**
@@ -1264,6 +1280,8 @@ class UserApi(
                     )
                 }
                 if (arrivedNotification != null) emit(AccountStreamEvent.NotificationArrived(arrivedNotification))
+                val updatedPost = event.timelinePostUpdated?.timelinePostFields?.toPost()
+                if (updatedPost != null) emit(AccountStreamEvent.PostUpdated(updatedPost))
             }
             .count()
         // パスキーでのログインなど login・logout を通らずにセッションが変わることもあるので、購読が終わるたびに張り直させる
@@ -1316,6 +1334,7 @@ class UserApi(
                 likedByMe = likedByMe,
                 viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
                 boostedByMe = boostedByMe,
+                edited = edited,
             ),
             boostedNoteAuthor = boostedNoteAuthor?.let { author ->
                 UserProfileResult.Author(
@@ -1333,6 +1352,7 @@ class UserApi(
 
     private companion object {
         const val TIMELINE_PAGE_SIZE = 40
+        const val POST_REVISIONS_PAGE_SIZE = 20
         const val ACCOUNT_EVENT_MAX_CONSECUTIVE_FAILURES = 5
 
         /**

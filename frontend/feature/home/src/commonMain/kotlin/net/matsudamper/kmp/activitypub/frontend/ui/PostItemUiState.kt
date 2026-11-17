@@ -29,6 +29,10 @@ data class PostItemUiState(
      */
     val fullPostedAt: String,
     /**
+     * 投稿者が編集していなければ null
+     */
+    val editedLabel: EditedLabel?,
+    /**
      * 本文のリンクごとのカード。OGP が取れるまでは URL だけで埋めておく
      */
     val linkPreviews: List<LinkPreview>,
@@ -100,6 +104,13 @@ data class PostItemUiState(
         val iconUrl: String?,
         val cancelledLabelVisible: Boolean,
         val listener: ActorLabelListener?,
+    )
+
+    /**
+     * @param listener 編集前の版を出せない場所では null で、押せなくする
+     */
+    data class EditedLabel(
+        val listener: EditedLabelListener?,
     )
 
     /**
@@ -241,6 +252,11 @@ data class PostItemUiState(
 
     @Immutable
     interface ActorLabelListener {
+        fun onClick()
+    }
+
+    @Immutable
+    interface EditedLabelListener {
         fun onClick()
     }
 

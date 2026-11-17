@@ -71,6 +71,133 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun revisedRemoteNoteKeepsEarlierRevisionsAndIgnoresStaleOrUnchangedEdits() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf()).copy(images = listOf(TimelinePostImage.Remote("https://remote.example/a.png", null)))
+        assertTrue(repository.reviseRemote(original.copy(contentHtml = "<p>未保存</p>", editedAt = NOW.plusSeconds(10))).isEmpty())
+        val saved = assertNotNull(repository.receive(original))
+        assertNull(repository.hydrate(alice, listOf(saved.member)).single().editedAt)
+        assertEquals(listOf("<p>本文</p>"), assertNotNull(repository.revisions(alice, saved.member, null, 10)).map { it.contentHtml })
+
+        assertTrue(repository.reviseRemote(original.copy(actorUri = "https://other.example/actor", contentHtml = "<p>他人</p>", editedAt = NOW.plusSeconds(10))).isEmpty())
+        assertTrue(repository.reviseRemote(original).isEmpty())
+        val firstEdit = original.copy(contentHtml = "<p>1 回目</p>", images = listOf())
+        assertEquals(listOf(saved.member), repository.reviseRemote(firstEdit.copy(editedAt = NOW.plusSeconds(20))))
+        assertEquals(listOf(saved.member), repository.reviseRemote(firstEdit.copy(contentHtml = "<p>2 回目</p>", summary = "注意", editedAt = NOW.plusSeconds(30))))
+        // 遅れて届いた古い編集で巻き戻さない
+        assertTrue(repository.reviseRemote(firstEdit.copy(editedAt = NOW.plusSeconds(20))).isEmpty())
+        // 編集時刻の無い Update は前後を決められないので、保存済みの編集を書き換えない
+        assertTrue(repository.reviseRemote(original.copy(receivedAt = NOW.plusSeconds(3600))).isEmpty())
+
+        val post = repository.hydrate(alice, listOf(saved.member)).single()
+        assertEquals("<p>2 回目</p>", post.contentHtml)
+        assertEquals(NOW.plusSeconds(30), post.editedAt)
+        val newestFirst = assertNotNull(repository.revisions(alice, saved.member, null, 10))
+        assertEquals(
+            listOf(
+                Triple("<p>2 回目</p>", "注意", NOW.plusSeconds(30)),
+                Triple("<p>1 回目</p>", null, NOW.plusSeconds(20)),
+                Triple("<p>本文</p>", null, original.publishedAt),
+            ),
+            newestFirst.map { Triple(it.contentHtml, it.summary, it.revisedAt) },
+        )
+        assertEquals(listOf(listOf(), listOf(), listOf<TimelinePostImage>(TimelinePostImage.Remote("https://remote.example/a.png", null))), newestFirst.map { it.images })
+        assertEquals(PostRevisionPosition.Current, newestFirst.first().position)
+        // 続きは前のページの最後の版より古いものだけ
+        assertEquals(newestFirst.take(2), repository.revisions(alice, saved.member, null, 2))
+        assertEquals(newestFirst.drop(1), repository.revisions(alice, saved.member, PostRevisionPosition.Current, 10))
+        assertEquals(newestFirst.drop(2), repository.revisions(alice, saved.member, newestFirst[1].position, 10))
+        assertNull(repository.revisions(alice, "r999", null, 10))
+    }
+
+    @Test
+    fun noteFirstSavedAfterAnEditKeepsItsEditTimeSoAnOlderEditCannotRevertIt() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val edited = note("1", "public", setOf()).copy(editedAt = NOW.plusSeconds(30))
+        val saved = assertNotNull(repository.receive(edited))
+
+        assertTrue(repository.reviseRemote(edited.copy(contentHtml = "<p>途中</p>", editedAt = NOW.plusSeconds(20))).isEmpty())
+
+        val post = repository.hydrate(alice, listOf(saved.member)).single()
+        assertEquals("<p>本文</p>", post.contentHtml)
+        assertEquals(NOW.plusSeconds(30), post.editedAt)
+    }
+
+    @Test
+    fun unchangedEditStillAdvancesEditTimeSoAnOlderEditCannotRevertIt() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf())
+        val saved = assertNotNull(repository.receive(original))
+
+        // 本文を元に戻した最後の編集が、途中の編集より先に届く
+        assertEquals(listOf(saved.member), repository.reviseRemote(original.copy(editedAt = NOW.plusSeconds(30))))
+        assertTrue(repository.reviseRemote(original.copy(contentHtml = "<p>途中</p>", editedAt = NOW.plusSeconds(20))).isEmpty())
+
+        val post = repository.hydrate(alice, listOf(saved.member)).single()
+        assertEquals("<p>本文</p>", post.contentHtml)
+        assertEquals(NOW.plusSeconds(30), post.editedAt)
+        assertEquals(1, assertNotNull(repository.revisions(alice, saved.member, null, 10)).size)
+    }
+
+    @Test
+    fun refetchedNoteOlderThanTheStoredEditDoesNotRevertIt() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf())
+        val saved = assertNotNull(repository.receive(original))
+        val latest = original.copy(contentHtml = "<p>最新</p>", editedAt = NOW.plusSeconds(30))
+        repository.reviseRemote(latest)
+
+        // 取り直しを始めた後に届いた編集より、取り直した内容の方が古い
+        repository.storeFetchedNotes(alice, listOf(original.copy(contentHtml = "<p>途中</p>", editedAt = NOW.plusSeconds(20))))
+        repository.storeFetchedNotes(alice, listOf(original))
+
+        val post = repository.hydrate(alice, listOf(saved.member)).single()
+        assertEquals("<p>最新</p>", post.contentHtml)
+        assertEquals(NOW.plusSeconds(30), post.editedAt)
+    }
+
+    @Test
+    fun refetchedNoteWithANewerEditKeepsTheStoredContentAsARevision() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf())
+        val saved = assertNotNull(repository.receive(original))
+
+        repository.storeFetchedNotes(alice, listOf(original.copy(contentHtml = "<p>取り直した編集</p>", editedAt = NOW.plusSeconds(30))))
+        // 同じ編集の Update が後から届いても、版を重ねない
+        repository.reviseRemote(original.copy(contentHtml = "<p>取り直した編集</p>", editedAt = NOW.plusSeconds(30)))
+
+        assertEquals(
+            listOf("<p>取り直した編集</p>", "<p>本文</p>"),
+            assertNotNull(repository.revisions(alice, saved.member, null, 10)).map { it.contentHtml },
+        )
+    }
+
+    @Test
+    fun editThatOnlyChangesEmojiImagesReplacesTheEmojisWithoutAddingARevision() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        val original = note("1", "public", setOf()).copy(emojis = listOf(CustomEmojiRecord(name = ":blob:", imageUrl = "https://remote.example/old.png")))
+        val saved = assertNotNull(repository.receive(original))
+        val replaced = listOf(CustomEmojiRecord(name = ":blob:", imageUrl = "https://remote.example/new.png"))
+
+        assertEquals(listOf(saved.member), repository.reviseRemote(original.copy(emojis = replaced, editedAt = NOW.plusSeconds(30))))
+
+        assertEquals(replaced, repository.hydrate(alice, listOf(saved.member)).single().emojis)
+        assertEquals(1, assertNotNull(repository.revisions(alice, saved.member, null, 10)).size)
+    }
+
+    @Test
     fun hydratedRemoteNoteCarriesNoteAndAuthorCustomEmojis() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
@@ -634,7 +761,7 @@ class TimelineRepositoryTest {
 
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(
         objectUri = "$ACTOR/notes/$id", actorUri = ACTOR, contentHtml = "<p>本文</p>", visibility = visibility,
-        localRecipients = recipients, inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW.plusSeconds(3600), receivedAt = NOW,
+        localRecipients = recipients, inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW.plusSeconds(3600), receivedAt = NOW, editedAt = null,
         images = listOf(),
         emojis = listOf(),
     )

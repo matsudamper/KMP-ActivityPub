@@ -19,6 +19,7 @@ import net.matsudamper.kotpub.json.AppJson
  *
  * @param unsavedNotes 保存していない投稿にいいねするときに、取ってきて保存する
  * @param onEnqueued 積んだ後に呼ぶ。次の巡回を待たずに送らせる
+ * @param onLocalReactionsChanged このサーバーの投稿に付いたいいねやリアクションが増減した後に、その投稿のタイムラインの member で呼ぶ
  */
 class LikeService(
     private val directory: ActorDirectory,
@@ -29,6 +30,7 @@ class LikeService(
     private val unsavedNotes: UnsavedRemoteNotes,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
+    private val onLocalReactionsChanged: (member: String) -> Unit,
 ) {
     /**
      * @param requestedPostId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id。他のサーバーの投稿もこのサーバーの投稿も受け付ける
@@ -102,6 +104,7 @@ class LikeService(
             is LikeTarget.Remote -> likeRemote(accountId = accountId, senderActorId = sender.actorId, postId = postId, target = target, reaction = likeReaction, emoji = reactionEmoji)
         }
         if (enqueuedUndo || enqueuedLike) onEnqueued()
+        if (unlikedLocal || target == LikeTarget.Local) onLocalReactionsChanged(postId)
         return SetReactionResult.Updated
     }
 

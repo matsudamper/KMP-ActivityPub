@@ -63,6 +63,7 @@ fragment TimelinePostFields on TimelinePost {
     followingGroupId
     hasReplyTarget
     hasQuoteTarget
+    edited
 }
 
 fragment ActorFields on Actor {
