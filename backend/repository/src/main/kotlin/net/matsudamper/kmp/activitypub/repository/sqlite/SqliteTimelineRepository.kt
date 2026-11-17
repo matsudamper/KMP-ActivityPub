@@ -135,7 +135,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
         if (revised.copy(revisedAt = storedRevision.revisedAt) == storedRevision) {
             if (note.editedAt == null) return@transaction listOf()
-            dsl.update(REMOTE_NOTES).set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt)).where(REMOTE_NOTES.ID.eq(id)).execute()
+            dsl.update(REMOTE_NOTES)
+                .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
+                .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+                .where(REMOTE_NOTES.ID.eq(id))
+                .execute()
             // 版には絵文字を残さないので、絵文字の画像だけが変わった編集もここに来る
             replaceRemoteNoteEmojis(dsl, id, note.emojis)
             return@transaction members
@@ -143,6 +147,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         insertRemoteNoteRevision(dsl, id, storedRevision)
         dsl.update(REMOTE_NOTES)
             .set(REMOTE_NOTES.CONTENT_HTML, revised.contentHtml)
+            .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
             .set(REMOTE_NOTES.SUMMARY, revised.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (revised.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
