@@ -34,7 +34,8 @@
       "matchManagers": ["github-actions"],
       "matchPackageNames": [
         "/^actions\\//",
-        "gradle/actions"
+        "gradle/actions",
+        "graalvm/setup-graalvm"
       ],
       "automerge": true
     },
