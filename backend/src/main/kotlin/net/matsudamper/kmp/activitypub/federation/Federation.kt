@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.federation
 
+import io.opentelemetry.api.OpenTelemetry
 import java.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -7,7 +8,6 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import io.opentelemetry.api.OpenTelemetry
 import net.matsudamper.kmp.activitypub.delivery.DeliveryQueueWorker
 import net.matsudamper.kmp.activitypub.delivery.DeliveryRetryPolicy
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
@@ -60,7 +60,9 @@ import net.matsudamper.kotpub.actor.ActorIconEndpoint
 import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
+import net.matsudamper.kotpub.httpsignature.HttpSignatureSigner
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
+import net.matsudamper.kotpub.httpsignature.SignedFetchActivityPubHttpClient
 import net.matsudamper.kotpub.inbox.AnnounceHandler
 import net.matsudamper.kotpub.inbox.CreateNoteHandler
 import net.matsudamper.kotpub.inbox.DeleteActorHandler
@@ -118,9 +120,14 @@ internal class Federation(
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
-    private val httpClient = OkHttpActivityPubClient()
-    private val publicAddressHttpClient = PublicAddressHttpClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
+    private val localActors = LocalActors(directory = directory, accountService = accountService)
+    private val httpClient = SignedFetchActivityPubHttpClient(
+        client = OkHttpActivityPubClient(),
+        signingActor = OldestAccountFetchSigner(accountService = accountService, localActors = localActors),
+        signer = HttpSignatureSigner(),
+    )
+    private val publicAddressHttpClient = PublicAddressHttpClient()
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
     val noteImageUrls: NoteImageUrls = NoteImageUrls(domain)
     val noteShareUrls: NoteShareUrls = NoteShareUrls(domain)
@@ -132,7 +139,6 @@ internal class Federation(
     )
     private val noteEmojiObjects = LocalNoteEmojiObjects(customEmojis = customEmojiService, customEmojiUrls = customEmojiUrls)
     private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls, emojiObjects = noteEmojiObjects)
-    private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, imageAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)

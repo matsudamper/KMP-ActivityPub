@@ -19,6 +19,8 @@ class AccountService(
 
     fun account(username: String): Account? = accountRepository.findByUsername(username)
 
+    fun oldestUsername(): String? = accountRepository.findOldestUsername()
+
     fun profileDetail(username: String): AccountProfileDetail? = accountRepository.findProfileDetail(username)
 
     fun publicKeyPem(username: String): String? = accountRepository.findPublicKeyPem(username)
