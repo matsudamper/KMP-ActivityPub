@@ -573,6 +573,7 @@ private fun HomeUserContentPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
+                            translateButton = null,
                             menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = AndroidPreviewShareListener,
@@ -723,6 +724,7 @@ private fun HomeUserMediaContentPreview() {
                             reactionButton = null,
                             stamps = listOf(),
                             authorListener = null,
+                            translateButton = null,
                             menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
                             postListener = null,
                             shareListener = AndroidPreviewShareListener,
@@ -991,6 +993,10 @@ private object AndroidPreviewAuthorListener : PostItemUiState.AuthorListener {
     override fun onClick() = Unit
 }
 
+private object AndroidPreviewTranslateButtonListener : PostItemUiState.TranslateButtonListener {
+    override fun onClick() = Unit
+}
+
 private object AndroidPreviewReplyLabelListener : PostItemUiState.ReplyLabelListener {
     override fun onClick() = Unit
 }
@@ -1110,6 +1116,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         reactionButton = null,
         stamps = listOf(),
         authorListener = AndroidPreviewAuthorListener,
+        translateButton = PostItemUiState.TranslateButton(text = "翻訳", enabled = true, listener = AndroidPreviewTranslateButtonListener),
         menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
         postListener = AndroidPreviewPostListener,
         shareListener = AndroidPreviewShareListener,
@@ -1175,6 +1182,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             PostItemUiState.Stamp(emoji = ":kotlin:", imageUrl = "https://example.com/kotlin.png", countText = "1", selected = false, listener = null),
         ),
         authorListener = AndroidPreviewAuthorListener,
+        translateButton = null,
         menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener), PostItemUiState.MenuItem(label = "削除", listener = AndroidPreviewMenuItemListener)),
         postListener = AndroidPreviewPostListener,
         shareListener = AndroidPreviewShareListener,
@@ -1210,6 +1218,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         shareListener = AndroidPreviewShareListener,
         menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
         authorListener = AndroidPreviewAuthorListener,
+        translateButton = null,
         listener = AndroidPreviewTimelineItemListener,
     ),
 )

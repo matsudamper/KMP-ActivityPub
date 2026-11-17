@@ -74,6 +74,7 @@ class PostSearchServiceTest {
             TimelinePost(
                 position = TimelinePosition(1, member),
                 contentHtml = contentHtml,
+                language = null,
                 publishedAt = publishedAt,
                 actorUri = ACTOR,
                 username = "carol",

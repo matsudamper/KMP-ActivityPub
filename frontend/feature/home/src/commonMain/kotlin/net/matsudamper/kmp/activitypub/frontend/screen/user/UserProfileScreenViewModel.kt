@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.following.FollowMenuController
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.language.TextTranslator
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockAccountResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserBlockServerResult
@@ -33,8 +35,11 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withPinned
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.POST_TRANSLATION_FAILED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
+import net.matsudamper.kmp.activitypub.frontend.screen.PostTranslationState
+import net.matsudamper.kmp.activitypub.frontend.screen.PostTranslations
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.screen.QuoteLoad
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
@@ -69,12 +74,21 @@ internal class UserProfileScreenViewModel(
     private val api: UserApi,
     private val postedAtRefreshTicker: PostedAtRefreshTicker,
     private val createOpenOriginalMenuItems: CreateOpenOriginalMenuItemsUseCase,
+    private val languageSettingStore: LanguageSettingStore,
+    private val textTranslator: TextTranslator,
 ) : ViewModel() {
     private val events = EventSender<Event>()
     internal val eventHandler = events.asHandler()
+    private val postTranslations = PostTranslations(
+        translator = textTranslator,
+        languageSettingStore = languageSettingStore,
+        coroutineScope = viewModelScope,
+        onFailed = { viewModelScope.launch { events.send { it.showMessage(POST_TRANSLATION_FAILED_MESSAGE) } } },
+    )
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
+                translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySource = mapOf()),
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 quotes = mapOf(),
@@ -209,6 +223,11 @@ internal class UserProfileScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            postTranslations.stateFlow.collect { translation ->
+                viewModelStateFlow.update { it.copy(translation = translation) }
+            }
+        }
         viewModelScope.launch {
             // ほかの画面で消した投稿もここで外す
             api.deletedNoteIds.collect { noteId ->
@@ -746,6 +765,8 @@ internal class UserProfileScreenViewModel(
                         onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
                     ),
                     sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
+                    translation = viewModelState.translation,
+                    onToggleTranslation = postTranslations::toggle,
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
                     authorTapAction = if (boostedNoteAuthor == null) {
                         AuthorTapAction.AlreadyOnAuthorProfile
@@ -832,6 +853,8 @@ internal class UserProfileScreenViewModel(
                 onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
             ),
             sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
+            translation = viewModelState.translation,
+            onToggleTranslation = postTranslations::toggle,
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
@@ -905,6 +928,7 @@ internal class UserProfileScreenViewModel(
     }
 
     private data class ViewModelState(
+        val translation: PostTranslationState,
         val profile: ProfileState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         /**

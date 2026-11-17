@@ -233,6 +233,17 @@ internal fun PostItem(
                 PostItemStyle.Detail -> Unit
             }
         }
+        val translateButton = uiState.translateButton
+        if (translateButton != null) {
+            TextButton(
+                onClick = translateButton.listener::onClick,
+                enabled = translateButton.enabled,
+                modifier = Modifier.align(Alignment.Start),
+                contentPadding = ActionButtonContentPadding,
+            ) {
+                Text(text = translateButton.text, style = sizes.secondaryTextStyle)
+            }
+        }
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {

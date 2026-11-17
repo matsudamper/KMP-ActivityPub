@@ -372,6 +372,7 @@ class QueryResolverImpl : QueryResolver {
         )
         return QlProfilePost(
             content = body.content,
+            language = language?.toLanguageTag(),
             publishedAt = publishedAt,
             summary = body.summary,
             sensitive = body.sensitive,

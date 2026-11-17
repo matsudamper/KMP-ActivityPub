@@ -227,6 +227,7 @@ private fun previewThreadPost(displayName: String, acct: String, content: String
     reactionButton = null,
     stamps = listOf(),
     authorListener = null,
+    translateButton = null,
     postListener = null,
     shareListener = null,
     menuItems = listOf(PostItemUiState.MenuItem(label = "共有", listener = AndroidPreviewMenuItemListener)),
@@ -309,6 +310,7 @@ private fun createLoadedUiState(
                     PostItemUiState.Stamp(emoji = "🎉", imageUrl = null, countText = "2", selected = true, listener = AndroidPreviewStampListener),
                 ),
                 authorListener = null,
+                translateButton = null,
                 postListener = null,
                 shareListener = null,
                 menuItems = listOf(

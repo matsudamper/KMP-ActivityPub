@@ -43,6 +43,7 @@ query UserProfileLikes($acct: String!, $after: String) {
 
 fragment ProfilePostFields on ProfilePost {
     content
+    language
     publishedAt
     summary
     sensitive

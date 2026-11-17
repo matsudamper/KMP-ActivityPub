@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.screen
 
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
@@ -12,6 +13,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 /**
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
+ * @param onToggleTranslation 翻訳のボタンを押したとき
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param quote [createPostItemQuote] で作る。引用でなければ null
  * @param replyLabel [createPostItemReplyLabel] で作る。「〜へのリプライ」の行を出さなければ null
@@ -39,6 +41,7 @@ internal fun createPostItemUiState(
     displayNameEmojis: List<UserCustomEmoji>,
     acct: String,
     body: UserPostBody,
+    translation: PostTranslationState,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
     quote: PostItemUiState.Quote?,
     sensitiveImagesBlurred: Boolean,
@@ -51,6 +54,7 @@ internal fun createPostItemUiState(
     onOpenImage: (urls: List<String>, index: Int) -> Unit,
     onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
     onShare: (url: String) -> Unit,
+    onToggleTranslation: (PostTranslationSource) -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
     onReply: () -> Unit,
@@ -62,6 +66,9 @@ internal fun createPostItemUiState(
 ): PostItemUiState {
     val shareUrl = body.shareUrl
     val imageUrls = body.images.map { it.url }
+    val translationSource = body.language?.let { PostTranslationSource(text = body.content, languageTag = it) }
+    val translationProgress = translationSource?.let { translation.progressBySource[it] }
+    val translated = translationProgress as? PostTranslationProgress.Translated
     return PostItemUiState(
         replyLabel = replyLabel,
         actorLabel = actorLabel?.let { label ->
@@ -93,8 +100,9 @@ internal fun createPostItemUiState(
         displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,
         body = createPostBodyText(
-            content = body.content,
-            mentions = body.mentions,
+            content = translated?.text ?: body.content,
+            // 訳すと文字の位置がずれるので、メンションは原文のときだけ押せる
+            mentions = if (translated == null) body.mentions else listOf(),
             emojis = body.emojis,
             onOpenUrl = onOpenUrl,
             onOpenProfile = onOpenProfile,
@@ -197,6 +205,11 @@ internal fun createPostItemUiState(
             }
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
+        },
+        translateButton = if (translationSource == null) {
+            null
+        } else {
+            createTranslateButton(source = translationSource, progress = translationProgress, translation = translation, onToggleTranslation = onToggleTranslation)
         },
         menuItems = createShareMenuItems(shareUrl = shareUrl, onShare = onShare) + menuItems,
         postListener = when (postTapAction) {
@@ -341,3 +354,36 @@ private fun createStamps(body: UserPostBody, onClickStamp: (UserPostStamp) -> Un
         )
     }
 }
+
+private fun createTranslateButton(
+    source: PostTranslationSource,
+    progress: PostTranslationProgress?,
+    translation: PostTranslationState,
+    onToggleTranslation: (PostTranslationSource) -> Unit,
+): PostItemUiState.TranslateButton? {
+    if (!translation.translatorSupported) return null
+    if (!isWrittenInOtherLanguage(postLanguageTag = source.languageTag, viewerLanguage = translation.viewerLanguage)) return null
+    return PostItemUiState.TranslateButton(
+        text = when (progress) {
+            null -> "翻訳"
+            PostTranslationProgress.Translating -> "翻訳中"
+            is PostTranslationProgress.Translated -> "原文を表示"
+        },
+        enabled = progress != PostTranslationProgress.Translating,
+        listener = object : PostItemUiState.TranslateButtonListener {
+            override fun onClick() {
+                onToggleTranslation(source)
+            }
+        },
+    )
+}
+
+/**
+ * 地域や文字体系が違っても、言語が同じなら同じとみなす。設定した言語が分からなければ、違うとは言えないので false
+ */
+private fun isWrittenInOtherLanguage(postLanguageTag: String, viewerLanguage: LanguageTag?): Boolean {
+    if (viewerLanguage == null) return false
+    return !primaryLanguageOf(postLanguageTag).equals(primaryLanguageOf(viewerLanguage.value), ignoreCase = true)
+}
+
+private fun primaryLanguageOf(languageTag: String): String = languageTag.substringBefore('-')

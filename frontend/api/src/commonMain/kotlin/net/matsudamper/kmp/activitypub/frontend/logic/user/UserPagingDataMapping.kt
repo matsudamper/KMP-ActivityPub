@@ -42,6 +42,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
         iconUrl = authorFields.iconUrl,
         body = UserPostBody(
             content = content,
+            language = language,
             publishedAt = publishedAt,
             summary = summary,
             sensitive = sensitive,
@@ -104,6 +105,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     boostUndone = boostUndone,
     sortedAt = sortedAt,
     content = body.content,
+    language = body.language,
     publishedAt = body.publishedAt,
     author = TimelinePostFields.Author(
         __typename = "Actor",

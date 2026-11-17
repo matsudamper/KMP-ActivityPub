@@ -4,6 +4,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * ホームとプロフィールで同じ見せ方にするため、投稿の中身はこの型でまとめて渡す
  *
  * @param linkUrls カードにするリンク。OGP は [UserApi.linkPreviews] で別に取る
+ * @param language BCP 47 の言語タグ。このサーバーの投稿と、相手のサーバーが付けていない投稿は null
  * @param mentions [content] に書かれたメンション
  * @param favouriteCount 他のサーバーの投稿は、相手のサーバーの数を取ったことがなければ null
  * @param boostCount 他のサーバーの投稿は、相手のサーバーの数を取ったことがなければ null
@@ -19,6 +20,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  */
 data class UserPostBody(
     val content: String,
+    val language: String?,
     val publishedAt: String,
     val summary: String?,
     val sensitive: Boolean,

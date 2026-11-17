@@ -39,6 +39,10 @@ import com.apollographql.apollo.network.NetworkTransport
 import com.apollographql.apollo.network.http.HttpEngine
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClient
 import net.matsudamper.kmp.activitypub.frontend.logic.GraphQlClientSource
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSetting
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageSettingStore
+import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
+import net.matsudamper.kmp.activitypub.frontend.logic.language.TextTranslator
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.ColumnWidthStore
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSetting
 import net.matsudamper.kmp.activitypub.frontend.logic.timeline.TimelineColumnSettingStore
@@ -563,6 +567,8 @@ class HomeScreenViewModelTest {
             CreateOpenOriginalMenuItemsUseCase(),
             columnSettingStore,
             FakeColumnWidthStore(),
+            FakeLanguageSettingStore(),
+            FakeTextTranslator(),
         )
         try {
             block(viewModel, engine)
@@ -587,7 +593,7 @@ class HomeScreenViewModelTest {
 
     private fun post(id: String, followingGroupId: String?, sortedAt: String): String {
         val groupId = if (followingGroupId == null) "null" else "\"$followingGroupId\""
-        return """{"__typename":"TimelinePost","id":"$id","deleted":false,"boostUndone":false,"sortedAt":"$sortedAt","content":"$id","publishedAt":"2026-11-01",""" +
+        return """{"__typename":"TimelinePost","id":"$id","deleted":false,"boostUndone":false,"sortedAt":"$sortedAt","content":"$id","language":null,"publishedAt":"2026-11-01",""" +
             """"author":${actor("Alice")},"summary":null,"sensitive":false,"linkUrls":[],"mentions":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,""" +
             """"images":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,""" +
             """"boostedByMe":null,"reactionPostId":"$id","followingGroupId":$groupId,"hasReplyTarget":false,"hasQuoteTarget":false,"edited":false,"replyCount":0,"stampCountsReceived":true}"""
@@ -626,6 +632,18 @@ class HomeScreenViewModelTest {
     private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()
 
     private fun HomeScreenUiState.mainColumnFooter(): HomeScreenUiState.TimelineFooter? = timelineColumns.firstOrNull()?.footer
+
+    private class FakeLanguageSettingStore : LanguageSettingStore {
+        override val languageSettingFlow: Flow<LanguageSetting> = emptyFlow()
+
+        override suspend fun save(languageTag: LanguageTag, translateButtonVisible: Boolean): Boolean = true
+    }
+
+    private class FakeTextTranslator : TextTranslator {
+        override val supported: Boolean = false
+
+        override suspend fun translate(text: String, sourceLanguageTag: String, targetLanguage: LanguageTag): String? = null
+    }
 
     private class FakeTimelineColumnSettingStore(initialColumns: List<TimelineColumnSetting>) : TimelineColumnSettingStore {
         val columns = MutableStateFlow(initialColumns)

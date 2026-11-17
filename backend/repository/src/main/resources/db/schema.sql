@@ -250,7 +250,9 @@ CREATE TABLE remote_notes (
     -- 引用した投稿の id。引用でなければ NULL
     quote_uri TEXT,
     -- 投稿者が最後に編集した時刻。編集を受け取っていなければ NULL
-    edited_at TEXT
+    edited_at TEXT,
+    -- BCP 47 の言語タグ。相手のサーバーが付けていなければ NULL
+    language TEXT
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);

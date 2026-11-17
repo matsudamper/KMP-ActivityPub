@@ -37,6 +37,8 @@ type ProfileLink {
 
 type ProfilePost {
     content: String!
+    "BCP 47 の言語タグ。このサーバーの投稿と、相手のサーバーが付けていない投稿は null"
+    language: String
     publishedAt: String!
     summary: String
     sensitive: Boolean!

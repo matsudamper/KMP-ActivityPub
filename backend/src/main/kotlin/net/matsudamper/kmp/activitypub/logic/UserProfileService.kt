@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.logic
 import java.net.URI
 import java.time.Instant
 import java.util.Base64
+import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
@@ -195,6 +196,7 @@ class UserProfileService(
             val member = localPositions[it.publicId]?.member ?: return@mapNotNull null
             it.publicId to ProfilePost(
                 contentHtml = it.contentHtml,
+                language = null,
                 publishedAt = it.publishedAt.toString(),
                 summary = null,
                 sensitive = false,
@@ -446,6 +448,7 @@ class UserProfileService(
      */
     private fun ProfilePost.withContentOf(note: RemoteNoteInput): ProfilePost = copy(
         contentHtml = note.contentHtml,
+        language = note.language,
         publishedAt = note.publishedAt.toString(),
         summary = note.summary,
         sensitive = note.sensitive,
@@ -457,6 +460,7 @@ class UserProfileService(
         val unsavedId = UnsavedRemoteNoteId.of(objectUri)
         return ProfilePost(
             contentHtml = contentHtml,
+            language = language,
             publishedAt = publishedAt.toString(),
             summary = summary,
             sensitive = sensitive,
@@ -484,6 +488,7 @@ class UserProfileService(
         val notePublicId = localPublicId
         return ProfilePost(
             contentHtml = contentHtml,
+            language = language,
             publishedAt = publishedAt.toString(),
             summary = summary,
             sensitive = sensitive,
@@ -750,6 +755,10 @@ sealed interface ProfilePostsResult {
  */
 data class ProfilePost(
     val contentHtml: String,
+    /**
+     * このサーバーの投稿と、相手のサーバーが付けていない投稿は null
+     */
+    val language: Locale?,
     val publishedAt: String,
     val summary: String?,
     val sensitive: Boolean,

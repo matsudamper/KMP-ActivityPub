@@ -113,6 +113,7 @@ class ProfileLikesServiceTest {
         TimelinePost(
             position = TimelinePosition(1, member),
             contentHtml = "<p>投稿</p>",
+            language = null,
             publishedAt = Instant.EPOCH,
             actorUri = actorUri,
             username = "carol",

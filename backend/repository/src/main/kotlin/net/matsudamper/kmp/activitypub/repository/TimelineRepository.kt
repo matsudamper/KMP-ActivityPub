@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.repository
 
 import java.time.Instant
+import java.util.Locale
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
@@ -193,6 +194,10 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
 data class TimelinePost(
     val position: TimelinePosition,
     val contentHtml: String,
+    /**
+     * このサーバーの投稿と、相手のサーバーが付けていない投稿は null
+     */
+    val language: Locale?,
     val publishedAt: Instant,
     val actorUri: String?,
     val username: String,
@@ -292,6 +297,10 @@ data class RemoteNoteInput(
     val objectUri: String,
     val actorUri: String,
     val contentHtml: String,
+    /**
+     * 相手のサーバーが付けていなければ null
+     */
+    val language: Locale?,
     val visibility: String,
     val localRecipients: Set<String>,
     val inReplyTo: String?,
