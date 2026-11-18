@@ -114,7 +114,6 @@ internal fun createPostItemUiState(
             now = Clock.System.now(),
             timeZone = TimeZone.currentSystemDefault(),
         ),
-        unknownObjectTypes = body.unknownObjectTypes,
         fullPostedAt = createFullPostedAtText(publishedAt = body.publishedAt, timeZone = TimeZone.currentSystemDefault()),
         editedLabel = if (body.edited) {
             PostItemUiState.EditedLabel(

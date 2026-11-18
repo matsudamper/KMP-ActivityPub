@@ -798,7 +798,6 @@ class UserProfileServiceTest {
             images = listOf(),
             emojis = listOf(),
             linkHref = null,
-            unknownTypes = listOf(),
         )
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =
@@ -831,7 +830,6 @@ class UserProfileServiceTest {
             quoteUri = null,
             editedAt = null,
             linkHref = null,
-            unknownTypes = listOf(),
         )
 
     private companion object {

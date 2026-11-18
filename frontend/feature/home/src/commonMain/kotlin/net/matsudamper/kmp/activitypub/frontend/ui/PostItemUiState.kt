@@ -31,10 +31,6 @@ data class PostItemUiState(
      */
     val bodyVisible: Boolean,
     val body: TextWithEmojis,
-    /**
-     * 本文の下に枠で囲んで横に並べる、サーバーが読み方を知らない ActivityPub の type の名前
-     */
-    val unknownObjectTypes: List<String>,
     val postedAt: String,
     /**
      * 投稿の単体画面で、添付の下に出す年月日と時刻

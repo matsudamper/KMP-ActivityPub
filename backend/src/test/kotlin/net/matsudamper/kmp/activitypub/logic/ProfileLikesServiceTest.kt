@@ -139,6 +139,5 @@ class ProfileLikesServiceTest {
             quoteUri = null,
             editedAt = null,
             linkHref = null,
-            unknownTypes = listOf(),
         )
 }

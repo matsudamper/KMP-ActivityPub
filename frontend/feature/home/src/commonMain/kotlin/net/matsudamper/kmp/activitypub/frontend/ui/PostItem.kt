@@ -267,9 +267,6 @@ internal fun PostItem(
                         overflow = TextOverflow.Clip,
                     )
                 }
-                if (uiState.unknownObjectTypes.isNotEmpty()) {
-                    UnknownObjectTypes(types = uiState.unknownObjectTypes, sizes = sizes)
-                }
                 val quote = uiState.quote
                 if (quote != null) {
                     PostQuoteCard(
@@ -440,25 +437,6 @@ private fun PinnedLabel(sizes: PostItemSizes) {
 /**
  * 押せるときは、編集前の版を出せると分かるよう色を変える
  */
-@Composable
-private fun UnknownObjectTypes(types: List<String>, sizes: PostItemSizes) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        types.forEach { type ->
-            Text(
-                text = type,
-                modifier = Modifier
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
-                style = sizes.secondaryTextStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
 @Composable
 private fun EditedLabel(editedLabel: PostItemUiState.EditedLabel, sizes: PostItemSizes) {
     val listener = editedLabel.listener

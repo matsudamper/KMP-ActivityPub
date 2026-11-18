@@ -205,15 +205,7 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     images = attachments.mapNotNull { it.toRemoteMedia() },
     emojis = emojis.toRecords(),
     linkHref = linkHref,
-    unknownTypes = unknownTypes.filter { DISPLAYABLE_TYPE_NAME.matches(it) }.take(MAX_UNKNOWN_TYPES),
 )
-
-/**
- * 相手が自由に決められる文字列なので、型の名前として出せる文字と長さのものだけを残す。空白で区切って保存するので空白も通さない
- */
-private val DISPLAYABLE_TYPE_NAME = Regex("[A-Za-z0-9_:./#-]{1,64}")
-
-private const val MAX_UNKNOWN_TYPES = 10
 
 /**
  * Link は本文を持たないので、リンク先を本文の先頭に置いて、本文のリンクと同じくカードにする

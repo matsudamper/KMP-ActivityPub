@@ -236,7 +236,6 @@ private fun previewThreadPost(displayName: String, acct: String, content: String
     bodyVisible = true,
     body = createPostBodyText(content = content, mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
     postedAt = "1時間",
-    unknownObjectTypes = listOf(),
     fullPostedAt = "2026/11/01 20:00",
     editedLabel = null,
     linkPreviews = listOf(),
@@ -309,7 +308,6 @@ private fun createLoadedUiState(
                     onOpenProfile = {},
                 ),
                 postedAt = "2026-11-01T12:00:00Z",
-                unknownObjectTypes = listOf(),
                 fullPostedAt = "2026/11/01 21:00",
                 editedLabel = null,
                 linkPreviews = listOf(

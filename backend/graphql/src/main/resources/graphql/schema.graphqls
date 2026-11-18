@@ -203,8 +203,6 @@ type TimelinePost {
     linkUrls: [String!]!
     "Link で届いた投稿のリンク先。linkUrls のどれかと同じ URL。Link でない投稿と、カードにするリンクを返さない投稿は null"
     linkObjectUrl: String
-    "投稿本体・添付・タグのうち、このサーバーが読み方を知らない ActivityPub の type の名前。このサーバーの投稿は空"
-    unknownObjectTypes: [String!]!
     "本文にあるメンション。本文に出てくる順"
     mentions: [PostMention!]!
     "投稿に付いた画像。付いた順"

@@ -283,9 +283,7 @@ CREATE TABLE remote_notes (
     -- BCP 47 の言語タグ。相手のサーバーが付けていなければ NULL
     language TEXT,
     -- Link で届いた投稿のリンク先。Note なら NULL
-    link_href TEXT,
-    -- 投稿本体・添付・タグのうち読み方を知らない type の名前を空白で区切って並べる。無ければ NULL
-    unknown_types TEXT
+    link_href TEXT
 );
 
 CREATE INDEX remote_notes_actor_score ON remote_notes (remote_actor_id, score_ms DESC, id DESC);

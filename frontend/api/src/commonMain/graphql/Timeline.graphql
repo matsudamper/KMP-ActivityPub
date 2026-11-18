@@ -24,7 +24,6 @@ fragment TimelinePostFields on TimelinePost {
     sensitive
     linkUrls
     linkObjectUrl
-    unknownObjectTypes
     mentions {
         start
         end

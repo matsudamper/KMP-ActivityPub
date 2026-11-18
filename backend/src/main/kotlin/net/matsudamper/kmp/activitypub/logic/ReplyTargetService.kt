@@ -118,7 +118,6 @@ class ReplyTargetService(
             quoteUri = note.quoteUri,
             editedAt = null,
             linkHref = note.linkHref,
-            unknownTypes = note.unknownTypes,
         )
     }
 

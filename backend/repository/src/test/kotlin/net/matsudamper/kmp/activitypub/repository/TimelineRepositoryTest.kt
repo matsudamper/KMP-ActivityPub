@@ -861,7 +861,6 @@ class TimelineRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
-        unknownTypes = listOf(),
     )
 
     private fun withRepository(block: (Repositories, Map<String, AccountId>) -> Unit) {

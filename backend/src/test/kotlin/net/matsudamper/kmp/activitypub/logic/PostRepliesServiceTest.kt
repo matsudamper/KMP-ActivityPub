@@ -98,7 +98,6 @@ class PostRepliesServiceTest {
         quoteUri = null,
         editedAt = null,
         linkHref = null,
-        unknownTypes = listOf(),
     )
 
     private companion object {

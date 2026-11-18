@@ -218,7 +218,6 @@ class UserProfileService(
                 hasQuoteTarget = it.quoteUri != null,
                 edited = false,
                 linkHref = null,
-                unknownTypes = listOf(),
             )
         }.toMap()
         val boostPosts = takenBoosts.mapNotNull { post ->
@@ -447,8 +446,7 @@ class UserProfileService(
     }
 
     /**
-     * 相手が後から編集していても最新の内容を出すよう、本文などは今回取った投稿から使う。いいねの状態や id は保存済みの方を残す。
-     * outbox から取った投稿は知らない型を拾わないので、知らない型も保存済みの方を残す
+     * 相手が後から編集していても最新の内容を出すよう、本文などは今回取った投稿から使う。いいねの状態や id は保存済みの方を残す
      */
     private fun ProfilePost.withContentOf(note: RemoteNoteInput): ProfilePost = copy(
         contentHtml = note.contentHtml,
@@ -487,7 +485,6 @@ class UserProfileService(
             hasQuoteTarget = quoteUri != null,
             edited = false,
             linkHref = linkHref,
-            unknownTypes = unknownTypes,
         )
     }
 
@@ -517,7 +514,6 @@ class UserProfileService(
             hasQuoteTarget = quoteUri != null,
             edited = editedAt != null,
             linkHref = linkHref,
-            unknownTypes = unknownTypes,
         )
     }
 
@@ -819,10 +815,6 @@ data class ProfilePost(
      * Link で届いた投稿のリンク先。Note とこのサーバーの投稿は null
      */
     val linkHref: String?,
-    /**
-     * 投稿本体・添付・タグのうち読み方を知らない type の名前。このサーバーの投稿は空
-     */
-    val unknownTypes: List<String>,
 ) {
     /**
      * OGP は保存した投稿の本文から引くので、保存していない投稿は引けない
