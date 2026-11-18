@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectTypeRepository
 
 internal class SqliteRepositories(
     config: DatabaseConfig,
@@ -38,6 +39,7 @@ internal class SqliteRepositories(
     override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)
     override val deliveryQueueRepository: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
     override val failedDeliveryRepository: FailedDeliveryRepository = SqliteFailedDeliveryRepository(jooq)
+    override val unknownObjectTypeRepository: UnknownObjectTypeRepository = SqliteUnknownObjectTypeRepository(jooq)
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
     override val noteCountRepository: NoteCountRepository = SqliteNoteCountRepository(jooq)
     override val notePinRepository: NotePinRepository = SqliteNotePinRepository(jooq)

@@ -40,6 +40,8 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectType
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectTypeRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
@@ -156,6 +158,11 @@ internal class FakeRepositories : Repositories {
         override fun page(beforeId: Long?, limit: Int): List<FailedDelivery> = listOf()
 
         override fun find(id: Long): FailedDelivery? = null
+    }
+    override val unknownObjectTypeRepository: UnknownObjectTypeRepository = object : UnknownObjectTypeRepository {
+        override fun record(typeNames: List<String>, sourceUrl: String, seenAt: Instant) = Unit
+
+        override fun page(beforeId: Long?, limit: Int): List<UnknownObjectType> = listOf()
     }
     override val actorBlockRepository: ActorBlockRepository = object : ActorBlockRepository {
         private val rows = mutableListOf<Pair<AccountId, BlockedActor>>()

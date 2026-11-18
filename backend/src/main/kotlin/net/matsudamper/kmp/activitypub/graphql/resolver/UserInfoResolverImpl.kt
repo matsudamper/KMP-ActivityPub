@@ -15,10 +15,13 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostRevision
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostRevisionPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePage
+import net.matsudamper.kmp.activitypub.graphql.model.QlUnknownObjectType
+import net.matsudamper.kmp.activitypub.graphql.model.QlUnknownObjectTypePage
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.repository.FailedDelivery
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectType
 import net.matsudamper.kmp.activitypub.shared.FailedDeliveryId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.PostRevisionId
@@ -161,6 +164,29 @@ class UserInfoResolverImpl : UserInfoResolver {
         }
     }
 
+    override fun unknownObjectTypes(
+        userInfo: QlUserInfo,
+        after: String?,
+        limit: Int,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlUnknownObjectTypePage>> {
+        requireAdmin(userInfo, env)
+        return otelSupplyAsync {
+            val page = GraphQlEngine.diContainer(env).unknownObjectTypeService.page(after = after, limit = limit)
+            if (page == null) {
+                DataFetcherResult.Builder(QlUnknownObjectTypePage(types = listOf(), nextCursor = null))
+                    .error(GraphqlErrorBuilder.newError(env).message("after が読めない").build())
+                    .build()
+            } else {
+                val result = QlUnknownObjectTypePage(
+                    types = page.types.map { it.toQlUnknownObjectType() },
+                    nextCursor = page.nextCursor,
+                )
+                DataFetcherResult.Builder(result).build()
+            }
+        }
+    }
+
     private fun requireAdmin(userInfo: QlUserInfo, env: DataFetchingEnvironment) {
         if (userInfo.id !in GraphQlEngine.diContainer(env).adminAccountIds) throw GraphQlClientException("管理者ではない")
     }
@@ -174,5 +200,13 @@ class UserInfoResolverImpl : UserInfoResolver {
         enqueuedAt = enqueuedAt.toString(),
         failedAt = failedAt?.toString(),
         lastError = lastError,
+    )
+
+    private fun UnknownObjectType.toQlUnknownObjectType(): QlUnknownObjectType = QlUnknownObjectType(
+        typeName = typeName,
+        sourceUrl = sourceUrl,
+        seenCount = seenCount,
+        firstSeenAt = firstSeenAt.toString(),
+        lastSeenAt = lastSeenAt.toString(),
     )
 }

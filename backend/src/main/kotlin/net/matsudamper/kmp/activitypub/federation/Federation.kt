@@ -52,6 +52,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectTypeRepository
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
@@ -120,9 +121,11 @@ internal class Federation(
     noteCountRepository: NoteCountRepository,
     imageStorage: ImageStorage?,
     instanceActorKeyRepository: InstanceActorKeyRepository,
+    unknownObjectTypeRepository: UnknownObjectTypeRepository,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
+    private val unknownTypes = RecordedUnknownTypes(repository = unknownObjectTypeRepository, clock = Clock.systemUTC())
     private val instanceActor = storedInstanceActor(domain = domain, keys = instanceActorKeyRepository)
     private val httpClient = SignedFetchActivityPubHttpClient(
         client = OkHttpActivityPubClient(),
@@ -478,9 +481,9 @@ internal class Federation(
                         remoteNotes = remoteNotes,
                         approvals = quoteApprovals,
                     ),
-                    UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes),
+                    UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes, unknownTypes = unknownTypes),
                     // 投票の付いた投稿を作れないので、届いた票は記録しない
-                    CreateNoteHandler(notes = receivedNotes, pollVotes = PollVoteStore { }),
+                    CreateNoteHandler(notes = receivedNotes, pollVotes = PollVoteStore { }, unknownTypes = unknownTypes),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(

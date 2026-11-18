@@ -29,6 +29,7 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteProfileRefreshService
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
 import net.matsudamper.kmp.activitypub.logic.ServerBlockService
+import net.matsudamper.kmp.activitypub.logic.UnknownObjectTypeService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.logic.ViewablePostService
@@ -61,6 +62,7 @@ class DiContainer(
     val loginThrottle: LoginThrottle,
     val adminAccountIds: Set<AccountId>,
     val failedDeliveryService: FailedDeliveryService,
+    val unknownObjectTypeService: UnknownObjectTypeService,
     /**
      * DOMAIN が無いと配れないので null
      */

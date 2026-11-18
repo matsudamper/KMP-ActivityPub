@@ -559,3 +559,16 @@ CREATE TABLE account_actor_blocks (
     created_at TEXT NOT NULL,
     PRIMARY KEY (account_id, actor_uri)
 );
+
+-- 届いたものの中にあった、このサーバーが読み方を知らない ActivityPub の type。
+-- 実装ごとに使う型が違うので、何が届いているかを管理画面で確かめる
+CREATE TABLE unknown_object_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type_name TEXT NOT NULL,
+    -- 型を見つけた object の id。無ければ包んでいたアクティビティの id
+    source_url TEXT NOT NULL,
+    seen_count INTEGER NOT NULL,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    UNIQUE (type_name, source_url)
+);
