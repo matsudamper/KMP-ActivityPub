@@ -64,6 +64,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.profileedit.ProfileEditSc
 import net.matsudamper.kmp.activitypub.frontend.screen.security.SecurityScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.settings.SettingsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.user.UserProfileScreen
+import net.matsudamper.kmp.activitypub.frontend.ui.ImageInputArea
 import net.matsudamper.kmp.activitypub.frontend.ui.clearPostBodySelectionOnPress
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -76,78 +77,81 @@ fun HomeNavigationHost(
     val navigator = remember(backStack) { Navigator(backStack) }
     BoxWithConstraints(modifier = modifier) {
         val openAsDialog = maxWidth >= COLUMNS_LAYOUT_MIN_WIDTH
-        NavDisplay(
-            backStack = backStack,
-            modifier = Modifier.fillMaxSize().clearPostBodySelectionOnPress(),
-            onBack = navigator::back,
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-            ),
-            sceneStrategies = listOf(SingleDialogSceneStrategy()),
-            popTransitionSpec = { fadeIn() togetherWith fadeOut() },
-            predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
-            entryProvider = { key ->
-                NavEntry(
-                    key,
-                    contentKey = if (key is Screen.Home) Screen.Home.Timeline.path else (key as Screen).path,
-                    metadata = when {
-                        key is Screen.Image -> ImageViewerDialogMetadata
-                        key is Screen.UserProfile && openAsDialog -> UserProfileDialogMetadata
-                        key is Screen.PostDetail && openAsDialog -> PostDetailDialogMetadata
-                        key is Screen.ProfileEdit && openAsDialog -> ProfileEditDialogMetadata
-                        key is Screen.MentionPost && openAsDialog -> PostDialogMetadata
-                        else -> mapOf()
-                    },
-                ) { screenKey ->
-                    val screen = screenKey as Screen
-                    if (screen is Screen.UserProfile && openAsDialog) {
-                        UserProfileDialogFrame {
+        // 投稿画面を開いている間は、どこに落としたり貼り付けたりした画像も添付する
+        ImageInputArea(modifier = Modifier.fillMaxSize()) {
+            NavDisplay(
+                backStack = backStack,
+                modifier = Modifier.fillMaxSize().clearPostBodySelectionOnPress(),
+                onBack = navigator::back,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator(),
+                ),
+                sceneStrategies = listOf(SingleDialogSceneStrategy()),
+                popTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                predictivePopTransitionSpec = { fadeIn() togetherWith fadeOut() },
+                entryProvider = { key ->
+                    NavEntry(
+                        key,
+                        contentKey = if (key is Screen.Home) Screen.Home.Timeline.path else (key as Screen).path,
+                        metadata = when {
+                            key is Screen.Image -> ImageViewerDialogMetadata
+                            key is Screen.UserProfile && openAsDialog -> UserProfileDialogMetadata
+                            key is Screen.PostDetail && openAsDialog -> PostDetailDialogMetadata
+                            key is Screen.ProfileEdit && openAsDialog -> ProfileEditDialogMetadata
+                            key is Screen.MentionPost && openAsDialog -> PostDialogMetadata
+                            else -> mapOf()
+                        },
+                    ) { screenKey ->
+                        val screen = screenKey as Screen
+                        if (screen is Screen.UserProfile && openAsDialog) {
+                            UserProfileDialogFrame {
+                                ScreenEntryContent(
+                                    screen = screen,
+                                    navigator = navigator,
+                                    serverSettingUiState = serverSettingUiState,
+                                    inDialog = true,
+                                )
+                            }
+                        } else if (screen is Screen.PostDetail && openAsDialog) {
+                            PostDetailDialogFrame(onDismissRequest = navigator::back) {
+                                ScreenEntryContent(
+                                    screen = screen,
+                                    navigator = navigator,
+                                    serverSettingUiState = serverSettingUiState,
+                                    inDialog = true,
+                                )
+                            }
+                        } else if (screen is Screen.ProfileEdit && openAsDialog) {
+                            ProfileEditDialogFrame {
+                                ScreenEntryContent(
+                                    screen = screen,
+                                    navigator = navigator,
+                                    serverSettingUiState = serverSettingUiState,
+                                    inDialog = true,
+                                )
+                            }
+                        } else if (screen is Screen.MentionPost && openAsDialog) {
+                            PostDialogFrame {
+                                ScreenEntryContent(
+                                    screen = screen,
+                                    navigator = navigator,
+                                    serverSettingUiState = serverSettingUiState,
+                                    inDialog = true,
+                                )
+                            }
+                        } else {
                             ScreenEntryContent(
                                 screen = screen,
                                 navigator = navigator,
                                 serverSettingUiState = serverSettingUiState,
-                                inDialog = true,
+                                inDialog = false,
                             )
                         }
-                    } else if (screen is Screen.PostDetail && openAsDialog) {
-                        PostDetailDialogFrame(onDismissRequest = navigator::back) {
-                            ScreenEntryContent(
-                                screen = screen,
-                                navigator = navigator,
-                                serverSettingUiState = serverSettingUiState,
-                                inDialog = true,
-                            )
-                        }
-                    } else if (screen is Screen.ProfileEdit && openAsDialog) {
-                        ProfileEditDialogFrame {
-                            ScreenEntryContent(
-                                screen = screen,
-                                navigator = navigator,
-                                serverSettingUiState = serverSettingUiState,
-                                inDialog = true,
-                            )
-                        }
-                    } else if (screen is Screen.MentionPost && openAsDialog) {
-                        PostDialogFrame {
-                            ScreenEntryContent(
-                                screen = screen,
-                                navigator = navigator,
-                                serverSettingUiState = serverSettingUiState,
-                                inDialog = true,
-                            )
-                        }
-                    } else {
-                        ScreenEntryContent(
-                            screen = screen,
-                            navigator = navigator,
-                            serverSettingUiState = serverSettingUiState,
-                            inDialog = false,
-                        )
                     }
-                }
-            },
-        )
+                },
+            )
+        }
     }
 }
 
@@ -189,7 +193,10 @@ internal fun ProfileEditDialogFrame(content: @Composable () -> Unit) {
  */
 @Composable
 internal fun PostDialogFrame(content: @Composable () -> Unit) {
-    UpperDialogFrame(maxWidth = POST_DIALOG_MAX_WIDTH, onClickOutside = null, content = content)
+    // ダイアログは別のウィンドウになるので、画面のものとは別に置く
+    ImageInputArea(modifier = Modifier.fillMaxSize()) {
+        UpperDialogFrame(maxWidth = POST_DIALOG_MAX_WIDTH, onClickOutside = null, content = content)
+    }
 }
 
 /**
