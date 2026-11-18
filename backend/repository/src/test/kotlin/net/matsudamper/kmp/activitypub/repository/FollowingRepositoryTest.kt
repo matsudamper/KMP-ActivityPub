@@ -120,6 +120,8 @@ class FollowingRepositoryTest {
                             iconUrl = "https://remote.example/carol.png",
                             headerUrl = null,
                             emojis = listOf(),
+                            summary = null,
+                            fields = listOf(),
                         ),
                     ),
                     followActivityUri = "$knownActorUri/follows/1",

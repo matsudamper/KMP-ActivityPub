@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileFieldRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
@@ -190,7 +191,7 @@ class UserProfileServiceTest {
     @Test
     fun followedUserHeaderComesFromStoredActor() = runBlocking {
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("bob", "Bob", null, null, "https://remote.example/stored-header.png", listOf())),
+            RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("bob", "Bob", null, null, "https://remote.example/stored-header.png", listOf(), null, listOf())),
             Instant.EPOCH,
         )
         following.setFollowing(viewer, actorUri, true)
@@ -199,6 +200,31 @@ class UserProfileServiceTest {
 
         assertEquals(listOf(), requests)
         assertEquals("https://remote.example/stored-header.png", profile.headerUrl)
+    }
+
+    @Test
+    fun followedUserBiographyAndLinksComeFromStoredActor() = runBlocking {
+        val storedProfile = RemoteActorProfileRecord(
+            preferredUsername = "bob",
+            displayName = "Bob",
+            profileUrl = null,
+            iconUrl = null,
+            headerUrl = null,
+            emojis = listOf(),
+            summary = "<p>保存した自己紹介</p>",
+            fields = listOf(
+                RemoteActorProfileFieldRecord(name = "Web", htmlValue = """<a href="https://example.com/">example.com</a>"""),
+                RemoteActorProfileFieldRecord(name = "場所", htmlValue = "東京"),
+            ),
+        )
+        repositories.remoteActorRepository.save(RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", storedProfile), Instant.EPOCH)
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+
+        assertEquals(listOf(), requests)
+        assertEquals("保存した自己紹介", profile.biography)
+        assertEquals(listOf(ProfileLink(name = "Web", url = "https://example.com/")), profile.links)
     }
 
     @Test

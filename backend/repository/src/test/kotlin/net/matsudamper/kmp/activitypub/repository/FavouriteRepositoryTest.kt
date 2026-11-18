@@ -131,7 +131,7 @@ class FavouriteRepositoryTest {
             inbox = "$actorUri/inbox",
             sharedInbox = null,
             publicKeyPem = "key-$actorUri",
-            profile = RemoteActorProfileRecord(preferredUsername = null, displayName = null, profileUrl = null, iconUrl = null, headerUrl = null, emojis = listOf()),
+            profile = RemoteActorProfileRecord(preferredUsername = null, displayName = null, profileUrl = null, iconUrl = null, headerUrl = null, emojis = listOf(), summary = null, fields = listOf()),
         )
 
     private companion object {

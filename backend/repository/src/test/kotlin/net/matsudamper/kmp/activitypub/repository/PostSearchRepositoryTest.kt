@@ -73,7 +73,7 @@ class PostSearchRepositoryTest {
     fun deletedPostsAndHiddenAuthorsAreNotFound() = withRepository { repositories, alice ->
         val hiddenActor = "https://hidden.example/users/hidden"
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(hiddenActor, "$hiddenActor/inbox", null, "key", RemoteActorProfileRecord("hidden", "Hidden", null, null, null, listOf())),
+            RemoteActorRecord(hiddenActor, "$hiddenActor/inbox", null, "key", RemoteActorProfileRecord("hidden", "Hidden", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(alice, ACTOR, NOW)
@@ -129,7 +129,7 @@ class PostSearchRepositoryTest {
             }
             Repositories.create(DatabaseConfig(path)).use { repositories ->
                 repositories.remoteActorRepository.save(
-                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf())),
+                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf(), null, listOf())),
                     NOW,
                 )
                 val alice = checkNotNull(repositories.accountRepository.findByUsername("alice")).id

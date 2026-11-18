@@ -81,12 +81,13 @@ class UserProfileService(
         val followed = following.isFollowing(viewer, storedActor?.actorUri)
         if (followed || viewer == null) {
             val actor = storedActor ?: return null
+            val storedProfile = remoteActors.findByUri(actor.actorUri)?.profile
             return UserProfile(
                 user = SearchedUser(actor.actorUri, actor.preferredUsername, target.host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.emojis, actor.updatedAt),
                 following = followed,
-                headerUrl = remoteActors.findByUri(actor.actorUri)?.profile?.headerUrl,
-                biography = null,
-                links = listOf(),
+                headerUrl = storedProfile?.headerUrl,
+                biography = storedProfile?.summary?.let { htmlToPlainText(it) },
+                links = storedProfile?.fields.orEmpty().mapNotNull { RemoteProfileField(name = it.name, htmlValue = it.htmlValue).toProfileLink() },
                 viewerIsOwner = false,
             )
         }
@@ -613,7 +614,7 @@ data class RemoteProfileField(
 /**
  * @param headerUrl 他のサーバーのユーザーのヘッダー画像の取得元。中継する前の相手の URL。このサーバーのユーザーは Actor の `image` の URL を別に引くので null
  * @param biography プレーンテキスト
- * @param links 補足情報。他のサーバーのユーザーのものは https の URL を取れた項目だけ
+ * @param links 補足情報。他のサーバーのユーザーのものは https の URL を取れた項目だけ。フォロー中の相手とログインしていないときは保存しておいたものを使う
  * @param viewerIsOwner 見ているアカウント本人のプロフィールか。他のサーバーのユーザーは本人になりえないので false
  */
 data class UserProfile(
