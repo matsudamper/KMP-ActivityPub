@@ -50,6 +50,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveryQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolvePostQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchPostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
@@ -944,6 +945,18 @@ class UserApi(
             posts = page.posts.map { it.timelinePostFields.toPost() },
             nextCursor = page.nextCursor,
         )
+    }
+
+    /**
+     * 投稿の URL から投稿を 1 件引く
+     */
+    suspend fun resolvePost(url: String): UserPostResolveResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostResolveResult.Failure("接続先が未設定")
+        val response = client.query(HomeScreenResolvePostQuery(url = url)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostResolveResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostResolveResult.Failure(response.failureMessage())
+        val post = data.resolvePost ?: return UserPostResolveResult.NotFound
+        return UserPostResolveResult.Found(post.timelinePostFields.toPost())
     }
 
     suspend fun resolveUser(query: String): UserResolveResult {
