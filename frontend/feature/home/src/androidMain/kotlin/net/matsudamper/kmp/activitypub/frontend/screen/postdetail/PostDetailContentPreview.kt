@@ -59,7 +59,7 @@ private fun PostDetailContentNotLoggedInPreview() {
 
 @Preview
 @Composable
-private fun PostDetailContentDeleteNoteDialogPreview()= PostDetailLoadedPreview(
+private fun PostDetailContentDeleteNoteDialogPreview() = PostDetailLoadedPreview(
     deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
     mentionText = "",
 )
