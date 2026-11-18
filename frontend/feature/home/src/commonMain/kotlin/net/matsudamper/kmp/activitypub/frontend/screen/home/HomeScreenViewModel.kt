@@ -129,7 +129,7 @@ internal class HomeScreenViewModel(
         api = userApi,
         coroutineScope = viewModelScope,
         onMessage = { message -> viewModelScope.launch { events.send { it.showMessage(message) } } },
-        // タイムラインの行は、編集した後に購読で届く行で差し替わる
+        // 読み直しは、ほかの画面での編集と合わせて editedNoteIds で行う
         onEdited = {},
     )
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
@@ -504,6 +504,13 @@ internal class HomeScreenViewModel(
         }
         viewModelScope.launch {
             userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
+        }
+        viewModelScope.launch {
+            // タイムラインの行は購読で届く行で差し替わるが、自分の投稿の一覧は読み直す
+            userApi.editedNoteIds.collect {
+                val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
+                if (myPosts != null) loadMyPosts(myPosts.owner)
+            }
         }
         viewModelScope.launch {
             // プロフィール画面や個別投稿画面で変えたブーストもここで反映する

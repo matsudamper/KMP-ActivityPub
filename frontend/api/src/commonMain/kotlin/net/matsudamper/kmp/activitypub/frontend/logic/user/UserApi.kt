@@ -135,6 +135,12 @@ class UserApi(
      * [deleteNote] で消せた投稿の id。どの画面で消しても、投稿を出している画面がここで外す
      */
     val deletedNoteIds = deletedNoteIdsFlow.asSharedFlow()
+    private val editedNoteIdsFlow = MutableSharedFlow<String>()
+
+    /**
+     * [editNote] で編集できた投稿の id。どの画面で編集しても、投稿を出している画面がここで読み直す
+     */
+    val editedNoteIds = editedNoteIdsFlow.asSharedFlow()
     private val pinChangesFlow = MutableSharedFlow<PinChange>()
 
     /**
@@ -1026,12 +1032,21 @@ class UserApi(
         if (response.exception != null || response.hasErrors()) return response.failureMessage()
         val editNote = response.data?.user?.editNote ?: return response.failureMessage()
         return when (editNote.failure) {
-            null -> null
+            null -> {
+                editedNoteIdsFlow.emit(noteId)
+                null
+            }
+
             EditNoteFailure.NOT_LOGGED_IN -> "ログインしていません"
+
             EditNoteFailure.NOT_FOUND -> "投稿が見つかりません"
+
             EditNoteFailure.EMPTY_BODY -> "本文を入力してください"
+
             EditNoteFailure.TOO_LONG -> "本文が長すぎます"
+
             EditNoteFailure.FEDERATION_DISABLED -> "このサーバーでは投稿を編集できません"
+
             EditNoteFailure.UNKNOWN__ -> "Unknown"
         }
     }
