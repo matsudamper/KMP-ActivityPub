@@ -31,7 +31,7 @@ internal class SqliteNoteRepository(
     private val jooq: SqliteJooq,
 ) : NoteRepository {
     override fun find(publicId: PublicNoteId): Note? = jooq.withConnection { dsl ->
-        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX)
+        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.SUMMARY, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX)
             .from(NOTES)
             .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.PUBLIC_ID.eq(publicId.value))
@@ -44,7 +44,7 @@ internal class SqliteNoteRepository(
         if (publicIds.isEmpty()) return mapOf()
 
         return jooq.withConnection { dsl ->
-            dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX)
+            dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.SUMMARY, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX)
                 .from(NOTES)
                 .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.PUBLIC_ID.`in`(publicIds.map { it.value }))
@@ -195,7 +195,7 @@ internal class SqliteNoteRepository(
         after: NotePosition?,
         limit: Int,
     ): List<Note> = jooq.withConnection { dsl ->
-        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX)
+        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.SUMMARY, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX)
             .from(NOTES)
             .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
@@ -311,6 +311,7 @@ internal class SqliteNoteRepository(
                 publicId = PublicNoteId(checkNotNull(record.get(NOTES.PUBLIC_ID))),
                 username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
                 contentHtml = checkNotNull(record.get(NOTES.CONTENT_HTML)),
+                summary = record.get(NOTES.SUMMARY),
                 publishedAt = StoredInstant.parse(checkNotNull(record.get(NOTES.PUBLISHED_AT))),
                 images = imagesByNoteId[record.get(NOTES.ID)].orEmpty(),
                 inReplyTo = record.get(NOTES.IN_REPLY_TO),

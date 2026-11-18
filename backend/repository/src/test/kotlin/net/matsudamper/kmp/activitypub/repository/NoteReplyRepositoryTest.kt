@@ -131,6 +131,7 @@ class NoteReplyRepositoryTest {
         requestId = "request-$publicId",
         publicId = PublicNoteId(publicId),
         contentHtml = "<p>本文</p>",
+        summary = null,
         publishedAt = NOW,
         images = listOf(),
         body = "create",

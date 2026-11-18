@@ -113,6 +113,7 @@ sealed interface EnqueueNoteResult {
 
 /**
  * @param requestId 画面が送信ごとに作る ID。応答を受け取れずに送り直されたときに同じ投稿だと分かる
+ * @param summary 閲覧注意の注意書き。閲覧注意でなければ null
  * @param images [NoteRepository.addUploadedImage] で記録した画像。付けた順。投稿に付けると、期限で消されなくなる
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
  * @param inReplyTo 返信先の投稿の id。返信でなければ null
@@ -125,6 +126,7 @@ data class NotePost(
     val requestId: String,
     val publicId: PublicNoteId,
     val contentHtml: String,
+    val summary: String?,
     val publishedAt: Instant,
     val images: List<NoteImage>,
     val body: String,

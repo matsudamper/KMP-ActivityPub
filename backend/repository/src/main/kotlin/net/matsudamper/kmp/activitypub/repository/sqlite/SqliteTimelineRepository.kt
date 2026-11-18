@@ -349,7 +349,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         if (localIds.isEmpty() && remoteIds.isEmpty()) return listOf()
         val local = dsl.select(
             NOTES.ID, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, ACCOUNTS.USERNAME, ACCOUNTS.DISPLAY_NAME,
-            DSL.inline(null, String::class.java), DSL.inline(null, String::class.java), DSL.inline(0L), DSL.inline(null, Long::class.java),
+            DSL.inline(null, String::class.java), NOTES.SUMMARY, DSL.`when`(NOTES.SUMMARY.isNull, DSL.inline(0L)).otherwise(DSL.inline(1L)), DSL.inline(null, Long::class.java),
             DSL.inline(null, String::class.java), DSL.inline(null, String::class.java),
             dsl.favouriteCountOf(NOTES.ID),
             DSL.field(dsl.selectCount().from(NOTE_BOOSTS).where(NOTE_BOOSTS.NOTE_ID.eq(NOTES.ID))).cast(Long::class.java)

@@ -300,6 +300,7 @@ class NoteRepositoryTest {
             requestId = "request-$publicId",
             publicId = PublicNoteId(publicId),
             contentHtml = "<p>hello</p>",
+            summary = null,
             publishedAt = NOW,
             images = listOf(),
             body = "create-$publicId",

@@ -111,6 +111,7 @@ data class NotePosition(
 )
 
 /**
+ * @param summary 閲覧注意の注意書き。閲覧注意でなければ null
  * @param images 付けた順
  * @param inReplyTo 返信先の投稿の id。返信でなければ null
  * @param quoteUri 引用した投稿の id。引用でなければ null
@@ -121,6 +122,7 @@ data class Note(
     val publicId: PublicNoteId,
     val username: String,
     val contentHtml: String,
+    val summary: String?,
     val publishedAt: Instant,
     val images: List<NoteImage>,
     val inReplyTo: String?,
