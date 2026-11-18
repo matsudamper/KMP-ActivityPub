@@ -59,6 +59,9 @@ internal actual fun VideoPlayerDialog(
             document.removeEventListener("keydown", keyListener)
             document.removeEventListener("focusin", focusInListener)
             video.pause()
+            // pause と要素の削除だけでは読み込みが続くことがあるので、src を外して止める
+            video.removeAttribute("src")
+            video.load()
             overlay.remove()
         }
     }
