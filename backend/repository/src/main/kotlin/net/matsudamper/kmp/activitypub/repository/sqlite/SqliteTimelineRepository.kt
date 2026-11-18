@@ -121,9 +121,19 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri)).and(REMOTE_NOTES.DELETED_AT.isNull)
             .fetchOne() ?: return@transaction listOf()
         val id = checkNotNull(stored.get(REMOTE_NOTES.ID))
+        val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
         val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
         // 受け取った時刻では編集の前後を決められないので、編集時刻の付いた編集を、時刻の無い Update では書き換えない
-        if (storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))) return@transaction listOf()
+        val staleEdit = storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))
+        // 票数が変わっただけの Update は編集時刻が進まないので、投票は編集の新旧を問わず票数だけでも置き換え、表示中の画面にも知らせる。
+        // 同じ編集時刻の Update は本文を書き換えないが、投票は新しい版として受け取る
+        val pollFromStaleEdit = storedEditedAt != null && (note.editedAt == null || note.editedAt.isBefore(storedEditedAt))
+        val storedPoll = dsl.remoteNotePoll(id)
+        val revisedPoll = storedPoll.revisedBy(incoming = note.poll, staleEdit = pollFromStaleEdit)
+        val pollChanged = storedPoll != revisedPoll
+        if (pollChanged) dsl.replaceRemoteNotePoll(id, revisedPoll)
+        val membersIfPollChanged = if (pollChanged) members else listOf()
+        if (staleEdit) return@transaction membersIfPollChanged
         val storedRevision = PostRevision(
             position = PostRevisionPosition.Current,
             contentHtml = checkNotNull(stored.get(REMOTE_NOTES.CONTENT_HTML)),
@@ -133,9 +143,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             revisedAt = storedEditedAt ?: StoredInstant.parse(checkNotNull(stored.get(REMOTE_NOTES.PUBLISHED_AT))),
         )
         val revised = storedRevision.copy(contentHtml = note.contentHtml, summary = note.summary, sensitive = note.sensitive, images = note.images, revisedAt = editedAt)
-        val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
         if (revised.copy(revisedAt = storedRevision.revisedAt) == storedRevision) {
-            if (note.editedAt == null) return@transaction listOf()
+            if (note.editedAt == null) return@transaction membersIfPollChanged
             dsl.update(REMOTE_NOTES)
                 .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
                 .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
@@ -791,6 +800,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val id = checkNotNull(dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID))
         insertRemoteNoteImages(dsl, id, note.images)
         dsl.insertRemoteNoteEmojis(id, note.emojis)
+        dsl.replaceRemoteNotePoll(id, note.poll)
         return id
     }
 
@@ -893,7 +903,15 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val id = checkNotNull(stored.value1())
         val storedEditedAt = stored.value2()?.let { StoredInstant.parse(it) }
         val fetchedEditedAt = note.editedAt
-        if (storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))) return id
+        val staleEdit = storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))
+        // 票数が変わっても編集時刻は進まないので、編集の新旧を問わず取り直した票数にする。
+        // outbox から取った投稿は投票を読まないので、投票が無くても保存済みの投票は消さない
+        if (note.poll != null) {
+            val storedPoll = dsl.remoteNotePoll(id)
+            val revisedPoll = storedPoll.revisedBy(incoming = note.poll, staleEdit = staleEdit)
+            if (storedPoll != revisedPoll) dsl.replaceRemoteNotePoll(id, revisedPoll)
+        }
+        if (staleEdit) return id
         if (fetchedEditedAt != null && (storedEditedAt == null || fetchedEditedAt.isAfter(storedEditedAt))) {
             val storedRevision = PostRevision(
                 position = PostRevisionPosition.Current,
@@ -951,7 +969,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .and(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(authorId))
             .execute()
         if (updated == 0) return null
-        return dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID)
+        val id = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID) ?: return null
+        dsl.replaceRemoteNotePoll(id, note.poll)
+        return id
     }
 
     private fun existingPublishedNoteId(dsl: DSLContext, objectUri: String): Long? =

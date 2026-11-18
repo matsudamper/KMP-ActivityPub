@@ -63,6 +63,15 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
             boostedByMe = boostedByMe,
             edited = edited,
+            poll = poll?.let { poll ->
+                UserPostPoll(
+                    options = poll.options.map { option -> UserPostPollOption(title = option.title, votesCount = option.votesCount) },
+                    multipleChoice = poll.multipleChoice,
+                    endsAt = poll.endsAt,
+                    expired = poll.expired,
+                    votersCount = poll.votersCount,
+                )
+            },
         ),
         boostedBy = boostedBy?.actorFields?.toActor(),
         reactionPostId = reactionPostId,
@@ -160,6 +169,16 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     hasReplyTarget = hasReplyTarget,
     hasQuoteTarget = hasQuoteTarget,
     edited = body.edited,
+    poll = body.poll?.let { poll ->
+        TimelinePostFields.Poll(
+            __typename = "PostPoll",
+            options = poll.options.map { option -> TimelinePostFields.Option(__typename = "PostPollOption", title = option.title, votesCount = option.votesCount) },
+            multipleChoice = poll.multipleChoice,
+            endsAt = poll.endsAt,
+            expired = poll.expired,
+            votersCount = poll.votersCount,
+        )
+    },
 )
 
 private fun UserHomeTimelineResult.Actor.toFields(): ActorFields = ActorFields(

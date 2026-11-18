@@ -97,6 +97,7 @@ class NotePinRepositoryTest {
                 quoteInbox = null,
                 mentions = listOf(),
                 sensitive = false,
+                poll = null,
             ),
         )
     }

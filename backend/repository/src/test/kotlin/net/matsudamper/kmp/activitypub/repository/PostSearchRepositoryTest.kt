@@ -112,6 +112,7 @@ class PostSearchRepositoryTest {
         quoteInbox = null,
         mentions = listOf(),
         sensitive = false,
+        poll = null,
     )
 
     private fun note(id: String, contentHtml: String): RemoteNoteInput = RemoteNoteInput(
@@ -120,6 +121,7 @@ class PostSearchRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        poll = null,
     )
 
     private fun withRepository(block: (Repositories, AccountId) -> Unit) {

@@ -142,6 +142,7 @@ class NoteReplyRepositoryTest {
         quoteInbox = null,
         mentions = listOf(),
         sensitive = false,
+        poll = null,
     )
 
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(
@@ -150,6 +151,7 @@ class NoteReplyRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        poll = null,
     )
 
     private fun withRepository(block: (Repositories, AccountId) -> Unit) {

@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import kotlinx.coroutines.runBlocking
@@ -14,6 +15,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlLocalCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostCounts
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostPoll
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLikePage
@@ -40,6 +42,7 @@ import net.matsudamper.kmp.activitypub.logic.ProfileLikesResult
 import net.matsudamper.kmp.activitypub.logic.ProfilePost
 import net.matsudamper.kmp.activitypub.logic.ProfilePostCursor
 import net.matsudamper.kmp.activitypub.logic.ProfilePostsResult
+import net.matsudamper.kmp.activitypub.logic.ReplyTargetResult
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.logic.memoized
@@ -92,7 +95,11 @@ class QueryResolverImpl : QueryResolver {
                 is ProfilePostsResult.Found -> QlProfilePostPage(
                     posts = result.page.posts.let { posts ->
                         val countsByRef = diContainer.postCountService?.countsOf(posts.map { it.noteRef }.toSet()).orEmpty()
-                        posts.map { post -> post.toQlProfilePost(counts = countsByRef[post.noteRef], diContainer = diContainer) }
+                        val pollsByRef = diContainer.pollService?.pollsOf(posts.map { it.noteRef }.toSet()).orEmpty()
+                        val now = Instant.now()
+                        posts.map { post ->
+                            post.toQlProfilePost(counts = countsByRef[post.noteRef], poll = pollsByRef[post.noteRef]?.toQlPostPoll(now), diContainer = diContainer)
+                        }
                     },
                     nextCursor = result.page.nextCursor?.encode(),
                 )
@@ -174,6 +181,15 @@ class QueryResolverImpl : QueryResolver {
             env = env,
             unavailableMessage = "引用先のサーバーから投稿を取れなかった",
         ) { quoteTarget(viewer, postId.value) }
+    }
+
+    override fun resolvePost(url: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return linkedPost(
+            viewer = viewer,
+            env = env,
+            unavailableMessage = "相手のサーバーから投稿を取れなかった",
+        ) { if (viewer == null) ReplyTargetResult.NotFound else postByUrl(viewer, url.trim()) }
     }
 
     override fun replies(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlTimelinePost>>> {
@@ -434,7 +450,7 @@ class QueryResolverImpl : QueryResolver {
 
     private fun ProfileLink.toQlProfileLink(): QlProfileLink = QlProfileLink(name = name, url = url)
 
-    private fun ProfilePost.toQlProfilePost(counts: PostCounts?, diContainer: DiContainer): QlProfilePost {
+    private fun ProfilePost.toQlProfilePost(counts: PostCounts?, poll: QlPostPoll?, diContainer: DiContainer): QlProfilePost {
         val qlBoostedNoteAuthor = boostedNoteAuthor?.let { author ->
             QlPostAuthor(
                 username = author.username,
@@ -471,7 +487,7 @@ class QueryResolverImpl : QueryResolver {
             mentions = body.mentions,
             images = body.images,
             videos = body.videos,
-            emojis = createQlPostEmojis(noteRef = noteRef, contentHtml = contentHtml, remoteEmojis = emojis, diContainer = diContainer),
+            emojis = createQlPostEmojis(noteRef = noteRef, contentHtml = contentHtml, pollOptions = poll?.options.orEmpty().map { it.title }, remoteEmojis = emojis, diContainer = diContainer),
             favouriteCount = (favouriteCount ?: counts?.reportedFavouriteCount)?.toInt(),
             stamps = stamps.toQlPostStamps(diContainer),
             likedByMe = likedByMe,
@@ -484,6 +500,7 @@ class QueryResolverImpl : QueryResolver {
             stampCountsReceived = noteRef is TimelineNoteRef.Local,
             hasQuoteTarget = hasQuoteTarget,
             edited = edited,
+            poll = poll,
         )
     }
 }

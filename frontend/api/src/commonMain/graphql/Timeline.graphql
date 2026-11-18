@@ -70,6 +70,16 @@ fragment TimelinePostFields on TimelinePost {
     hasReplyTarget
     hasQuoteTarget
     edited
+    poll {
+        options {
+            title
+            votesCount
+        }
+        multipleChoice
+        endsAt
+        expired
+        votersCount
+    }
 }
 
 fragment ActorFields on Actor {

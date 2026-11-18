@@ -152,6 +152,7 @@ internal fun createPostItemUiState(
                 firstFrameVisible = !(body.sensitive && sensitiveImagesBlurred),
             )
         },
+        poll = body.poll?.let { poll -> createPostPoll(poll = poll, emojis = body.emojis, now = Clock.System.now()) },
         replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
         replyListener = if (deleted) {
             null

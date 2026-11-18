@@ -117,6 +117,34 @@ private fun PostContentContentWarningPreview() {
     }
 }
 
+@Preview
+@Composable
+private fun PostContentPollPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Back,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null).copy(
+                addImageButtonEnabled = false,
+                pollButtonChecked = true,
+                pollEditor = PostScreenUiState.PollEditor(
+                    options = listOf(
+                        PostScreenUiState.PollOption(text = "Kotlin", label = "選択肢 1", removeButtonVisible = true),
+                        PostScreenUiState.PollOption(text = "Java", label = "選択肢 2", removeButtonVisible = true),
+                        PostScreenUiState.PollOption(text = "", label = "選択肢 3", removeButtonVisible = true),
+                    ),
+                    addOptionButtonVisible = true,
+                    multipleChoiceChecked = false,
+                    durationText = "締め切り: 1日",
+                    durationOptions = listOf("5分", "1日"),
+                    inputEnabled = true,
+                    listener = AndroidPreviewPollEditorListener,
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 /** 投稿カラムを最小幅まで縮めても、投稿ボタンが潰れないことを確かめる */
 @Preview(widthDp = 240)
 @Composable
@@ -244,6 +272,10 @@ private fun previewUiState(
         contentWarningButtonVisible = true,
         contentWarningButtonChecked = contentWarning != null,
         contentWarningButtonEnabled = true,
+        pollButtonVisible = true,
+        pollButtonChecked = false,
+        pollButtonEnabled = images.isEmpty(),
+        pollEditor = null,
         bodyLoadingVisible = false,
         inputHasError = false,
         inputEnabled = true,
@@ -275,6 +307,18 @@ private fun PostPreviewTheme(content: @Composable () -> Unit) {
     }
 }
 
+private object AndroidPreviewPollEditorListener : PostScreenUiState.PollEditorListener {
+    override fun onOptionChanged(index: Int, text: String) = Unit
+
+    override fun onClickRemoveOption(index: Int) = Unit
+
+    override fun onClickAddOption() = Unit
+
+    override fun onMultipleChoiceChanged(checked: Boolean) = Unit
+
+    override fun onDurationSelected(index: Int) = Unit
+}
+
 private object AndroidPreviewReplyTargetListener : PostScreenUiState.ReplyTargetListener {
     override fun onClickRemove() = Unit
 }
@@ -287,6 +331,8 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onClickContentWarning() = Unit
 
     override fun onContentWarningChanged(text: String) = Unit
+
+    override fun onClickPoll() = Unit
 
     override fun onClickAddImage() = Unit
 

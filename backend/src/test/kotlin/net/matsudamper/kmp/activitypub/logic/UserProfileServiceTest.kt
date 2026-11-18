@@ -798,6 +798,7 @@ class UserProfileServiceTest {
             images = listOf(),
             emojis = listOf(),
             linkHref = null,
+            poll = null,
         )
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =

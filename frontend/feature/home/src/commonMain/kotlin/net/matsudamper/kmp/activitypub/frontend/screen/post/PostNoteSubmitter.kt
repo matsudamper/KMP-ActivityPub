@@ -6,6 +6,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNotePoll
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.frontend.ui.PostAttachment
@@ -30,6 +31,7 @@ internal class PostNoteSubmitter(
      * @param contentWarning 閲覧注意の注意書き。閲覧注意にしなければ null
      * @param mentionAcct 宛てるユーザーの `username@host`。返信先の投稿者のほかに宛てなければ null
      * @param sensitive 閲覧注意の投稿にするか
+     * @param poll 付ける投票。投票でなければ null
      */
     suspend fun submit(
         body: String,
@@ -40,6 +42,7 @@ internal class PostNoteSubmitter(
         quotePostId: String?,
         mentionAcct: String?,
         sensitive: Boolean,
+        poll: UserPostNotePoll?,
     ): PostNoteSubmitResult =
         scope.async {
             val imageIds =
@@ -59,6 +62,7 @@ internal class PostNoteSubmitter(
                     quotePostId = quotePostId,
                     mentionAcct = mentionAcct,
                     sensitive = sensitive,
+                    poll = poll,
                 ),
             )
         }.await()

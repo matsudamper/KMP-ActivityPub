@@ -17,6 +17,8 @@ import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVER
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_MENTIONS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_POLLS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_POLL_OPTIONS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.UPLOADED_NOTE_IMAGES
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -123,6 +125,21 @@ internal class SqliteDeliveryQueueRepository(
                 .set(NOTE_MENTIONS.ACCT, mention.acct)
                 .set(NOTE_MENTIONS.INBOX, mention.inbox)
                 .execute()
+        }
+        val poll = post.poll
+        if (poll != null) {
+            dsl.insertInto(NOTE_POLLS)
+                .set(NOTE_POLLS.NOTE_ID, noteId)
+                .set(NOTE_POLLS.MULTIPLE_CHOICE, if (poll.multipleChoice) 1L else 0L)
+                .set(NOTE_POLLS.ENDS_AT, StoredInstant.format(poll.endsAt))
+                .execute()
+            poll.options.forEachIndexed { position, option ->
+                dsl.insertInto(NOTE_POLL_OPTIONS)
+                    .set(NOTE_POLL_OPTIONS.NOTE_ID, noteId)
+                    .set(NOTE_POLL_OPTIONS.POSITION, position.toLong())
+                    .set(NOTE_POLL_OPTIONS.NAME, option)
+                    .execute()
+            }
         }
 
         val inboxes = post.inboxes.distinct()

@@ -132,6 +132,7 @@ class StampRepositoryTest {
                 quoteUri = null,
                 quoteInbox = null,
                 mentions = listOf(),
+                poll = null,
                 images = listOf(),
                 sensitive = false,
             ),

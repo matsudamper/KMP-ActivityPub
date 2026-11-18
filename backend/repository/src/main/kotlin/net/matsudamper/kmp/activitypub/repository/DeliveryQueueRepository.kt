@@ -134,6 +134,7 @@ sealed interface EnqueueNoteResult {
  * @param quoteInbox 引用した投稿の投稿者の inbox。[inboxes] にも入れる。引用でないか、このサーバーの投稿の引用なら null
  * @param mentions 宛てた順。宛てた相手の inbox は [inboxes] にも入れる
  * @param sensitive 閲覧注意の投稿か
+ * @param poll 付ける投票。投票でなければ null
  */
 data class NotePost(
     val username: String,
@@ -151,6 +152,7 @@ data class NotePost(
     val quoteInbox: String?,
     val mentions: List<NoteMention>,
     val sensitive: Boolean,
+    val poll: NotePollInput?,
 )
 
 /**
