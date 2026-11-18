@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
@@ -46,6 +47,7 @@ class UserProfileServiceTest {
      * 最初のページで outbox と固定した投稿を読むために、相手のアクターを取りに行った回数
      */
     private val actorRequests = mutableListOf<String>()
+    private var fields: List<RemoteProfileField> = listOf()
     private var featured: suspend () -> List<RemoteNoteInput> = { listOf() }
     private var outbox: suspend (from: OutboxPosition?) -> RemoteNotesPage? = {
         RemoteNotesPage(notes = listOf(remoteNote("<p>最新の投稿</p>", "https://remote.example/notes/1")), next = null)
@@ -55,7 +57,7 @@ class UserProfileServiceTest {
             requests.add("profile")
             // 本物の引き方と同じく、引いたアクターを保存する
             repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, username, "Bob", null, listOf(), Instant.EPOCH))
-            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介", fields)
         }
 
         override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? {
@@ -80,7 +82,7 @@ class UserProfileServiceTest {
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
             requests.add("profile:$actorUri")
-            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介", fields)
         }
     }
     private val service = UserProfileService(
@@ -110,6 +112,26 @@ class UserProfileServiceTest {
         val posts = firstPage("bob@remote.example", viewer).posts
         assertEquals(listOf("profile", "posts"), requests)
         assertEquals("<p>最新の投稿</p>", posts.single().contentHtml)
+    }
+
+    @Test
+    fun unfollowedUserProfileHasLinksFromFields() = runBlocking {
+        fields = listOf(
+            RemoteProfileField(
+                name = "Web",
+                htmlValue = """<a href="https://example.com/" rel="me nofollow noopener" target="_blank"><span class="invisible">https://</span><span class="">example.com/</span></a>""",
+            ),
+            RemoteProfileField(name = "場所", htmlValue = "東京"),
+            RemoteProfileField(name = "危険", htmlValue = """<a href="javascript:alert(1)">押す</a>"""),
+            RemoteProfileField(name = "Blog", htmlValue = "https://blog.example/"),
+        )
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+
+        assertEquals(
+            listOf(ProfileLink(name = "Web", url = "https://example.com/"), ProfileLink(name = "Blog", url = "https://blog.example/")),
+            profile.links,
+        )
     }
 
     @Test

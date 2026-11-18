@@ -38,6 +38,7 @@ import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
+import org.jsoup.Jsoup
 import org.slf4j.LoggerFactory
 
 class UserProfileService(
@@ -107,7 +108,7 @@ class UserProfileService(
             following = following.isFollowing(viewer, remote.user.actorUri),
             headerUrl = remote.headerUrl,
             biography = remote.biography?.let { htmlToPlainText(it) },
-            links = listOf(),
+            links = remote.fields.mapNotNull { it.toProfileLink() },
             viewerIsOwner = false,
         )
     }
@@ -575,17 +576,45 @@ interface RemoteProfilePostSources {
 
 /**
  * @param headerUrl ヘッダー画像の取得元。中継する前の相手の URL
+ * @param fields プロフィールの補足情報。相手が並べた順
  */
 data class RemoteUserProfile(
     val user: RemoteUser,
     val headerUrl: String?,
     val biography: String?,
+    val fields: List<RemoteProfileField>,
 )
+
+/**
+ * 相手のプロフィールの補足情報の 1 項目
+ *
+ * @param htmlValue 相手が書いた HTML のまま
+ */
+data class RemoteProfileField(
+    val name: String,
+    val htmlValue: String,
+) {
+    /**
+     * 画面の補足情報は押して開くリンクの一覧なので、https の URL を取れない項目は null
+     */
+    internal fun toProfileLink(): ProfileLink? {
+        val document = Jsoup.parse(htmlValue)
+        val url = document.select("a[href]").map { it.attr("href") }.firstOrNull { it.isHttpsUrl() }
+            ?: document.text().trim().takeIf { it.isHttpsUrl() }
+            ?: return null
+        return ProfileLink(name = name, url = url)
+    }
+
+    private fun String.isHttpsUrl(): Boolean {
+        val uri = runCatching { URI(this) }.getOrNull() ?: return false
+        return uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrEmpty()
+    }
+}
 
 /**
  * @param headerUrl 他のサーバーのユーザーのヘッダー画像の取得元。中継する前の相手の URL。このサーバーのユーザーは Actor の `image` の URL を別に引くので null
  * @param biography プレーンテキスト
- * @param links 他のサーバーのユーザーのものは受け取っていないので空
+ * @param links 補足情報。他のサーバーのユーザーのものは https の URL を取れた項目だけ
  * @param viewerIsOwner 見ているアカウント本人のプロフィールか。他のサーバーのユーザーは本人になりえないので false
  */
 data class UserProfile(
