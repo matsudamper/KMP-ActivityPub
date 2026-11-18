@@ -447,7 +447,8 @@ class UserProfileService(
     }
 
     /**
-     * 相手が後から編集していても最新の内容を出すよう、本文などは今回取った投稿から使う。いいねの状態や id は保存済みの方を残す
+     * 相手が後から編集していても最新の内容を出すよう、本文などは今回取った投稿から使う。いいねの状態や id は保存済みの方を残す。
+     * outbox から取った投稿は知らない型を拾わないので、知らない型も保存済みの方を残す
      */
     private fun ProfilePost.withContentOf(note: RemoteNoteInput): ProfilePost = copy(
         contentHtml = note.contentHtml,
@@ -458,7 +459,6 @@ class UserProfileService(
         images = note.images,
         emojis = note.emojis,
         linkHref = note.linkHref,
-        unknownTypes = note.unknownTypes,
     )
 
     private fun RemoteNoteInput.toUnsavedProfilePost(): ProfilePost {
