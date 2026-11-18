@@ -537,6 +537,7 @@ internal class PostDetailScreenViewModel(
                             replyToPostId = replyToPostId,
                             quotePostId = null,
                             mentionAcct = null,
+                            poll = null,
                         )
                     when (result) {
                         // 画像を付けないので置けないことは無い
@@ -580,8 +581,9 @@ internal class PostDetailScreenViewModel(
 
             UserPostNoteResult.ReplyTargetNotFound -> "この投稿にはメンションできません"
 
-            // メンションでは引用も閲覧注意もせず、返信先の投稿者のほかには宛てない
+            // メンションでは引用も閲覧注意も投票もせず、返信先の投稿者のほかには宛てない
             UserPostNoteResult.QuoteTargetNotFound,
+            UserPostNoteResult.InvalidPoll,
             UserPostNoteResult.ContentWarningTooLong,
             UserPostNoteResult.MentionTargetNotFound,
             UserPostNoteResult.TooManyImages,

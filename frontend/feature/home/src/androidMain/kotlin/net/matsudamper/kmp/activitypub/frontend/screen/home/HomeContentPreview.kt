@@ -968,6 +968,10 @@ private fun HomeColumnsPreview(
                             contentWarningButtonVisible = true,
                             contentWarningButtonChecked = false,
                             contentWarningButtonEnabled = true,
+                            pollButtonVisible = true,
+                            pollButtonChecked = false,
+                            pollButtonEnabled = true,
+                            pollEditor = null,
                             bodyLoadingVisible = false,
                             inputHasError = false,
                             inputEnabled = true,
@@ -1156,6 +1160,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onClickContentWarning() = Unit
 
     override fun onContentWarningChanged(text: String) = Unit
+
+    override fun onClickPoll() = Unit
 
     override fun onClickAddImage() = Unit
 

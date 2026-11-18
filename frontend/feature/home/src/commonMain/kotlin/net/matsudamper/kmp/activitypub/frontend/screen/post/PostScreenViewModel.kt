@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserEditableNoteBodyResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNotePoll
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
 import net.matsudamper.kmp.activitypub.frontend.screen.QuoteLoad
@@ -41,6 +42,7 @@ internal class PostScreenViewModel(
             ViewModelState(
                 body = savedStateHandle.get<String>(BODY_KEY) ?: initialBody(),
                 contentWarning = savedStateHandle.get<String>(CONTENT_WARNING_KEY),
+                poll = null,
                 images = listOf(),
                 loadingImage = false,
                 submitting = false,
@@ -80,6 +82,39 @@ internal class PostScreenViewModel(
 
             override fun onDismiss() {
                 viewModelStateFlow.update { it.copy(discardConfirmation = null) }
+            }
+        }
+
+    private val pollEditorListener =
+        object : PostScreenUiState.PollEditorListener {
+            override fun onOptionChanged(index: Int, text: String) {
+                changePoll { poll ->
+                    if (poll.options.getOrNull(index) == text) return@changePoll poll
+                    poll.copy(options = poll.options.mapIndexed { optionIndex, option -> if (optionIndex == index) text else option })
+                }
+            }
+
+            override fun onClickRemoveOption(index: Int) {
+                changePoll { poll ->
+                    if (poll.options.size <= MIN_POLL_OPTIONS) return@changePoll poll
+                    poll.copy(options = poll.options.filterIndexed { optionIndex, _ -> optionIndex != index })
+                }
+            }
+
+            override fun onClickAddOption() {
+                changePoll { poll ->
+                    if (poll.options.size >= MAX_POLL_OPTIONS) return@changePoll poll
+                    poll.copy(options = poll.options + "")
+                }
+            }
+
+            override fun onMultipleChoiceChanged(checked: Boolean) {
+                changePoll { poll -> poll.copy(multipleChoice = checked) }
+            }
+
+            override fun onDurationSelected(index: Int) {
+                val duration = PollDuration.entries.getOrNull(index) ?: return
+                changePoll { poll -> poll.copy(duration = duration) }
             }
         }
 
@@ -131,6 +166,15 @@ internal class PostScreenViewModel(
                     override fun onContentWarningChanged(text: String) {
                         if (viewModelStateFlow.value.contentWarning == text) return
                         changeContentWarning(text)
+                    }
+
+                    override fun onClickPoll() {
+                        val state = viewModelStateFlow.value
+                        if (state.pollToggleable().not()) return
+                        renewRequestId()
+                        viewModelStateFlow.update {
+                            it.copy(poll = if (it.poll == null) PollDraft.empty() else null, error = null)
+                        }
                     }
 
                     override fun onClickAddEmoji() {
@@ -269,6 +313,7 @@ internal class PostScreenViewModel(
             it.copy(
                 body = "",
                 contentWarning = null,
+                poll = null,
                 images = listOf(),
                 quote = null,
                 replyTarget = null,
@@ -378,6 +423,19 @@ internal class PostScreenViewModel(
     }
 
     /**
+     * 送信中は送る中身を変えない
+     */
+    private fun changePoll(transform: (PollDraft) -> PollDraft) {
+        val state = viewModelStateFlow.value
+        val poll = state.poll ?: return
+        if (state.submitting) return
+        val changed = transform(poll)
+        if (changed == poll) return
+        renewRequestId()
+        viewModelStateFlow.update { it.copy(poll = changed, error = null) }
+    }
+
+    /**
      * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、loadingImage が下りなくなる
      */
     private fun addImage(file: PickedImageFile) {
@@ -459,6 +517,9 @@ internal class PostScreenViewModel(
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
                             quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
                             mentionAcct = (target as? PostScreenTarget.Mention)?.acct,
+                            poll = state.poll?.let { poll ->
+                                UserPostNotePoll(options = poll.options, multipleChoice = poll.multipleChoice, expiresInSeconds = poll.duration.seconds)
+                            },
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -476,7 +537,7 @@ internal class PostScreenViewModel(
             savedStateHandle[CONTENT_WARNING_KEY] = null
             savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
             renewRequestId()
-            viewModelStateFlow.update { it.copy(body = "", contentWarning = null, images = listOf(), replyTarget = null) }
+            viewModelStateFlow.update { it.copy(body = "", contentWarning = null, poll = null, images = listOf(), replyTarget = null) }
             state.images.forEach { it.image.release() }
             events.send { it.navigateBack() }
         }
@@ -528,6 +589,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.ContentWarningTooLong -> "注意書きが長すぎます"
             UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
             UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
+            UserPostNoteResult.InvalidPoll -> "投票の選択肢は $MIN_POLL_OPTIONS〜$MAX_POLL_OPTIONS 個、それぞれ $MAX_POLL_OPTION_LENGTH 文字までで、同じものは並べられません"
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
             UserPostNoteResult.ReplyTargetNotFound -> "返信先の投稿が見つかりません"
             UserPostNoteResult.QuoteTargetNotFound -> "引用する投稿が見つかりません"
@@ -561,6 +623,26 @@ internal class PostScreenViewModel(
             contentWarningButtonVisible = viewModelState.editing == null,
             contentWarningButtonChecked = viewModelState.contentWarning != null,
             contentWarningButtonEnabled = viewModelState.submitting.not(),
+            pollButtonVisible = viewModelState.editing == null,
+            pollButtonChecked = viewModelState.poll != null,
+            pollButtonEnabled = viewModelState.pollToggleable(),
+            pollEditor = viewModelState.poll?.let { poll ->
+                PostScreenUiState.PollEditor(
+                    options = poll.options.mapIndexed { index, option ->
+                        PostScreenUiState.PollOption(
+                            text = option,
+                            label = "選択肢 ${index + 1}",
+                            removeButtonVisible = poll.options.size > MIN_POLL_OPTIONS,
+                        )
+                    },
+                    addOptionButtonVisible = poll.options.size < MAX_POLL_OPTIONS,
+                    multipleChoiceChecked = poll.multipleChoice,
+                    durationText = "締め切り: ${poll.duration.label}",
+                    durationOptions = PollDuration.entries.map { it.label },
+                    inputEnabled = viewModelState.submitting.not(),
+                    listener = pollEditorListener,
+                )
+            },
             bodyLoadingVisible = viewModelState.editableBodyLoading(),
             inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not() && viewModelState.editableBodyLoading().not(),
@@ -623,8 +705,23 @@ internal class PostScreenViewModel(
 
     private fun ViewModelState.postable(): Boolean {
         if (editing != null) return submitting.not() && editableBodyLoading().not()
-        return submitting.not() && loadingImage.not() && quotePostable() && replyPostable() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
+        return submitting.not() &&
+            loadingImage.not() &&
+            quotePostable() &&
+            replyPostable() &&
+            pollPostable() &&
+            (body.isNotBlank() || images.isNotEmpty() || quote != null)
     }
+
+    /**
+     * 空の選択肢はサーバーが受け付けない
+     */
+    private fun ViewModelState.pollPostable(): Boolean = poll == null || poll.options.all { it.isNotBlank() }
+
+    /**
+     * 投票は画像と一緒に付けられない
+     */
+    private fun ViewModelState.pollToggleable(): Boolean = editing == null && submitting.not() && loadingImage.not() && images.isEmpty()
 
     private fun ViewModelState.editableBodyLoading(): Boolean = editing != null && editing.originalBody == null
 
@@ -633,7 +730,7 @@ internal class PostScreenViewModel(
      */
     private fun ViewModelState.hasDraft(): Boolean {
         if (editing != null) return editing.originalBody != null && body != editing.originalBody
-        return body.isNotBlank() || contentWarning.isNullOrBlank().not() || images.isNotEmpty() || replyTarget != null
+        return body.isNotBlank() || contentWarning.isNullOrBlank().not() || poll != null || images.isNotEmpty() || replyTarget != null
     }
 
     /**
@@ -647,9 +744,9 @@ internal class PostScreenViewModel(
     private fun ViewModelState.replyPostable(): Boolean = replyTarget == null || replyTarget.load is QuoteLoad.Loaded
 
     /**
-     * 編集では本文だけを書き換えるので、画像は足せない
+     * 編集では本文だけを書き換えるので、画像は足せない。投票とも一緒に付けられない
      */
-    private fun ViewModelState.imageAddable(): Boolean = editing == null && submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
+    private fun ViewModelState.imageAddable(): Boolean = editing == null && submitting.not() && loadingImage.not() && poll == null && images.size < MAX_IMAGES
 
     private data class ViewModelState(
         val body: String,
@@ -657,6 +754,10 @@ internal class PostScreenViewModel(
          * 閲覧注意にしなければ null
          */
         val contentWarning: String?,
+        /**
+         * 投票を付けなければ null
+         */
+        val poll: PollDraft?,
         val images: List<SelectedImage>,
         val loadingImage: Boolean,
         val submitting: Boolean,
@@ -686,6 +787,32 @@ internal class PostScreenViewModel(
          */
         val discardConfirmation: DiscardConfirmation?,
     )
+
+    /**
+     * @param options 選択肢。並べた順
+     */
+    private data class PollDraft(
+        val options: List<String>,
+        val multipleChoice: Boolean,
+        val duration: PollDuration,
+    ) {
+        companion object {
+            fun empty(): PollDraft = PollDraft(options = List(MIN_POLL_OPTIONS) { "" }, multipleChoice = false, duration = PollDuration.OneDay)
+        }
+    }
+
+    /**
+     * サーバーは 5 分から 7 日までを受け付ける
+     */
+    private enum class PollDuration(val label: String, val seconds: Int) {
+        FiveMinutes(label = "5分", seconds = 5 * 60),
+        ThirtyMinutes(label = "30分", seconds = 30 * 60),
+        OneHour(label = "1時間", seconds = 60 * 60),
+        SixHours(label = "6時間", seconds = 6 * 60 * 60),
+        OneDay(label = "1日", seconds = 24 * 60 * 60),
+        ThreeDays(label = "3日", seconds = 3 * 24 * 60 * 60),
+        SevenDays(label = "7日", seconds = 7 * 24 * 60 * 60),
+    }
 
     /**
      * 書きかけの投稿を消してから始めること
@@ -766,6 +893,13 @@ private const val EDITING_ORIGINAL_BODY_KEY = "editingOriginalBody"
  * サーバーの 1 投稿あたりの上限
  */
 private const val MAX_IMAGES = 4
+
+/**
+ * サーバーが受け付ける投票の選択肢の数と長さ
+ */
+private const val MIN_POLL_OPTIONS = 2
+private const val MAX_POLL_OPTIONS = 4
+private const val MAX_POLL_OPTION_LENGTH = 50
 
 /**
  * サーバーの 1 枚あたりの上限

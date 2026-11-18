@@ -16,7 +16,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -31,9 +34,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -257,6 +262,10 @@ internal fun PostContent(
                     CircularProgressIndicator()
                 }
             }
+            val pollEditor = uiState.pollEditor
+            if (pollEditor != null) {
+                PollEditor(pollEditor = pollEditor, onSubmitShortcut = uiState.listener::onPressPostShortcut)
+            }
             val quote = uiState.quote
             if (quote != null) {
                 PostQuoteCard(quote = quote, unavailableText = "引用先の投稿を表示できません", textStyle = MaterialTheme.typography.bodyMedium)
@@ -315,6 +324,22 @@ internal fun PostContent(
                         )
                     }
                 }
+                if (uiState.pollButtonVisible) {
+                    IconToggleButton(
+                        checked = uiState.pollButtonChecked,
+                        onCheckedChange = { uiState.listener.onClickPoll() },
+                        enabled = uiState.pollButtonEnabled,
+                        colors = IconButtonDefaults.iconToggleButtonColors(
+                            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Poll,
+                            contentDescription = "投票",
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = uiState.listener::onClickPost,
@@ -363,6 +388,114 @@ private fun ReplyTarget(replyTarget: PostScreenUiState.ReplyTarget) {
             }
         }
         PostQuoteCard(quote = replyTarget.post, unavailableText = "返信先の投稿を表示できません", textStyle = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun PollEditor(
+    pollEditor: PostScreenUiState.PollEditor,
+    onSubmitShortcut: () -> Unit,
+) {
+    // ダイアログで開いた投稿画面の下にホームの投稿カラムが残るので、入力欄ごとに id を分ける
+    val inputIdPrefix = remember { "$POST_POLL_OPTION_INPUT_ID_PREFIX-${Uuid.random()}" }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        pollEditor.options.forEachIndexed { index, option ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MultilineTextField(
+                    value = option.text,
+                    onValueChange = { text -> pollEditor.listener.onOptionChanged(index, text) },
+                    label = option.label,
+                    inputId = "$inputIdPrefix-$index",
+                    inputName = "pollOption$index",
+                    enabled = pollEditor.inputEnabled,
+                    hasError = false,
+                    onSubmitShortcut = onSubmitShortcut,
+                    insertion = null,
+                    onHandleInsertion = {},
+                    heightFitsContent = true,
+                    modifier = Modifier.weight(1f),
+                )
+                if (option.removeButtonVisible) {
+                    IconButton(
+                        onClick = { pollEditor.listener.onClickRemoveOption(index) },
+                        enabled = pollEditor.inputEnabled,
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Close,
+                            contentDescription = "${option.label}を消す",
+                        )
+                    }
+                }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (pollEditor.addOptionButtonVisible) {
+                TextButton(
+                    onClick = pollEditor.listener::onClickAddOption,
+                    enabled = pollEditor.inputEnabled,
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(text = "選択肢を追加", modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            PollDurationSelector(pollEditor = pollEditor)
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = pollEditor.multipleChoiceChecked,
+                onCheckedChange = pollEditor.listener::onMultipleChoiceChanged,
+                enabled = pollEditor.inputEnabled,
+            )
+            Text(text = "複数選択を許可", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun PollDurationSelector(pollEditor: PostScreenUiState.PollEditor) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { expanded = true },
+            enabled = pollEditor.inputEnabled,
+        ) {
+            Text(text = pollEditor.durationText)
+            Icon(
+                imageVector = AppIcons.ArrowDropDown,
+                contentDescription = null,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            pollEditor.durationOptions.forEachIndexed { index, durationOption ->
+                DropdownMenuItem(
+                    text = { Text(durationOption) },
+                    onClick = {
+                        expanded = false
+                        pollEditor.listener.onDurationSelected(index)
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -432,3 +565,5 @@ private val SELECTED_IMAGE_SIZE = 96.dp
 private const val POST_BODY_INPUT_ID_PREFIX = "post-body"
 
 private const val POST_CONTENT_WARNING_INPUT_ID = "post-content-warning"
+
+private const val POST_POLL_OPTION_INPUT_ID_PREFIX = "post-poll-option"

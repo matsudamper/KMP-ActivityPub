@@ -92,6 +92,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGrou
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteCustomEmojiFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.EditNoteFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.PostNotePollInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ReactionInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
@@ -982,6 +983,7 @@ class UserApi(
         replyToPostId: String?,
         quotePostId: String?,
         mentionAcct: String?,
+        poll: UserPostNotePoll?,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
         val mutation =
@@ -993,6 +995,11 @@ class UserApi(
                 replyToPostId = Optional.present(replyToPostId),
                 quotePostId = Optional.present(quotePostId),
                 mentionAcct = Optional.present(mentionAcct),
+                poll = Optional.present(
+                    poll?.let {
+                        PostNotePollInput(options = it.options, multipleChoice = it.multipleChoice, expiresInSeconds = it.expiresInSeconds)
+                    },
+                ),
             )
         val response = client.mutation(mutation).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
@@ -1006,6 +1013,7 @@ class UserApi(
             UserPostNoteFailure.CONTENT_WARNING_TOO_LONG -> UserPostNoteResult.ContentWarningTooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
+            UserPostNoteFailure.INVALID_POLL -> UserPostNoteResult.InvalidPoll
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
             UserPostNoteFailure.REPLY_TARGET_NOT_FOUND -> UserPostNoteResult.ReplyTargetNotFound
             UserPostNoteFailure.QUOTE_TARGET_NOT_FOUND -> UserPostNoteResult.QuoteTargetNotFound

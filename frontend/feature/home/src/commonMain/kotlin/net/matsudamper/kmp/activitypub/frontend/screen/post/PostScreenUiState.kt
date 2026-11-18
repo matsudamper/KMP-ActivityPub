@@ -24,6 +24,19 @@ data class PostScreenUiState(
     val contentWarningButtonChecked: Boolean,
     val contentWarningButtonEnabled: Boolean,
     /**
+     * 編集では投票を付け外しできないので、編集の間は false になる
+     */
+    val pollButtonVisible: Boolean,
+    val pollButtonChecked: Boolean,
+    /**
+     * 画像と一緒には付けられないので、画像を付けている間は false になる
+     */
+    val pollButtonEnabled: Boolean,
+    /**
+     * 投票を付けていなければ null
+     */
+    val pollEditor: PollEditor?,
+    /**
      * 編集する投稿の本文を読み込んでいる間
      */
     val bodyLoadingVisible: Boolean,
@@ -72,6 +85,41 @@ data class PostScreenUiState(
         val removeButtonEnabled: Boolean,
         val listener: ImageListener,
     )
+
+    /**
+     * @param durationOptions 締め切りまでの長さの候補。選ぶと [PollEditorListener.onDurationSelected] に並びの位置を渡す
+     */
+    data class PollEditor(
+        val options: List<PollOption>,
+        val addOptionButtonVisible: Boolean,
+        val multipleChoiceChecked: Boolean,
+        val durationText: String,
+        val durationOptions: List<String>,
+        val inputEnabled: Boolean,
+        val listener: PollEditorListener,
+    )
+
+    data class PollOption(
+        val text: String,
+        val label: String,
+        val removeButtonVisible: Boolean,
+    )
+
+    /**
+     * 選択肢は並びの位置で指す
+     */
+    @Immutable
+    interface PollEditorListener {
+        fun onOptionChanged(index: Int, text: String)
+
+        fun onClickRemoveOption(index: Int)
+
+        fun onClickAddOption()
+
+        fun onMultipleChoiceChanged(checked: Boolean)
+
+        fun onDurationSelected(index: Int)
+    }
 
     data class ReplyTarget(
         val post: PostItemUiState.Quote,
@@ -126,6 +174,8 @@ data class PostScreenUiState(
         fun onClickContentWarning()
 
         fun onContentWarningChanged(text: String)
+
+        fun onClickPoll()
 
         fun onClickAddImage()
 
