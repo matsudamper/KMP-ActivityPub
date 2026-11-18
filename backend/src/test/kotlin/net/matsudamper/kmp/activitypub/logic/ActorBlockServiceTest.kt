@@ -20,7 +20,7 @@ class ActorBlockServiceTest {
     private val carolUri = "https://remote.example/users/carol"
     private val remoteProfiles = object : RemoteUserProfiles {
         override suspend fun find(username: String, host: String): RemoteUserProfile? =
-            if (username == "carol" && host == "remote.example") RemoteUserProfile(RemoteUser(carolUri, "carol", "Carol", null, listOf()), null, null) else null
+            if (username == "carol" && host == "remote.example") RemoteUserProfile(RemoteUser(carolUri, "carol", "Carol", null, listOf()), null, null, listOf()) else null
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile? = null
 

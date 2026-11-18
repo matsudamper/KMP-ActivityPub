@@ -18,6 +18,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.Note
+import net.matsudamper.kmp.activitypub.repository.ProfileLink
+import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileFieldRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
@@ -46,6 +48,7 @@ class UserProfileServiceTest {
      * 最初のページで outbox と固定した投稿を読むために、相手のアクターを取りに行った回数
      */
     private val actorRequests = mutableListOf<String>()
+    private var fields: List<RemoteProfileField> = listOf()
     private var featured: suspend () -> List<RemoteNoteInput> = { listOf() }
     private var outbox: suspend (from: OutboxPosition?) -> RemoteNotesPage? = {
         RemoteNotesPage(notes = listOf(remoteNote("<p>最新の投稿</p>", "https://remote.example/notes/1")), next = null)
@@ -55,7 +58,7 @@ class UserProfileServiceTest {
             requests.add("profile")
             // 本物の引き方と同じく、引いたアクターを保存する
             repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, username, "Bob", null, listOf(), Instant.EPOCH))
-            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, username, "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介", fields)
         }
 
         override suspend fun recentNotesPage(actorUri: String, from: OutboxPosition?): RemoteNotesPage? {
@@ -80,7 +83,7 @@ class UserProfileServiceTest {
 
         override suspend fun findByActorUri(actorUri: String): RemoteUserProfile {
             requests.add("profile:$actorUri")
-            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介")
+            return RemoteUserProfile(RemoteUser(actorUri, "bob", "Bob", null, listOf()), "https://remote.example/header.png", "自己紹介", fields)
         }
     }
     private val service = UserProfileService(
@@ -110,6 +113,26 @@ class UserProfileServiceTest {
         val posts = firstPage("bob@remote.example", viewer).posts
         assertEquals(listOf("profile", "posts"), requests)
         assertEquals("<p>最新の投稿</p>", posts.single().contentHtml)
+    }
+
+    @Test
+    fun unfollowedUserProfileHasLinksFromFields() = runBlocking {
+        fields = listOf(
+            RemoteProfileField(
+                name = "Web",
+                htmlValue = """<a href="https://example.com/" rel="me nofollow noopener" target="_blank"><span class="invisible">https://</span><span class="">example.com/</span></a>""",
+            ),
+            RemoteProfileField(name = "場所", htmlValue = "東京"),
+            RemoteProfileField(name = "危険", htmlValue = """<a href="javascript:alert(1)">押す</a>"""),
+            RemoteProfileField(name = "Blog", htmlValue = "https://blog.example/"),
+        )
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+
+        assertEquals(
+            listOf(ProfileLink(name = "Web", url = "https://example.com/"), ProfileLink(name = "Blog", url = "https://blog.example/")),
+            profile.links,
+        )
     }
 
     @Test
@@ -168,7 +191,7 @@ class UserProfileServiceTest {
     @Test
     fun followedUserHeaderComesFromStoredActor() = runBlocking {
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("bob", "Bob", null, null, "https://remote.example/stored-header.png", listOf())),
+            RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord("bob", "Bob", null, null, "https://remote.example/stored-header.png", listOf(), null, listOf())),
             Instant.EPOCH,
         )
         following.setFollowing(viewer, actorUri, true)
@@ -177,6 +200,31 @@ class UserProfileServiceTest {
 
         assertEquals(listOf(), requests)
         assertEquals("https://remote.example/stored-header.png", profile.headerUrl)
+    }
+
+    @Test
+    fun followedUserBiographyAndLinksComeFromStoredActor() = runBlocking {
+        val storedProfile = RemoteActorProfileRecord(
+            preferredUsername = "bob",
+            displayName = "Bob",
+            profileUrl = null,
+            iconUrl = null,
+            headerUrl = null,
+            emojis = listOf(),
+            summary = "<p>保存した自己紹介</p>",
+            fields = listOf(
+                RemoteActorProfileFieldRecord(name = "Web", htmlValue = """<a href="https://example.com/">example.com</a>"""),
+                RemoteActorProfileFieldRecord(name = "場所", htmlValue = "東京"),
+            ),
+        )
+        repositories.remoteActorRepository.save(RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", storedProfile), Instant.EPOCH)
+        following.setFollowing(viewer, actorUri, true)
+
+        val profile = assertNotNull(service.profile("bob@remote.example", viewer))
+
+        assertEquals(listOf(), requests)
+        assertEquals("保存した自己紹介", profile.biography)
+        assertEquals(listOf(ProfileLink(name = "Web", url = "https://example.com/")), profile.links)
     }
 
     @Test
@@ -469,7 +517,7 @@ class UserProfileServiceTest {
     fun localProfileContinuesNotesAndBoostsWithoutGapsOrPinnedDuplicates() = runBlocking {
         (1..25).forEach { index ->
             repositories.noteRepository.notes.add(
-                Note(PublicNoteId("note-$index"), "alice", "<p>投稿 $index</p>", null, Instant.ofEpochSecond(index * 10L), null, listOf(), null, null, null, listOf(), sensitive = false),
+                Note(PublicNoteId("note-$index"), "alice", "<p>投稿 $index</p>", null, null, Instant.ofEpochSecond(index * 10L), null, listOf(), null, null, null, listOf(), sensitive = false),
             )
         }
         repositories.notePinRepository.pin(viewer, PublicNoteId("note-3"), Instant.EPOCH, NotePinService.MAX_PINS)
@@ -493,7 +541,7 @@ class UserProfileServiceTest {
 
     @Test
     fun localProfileUsesStoredPosts() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", null, null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
         val post = firstPage("alice", viewer).posts.single()
         assertEquals(listOf(), requests)
         assertEquals("<p>保存済みの投稿</p>", post.contentHtml)
@@ -502,8 +550,12 @@ class UserProfileServiceTest {
 
     @Test
     fun localQuotePostHasQuoteTarget() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "", null, Instant.EPOCH, null, listOf(), null, "https://remote.example/notes/9", null, listOf(), sensitive = false))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-2"), "alice", "<p>普通の投稿</p>", null, Instant.EPOCH.plusSeconds(1), null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(
+            Note(PublicNoteId("note-1"), "alice", "", null, null, Instant.EPOCH, null, listOf(), null, "https://remote.example/notes/9", null, listOf(), sensitive = false),
+        )
+        repositories.noteRepository.notes.add(
+            Note(PublicNoteId("note-2"), "alice", "<p>普通の投稿</p>", null, null, Instant.EPOCH.plusSeconds(1), null, listOf(), null, null, null, listOf(), sensitive = false),
+        )
 
         assertEquals(mapOf("l-note-1" to true, "l-note-2" to false), firstPage("alice", viewer).posts.associate { it.postId to it.hasQuoteTarget })
     }
@@ -511,8 +563,8 @@ class UserProfileServiceTest {
     @Test
     fun ownLocalPostsHaveDeletableNoteIdButOthersDoNot() = runBlocking {
         repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", null, null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
 
         assertEquals("note-alice", firstPage("alice", viewer).posts.single().deletableNoteId)
         assertNull(firstPage("carol", viewer).posts.single().deletableNoteId)
@@ -521,7 +573,7 @@ class UserProfileServiceTest {
     @Test
     fun othersLocalPostsCanBeOpened() = runBlocking {
         repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
 
         val post = firstPage("carol", viewer).posts.single()
 
@@ -533,7 +585,7 @@ class UserProfileServiceTest {
     @Test
     fun localProfileShowsOwnBoostsAtTheTimeTheyWereBoosted() = runBlocking {
         repositories.noteRepository.notes.add(
-            Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", null, Instant.ofEpochMilli(1_000), null, listOf(), null, null, null, listOf(), sensitive = false),
+            Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", null, null, Instant.ofEpochMilli(1_000), null, listOf(), null, null, null, listOf(), sensitive = false),
         )
         repositories.timelineRepository.accountBoosts.add(
             storedPost("<p>ブーストした投稿</p>", summary = null, sensitive = false).copy(
@@ -567,8 +619,10 @@ class UserProfileServiceTest {
 
     @Test
     fun pinnedPostsComeFirstWithoutDuplicates() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", null, Instant.EPOCH.plusSeconds(1), null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", null, null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(
+            Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", null, null, Instant.EPOCH.plusSeconds(1), null, listOf(), null, null, null, listOf(), sensitive = false),
+        )
         repositories.notePinRepository.pin(viewer, PublicNoteId("old"), Instant.EPOCH, NotePinService.MAX_PINS)
 
         val posts = firstPage("alice", viewer).posts
@@ -580,7 +634,7 @@ class UserProfileServiceTest {
     @Test
     fun onlyOwnProfilePostsHavePinnableNoteId() = runBlocking {
         val carol = repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
 
         assertEquals(listOf(null), firstPage("carol", viewer).posts.map { it.pinnableNoteId })
         assertEquals(listOf(PublicNoteId("note-carol")), firstPage("carol", carol).posts.map { it.pinnableNoteId })

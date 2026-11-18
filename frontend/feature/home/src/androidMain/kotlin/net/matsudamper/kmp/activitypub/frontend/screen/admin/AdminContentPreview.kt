@@ -13,7 +13,7 @@ private fun AdminContentRemoteProfileRefreshPreview() {
             uiState = AdminScreenUiState(
                 content = AdminScreenUiState.Content.Loaded(
                     remoteProfileRefresh = AdminScreenUiState.RemoteProfileRefresh(
-                        statusText = "取り直し中（2026-11-11T06:00:00Z 開始）\n120 人中 48 人を取り直し、失敗 2 人、スキップ 3 人",
+                        statusText = "取り直し中（2026/11/11 15:00 開始）\n120 人中 48 人を取り直し、失敗 2 人、スキップ 3 人",
                         startButtonEnabled = false,
                         listener = AndroidPreviewRemoteProfileRefreshListener,
                     ),
@@ -41,6 +41,8 @@ private fun AdminContentDeniedPreview() {
 
 private object AndroidPreviewAdminListener : AdminScreenUiState.Listener {
     override fun onClickBack() = Unit
+
+    override fun onClickFailedDeliveries() = Unit
 }
 
 private object AndroidPreviewRemoteProfileRefreshListener : AdminScreenUiState.RemoteProfileRefreshListener {

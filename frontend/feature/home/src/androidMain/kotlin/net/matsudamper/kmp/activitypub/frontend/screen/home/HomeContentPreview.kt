@@ -186,6 +186,43 @@ private fun TimelineHeaderDividerNewPostsHiddenAbovePreview() {
 
 @Preview
 @Composable
+private fun TimelineContentWarningItemsPreview() {
+    HomePreviewTheme {
+        Surface {
+            Column {
+                val post = previewTimelinePosts().first()
+                PostItem(
+                    uiState = post.copy(
+                        contentWarning = PostItemUiState.ContentWarning(
+                            text = createTextWithEmojis(text = "映画のネタバレ :kotlin:", emojis = PreviewEmojis),
+                            toggleButtonText = "もっと見る",
+                            listener = AndroidPreviewContentWarningListener,
+                        ),
+                        bodyVisible = false,
+                        translateButton = null,
+                    ),
+                    style = PostItemStyle.Timeline,
+                    shareButtonVisible = true,
+                )
+                PostItem(
+                    uiState = post.copy(
+                        contentWarning = PostItemUiState.ContentWarning(
+                            text = createTextWithEmojis(text = "映画のネタバレ :kotlin:", emojis = PreviewEmojis),
+                            toggleButtonText = "隠す",
+                            listener = AndroidPreviewContentWarningListener,
+                        ),
+                        bodyVisible = true,
+                    ),
+                    style = PostItemStyle.Timeline,
+                    shareButtonVisible = true,
+                )
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
 private fun TimelineReplyItemsPreview() {
     HomePreviewTheme {
         Surface {
@@ -557,6 +594,8 @@ private fun HomeUserContentPreview() {
                             iconUrl = "https://example.com/icon.png",
                             displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
                             acct = "@user1",
+                            contentWarning = null,
+                            bodyVisible = true,
                             body = createPostBodyText(content = "はじめての投稿", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                             postedAt = "3分前",
                             fullPostedAt = "2026/11/05 12:00",
@@ -708,6 +747,8 @@ private fun HomeUserMediaContentPreview() {
                             iconUrl = "https://example.com/icon.png",
                             displayName = createTextWithEmojis(text = "ユーザー1", emojis = listOf()),
                             acct = "@user1",
+                            contentWarning = null,
+                            bodyVisible = true,
                             body = createPostBodyText(content = "はじめての投稿", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
                             postedAt = "3分前",
                             fullPostedAt = "2026/11/05 12:00",
@@ -873,6 +914,11 @@ private fun HomeColumnsPreview(
                             title = "投稿",
                             body = "",
                             bodyInsertion = null,
+                            contentWarningInputVisible = false,
+                            contentWarning = "",
+                            contentWarningButtonVisible = true,
+                            contentWarningButtonChecked = false,
+                            contentWarningButtonEnabled = true,
                             bodyLoadingVisible = false,
                             inputHasError = false,
                             inputEnabled = true,
@@ -1060,6 +1106,10 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
 
     override fun onBodyInsertionHandled() = Unit
 
+    override fun onClickContentWarning() = Unit
+
+    override fun onContentWarningChanged(text: String) = Unit
+
     override fun onClickAddImage() = Unit
 
     override fun onImagePicked(file: PickedImageFile) = Unit
@@ -1088,6 +1138,8 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         iconUrl = "https://example.com/kotlin.png",
         displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
         acct = "@kotlin@example.com",
+        contentWarning = null,
+        bodyVisible = true,
         body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
         postedAt = "1分前",
         fullPostedAt = "2026/11/05 12:00",
@@ -1148,6 +1200,8 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
         iconUrl = null,
         displayName = createTextWithEmojis(text = "Compose :compose:", emojis = PreviewEmojis),
         acct = "@compose@example.com",
+        contentWarning = null,
+        bodyVisible = true,
         body = createPostBodyText(content = "Compose Multiplatform :compose: で Web と Android の画面を共有している :kotlin:", mentions = listOf(), emojis = PreviewEmojis, onOpenUrl = {}, onOpenProfile = {}),
         postedAt = "5分前",
         fullPostedAt = "2026/11/05 12:00",
@@ -1210,6 +1264,8 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         iconUrl = "https://example.com/kotlin.png",
         displayName = createTextWithEmojis(text = "Kotlin", emojis = listOf()),
         acct = "@kotlin@example.com",
+        contentWarning = null,
+        bodyVisible = true,
         body = createPostBodyText(content = "Kotlin 2.4 がリリースされました https://kotlinlang.org/", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
         postedAt = "1分前",
         fullPostedAt = "2026/11/05 12:00",
@@ -1304,4 +1360,8 @@ private object AndroidPreviewTimelineColumnEditDialogSourceListener : HomeScreen
 
 private object AndroidPreviewFontSizeMenuItemListener : HomeScreenUiState.FontSizeMenuItemListener {
     override fun onClick() = Unit
+}
+
+private object AndroidPreviewContentWarningListener : PostItemUiState.ContentWarningListener {
+    override fun onClickToggle() = Unit
 }

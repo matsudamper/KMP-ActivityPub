@@ -22,6 +22,14 @@ data class PostItemUiState(
     val iconUrl: String?,
     val displayName: TextWithEmojis,
     val acct: String,
+    /**
+     * 閲覧注意でなければ null
+     */
+    val contentWarning: ContentWarning?,
+    /**
+     * 閲覧注意で畳んでいる間は false で、本文・引用・画像・リンクのカードを出さない
+     */
+    val bodyVisible: Boolean,
     val body: TextWithEmojis,
     val postedAt: String,
     /**
@@ -267,6 +275,21 @@ data class PostItemUiState(
     @Immutable
     interface AuthorListener {
         fun onClick()
+    }
+
+    /**
+     * @param text 投稿者が書いた注意書き
+     * @param toggleButtonText 本文を開くか畳むかで変わる
+     */
+    data class ContentWarning(
+        val text: TextWithEmojis,
+        val toggleButtonText: String,
+        val listener: ContentWarningListener,
+    )
+
+    @Immutable
+    interface ContentWarningListener {
+        fun onClickToggle()
     }
 
     /**

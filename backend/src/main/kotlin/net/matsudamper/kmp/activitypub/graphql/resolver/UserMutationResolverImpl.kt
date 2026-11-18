@@ -379,6 +379,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         body: String,
         requestId: String,
+        contentWarning: String?,
         imageIds: List<NoteImagePublicId>,
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
@@ -391,6 +392,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 postNote(
                     body = body,
                     requestId = requestId,
+                    contentWarning = contentWarning,
                     imageIds = imageIds,
                     replyToPostId = replyToPostId,
                     quotePostId = quotePostId,
@@ -527,6 +529,7 @@ class UserMutationResolverImpl : UserMutationResolver {
     private suspend fun postNote(
         body: String,
         requestId: String,
+        contentWarning: String?,
         imageIds: List<NoteImagePublicId>,
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
@@ -550,6 +553,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 username = account.username,
                 body = body,
                 requestId = requestId,
+                contentWarning = contentWarning,
                 imageIds = imageIds,
                 replyToPostId = replyToPostId?.value,
                 quotePostId = quotePostId?.value,
@@ -561,6 +565,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 is PostNoteResult.Posted -> return QlUserPostNoteResult(url = result.url, failure = null)
                 PostNoteResult.EmptyBody -> QlUserPostNoteFailure.EMPTY_BODY
                 PostNoteResult.TooLong -> QlUserPostNoteFailure.TOO_LONG
+                PostNoteResult.ContentWarningTooLong -> QlUserPostNoteFailure.CONTENT_WARNING_TOO_LONG
                 PostNoteResult.TooManyImages -> QlUserPostNoteFailure.TOO_MANY_IMAGES
                 PostNoteResult.ImageNotFound -> QlUserPostNoteFailure.IMAGE_NOT_FOUND
                 PostNoteResult.ReplyTargetNotFound -> QlUserPostNoteFailure.REPLY_TARGET_NOT_FOUND

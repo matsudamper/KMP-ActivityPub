@@ -98,5 +98,7 @@ internal class AccountFollowerStore(
             iconUrl = iconUrl,
             headerUrl = headerUrl,
             emojis = emojis.toRecords(),
+            summary = summary,
+            fields = fields.toFieldRecords(),
         )
 }

@@ -234,6 +234,10 @@ internal fun PostItem(
                 PostItemStyle.Detail -> Unit
             }
         }
+        val contentWarning = uiState.contentWarning
+        if (contentWarning != null) {
+            ContentWarning(contentWarning = contentWarning, sizes = sizes)
+        }
         val translateButton = uiState.translateButton
         if (translateButton != null) {
             OutlinedButton(
@@ -247,68 +251,70 @@ internal fun PostItem(
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            PostBodySelectionContainer(
-                modifier = Modifier.bleed(horizontal = PostHorizontalPadding, vertical = PostBodySelectionVerticalMargin),
-                contentPadding = PaddingValues(horizontal = PostHorizontalPadding, vertical = PostBodySelectionVerticalMargin),
-            ) {
-                EmojiText(
-                    text = uiState.body,
-                    style = sizes.bodyTextStyle,
-                    color = Color.Unspecified,
-                    fontWeight = null,
-                    maxLines = Int.MAX_VALUE,
-                    overflow = TextOverflow.Clip,
-                )
-            }
-            val quote = uiState.quote
-            if (quote != null) {
-                PostQuoteCard(
-                    quote = quote,
-                    unavailableText = "引用先の投稿を表示できません",
-                    textStyle = sizes.secondaryTextStyle,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-            if (style == PostItemStyle.Detail && uiState.images.isNotEmpty()) {
-                PostImageGrid(
-                    images = uiState.images,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-            val horizontalScrollImages = when (style) {
-                PostItemStyle.Timeline -> uiState.images
-                PostItemStyle.Detail -> listOf()
-            }
-            if (horizontalScrollImages.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
-                val attachmentListState = rememberLazyListState()
-                val layoutDirection = LocalLayoutDirection.current
-                val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
-                val horizontalScrollStopper = remember(attachmentListState) { HorizontalScrollStopper(attachmentListState) }
-                LazyRow(
-                    state = attachmentListState,
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
-                        .stopHorizontalScrollAtEdge(horizontalScrollStopper)
-                        .scrollHorizontallyByMouseDrag(
-                            state = attachmentListState,
-                            flingBehavior = attachmentFlingBehavior,
-                            reverseDirection = layoutDirection == LayoutDirection.Rtl,
-                        ),
-                    contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+            if (uiState.bodyVisible) {
+                PostBodySelectionContainer(
+                    modifier = Modifier.bleed(horizontal = PostHorizontalPadding, vertical = PostBodySelectionVerticalMargin),
+                    contentPadding = PaddingValues(horizontal = PostHorizontalPadding, vertical = PostBodySelectionVerticalMargin),
                 ) {
-                    items(horizontalScrollImages) { image ->
-                        PostImageCard(image = image)
-                    }
-                    items(uiState.linkPreviews) { preview ->
-                        LinkPreviewCard(
-                            title = preview.title,
-                            siteName = preview.siteName,
-                            imageUrl = preview.imageUrl,
-                            faviconUrl = preview.faviconUrl,
-                            onClick = preview.listener::onClick,
-                        )
+                    EmojiText(
+                        text = uiState.body,
+                        style = sizes.bodyTextStyle,
+                        color = Color.Unspecified,
+                        fontWeight = null,
+                        maxLines = Int.MAX_VALUE,
+                        overflow = TextOverflow.Clip,
+                    )
+                }
+                val quote = uiState.quote
+                if (quote != null) {
+                    PostQuoteCard(
+                        quote = quote,
+                        unavailableText = "引用先の投稿を表示できません",
+                        textStyle = sizes.secondaryTextStyle,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                if (style == PostItemStyle.Detail && uiState.images.isNotEmpty()) {
+                    PostImageGrid(
+                        images = uiState.images,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                val horizontalScrollImages = when (style) {
+                    PostItemStyle.Timeline -> uiState.images
+                    PostItemStyle.Detail -> listOf()
+                }
+                if (horizontalScrollImages.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
+                    val attachmentListState = rememberLazyListState()
+                    val layoutDirection = LocalLayoutDirection.current
+                    val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
+                    val horizontalScrollStopper = remember(attachmentListState) { HorizontalScrollStopper(attachmentListState) }
+                    LazyRow(
+                        state = attachmentListState,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .bleedHorizontally(start = PostHorizontalPadding, end = PostHorizontalPadding)
+                            .stopHorizontalScrollAtEdge(horizontalScrollStopper)
+                            .scrollHorizontallyByMouseDrag(
+                                state = attachmentListState,
+                                flingBehavior = attachmentFlingBehavior,
+                                reverseDirection = layoutDirection == LayoutDirection.Rtl,
+                            ),
+                        contentPadding = PaddingValues(horizontal = PostHorizontalPadding),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(horizontalScrollImages) { image ->
+                            PostImageCard(image = image)
+                        }
+                        items(uiState.linkPreviews) { preview ->
+                            LinkPreviewCard(
+                                title = preview.title,
+                                siteName = preview.siteName,
+                                imageUrl = preview.imageUrl,
+                                faviconUrl = preview.faviconUrl,
+                                onClick = preview.listener::onClick,
+                            )
+                        }
                     }
                 }
             }
@@ -377,6 +383,28 @@ private fun PostImageGrid(
 /**
  * ブーストの行と同じく、アイコンの列に揃えて出す
  */
+@Composable
+private fun ContentWarning(
+    contentWarning: PostItemUiState.ContentWarning,
+    sizes: PostItemSizes,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        EmojiText(
+            text = contentWarning.text,
+            style = sizes.bodyTextStyle,
+            color = Color.Unspecified,
+            fontWeight = null,
+            maxLines = Int.MAX_VALUE,
+            overflow = TextOverflow.Clip,
+        )
+        OutlinedButton(onClick = contentWarning.listener::onClickToggle) {
+            Text(text = contentWarning.toggleButtonText, style = sizes.secondaryTextStyle)
+        }
+    }
+}
+
 @Composable
 private fun PinnedLabel(sizes: PostItemSizes) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant

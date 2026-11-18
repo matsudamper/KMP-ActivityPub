@@ -45,6 +45,7 @@ internal class FakeDeliveryQueueRepository(
                 publicId = post.publicId,
                 username = post.username,
                 contentHtml = post.contentHtml,
+                summary = post.summary,
                 sourceText = post.sourceText,
                 publishedAt = post.publishedAt,
                 updatedAt = null,
@@ -99,6 +100,7 @@ internal class FakeDeliveryQueueRepository(
     override fun giveUp(
         id: Long,
         error: String,
+        failedAt: Instant,
     ) = Unit
 
     override fun recoverDelivering(now: Instant): Int = 0

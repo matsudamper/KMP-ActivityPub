@@ -41,6 +41,7 @@ internal class PostScreenViewModel(
             ViewModelState(
                 body = savedStateHandle.get<String>(BODY_KEY) ?: initialBody(),
                 sensitive = savedStateHandle.get<Boolean>(SENSITIVE_KEY) ?: false,
+                contentWarning = savedStateHandle.get<String>(CONTENT_WARNING_KEY),
                 images = listOf(),
                 loadingImage = false,
                 submitting = false,
@@ -121,6 +122,16 @@ internal class PostScreenViewModel(
 
                     override fun onBodyInsertionHandled() {
                         viewModelStateFlow.update { it.copy(bodyInsertion = null) }
+                    }
+
+                    override fun onClickContentWarning() {
+                        if (viewModelStateFlow.value.submitting) return
+                        changeContentWarning(if (viewModelStateFlow.value.contentWarning == null) "" else null)
+                    }
+
+                    override fun onContentWarningChanged(text: String) {
+                        if (viewModelStateFlow.value.contentWarning == text) return
+                        changeContentWarning(text)
                     }
 
                     override fun onClickAddEmoji() {
@@ -253,6 +264,7 @@ internal class PostScreenViewModel(
     private fun startEditing(noteId: String) {
         val state = viewModelStateFlow.value
         savedStateHandle[BODY_KEY] = ""
+        savedStateHandle[CONTENT_WARNING_KEY] = null
         savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
         savedStateHandle[EDITING_NOTE_ID_KEY] = noteId
         savedStateHandle.remove<String>(EDITING_ORIGINAL_BODY_KEY)
@@ -261,6 +273,7 @@ internal class PostScreenViewModel(
         viewModelStateFlow.update {
             it.copy(
                 body = "",
+                contentWarning = null,
                 images = listOf(),
                 quote = null,
                 replyTarget = null,
@@ -369,6 +382,15 @@ internal class PostScreenViewModel(
     }
 
     /**
+     * @param text 閲覧注意にしないなら null
+     */
+    private fun changeContentWarning(text: String?) {
+        savedStateHandle[CONTENT_WARNING_KEY] = text
+        renewRequestId()
+        viewModelStateFlow.update { it.copy(contentWarning = text, error = null) }
+    }
+
+    /**
      * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、loadingImage が下りなくなる
      */
     private fun addImage(file: PickedImageFile) {
@@ -443,6 +465,7 @@ internal class PostScreenViewModel(
                         postNoteSubmitter.submit(
                             body = state.body,
                             requestId = requestId(),
+                            contentWarning = state.contentWarning,
                             images = state.images.map { it.image },
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと返信できない
                             replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
@@ -464,10 +487,11 @@ internal class PostScreenViewModel(
                 return@launch
             }
             savedStateHandle[BODY_KEY] = ""
+            savedStateHandle[CONTENT_WARNING_KEY] = null
             savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
             savedStateHandle[SENSITIVE_KEY] = false
             renewRequestId()
-            viewModelStateFlow.update { it.copy(body = "", images = listOf(), replyTarget = null, sensitive = false) }
+            viewModelStateFlow.update { it.copy(body = "", contentWarning = null, images = listOf(), replyTarget = null, sensitive = false) }
             state.images.forEach { it.image.release() }
             events.send { it.navigateBack() }
         }
@@ -516,6 +540,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.NotLoggedIn -> "ログインしていません"
             UserPostNoteResult.EmptyBody -> "本文が空です"
             UserPostNoteResult.TooLong -> "本文が長すぎます"
+            UserPostNoteResult.ContentWarningTooLong -> "注意書きが長すぎます"
             UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
             UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
@@ -546,6 +571,11 @@ internal class PostScreenViewModel(
             title = if (viewModelState.editing == null) "投稿" else "投稿を編集",
             body = viewModelState.body,
             bodyInsertion = viewModelState.bodyInsertion,
+            contentWarningInputVisible = viewModelState.editing == null && viewModelState.contentWarning != null,
+            contentWarning = viewModelState.contentWarning.orEmpty(),
+            contentWarningButtonVisible = viewModelState.editing == null,
+            contentWarningButtonChecked = viewModelState.contentWarning != null,
+            contentWarningButtonEnabled = viewModelState.submitting.not(),
             bodyLoadingVisible = viewModelState.editableBodyLoading(),
             inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not() && viewModelState.editableBodyLoading().not(),
@@ -620,7 +650,7 @@ internal class PostScreenViewModel(
      */
     private fun ViewModelState.hasDraft(): Boolean {
         if (editing != null) return editing.originalBody != null && body != editing.originalBody
-        return body.isNotBlank() || images.isNotEmpty() || replyTarget != null
+        return body.isNotBlank() || contentWarning.isNullOrBlank().not() || images.isNotEmpty() || replyTarget != null
     }
 
     /**
@@ -646,6 +676,10 @@ internal class PostScreenViewModel(
     private data class ViewModelState(
         val body: String,
         val sensitive: Boolean,
+        /**
+         * 閲覧注意にしなければ null
+         */
+        val contentWarning: String?,
         val images: List<SelectedImage>,
         val loadingImage: Boolean,
         val submitting: Boolean,
@@ -745,6 +779,7 @@ internal class PostScreenViewModel(
 }
 
 private const val BODY_KEY = "body"
+private const val CONTENT_WARNING_KEY = "contentWarning"
 private const val REQUEST_ID_KEY = "requestId"
 private const val REPLY_TO_POST_ID_KEY = "replyToPostId"
 private const val EDITING_NOTE_ID_KEY = "editingNoteId"

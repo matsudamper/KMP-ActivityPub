@@ -91,6 +91,7 @@ interface DeliveryQueueRepository {
     fun giveUp(
         id: Long,
         error: String,
+        failedAt: Instant,
     )
 
     /**
@@ -124,6 +125,7 @@ sealed interface EnqueueNoteResult {
 
 /**
  * @param requestId 画面が送信ごとに作る ID。応答を受け取れずに送り直されたときに同じ投稿だと分かる
+ * @param summary 閲覧注意の注意書き。閲覧注意でなければ null
  * @param images [NoteRepository.addUploadedImage] で記録した画像。付けた順。投稿に付けると、期限で消されなくなる
  * @param sourceText 書いたままの本文。編集するときに下書きとして出す
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
@@ -138,6 +140,7 @@ data class NotePost(
     val requestId: String,
     val publicId: PublicNoteId,
     val contentHtml: String,
+    val summary: String?,
     val sourceText: String,
     val publishedAt: Instant,
     val images: List<NoteImage>,

@@ -15,6 +15,14 @@ data class PostScreenUiState(
      * 選んだ絵文字。入力欄が本文に入れ終えるまで持つ。入れるものが無ければ null
      */
     val bodyInsertion: TextInsertion?,
+    val contentWarningInputVisible: Boolean,
+    val contentWarning: String,
+    /**
+     * 編集では注意書きを書き換えられないので、編集の間は false になる
+     */
+    val contentWarningButtonVisible: Boolean,
+    val contentWarningButtonChecked: Boolean,
+    val contentWarningButtonEnabled: Boolean,
     /**
      * 編集する投稿の本文を読み込んでいる間
      */
@@ -116,6 +124,10 @@ data class PostScreenUiState(
         fun onBodyChanged(text: String)
 
         fun onBodyInsertionHandled()
+
+        fun onClickContentWarning()
+
+        fun onContentWarningChanged(text: String)
 
         fun onClickAddImage()
 

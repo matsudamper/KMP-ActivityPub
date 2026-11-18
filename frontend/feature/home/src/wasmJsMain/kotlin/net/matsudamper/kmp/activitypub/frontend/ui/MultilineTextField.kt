@@ -21,6 +21,7 @@ internal actual fun MultilineTextField(
     onSubmitShortcut: (() -> Unit)?,
     insertion: TextInsertion?,
     onHandleInsertion: () -> Unit,
+    heightFitsContent: Boolean,
     modifier: Modifier,
 ) {
     val currentOnValueChange by rememberUpdatedState(onValueChange)
@@ -50,6 +51,7 @@ internal actual fun MultilineTextField(
         enabled = enabled,
         hasError = hasError,
         onSubmitShortcut = onSubmitShortcut,
+        heightFitsContent = heightFitsContent,
         modifier = modifier,
     )
 }

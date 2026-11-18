@@ -1,6 +1,6 @@
-mutation UserPostNote($body: String!, $requestId: String!, $imageIds: [NoteImageId!]!, $replyToPostId: TimelinePostId, $quotePostId: TimelinePostId, $mentionAcct: String, $sensitive: Boolean!) {
+mutation UserPostNote($body: String!, $requestId: String!, $contentWarning: String, $imageIds: [NoteImageId!]!, $replyToPostId: TimelinePostId, $quotePostId: TimelinePostId, $mentionAcct: String, $sensitive: Boolean!) {
     user {
-        postNote(body: $body, requestId: $requestId, imageIds: $imageIds, replyToPostId: $replyToPostId, quotePostId: $quotePostId, mentionAcct: $mentionAcct, sensitive: $sensitive) {
+        postNote(body: $body, requestId: $requestId, contentWarning: $contentWarning, imageIds: $imageIds, replyToPostId: $replyToPostId, quotePostId: $quotePostId, mentionAcct: $mentionAcct, sensitive: $sensitive) {
             url
             failure
         }

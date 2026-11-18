@@ -21,6 +21,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -221,6 +222,22 @@ internal fun PostContent(
             if (editTarget != null) {
                 EditTarget(editTarget = editTarget)
             }
+            if (uiState.contentWarningInputVisible) {
+                MultilineTextField(
+                    value = uiState.contentWarning,
+                    onValueChange = uiState.listener::onContentWarningChanged,
+                    label = "注意書き",
+                    inputId = POST_CONTENT_WARNING_INPUT_ID,
+                    inputName = "contentWarning",
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.inputHasError,
+                    onSubmitShortcut = uiState.listener::onPressPostShortcut,
+                    insertion = null,
+                    onHandleInsertion = {},
+                    heightFitsContent = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             // 読み終えたときに入力欄の位置が動かないよう、読んでいる間も入力欄を出して上に重ねる
             Box(contentAlignment = Alignment.Center) {
                 MultilineTextField(
@@ -234,6 +251,7 @@ internal fun PostContent(
                     onSubmitShortcut = uiState.listener::onPressPostShortcut,
                     insertion = uiState.bodyInsertion,
                     onHandleInsertion = uiState.listener::onBodyInsertionHandled,
+                    heightFitsContent = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (uiState.bodyLoadingVisible) {
@@ -280,6 +298,23 @@ internal fun PostContent(
                         imageVector = AppIcons.Emoticon,
                         contentDescription = "絵文字を追加",
                     )
+                }
+                if (uiState.contentWarningButtonVisible) {
+                    IconToggleButton(
+                        checked = uiState.contentWarningButtonChecked,
+                        onCheckedChange = { uiState.listener.onClickContentWarning() },
+                        enabled = uiState.contentWarningButtonEnabled,
+                        colors = IconButtonDefaults.iconToggleButtonColors(
+                            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Text(
+                            text = "CW",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
                 FilterChip(
                     selected = uiState.sensitiveChipSelected,
@@ -403,3 +438,5 @@ private fun SelectedImage(image: PostScreenUiState.Image) {
 private val SELECTED_IMAGE_SIZE = 96.dp
 
 private const val POST_BODY_INPUT_ID_PREFIX = "post-body"
+
+private const val POST_CONTENT_WARNING_INPUT_ID = "post-content-warning"

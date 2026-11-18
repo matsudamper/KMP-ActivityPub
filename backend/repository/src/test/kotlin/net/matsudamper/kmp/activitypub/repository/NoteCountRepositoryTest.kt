@@ -41,6 +41,7 @@ class NoteCountRepositoryTest {
         requestId = "request-$publicId",
         publicId = PublicNoteId(publicId),
         contentHtml = "<p>本文</p>",
+        summary = null,
         sourceText = "",
         publishedAt = NOW,
         images = listOf(),
@@ -68,7 +69,7 @@ class NoteCountRepositoryTest {
             Accounts.insert(path, "alice", "hash", "type", "public-key", "private-key", NOW.toString())
             Repositories.create(DatabaseConfig(path)).use { repositories ->
                 repositories.remoteActorRepository.save(
-                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf())),
+                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf(), null, listOf())),
                     NOW,
                 )
                 block(repositories)

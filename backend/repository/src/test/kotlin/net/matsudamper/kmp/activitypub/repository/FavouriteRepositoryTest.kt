@@ -112,6 +112,7 @@ class FavouriteRepositoryTest {
                 requestId = "request-$publicId",
                 publicId = PublicNoteId(publicId),
                 contentHtml = "<p>hello</p>",
+                summary = null,
                 sourceText = "",
                 publishedAt = NOW,
                 body = "create-$publicId",
@@ -132,7 +133,7 @@ class FavouriteRepositoryTest {
             inbox = "$actorUri/inbox",
             sharedInbox = null,
             publicKeyPem = "key-$actorUri",
-            profile = RemoteActorProfileRecord(preferredUsername = null, displayName = null, profileUrl = null, iconUrl = null, headerUrl = null, emojis = listOf()),
+            profile = RemoteActorProfileRecord(preferredUsername = null, displayName = null, profileUrl = null, iconUrl = null, headerUrl = null, emojis = listOf(), summary = null, fields = listOf()),
         )
 
     private companion object {

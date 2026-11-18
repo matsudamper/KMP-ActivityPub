@@ -111,6 +111,7 @@ data class NotePosition(
 )
 
 /**
+ * @param summary 閲覧注意の注意書き。閲覧注意でなければ null
  * @param sourceText 書いたままの本文。記録し始める前の投稿は null
  * @param updatedAt 最後に編集した時刻。編集していなければ null
  * @param images 付けた順
@@ -124,6 +125,7 @@ data class Note(
     val publicId: PublicNoteId,
     val username: String,
     val contentHtml: String,
+    val summary: String?,
     val sourceText: String?,
     val publishedAt: Instant,
     val updatedAt: Instant?,

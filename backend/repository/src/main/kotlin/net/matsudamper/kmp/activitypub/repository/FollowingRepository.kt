@@ -35,4 +35,13 @@ interface FollowingRepository {
     fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor>
 
     fun count(accountId: AccountId): Long
+
+    /**
+     * 相手が受け入れたフォロー先のアクター URL を URL 順に返す
+     *
+     * @param after この URL より後ろを返す。null なら先頭から
+     */
+    fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String>
+
+    fun countAccepted(username: String): Long
 }

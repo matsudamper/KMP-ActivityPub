@@ -27,12 +27,14 @@ internal class PostNoteSubmitter(
      *
      * @param replyToPostId 返信するタイムラインの投稿の id。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。引用でなければ null
+     * @param contentWarning 閲覧注意の注意書き。閲覧注意にしなければ null
      * @param mentionAcct 宛てるユーザーの `username@host`。返信先の投稿者のほかに宛てなければ null
      * @param sensitive 閲覧注意の投稿にするか
      */
     suspend fun submit(
         body: String,
         requestId: String,
+        contentWarning: String?,
         images: List<WebpImage>,
         replyToPostId: String?,
         quotePostId: String?,
@@ -51,6 +53,7 @@ internal class PostNoteSubmitter(
                 api.postNote(
                     body = body,
                     requestId = requestId,
+                    contentWarning = contentWarning,
                     imageIds = imageIds,
                     replyToPostId = replyToPostId,
                     quotePostId = quotePostId,

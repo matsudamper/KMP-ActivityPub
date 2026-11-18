@@ -243,6 +243,8 @@ private fun previewThreadPost(displayName: String, acct: String, content: String
     iconUrl = null,
     displayName = createTextWithEmojis(text = displayName, emojis = listOf()),
     acct = acct,
+    contentWarning = null,
+    bodyVisible = true,
     body = createPostBodyText(content = content, mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
     postedAt = "1時間",
     fullPostedAt = "2026/11/01 20:00",
@@ -309,6 +311,8 @@ private fun createLoadedUiState(
                 iconUrl = null,
                 displayName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                 acct = "@alice@example.social",
+                contentWarning = null,
+                bodyVisible = true,
                 body = createPostBodyText(
                     content = "@alice 個別の投稿の画面です。 https://kotlinlang.org/",
                     mentions = listOf(UserPostMention(start = 0, end = 6, acct = "alice@example.social")),

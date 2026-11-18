@@ -205,7 +205,7 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         val authorEmoji = CustomEmojiRecord(name = ":author:", imageUrl = "https://remote.example/author.png")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote :author:", null, null, null, listOf(authorEmoji))),
+            RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote :author:", null, null, null, listOf(authorEmoji), null, listOf())),
             NOW,
         )
         val noteEmoji = CustomEmojiRecord(name = ":blob:", imageUrl = "https://remote.example/blob.png")
@@ -393,7 +393,7 @@ class TimelineRepositoryTest {
     fun localPostsUseEpochMillisecondsAndOnlyReachTheirAuthor() = withRepository { repositories, accounts ->
         val time = NOW.plusNanos(999999999)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "本文", "", time, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false),
+            NotePost("alice", "request", PublicNoteId("local-1"), "本文", null, "", time, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false),
         )
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
@@ -409,7 +409,13 @@ class TimelineRepositoryTest {
     fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
         listOf("local-1", "local-2").forEachIndexed { index, publicId ->
             repositories.deliveryQueueRepository.enqueueNote(
-                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", "", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false),
+                NotePost(
+                    "alice", "request-$index",
+                    PublicNoteId(
+                        publicId,
+                    ),
+                    "本文", null, "", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false,
+                ),
             )
         }
         val repository = repositories.timelineRepository
@@ -486,7 +492,7 @@ class TimelineRepositoryTest {
         val account = accounts.getValue("alice")
         val olderActor = "https://older.example/actor"
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(olderActor, "$olderActor/inbox", null, "key", RemoteActorProfileRecord("older", null, null, null, null, listOf())),
+            RemoteActorRecord(olderActor, "$olderActor/inbox", null, "key", RemoteActorProfileRecord("older", null, null, null, null, listOf(), null, listOf())),
             NOW,
         )
         listOf(ACTOR, olderActor).forEach { repositories.followingRepository.add(account, it, NOW) }
@@ -529,7 +535,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         assertNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
@@ -572,7 +578,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(alice, BOOSTER, NOW)
@@ -600,7 +606,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(alice, ACTOR, NOW)
@@ -626,7 +632,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         // ブーストを受け取るのは bob がフォローしているから。alice はフォローしておらず、宛先に入った投稿だけを読める
@@ -647,7 +653,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(alice, BOOSTER, NOW)
@@ -664,7 +670,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         val group = repositories.followingGroupRepository.create(alice, "グループ", NOW)
@@ -689,7 +695,7 @@ class TimelineRepositoryTest {
     fun createAfterBoostStillRegistersExplicitRecipients() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
@@ -719,7 +725,7 @@ class TimelineRepositoryTest {
     fun createAfterBoostKeepsLanguageOfCreate() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
@@ -734,7 +740,7 @@ class TimelineRepositoryTest {
     fun createAfterBoostKeepsQuoteOfCreate() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(accounts.getValue("alice"), BOOSTER, NOW)
@@ -746,7 +752,7 @@ class TimelineRepositoryTest {
     @Test
     fun boosterKeyIsFoundFromRemoteBoosts() = withRepository { repositories, accounts ->
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null, null, listOf(), null, listOf())),
             NOW,
         )
         assertNull(repositories.boostRepository.findPublicKeyPem(BOOSTER))
@@ -756,18 +762,38 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun localPostWithContentWarningIsSensitive() = withRepository { repositories, accounts ->
+        repositories.deliveryQueueRepository.enqueueNote(
+            NotePost("alice", "request-1", PublicNoteId("local-cw"), "<p>本文</p>", "ネタバレ", "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false),
+        )
+        repositories.deliveryQueueRepository.enqueueNote(
+            NotePost("alice", "request-2", PublicNoteId("local-plain"), "<p>本文</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false),
+        )
+        val alice = accounts.getValue("alice")
+        val repository = repositories.timelineRepository
+
+        val warned = assertNotNull(repository.viewablePost(alice, assertNotNull(repository.localPosition("local-cw")).member))
+        assertEquals("ネタバレ", warned.summary)
+        assertEquals(true, warned.sensitive)
+        val plain = assertNotNull(repository.viewablePost(alice, assertNotNull(repository.localPosition("local-plain")).member))
+        assertNull(plain.summary)
+        assertEquals(false, plain.sensitive)
+        assertEquals("ネタバレ", repositories.noteRepository.find(PublicNoteId("local-cw"))?.summary)
+    }
+
+    @Test
     fun viewablePostOpensProfilePostsBeyondTheViewersTimeline() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         val bob = accounts.getValue("bob")
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "booster-key", RemoteActorProfileRecord(null, null, null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false),
+            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false),
         )
         val localNote = assertNotNull(repository.localPosition("local-1"))
         val note = assertNotNull(repository.receive(note("content", "public", setOf())))
@@ -841,7 +867,7 @@ class TimelineRepositoryTest {
             }
             Repositories.create(DatabaseConfig(path)).use { repositories ->
                 repositories.remoteActorRepository.save(
-                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf())),
+                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf(), null, listOf())),
                     NOW,
                 )
                 block(repositories, listOf("alice", "bob", "carol", "dave").associateWith { checkNotNull(repositories.accountRepository.findByUsername(it)).id })

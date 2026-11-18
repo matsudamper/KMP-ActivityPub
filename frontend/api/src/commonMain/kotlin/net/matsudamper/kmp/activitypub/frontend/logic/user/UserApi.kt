@@ -45,6 +45,8 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteCustomEmojiMutatio
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.EditNoteMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.EditableNoteBodyQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveriesQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveryQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
@@ -808,6 +810,32 @@ class UserApi(
     }
 
     /**
+     * 送るのを諦めた配信の一覧。新しく積んだ順
+     */
+    fun failedDeliveriesPaging(): CursorPagingModel<FailedDeliveriesQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = FailedDeliveriesQuery(after = Optional.present(null), limit = FAILED_DELIVERIES_PAGE_SIZE),
+            queryAfter = { cursor -> FailedDeliveriesQuery(after = Optional.present(cursor), limit = FAILED_DELIVERIES_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.failedDeliveries?.nextCursor },
+            appendPage = { before, page -> before.withNextPage(page) },
+        )
+    }
+
+    /**
+     * @param id [UserFailedDelivery.id]
+     */
+    suspend fun failedDelivery(id: String): UserFailedDeliveryResult {
+        val client = clients.awaitLoadedClient() ?: return UserFailedDeliveryResult.Failure("接続先が未設定")
+        val response = client.query(FailedDeliveryQuery(id = id)).fetchPolicy(FetchPolicy.NetworkOnly).execute()
+        if (response.exception != null || response.hasErrors()) return UserFailedDeliveryResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserFailedDeliveryResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserFailedDeliveryResult.NotLoggedIn
+        val delivery = userInfo.failedDelivery ?: return UserFailedDeliveryResult.NotFound
+        return UserFailedDeliveryResult.Found(delivery.failedDeliveryFields.toUserFailedDelivery())
+    }
+
+    /**
      * 購読した時点の進み具合を流し、その後は変わるたびに流す。購読できないか切れたら [UserRemoteProfileRefreshResult.Failure] を流して終わる
      *
      * @param start 走っていなければ取り直しを始める。既に走っていれば、それの進み具合を流す
@@ -943,12 +971,14 @@ class UserApi(
     /**
      * @param replyToPostId 返信する [UserHomeTimelineResult.Post.id]。投稿者へのメンションが本文の先頭に付く。返信でなければ null
      * @param quotePostId 引用する [UserHomeTimelineResult.Post.id]。引用でなければ null
+     * @param contentWarning 閲覧注意の注意書き。閲覧注意にしなければ null
      * @param mentionAcct 宛てるユーザーの `username@host`。返信先の投稿者のほかに宛てなければ null
      * @param sensitive 閲覧注意の投稿にするか
      */
     suspend fun postNote(
         body: String,
         requestId: String,
+        contentWarning: String?,
         imageIds: List<String>,
         replyToPostId: String?,
         quotePostId: String?,
@@ -960,6 +990,7 @@ class UserApi(
             UserPostNoteMutation(
                 body = body,
                 requestId = requestId,
+                contentWarning = Optional.present(contentWarning),
                 imageIds = imageIds,
                 replyToPostId = Optional.present(replyToPostId),
                 quotePostId = Optional.present(quotePostId),
@@ -975,6 +1006,7 @@ class UserApi(
             UserPostNoteFailure.NOT_LOGGED_IN -> UserPostNoteResult.NotLoggedIn
             UserPostNoteFailure.EMPTY_BODY -> UserPostNoteResult.EmptyBody
             UserPostNoteFailure.TOO_LONG -> UserPostNoteResult.TooLong
+            UserPostNoteFailure.CONTENT_WARNING_TOO_LONG -> UserPostNoteResult.ContentWarningTooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
@@ -1406,6 +1438,7 @@ class UserApi(
     private companion object {
         const val TIMELINE_PAGE_SIZE = 40
         const val POST_REVISIONS_PAGE_SIZE = 20
+        const val FAILED_DELIVERIES_PAGE_SIZE = 30
         const val ACCOUNT_EVENT_MAX_CONSECUTIVE_FAILURES = 5
 
         /**

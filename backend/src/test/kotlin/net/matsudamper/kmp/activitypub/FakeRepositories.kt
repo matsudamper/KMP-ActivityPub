@@ -10,6 +10,8 @@ import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
+import net.matsudamper.kmp.activitypub.repository.FailedDelivery
+import net.matsudamper.kmp.activitypub.repository.FailedDeliveryRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroup
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRenameResult
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
@@ -90,6 +92,8 @@ internal class FakeRepositories : Repositories {
         }
         override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = throw NotImplementedError()
         override fun count(accountId: AccountId): Long = entries.count { it.first == accountId }.toLong()
+        override fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String> = throw NotImplementedError()
+        override fun countAccepted(username: String): Long = throw NotImplementedError()
     }
     override val followingGroupRepository: FollowingGroupRepository = object : FollowingGroupRepository {
         private val rows = mutableListOf<Pair<AccountId, FollowingGroup>>()
@@ -146,6 +150,11 @@ internal class FakeRepositories : Repositories {
         override fun find(kind: NotificationKind, notePublicId: PublicNoteId, actorUri: String): ReceivedNotification? = null
     }
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
+    override val failedDeliveryRepository: FailedDeliveryRepository = object : FailedDeliveryRepository {
+        override fun page(beforeId: Long?, limit: Int): List<FailedDelivery> = listOf()
+
+        override fun find(id: Long): FailedDelivery? = null
+    }
     override val actorBlockRepository: ActorBlockRepository = object : ActorBlockRepository {
         private val rows = mutableListOf<Pair<AccountId, BlockedActor>>()
         override fun list(accountId: AccountId): List<BlockedActor> = rows.filter { it.first == accountId }.map { it.second }.reversed()

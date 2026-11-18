@@ -27,6 +27,8 @@ internal class SqliteRemoteActorRepository(
                     it.iconUrl,
                     it.headerUrl,
                     dsl.remoteActorEmojisByUri(listOf(actorUri))[actorUri].orEmpty(),
+                    it.summary,
+                    dsl.remoteActorProfileFields(actorUri),
                 ),
             )
         }
@@ -44,6 +46,7 @@ internal class SqliteRemoteActorRepository(
                 .set(REMOTE_ACTORS.PROFILE_URL, actor.profile.profileUrl)
                 .set(REMOTE_ACTORS.ICON_URL, actor.profile.iconUrl)
                 .set(REMOTE_ACTORS.HEADER_URL, actor.profile.headerUrl)
+                .set(REMOTE_ACTORS.SUMMARY, actor.profile.summary)
                 .set(REMOTE_ACTORS.UPDATED_AT, StoredInstant.format(updatedAt))
                 .onConflict(REMOTE_ACTORS.ACTOR_URI)
                 .doUpdate()
@@ -52,9 +55,11 @@ internal class SqliteRemoteActorRepository(
                 .set(REMOTE_ACTORS.PROFILE_URL, actor.profile.profileUrl)
                 .set(REMOTE_ACTORS.ICON_URL, actor.profile.iconUrl)
                 .set(REMOTE_ACTORS.HEADER_URL, actor.profile.headerUrl)
+                .set(REMOTE_ACTORS.SUMMARY, actor.profile.summary)
                 .set(REMOTE_ACTORS.UPDATED_AT, StoredInstant.format(updatedAt))
                 .execute()
             dsl.replaceRemoteActorEmojis(actor.actorUri, actor.profile.emojis)
+            dsl.replaceRemoteActorProfileFields(actor.actorUri, actor.profile.fields)
         }
     }
 
