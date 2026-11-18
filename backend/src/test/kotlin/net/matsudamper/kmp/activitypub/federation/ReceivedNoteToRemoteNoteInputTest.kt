@@ -41,6 +41,7 @@ class ReceivedNoteToRemoteNoteInputTest {
         attachments = listOf(),
         emojis = listOf(),
         mentions = listOf(),
+        poll = null,
         linkHref = linkHref,
     )
 }

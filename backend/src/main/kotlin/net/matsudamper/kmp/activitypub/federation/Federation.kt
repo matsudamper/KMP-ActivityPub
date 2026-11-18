@@ -91,6 +91,7 @@ import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
 import net.matsudamper.kotpub.note.NotePublisher
 import net.matsudamper.kotpub.note.OutboxEndpoint
+import net.matsudamper.kotpub.note.PollVoteStore
 import net.matsudamper.kotpub.quote.QuoteAuthorizationEndpoint
 import net.matsudamper.kotpub.quote.QuoteRequestHandler
 import net.matsudamper.kotpub.webfinger.HttpWebFingerLookup
@@ -478,7 +479,8 @@ internal class Federation(
                         approvals = quoteApprovals,
                     ),
                     UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes),
-                    CreateNoteHandler(receivedNotes),
+                    // 投票の付いた投稿を作れないので、届いた票は記録しない
+                    CreateNoteHandler(notes = receivedNotes, pollVotes = PollVoteStore { }),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(

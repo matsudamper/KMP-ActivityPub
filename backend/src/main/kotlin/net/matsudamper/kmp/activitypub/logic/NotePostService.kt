@@ -195,6 +195,7 @@ class NotePostService(
                 mentions = mentions.map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
                 emojis = emojiObjects.find(contentHtml),
                 sensitive = sensitive,
+                poll = null,
             )
         val enqueued =
             deliveryQueueRepository.enqueueNote(

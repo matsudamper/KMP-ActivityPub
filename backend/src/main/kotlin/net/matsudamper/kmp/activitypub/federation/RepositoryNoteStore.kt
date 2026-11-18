@@ -87,5 +87,6 @@ internal class RepositoryNoteStore(
             mentions = mentions.map { mention -> NoteMention(actorId = mention.actorUri, acct = mention.acct) },
             emojis = emojiObjects.find(contentHtml),
             sensitive = sensitive,
+            poll = null,
         )
 }
