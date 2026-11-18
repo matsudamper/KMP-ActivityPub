@@ -935,6 +935,8 @@ private fun HomeColumnsPreview(
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
                             addEmojiButtonEnabled = true,
+                            sensitiveChipSelected = false,
+                            sensitiveChipEnabled = true,
                             emojiPickerDialog = null,
                             listener = AndroidPreviewPostScreenListener,
                         ),
@@ -1115,6 +1117,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onImagePicked(file: PickedImageFile) = Unit
 
     override fun onClickAddEmoji() = Unit
+
+    override fun onClickSensitive() = Unit
 
     override fun onReplyRequested(postId: String) = Unit
 

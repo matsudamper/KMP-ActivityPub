@@ -351,6 +351,17 @@ class NoteRepositoryTest {
         }
     }
 
+    @Test
+    fun `閲覧注意の投稿は閲覧注意のまま引ける`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "sensitive", inboxes = listOf()).copy(sensitive = true))
+            repositories.deliveryQueueRepository.enqueueNote(notePost(publicId = "plain", inboxes = listOf()))
+
+            assertEquals(true, repositories.noteRepository.find(PublicNoteId("sensitive"))?.sensitive)
+            assertEquals(false, repositories.noteRepository.find(PublicNoteId("plain"))?.sensitive)
+        }
+    }
+
     private fun notePost(
         publicId: String,
         inboxes: List<String>,
@@ -370,6 +381,7 @@ class NoteRepositoryTest {
             quoteUri = null,
             quoteInbox = null,
             mentions = listOf(),
+            sensitive = false,
         )
 
     private fun noteUpdate(

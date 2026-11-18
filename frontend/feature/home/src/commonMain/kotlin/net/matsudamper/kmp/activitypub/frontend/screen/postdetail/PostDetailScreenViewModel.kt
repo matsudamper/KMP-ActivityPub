@@ -537,6 +537,7 @@ internal class PostDetailScreenViewModel(
                             replyToPostId = replyToPostId,
                             quotePostId = null,
                             mentionAcct = null,
+                            sensitive = false,
                         )
                     when (result) {
                         // 画像を付けないので置けないことは無い

@@ -119,6 +119,7 @@ data class NotePosition(
  * @param quoteUri 引用した投稿の id。引用でなければ null
  * @param quoteInbox 引用した投稿の投稿者の inbox。投稿を消したときの Delete もここへ送る。引用でないか、このサーバーの投稿の引用なら null
  * @param mentions 宛てた順
+ * @param sensitive 閲覧注意の投稿か
  */
 data class Note(
     val publicId: PublicNoteId,
@@ -133,6 +134,7 @@ data class Note(
     val quoteUri: String?,
     val quoteInbox: String?,
     val mentions: List<NoteMention>,
+    val sensitive: Boolean,
 )
 
 /**

@@ -58,6 +58,8 @@ data class PostScreenUiState(
     val addImageButtonEnabled: Boolean,
     val addImageLoadingVisible: Boolean,
     val addEmojiButtonEnabled: Boolean,
+    val sensitiveChipSelected: Boolean,
+    val sensitiveChipEnabled: Boolean,
     /**
      * 絵文字を選んでいなければ null
      */
@@ -132,6 +134,8 @@ data class PostScreenUiState(
         fun onImagePicked(file: PickedImageFile)
 
         fun onClickAddEmoji()
+
+        fun onClickSensitive()
 
         /**
          * 開いたままの投稿カラムで、タイムラインの投稿への返信を始めるとき

@@ -4,8 +4,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -271,47 +272,59 @@ internal fun PostContent(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                // 狭いカラムでも投稿ボタンを潰さないよう、道具だけを折り返す
+                FlowRow(
+                    modifier = Modifier.weight(1f),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        IconButton(
+                            onClick = uiState.listener::onClickAddImage,
+                            enabled = uiState.addImageButtonEnabled,
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Image,
+                                contentDescription = "画像を追加",
+                            )
+                        }
+                        if (uiState.addImageLoadingVisible) {
+                            CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                        }
+                    }
                     IconButton(
-                        onClick = uiState.listener::onClickAddImage,
-                        enabled = uiState.addImageButtonEnabled,
+                        onClick = uiState.listener::onClickAddEmoji,
+                        enabled = uiState.addEmojiButtonEnabled,
                     ) {
                         Icon(
-                            imageVector = AppIcons.Image,
-                            contentDescription = "画像を追加",
+                            imageVector = AppIcons.Emoticon,
+                            contentDescription = "絵文字を追加",
                         )
                     }
-                    if (uiState.addImageLoadingVisible) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
+                    if (uiState.contentWarningButtonVisible) {
+                        IconToggleButton(
+                            checked = uiState.contentWarningButtonChecked,
+                            onCheckedChange = { uiState.listener.onClickContentWarning() },
+                            enabled = uiState.contentWarningButtonEnabled,
+                            colors = IconButtonDefaults.iconToggleButtonColors(
+                                checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            ),
+                        ) {
+                            Text(
+                                text = "CW",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                     }
-                }
-                IconButton(
-                    onClick = uiState.listener::onClickAddEmoji,
-                    enabled = uiState.addEmojiButtonEnabled,
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Emoticon,
-                        contentDescription = "絵文字を追加",
+                    FilterChip(
+                        selected = uiState.sensitiveChipSelected,
+                        onClick = uiState.listener::onClickSensitive,
+                        enabled = uiState.sensitiveChipEnabled,
+                        label = { Text("センシティブ") },
+                        modifier = Modifier.padding(start = 4.dp),
                     )
                 }
-                if (uiState.contentWarningButtonVisible) {
-                    IconToggleButton(
-                        checked = uiState.contentWarningButtonChecked,
-                        onCheckedChange = { uiState.listener.onClickContentWarning() },
-                        enabled = uiState.contentWarningButtonEnabled,
-                        colors = IconButtonDefaults.iconToggleButtonColors(
-                            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        ),
-                    ) {
-                        Text(
-                            text = "CW",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = uiState.listener::onClickPost,
                     enabled = uiState.postButtonEnabled,

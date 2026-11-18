@@ -117,6 +117,19 @@ private fun PostContentContentWarningPreview() {
     }
 }
 
+/** 投稿カラムを最小幅まで縮めても、投稿ボタンが潰れないことを確かめる */
+@Preview(widthDp = 240)
+@Composable
+private fun PostContentNarrowWidthPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Close,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 /** ソフトウェアキーボードで高さが詰まったときに、投稿ボタンまでスクロールで届くことを確かめる */
 @Preview(heightDp = 240)
 @Composable
@@ -241,6 +254,8 @@ private fun previewUiState(
         addImageButtonEnabled = addImageLoadingVisible.not(),
         addImageLoadingVisible = addImageLoadingVisible,
         addEmojiButtonEnabled = true,
+        sensitiveChipSelected = images.isNotEmpty(),
+        sensitiveChipEnabled = true,
         emojiPickerDialog = null,
         listener = AndroidPreviewPostListener,
     )
@@ -274,6 +289,8 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onImagePicked(file: PickedImageFile) = Unit
 
     override fun onClickAddEmoji() = Unit
+
+    override fun onClickSensitive() = Unit
 
     override fun onReplyRequested(postId: String) = Unit
 

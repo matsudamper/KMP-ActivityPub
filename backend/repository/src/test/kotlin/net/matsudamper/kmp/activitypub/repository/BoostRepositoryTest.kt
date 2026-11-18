@@ -109,6 +109,7 @@ class BoostRepositoryTest {
                 quoteInbox = null,
                 mentions = listOf(),
                 images = listOf(),
+                sensitive = false,
             ),
         )
     }

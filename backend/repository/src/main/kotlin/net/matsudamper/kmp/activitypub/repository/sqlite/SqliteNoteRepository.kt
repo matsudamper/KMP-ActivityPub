@@ -320,6 +320,7 @@ internal class SqliteNoteRepository(
                 quoteUri = record.get(NOTES.QUOTE_URI),
                 quoteInbox = record.get(NOTES.QUOTE_INBOX),
                 mentions = mentionsByNoteId[record.get(NOTES.ID)].orEmpty(),
+                sensitive = record.get(NOTES.SENSITIVE) == 1L,
             )
         }
     }
@@ -385,4 +386,5 @@ private val NOTE_FIELDS =
         NOTES.IN_REPLY_TO,
         NOTES.QUOTE_URI,
         NOTES.QUOTE_INBOX,
+        NOTES.SENSITIVE,
     )
