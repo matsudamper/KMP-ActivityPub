@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import net.matsudamper.kmp.activitypub.shared.AccountId
 
 class FollowingRepositoryTest {
     @Test
@@ -142,6 +143,45 @@ class FollowingRepositoryTest {
                 assertEquals("carol", secondPage.single().preferredUsername)
                 assertEquals("Carol", secondPage.single().displayName)
                 assertEquals("https://remote.example/carol.png", secondPage.single().iconUrl)
+            }
+        } finally {
+            directory.toFile().listFiles().orEmpty().forEach { it.toPath().deleteIfExists() }
+            directory.deleteIfExists()
+        }
+    }
+
+    @Test
+    fun acceptedActorUrisListOnlyAcceptedFollowingInUrlOrder() {
+        val directory = createTempDirectory("following-accepted-test")
+        val path = directory.resolve("test.db")
+        try {
+            TestSchema.applyTo(path)
+            listOf("alice", "bob").forEach { username ->
+                Accounts.insert(path, username, "hash", "hash-type", "public-key", "private-key", Instant.EPOCH.toString())
+            }
+            Repositories.create(DatabaseConfig(path = path)).use { repositories ->
+                val alice = checkNotNull(repositories.accountRepository.findByUsername("alice")).id
+                val bob = checkNotNull(repositories.accountRepository.findByUsername("bob")).id
+                val following = repositories.followingRepository
+                val acceptedB = "https://remote.example/users/b"
+                val acceptedA = "https://remote.example/users/a"
+                val pending = "https://remote.example/users/pending"
+                val bobOnly = "https://remote.example/users/bob-only"
+                fun follow(accountId: AccountId, actorUri: String, accepted: Boolean) {
+                    following.add(accountId, actorUri, Instant.EPOCH)
+                    following.recordActivity(accountId, actorUri, "$actorUri#follow-$accountId")
+                    if (accepted) following.respondToFollow(actorUri, "$actorUri#follow-$accountId", Instant.EPOCH)
+                }
+                follow(alice, acceptedB, accepted = true)
+                follow(alice, acceptedA, accepted = true)
+                follow(alice, pending, accepted = false)
+                follow(bob, bobOnly, accepted = true)
+
+                assertEquals(listOf(acceptedA, acceptedB), following.listAcceptedActorUris("alice", after = null, limit = 10))
+                assertEquals(listOf(acceptedB), following.listAcceptedActorUris("alice", after = acceptedA, limit = 10))
+                assertEquals(listOf(acceptedA), following.listAcceptedActorUris("ALICE", after = null, limit = 1))
+                assertEquals(2L, following.countAccepted("alice"))
+                assertEquals(0L, following.countAccepted("nobody"))
             }
         } finally {
             directory.toFile().listFiles().orEmpty().forEach { it.toPath().deleteIfExists() }

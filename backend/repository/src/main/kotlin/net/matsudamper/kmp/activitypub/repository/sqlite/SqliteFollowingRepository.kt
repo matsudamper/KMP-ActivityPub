@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.repository.ListedActor
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_FOLLOWING
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
@@ -140,6 +141,29 @@ internal class SqliteFollowingRepository(
 
     override fun count(accountId: AccountId): Long = jooq.withConnection { dsl ->
         dsl.fetchCount(ACCOUNT_FOLLOWING, ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).toLong()
+    }
+
+    override fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String> = jooq.withConnection { dsl ->
+        val afterCondition = if (after == null) DSL.noCondition() else ACCOUNT_FOLLOWING.ACTOR_URI.gt(after)
+        dsl.select(ACCOUNT_FOLLOWING.ACTOR_URI)
+            .from(ACCOUNT_FOLLOWING)
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(ACCOUNT_FOLLOWING.ACCOUNT_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .and(ACCOUNT_FOLLOWING.ACCEPTED_AT.isNotNull)
+            .and(afterCondition)
+            .orderBy(ACCOUNT_FOLLOWING.ACTOR_URI)
+            .limit(limit)
+            .fetch(ACCOUNT_FOLLOWING.ACTOR_URI)
+            .filterNotNull()
+    }
+
+    override fun countAccepted(username: String): Long = jooq.withConnection { dsl ->
+        dsl.selectCount()
+            .from(ACCOUNT_FOLLOWING)
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(ACCOUNT_FOLLOWING.ACCOUNT_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .and(ACCOUNT_FOLLOWING.ACCEPTED_AT.isNotNull)
+            .fetchOne(0, Long::class.java) ?: 0L
     }
 
     private fun olderThan(position: ActorListPosition?): Condition {
