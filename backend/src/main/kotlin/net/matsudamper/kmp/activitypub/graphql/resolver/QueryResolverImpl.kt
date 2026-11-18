@@ -9,9 +9,11 @@ import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlActorList
+import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlLocalCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostCounts
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLikePage
@@ -20,6 +22,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfilePostPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisteredPasskey
 import net.matsudamper.kmp.activitypub.graphql.model.QlSearchedUser
+import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlUser
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserProfile
@@ -123,6 +126,89 @@ class QueryResolverImpl : QueryResolver {
                 ProfileLikesResult.Unreachable -> throw GraphQlClientException("相手のサーバーからいいねを読めなかった")
             }
             DataFetcherResult.Builder<QlProfileLikePage?>(page).build()
+        }
+    }
+
+    override fun timelinePost(id: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return otelFuture {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val post = diContainer.viewablePostService.post(viewer, id.value)?.let { viewable ->
+                val mapped = listOf(viewable.post).toQlTimelinePosts(diContainer).single()
+                if (viewable.ownedByViewer) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+            }
+            DataFetcherResult.Builder<QlTimelinePost?>(post).build()
+        }
+    }
+
+    override fun postCounts(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlPostCounts?>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return otelFuture {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val post = diContainer.viewablePostService.post(viewer, postId.value)?.post
+            val counts = post?.let { diContainer.postCountService?.refreshedCountsOf(it.noteRef) }
+            val result = post?.let {
+                QlPostCounts(
+                    replyCount = counts?.replyCount?.toInt() ?: 0,
+                    favouriteCount = (it.favouriteCount ?: counts?.reportedFavouriteCount)?.toInt(),
+                    boostCount = (it.boostCount ?: counts?.reportedBoostCount)?.toInt(),
+                )
+            }
+            DataFetcherResult.Builder<QlPostCounts?>(result).build()
+        }
+    }
+
+    override fun replyTarget(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return linkedPost(
+            viewer = viewer,
+            env = env,
+            unavailableMessage = "返信先のサーバーから投稿を取れなかった",
+        ) { replyTarget(viewer, postId.value) }
+    }
+
+    override fun quoteTarget(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return linkedPost(
+            viewer = viewer,
+            env = env,
+            unavailableMessage = "引用先のサーバーから投稿を取れなかった",
+        ) { quoteTarget(viewer, postId.value) }
+    }
+
+    override fun replies(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlTimelinePost>>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return otelSupplyAsync {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val replies = diContainer.postRepliesService?.replies(viewer, postId.value).orEmpty()
+            val posts = replies.zip(replies.toQlTimelinePosts(diContainer)) { reply, mapped ->
+                if (diContainer.viewablePostService.isOwnedByViewer(viewer, reply)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+            }
+            DataFetcherResult.Builder<List<QlTimelinePost>>(posts).build()
+        }
+    }
+
+    override fun linkPreviews(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        val diContainer = GraphQlEngine.diContainer(env)
+        return otelFuture {
+            val linkPreviewService = diContainer.linkPreviewService
+            val contentHtml = diContainer.viewablePostService.contentHtml(viewer, postId.value)
+            val previews =
+                if (linkPreviewService == null || contentHtml == null) {
+                    listOf()
+                } else {
+                    linkPreviewService.previews(contentHtml).map { preview ->
+                        QlLinkPreview(
+                            url = preview.url,
+                            title = preview.title,
+                            siteName = preview.siteName,
+                            imageUrl = preview.imageUrl,
+                            faviconUrl = preview.faviconUrl,
+                        )
+                    }
+                }
+            DataFetcherResult.Builder<List<QlLinkPreview>>(previews).build()
         }
     }
 

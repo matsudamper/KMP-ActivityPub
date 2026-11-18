@@ -104,6 +104,23 @@ class ViewablePostServiceTest {
     }
 
     @Test
+    fun anonymousViewerDoesNotStoreUnsavedPost() = runBlocking {
+        val service = ViewablePostService(timeline, AccountService(repositories.accountRepository), unsavedNotes)
+
+        assertNull(service.post(null, UnsavedRemoteNoteId.of(objectUri)))
+        assertEquals(listOf(), imports)
+    }
+
+    @Test
+    fun anonymousViewerOwnsNoPost() = runBlocking {
+        repositories.accountRepository.add("alice", "hash", "type")
+        repositories.timelineRepository.positions.add(TimelinePosition(1, "l1"))
+        val service = ViewablePostService(timeline, AccountService(repositories.accountRepository), unsavedNotes)
+
+        assertFalse(assertNotNull(service.post(null, "l1")).ownedByViewer)
+    }
+
+    @Test
     fun onlyViewersOwnLocalPostIsOwned() = runBlocking {
         val alice = repositories.accountRepository.add("alice", "hash", "type")
         val carol = repositories.accountRepository.add("carol", "hash", "type")

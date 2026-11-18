@@ -21,18 +21,19 @@ class ReplyTargetService(
     private val unsavedNotes: UnsavedRemoteNotes,
 ) {
     /**
+     * @param viewer ログインしていなければ null。保存していない他のサーバーの投稿は取りに行かず、無いものとして扱う
      * @param postId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id
      */
-    suspend fun replyTarget(viewer: AccountId, postId: String): ReplyTargetResult =
+    suspend fun replyTarget(viewer: AccountId?, postId: String): ReplyTargetResult =
         linkedPost(viewer = viewer, postId = postId, link = PostLink.Reply)
 
     /**
      * @param postId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id
      */
-    suspend fun quoteTarget(viewer: AccountId, postId: String): ReplyTargetResult =
+    suspend fun quoteTarget(viewer: AccountId?, postId: String): ReplyTargetResult =
         linkedPost(viewer = viewer, postId = postId, link = PostLink.Quote)
 
-    private suspend fun linkedPost(viewer: AccountId, postId: String, link: PostLink): ReplyTargetResult {
+    private suspend fun linkedPost(viewer: AccountId?, postId: String, link: PostLink): ReplyTargetResult {
         val linkedUri = when (val lookup = linkedUriOf(viewer, postId, link)) {
             is LinkLookup.Found -> lookup.objectUri
             LinkLookup.NotFound -> return ReplyTargetResult.NotFound
@@ -47,12 +48,13 @@ class ReplyTargetService(
         }
     }
 
-    private suspend fun linkedUriOf(viewer: AccountId, postId: String, link: PostLink): LinkLookup {
+    private suspend fun linkedUriOf(viewer: AccountId?, postId: String, link: PostLink): LinkLookup {
         val unsavedObjectUri = UnsavedRemoteNoteId.objectUriOf(postId)
         if (unsavedObjectUri == null) {
             if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return LinkLookup.NotFound
             return LinkLookup.of(timeline.viewablePost(viewer, postId)?.let(link::of))
         }
+        if (viewer == null) return LinkLookup.NotFound
         // 表示した後に、いいねやブーストで保存されていることがある
         val stored = storedRemotePost(viewer, unsavedObjectUri)
         if (stored != null) return LinkLookup.of(link.of(stored))
@@ -63,9 +65,11 @@ class ReplyTargetService(
         }
     }
 
-    private suspend fun remotePost(viewer: AccountId, objectUri: String): ReplyTargetResult {
+    private suspend fun remotePost(viewer: AccountId?, objectUri: String): ReplyTargetResult {
         val stored = storedRemotePost(viewer, objectUri)
         if (stored != null) return ReplyTargetResult.Found(stored)
+        // ログインしていない人に、相手のサーバーへ取りに行かせない
+        if (viewer == null) return ReplyTargetResult.NotFound
         // 相手のサーバーに取りに行けるのは https の URI だけ
         if (!objectUri.startsWith("https://")) return ReplyTargetResult.NotFound
         return when (val fetched = unsavedNotes.fetch(objectUri)) {
@@ -75,7 +79,7 @@ class ReplyTargetService(
         }
     }
 
-    private fun storedRemotePost(viewer: AccountId, objectUri: String): TimelinePost? =
+    private fun storedRemotePost(viewer: AccountId?, objectUri: String): TimelinePost? =
         timeline.storedRemotePosts(viewer, setOf(objectUri))
             .firstOrNull { (it.noteRef as? TimelineNoteRef.Remote)?.objectUri == objectUri }
 

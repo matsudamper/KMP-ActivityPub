@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.FakeNoteRepository
 import net.matsudamper.kmp.activitypub.FakeRemoteActorRepository
 import net.matsudamper.kmp.activitypub.federation.RepositoryNoteStore
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
+import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NoteMention
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
@@ -40,6 +41,7 @@ class NotePostServiceTest {
     private val deliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
     private var enqueuedCount = 0
     private val timelinePosts = mutableListOf<PublicNoteId>()
+    private val editedNotes = mutableListOf<PublicNoteId>()
     private val imageStorage = FakeImageStorage()
     private var now: Instant = NOW
     private val imageUrls = NoteImageUrls(DOMAIN)
@@ -83,6 +85,7 @@ class NotePostServiceTest {
             },
             onEnqueued = { enqueuedCount++ },
             onPosted = { timelinePosts.add(it) },
+            onEdited = { editedNotes.add(it) },
         )
 
     @Test
@@ -290,6 +293,92 @@ class NotePostServiceTest {
         assertEquals(DeleteNoteResult.NotFound, service.delete(username = "user1", publicId = PublicNoteId("missing")))
 
         assertEquals(listOf(), deliveryQueueRepository.noteDeletions)
+    }
+
+    @Test
+    fun `投稿を編集すると本文を書き換え、フォロワーの inbox ごとに Update を積む`() = runBlocking<Unit> {
+        followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
+        val posted =
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, mentionAcct = null))
+        enqueuedCount = 0
+
+        assertEquals(EditNoteResult.Edited, service.edit(username = "user1", publicId = posted.publicId, body = "<b>edited</b>\nworld"))
+
+        assertEquals("<p>&lt;b&gt;edited&lt;/b&gt;<br>world</p>", noteRepository.find(posted.publicId)?.contentHtml)
+        assertEquals("<b>edited</b>\nworld", service.editableBody(username = "user1", publicId = posted.publicId))
+        val update = deliveryQueueRepository.noteUpdates.single()
+        assertEquals(listOf(INBOX_A, INBOX_B), update.inboxes)
+        val activity = AppJson.parseToJsonElement(update.body).jsonObject
+        assertEquals("Update", activity.getValue("type").jsonPrimitive.content)
+        assertEquals(update.contentHtml, activity.getValue("object").jsonObject.getValue("content").jsonPrimitive.content)
+        assertEquals(1, enqueuedCount)
+        assertEquals(listOf(posted.publicId), editedNotes)
+    }
+
+    @Test
+    fun `空の本文や長すぎる本文には編集しない`() = runBlocking<Unit> {
+        val posted =
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, mentionAcct = null))
+
+        assertEquals(EditNoteResult.EmptyBody, service.edit(username = "user1", publicId = posted.publicId, body = " \n "))
+        assertEquals(EditNoteResult.TooLong, service.edit(username = "user1", publicId = posted.publicId, body = "あ".repeat(NoteComposer.MAX_LENGTH + 1)))
+
+        assertEquals("<p>hello</p>", noteRepository.find(posted.publicId)?.contentHtml)
+        assertEquals(listOf(), deliveryQueueRepository.noteUpdates)
+    }
+
+    @Test
+    fun `他のアカウントの投稿は編集できず、下書きも出さない`() = runBlocking<Unit> {
+        val posted =
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, mentionAcct = null))
+        val othersNote = assertIs<Note>(noteRepository.find(posted.publicId)).copy(username = "user2")
+        noteRepository.notes.clear()
+        noteRepository.notes += othersNote
+
+        assertEquals(EditNoteResult.NotFound, service.edit(username = "user1", publicId = posted.publicId, body = "edited"))
+        assertEquals(null, service.editableBody(username = "user1", publicId = posted.publicId))
+        assertEquals(listOf(), deliveryQueueRepository.noteUpdates)
+    }
+
+    @Test
+    fun `書いたままの本文が無い投稿は、HTML から戻した本文を下書きに出す`() = runBlocking<Unit> {
+        val body = "a & <b>\nc\n\nhttps://example.com/x"
+        val posted =
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = body, requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, mentionAcct = null))
+        val recorded = assertIs<Note>(noteRepository.find(posted.publicId))
+        noteRepository.notes.clear()
+        noteRepository.notes += recorded.copy(sourceText = null)
+
+        assertEquals(body, service.editableBody(username = "user1", publicId = posted.publicId))
+    }
+
+    @Test
+    fun `他のサーバーの投稿への返信を編集しても、投稿者に宛てたまま投稿者の inbox にも積む`() = runBlocking<Unit> {
+        followerRepository.deliveryInboxes += listOf(INBOX_A)
+        noteRepository.replyTargets["r1"] =
+            ReplyTarget.Remote(
+                objectUri = "https://remote.example/notes/1",
+                actorUri = REMOTE_ACTOR,
+                preferredUsername = "alice",
+                profileUrl = null,
+                inbox = REMOTE_INBOX,
+            )
+        val posted =
+            assertIs<PostNoteResult.Posted>(
+                service.post(username = "user1", body = "@alice@remote.example こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1", quotePostId = null, mentionAcct = null),
+            )
+
+        assertEquals(EditNoteResult.Edited, service.edit(username = "user1", publicId = posted.publicId, body = "@alice@remote.example こんばんは"))
+
+        val update = deliveryQueueRepository.noteUpdates.single()
+        assertEquals(listOf(INBOX_A, REMOTE_INBOX), update.inboxes)
+        assertEquals(
+            "<p><span class=\"h-card\" translate=\"no\"><a href=\"$REMOTE_ACTOR\" class=\"u-url mention\">@<span>alice</span></a></span> こんばんは</p>",
+            update.contentHtml,
+        )
+        val note = AppJson.parseToJsonElement(update.body).jsonObject.getValue("object").jsonObject
+        assertEquals("https://remote.example/notes/1", note.getValue("inReplyTo").jsonPrimitive.content)
+        assertEquals(REMOTE_ACTOR, note.getValue("tag").jsonArray.single().jsonObject.getValue("href").jsonPrimitive.content)
     }
 
     @Test

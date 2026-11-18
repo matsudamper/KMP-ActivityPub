@@ -126,6 +126,10 @@ internal fun UserProfileScreen(
                 navigator.navigate(Screen.ReplyPost(postId = postId))
             }
 
+            override fun navigateToEditPost(noteId: String) {
+                navigator.navigate(Screen.EditPost(noteId = noteId))
+            }
+
             override fun navigateToMentionPost(acct: String) {
                 navigator.navigate(Screen.MentionPost(acct = acct))
             }
