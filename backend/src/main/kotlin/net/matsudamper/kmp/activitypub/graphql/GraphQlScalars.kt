@@ -14,7 +14,7 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
-import net.matsudamper.kmp.activitypub.shared.NotificationId
+import net.matsudamper.kmp.activitypub.shared.NotificationGroupId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PostRevisionId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -92,8 +92,8 @@ object GraphQlScalars {
     val notificationId: GraphQLScalarType =
         GraphQLScalarType
             .newScalar()
-            .name("NotificationId")
-            .coercing(LongIdCoercing(name = "NotificationId", type = NotificationId::class.java, wrap = ::NotificationId, unwrap = NotificationId::value))
+            .name("NotificationGroupId")
+            .coercing(LongIdCoercing(name = "NotificationGroupId", type = NotificationGroupId::class.java, wrap = ::NotificationGroupId, unwrap = NotificationGroupId::value))
             .build()
 
     /**

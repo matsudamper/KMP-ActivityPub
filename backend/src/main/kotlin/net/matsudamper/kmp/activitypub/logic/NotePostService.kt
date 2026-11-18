@@ -17,6 +17,9 @@ import net.matsudamper.kmp.activitypub.repository.NoteMention
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteUpdate
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
+import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.ReplyTarget
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
@@ -53,6 +56,7 @@ class NotePostService(
     private val remoteActors: RemoteActorRepository,
     private val remoteUsers: RemoteUserLookup,
     private val deliveryQueueRepository: DeliveryQueueRepository,
+    private val notifications: NotificationRecorder,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
     private val onPosted: (PublicNoteId) -> Unit,
@@ -207,6 +211,12 @@ class NotePostService(
                 logger.info("投稿を積んだ: ${sender.acct} ${prepared.publicId.value} 宛先=${enqueued.deliveries}")
                 onEnqueued()
                 onPosted(PublicNoteId(prepared.publicId.value))
+                recordLocalMentions(
+                    senderAccountId = account.id,
+                    publicId = PublicNoteId(prepared.publicId.value),
+                    mentions = mentions.map { it.record },
+                    postedAt = prepared.publishedAt,
+                )
                 PostNoteResult.Posted(publicId = PublicNoteId(prepared.publicId.value), url = prepared.url)
             }
 
@@ -406,6 +416,22 @@ class NotePostService(
                 username = preferredUsername,
             ),
         )
+    }
+
+    /**
+     * 他のサーバーのアカウントには投稿が届いた先で通知されるので、このサーバーのアカウントの分だけ記録する
+     */
+    private fun recordLocalMentions(senderAccountId: AccountId, publicId: PublicNoteId, mentions: List<NoteMention>, postedAt: Instant) {
+        mentions.filter { it.inbox == null }.forEach { mention ->
+            notifications.record(
+                NotificationEvent.Mentioned(
+                    mentionedUsername = mention.acct.substringBefore('@'),
+                    post = NotificationPostRef.Local(publicId),
+                    actor = NotificationActorRef.Local(senderAccountId),
+                    occurredAt = postedAt,
+                ),
+            )
+        }
     }
 
     /**

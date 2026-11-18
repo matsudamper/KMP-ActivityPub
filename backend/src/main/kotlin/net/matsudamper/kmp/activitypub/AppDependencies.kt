@@ -69,6 +69,7 @@ class AppDependencies(
         notifications = repositories.notificationRepository,
         timeline = repositories.timelineRepository,
         blockLists = blockLists,
+        events = accountEvents,
     )
     val serverBlockService: ServerBlockService = ServerBlockService(
         accounts = repositories.accountRepository,
@@ -122,8 +123,7 @@ class AppDependencies(
                 notePinRepository = repositories.notePinRepository,
                 timelineRepository = repositories.timelineRepository,
                 timeline = timelineService,
-                accountEvents = accountEvents,
-                notificationRepository = repositories.notificationRepository,
+                notificationService = notificationService,
                 remoteActorRepository = repositories.remoteActorRepository,
                 favouriteRepository = repositories.favouriteRepository,
                 likeRepository = repositories.likeRepository,

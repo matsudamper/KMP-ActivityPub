@@ -5,6 +5,8 @@ import java.util.UUID
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kotpub.activity.AnnounceActivity
@@ -28,6 +30,7 @@ class BoostService(
     private val boosts: AccountBoostRepository,
     private val unsavedNotes: UnsavedRemoteNotes,
     private val followerRepository: FollowerRepository,
+    private val notifications: NotificationRecorder,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
 ) {
@@ -58,6 +61,7 @@ class BoostService(
             audience = if (boostedNote.unlisted) BoostAudience.UNLISTED else BoostAudience.PUBLIC,
         )
         val undo = BoostActivities.undo(id = "${sender.actorId}/undo/${UUID.randomUUID()}", announce = announce)
+        val boostedAt = clock.instant()
         val position = boosts.boostAndEnqueue(
             OutgoingBoost(
                 accountId = accountId,
@@ -69,10 +73,21 @@ class BoostService(
                 objectUri = boostedNote.objectUri,
                 objectAuthor = boostedNote.authorActorUri,
                 unlisted = boostedNote.unlisted,
-                boostedAt = clock.instant(),
+                boostedAt = boostedAt,
             ),
         )
-        if (position != null) onEnqueued()
+        if (position != null) {
+            onEnqueued()
+            if (target is BoostTarget.Local) {
+                notifications.record(
+                    NotificationEvent.Boosted(
+                        notePublicId = target.publicId,
+                        actor = NotificationActorRef.Local(accountId),
+                        occurredAt = boostedAt,
+                    ),
+                )
+            }
+        }
         return SetBoostedResult.Updated
     }
 

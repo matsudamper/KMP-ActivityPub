@@ -21,7 +21,7 @@ scalar TimelinePostId
 scalar PostRevisionId
 
 "通知の識別子"
-scalar NotificationId
+scalar NotificationGroupId
 
 "このサーバーで置いたカスタム絵文字の識別子"
 scalar CustomEmojiId

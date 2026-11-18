@@ -166,8 +166,8 @@ type AccountEvent {
     timelinePostArrived: TimelinePost
     "消された行。投稿の削除とブーストの取り消しの両方"
     timelinePostsDeleted: TimelinePostsDeleted
-    "自分の投稿に届いたお気に入りかブースト"
-    notificationArrived: Notification
+    "通知カラムの項目に相手が加わったか、お気に入りの絵文字が付け直された。id で置き換え、updatedAt が新しくなっていれば先頭へ移す"
+    notificationGroupUpdated: NotificationGroup
     "既に載っている行の中身が変わった。投稿者による編集と、付いたリアクションの増減。載せていない行なら何もしなくてよい"
     timelinePostUpdated: TimelinePost
 }
@@ -280,20 +280,41 @@ type Actor {
 }
 
 type NotificationPage {
-    notifications: [Notification!]!
+    notifications: [NotificationGroup!]!
     nextCursor: String
 }
 
-type Notification {
-    id: NotificationId!
+"通知カラムの 1 項目。お気に入りとブーストは投稿ごと・種類ごとにまとめ、フォローとメンションは 1 件ずつ"
+type NotificationGroup {
+    id: NotificationGroupId!
     kind: NotificationKind!
+    "対象の投稿。FOLLOW では null。MENTION では宛てた投稿、ほかは自分の投稿"
+    post: TimelinePost
+    "新しく加わった順に数人まで。ブロックした相手は除く"
+    recentActors: [NotificationActor!]!
+    "ブロックした相手を除いた人数"
+    actorCount: Int!
+    createdAt: String!
+    "最後に新しい相手が加わった時刻。通知カラムはこの新しい順に並ぶ"
+    updatedAt: String!
+}
+
+type NotificationActor {
     actor: Actor!
-    "お気に入りかブーストをされた、自分の投稿"
-    post: TimelinePost!
-    receivedAt: String!
+    "FAVOURITE で付けた絵文字。絵文字の無いいいねと、ほかの種類では null"
+    reaction: NotificationReaction
+}
+
+type NotificationReaction {
+    "絵文字そのもの、またはカスタム絵文字の :name:"
+    emoji: String!
+    "カスタム絵文字の画像の URL。Unicode の絵文字か、画像を中継できないか、消されたこのサーバーの絵文字なら null"
+    imageUrl: String
 }
 
 enum NotificationKind {
+    FOLLOW
+    MENTION
     FAVOURITE
     BOOST
 }

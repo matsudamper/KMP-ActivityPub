@@ -22,15 +22,17 @@ class NotificationRepositoryTest {
     @BeforeTest
     fun setUp() {
         TestSchema.applyTo(dbPath)
-        Accounts.insert(
-            databasePath = dbPath,
-            username = "user1",
-            passwordHash = "hash",
-            passwordHashType = "hash-type",
-            publicKeyPem = "public-key",
-            privateKeyPem = "private-key",
-            createdAt = NOW.toString(),
-        )
+        listOf(AUTHOR, LOCAL_FRIEND).forEach { username ->
+            Accounts.insert(
+                databasePath = dbPath,
+                username = username,
+                passwordHash = "hash",
+                passwordHashType = "hash-type",
+                publicKeyPem = "public-key",
+                privateKeyPem = "private-key",
+                createdAt = NOW.toString(),
+            )
+        }
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -40,58 +42,125 @@ class NotificationRepositoryTest {
     }
 
     @Test
-    fun `お気に入りとブーストを受け取ると投稿者に新しい順の通知が残る`() = withRepositories { repositories, author ->
-        repositories.favouriteRepository.add(NOTE_1, actor(ALICE), NOW)
-        repositories.boostRepository.add(NOTE_1, actor(BOB), "$BOB/announces/1", NOW.plusSeconds(1))
-        // 同じ相手の押し直しでは通知を増やさない
-        repositories.favouriteRepository.add(NOTE_1, actor(ALICE), NOW.plusSeconds(2))
+    fun `お気に入りとブーストは投稿ごと・種類ごとに1項目にまとまり、新しい相手が加わった順に並ぶ`() = withRepositories { repositories, author, _ ->
+        val notifications = repositories.notificationRepository
+        notifications.record(favourited(ALICE, NOW, null))
+        notifications.record(boosted(ALICE, NOW.plusSeconds(1)))
+        notifications.record(favourited(BOB, NOW.plusSeconds(2), null))
 
-        val notifications = repositories.notificationRepository.page(author, null, 10)
+        val groups = notifications.page(author, null, 10)
 
-        assertEquals(listOf(NotificationKind.BOOST to BOB, NotificationKind.FAVOURITE to ALICE), notifications.map { it.kind to it.actor.actorUri })
-        assertEquals(listOf(author, author), notifications.map { it.accountId })
-        assertEquals("alice", notifications.last().actor.username)
-        val post = repositories.timelineRepository.hydrate(author, notifications.map { it.noteMember }.distinct()).single()
-        assertEquals(NOTE_1, post.localPublicId)
-        assertEquals(notifications.first(), repositories.notificationRepository.find(NotificationKind.BOOST, NOTE_1, BOB))
+        assertEquals(listOf(NotificationKind.FAVOURITE, NotificationKind.BOOST), groups.map { it.kind })
+        assertEquals(listOf(BOB, ALICE), groups.first().entries.map { it.actor.actorUri })
+        assertEquals(NOW.plusSeconds(2), groups.first().updatedAt)
+        assertEquals(NOW, groups.first().createdAt)
+        assertEquals(listOf("l1", "l1"), groups.map { it.noteMember })
+        assertEquals(NOTE_1, repositories.timelineRepository.hydrate(author, listOf("l1")).single().localPublicId)
     }
 
     @Test
-    fun `続きは前のページの最後より古い通知だけを返す`() = withRepositories { repositories, author ->
-        repositories.favouriteRepository.add(NOTE_1, actor(ALICE), NOW)
-        repositories.favouriteRepository.add(NOTE_1, actor(BOB), NOW)
-        repositories.boostRepository.add(NOTE_1, actor(BOB), "$BOB/announces/1", NOW)
+    fun `同じ相手の付け直しは絵文字だけを書き換え、並び順は変えない`() = withRepositories { repositories, author, _ ->
+        val notifications = repositories.notificationRepository
+        val favouriteGroup = assertNotNull(notifications.record(favourited(ALICE, NOW, null)))
+        notifications.record(boosted(BOB, NOW.plusSeconds(1)))
 
-        val first = repositories.notificationRepository.page(author, null, 2)
-        val second = repositories.notificationRepository.page(author, first.last().id, 2)
+        val reactedAt = NOW.plusSeconds(2)
+        assertEquals(
+            favouriteGroup,
+            notifications.record(favourited(ALICE, reactedAt, NotificationReactionInput(emoji = ":blob:", emojiImageUrl = "https://remote.example/blob.png", customEmojiId = null))),
+        )
+
+        val groups = notifications.page(author, null, 10)
+        assertEquals(listOf(NotificationKind.BOOST, NotificationKind.FAVOURITE), groups.map { it.kind })
+        val entry = groups.last().entries.single()
+        assertEquals(NotificationReaction(emoji = ":blob:", emojiImageUrl = "https://remote.example/blob.png", localCustomEmojiPublicId = null), entry.reaction)
+        assertEquals(NOW, entry.createdAt)
+        assertEquals(reactedAt, entry.updatedAt)
+        assertEquals(NOW, groups.last().updatedAt)
+
+        // 絵文字の無いいいねに付け直したら絵文字を外す
+        notifications.record(favourited(ALICE, NOW.plusSeconds(3), null))
+        assertNull(assertNotNull(notifications.find(favouriteGroup)).entries.single().reaction)
+    }
+
+    @Test
+    fun `フォローとブーストは届き直しても最初の1件のまま`() = withRepositories { repositories, author, _ ->
+        val notifications = repositories.notificationRepository
+        assertNotNull(notifications.record(NotificationEvent.Followed(AUTHOR, NotificationActorRef.Remote(ALICE), NOW)))
+        assertNotNull(notifications.record(boosted(BOB, NOW)))
+
+        assertNull(notifications.record(NotificationEvent.Followed(AUTHOR, NotificationActorRef.Remote(ALICE), NOW.plusSeconds(1))))
+        assertNull(notifications.record(boosted(BOB, NOW.plusSeconds(1))))
+
+        val groups = notifications.page(author, null, 10)
+        assertEquals(2, groups.size)
+        assertTrue(groups.all { it.entries.single().createdAt == NOW && it.updatedAt == NOW })
+    }
+
+    @Test
+    fun `フォローは相手ごとに1項目にする`() = withRepositories { repositories, author, _ ->
+        val notifications = repositories.notificationRepository
+        notifications.record(NotificationEvent.Followed(AUTHOR, NotificationActorRef.Remote(ALICE), NOW))
+        notifications.record(NotificationEvent.Followed(AUTHOR, NotificationActorRef.Remote(BOB), NOW.plusSeconds(1)))
+
+        val groups = notifications.page(author, null, 10)
+
+        assertEquals(listOf(listOf(BOB), listOf(ALICE)), groups.map { group -> group.entries.map { it.actor.actorUri } })
+        assertTrue(groups.all { it.kind == NotificationKind.FOLLOW && it.noteMember == null })
+    }
+
+    @Test
+    fun `このサーバーのアカウントからの通知も残し、自分自身からは残さない`() = withRepositories { repositories, author, friend ->
+        val notifications = repositories.notificationRepository
+        notifications.record(NotificationEvent.Favourited(NOTE_1, null, NotificationActorRef.Local(friend), NOW))
+        assertNull(notifications.record(NotificationEvent.Favourited(NOTE_1, null, NotificationActorRef.Local(author), NOW)))
+        notifications.record(NotificationEvent.Mentioned(LOCAL_FRIEND, NotificationPostRef.Local(NOTE_1), NotificationActorRef.Local(author), NOW))
+
+        val actor = notifications.page(author, null, 10).single().entries.single().actor
+        assertEquals(NotificationActor(actorUri = null, username = LOCAL_FRIEND, displayName = null, iconUrl = null, emojis = listOf(), updatedAt = null), actor)
+        val mention = notifications.page(friend, null, 10).single()
+        assertEquals(NotificationKind.MENTION, mention.kind)
+        assertEquals(AUTHOR, mention.entries.single().actor.username)
+        assertEquals("l1", mention.noteMember)
+    }
+
+    @Test
+    fun `続きは前のページの最後より古い項目だけを返す`() = withRepositories { repositories, author, _ ->
+        val notifications = repositories.notificationRepository
+        notifications.record(NotificationEvent.Followed(AUTHOR, NotificationActorRef.Remote(ALICE), NOW))
+        notifications.record(NotificationEvent.Followed(AUTHOR, NotificationActorRef.Remote(BOB), NOW))
+        notifications.record(favourited(ALICE, NOW, null))
+
+        val first = notifications.page(author, null, 2)
+        val second = notifications.page(author, first.last().position, 2)
 
         assertEquals(2, first.size)
-        assertEquals(listOf(NotificationKind.FAVOURITE to ALICE), second.map { it.kind to it.actor.actorUri })
-        assertTrue(repositories.notificationRepository.page(author, second.last().id, 2).isEmpty())
+        assertEquals(listOf(NotificationKind.FOLLOW to ALICE), second.map { it.kind to it.entries.single().actor.actorUri })
+        assertTrue(notifications.page(author, second.last().position, 2).isEmpty())
     }
 
     @Test
-    fun `取り消されたお気に入りとブーストの通知は消える`() = withRepositories { repositories, author ->
-        repositories.favouriteRepository.add(NOTE_1, actor(ALICE), NOW)
-        repositories.boostRepository.add(NOTE_1, actor(ALICE), "$ALICE/announces/1", NOW)
+    fun `取り消されても通知は残り、相手のアクターが消えたら相手の記録が消える`() = withRepositories { repositories, author, _ ->
         repositories.favouriteRepository.add(NOTE_1, actor(BOB), NOW)
+        repositories.notificationRepository.record(favourited(BOB, NOW, null))
 
-        repositories.favouriteRepository.remove(NOTE_1, ALICE)
-        assertNull(repositories.notificationRepository.find(NotificationKind.FAVOURITE, NOTE_1, ALICE))
-        assertNotNull(repositories.notificationRepository.find(NotificationKind.BOOST, NOTE_1, ALICE))
-
-        repositories.boostRepository.remove(ALICE, "$ALICE/announces/1", NOW)
-        assertEquals(listOf(NotificationKind.FAVOURITE to BOB), repositories.notificationRepository.page(author, null, 10).map { it.kind to it.actor.actorUri })
+        repositories.favouriteRepository.remove(NOTE_1, BOB)
+        assertEquals(1, repositories.notificationRepository.page(author, null, 10).single().entries.size)
 
         repositories.favouriteRepository.removeActor(BOB)
-        assertTrue(repositories.notificationRepository.page(author, null, 10).isEmpty())
+        assertTrue(repositories.notificationRepository.page(author, null, 10).single().entries.isEmpty())
     }
 
-    private fun withRepositories(block: (Repositories, AccountId) -> Unit) {
+    private fun favourited(actorUri: String, at: Instant, reaction: NotificationReactionInput?): NotificationEvent =
+        NotificationEvent.Favourited(NOTE_1, reaction, NotificationActorRef.Remote(actorUri), at)
+
+    private fun boosted(actorUri: String, at: Instant): NotificationEvent = NotificationEvent.Boosted(NOTE_1, NotificationActorRef.Remote(actorUri), at)
+
+    private fun withRepositories(block: (Repositories, AccountId, AccountId) -> Unit) {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             repositories.deliveryQueueRepository.enqueueNote(
                 NotePost(
-                    username = "user1",
+                    username = AUTHOR,
                     requestId = "request-note-1",
                     publicId = NOTE_1,
                     contentHtml = "<p>hello</p>",
@@ -106,7 +175,12 @@ class NotificationRepositoryTest {
                     images = listOf(),
                 ),
             )
-            block(repositories, checkNotNull(repositories.accountRepository.findByUsername("user1")).id)
+            listOf(ALICE, BOB).forEach { repositories.remoteActorRepository.save(actor(it), NOW) }
+            block(
+                repositories,
+                checkNotNull(repositories.accountRepository.findByUsername(AUTHOR)).id,
+                checkNotNull(repositories.accountRepository.findByUsername(LOCAL_FRIEND)).id,
+            )
         }
     }
 
@@ -121,6 +195,8 @@ class NotificationRepositoryTest {
     private companion object {
         val NOW: Instant = Instant.parse("2026-11-12T00:00:00Z")
         val NOTE_1 = PublicNoteId("note-1")
+        const val AUTHOR = "user1"
+        const val LOCAL_FRIEND = "user2"
         const val ALICE = "https://remote.example/users/alice"
         const val BOB = "https://remote.example/users/bob"
     }

@@ -4,14 +4,17 @@ import java.net.URI
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.model.QlActor
-import net.matsudamper.kmp.activitypub.graphql.model.QlNotification
+import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationActor
+import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationKind
+import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationReaction
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
+import net.matsudamper.kmp.activitypub.logic.NotificationView
 import net.matsudamper.kmp.activitypub.logic.PostCounts
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
 import net.matsudamper.kmp.activitypub.logic.memoized
+import net.matsudamper.kmp.activitypub.repository.NotificationActor
 import net.matsudamper.kmp.activitypub.repository.NotificationKind
-import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -96,20 +99,63 @@ private fun TimelinePost.toQlTimelinePost(
     )
 }
 
-internal fun ReceivedNotification.toQlNotification(post: QlTimelinePost, diContainer: DiContainer): QlNotification = QlNotification(
-    id = id,
-    kind = when (kind) {
+/**
+ * 投稿は並べる分をまとめて引くので、呼ぶ側で作って渡す
+ *
+ * @param post [NotificationView.post] を変換したもの
+ */
+internal fun NotificationView.toQlNotificationGroup(post: QlTimelinePost?, localIconUrls: ProfileIconUrls?, diContainer: DiContainer): QlNotificationGroup = QlNotificationGroup(
+    id = group.id,
+    kind = when (group.kind) {
+        NotificationKind.FOLLOW -> QlNotificationKind.FOLLOW
+        NotificationKind.MENTION -> QlNotificationKind.MENTION
         NotificationKind.FAVOURITE -> QlNotificationKind.FAVOURITE
         NotificationKind.BOOST -> QlNotificationKind.BOOST
     },
-    actor = QlActor(
-        actorUri = actor.actorUri,
-        username = actor.username,
-        host = URI(actor.actorUri).host,
-        displayName = actor.displayName ?: actor.username,
-        displayNameEmojis = actor.emojis.toQlCustomEmojis(diContainer),
-        iconUrl = actor.iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = actor.updatedAt) },
-    ),
     post = post,
-    receivedAt = receivedAt.toString(),
+    recentActors = recentEntries.map { entry ->
+        QlNotificationActor(
+            actor = entry.actor.toQlActor(localIconUrls, diContainer),
+            reaction = entry.reaction?.let { reaction ->
+                val remoteImageUrl = reaction.emojiImageUrl
+                QlNotificationReaction(
+                    emoji = reaction.emoji,
+                    // 画像を中継できないときは :name: の文字で見せる
+                    imageUrl = if (remoteImageUrl != null) {
+                        diContainer.remoteImageProxy?.proxyUrlOf(remoteImageUrl)
+                    } else {
+                        reaction.localCustomEmojiPublicId?.let { diContainer.customEmojiUrls?.imageUrl(it) }
+                    },
+                )
+            },
+        )
+    },
+    actorCount = actorCount,
+    createdAt = group.createdAt.toString(),
+    updatedAt = group.updatedAt.toString(),
 )
+
+/**
+ * 投稿をまとめて変換し、それぞれの通知に付ける
+ */
+internal fun List<NotificationView>.toQlNotificationGroups(diContainer: DiContainer): List<QlNotificationGroup> {
+    val posts = mapNotNull { it.post }.distinctBy { it.position.member }.toQlTimelinePosts(diContainer).associateBy { it.id.value }
+    val localIconUrls = diContainer.profileIconUrls?.memoized()
+    return map { view -> view.toQlNotificationGroup(view.post?.let { posts.getValue(it.position.member) }, localIconUrls, diContainer) }
+}
+
+private fun NotificationActor.toQlActor(localIconUrls: ProfileIconUrls?, diContainer: DiContainer): QlActor {
+    val updatedAt = updatedAt
+    return QlActor(
+        actorUri = actorUri,
+        username = username,
+        host = actorUri?.let { URI(it).host },
+        displayName = displayName ?: username,
+        displayNameEmojis = emojis.toQlCustomEmojis(diContainer),
+        iconUrl = if (actorUri == null || updatedAt == null) {
+            localIconUrls?.find(username)
+        } else {
+            iconUrl?.let { diContainer.remoteImageProxy?.proxyUrlOf(remoteUrl = it, updatedAt = updatedAt) }
+        },
+    )
+}
