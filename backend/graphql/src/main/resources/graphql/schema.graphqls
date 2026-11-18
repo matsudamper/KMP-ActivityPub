@@ -336,7 +336,7 @@ type PostImage {
     description: String
 }
 
-"他のサーバーの投稿に付いた動画。中継しないので、url は相手のサーバーのもの"
+"他のサーバーの投稿に付いた動画。中継しないので、url は相手のサーバーのもの。https の動画だけを返す"
 type PostVideo {
     url: String!
     "動画の説明文。無ければ null"

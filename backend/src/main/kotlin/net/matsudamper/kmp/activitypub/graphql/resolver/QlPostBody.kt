@@ -118,9 +118,10 @@ private fun List<TimelinePostImage>.toQlPostImages(diContainer: DiContainer): Li
     url?.let { createQlPostImage(url = it, description = image.description) }
 }
 
-// 動画は video 要素で読むので CORS が無くても再生できる。中継はしない。http(s) 以外の URL は返さない
+// 動画は video 要素で読むので CORS が無くても再生できる。中継はしない。
+// https のページから http の動画は混在コンテンツで読めないので、https の URL だけを返す
 private fun List<TimelinePostImage>.toQlPostVideos(): List<QlPostVideo> = filterIsInstance<TimelinePostImage.Remote>()
     .filter { it.mediaKind == RemoteMediaKind.Video }
     .mapNotNull { video ->
-        video.url.toHttpUrlOrNull()?.let { QlPostVideo(url = it.toString(), description = video.description) }
+        video.url.toHttpUrlOrNull()?.takeIf { it.isHttps }?.let { QlPostVideo(url = it.toString(), description = video.description) }
     }
