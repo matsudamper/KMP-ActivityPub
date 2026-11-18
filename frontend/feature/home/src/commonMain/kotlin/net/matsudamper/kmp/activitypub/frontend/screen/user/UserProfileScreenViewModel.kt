@@ -291,7 +291,7 @@ internal class UserProfileScreenViewModel(
     }
 
     /**
-     * 確かめられるまでは、ログインしていないものとしてフォローとブロックのメニューを出さない
+     * 確かめられるまでは、ログインしていないものとしてフォローとブロックのメニューと投稿の FAB を出さない
      */
     private fun checkLoginState() {
         if (viewModelStateFlow.value.loggedIn) return
@@ -647,7 +647,7 @@ internal class UserProfileScreenViewModel(
             openOriginalMenuItemVisible = viewModelState.profile is ProfileState.Loaded,
             sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
             blockMenuItemsVisible = viewModelState.loggedIn && (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
-            postFabVisible = viewModelState.profile is ProfileState.Loaded,
+            postFabVisible = viewModelState.loggedIn && viewModelState.profile is ProfileState.Loaded,
             listener = listener,
         )
     }
