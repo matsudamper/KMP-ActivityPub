@@ -51,8 +51,7 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
-import net.matsudamper.kmp.activitypub.frontend.ui.ImageDropTarget
-import net.matsudamper.kmp.activitypub.frontend.ui.ImagePasteHandler
+import net.matsudamper.kmp.activitypub.frontend.ui.ImageInputReceiver
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.PostQuoteCard
 import net.matsudamper.kmp.activitypub.frontend.ui.VideoFirstFrame
@@ -121,7 +120,7 @@ internal fun rememberPostScreenUiState(
 }
 
 /**
- * 貼り付けは画面全体で受けるので、投稿の中身を出している間だけ置く
+ * 画像のドロップや貼り付けは画面全体で受けるので、投稿の中身を出している間だけ受け取り手になる
  */
 @Composable
 internal fun PostContentWithImageInput(
@@ -130,11 +129,8 @@ internal fun PostContentWithImageInput(
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
-    ImagePasteHandler(onPaste = uiState.listener::onImagePicked)
-    ImageDropTarget(
-        onDrop = uiState.listener::onImagePicked,
-        modifier = modifier.fillMaxSize(),
-    ) {
+    ImageInputReceiver(onReceive = uiState.listener::onImagePicked)
+    Box(modifier = modifier.fillMaxSize()) {
         PostContent(uiState = uiState, navigationIcon = navigationIcon, snackbarHostState = snackbarHostState)
     }
     val emojiPickerDialog = uiState.emojiPickerDialog

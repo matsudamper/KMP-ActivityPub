@@ -80,6 +80,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
 import net.matsudamper.kmp.activitypub.frontend.screen.ReplyTargetAuthorLoad
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
+import net.matsudamper.kmp.activitypub.frontend.screen.createActorLabelUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostItemQuote
@@ -101,6 +102,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 import org.koin.core.annotation.InjectedParam
 import org.koin.core.annotation.KoinViewModel
 
@@ -1868,30 +1870,36 @@ internal class HomeScreenViewModel(
         )
     }
 
-    private fun createTimelineItem(viewModelState: ViewModelState, entry: TimelineFeeds.Entry): PostItemUiState {
+    private fun createTimelineItem(viewModelState: ViewModelState, entry: TimelineFeeds.Entry): TimelineItemUiState {
         val navigateToProfile: (username: String) -> Unit = { username ->
             viewModelScope.launch { events.send { it.navigateToUserProfile(username) } }
         }
         return when (entry) {
-            is TimelineFeeds.Entry.Post -> createTimelinePostItem(
-                viewModelState = viewModelState,
-                post = entry.post,
-                actorLabel = entry.post.boostedBy?.let { booster ->
-                    // このサーバーのアカウントのブーストでタイムラインに載るのは、自分のブーストだけ
-                    PostActorLabel.Boost(actor = booster, byViewer = booster.host == null, navigateToProfile = navigateToProfile)
-                },
+            is TimelineFeeds.Entry.Post -> TimelineItemUiState.Post(
+                createTimelinePostItem(
+                    viewModelState = viewModelState,
+                    post = entry.post,
+                    actorLabel = entry.post.boostedBy?.let { booster ->
+                        // このサーバーのアカウントのブーストでタイムラインに載るのは、自分のブーストだけ
+                        PostActorLabel.Boost(actor = booster, byViewer = booster.host == null, navigateToProfile = navigateToProfile)
+                    },
+                ),
             )
 
             is TimelineFeeds.Entry.Notification -> {
                 val notification = entry.notification
-                createTimelinePostItem(
-                    viewModelState = viewModelState,
-                    post = notification.post,
-                    actorLabel = when (notification.kind) {
-                        UserNotificationsResult.Kind.Favourite -> PostActorLabel.FavouriteNotification(actor = notification.actor, navigateToProfile = navigateToProfile)
-                        UserNotificationsResult.Kind.Boost -> PostActorLabel.BoostNotification(actor = notification.actor, navigateToProfile = navigateToProfile)
-                    },
+                val actorLabel = PostActorLabel.Notification(
+                    kind = notification.kind,
+                    actors = notification.actors,
+                    actorCount = notification.actorCount,
+                    navigateToProfile = navigateToProfile,
                 )
+                val post = notification.post
+                if (post == null) {
+                    TimelineItemUiState.ActorOnly(createActorLabelUiState(label = actorLabel, cancelledLabelVisible = false))
+                } else {
+                    TimelineItemUiState.Post(createTimelinePostItem(viewModelState = viewModelState, post = post, actorLabel = actorLabel))
+                }
             }
         }
     }

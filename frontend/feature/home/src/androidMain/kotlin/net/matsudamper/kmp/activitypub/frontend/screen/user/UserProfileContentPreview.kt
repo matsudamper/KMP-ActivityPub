@@ -98,7 +98,7 @@ private fun UserProfileContentPreview() {
                                     icon = PostItemUiState.ActorLabelIcon.Boost,
                                     actorName = createTextWithEmojis(text = "Alice", emojis = listOf()),
                                     actionText = "がブースト",
-                                    iconUrl = null,
+                                    actors = listOf(PostItemUiState.ActorLabelActor(iconUrl = null, reaction = null)),
                                     cancelledLabelVisible = true,
                                     listener = null,
                                 ),

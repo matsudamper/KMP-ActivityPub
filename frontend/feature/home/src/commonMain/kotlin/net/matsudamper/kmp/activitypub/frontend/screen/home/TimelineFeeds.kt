@@ -344,7 +344,7 @@ internal class TimelineFeeds(
 
         data class Notification(val notification: UserNotificationsResult.Notification) : Entry {
             override val key: String = "notification:${notification.id}"
-            override val sortKey: Instant = parseSortKey(notification.receivedAt)
+            override val sortKey: Instant = parseSortKey(notification.updatedAt)
         }
     }
 
