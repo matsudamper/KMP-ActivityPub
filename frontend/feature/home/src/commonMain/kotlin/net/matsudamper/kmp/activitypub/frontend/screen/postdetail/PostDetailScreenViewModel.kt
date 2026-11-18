@@ -272,7 +272,6 @@ internal class PostDetailScreenViewModel(
                 when (result) {
                     is UserPostRepliesResult.Success -> state.copy(replies = result.replies, repliesLoad = RepliesLoad.Loaded)
 
-                    UserPostRepliesResult.NotLoggedIn,
                     is UserPostRepliesResult.Failure,
                     -> state.copy(repliesLoad = RepliesLoad.Failed)
                 }
@@ -620,7 +619,6 @@ internal class PostDetailScreenViewModel(
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
-                UserLinkPreviewsResult.NotLoggedIn,
                 -> linkPreviewRequested = false
             }
         }

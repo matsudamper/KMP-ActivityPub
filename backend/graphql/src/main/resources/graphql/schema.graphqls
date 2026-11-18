@@ -10,6 +10,35 @@ type Query {
     "有効なセッションの Cookie が無ければ null"
     userInfo: UserInfo
     user(username: String!): User
+    """
+    個別投稿画面に出す投稿を 1 件。id には TimelinePost.id か ProfilePost.id を渡す。
+    タイムラインに載る投稿に加えて、プロフィールに並ぶ投稿も開ける。保存していない他のサーバーの投稿は取ってきて保存する。開けない投稿なら null。
+    ログインしていなければ、他のサーバーの投稿は保存済みで公開のものだけ開ける
+    """
+    timelinePost(id: TimelinePostId!): TimelinePost
+    """
+    postId の投稿の返信先。postId には TimelinePost.id を渡す。返した投稿の id を渡せば、さらに返信先をたどれる。
+    保存していない他のサーバーの投稿は、相手のサーバーから取って保存せずに返すので遅い。その id と reactionPostId は保存していない投稿を指し、いいねやブーストを付けたときに保存する。
+    返信でないか、返信先を読めないか、サーバーに DOMAIN が無ければ null。返信先のサーバーが応えなければ、null とエラーを返す。
+    ログインしていなければ、相手のサーバーへは取りに行かない
+    """
+    replyTarget(postId: TimelinePostId!): TimelinePost
+    """
+    投稿のリプライ・いいね・ブーストの数。id には TimelinePost.id か ProfilePost.id を渡す。開けない投稿なら null。
+    他のサーバーの投稿は、前に取ってから 1 分経っていれば相手のサーバーから数を取り直すので遅い。個別投稿画面を開いたときに使う
+    """
+    postCounts(postId: TimelinePostId!): PostCounts
+    """
+    postId の投稿への返信を古い順に 100 件まで。postId には TimelinePost.id を渡す。ブーストで載った投稿は、ブーストされた元の投稿への返信。
+    このサーバーが保存している投稿だけを返し、相手のサーバーへは取りに行かない。消された返信とブロックした相手の返信は入らない。
+    読めない投稿か、サーバーに DOMAIN が無ければ空
+    """
+    replies(postId: TimelinePostId!): [TimelinePost!]!
+    """
+    投稿の本文にあるリンク先の OGP。postId には TimelinePost.id か ProfilePost.id を渡す。
+    リンク先へ取りに行くので遅い。読めない投稿か、保存していない他のサーバーの投稿か、サーバーに DOMAIN が無ければ空
+    """
+    linkPreviews(postId: TimelinePostId!): [LinkPreview!]!
     "投稿は相手のサーバーの outbox を待つことがあるので含めない。userProfilePosts で別に読む"
     userProfile(acct: String!): UserProfile
     """

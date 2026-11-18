@@ -779,6 +779,13 @@ class TimelineRepositoryTest {
             assertNull(repository.viewablePost(bob, position.member))
             assertNull(repository.contentHtml(bob, position.member))
         }
+        // ログインしていなくても、このサーバーの投稿と公開の投稿、そのブーストは開ける
+        listOf(localNote, note, boost, accountBoost).forEach { position ->
+            assertEquals(position.member, repository.viewablePost(null, position.member)?.position?.member)
+            assertNotNull(repository.contentHtml(null, position.member))
+        }
+        assertNull(repository.viewablePost(null, direct.member))
+        assertNull(repository.contentHtml(null, direct.member))
         assertNull(repository.viewablePost(alice, "r999"))
         assertNull(repository.contentHtml(alice, "r999"))
     }

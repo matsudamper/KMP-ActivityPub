@@ -1217,7 +1217,6 @@ internal class HomeScreenViewModel(
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
-                UserLinkPreviewsResult.NotLoggedIn,
                 -> linkPreviewRequestedPostIds = linkPreviewRequestedPostIds - postId
             }
         }

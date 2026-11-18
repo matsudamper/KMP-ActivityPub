@@ -70,10 +70,10 @@ internal class FakeTimelineRepository : TimelineRepository {
         return sorted().filter { after == null || it.score < after.score || (it.score == after.score && it.member < after.member) }.take(limit)
     }
 
-    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? =
-        hydrate(viewer, listOf(member)).firstOrNull() ?: (actorPosts + accountBoosts + storedFetchedNotes.values).firstOrNull { it.position.member == member }
+    override fun viewablePost(viewer: AccountId?, member: String): TimelinePost? =
+        hydrate(viewer ?: AccountId(0), listOf(member)).firstOrNull() ?: (actorPosts + accountBoosts + storedFetchedNotes.values).firstOrNull { it.position.member == member }
 
-    override fun contentHtml(viewer: AccountId, member: String): String? = viewablePost(viewer, member)?.contentHtml
+    override fun contentHtml(viewer: AccountId?, member: String): String? = viewablePost(viewer, member)?.contentHtml
 
     override fun hydrate(accountId: AccountId, members: List<String>): List<TimelinePost> = positions.filter { it.member in members }.map {
         TimelinePost(
@@ -99,7 +99,7 @@ internal class FakeTimelineRepository : TimelineRepository {
         accountBoosts.filter { before == null || it.position.score < before.score || (it.position.score == before.score && it.position.member < before.member) }
             .take(limit)
 
-    override fun storedRemotePosts(viewer: AccountId, objectUris: Set<String>): List<TimelinePost> =
+    override fun storedRemotePosts(viewer: AccountId?, objectUris: Set<String>): List<TimelinePost> =
         (actorPosts + storedFetchedNotes.values).filter { it.boostedBy == null && (it.noteRef as? TimelineNoteRef.Remote)?.objectUri in objectUris }
             .distinctBy { it.position.member }
 
@@ -108,7 +108,7 @@ internal class FakeTimelineRepository : TimelineRepository {
         return storedFetchedNotes.filterKeys { objectUri -> notes.any { it.objectUri == objectUri } }
     }
 
-    override fun replies(viewer: AccountId, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost> =
+    override fun replies(viewer: AccountId?, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost> =
         replies.filter { it.inReplyTo == objectUri }.filterNot { reply -> reply.actorUri?.let(hidesAuthor) == true }.take(limit)
 
     override fun likedPosts(liker: AccountId, viewer: AccountId, before: LikedNotePosition?, limit: Int): List<LikedTimelinePost> = likedPosts.take(limit)

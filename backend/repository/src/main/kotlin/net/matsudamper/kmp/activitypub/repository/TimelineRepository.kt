@@ -70,14 +70,15 @@ interface TimelineRepository {
      * このサーバーの投稿とこのサーバーのアカウントのブーストは誰でも、他のサーバーの投稿は [viewer] が読めるものと公開のもの、
      * 他のサーバーのブーストは公開している投稿のものなら開ける
      *
+     * @param viewer ログインしていなければ null。他のサーバーの投稿は公開のものだけ開ける
      * @return 開けない投稿か、[member] が無ければ null
      */
-    fun viewablePost(viewer: AccountId, member: String): TimelinePost?
+    fun viewablePost(viewer: AccountId?, member: String): TimelinePost?
 
     /**
      * [viewablePost] で [viewer] が開ける投稿の本文だけを返す。ブーストならブーストした元の投稿の本文。開けなければ null
      */
-    fun contentHtml(viewer: AccountId, member: String): String?
+    fun contentHtml(viewer: AccountId?, member: String): String?
 
     /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す
@@ -104,7 +105,7 @@ interface TimelineRepository {
      * 保存済みの他のサーバーの投稿のうち、id が [objectUris] のもの。[viewer] が読めるものに加えて、公開と、公開タイムラインに載せない公開のものは、
      * フォローしていなくても返す
      */
-    fun storedRemotePosts(viewer: AccountId, objectUris: Set<String>): List<TimelinePost>
+    fun storedRemotePosts(viewer: AccountId?, objectUris: Set<String>): List<TimelinePost>
 
     /**
      * 保存済みの投稿のうち、[objectUri] の投稿への返信を古い順に返す。このサーバーの投稿は誰でも、他のサーバーの投稿は [viewablePost] と同じ範囲で返す。
@@ -113,7 +114,7 @@ interface TimelineRepository {
      * @param objectUri 返信先の投稿の id
      * @param hidesAuthor 他のサーバーの投稿者の URI を渡すと、その投稿を出さないなら true を返す。出さない投稿は [limit] に数えない
      */
-    fun replies(viewer: AccountId, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost>
+    fun replies(viewer: AccountId?, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost>
 
     /**
      * 他のサーバーの投稿を、いいねやブーストを付けたときに保存する。タイムラインには載せない。

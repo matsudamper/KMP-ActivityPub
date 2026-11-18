@@ -213,9 +213,8 @@ class UserApi(
         val response = client.query(HomeTimelineLinkPreviewsQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserLinkPreviewsResult.Failure(response.failureMessage())
         val data = response.data ?: return UserLinkPreviewsResult.Failure(response.failureMessage())
-        val previews = data.userInfo?.linkPreviews ?: return UserLinkPreviewsResult.NotLoggedIn
         return UserLinkPreviewsResult.Success(
-            previews = previews.map {
+            previews = data.linkPreviews.map {
                 UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl, faviconUrl = it.faviconUrl)
             },
         )
@@ -229,8 +228,7 @@ class UserApi(
         val response = client.query(PostDetailScreenQuery(id = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
-        val post = userInfo.timelinePost ?: return UserPostDetailResult.NotFound
+        val post = data.timelinePost ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
@@ -244,7 +242,7 @@ class UserApi(
         val client = clients.awaitLoadedClient() ?: return null
         val response = client.query(PostCountsQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return null
-        val counts = response.data?.userInfo?.postCounts ?: return null
+        val counts = response.data?.postCounts ?: return null
         return UserPostCounts(replyCount = counts.replyCount, favouriteCount = counts.favouriteCount, boostCount = counts.boostCount)
     }
 
@@ -259,8 +257,7 @@ class UserApi(
         val response = client.query(ReplyTargetQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
-        val post = userInfo.replyTarget ?: return UserPostDetailResult.NotFound
+        val post = data.replyTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
@@ -274,8 +271,7 @@ class UserApi(
         val response = client.query(PostRepliesQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostRepliesResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostRepliesResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostRepliesResult.NotLoggedIn
-        return UserPostRepliesResult.Success(userInfo.replies.map { it.timelinePostFields.toPost() })
+        return UserPostRepliesResult.Success(data.replies.map { it.timelinePostFields.toPost() })
     }
 
     /**

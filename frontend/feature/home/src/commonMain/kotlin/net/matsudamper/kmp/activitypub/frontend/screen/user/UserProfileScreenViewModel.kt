@@ -588,7 +588,6 @@ internal class UserProfileScreenViewModel(
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
-                UserLinkPreviewsResult.NotLoggedIn,
                 -> linkPreviewRequestedIds = linkPreviewRequestedIds - postId
             }
         }

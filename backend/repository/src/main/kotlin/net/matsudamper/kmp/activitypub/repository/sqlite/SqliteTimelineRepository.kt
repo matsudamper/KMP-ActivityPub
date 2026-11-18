@@ -286,9 +286,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    override fun viewablePost(viewer: AccountId, member: String): TimelinePost? = jooq.withConnection { dsl -> viewablePost(dsl, viewer, member) }
+    override fun viewablePost(viewer: AccountId?, member: String): TimelinePost? = jooq.withConnection { dsl -> viewablePost(dsl, viewer, member) }
 
-    private fun viewablePost(dsl: DSLContext, viewer: AccountId, member: String): TimelinePost? {
+    private fun viewablePost(dsl: DSLContext, viewer: AccountId?, member: String): TimelinePost? {
         val notes = hydrateNotes(
             dsl = dsl,
             viewer = viewer,
@@ -303,7 +303,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         return (notes + boosts).firstOrNull()
     }
 
-    override fun contentHtml(viewer: AccountId, member: String): String? = jooq.withConnection { dsl ->
+    override fun contentHtml(viewer: AccountId?, member: String): String? = jooq.withConnection { dsl ->
         TimelineMembers.localNoteIdOf(member)?.let { noteId ->
             return@withConnection dsl.select(NOTES.CONTENT_HTML).from(NOTES)
                 .where(NOTES.ID.eq(noteId))
@@ -480,7 +480,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         ).associateBy { (it.noteRef as TimelineNoteRef.Remote).objectUri }
     }
 
-    override fun storedRemotePosts(viewer: AccountId, objectUris: Set<String>): List<TimelinePost> {
+    override fun storedRemotePosts(viewer: AccountId?, objectUris: Set<String>): List<TimelinePost> {
         if (objectUris.isEmpty()) return listOf()
         return jooq.withConnection { dsl ->
             val remoteIds = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.`in`(objectUris)).fetch(REMOTE_NOTES.ID).filterNotNull()
@@ -495,7 +495,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         }
     }
 
-    override fun replies(viewer: AccountId, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost> = jooq.withConnection { dsl ->
+    override fun replies(viewer: AccountId?, objectUri: String, limit: Int, hidesAuthor: (actorUri: String) -> Boolean): List<TimelinePost> = jooq.withConnection { dsl ->
         val localIds = dsl.select(NOTES.ID).from(NOTES).where(NOTES.IN_REPLY_TO.eq(objectUri))
             .orderBy(NOTES.PUBLISHED_AT, NOTES.ID).limit(limit)
             .fetch(NOTES.ID).filterNotNull()
@@ -907,7 +907,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
     /**
      * ブーストした相手をフォローしているアカウントにだけ見せる。ブーストされた投稿は公開か、公開タイムラインに載せない公開のものしか記録しないので、投稿者のフォローは問わない
      */
-    private fun boostedPosts(dsl: DSLContext, accountId: AccountId, boostIds: List<Long>): List<TimelinePost> {
+    private fun boostedPosts(dsl: DSLContext, accountId: AccountId?, boostIds: List<Long>): List<TimelinePost> {
         if (boostIds.isEmpty()) return listOf()
         val booster = REMOTE_ACTORS.`as`("booster")
         val rows = dsl.select(
@@ -924,7 +924,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .and(remoteBoostReadable())
             .fetch()
         val likedNoteIds = dsl.select(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID).from(REMOTE_NOTE_LIKES)
-            .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eq(accountId.value)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(rows.map { checkNotNull(it.value3()) }))
+            .where(REMOTE_NOTE_LIKES.ACCOUNT_ID.eqViewer(accountId)).and(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID.`in`(rows.map { checkNotNull(it.value3()) }))
             .fetchSet(REMOTE_NOTE_LIKES.REMOTE_NOTE_ID)
         val boostedNoteIds = dsl.boostedNoteIds(accountId, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, rows.map { checkNotNull(it.value3()) })
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
