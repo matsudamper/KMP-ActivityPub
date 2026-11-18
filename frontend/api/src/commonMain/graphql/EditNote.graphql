@@ -1,0 +1,13 @@
+query EditableNoteBody($noteId: PublicNoteId!) {
+    userInfo {
+        editableNoteBody(noteId: $noteId)
+    }
+}
+
+mutation EditNote($noteId: PublicNoteId!, $body: String!) {
+    user {
+        editNote(noteId: $noteId, body: $body) {
+            failure
+        }
+    }
+}

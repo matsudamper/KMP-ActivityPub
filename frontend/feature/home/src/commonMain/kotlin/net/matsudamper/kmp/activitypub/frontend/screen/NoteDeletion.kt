@@ -22,14 +22,23 @@ internal sealed interface NoteDeletionState {
 }
 
 /**
- * @param deletableNoteId 消せない投稿は null で、メニューを出さない
+ * @param deletableNoteId 自分の投稿でなければ null で、メニューを出さない。消せる投稿は編集もできる
  */
 internal fun createNoteMenuItems(
     deletableNoteId: String?,
+    onClickEdit: (noteId: String) -> Unit,
     onClickDelete: (noteId: String) -> Unit,
 ): List<PostItemUiState.MenuItem> {
     if (deletableNoteId == null) return listOf()
     return listOf(
+        PostItemUiState.MenuItem(
+            label = "編集",
+            listener = object : PostItemUiState.MenuItemListener {
+                override fun onClick() {
+                    onClickEdit(deletableNoteId)
+                }
+            },
+        ),
         PostItemUiState.MenuItem(
             label = "削除",
             listener = object : PostItemUiState.MenuItemListener {

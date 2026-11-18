@@ -340,6 +340,15 @@ private fun ScreenContent(
             )
         }
 
+        is Screen.EditPost -> {
+            PostScreen(
+                target = PostScreenTarget.Edit(noteId = screen.noteId),
+                navigationIcon = PostNavigationIcon.Close,
+                onNavigateBack = navigator::back,
+                onClose = navigator::back,
+            )
+        }
+
         Screen.Settings -> {
             SettingsScreen(navigator = navigator)
         }

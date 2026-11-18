@@ -16,6 +16,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NoteMention
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.NoteUpdate
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.ReplyTarget
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
@@ -32,12 +33,13 @@ import net.matsudamper.kotpub.note.NoteUrls
 import org.slf4j.LoggerFactory
 
 /**
- * 投稿を記録して、フォロワーへの配信を積む。消すときも同じく Delete を積む。送るのは配信キューのワーカー。
+ * 投稿を記録して、フォロワーへの配信を積む。編集するときは Update を、消すときは Delete を同じく積む。送るのは配信キューのワーカー。
  * 画像は先に [uploadImage] で置き、[post] には置いた画像の id を渡す
  *
  * @param imageStorage null なら画像を置けないので、画像付きの投稿はできない
  * @param remoteUsers 保存していない他のサーバーのアカウントに宛てるときに、相手のサーバーから引いて [remoteActors] に保存する
  * @param onEnqueued 積んだ後に呼ぶ。次の巡回を待たずに送らせる
+ * @param onEdited 編集した後に呼ぶ。投稿を載せている画面に新しい本文を流す
  */
 class NotePostService(
     private val directory: ActorDirectory,
@@ -54,6 +56,7 @@ class NotePostService(
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
     private val onPosted: (PublicNoteId) -> Unit,
+    private val onEdited: (PublicNoteId) -> Unit,
 ) {
     private val logger = LoggerFactory.getLogger(NotePostService::class.java)
 
@@ -188,6 +191,7 @@ class NotePostService(
                     requestId = requestId,
                     publicId = PublicNoteId(prepared.publicId.value),
                     contentHtml = prepared.contentHtml,
+                    sourceText = body.trim(),
                     publishedAt = prepared.publishedAt,
                     images = images,
                     body = prepared.activityJson,
@@ -215,6 +219,63 @@ class NotePostService(
 
             EnqueueNoteResult.ImageNotFound -> PostNoteResult.ImageNotFound
         }
+    }
+
+    /**
+     * 編集の下書きに出す本文
+     *
+     * @return 無いか、別のアカウントの投稿なら null
+     */
+    fun editableBody(
+        username: String,
+        publicId: PublicNoteId,
+    ): String? {
+        val note = noteRepository.find(publicId)?.takeIf { it.username.equals(username, ignoreCase = true) } ?: return null
+        return note.sourceText ?: NoteComposer.toPlainText(note.contentHtml)
+    }
+
+    /**
+     * 本文を書き換えて、投稿を届けた相手へ Update を積む。画像・返信先・引用・宛先は変えない。
+     * 画像があるか引用なら本文は空でもよい
+     */
+    fun edit(
+        username: String,
+        publicId: PublicNoteId,
+        body: String,
+    ): EditNoteResult {
+        val sender = directory.resolve(username) ?: return EditNoteResult.AccountNotFound
+        val note = noteRepository.find(publicId)?.takeIf { it.username.equals(sender.username, ignoreCase = true) } ?: return EditNoteResult.NotFound
+        val contentHtml =
+            when (val composed = NoteComposer.compose(body = body, mentions = note.mentions.flatMap { it.toMentionLinks() })) {
+                is NoteComposer.ComposeResult.Composed -> composed.contentHtml
+                NoteComposer.ComposeResult.Empty -> if (note.images.isEmpty() && note.quoteUri == null) return EditNoteResult.EmptyBody else ""
+                NoteComposer.ComposeResult.TooLong -> return EditNoteResult.TooLong
+            }
+        val prepared =
+            publisher.prepareUpdate(
+                sender = sender,
+                publicId = KotpubPublicNoteId(publicId.value),
+                contentHtml = contentHtml,
+                emojis = emojiObjects.find(contentHtml),
+            ) ?: return EditNoteResult.NotFound
+        val updated =
+            deliveryQueueRepository.enqueueNoteUpdate(
+                NoteUpdate(
+                    username = sender.username,
+                    publicId = publicId,
+                    contentHtml = prepared.contentHtml,
+                    sourceText = body.trim(),
+                    updatedAt = prepared.updatedAt,
+                    body = prepared.activityJson,
+                    // 投稿を届けた相手には、書き換えたことも伝える
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + note.mentions.mapNotNull { it.inbox } + listOfNotNull(note.quoteInbox),
+                ),
+            )
+        if (!updated) return EditNoteResult.NotFound
+        logger.info("投稿を編集して Update を積んだ: ${sender.acct} ${publicId.value}")
+        onEnqueued()
+        onEdited(publicId)
+        return EditNoteResult.Edited
     }
 
     /**
@@ -382,6 +443,17 @@ class NotePostService(
             }
         }
 
+    /**
+     * 他のサーバーのアカウントは、書いた `@alice@example.com` と、書いたままの本文を記録する前の投稿から戻した `@alice` の両方をリンクにする
+     */
+    private fun NoteMention.toMentionLinks(): List<NoteComposer.MentionLink> {
+        val mentionUsername = acct.substringBefore('@')
+        val shortLink = NoteComposer.MentionLink(text = "@$mentionUsername", href = actorUri, username = mentionUsername)
+        // このサーバーのアカウントは画面に合わせてドメイン無しで書かれる
+        if (inbox == null) return listOf(shortLink)
+        return listOf(NoteComposer.MentionLink(text = "@$acct", href = actorUri, username = mentionUsername), shortLink)
+    }
+
     private fun noteUrl(
         domain: String,
         publicId: PublicNoteId,
@@ -523,6 +595,27 @@ sealed interface PostNoteResult {
      * アカウントが無いか、鍵が無くてアクターとして扱えない
      */
     data object AccountNotFound : PostNoteResult
+}
+
+sealed interface EditNoteResult {
+    data object Edited : EditNoteResult
+
+    /**
+     * 無いか、別のアカウントの投稿
+     */
+    data object NotFound : EditNoteResult
+
+    /**
+     * 本文が空で、画像も引用も無い
+     */
+    data object EmptyBody : EditNoteResult
+
+    data object TooLong : EditNoteResult
+
+    /**
+     * アカウントが無いか、鍵が無くてアクターとして扱えない
+     */
+    data object AccountNotFound : EditNoteResult
 }
 
 sealed interface DeleteNoteResult {

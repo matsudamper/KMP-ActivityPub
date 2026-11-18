@@ -104,6 +104,10 @@ internal fun PostDetailScreen(
                 navigator.navigate(Screen.ReplyPost(postId = postId))
             }
 
+            override fun navigateToEditPost(noteId: String) {
+                navigator.navigate(Screen.EditPost(noteId = noteId))
+            }
+
             override fun navigateToPostRevisions(postId: String) {
                 navigator.navigate(Screen.PostRevisions(postId = postId))
             }

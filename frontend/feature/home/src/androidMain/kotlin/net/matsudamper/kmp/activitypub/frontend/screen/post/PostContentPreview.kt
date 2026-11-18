@@ -139,6 +139,58 @@ private fun PostContentImagesPreview() {
     }
 }
 
+@Preview
+@Composable
+private fun PostContentEditInColumnPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Close,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null).copy(
+                title = "投稿を編集",
+                postButtonText = "更新",
+                editTarget = PostScreenUiState.EditTarget(cancelButtonEnabled = true, listener = AndroidPreviewEditTargetListener),
+                addImageButtonEnabled = false,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PostContentEditLoadingPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Close,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null).copy(
+                title = "投稿を編集",
+                body = "",
+                bodyLoadingVisible = true,
+                inputEnabled = false,
+                postButtonEnabled = false,
+                postButtonText = "更新",
+                addImageButtonEnabled = false,
+                addEmojiButtonEnabled = false,
+            ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun DiscardDraftDialogPreview() {
+    PostPreviewTheme {
+        DiscardDraftDialog(
+            dialog = PostScreenUiState.DiscardDraftDialog(
+                message = "書きかけの投稿を破棄して、投稿の編集を始めますか",
+                discardButtonText = "破棄して編集",
+                listener = AndroidPreviewDiscardDraftDialogListener,
+            ),
+        )
+    }
+}
+
 private fun previewUiState(
     images: List<PostScreenUiState.Image>,
     addImageLoadingVisible: Boolean,
@@ -146,15 +198,20 @@ private fun previewUiState(
     replyTarget: PostScreenUiState.ReplyTarget?,
 ): PostScreenUiState =
     PostScreenUiState(
+        title = "投稿",
         body = "Kotlin 2.4 がリリースされました",
         bodyInsertion = null,
+        bodyLoadingVisible = false,
         inputHasError = false,
         inputEnabled = true,
         closeButtonEnabled = true,
         postButtonEnabled = true,
+        postButtonText = "投稿",
         images = images,
         quote = quote,
         replyTarget = replyTarget,
+        editTarget = null,
+        discardDraftDialog = null,
         addImageButtonEnabled = addImageLoadingVisible.not(),
         addImageLoadingVisible = addImageLoadingVisible,
         addEmojiButtonEnabled = true,
@@ -190,11 +247,23 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
 
     override fun onReplyRequested(postId: String) = Unit
 
+    override fun onEditRequested(noteId: String) = Unit
+
     override fun onClickPost() = Unit
 
     override fun onPressPostShortcut() = Unit
 
     override fun onClickClose() = Unit
+}
+
+private object AndroidPreviewEditTargetListener : PostScreenUiState.EditTargetListener {
+    override fun onClickCancel() = Unit
+}
+
+private object AndroidPreviewDiscardDraftDialogListener : PostScreenUiState.DiscardDraftDialogListener {
+    override fun onClickDiscard() = Unit
+
+    override fun onDismiss() = Unit
 }
 
 private object AndroidPreviewImageListener : PostScreenUiState.ImageListener {
