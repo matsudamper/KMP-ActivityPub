@@ -860,6 +860,7 @@ class TimelineRepositoryTest {
         localRecipients = recipients, inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW.plusSeconds(3600), receivedAt = NOW, editedAt = null,
         images = listOf(),
         emojis = listOf(),
+        linkHref = null,
     )
 
     private fun withRepository(block: (Repositories, Map<String, AccountId>) -> Unit) {

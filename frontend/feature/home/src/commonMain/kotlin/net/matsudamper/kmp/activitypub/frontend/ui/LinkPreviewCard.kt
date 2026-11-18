@@ -29,6 +29,7 @@ import coil3.compose.AsyncImage
  *
  * @param imageUrl null でも画像の枠は取っておき、取れたときにカードの大きさを変えない
  * @param faviconUrl imageUrl が null のとき、画像の枠の中央に小さく出す
+ * @param linkObjectLabelVisible Link で届いた投稿のリンク先のカードに、右上に Link と出す
  */
 @Composable
 internal fun LinkPreviewCard(
@@ -36,6 +37,7 @@ internal fun LinkPreviewCard(
     siteName: String,
     imageUrl: String?,
     faviconUrl: String?,
+    linkObjectLabelVisible: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -46,12 +48,26 @@ internal fun LinkPreviewCard(
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        LinkPreviewCardContent(
-            title = title,
-            siteName = siteName,
-            imageUrl = imageUrl,
-            faviconUrl = faviconUrl,
-        )
+        Box {
+            LinkPreviewCardContent(
+                title = title,
+                siteName = siteName,
+                imageUrl = imageUrl,
+                faviconUrl = faviconUrl,
+            )
+            if (linkObjectLabelVisible) {
+                Text(
+                    text = "Link",
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .background(MaterialTheme.colorScheme.inverseSurface, RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                )
+            }
+        }
     }
 }
 
