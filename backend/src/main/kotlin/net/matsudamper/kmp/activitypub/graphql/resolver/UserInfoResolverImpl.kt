@@ -6,7 +6,10 @@ import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
+import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockedAccount
+import net.matsudamper.kmp.activitypub.graphql.model.QlFailedDelivery
+import net.matsudamper.kmp.activitypub.graphql.model.QlFailedDeliveryPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlFollowingGroup
 import net.matsudamper.kmp.activitypub.graphql.model.QlLinkPreview
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationPage
@@ -21,6 +24,8 @@ import net.matsudamper.kmp.activitypub.graphql.otelFuture
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetResult
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
+import net.matsudamper.kmp.activitypub.repository.FailedDelivery
+import net.matsudamper.kmp.activitypub.shared.FailedDeliveryId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.PostRevisionId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
@@ -165,6 +170,56 @@ class UserInfoResolverImpl : UserInfoResolver {
         val accounts = GraphQlEngine.diContainer(env).actorBlockService.list(userInfo.id).map { it.toQlBlockedAccount() }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(accounts).build())
     }
+
+    override fun failedDeliveries(
+        userInfo: QlUserInfo,
+        after: String?,
+        limit: Int,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlFailedDeliveryPage>> {
+        requireAdmin(userInfo, env)
+        return otelSupplyAsync {
+            val page = GraphQlEngine.diContainer(env).failedDeliveryService.page(after = after, limit = limit)
+            if (page == null) {
+                DataFetcherResult.Builder(QlFailedDeliveryPage(deliveries = listOf(), nextCursor = null))
+                    .error(GraphqlErrorBuilder.newError(env).message("after が読めない").build())
+                    .build()
+            } else {
+                val result = QlFailedDeliveryPage(
+                    deliveries = page.deliveries.map { it.toQlFailedDelivery() },
+                    nextCursor = page.nextCursor,
+                )
+                DataFetcherResult.Builder(result).build()
+            }
+        }
+    }
+
+    override fun failedDelivery(
+        userInfo: QlUserInfo,
+        id: FailedDeliveryId,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlFailedDelivery?>> {
+        requireAdmin(userInfo, env)
+        return otelSupplyAsync {
+            val delivery = GraphQlEngine.diContainer(env).failedDeliveryService.find(id)?.toQlFailedDelivery()
+            DataFetcherResult.Builder<QlFailedDelivery?>(delivery).build()
+        }
+    }
+
+    private fun requireAdmin(userInfo: QlUserInfo, env: DataFetchingEnvironment) {
+        if (userInfo.id !in GraphQlEngine.diContainer(env).adminAccountIds) throw GraphQlClientException("管理者ではない")
+    }
+
+    private fun FailedDelivery.toQlFailedDelivery(): QlFailedDelivery = QlFailedDelivery(
+        id = FailedDeliveryId(id),
+        kind = kind,
+        username = username,
+        inbox = inbox,
+        attempts = attempts,
+        enqueuedAt = enqueuedAt.toString(),
+        failedAt = failedAt?.toString(),
+        lastError = lastError,
+    )
 
     override fun linkPreviews(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlLinkPreview>>> {
         val diContainer = GraphQlEngine.diContainer(env)

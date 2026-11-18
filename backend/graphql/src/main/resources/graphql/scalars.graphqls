@@ -23,6 +23,9 @@ scalar PostRevisionId
 "通知の識別子"
 scalar NotificationId
 
+"諦めた配信の識別子"
+scalar FailedDeliveryId
+
 "このサーバーで置いたカスタム絵文字の識別子"
 scalar CustomEmojiId
 
