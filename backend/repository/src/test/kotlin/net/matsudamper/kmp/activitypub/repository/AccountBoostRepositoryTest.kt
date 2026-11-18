@@ -320,6 +320,7 @@ class AccountBoostRepositoryTest {
                 requestId = "request",
                 publicId = PublicNoteId("bob-note"),
                 contentHtml = "<p>本文</p>",
+                sourceText = "",
                 publishedAt = NOW,
                 images = listOf(),
                 body = "create",

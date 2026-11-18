@@ -43,6 +43,8 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMuta
 import net.matsudamper.kmp.activitypub.frontend.graphql.CustomEmojisQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteCustomEmojiMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.EditNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.EditableNoteBodyQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
@@ -87,6 +89,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.BlockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteCustomEmojiFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.EditNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ReactionInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
@@ -132,6 +135,12 @@ class UserApi(
      * [deleteNote] で消せた投稿の id。どの画面で消しても、投稿を出している画面がここで外す
      */
     val deletedNoteIds = deletedNoteIdsFlow.asSharedFlow()
+    private val editedNoteIdsFlow = MutableSharedFlow<String>()
+
+    /**
+     * [editNote] で編集できた投稿の id。どの画面で編集しても、投稿を出している画面がここで読み直す
+     */
+    val editedNoteIds = editedNoteIdsFlow.asSharedFlow()
     private val pinChangesFlow = MutableSharedFlow<PinChange>()
 
     /**
@@ -213,9 +222,8 @@ class UserApi(
         val response = client.query(HomeTimelineLinkPreviewsQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserLinkPreviewsResult.Failure(response.failureMessage())
         val data = response.data ?: return UserLinkPreviewsResult.Failure(response.failureMessage())
-        val previews = data.userInfo?.linkPreviews ?: return UserLinkPreviewsResult.NotLoggedIn
         return UserLinkPreviewsResult.Success(
-            previews = previews.map {
+            previews = data.linkPreviews.map {
                 UserLinkPreviewsResult.LinkPreview(url = it.url, title = it.title, siteName = it.siteName, imageUrl = it.imageUrl, faviconUrl = it.faviconUrl)
             },
         )
@@ -229,8 +237,7 @@ class UserApi(
         val response = client.query(PostDetailScreenQuery(id = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
-        val post = userInfo.timelinePost ?: return UserPostDetailResult.NotFound
+        val post = data.timelinePost ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
@@ -244,7 +251,7 @@ class UserApi(
         val client = clients.awaitLoadedClient() ?: return null
         val response = client.query(PostCountsQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return null
-        val counts = response.data?.userInfo?.postCounts ?: return null
+        val counts = response.data?.postCounts ?: return null
         return UserPostCounts(replyCount = counts.replyCount, favouriteCount = counts.favouriteCount, boostCount = counts.boostCount)
     }
 
@@ -259,8 +266,7 @@ class UserApi(
         val response = client.query(ReplyTargetQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
-        val post = userInfo.replyTarget ?: return UserPostDetailResult.NotFound
+        val post = data.replyTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
@@ -274,8 +280,7 @@ class UserApi(
         val response = client.query(PostRepliesQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostRepliesResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostRepliesResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostRepliesResult.NotLoggedIn
-        return UserPostRepliesResult.Success(userInfo.replies.map { it.timelinePostFields.toPost() })
+        return UserPostRepliesResult.Success(data.replies.map { it.timelinePostFields.toPost() })
     }
 
     /**
@@ -304,8 +309,7 @@ class UserApi(
         val response = client.query(QuoteTargetQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
-        val post = userInfo.quoteTarget ?: return UserPostDetailResult.NotFound
+        val post = data.quoteTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 
@@ -1002,6 +1006,47 @@ class UserApi(
             DeleteNoteFailure.INTERNAL_SERVER_ERROR -> "投稿を削除できませんでした。時間をおいて試してください"
 
             DeleteNoteFailure.UNKNOWN__ -> "Unknown"
+        }
+    }
+
+    /**
+     * @param noteId [UserHomeTimelineResult.Post.deletableNoteId]
+     */
+    suspend fun editableNoteBody(noteId: String): UserEditableNoteBodyResult {
+        val client = clients.client.value ?: return UserEditableNoteBodyResult.Failure("接続先が未設定")
+        val response = client.query(EditableNoteBodyQuery(noteId = noteId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserEditableNoteBodyResult.Failure(response.failureMessage())
+        val userInfo = response.data?.userInfo ?: return UserEditableNoteBodyResult.Failure("ログインしていません")
+        val body = userInfo.editableNoteBody ?: return UserEditableNoteBodyResult.Failure("投稿が見つかりません")
+        return UserEditableNoteBodyResult.Success(body)
+    }
+
+    /**
+     * @param noteId [UserHomeTimelineResult.Post.deletableNoteId]
+     * @return 編集できなければ、その理由
+     */
+    suspend fun editNote(noteId: String, body: String): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(EditNoteMutation(noteId = noteId, body = body)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val editNote = response.data?.user?.editNote ?: return response.failureMessage()
+        return when (editNote.failure) {
+            null -> {
+                editedNoteIdsFlow.emit(noteId)
+                null
+            }
+
+            EditNoteFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            EditNoteFailure.NOT_FOUND -> "投稿が見つかりません"
+
+            EditNoteFailure.EMPTY_BODY -> "本文を入力してください"
+
+            EditNoteFailure.TOO_LONG -> "本文が長すぎます"
+
+            EditNoteFailure.FEDERATION_DISABLED -> "このサーバーでは投稿を編集できません"
+
+            EditNoteFailure.UNKNOWN__ -> "Unknown"
         }
     }
 

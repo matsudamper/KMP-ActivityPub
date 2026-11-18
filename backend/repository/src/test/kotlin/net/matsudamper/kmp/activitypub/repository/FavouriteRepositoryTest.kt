@@ -112,6 +112,7 @@ class FavouriteRepositoryTest {
                 requestId = "request-$publicId",
                 publicId = PublicNoteId(publicId),
                 contentHtml = "<p>hello</p>",
+                sourceText = "",
                 publishedAt = NOW,
                 body = "create-$publicId",
                 inboxes = listOf(),

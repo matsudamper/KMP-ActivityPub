@@ -38,6 +38,17 @@ interface DeliveryQueueRepository {
     fun enqueueNoteDeletion(deletion: NoteDeletion): Boolean
 
     /**
+     * 投稿の本文を書き換えて、宛先ごとに Update を積む。
+     * 書き換えと投函を分けると、こちらでは変わったのに相手には古いまま残る
+     *
+     * Update は投稿の全体を載せるので、まだ送っていない前の Update は消す。
+     * 残すと、送り直しの順で古い本文が後から届く
+     *
+     * @return [NoteUpdate.username] の投稿が無ければ false
+     */
+    fun enqueueNoteUpdate(update: NoteUpdate): Boolean
+
+    /**
      * プロフィールを書き換えて、宛先ごとに Update を積む。
      * 書き換えと投函を分けると、こちらでは変わったのに相手には古いまま残る
      *
@@ -114,6 +125,7 @@ sealed interface EnqueueNoteResult {
 /**
  * @param requestId 画面が送信ごとに作る ID。応答を受け取れずに送り直されたときに同じ投稿だと分かる
  * @param images [NoteRepository.addUploadedImage] で記録した画像。付けた順。投稿に付けると、期限で消されなくなる
+ * @param sourceText 書いたままの本文。編集するときに下書きとして出す
  * @param body 宛先すべてに同じものを送る Create のアクティビティ
  * @param inReplyTo 返信先の投稿の id。返信でなければ null
  * @param quoteUri 引用した投稿の id。引用でなければ null
@@ -125,6 +137,7 @@ data class NotePost(
     val requestId: String,
     val publicId: PublicNoteId,
     val contentHtml: String,
+    val sourceText: String,
     val publishedAt: Instant,
     val images: List<NoteImage>,
     val body: String,
@@ -142,6 +155,20 @@ data class NoteDeletion(
     val username: String,
     val publicId: PublicNoteId,
     val deletedAt: Instant,
+    val body: String,
+    val inboxes: List<String>,
+)
+
+/**
+ * @param sourceText 書いたままの本文。編集するときに下書きとして出す
+ * @param body 宛先すべてに同じものを送る Update のアクティビティ
+ */
+data class NoteUpdate(
+    val username: String,
+    val publicId: PublicNoteId,
+    val contentHtml: String,
+    val sourceText: String,
+    val updatedAt: Instant,
     val body: String,
     val inboxes: List<String>,
 )
