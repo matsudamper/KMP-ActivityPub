@@ -29,7 +29,7 @@ buildCache {
     remote<AwsS3BuildCache> {
         isEnabled = !remoteBuildCacheAccessKeyId.isNullOrBlank()
         isPush = System.getenv("CI") == "true"
-        endpoint = "s3.matsudamper.net"
+        endpoint = System.getenv("S3_BUILD_CACHE_ENDPOINT").orEmpty().ifBlank { "s3.matsudamper.net" }
         forcePathStyle = true
         region = "us-east-1"
         bucket = "gradle-remote-cache"
