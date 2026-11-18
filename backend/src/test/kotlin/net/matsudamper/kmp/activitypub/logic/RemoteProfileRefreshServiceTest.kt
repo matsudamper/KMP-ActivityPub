@@ -80,7 +80,7 @@ class RemoteProfileRefreshServiceTest {
     private fun saveActors(vararg actorUris: String) {
         actorUris.forEach { actorUri ->
             remoteActors.save(
-                RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf())),
+                RemoteActorRecord(actorUri, "$actorUri/inbox", null, "key", RemoteActorProfileRecord(null, null, null, null, null, listOf(), null, listOf())),
                 NOW,
             )
         }

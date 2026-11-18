@@ -116,7 +116,7 @@ class NotificationRepositoryTest {
         inbox = "$actorUri/inbox",
         sharedInbox = null,
         publicKeyPem = "key-$actorUri",
-        profile = RemoteActorProfileRecord(actorUri.substringAfterLast('/'), null, null, null, null, listOf()),
+        profile = RemoteActorProfileRecord(actorUri.substringAfterLast('/'), null, null, null, null, listOf(), null, listOf()),
     )
 
     private companion object {
