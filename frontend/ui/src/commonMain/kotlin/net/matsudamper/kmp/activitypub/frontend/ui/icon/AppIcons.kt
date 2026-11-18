@@ -302,6 +302,20 @@ object AppIcons {
             ).build()
     }
 
+    val PlayArrow: ImageVector by lazy {
+        ImageVector
+            .Builder(
+                name = "PlayArrow",
+                defaultWidth = 24.dp,
+                defaultHeight = 24.dp,
+                viewportWidth = 24f,
+                viewportHeight = 24f,
+            ).addPath(
+                pathData = addPathNodes("M8,5v14l11,-7z"),
+                fill = SolidColor(Color.Black),
+            ).build()
+    }
+
     val PushPin: ImageVector by lazy {
         ImageVector
             .Builder(

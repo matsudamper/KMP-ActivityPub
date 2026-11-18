@@ -284,7 +284,7 @@ internal fun PostItem(
                     PostItemStyle.Timeline -> uiState.images
                     PostItemStyle.Detail -> listOf()
                 }
-                if (horizontalScrollImages.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
+                if (horizontalScrollImages.isNotEmpty() || uiState.videos.isNotEmpty() || uiState.linkPreviews.isNotEmpty()) {
                     val attachmentListState = rememberLazyListState()
                     val layoutDirection = LocalLayoutDirection.current
                     val attachmentFlingBehavior = ScrollableDefaults.flingBehavior()
@@ -305,6 +305,9 @@ internal fun PostItem(
                     ) {
                         items(horizontalScrollImages) { image ->
                             PostImageCard(image = image)
+                        }
+                        items(uiState.videos) { video ->
+                            PostVideoCard(video = video)
                         }
                         items(uiState.linkPreviews) { preview ->
                             LinkPreviewCard(

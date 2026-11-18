@@ -62,6 +62,10 @@ fragment ProfilePostFields on ProfilePost {
         thumbnailUrl
         description
     }
+    videos {
+        url
+        description
+    }
     emojis {
         name
         imageUrl

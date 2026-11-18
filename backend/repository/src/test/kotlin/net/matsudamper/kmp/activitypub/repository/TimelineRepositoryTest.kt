@@ -76,7 +76,7 @@ class TimelineRepositoryTest {
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.followingRepository.add(alice, ACTOR, NOW)
-        val original = note("1", "public", setOf()).copy(images = listOf(TimelinePostImage.Remote("https://remote.example/a.png", null)))
+        val original = note("1", "public", setOf()).copy(images = listOf(TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null, mediaKind = RemoteMediaKind.Image)))
         assertTrue(repository.reviseRemote(original.copy(contentHtml = "<p>未保存</p>", editedAt = NOW.plusSeconds(10))).isEmpty())
         val saved = assertNotNull(repository.receive(original))
         assertNull(repository.hydrate(alice, listOf(saved.member)).single().editedAt)
@@ -104,7 +104,12 @@ class TimelineRepositoryTest {
             ),
             newestFirst.map { Triple(it.contentHtml, it.summary, it.revisedAt) },
         )
-        assertEquals(listOf(listOf(), listOf(), listOf<TimelinePostImage>(TimelinePostImage.Remote("https://remote.example/a.png", null))), newestFirst.map { it.images })
+        assertEquals(
+            listOf(listOf(), listOf(), listOf<TimelinePostImage>(TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null, mediaKind = RemoteMediaKind.Image))),
+            newestFirst.map {
+                it.images
+            },
+        )
         assertEquals(PostRevisionPosition.Current, newestFirst.first().position)
         // 続きは前のページの最後の版より古いものだけ
         assertEquals(newestFirst.take(2), repository.revisions(alice, saved.member, null, 2))
@@ -258,13 +263,13 @@ class TimelineRepositoryTest {
     }
 
     @Test
-    fun receivedImagesAreReturnedInOrderWithTheirPost() = withRepository { repositories, accounts ->
+    fun receivedImagesAndVideosAreReturnedInOrderWithTheirPost() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
         repositories.followingRepository.add(alice, ACTOR, NOW)
         val images = listOf(
-            TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明"),
-            TimelinePostImage.Remote(url = "https://remote.example/b.png", description = null),
+            TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明", mediaKind = RemoteMediaKind.Image),
+            TimelinePostImage.Remote(url = "https://remote.example/b.mp4", description = null, mediaKind = RemoteMediaKind.Video),
         )
         val withImages = assertNotNull(repository.receive(note("with-images", "public", setOf()).copy(images = images)))
         val withoutImages = assertNotNull(repository.receive(note("without-images", "public", setOf())))

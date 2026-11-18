@@ -27,6 +27,7 @@ data class UserPostBody(
     val linkUrls: List<String>,
     val mentions: List<UserPostMention>,
     val images: List<UserPostImage>,
+    val videos: List<UserPostVideo>,
     val favouriteCount: Int?,
     val boostCount: Int?,
     val replyCount: Int,

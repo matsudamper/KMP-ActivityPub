@@ -63,6 +63,7 @@ private fun TimelinePost.toQlTimelinePost(
         linkUrls = body.linkUrls,
         mentions = body.mentions,
         images = body.images,
+        videos = body.videos,
         emojis = createQlPostEmojis(noteRef = noteRef, contentHtml = contentHtml, remoteEmojis = emojis, diContainer = diContainer),
         // ブーストとして載せた投稿は他のアカウントの投稿のこともあり、ブーストされた元の投稿を消したり固定したりする場所ではない
         deletableNoteId = if (boostedBy == null) localPublicId else null,

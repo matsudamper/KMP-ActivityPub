@@ -10,6 +10,7 @@ import net.matsudamper.kmp.activitypub.repository.PostRevision
 import net.matsudamper.kmp.activitypub.repository.PostRevisionPosition
 import net.matsudamper.kmp.activitypub.repository.PublishedNotePosition
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
+import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
@@ -724,13 +725,19 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     private fun remoteImages(dsl: DSLContext, remoteIds: List<Long>): Map<String, List<TimelinePostImage>> {
         if (remoteIds.isEmpty()) return mapOf()
-        return dsl.select(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, REMOTE_NOTE_IMAGES.URL, REMOTE_NOTE_IMAGES.DESCRIPTION)
+        return dsl.select(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, REMOTE_NOTE_IMAGES.URL, REMOTE_NOTE_IMAGES.DESCRIPTION, REMOTE_NOTE_IMAGES.MEDIA_KIND)
             .from(REMOTE_NOTE_IMAGES).where(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID.`in`(remoteIds))
             .orderBy(REMOTE_NOTE_IMAGES.REMOTE_NOTE_ID, REMOTE_NOTE_IMAGES.POSITION)
             .fetch()
             .groupBy(
                 keySelector = { "r${it.value1()}" },
-                valueTransform = { TimelinePostImage.Remote(url = checkNotNull(it.value2()), description = it.value3()) },
+                valueTransform = {
+                    TimelinePostImage.Remote(
+                        url = checkNotNull(it.value2()),
+                        description = it.value3(),
+                        mediaKind = RemoteMediaKind.fromStoredValue(checkNotNull(it.value4())),
+                    )
+                },
             )
     }
 
@@ -782,6 +789,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .set(REMOTE_NOTE_IMAGES.POSITION, index.toLong())
                 .set(REMOTE_NOTE_IMAGES.URL, image.url)
                 .set(REMOTE_NOTE_IMAGES.DESCRIPTION, image.description)
+                .set(REMOTE_NOTE_IMAGES.MEDIA_KIND, image.mediaKind.storedValue)
                 .execute()
         }
     }
@@ -803,6 +811,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 .set(REMOTE_NOTE_REVISION_IMAGES.POSITION, index.toLong())
                 .set(REMOTE_NOTE_REVISION_IMAGES.URL, image.url)
                 .set(REMOTE_NOTE_REVISION_IMAGES.DESCRIPTION, image.description)
+                .set(REMOTE_NOTE_REVISION_IMAGES.MEDIA_KIND, image.mediaKind.storedValue)
                 .execute()
         }
     }
@@ -825,14 +834,20 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .limit(limit)
             .fetch()
         val revisionIds = revisions.map { it.value1() }
-        val imagesByRevision = dsl.select(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.URL, REMOTE_NOTE_REVISION_IMAGES.DESCRIPTION)
+        val imagesByRevision = dsl.select(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.URL, REMOTE_NOTE_REVISION_IMAGES.DESCRIPTION, REMOTE_NOTE_REVISION_IMAGES.MEDIA_KIND)
             .from(REMOTE_NOTE_REVISION_IMAGES)
             .where(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID.`in`(revisionIds))
             .orderBy(REMOTE_NOTE_REVISION_IMAGES.REVISION_ID, REMOTE_NOTE_REVISION_IMAGES.POSITION)
             .fetch()
             .groupBy(
                 keySelector = { it.value1() },
-                valueTransform = { TimelinePostImage.Remote(url = checkNotNull(it.value2()), description = it.value3()) },
+                valueTransform = {
+                    TimelinePostImage.Remote(
+                        url = checkNotNull(it.value2()),
+                        description = it.value3(),
+                        mediaKind = RemoteMediaKind.fromStoredValue(checkNotNull(it.value4())),
+                    )
+                },
             )
         return revisions.map { record ->
             PostRevision(
