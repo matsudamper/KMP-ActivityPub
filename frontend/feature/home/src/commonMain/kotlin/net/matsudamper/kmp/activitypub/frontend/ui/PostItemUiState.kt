@@ -231,7 +231,8 @@ data class PostItemUiState(
     )
 
     /**
-     * サムネイルは相手のサーバーから来ないので、開くまで中身は出さない
+     * サムネイルは相手のサーバーから来ないので使わない。1 コマ目を動画から取って出せるプラットフォームでは、
+     * firstFrameVisible のとき再生を押す前から 1 コマ目を出す
      *
      * @param url 開いたときに再生する動画の URL
      * @param description 動画の説明文。無ければ null
