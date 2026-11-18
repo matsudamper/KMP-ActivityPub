@@ -265,6 +265,7 @@ internal class PostScreenViewModel(
         val state = viewModelStateFlow.value
         savedStateHandle[BODY_KEY] = ""
         savedStateHandle[CONTENT_WARNING_KEY] = null
+        savedStateHandle[SENSITIVE_KEY] = false
         savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
         savedStateHandle[EDITING_NOTE_ID_KEY] = noteId
         savedStateHandle.remove<String>(EDITING_ORIGINAL_BODY_KEY)
@@ -274,6 +275,7 @@ internal class PostScreenViewModel(
             it.copy(
                 body = "",
                 contentWarning = null,
+                sensitive = false,
                 images = listOf(),
                 quote = null,
                 replyTarget = null,
