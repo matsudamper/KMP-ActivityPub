@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -26,7 +27,8 @@ internal actual fun VideoFirstFrame(
     modifier: Modifier,
 ) {
     val density = LocalDensity.current.density
-    val container = remember(videoUrl) { createFirstFrameContainer(videoUrl) }
+    val video = remember(videoUrl) { createFirstFrameVideo(videoUrl) }
+    val container = remember(video) { createFirstFrameContainer(video) }
     DisposableEffect(container) {
         document.body?.appendChild(container)
         onDispose { container.remove() }
@@ -35,26 +37,41 @@ internal actual fun VideoFirstFrame(
         modifier = modifier
             .drawBehind { drawRect(Color.Transparent, blendMode = BlendMode.Clear) }
             .onGloballyPositioned { coordinates ->
+                // 親に切り取られて見えない部分まで置くと、隣の動画の穴からその部分が見えてしまう。
+                // 入れ物は見えている範囲だけにし、動画は入れ物の中でずらして全体の大きさで置く
                 val position = coordinates.positionInWindow()
-                container.style.display = "block"
-                container.style.left = "${position.x / density}px"
-                container.style.top = "${position.y / density}px"
-                container.style.width = "${coordinates.size.width / density}px"
-                container.style.height = "${coordinates.size.height / density}px"
+                val visible = coordinates.boundsInWindow()
+                if (visible.isEmpty) {
+                    container.style.display = "none"
+                } else {
+                    container.style.display = "block"
+                    container.style.left = "${visible.left / density}px"
+                    container.style.top = "${visible.top / density}px"
+                    container.style.width = "${visible.width / density}px"
+                    container.style.height = "${visible.height / density}px"
+                    video.style.left = "${(position.x - visible.left) / density}px"
+                    video.style.top = "${(position.y - visible.top) / density}px"
+                    video.style.width = "${coordinates.size.width / density}px"
+                    video.style.height = "${coordinates.size.height / density}px"
+                }
             },
     )
 }
 
-private fun createFirstFrameContainer(videoUrl: String): HTMLDivElement {
-    val container = document.createElement("div") as HTMLDivElement
-    container.style.cssText = "position:fixed;display:none;pointer-events:none;z-index:-1;overflow:hidden;border-radius:12px;background:#000;"
+private fun createFirstFrameVideo(videoUrl: String): HTMLVideoElement {
     val video = document.createElement("video") as HTMLVideoElement
     // #t で 1 コマ目より少し先を指すと、再生しなくてもそのコマが描かれる
     video.src = "$videoUrl#t=0.1"
     video.muted = true
     video.preload = "metadata"
     video.setAttribute("playsinline", "")
-    video.style.cssText = "width:100%;height:100%;object-fit:cover;"
+    video.style.cssText = "position:absolute;object-fit:cover;background:#000;"
+    return video
+}
+
+private fun createFirstFrameContainer(video: HTMLVideoElement): HTMLDivElement {
+    val container = document.createElement("div") as HTMLDivElement
+    container.style.cssText = "position:fixed;display:none;pointer-events:none;z-index:-1;overflow:hidden;"
     container.appendChild(video)
     return container
 }
