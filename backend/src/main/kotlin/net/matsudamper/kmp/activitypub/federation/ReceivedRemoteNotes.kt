@@ -192,8 +192,8 @@ private fun ReceivedNote.contentWithoutQuoteFallback(): String {
 internal fun ReceivedNoteAttachment.toRemoteMedia(): TimelinePostImage.Remote? {
     val mediaKind =
         when {
-            mediaType?.startsWith("image/") == true -> RemoteMediaKind.Image
-            mediaType?.startsWith("video/") == true -> RemoteMediaKind.Video
+            mediaType?.startsWith("image/", ignoreCase = true) == true -> RemoteMediaKind.Image
+            mediaType?.startsWith("video/", ignoreCase = true) == true -> RemoteMediaKind.Video
             else -> return null
         }
     return TimelinePostImage.Remote(

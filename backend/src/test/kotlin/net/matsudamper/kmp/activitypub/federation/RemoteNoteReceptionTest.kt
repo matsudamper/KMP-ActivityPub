@@ -258,6 +258,7 @@ class RemoteNoteReceptionTest {
             ReceivedNoteAttachment(url = "https://remote.example/c", mediaType = null, name = null),
             ReceivedNoteAttachment(url = "https://remote.example/e.mp3", mediaType = "audio/mpeg", name = null),
             ReceivedNoteAttachment(url = "https://remote.example/d.webp", mediaType = "image/webp", name = null),
+            ReceivedNoteAttachment(url = "https://remote.example/f.webm", mediaType = "VIDEO/webm", name = null),
         )
         fixture.receiver.save(note(listOf()).copy(attachments = attachments))
         assertEquals(
@@ -265,6 +266,7 @@ class RemoteNoteReceptionTest {
                 TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明", mediaKind = RemoteMediaKind.Image),
                 TimelinePostImage.Remote(url = "https://remote.example/b.mp4", description = null, mediaKind = RemoteMediaKind.Video),
                 TimelinePostImage.Remote(url = "https://remote.example/d.webp", description = null, mediaKind = RemoteMediaKind.Image),
+                TimelinePostImage.Remote(url = "https://remote.example/f.webm", description = null, mediaKind = RemoteMediaKind.Video),
             ),
             fixture.repositories.timelineRepository.received.single().images,
         )
