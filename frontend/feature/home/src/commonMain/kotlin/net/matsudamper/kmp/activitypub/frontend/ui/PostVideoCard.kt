@@ -49,7 +49,9 @@ internal fun PostVideoCard(
                 faviconUrl = null,
                 modifier = Modifier.alpha(0f),
             )
-            VideoFirstFrame(videoUrl = video.url, modifier = Modifier.matchParentSize())
+            if (video.firstFrameVisible) {
+                VideoFirstFrame(videoUrl = video.url, modifier = Modifier.matchParentSize())
+            }
             Surface(
                 modifier = Modifier.align(Alignment.Center).size(48.dp),
                 shape = CircleShape,

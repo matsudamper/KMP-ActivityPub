@@ -1168,7 +1168,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             ),
         ),
         videos = listOf(
-            PostItemUiState.Video(url = "https://example.com/movie.mp4", description = "動画の説明"),
+            PostItemUiState.Video(url = "https://example.com/movie.mp4", description = "動画の説明", firstFrameVisible = true),
         ),
         replyCountText = "123",
         replyListener = null,

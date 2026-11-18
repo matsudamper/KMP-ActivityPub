@@ -235,10 +235,12 @@ data class PostItemUiState(
      *
      * @param url 開いたときに再生する動画の URL
      * @param description 動画の説明文。無ければ null
+     * @param firstFrameVisible 閲覧注意の画像をぼかす設定のとき、閲覧注意の投稿では false にして中身を出さない
      */
     data class Video(
         val url: String,
         val description: String?,
+        val firstFrameVisible: Boolean,
     )
 
     @Immutable
