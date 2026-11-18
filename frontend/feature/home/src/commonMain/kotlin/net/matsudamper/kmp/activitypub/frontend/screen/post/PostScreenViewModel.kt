@@ -38,7 +38,7 @@ internal class PostScreenViewModel(
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
-                body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                body = savedStateHandle.get<String>(BODY_KEY) ?: initialBody(),
                 images = listOf(),
                 loadingImage = false,
                 submitting = false,
@@ -46,7 +46,7 @@ internal class PostScreenViewModel(
                 emojiPickerRequestKey = null,
                 bodyInsertion = null,
                 quote = when (target) {
-                    PostScreenTarget.NewNote, is PostScreenTarget.Reply -> null
+                    PostScreenTarget.NewNote, is PostScreenTarget.Reply, is PostScreenTarget.Mention -> null
                     is PostScreenTarget.Quote -> QuoteLoad.Loading
                 },
                 replyTarget = initialReplyToPostId()?.let { postId -> ReplyTarget(postId = postId, load = QuoteLoad.Loading) },
@@ -163,6 +163,12 @@ internal class PostScreenViewModel(
         val replyTarget = viewModelStateFlow.value.replyTarget
         if (replyTarget != null) loadReplyTarget(replyTarget.postId)
     }
+
+    private fun initialBody(): String =
+        when (target) {
+            is PostScreenTarget.Mention -> "@${target.acct} "
+            PostScreenTarget.NewNote, is PostScreenTarget.Quote, is PostScreenTarget.Reply -> ""
+        }
 
     /**
      * 外した後に画面が作り直されても、開いたときの返信先に戻さない

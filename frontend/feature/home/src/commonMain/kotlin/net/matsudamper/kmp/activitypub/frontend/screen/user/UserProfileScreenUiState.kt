@@ -38,7 +38,6 @@ data class UserProfileScreenUiState(
      */
     val blockMenuItemsVisible: Boolean,
     val postFabVisible: Boolean,
-    val postPanelVisible: Boolean,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -125,9 +124,5 @@ data class UserProfileScreenUiState(
         fun onClickRetryLoadMore()
 
         fun onClickPostFab()
-
-        fun onPostPanelFinished()
-
-        fun onReplyOpenedInPostPanel()
     }
 }

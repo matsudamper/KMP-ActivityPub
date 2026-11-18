@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -143,11 +142,9 @@ private fun UserProfileContentPreview() {
                     sensitiveImagesBlurred = true,
                     blockMenuItemsVisible = true,
                     postFabVisible = true,
-                    postPanelVisible = false,
                     listener = AndroidPreviewUserProfileListener,
                 ),
                 snackbarHostState = SnackbarHostState(),
-                postPanel = {},
             )
         }
     }
@@ -229,7 +226,6 @@ private fun UserProfileContentLikesPreview() {
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
         )
     }
 }
@@ -241,23 +237,6 @@ private fun UserProfileContentLocalUserPreview() {
         UserProfileContent(
             uiState = LocalUserUiState,
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun UserProfileContentPostPanelPreview() {
-    MaterialTheme {
-        UserProfileContent(
-            uiState = LocalUserUiState.copy(postFabVisible = false, postPanelVisible = true),
-            snackbarHostState = SnackbarHostState(),
-            postPanel = {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("投稿の入力")
-                }
-            },
         )
     }
 }
@@ -274,7 +253,6 @@ private fun UserProfileDialogPreview() {
                 UserProfileContent(
                     uiState = LocalUserUiState,
                     snackbarHostState = SnackbarHostState(),
-                    postPanel = {},
                 )
             }
         }
@@ -322,11 +300,9 @@ private fun UserProfileContentMediaPreview() {
                 sensitiveImagesBlurred = true,
                 blockMenuItemsVisible = true,
                 postFabVisible = true,
-                postPanelVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
         )
     }
 }
@@ -347,7 +323,6 @@ private fun UserProfileContentPostsLoadingPreview() {
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
         )
     }
 }
@@ -364,7 +339,6 @@ private fun UserProfileContentLoadMoreErrorPreview() {
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
         )
     }
 }
@@ -384,12 +358,10 @@ private fun UserProfileContentNotFoundPreview() {
                 openOriginalMenuItemVisible = false,
                 sensitiveImagesBlurred = true,
                 blockMenuItemsVisible = false,
-                postFabVisible = true,
-                postPanelVisible = false,
+                postFabVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
         )
     }
 }
@@ -408,7 +380,6 @@ private fun UserProfileBlockDialogPreview() {
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
         )
     }
 }
@@ -427,7 +398,6 @@ private fun UserProfileBlockServerDialogPreview() {
                 ),
             ),
             snackbarHostState = SnackbarHostState(),
-            postPanel = {},
         )
     }
 }
@@ -489,7 +459,6 @@ private val LocalUserUiState = UserProfileScreenUiState(
     sensitiveImagesBlurred = true,
     blockMenuItemsVisible = false,
     postFabVisible = true,
-    postPanelVisible = false,
     listener = AndroidPreviewUserProfileListener,
 )
 
@@ -513,10 +482,6 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickSensitiveImagesVisibility() = Unit
 
     override fun onClickPostFab() = Unit
-
-    override fun onPostPanelFinished() = Unit
-
-    override fun onReplyOpenedInPostPanel() = Unit
 }
 
 private object AndroidPreviewMediaListener : ProfileMediaUiState.Listener {

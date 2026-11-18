@@ -5,16 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -35,7 +30,6 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,10 +57,6 @@ import coil3.compose.AsyncImage
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.home.SensitiveImagesVisibilityButton
-import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContentWithImageInput
-import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
-import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenTarget
-import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
@@ -102,15 +92,7 @@ internal fun UserProfileScreen(
     val urlSharer = rememberUrlSharer(
         onCopiedToClipboard = { coroutineScope.launch { snackbarHostState.showSnackbar(URL_COPIED_MESSAGE) } },
     )
-    // 投稿の知らせはプロフィールの下に出す。投稿の入力は閉じていることがある
-    val postUiState = rememberPostScreenUiState(
-        target = PostScreenTarget.NewNote,
-        onNavigateBack = uiState.listener::onPostPanelFinished,
-        onClose = uiState.listener::onPostPanelFinished,
-        snackbarHostState = snackbarHostState,
-    )
-    val postPanelSnackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler, postUiState.listener) {
+    LaunchedEffect(viewModel.eventHandler, navigator, uriHandler) {
         viewModel.eventHandler.collect(object : UserProfileScreenViewModel.Event {
             override fun closeToHome() {
                 navigator.closeToHome()
@@ -140,9 +122,12 @@ internal fun UserProfileScreen(
                 navigator.navigate(Screen.QuotePost(postId = postId))
             }
 
-            override fun openReply(postId: String) {
-                postUiState.listener.onReplyRequested(postId)
-                uiState.listener.onReplyOpenedInPostPanel()
+            override fun navigateToReplyPost(postId: String) {
+                navigator.navigate(Screen.ReplyPost(postId = postId))
+            }
+
+            override fun navigateToMentionPost(acct: String) {
+                navigator.navigate(Screen.MentionPost(acct = acct))
             }
 
             override fun navigateToUserProfile(username: String) {
@@ -150,27 +135,13 @@ internal fun UserProfileScreen(
             }
         })
     }
-    UserProfileContent(
-        uiState = uiState,
-        snackbarHostState = snackbarHostState,
-        postPanel = {
-            PostContentWithImageInput(
-                uiState = postUiState,
-                navigationIcon = PostNavigationIcon.Close,
-                snackbarHostState = postPanelSnackbarHostState,
-            )
-        },
-    )
+    UserProfileContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
-/**
- * @param postPanel 投稿の入力は別の ViewModel で動くので、外から差し込む
- */
 @Composable
 internal fun UserProfileContent(
     uiState: UserProfileScreenUiState,
     snackbarHostState: SnackbarHostState,
-    postPanel: @Composable () -> Unit,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -208,7 +179,7 @@ internal fun UserProfileContent(
                     onClick = uiState.listener::onClickPostFab,
                     shape = CircleShape,
                 ) {
-                    Icon(imageVector = AppIcons.Edit, contentDescription = "投稿")
+                    Icon(imageVector = AppIcons.Edit, contentDescription = "このユーザー宛てに投稿")
                 }
             }
         },
@@ -318,9 +289,6 @@ internal fun UserProfileContent(
                     }
                 }
             }
-            if (uiState.postPanelVisible) {
-                PostPanelFrame(modifier = Modifier.align(Alignment.BottomEnd), content = postPanel)
-            }
         }
     }
     val deleteNoteDialog = uiState.deleteNoteDialog
@@ -342,29 +310,6 @@ internal fun UserProfileContent(
     val blockDialog = uiState.blockDialog
     if (blockDialog != null) {
         BlockDialog(uiState = blockDialog)
-    }
-}
-
-/**
- * 返信ボタンを押せるよう、プロフィールを覆わずに重ねる
- */
-@Composable
-private fun PostPanelFrame(
-    modifier: Modifier,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        modifier = modifier
-            .padding(16.dp)
-            .widthIn(max = POST_PANEL_MAX_WIDTH)
-            .fillMaxWidth()
-            .fillMaxHeight(POST_PANEL_HEIGHT_FRACTION)
-            // 画面の下に置くので、投稿の入力の上端にステータスバーの余白を取らせない
-            .consumeWindowInsets(WindowInsets.safeDrawing),
-        shape = MaterialTheme.shapes.large,
-        shadowElevation = 8.dp,
-    ) {
-        content()
     }
 }
 
@@ -534,5 +479,3 @@ private fun ProfileHeader(
 }
 
 private const val LOAD_MORE_THRESHOLD = 5
-private val POST_PANEL_MAX_WIDTH = 480.dp
-private const val POST_PANEL_HEIGHT_FRACTION = 0.6f

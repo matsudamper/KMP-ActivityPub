@@ -15,4 +15,9 @@ internal sealed interface PostScreenTarget {
      * @param postId 返信するホームタイムラインの投稿の id
      */
     data class Reply(val postId: String) : PostScreenTarget
+
+    /**
+     * @param acct 本文の先頭に宛先として入れるユーザーの `username@host`
+     */
+    data class Mention(val acct: String) : PostScreenTarget
 }
