@@ -198,11 +198,6 @@ internal class PostDetailScreenViewModel(
 
     init {
         viewModelScope.launch {
-            // 確かめられなければ、ログインしていないものとしてメンションの入力欄を出さない
-            val loggedIn = api.loginState() == UserLoginStateResult.LoggedIn
-            viewModelStateFlow.update { it.copy(loggedIn = loggedIn) }
-        }
-        viewModelScope.launch {
             postTranslations.stateFlow.collect { translation ->
                 viewModelStateFlow.update { it.copy(translation = translation) }
             }
@@ -227,6 +222,7 @@ internal class PostDetailScreenViewModel(
     }
 
     private fun load() {
+        checkLoginState()
         loadJob?.cancel()
         replyTargetJob?.cancel()
         repliesJob?.cancel()
@@ -261,6 +257,17 @@ internal class PostDetailScreenViewModel(
                 loadReplies(post.post.id)
                 refreshCounts(post.post)
             }
+        }
+    }
+
+    /**
+     * 確かめられなかったときは、ログインしていないものとしてメンションの入力欄を出さない。投稿の読み直しで確かめ直す
+     */
+    private fun checkLoginState() {
+        if (viewModelStateFlow.value.loggedIn) return
+        viewModelScope.launch {
+            val loggedIn = api.loginState() == UserLoginStateResult.LoggedIn
+            viewModelStateFlow.update { it.copy(loggedIn = loggedIn) }
         }
     }
 
