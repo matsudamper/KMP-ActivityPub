@@ -23,6 +23,8 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlReactionInput
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
@@ -69,6 +71,7 @@ import net.matsudamper.kmp.activitypub.logic.CreateFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.CustomEmojiUpload
 import net.matsudamper.kmp.activitypub.logic.DeleteCustomEmojiResult
 import net.matsudamper.kmp.activitypub.logic.DeleteNoteResult
+import net.matsudamper.kmp.activitypub.logic.EditNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
@@ -416,6 +419,16 @@ class UserMutationResolverImpl : UserMutationResolver {
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
+    override fun editNote(
+        userMutation: QlUserMutation,
+        noteId: PublicNoteId,
+        body: String,
+        env: DataFetchingEnvironment,
+    ): CompletionStage<DataFetcherResult<QlEditNoteResult>> {
+        val result = QlEditNoteResult(failure = editNote(noteId = noteId, body = body, env = env))
+        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+    }
+
     override fun updateProfile(
         userMutation: QlUserMutation,
         query: QlUpdateProfileQuery,
@@ -569,6 +582,25 @@ class UserMutationResolverImpl : UserMutationResolver {
             DeleteNoteResult.ImageStorageDisabled -> QlDeleteNoteFailure.INTERNAL_SERVER_ERROR
             DeleteNoteResult.ImageDeleteFailed -> QlDeleteNoteFailure.INTERNAL_SERVER_ERROR
             DeleteNoteResult.AccountNotFound -> QlDeleteNoteFailure.NOT_LOGGED_IN
+        }
+    }
+
+    private fun editNote(
+        noteId: PublicNoteId,
+        body: String,
+        env: DataFetchingEnvironment,
+    ): QlEditNoteFailure? {
+        val diContainer = GraphQlEngine.diContainer(env)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId() ?: return QlEditNoteFailure.NOT_LOGGED_IN
+        // セッションが残っていてもアカウントが消えていることがある
+        val account = diContainer.accountService.account(accountId) ?: return QlEditNoteFailure.NOT_LOGGED_IN
+        val notePostService = diContainer.notePostService ?: return QlEditNoteFailure.FEDERATION_DISABLED
+        return when (notePostService.edit(username = account.username, publicId = noteId, body = body)) {
+            EditNoteResult.Edited -> null
+            EditNoteResult.NotFound -> QlEditNoteFailure.NOT_FOUND
+            EditNoteResult.EmptyBody -> QlEditNoteFailure.EMPTY_BODY
+            EditNoteResult.TooLong -> QlEditNoteFailure.TOO_LONG
+            EditNoteResult.AccountNotFound -> QlEditNoteFailure.NOT_LOGGED_IN
         }
     }
 

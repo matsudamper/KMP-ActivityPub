@@ -214,6 +214,13 @@ internal class PostDetailScreenViewModel(
             }
         }
         viewModelScope.launch {
+            // 編集した投稿を書き換わった本文で出す
+            api.editedNoteIds.collect { noteId ->
+                val loaded = viewModelStateFlow.value.post as? PostState.Loaded
+                if (loaded?.post?.deletableNoteId == noteId) load()
+            }
+        }
+        viewModelScope.launch {
             // ほかの画面で変えたブーストもここで反映する
             api.boostChanges.collect { change ->
                 updateBoosted(reactionPostId = change.reactionPostId, boosted = change.boosted)
@@ -479,6 +486,10 @@ internal class PostDetailScreenViewModel(
                 }
             }
         }
+    }
+
+    private fun navigateToEditPost(noteId: String) {
+        viewModelScope.launch { events.send { it.navigateToEditPost(noteId) } }
     }
 
     private fun confirmNoteDeletion(noteId: String) {
@@ -848,7 +859,7 @@ internal class PostDetailScreenViewModel(
             createOpenOriginalMenuItems(post.body.shareUrl) { url ->
                 viewModelScope.launch { events.send { it.openUrl(url) } }
             } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                createNoteMenuItems(post.deletableNoteId, onClickEdit = ::navigateToEditPost, onClickDelete = ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -890,6 +901,11 @@ internal class PostDetailScreenViewModel(
         fun navigateToQuotePost(postId: String)
 
         fun navigateToReplyPost(postId: String)
+
+        /**
+         * @param noteId 編集する投稿の deletableNoteId
+         */
+        fun navigateToEditPost(noteId: String)
 
         fun navigateToPostRevisions(postId: String)
 

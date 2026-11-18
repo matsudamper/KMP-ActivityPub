@@ -258,7 +258,7 @@ internal class HomeScreenViewModel(
             }
         }
 
-        override fun onReplyOpenedInPostColumn() {
+        override fun onPostColumnTargetChanged() {
             viewModelStateFlow.update { it.copy(openedColumn = HomeScreenUiState.Column.Post) }
         }
 
@@ -494,6 +494,13 @@ internal class HomeScreenViewModel(
         }
         viewModelScope.launch {
             userApi.deletedNoteIds.collect { noteId -> removeDeletedNote(noteId) }
+        }
+        viewModelScope.launch {
+            // タイムラインの行は購読で届く行で差し替わるが、自分の投稿の一覧は読み直す
+            userApi.editedNoteIds.collect {
+                val myPosts = viewModelStateFlow.value.myPosts as? MyPostsState.Loaded
+                if (myPosts != null) loadMyPosts(myPosts.owner)
+            }
         }
         viewModelScope.launch {
             // プロフィール画面や個別投稿画面で変えたブーストもここで反映する
@@ -1581,7 +1588,7 @@ internal class HomeScreenViewModel(
                             menuItems =
                             createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
                                 createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                                createNoteMenuItems(post.deletableNoteId, onClickEdit = ::openEdit, onClickDelete = ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -1703,6 +1710,10 @@ internal class HomeScreenViewModel(
 
     private fun openReply(postId: String) {
         viewModelScope.launch { events.send { it.openReply(postId) } }
+    }
+
+    private fun openEdit(noteId: String) {
+        viewModelScope.launch { events.send { it.openEdit(noteId) } }
     }
 
     private fun loadQuote(postId: String) {
@@ -1908,7 +1919,7 @@ internal class HomeScreenViewModel(
             menuItems =
             createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
                 createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                createNoteMenuItems(post.deletableNoteId, onClickEdit = ::openEdit, onClickDelete = ::confirmNoteDeletion),
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -2045,6 +2056,13 @@ internal class HomeScreenViewModel(
          * 投稿カラムを出せる幅なら投稿カラムで、出せなければ投稿の画面で返信を書く
          */
         fun openReply(postId: String)
+
+        /**
+         * 投稿カラムを出せる幅なら投稿カラムで、出せなければ投稿の画面で自分の投稿を編集する
+         *
+         * @param noteId 編集する投稿の deletableNoteId
+         */
+        fun openEdit(noteId: String)
     }
 
     private companion object {

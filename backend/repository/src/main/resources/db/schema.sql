@@ -103,7 +103,11 @@ CREATE TABLE notes (
     public_id TEXT NOT NULL UNIQUE,
     -- サニタイズ済みの HTML
     content_html TEXT NOT NULL,
+    -- 書いたままの本文。編集の下書きに出す。記録し始める前の投稿は NULL
+    source_text TEXT,
     published_at TEXT NOT NULL,
+    -- 最後に編集した時刻。編集していなければ NULL
+    updated_at TEXT,
     -- 画面が送信ごとに作る ID。応答だけ失われて送り直されても 2 つ目を作らない
     request_id TEXT,
     -- 返信先の投稿の id。返信でなければ NULL
@@ -162,7 +166,7 @@ CREATE UNIQUE INDEX notes_account_id_request_id ON notes (account_id, request_id
 -- 相手の inbox に送る配信。1 行 = 1 宛先への 1 件。送れたら消し、諦めたら failed で残す
 CREATE TABLE delivery_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_actor: プロフィールの Update / delete_note: 投稿の Delete /
+    -- accept_follow: Follow への Accept / create_note: 投稿の Create / update_note: 投稿の Update / update_actor: プロフィールの Update / delete_note: 投稿の Delete /
     -- like / undo_like: 他のサーバーの投稿へのいいねとその取り消し。announce / undo_announce: 他のサーバーの投稿のブーストとその取り消し。
     -- 行の形は種別に依らないので、種別を足しても作り直さずに済む。取りうる値は DeliveryQueueValues が持つ
     kind TEXT NOT NULL,
@@ -170,7 +174,7 @@ CREATE TABLE delivery_queue (
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
     -- accept_follow で、送れたときに成立させるフォローの相手。関係しない種別と、諦めた行では NULL
     remote_actor_id INTEGER,
-    -- create_note で配る投稿。投稿を消したら、まだ送っていない Create も消す。
+    -- create_note / update_note で配る投稿。投稿を消したら、まだ送っていない Create と Update も消す。
     -- 残すと消したはずの投稿が後から届く。関係しない種別では NULL
     note_id INTEGER REFERENCES notes (id) ON DELETE CASCADE,
     inbox TEXT NOT NULL,
