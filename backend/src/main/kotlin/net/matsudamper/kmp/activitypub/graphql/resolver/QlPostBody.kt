@@ -49,7 +49,7 @@ internal fun createQlPostBody(
         linkUrls = if (linkUrlsEnabled) diContainer.linkPreviewService?.links(contentHtml).orEmpty() else listOf(),
         mentions = plainText.mentions.map { QlPostMention(start = it.start, end = it.end, acct = it.acct) },
         images = images.toQlPostImages(diContainer),
-        videos = images.toQlPostVideos(),
+        videos = images.toQlPostVideos(diContainer),
     )
 }
 
@@ -113,15 +113,27 @@ private fun List<TimelinePostImage>.toQlPostImages(diContainer: DiContainer): Li
                     RemoteMediaKind.Video -> null
                 }
 
-            is TimelinePostImage.Local -> diContainer.noteImageUrls?.url(image.publicId)
+            is TimelinePostImage.Local ->
+                if (image.isVideo()) null else diContainer.noteImageUrls?.url(image.publicId)
         }
     url?.let { createQlPostImage(url = it, description = image.description) }
 }
 
 // 動画は video 要素で読むので CORS が無くても再生できる。中継はしない。
 // https のページから http の動画は混在コンテンツで読めないので、https の URL だけを返す
-private fun List<TimelinePostImage>.toQlPostVideos(): List<QlPostVideo> = filterIsInstance<TimelinePostImage.Remote>()
-    .filter { it.mediaKind == RemoteMediaKind.Video }
-    .mapNotNull { video ->
-        video.url.toHttpUrlOrNull()?.takeIf { it.isHttps }?.let { QlPostVideo(url = it.toString(), description = video.description) }
-    }
+private fun List<TimelinePostImage>.toQlPostVideos(diContainer: DiContainer): List<QlPostVideo> = mapNotNull { video ->
+    val url =
+        when (video) {
+            is TimelinePostImage.Remote ->
+                when (video.mediaKind) {
+                    RemoteMediaKind.Image -> null
+                    RemoteMediaKind.Video -> video.url.toHttpUrlOrNull()?.takeIf { it.isHttps }?.toString()
+                }
+
+            is TimelinePostImage.Local ->
+                if (video.isVideo()) diContainer.noteImageUrls?.url(video.publicId) else null
+        }
+    url?.let { QlPostVideo(url = it, description = video.description) }
+}
+
+private fun TimelinePostImage.Local.isVideo(): Boolean = contentType.startsWith("video/")

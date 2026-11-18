@@ -178,13 +178,17 @@ private fun PostContentImagesPreview() {
         PostContent(
             navigationIcon = PostNavigationIcon.Back,
             uiState = previewUiState(
-                images = List(3) {
+                images = List(2) {
                     PostScreenUiState.Image(
-                        preview = { context -> ImageRequest.Builder(context).data(ByteArray(0)).build() },
+                        preview = PostScreenUiState.ImagePreview { context -> ImageRequest.Builder(context).data(ByteArray(0)).build() },
                         removeButtonEnabled = true,
                         listener = AndroidPreviewImageListener,
                     )
-                },
+                } + PostScreenUiState.Image(
+                    preview = PostScreenUiState.VideoPreview(videoUrl = "https://example.com/video.mp4"),
+                    removeButtonEnabled = true,
+                    listener = AndroidPreviewImageListener,
+                ),
                 addImageLoadingVisible = true,
                 quote = null,
                 replyTarget = null,

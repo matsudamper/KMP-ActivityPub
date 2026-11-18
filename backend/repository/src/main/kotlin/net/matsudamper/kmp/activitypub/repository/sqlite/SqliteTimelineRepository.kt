@@ -747,14 +747,20 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
 
     private fun localImages(dsl: DSLContext, localIds: List<Long>): Map<String, List<TimelinePostImage>> {
         if (localIds.isEmpty()) return mapOf()
-        return dsl.select(NOTE_IMAGES.NOTE_ID, NOTE_IMAGES.PUBLIC_ID, NOTE_IMAGES.DESCRIPTION)
+        return dsl.select(NOTE_IMAGES.NOTE_ID, NOTE_IMAGES.PUBLIC_ID, NOTE_IMAGES.DESCRIPTION, NOTE_IMAGES.CONTENT_TYPE)
             .from(NOTE_IMAGES)
             .where(NOTE_IMAGES.NOTE_ID.`in`(localIds))
             .orderBy(NOTE_IMAGES.NOTE_ID, NOTE_IMAGES.POSITION)
             .fetch()
             .groupBy(
                 keySelector = { "l${it.value1()}" },
-                valueTransform = { TimelinePostImage.Local(publicId = NoteImagePublicId(checkNotNull(it.value2())), description = it.value3()) },
+                valueTransform = {
+                    TimelinePostImage.Local(
+                        publicId = NoteImagePublicId(checkNotNull(it.value2())),
+                        description = it.value3(),
+                        contentType = checkNotNull(it.value4()),
+                    )
+                },
             )
     }
 

@@ -22,7 +22,10 @@ import net.matsudamper.kmp.activitypub.frontend.screen.createQuote
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.PickedReaction
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
+import net.matsudamper.kmp.activitypub.frontend.ui.PickedVideo
+import net.matsudamper.kmp.activitypub.frontend.ui.PostAttachment
 import net.matsudamper.kmp.activitypub.frontend.ui.TextInsertion
+import net.matsudamper.kmp.activitypub.frontend.ui.VideoResult
 import net.matsudamper.kmp.activitypub.frontend.ui.WebpImage
 import net.matsudamper.kmp.activitypub.frontend.ui.WebpResult
 import org.koin.core.annotation.InjectedParam
@@ -329,7 +332,7 @@ internal class PostScreenViewModel(
                 error = null,
             )
         }
-        state.images.forEach { it.image.release() }
+        state.images.forEach { it.attachment.release() }
         loadEditableBody(noteId)
     }
 
@@ -457,21 +460,21 @@ internal class PostScreenViewModel(
         if (viewModelStateFlow.value.imageAddable().not()) return
         viewModelStateFlow.update { it.copy(loadingImage = true) }
         viewModelScope.launch {
-            val image =
+            val selected =
                 try {
-                    readImage(file)
+                    readAttachment(file)
                 } finally {
                     viewModelStateFlow.update { it.copy(loadingImage = false) }
                 }
-            if (image == null) return@launch
+            if (selected == null) return@launch
             // 読んでいる間に編集を始めたら、編集では画像を送らないので捨てる
             if (viewModelStateFlow.value.editing != null) {
-                image.release()
+                selected.attachment.release()
                 return@launch
             }
             renewRequestId()
             viewModelStateFlow.update { state ->
-                state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), image = image), error = null)
+                state.copy(images = state.images + selected, error = null)
             }
         }
     }
@@ -481,7 +484,35 @@ internal class PostScreenViewModel(
         renewRequestId()
         val removed = viewModelStateFlow.value.images.filter { it.id == id }
         viewModelStateFlow.update { state -> state.copy(images = state.images.filterNot { it.id == id }, error = null) }
-        removed.forEach { it.image.release() }
+        removed.forEach { it.attachment.release() }
+    }
+
+    private suspend fun readAttachment(file: PickedImageFile): SelectedImage? {
+        val id = Uuid.random().toString()
+        return if (file.video) {
+            readVideo(file)?.let { video -> SelectedImage(id = id, attachment = video, preview = PostScreenUiState.VideoPreview(video.previewUrl)) }
+        } else {
+            readImage(file)?.let { image -> SelectedImage(id = id, attachment = image, preview = PostScreenUiState.ImagePreview(image::previewRequest)) }
+        }
+    }
+
+    /**
+     * 読めないか送れなければメッセージを出して null
+     */
+    private suspend fun readVideo(file: PickedImageFile): PickedVideo? {
+        return when (val video = file.toVideo(maxBytes = MAX_IMAGE_BYTES)) {
+            is VideoResult.Success -> video.video
+
+            VideoResult.TooLarge -> {
+                events.send { it.showMessage("動画が 20MB を超えるため送れません") }
+                null
+            }
+
+            VideoResult.Unreadable -> {
+                events.send { it.showMessage("動画を読み込めませんでした") }
+                null
+            }
+        }
     }
 
     /**
@@ -526,7 +557,7 @@ internal class PostScreenViewModel(
                             body = state.body,
                             requestId = requestId(),
                             contentWarning = state.contentWarning,
-                            images = state.images.map { it.image },
+                            images = state.images.map { it.attachment },
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと返信できない
                             replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
@@ -555,7 +586,7 @@ internal class PostScreenViewModel(
             savedStateHandle[SENSITIVE_KEY] = false
             renewRequestId()
             viewModelStateFlow.update { it.copy(body = "", contentWarning = null, images = listOf(), replyTarget = null, sensitive = false, poll = null) }
-            state.images.forEach { it.image.release() }
+            state.images.forEach { it.attachment.release() }
             events.send { it.navigateBack() }
         }
     }
@@ -586,8 +617,8 @@ internal class PostScreenViewModel(
         when (result) {
             is UserUploadNoteImageResult.Success -> null
             UserUploadNoteImageResult.NotLoggedIn -> "ログインしていません"
-            UserUploadNoteImageResult.TooLarge -> "画像が大きすぎます"
-            UserUploadNoteImageResult.UnsupportedImage -> "送れない形式の画像があります"
+            UserUploadNoteImageResult.TooLarge -> "画像か動画が大きすぎます"
+            UserUploadNoteImageResult.UnsupportedImage -> "送れない形式の画像か動画があります"
             UserUploadNoteImageResult.DescriptionTooLong -> "画像の説明が長すぎます"
             UserUploadNoteImageResult.UnsupportedOperation -> "このサーバーでは画像を投稿できません"
             UserUploadNoteImageResult.InternalServerError -> "サーバーでエラーが起きました。時間をおいてもう一度試してください"
@@ -876,15 +907,14 @@ internal class PostScreenViewModel(
      */
     override fun onCleared() {
         if (viewModelStateFlow.value.submitting) return
-        viewModelStateFlow.value.images.forEach { it.image.release() }
+        viewModelStateFlow.value.images.forEach { it.attachment.release() }
     }
 
     inner class SelectedImage(
         val id: String,
-        val image: WebpImage,
+        val attachment: PostAttachment,
+        val preview: PostScreenUiState.AttachmentPreview,
     ) {
-        val preview: PostScreenUiState.ImagePreview = PostScreenUiState.ImagePreview(image::previewRequest)
-
         /**
          * 状態が変わるたびに作り直すと、画像の部品が毎回描き直される
          */
