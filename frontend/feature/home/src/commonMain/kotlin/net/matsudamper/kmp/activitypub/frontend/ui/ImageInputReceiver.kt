@@ -24,7 +24,7 @@ internal object ImageInputReceivers {
 }
 
 /**
- * 置いている間、[ImageInputArea] にドロップや貼り付けをされた画像を [onReceive] に渡す
+ * 置いている間、[ImageInputArea] にドロップや貼り付けをされた画像や動画を [onReceive] に渡す
  */
 @Composable
 internal fun ImageInputReceiver(onReceive: (PickedImageFile) -> Unit) {
