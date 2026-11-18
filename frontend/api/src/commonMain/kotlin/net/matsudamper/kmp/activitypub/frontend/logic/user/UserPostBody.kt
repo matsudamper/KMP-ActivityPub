@@ -5,6 +5,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  *
  * @param linkUrls カードにするリンク。OGP は [UserApi.linkPreviews] で別に取る
  * @param linkObjectUrl Link で届いた投稿のリンク先。[linkUrls] のどれかと同じ URL。Link でない投稿は null
+ * @param unknownObjectTypes 投稿本体・添付・タグのうち、サーバーが読み方を知らない ActivityPub の type の名前
  * @param language BCP 47 の言語タグ。このサーバーの投稿と、相手のサーバーが付けていない投稿は null
  * @param mentions [content] に書かれたメンション
  * @param favouriteCount 他のサーバーの投稿は、相手のサーバーの数を取ったことがなければ null
@@ -27,6 +28,7 @@ data class UserPostBody(
     val sensitive: Boolean,
     val linkUrls: List<String>,
     val linkObjectUrl: String?,
+    val unknownObjectTypes: List<String>,
     val mentions: List<UserPostMention>,
     val images: List<UserPostImage>,
     val videos: List<UserPostVideo>,

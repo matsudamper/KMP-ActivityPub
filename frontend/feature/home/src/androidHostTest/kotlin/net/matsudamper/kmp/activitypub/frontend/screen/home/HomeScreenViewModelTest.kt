@@ -623,7 +623,8 @@ class HomeScreenViewModelTest {
     private fun post(id: String, followingGroupId: String?, sortedAt: String): String {
         val groupId = if (followingGroupId == null) "null" else "\"$followingGroupId\""
         return """{"__typename":"TimelinePost","id":"$id","deleted":false,"boostUndone":false,"sortedAt":"$sortedAt","content":"$id","language":null,"publishedAt":"2026-11-01",""" +
-            """"author":${actor("Alice")},"summary":null,"sensitive":false,"linkUrls":[],"linkObjectUrl":null,"mentions":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,""" +
+            """"author":${actor("Alice")},"summary":null,"sensitive":false,"linkUrls":[],"linkObjectUrl":null,"unknownObjectTypes":[],""" +
+            """"mentions":[],"deletableNoteId":null,"pinnableNoteId":null,"pinned":false,""" +
             """"images":[],"videos":[],"emojis":[],"favouriteCount":null,"boostCount":null,"boostedBy":null,"stamps":[],"url":null,"likedByMe":false,""" +
             """"boostedByMe":null,"reactionPostId":"$id","followingGroupId":$groupId,"hasReplyTarget":false,"hasQuoteTarget":false,"edited":false,"replyCount":0,"stampCountsReceived":true}"""
     }

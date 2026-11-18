@@ -53,6 +53,7 @@ fragment ProfilePostFields on ProfilePost {
     pinnableNoteId
     linkUrls
     linkObjectUrl
+    unknownObjectTypes
     mentions {
         start
         end
