@@ -90,6 +90,16 @@ fragment ProfilePostFields on ProfilePost {
     url
     hasQuoteTarget
     edited
+    poll {
+        options {
+            title
+            votesCount
+        }
+        multipleChoice
+        endsAt
+        expired
+        votersCount
+    }
     boostedNoteAuthor {
         username
         host

@@ -265,6 +265,15 @@ internal fun PostItem(
                         overflow = TextOverflow.Clip,
                     )
                 }
+                val poll = uiState.poll
+                if (poll != null) {
+                    PostPoll(
+                        poll = poll,
+                        textStyle = sizes.bodyTextStyle,
+                        secondaryTextStyle = sizes.secondaryTextStyle,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
                 val quote = uiState.quote
                 if (quote != null) {
                     PostQuoteCard(

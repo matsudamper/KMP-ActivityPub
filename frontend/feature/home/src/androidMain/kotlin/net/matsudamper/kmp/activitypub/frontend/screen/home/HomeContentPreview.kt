@@ -223,6 +223,51 @@ private fun TimelineContentWarningItemsPreview() {
 
 @Preview
 @Composable
+private fun TimelinePollItemsPreview() {
+    HomePreviewTheme {
+        Surface {
+            Column {
+                val post = previewTimelinePosts().first().copy(
+                    linkPreviews = listOf(),
+                    images = listOf(),
+                    videos = listOf(),
+                    translateButton = null,
+                )
+                PostItem(
+                    uiState = post.copy(
+                        body = createPostBodyText(content = "好きな言語は？", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+                        poll = PostItemUiState.Poll(
+                            options = listOf(
+                                PostItemUiState.PollOption(title = createTextWithEmojis(text = "Kotlin :kotlin:", emojis = PreviewEmojis), votesText = "75%", ratio = 0.75f),
+                                PostItemUiState.PollOption(title = createTextWithEmojis(text = "Java", emojis = listOf()), votesText = "25%", ratio = 0.25f),
+                            ),
+                            summaryText = "4人が投票 · あと2日",
+                        ),
+                    ),
+                    style = PostItemStyle.Timeline,
+                    shareButtonVisible = true,
+                )
+                PostItem(
+                    uiState = post.copy(
+                        body = createPostBodyText(content = "どれを使っている？", mentions = listOf(), emojis = listOf(), onOpenUrl = {}, onOpenProfile = {}),
+                        poll = PostItemUiState.Poll(
+                            options = listOf(
+                                PostItemUiState.PollOption(title = createTextWithEmojis(text = "Android", emojis = listOf()), votesText = null, ratio = 0f),
+                                PostItemUiState.PollOption(title = createTextWithEmojis(text = "Web", emojis = listOf()), votesText = null, ratio = 0f),
+                            ),
+                            summaryText = "締め切り済み · 複数選択",
+                        ),
+                    ),
+                    style = PostItemStyle.Timeline,
+                    shareButtonVisible = true,
+                )
+            }
+        }
+    }
+}
+
+@Preview
+@Composable
 private fun TimelineReplyItemsPreview() {
     HomePreviewTheme {
         Surface {
@@ -602,6 +647,7 @@ private fun HomeUserContentPreview() {
                             editedLabel = null,
                             linkPreviews = listOf(),
                             images = listOf(),
+                            poll = null,
                             videos = listOf(),
                             replyCountText = null,
                             replyListener = null,
@@ -756,6 +802,7 @@ private fun HomeUserMediaContentPreview() {
                             editedLabel = null,
                             linkPreviews = listOf(),
                             images = listOf(),
+                            poll = null,
                             videos = listOf(),
                             replyCountText = null,
                             replyListener = null,
@@ -1167,6 +1214,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
                 listener = AndroidPreviewImageListener,
             ),
         ),
+        poll = null,
         videos = listOf(
             PostItemUiState.Video(url = "https://example.com/movie.mp4", description = "動画の説明", firstFrameVisible = true),
         ),
@@ -1231,6 +1279,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
                 listener = AndroidPreviewImageListener,
             ),
         ),
+        poll = null,
         videos = listOf(),
         replyCountText = null,
         replyListener = null,
@@ -1274,6 +1323,7 @@ private fun previewColumnsPosts(): List<PostItemUiState> = listOf(
         editedLabel = null,
         linkPreviews = listOf(),
         images = listOf(),
+        poll = null,
         videos = listOf(),
         replyCountText = null,
         replyListener = null,

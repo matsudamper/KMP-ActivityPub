@@ -17,6 +17,7 @@ package net.matsudamper.kmp.activitypub.frontend.logic.user
  * @param viewerReaction ログイン中のアカウントが付けたリアクション。付けていないか、絵文字の無いいいねなら null
  * @param boostedByMe ログイン中のアカウントがブーストしているか。ブーストできない投稿は null
  * @param edited 投稿者が編集した投稿か。編集前の版は [UserApi.postRevisions] で取る
+ * @param poll 投稿に付いた投票。投票でなければ null
  */
 data class UserPostBody(
     val content: String,
@@ -39,12 +40,34 @@ data class UserPostBody(
     val viewerReaction: UserViewerReaction?,
     val boostedByMe: Boolean?,
     val edited: Boolean,
+    val poll: UserPostPoll?,
 ) {
     /**
      * 絵文字の無いいいねを付けているか。いいねとリアクションは同じ投稿に 1 つしか付けられない
      */
     val plainLikedByMe: Boolean get() = likedByMe == true && viewerReaction == null
 }
+
+/**
+ * @param endsAt 締め切り。ISO 8601。相手のサーバーが付けていなければ null
+ * @param expired 締め切りを過ぎているか
+ * @param votersCount 投票した人数。相手のサーバーが出していなければ null
+ */
+data class UserPostPoll(
+    val options: List<UserPostPollOption>,
+    val multipleChoice: Boolean,
+    val endsAt: String?,
+    val expired: Boolean,
+    val votersCount: Int?,
+)
+
+/**
+ * @param votesCount 相手のサーバーが出していなければ null
+ */
+data class UserPostPollOption(
+    val title: String,
+    val votesCount: Int?,
+)
 
 /**
  * @param start [UserPostBody.content] でメンションが始まる位置

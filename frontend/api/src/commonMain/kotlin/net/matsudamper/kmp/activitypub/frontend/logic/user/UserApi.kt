@@ -1418,6 +1418,15 @@ class UserApi(
                 viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
                 boostedByMe = boostedByMe,
                 edited = edited,
+                poll = poll?.let { poll ->
+                    UserPostPoll(
+                        options = poll.options.map { option -> UserPostPollOption(title = option.title, votesCount = option.votesCount) },
+                        multipleChoice = poll.multipleChoice,
+                        endsAt = poll.endsAt,
+                        expired = poll.expired,
+                        votersCount = poll.votersCount,
+                    )
+                },
             ),
             boostedNoteAuthor = boostedNoteAuthor?.let { author ->
                 UserProfileResult.Author(

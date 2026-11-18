@@ -47,6 +47,10 @@ data class PostItemUiState(
     val images: List<Image>,
     val videos: List<Video>,
     /**
+     * 投票でなければ null
+     */
+    val poll: Poll?,
+    /**
      * 1 件も無ければ null で、リプライのアイコンだけを出す
      */
     val replyCountText: String?,
@@ -167,6 +171,25 @@ data class PostItemUiState(
         Boost,
         Favourite,
     }
+
+    /**
+     * @param options 並べた順
+     * @param summaryText 投票した人数や締め切りまでの残りの行
+     */
+    data class Poll(
+        val options: List<PollOption>,
+        val summaryText: String,
+    )
+
+    /**
+     * @param votesText 票の割合。相手のサーバーが票数を出していなければ null
+     * @param ratio 票の割合を表す帯の長さ。0 から 1
+     */
+    data class PollOption(
+        val title: TextWithEmojis,
+        val votesText: String?,
+        val ratio: Float,
+    )
 
     data class MenuItem(
         val label: String,
