@@ -343,9 +343,9 @@ data class HomeScreenUiState(
         fun onPostColumnFinished()
 
         /**
-         * 投稿カラムに返信先を渡したとき。閉じていても返信を書けるようにカラムを開く
+         * 投稿カラムに返信先か編集する投稿を渡したとき。閉じていても書けるようにカラムを開く
          */
-        fun onReplyOpenedInPostColumn()
+        fun onPostColumnTargetChanged()
 
         fun onTabChanged(tab: Tab)
 

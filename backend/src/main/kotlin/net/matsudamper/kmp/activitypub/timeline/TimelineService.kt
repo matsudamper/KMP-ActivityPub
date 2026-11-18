@@ -75,10 +75,11 @@ class TimelineService(
     /**
      * 個別投稿画面で [viewer] が開ける投稿。開ける範囲は [TimelineRepository.viewablePost]
      *
+     * @param viewer ログインしていなければ null
      * @param member [TimelinePosition.member] の値
      * @return [member] が読めないか、開けない投稿なら null
      */
-    fun viewablePost(viewer: AccountId, member: String): TimelinePost? {
+    fun viewablePost(viewer: AccountId?, member: String): TimelinePost? {
         if (!member.matches(TimelineCursor.MEMBER_PATTERN)) return null
         return repository.viewablePost(viewer, member)
     }
@@ -87,7 +88,7 @@ class TimelineService(
      * @param member [TimelinePosition.member] の値
      * @return [viewablePost] で開けない投稿なら null
      */
-    fun contentHtml(viewer: AccountId, member: String): String? {
+    fun contentHtml(viewer: AccountId?, member: String): String? {
         if (!member.matches(TimelineCursor.MEMBER_PATTERN)) return null
         return repository.contentHtml(viewer, member)
     }
@@ -124,9 +125,9 @@ class TimelineService(
     }
 
     /**
-     * このサーバーの投稿に付いたリアクションが増減したことを、投稿者へ知らせる
+     * このサーバーの投稿が編集されたか、付いたリアクションが増減したことを、載せているアカウントへ知らせる
      */
-    fun publishReactionsChanged(notePublicId: PublicNoteId) {
+    fun publishLocalNoteChanged(notePublicId: PublicNoteId) {
         val position = repository.localPosition(notePublicId.value) ?: return
         publishUpdated(listOf(position.member))
     }

@@ -203,6 +203,7 @@ internal class Federation(
                 val position = timelineRepository.localPosition(publicId.value)
                 if (position != null) timeline.enqueue(position)
             },
+            onEdited = timeline::publishLocalNoteChanged,
         )
 
     private val remoteNotes = HttpRemoteNotes(httpClient)

@@ -29,8 +29,8 @@ class Navigator(
             selectHomeTab(Screen.Home.Tab.Timeline)
         } else if (backStack.size > 1) {
             backStack.removeAt(backStack.lastIndex)
-        } else if (backStack.lastOrNull() is Screen.UserProfile) {
-            // URL で直接開くとプロフィールだけが積まれていて、戻る先が無い
+        } else if (backStack.lastOrNull().let { it is Screen.UserProfile || it is Screen.PostDetail }) {
+            // URL で直接開くとプロフィールや投稿だけが積まれていて、戻る先が無い
             replaceAll(Screen.Home.Timeline)
         }
     }
