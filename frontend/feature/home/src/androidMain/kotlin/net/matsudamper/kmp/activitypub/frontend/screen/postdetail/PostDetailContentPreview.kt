@@ -50,7 +50,17 @@ private fun PostDetailContentNotLoggedInPreview() {
     val loadedContent = loadedUiState.content as PostDetailScreenUiState.Content.Loaded
     MaterialTheme {
         PostDetailContent(
-            uiState = loadedUiState.copy(content = loadedContent.copy(mentionBox = null)),
+            uiState = loadedUiState.copy(
+                content = loadedContent.copy(
+                    post = loadedContent.post.copy(
+                        favouriteButton = null,
+                        boostButton = null,
+                        reactionButton = null,
+                        stamps = loadedContent.post.stamps.map { it.copy(listener = null) },
+                    ),
+                    mentionBox = null,
+                ),
+            ),
             snackbarHostState = SnackbarHostState(),
             layout = PostDetailLayout.FullScreen,
         )

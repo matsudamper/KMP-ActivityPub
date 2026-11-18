@@ -664,6 +664,12 @@ internal class PostDetailScreenViewModel(
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
         )
 
+    /**
+     * ログインしていない間は、いいね・リアクション・ブーストを押しても送れないので出さない
+     */
+    private fun UserPostBody.withoutReactionsUnlessLoggedIn(loggedIn: Boolean): UserPostBody =
+        if (loggedIn) this else copy(likedByMe = null, boostedByMe = null)
+
     private fun createUiState(viewModelState: ViewModelState): PostDetailScreenUiState {
         return PostDetailScreenUiState(
             content = when (val post = viewModelState.post) {
@@ -754,7 +760,7 @@ internal class PostDetailScreenViewModel(
             displayName = post.displayName,
             displayNameEmojis = post.displayNameEmojis,
             acct = createAcct(post),
-            body = post.body,
+            body = post.body.withoutReactionsUnlessLoggedIn(viewModelState.loggedIn),
             linkPreviews = listOf(),
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
@@ -819,7 +825,7 @@ internal class PostDetailScreenViewModel(
             displayName = post.displayName,
             displayNameEmojis = post.displayNameEmojis,
             acct = createAcct(post),
-            body = post.body,
+            body = post.body.withoutReactionsUnlessLoggedIn(viewModelState.loggedIn),
             linkPreviews = viewModelState.linkPreviews,
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
