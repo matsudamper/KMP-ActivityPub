@@ -122,13 +122,16 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .fetchOne() ?: return@transaction listOf()
         val id = checkNotNull(stored.get(REMOTE_NOTES.ID))
         val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
-        // 票数が変わっただけの Update は編集時刻が進まないので、編集かどうかを問わず投票は置き換え、表示中の画面にも知らせる
-        val pollChanged = dsl.remoteNotePoll(id) != note.poll
-        if (pollChanged) dsl.replaceRemoteNotePoll(id, note.poll)
-        val membersIfPollChanged = if (pollChanged) members else listOf()
         val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
         // 受け取った時刻では編集の前後を決められないので、編集時刻の付いた編集を、時刻の無い Update では書き換えない
-        if (storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))) return@transaction membersIfPollChanged
+        val staleEdit = storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))
+        // 票数が変わっただけの Update は編集時刻が進まないので、投票は編集の新旧を問わず票数だけでも置き換え、表示中の画面にも知らせる
+        val storedPoll = dsl.remoteNotePoll(id)
+        val revisedPoll = storedPoll.revisedBy(incoming = note.poll, staleEdit = staleEdit)
+        val pollChanged = storedPoll != revisedPoll
+        if (pollChanged) dsl.replaceRemoteNotePoll(id, revisedPoll)
+        val membersIfPollChanged = if (pollChanged) members else listOf()
+        if (staleEdit) return@transaction membersIfPollChanged
         val storedRevision = PostRevision(
             position = PostRevisionPosition.Current,
             contentHtml = checkNotNull(stored.get(REMOTE_NOTES.CONTENT_HTML)),
@@ -896,12 +899,17 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .fetchOne()
             ?: return null
         val id = checkNotNull(stored.value1())
-        // 票数が変わっても編集時刻は進まないので、編集の新旧を問わず取り直した票数にする。
-        // outbox から取った投稿は投票を読まないので、投票が無くても保存済みの投票は消さない
-        if (note.poll != null) dsl.replaceRemoteNotePoll(id, note.poll)
         val storedEditedAt = stored.value2()?.let { StoredInstant.parse(it) }
         val fetchedEditedAt = note.editedAt
-        if (storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))) return id
+        val staleEdit = storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))
+        // 票数が変わっても編集時刻は進まないので、編集の新旧を問わず取り直した票数にする。
+        // outbox から取った投稿は投票を読まないので、投票が無くても保存済みの投票は消さない
+        if (note.poll != null) {
+            val storedPoll = dsl.remoteNotePoll(id)
+            val revisedPoll = storedPoll.revisedBy(incoming = note.poll, staleEdit = staleEdit)
+            if (storedPoll != revisedPoll) dsl.replaceRemoteNotePoll(id, revisedPoll)
+        }
+        if (staleEdit) return id
         if (fetchedEditedAt != null && (storedEditedAt == null || fetchedEditedAt.isAfter(storedEditedAt))) {
             val storedRevision = PostRevision(
                 position = PostRevisionPosition.Current,

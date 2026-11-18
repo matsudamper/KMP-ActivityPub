@@ -149,6 +149,21 @@ internal fun DSLContext.remoteNotePoll(remoteNoteId: Long): PollRecord? {
 }
 
 /**
+ * 届いた投稿で置き換えた後の投票。
+ * 保存済みより古い編集では、選択肢や締め切りを古い版に戻さないよう、選択肢と締め切りが同じときの票数だけを取り込む
+ *
+ * @param staleEdit 届いた投稿が保存済みより古い編集か、編集時刻が無くて新旧を決められない
+ */
+internal fun PollRecord?.revisedBy(incoming: PollRecord?, staleEdit: Boolean): PollRecord? {
+    if (!staleEdit) return incoming
+    if (this == null || incoming == null) return this
+    val sameQuestion = options.map { it.name } == incoming.options.map { it.name } &&
+        multipleChoice == incoming.multipleChoice &&
+        endsAt == incoming.endsAt
+    return if (sameQuestion) incoming else this
+}
+
+/**
  * 他のサーバーの投稿の投票を、届いた投稿の中身で置き換える。投票でなくなっていれば消す
  */
 internal fun DSLContext.replaceRemoteNotePoll(remoteNoteId: Long, poll: PollRecord?) {

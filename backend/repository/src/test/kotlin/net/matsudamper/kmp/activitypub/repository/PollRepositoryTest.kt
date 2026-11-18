@@ -67,6 +67,26 @@ class PollRepositoryTest {
         assertEquals(listOf(), repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = counted)))
     }
 
+    @Test
+    fun staleEditUpdatesOnlyVotesOfSameQuestion() = withRepository { repositories ->
+        val objectUri = "$ACTOR/notes/1"
+        val edited = PollRecord(
+            options = listOf(PollOptionRecord(name = "犬", votesCount = 0), PollOptionRecord(name = "猫", votesCount = 0)),
+            multipleChoice = false,
+            endsAt = ENDS_AT,
+            votersCount = 0,
+        )
+        repositories.timelineRepository.receive(remoteNote(objectUri = objectUri, poll = edited).copy(editedAt = NOW.plusSeconds(10)))
+
+        val olderQuestion = edited.copy(options = listOf(PollOptionRecord(name = "鳥", votesCount = 5)))
+        repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = olderQuestion).copy(editedAt = NOW))
+        assertEquals(mapOf(objectUri to edited), repositories.pollRepository.remotePolls(setOf(objectUri)))
+
+        val counted = edited.copy(options = listOf(PollOptionRecord(name = "犬", votesCount = 2), PollOptionRecord(name = "猫", votesCount = 1)), votersCount = 3)
+        assertEquals(1, repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = counted)).size)
+        assertEquals(mapOf(objectUri to counted), repositories.pollRepository.remotePolls(setOf(objectUri)))
+    }
+
     private fun notePost(multipleChoice: Boolean): NotePost = NotePost(
         username = "alice",
         requestId = "request",
