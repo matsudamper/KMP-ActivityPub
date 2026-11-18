@@ -388,9 +388,8 @@ private fun ContentWarning(
     contentWarning: PostItemUiState.ContentWarning,
     sizes: PostItemSizes,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         EmojiText(
             text = contentWarning.text,
@@ -399,7 +398,6 @@ private fun ContentWarning(
             fontWeight = null,
             maxLines = Int.MAX_VALUE,
             overflow = TextOverflow.Clip,
-            modifier = Modifier.weight(1f),
         )
         OutlinedButton(onClick = contentWarning.listener::onClickToggle) {
             Text(text = contentWarning.toggleButtonText, style = sizes.secondaryTextStyle)
