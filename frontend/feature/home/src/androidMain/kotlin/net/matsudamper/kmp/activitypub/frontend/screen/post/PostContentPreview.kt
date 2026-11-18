@@ -162,6 +162,7 @@ private fun PostContentEditInColumnPreview() {
             navigationIcon = PostNavigationIcon.Close,
             uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null).copy(
                 title = "投稿を編集",
+                contentWarningButtonVisible = false,
                 postButtonText = "更新",
                 editTarget = PostScreenUiState.EditTarget(cancelButtonEnabled = true, listener = AndroidPreviewEditTargetListener),
                 addImageButtonEnabled = false,
@@ -179,6 +180,7 @@ private fun PostContentEditLoadingPreview() {
             navigationIcon = PostNavigationIcon.Close,
             uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null).copy(
                 title = "投稿を編集",
+                contentWarningButtonVisible = false,
                 body = "",
                 bodyLoadingVisible = true,
                 inputEnabled = false,
@@ -222,6 +224,7 @@ private fun previewUiState(
         bodyInsertion = null,
         contentWarningInputVisible = contentWarning != null,
         contentWarning = contentWarning.orEmpty(),
+        contentWarningButtonVisible = true,
         contentWarningButtonChecked = contentWarning != null,
         contentWarningButtonEnabled = true,
         bodyLoadingVisible = false,

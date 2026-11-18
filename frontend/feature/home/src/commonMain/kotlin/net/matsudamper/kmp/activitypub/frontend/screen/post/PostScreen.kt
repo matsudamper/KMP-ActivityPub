@@ -298,20 +298,22 @@ internal fun PostContent(
                         contentDescription = "絵文字を追加",
                     )
                 }
-                IconToggleButton(
-                    checked = uiState.contentWarningButtonChecked,
-                    onCheckedChange = { uiState.listener.onClickContentWarning() },
-                    enabled = uiState.contentWarningButtonEnabled,
-                    colors = IconButtonDefaults.iconToggleButtonColors(
-                        checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    ),
-                ) {
-                    Text(
-                        text = "CW",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                    )
+                if (uiState.contentWarningButtonVisible) {
+                    IconToggleButton(
+                        checked = uiState.contentWarningButtonChecked,
+                        onCheckedChange = { uiState.listener.onClickContentWarning() },
+                        enabled = uiState.contentWarningButtonEnabled,
+                        colors = IconButtonDefaults.iconToggleButtonColors(
+                            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        Text(
+                            text = "CW",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 Button(

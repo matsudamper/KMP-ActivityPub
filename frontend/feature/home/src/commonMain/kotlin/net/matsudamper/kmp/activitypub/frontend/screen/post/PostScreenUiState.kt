@@ -17,6 +17,10 @@ data class PostScreenUiState(
     val bodyInsertion: TextInsertion?,
     val contentWarningInputVisible: Boolean,
     val contentWarning: String,
+    /**
+     * 編集では注意書きを書き換えられないので、編集の間は false になる
+     */
+    val contentWarningButtonVisible: Boolean,
     val contentWarningButtonChecked: Boolean,
     val contentWarningButtonEnabled: Boolean,
     /**

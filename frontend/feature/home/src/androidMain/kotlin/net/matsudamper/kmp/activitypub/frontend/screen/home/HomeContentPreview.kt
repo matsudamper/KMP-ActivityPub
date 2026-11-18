@@ -875,6 +875,7 @@ private fun HomeColumnsPreview(
                             bodyInsertion = null,
                             contentWarningInputVisible = false,
                             contentWarning = "",
+                            contentWarningButtonVisible = true,
                             contentWarningButtonChecked = false,
                             contentWarningButtonEnabled = true,
                             bodyLoadingVisible = false,

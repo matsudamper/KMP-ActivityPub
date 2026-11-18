@@ -259,6 +259,7 @@ internal class PostScreenViewModel(
     private fun startEditing(noteId: String) {
         val state = viewModelStateFlow.value
         savedStateHandle[BODY_KEY] = ""
+        savedStateHandle[CONTENT_WARNING_KEY] = null
         savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
         savedStateHandle[EDITING_NOTE_ID_KEY] = noteId
         savedStateHandle.remove<String>(EDITING_ORIGINAL_BODY_KEY)
@@ -267,6 +268,7 @@ internal class PostScreenViewModel(
         viewModelStateFlow.update {
             it.copy(
                 body = "",
+                contentWarning = null,
                 images = listOf(),
                 quote = null,
                 replyTarget = null,
@@ -554,8 +556,9 @@ internal class PostScreenViewModel(
             title = if (viewModelState.editing == null) "投稿" else "投稿を編集",
             body = viewModelState.body,
             bodyInsertion = viewModelState.bodyInsertion,
-            contentWarningInputVisible = viewModelState.contentWarning != null,
+            contentWarningInputVisible = viewModelState.editing == null && viewModelState.contentWarning != null,
             contentWarning = viewModelState.contentWarning.orEmpty(),
+            contentWarningButtonVisible = viewModelState.editing == null,
             contentWarningButtonChecked = viewModelState.contentWarning != null,
             contentWarningButtonEnabled = viewModelState.submitting.not(),
             bodyLoadingVisible = viewModelState.editableBodyLoading(),
@@ -630,7 +633,7 @@ internal class PostScreenViewModel(
      */
     private fun ViewModelState.hasDraft(): Boolean {
         if (editing != null) return editing.originalBody != null && body != editing.originalBody
-        return body.isNotBlank() || images.isNotEmpty() || replyTarget != null
+        return body.isNotBlank() || contentWarning.isNullOrBlank().not() || images.isNotEmpty() || replyTarget != null
     }
 
     /**
