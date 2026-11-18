@@ -156,7 +156,13 @@ private fun PostContentEditLoadingPreview() {
 @Composable
 private fun DiscardDraftDialogPreview() {
     PostPreviewTheme {
-        DiscardDraftDialog(dialog = PostScreenUiState.DiscardDraftDialog(listener = AndroidPreviewDiscardDraftDialogListener))
+        DiscardDraftDialog(
+            dialog = PostScreenUiState.DiscardDraftDialog(
+                message = "書きかけの投稿を破棄して、投稿の編集を始めますか",
+                discardButtonText = "破棄して編集",
+                listener = AndroidPreviewDiscardDraftDialogListener,
+            ),
+        )
     }
 }
 

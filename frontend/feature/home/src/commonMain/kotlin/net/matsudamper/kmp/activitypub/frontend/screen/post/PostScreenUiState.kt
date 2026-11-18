@@ -44,7 +44,7 @@ data class PostScreenUiState(
      */
     val editTarget: EditTarget?,
     /**
-     * 書きかけの投稿を消して編集を始めてよいか確かめる。確かめていなければ null
+     * 書きかけの投稿を消して編集や返信を始めてよいか確かめる。確かめていなければ null
      */
     val discardDraftDialog: DiscardDraftDialog?,
     val addImageButtonEnabled: Boolean,
@@ -87,6 +87,8 @@ data class PostScreenUiState(
     }
 
     data class DiscardDraftDialog(
+        val message: String,
+        val discardButtonText: String,
         val listener: DiscardDraftDialogListener,
     )
 

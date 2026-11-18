@@ -141,17 +141,17 @@ internal fun PostContentWithImageInput(
 }
 
 /**
- * 投稿カラムで書きかけの投稿があるときに、編集を始める前に確かめる
+ * 投稿カラムで書きかけの投稿があるときに、編集や返信を始める前に確かめる
  */
 @Composable
 internal fun DiscardDraftDialog(dialog: PostScreenUiState.DiscardDraftDialog) {
     AlertDialog(
         onDismissRequest = dialog.listener::onDismiss,
         title = { Text("書きかけの投稿を破棄") },
-        text = { Text("書きかけの投稿を破棄して、投稿の編集を始めますか") },
+        text = { Text(dialog.message) },
         confirmButton = {
             TextButton(onClick = dialog.listener::onClickDiscard) {
-                Text("破棄して編集")
+                Text(dialog.discardButtonText)
             }
         },
         dismissButton = {

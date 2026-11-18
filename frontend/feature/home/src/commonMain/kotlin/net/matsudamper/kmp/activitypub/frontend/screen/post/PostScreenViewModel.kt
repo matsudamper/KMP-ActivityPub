@@ -54,7 +54,7 @@ internal class PostScreenViewModel(
                 editing = initialEditingNoteId()?.let { noteId ->
                     Editing(noteId = noteId, originalBody = savedStateHandle.get<String>(EDITING_ORIGINAL_BODY_KEY))
                 },
-                discardConfirmationNoteId = null,
+                discardConfirmation = null,
             ),
         )
     private var replyTargetJob: Job? = null
@@ -71,12 +71,14 @@ internal class PostScreenViewModel(
     private val discardDraftDialogListener =
         object : PostScreenUiState.DiscardDraftDialogListener {
             override fun onClickDiscard() {
-                val noteId = viewModelStateFlow.value.discardConfirmationNoteId ?: return
-                startEditing(noteId)
+                when (val confirmation = viewModelStateFlow.value.discardConfirmation ?: return) {
+                    is DiscardConfirmation.Edit -> startEditing(confirmation.noteId)
+                    is DiscardConfirmation.Reply -> startReplyAfterEditing(confirmation.postId)
+                }
             }
 
             override fun onDismiss() {
-                viewModelStateFlow.update { it.copy(discardConfirmationNoteId = null) }
+                viewModelStateFlow.update { it.copy(discardConfirmation = null) }
             }
         }
 
@@ -139,7 +141,7 @@ internal class PostScreenViewModel(
                     override fun onReplyRequested(postId: String) {
                         // 送信中に返信先を替えると、送り終えたときに新しい返信先まで消してしまう
                         if (viewModelStateFlow.value.submitting) return
-                        changeReplyTarget(postId = postId)
+                        requestReply(postId)
                     }
 
                     override fun onEditRequested(noteId: String) {
@@ -215,10 +217,33 @@ internal class PostScreenViewModel(
         if (state.submitting) return
         if (state.editing?.noteId == noteId) return
         if (state.hasDraft()) {
-            viewModelStateFlow.update { it.copy(discardConfirmationNoteId = noteId) }
+            viewModelStateFlow.update { it.copy(discardConfirmation = DiscardConfirmation.Edit(noteId)) }
         } else {
             startEditing(noteId)
         }
+    }
+
+    /**
+     * 編集中に返信を始めると、送信が返信ではなく編集になってしまうので、編集をやめてから返信先を入れる。
+     * 編集中の本文を書き換えていれば、消してよいか確かめる
+     */
+    private fun requestReply(postId: String) {
+        val state = viewModelStateFlow.value
+        if (state.editing == null) {
+            changeReplyTarget(postId = postId)
+            return
+        }
+        if (state.hasDraft()) {
+            viewModelStateFlow.update { it.copy(discardConfirmation = DiscardConfirmation.Reply(postId)) }
+        } else {
+            startReplyAfterEditing(postId)
+        }
+    }
+
+    private fun startReplyAfterEditing(postId: String) {
+        viewModelStateFlow.update { it.copy(discardConfirmation = null) }
+        finishEditing()
+        changeReplyTarget(postId = postId)
     }
 
     private fun startEditing(noteId: String) {
@@ -236,7 +261,7 @@ internal class PostScreenViewModel(
                 quote = null,
                 replyTarget = null,
                 editing = Editing(noteId = noteId, originalBody = null),
-                discardConfirmationNoteId = null,
+                discardConfirmation = null,
                 error = null,
             )
         }
@@ -526,10 +551,20 @@ internal class PostScreenViewModel(
             } else {
                 PostScreenUiState.EditTarget(cancelButtonEnabled = viewModelState.submitting.not(), listener = editTargetListener)
             },
-            discardDraftDialog = if (viewModelState.discardConfirmationNoteId == null) {
-                null
-            } else {
-                PostScreenUiState.DiscardDraftDialog(listener = discardDraftDialogListener)
+            discardDraftDialog = when (viewModelState.discardConfirmation) {
+                null -> null
+
+                is DiscardConfirmation.Edit -> PostScreenUiState.DiscardDraftDialog(
+                    message = "書きかけの投稿を破棄して、投稿の編集を始めますか",
+                    discardButtonText = "破棄して編集",
+                    listener = discardDraftDialogListener,
+                )
+
+                is DiscardConfirmation.Reply -> PostScreenUiState.DiscardDraftDialog(
+                    message = "編集中の本文を破棄して、返信を始めますか",
+                    discardButtonText = "破棄して返信",
+                    listener = discardDraftDialogListener,
+                )
             },
             addImageButtonEnabled = viewModelState.imageAddable(),
             addImageLoadingVisible = viewModelState.loadingImage,
@@ -602,10 +637,25 @@ internal class PostScreenViewModel(
          */
         val editing: Editing?,
         /**
-         * 書きかけの投稿を消して編集を始めてよいか確かめている、編集する投稿の id。確かめていなければ null
+         * 書きかけの投稿を消してよいか確かめている間。確かめていなければ null
          */
-        val discardConfirmationNoteId: String?,
+        val discardConfirmation: DiscardConfirmation?,
     )
+
+    /**
+     * 書きかけの投稿を消してから始めること
+     */
+    private sealed interface DiscardConfirmation {
+        /**
+         * @param noteId 編集する投稿の deletableNoteId
+         */
+        data class Edit(val noteId: String) : DiscardConfirmation
+
+        /**
+         * @param postId 返信するホームタイムラインの投稿の id
+         */
+        data class Reply(val postId: String) : DiscardConfirmation
+    }
 
     /**
      * @param noteId 編集する投稿の deletableNoteId
