@@ -1,3 +1,5 @@
+import com.github.burrunan.s3cache.AwsS3BuildCache
+
 rootProject.name = "kmp-activitypub"
 
 pluginManagement {
@@ -19,6 +21,22 @@ pluginManagement {
 // 評価される時点で catalog のアクセサがまだ無いため
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+    id("com.github.burrunan.s3-build-cache") version "1.9.11"
+}
+
+val remoteBuildCacheAccessKeyId: String? = System.getenv("S3_BUILD_CACHE_ACCESS_KEY_ID")
+buildCache {
+    remote<AwsS3BuildCache> {
+        isEnabled = !remoteBuildCacheAccessKeyId.isNullOrBlank()
+        isPush = System.getenv("CI") == "true"
+        endpoint = "s3.matsudamper.net"
+        forcePathStyle = true
+        region = "us-east-1"
+        bucket = "gradle-remote-cache"
+        prefix = "matsudamper/KMP-ActivityPub/"
+        // 自前の S3 互換サーバーなので AWS 固有のストレージクラスを指定しない
+        isReducedRedundancy = false
+    }
 }
 
 dependencyResolutionManagement {
