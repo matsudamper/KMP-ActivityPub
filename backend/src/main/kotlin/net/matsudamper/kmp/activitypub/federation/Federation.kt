@@ -22,6 +22,7 @@ import net.matsudamper.kmp.activitypub.logic.LocalNoteEmojiObjects
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
+import net.matsudamper.kmp.activitypub.logic.NotificationService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
 import net.matsudamper.kmp.activitypub.logic.ProfileHeaderUrls
@@ -48,11 +49,9 @@ import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
-import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
-import net.matsudamper.kmp.activitypub.timeline.AccountEvents
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.ActorEndpoint
@@ -108,8 +107,7 @@ internal class Federation(
     notePinRepository: NotePinRepository,
     timelineRepository: TimelineRepository,
     timeline: TimelineService,
-    accountEvents: AccountEvents,
-    notificationRepository: NotificationRepository,
+    notificationService: NotificationService,
     remoteActorRepository: RemoteActorRepository,
     favouriteRepository: FavouriteRepository,
     likeRepository: LikeRepository,
@@ -147,10 +145,9 @@ internal class Federation(
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, imageAvailable = imageStorage != null)
     private val webPages = FrontendWebPageUrls(domain)
-    private val receivedNotifications = ReceivedNotifications(notificationRepository, accountEvents)
     private val inboxBlocks = InboxBlocks(accountRepository, noteRepository, blockLists)
-    private val favourites = RecordedFavourites(favouriteRepository, receivedNotifications, inboxBlocks, timeline)
-    private val stamps = RecordedStamps(stampRepository, inboxBlocks, timeline)
+    private val favourites = RecordedFavourites(favouriteRepository, notificationService, inboxBlocks, timeline)
+    private val stamps = RecordedStamps(stampRepository, notificationService, inboxBlocks, timeline)
     private val receivedNotes = ReceivedRemoteNotes(
         timelineRepository,
         remoteActors,
@@ -158,10 +155,11 @@ internal class Federation(
         directory,
         inboxBlocks,
         timeline,
+        notificationService,
         Clock.systemUTC(),
         deleteRemoteNote = { actorUri, objectUri -> boostService.deleteRemoteNote(actorUri, objectUri) },
     )
-    private val boosts = RecordedBoosts(boostRepository, receivedNotes, receivedNotifications, inboxBlocks, timeline, Clock.systemUTC())
+    private val boosts = RecordedBoosts(boostRepository, receivedNotes, notificationService, inboxBlocks, timeline, Clock.systemUTC())
 
     val deliveryQueueWorker: DeliveryQueueWorker =
         DeliveryQueueWorker(
@@ -176,6 +174,7 @@ internal class Federation(
         AccountFollowerStore(
             followerRepository = followerRepository,
             blocks = inboxBlocks,
+            notifications = notificationService,
             onAcceptEnqueued = deliveryQueueWorker::wakeUp,
         )
 
@@ -197,6 +196,7 @@ internal class Federation(
             remoteActors = remoteActorRepository,
             remoteUsers = kotpubRemoteUserLookup,
             deliveryQueueRepository = deliveryQueueRepository,
+            notifications = notificationService,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
             onPosted = { publicId ->
@@ -224,6 +224,7 @@ internal class Federation(
             customEmojis = customEmojiService,
             customEmojiUrls = customEmojiUrls,
             unsavedNotes = unsavedRemoteNotes,
+            notifications = notificationService,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
             onLocalReactionsChanged = { member -> timeline.publishUpdated(listOf(member)) },
@@ -258,6 +259,7 @@ internal class Federation(
             boosts = accountBoostRepository,
             unsavedNotes = unsavedRemoteNotes,
             followerRepository = followerRepository,
+            notifications = notificationService,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
         )

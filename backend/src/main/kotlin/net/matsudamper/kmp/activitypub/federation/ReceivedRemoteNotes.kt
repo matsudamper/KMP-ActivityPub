@@ -5,6 +5,10 @@ import java.time.Clock
 import java.time.Instant
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
+import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
+import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
@@ -20,6 +24,7 @@ import net.matsudamper.kotpub.actor.ActorDirectory
 import net.matsudamper.kotpub.actor.RemoteActorLookup
 import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.boost.BoostStore.ReceivedRemoteBoost
+import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
 import net.matsudamper.kotpub.note.ReceivedNoteAttachment
 import net.matsudamper.kotpub.note.RemoteNoteStore
@@ -33,6 +38,7 @@ internal class ReceivedRemoteNotes(
     private val directory: ActorDirectory,
     private val blocks: InboxBlocks,
     private val timeline: TimelineService,
+    private val notifications: NotificationRecorder,
     private val clock: Clock,
     private val deleteRemoteNote: (actorUri: String, objectUri: String) -> List<String>,
     openTelemetry: OpenTelemetry = OpenTelemetryInitializer.get(),
@@ -110,6 +116,31 @@ internal class ReceivedRemoteNotes(
     }
 
     /**
+     * 宛先だけを指定した投稿 (DM) は、Mention があっても通知しない
+     *
+     * @param recipients 宛先に入っている、このサーバーのアカウントのうちブロックしていないもの
+     */
+    private fun recordMentions(note: ReceivedNote, recipients: Set<String>, now: Instant) {
+        if (note.visibility == NoteVisibility.Direct) return
+        localUsernamesOf(note.mentions).filter { it in recipients }.forEach { username ->
+            notifications.record(
+                NotificationEvent.Mentioned(
+                    mentionedUsername = username,
+                    post = NotificationPostRef.Remote(note.id),
+                    actor = NotificationActorRef.Remote(note.attributedTo),
+                    occurredAt = now,
+                ),
+            )
+        }
+    }
+
+    private fun localUsernamesOf(actorIds: List<String>): List<String> = actorIds.mapNotNull { target ->
+        val uri = runCatching { URI(target) }.getOrNull() ?: return@mapNotNull null
+        val username = uri.path?.substringAfterLast('/') ?: return@mapNotNull null
+        directory.resolve(username)?.takeIf { it.actorId == target }?.username
+    }
+
+    /**
      * @return 記録できなかった理由。記録済みか記録できたら null
      */
     private suspend fun storeActorIfMissing(actorUri: String, now: Instant): String? {
@@ -128,11 +159,7 @@ internal class ReceivedRemoteNotes(
         span.setAttribute(InboxSpan.ACTOR, note.attributedTo)
         span.setAttribute(InboxSpan.SAVED, false)
         span.setAttribute(InboxSpan.OUTCOME, "discarded")
-        val recipients = (note.to + note.cc).mapNotNull { target ->
-            val uri = runCatching { URI(target) }.getOrNull() ?: return@mapNotNull null
-            val username = uri.path?.substringAfterLast('/') ?: return@mapNotNull null
-            directory.resolve(username)?.takeIf { it.actorId == target }?.username
-        }.filterNot { blocks.blocks(it, note.attributedTo) }.toSet()
+        val recipients = localUsernamesOf(note.to + note.cc).filterNot { blocks.blocks(it, note.attributedTo) }.toSet()
         val interest = repository.receptionInterest(note.attributedTo, recipients)
         span.setAttribute(InboxSpan.FOLLOWING_ACCOUNT_COUNT, interest.followingAccountCount)
         span.setAttribute(InboxSpan.LOCAL_RECIPIENT_COUNT, interest.localRecipientCount)
@@ -152,6 +179,7 @@ internal class ReceivedRemoteNotes(
             span.setAttribute(InboxSpan.OUTCOME, "saved")
             span.setAttribute(TimelineSpan.MEMBER, position.member)
             timeline.enqueue(position)
+            recordMentions(note, recipients, now)
         } else {
             val reason = if (repository.hasRemoteNote(note.id)) "duplicate" else "no_eligible_recipient_or_actor"
             span.setAttribute(InboxSpan.DISCARD_REASON, reason)

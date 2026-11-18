@@ -5,11 +5,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.mapNotNull
-import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kmp.activitypub.repository.TimelinePost
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
+import net.matsudamper.kmp.activitypub.shared.NotificationGroupId
 
 /**
  * サーバーは 1 台の前提なので、アカウントに起きた変化はプロセス内だけで購読者へ流す。
@@ -52,8 +52,11 @@ class AccountEvents(
         signals.tryEmit(Signal.Update(recipients.toSet(), member))
     }
 
-    fun publishNotification(notification: ReceivedNotification) {
-        signals.tryEmit(Signal.Notification(notification))
+    /**
+     * @param groupId 相手が加わったか、絵文字が付け直された通知カラムの項目
+     */
+    fun publishNotification(accountId: AccountId, groupId: NotificationGroupId) {
+        signals.tryEmit(Signal.Notification(setOf(accountId), groupId))
     }
 
     /**
@@ -65,13 +68,9 @@ class AccountEvents(
             .mapNotNull { signal ->
                 when (signal) {
                     is Signal.Arrival -> repository.hydrate(accountId, listOf(signal.position.member)).singleOrNull()?.let { AccountEvent.PostArrived(it) }
-
                     is Signal.Deletion -> signal.event
-
                     is Signal.Update -> repository.hydrate(accountId, listOf(signal.member)).singleOrNull()?.let { AccountEvent.PostUpdated(it) }
-
-                    is Signal.Notification -> repository.hydrate(accountId, listOf(signal.notification.noteMember)).singleOrNull()
-                        ?.let { AccountEvent.NotificationArrived(signal.notification, it) }
+                    is Signal.Notification -> AccountEvent.NotificationGroupUpdated(signal.groupId)
                 }
             }
 
@@ -84,9 +83,7 @@ class AccountEvents(
 
         class Update(override val recipients: Set<AccountId>, val member: String) : Signal
 
-        class Notification(val notification: ReceivedNotification) : Signal {
-            override val recipients: Set<AccountId> = setOf(notification.accountId)
-        }
+        class Notification(override val recipients: Set<AccountId>, val groupId: NotificationGroupId) : Signal
     }
 }
 
@@ -105,7 +102,7 @@ sealed interface AccountEvent {
     data class PostUpdated(val post: TimelinePost) : AccountEvent
 
     /**
-     * @param post お気に入りかブーストをされた投稿
+     * 中身は読む側で引く。ブロックの除き方と投稿の読み込みを、通知カラムを読むときと揃えるため
      */
-    data class NotificationArrived(val notification: ReceivedNotification, val post: TimelinePost) : AccountEvent
+    data class NotificationGroupUpdated(val groupId: NotificationGroupId) : AccountEvent
 }

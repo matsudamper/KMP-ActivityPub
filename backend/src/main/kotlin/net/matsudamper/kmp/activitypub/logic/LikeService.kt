@@ -5,6 +5,9 @@ import java.util.UUID
 import net.matsudamper.kmp.activitypub.repository.LikeReaction
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.LikeTarget
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
+import net.matsudamper.kmp.activitypub.repository.NotificationReactionInput
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
@@ -28,6 +31,7 @@ class LikeService(
     private val customEmojis: CustomEmojiService,
     private val customEmojiUrls: CustomEmojiUrls,
     private val unsavedNotes: UnsavedRemoteNotes,
+    private val notifications: NotificationRecorder,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
     private val onLocalReactionsChanged: (member: String) -> Unit,
@@ -96,15 +100,25 @@ class LikeService(
             null -> false
 
             // このサーバーの投稿は配らずに記録だけする
-            LikeTarget.Local -> {
-                likes.likeLocal(accountId, postId, clock.instant(), likeReaction)
+            is LikeTarget.Local -> {
+                val likedAt = clock.instant()
+                if (likes.likeLocal(accountId, postId, likedAt, likeReaction)) {
+                    notifications.record(
+                        NotificationEvent.Favourited(
+                            notePublicId = target.publicId,
+                            reaction = likeReaction?.let { NotificationReactionInput(emoji = it.emoji, emojiImageUrl = null, customEmojiId = it.customEmojiId) },
+                            actor = NotificationActorRef.Local(accountId),
+                            occurredAt = likedAt,
+                        ),
+                    )
+                }
                 false
             }
 
             is LikeTarget.Remote -> likeRemote(accountId = accountId, senderActorId = sender.actorId, postId = postId, target = target, reaction = likeReaction, emoji = reactionEmoji)
         }
         if (enqueuedUndo || enqueuedLike) onEnqueued()
-        if (unlikedLocal || target == LikeTarget.Local) onLocalReactionsChanged(postId)
+        if (unlikedLocal || target is LikeTarget.Local) onLocalReactionsChanged(postId)
         return SetReactionResult.Updated
     }
 

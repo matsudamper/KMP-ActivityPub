@@ -25,8 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import net.matsudamper.kmp.activitypub.frontend.ui.ActorOnlyItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
+import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 
 @Composable
 internal fun NotificationsTabContent(
@@ -113,7 +115,10 @@ private fun LoadedNotifications(
                 }
             }
             items(notifications.items) { item ->
-                PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
+                when (item) {
+                    is TimelineItemUiState.Post -> PostItem(uiState = item.uiState, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
+                    is TimelineItemUiState.ActorOnly -> ActorOnlyItem(label = item.label, style = PostItemStyle.Timeline)
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             when (val footer = notifications.footer) {

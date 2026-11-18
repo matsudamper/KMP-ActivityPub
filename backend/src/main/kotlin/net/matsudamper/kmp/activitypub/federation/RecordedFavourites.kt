@@ -1,8 +1,10 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
-import net.matsudamper.kmp.activitypub.repository.NotificationKind
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
@@ -11,7 +13,7 @@ import net.matsudamper.kotpub.inbox.EarlyUndoneLikes
 
 internal class RecordedFavourites(
     private val favouriteRepository: FavouriteRepository,
-    private val notifications: ReceivedNotifications,
+    private val notifications: NotificationRecorder,
     private val blocks: InboxBlocks,
     private val timeline: TimelineService,
 ) : FavouriteStore, EarlyUndoneLikes {
@@ -24,7 +26,14 @@ internal class RecordedFavourites(
             receivedAt = favourite.receivedAt,
         )
         if (added) {
-            notifications.publish(NotificationKind.FAVOURITE, notePublicId, favourite.actor.actorId)
+            notifications.record(
+                NotificationEvent.Favourited(
+                    notePublicId = notePublicId,
+                    reaction = null,
+                    actor = NotificationActorRef.Remote(favourite.actor.actorId),
+                    occurredAt = favourite.receivedAt,
+                ),
+            )
             timeline.publishLocalNoteChanged(notePublicId)
         }
         return added

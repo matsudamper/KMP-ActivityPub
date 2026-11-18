@@ -92,7 +92,7 @@ class LikeRepositoryTest {
     fun localPostOfAnotherAccountAndOwnPostCanBeLikedWithoutDelivery() = withRepository { repositories, alice, bob ->
         val member = postLocalNote(repositories, username = "bob", publicId = "bob-note")
         val likes = repositories.likeRepository
-        assertEquals(LikeTarget.Local, likes.target(alice, member))
+        assertEquals(LikeTarget.Local(PublicNoteId("bob-note")), likes.target(alice, member))
 
         assertTrue(likes.likeLocal(alice, member, NOW, null))
         assertFalse(likes.likeLocal(alice, member, NOW, null))

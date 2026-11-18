@@ -124,6 +124,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.rememberPostScreenUi
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
+import net.matsudamper.kmp.activitypub.frontend.ui.ActorOnlyItem
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.EmojiText
@@ -141,6 +142,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaGridItem
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.SingleLineTextFieldKind
+import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.URL_COPIED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberProfileContentPagerState
@@ -834,7 +836,7 @@ private val NewPostsHiddenGradientHeight = 8.dp
 @Composable
 internal fun TimelineTabContent(
     listState: LazyListState,
-    timelineItems: List<PostItemUiState>,
+    timelineItems: List<TimelineItemUiState>,
     refreshing: Boolean,
     footer: HomeScreenUiState.TimelineFooter,
     loadMoreAtEndEnabled: Boolean,
@@ -869,7 +871,10 @@ internal fun TimelineTabContent(
                 .then(wheelPullToRefreshBlocker.modifier),
         ) {
             items(timelineItems) { item ->
-                PostItem(uiState = item, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
+                when (item) {
+                    is TimelineItemUiState.Post -> PostItem(uiState = item.uiState, style = PostItemStyle.Timeline, shareButtonVisible = shareButtonVisible)
+                    is TimelineItemUiState.ActorOnly -> ActorOnlyItem(label = item.label, style = PostItemStyle.Timeline)
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             when (footer) {

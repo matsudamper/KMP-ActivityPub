@@ -7,6 +7,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.logic.BlockLists
+import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -29,7 +30,7 @@ class InboxBlocksTest {
     private val accountEvents = AccountEvents(repositories.timelineRepository)
     private val favourites = RecordedFavourites(
         repositories.favouriteRepository,
-        ReceivedNotifications(repositories.notificationRepository, accountEvents),
+        NotificationRecorder {},
         inboxBlocks,
         TimelineService(
             repositories.timelineRepository,
