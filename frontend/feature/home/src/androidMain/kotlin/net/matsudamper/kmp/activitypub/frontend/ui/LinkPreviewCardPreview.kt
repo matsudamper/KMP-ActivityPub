@@ -35,6 +35,7 @@ private fun LinkPreviewCardPreview() {
                         siteName = "Kotlin",
                         imageUrl = "https://example.com/ogp.png",
                         faviconUrl = "https://example.com/favicon.ico",
+                        linkObjectLabelVisible = false,
                         onClick = {},
                     )
                     LinkPreviewCard(
@@ -42,6 +43,15 @@ private fun LinkPreviewCardPreview() {
                         siteName = "example.com",
                         imageUrl = null,
                         faviconUrl = "https://example.com/favicon.ico",
+                        linkObjectLabelVisible = false,
+                        onClick = {},
+                    )
+                    LinkPreviewCard(
+                        title = "Link で届いた投稿のリンク先",
+                        siteName = "example.com",
+                        imageUrl = "https://example.com/ogp.png",
+                        faviconUrl = "https://example.com/favicon.ico",
+                        linkObjectLabelVisible = true,
                         onClick = {},
                     )
                 }
