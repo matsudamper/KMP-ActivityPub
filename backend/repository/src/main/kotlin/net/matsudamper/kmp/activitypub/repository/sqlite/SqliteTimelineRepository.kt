@@ -139,6 +139,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             dsl.update(REMOTE_NOTES)
                 .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
                 .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+                .set(REMOTE_NOTES.LINK_HREF, note.linkHref)
                 .where(REMOTE_NOTES.ID.eq(id))
                 .execute()
             // 版には絵文字を残さないので、絵文字の画像だけが変わった編集もここに来る
@@ -149,6 +150,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         dsl.update(REMOTE_NOTES)
             .set(REMOTE_NOTES.CONTENT_HTML, revised.contentHtml)
             .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+            .set(REMOTE_NOTES.LINK_HREF, note.linkHref)
             .set(REMOTE_NOTES.SUMMARY, revised.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (revised.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
@@ -902,6 +904,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
             .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+            .set(REMOTE_NOTES.LINK_HREF, note.linkHref)
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
