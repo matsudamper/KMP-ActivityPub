@@ -580,11 +580,12 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .sortedWith(compareByDescending<TimelinePost> { it.position.score }.thenByDescending { it.position.member })
     }
 
-    override fun actorPosts(accountId: AccountId, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost> {
+    override fun actorPosts(accountId: AccountId?, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost> {
         val members = jooq.withConnection { dsl ->
+            val readable = if (accountId == null) REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES) else dsl.remoteNoteReadableBy(accountId)
             val notes = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.SCORE_MS).from(REMOTE_NOTES)
                 .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
-                .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(dsl.remoteNoteReadableBy(accountId))
+                .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri)).and(readable)
                 // プロフィールには削除済みと出す場所が無いので、消された投稿と取り消されたブーストは出さない
                 .and(REMOTE_NOTES.DELETED_AT.isNull)
                 .and(olderThan(REMOTE_NOTES.SCORE_MS, remoteMember, before))
@@ -598,9 +599,16 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                     dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID)).and(REMOTE_NOTES.DELETED_AT.isNotNull),
                 )
                 // hydrate で外れるブーストを件数に数えると、limit に届かずに返り、呼び出し側が続きは無いと読んで古い投稿を飛ばす。
-                // プロフィールに出すのは、ブーストした相手をフォローしていて、boostedPosts で読める公開している投稿のブーストに限る
-                .andExists(
-                    dsl.selectOne().from(ACCOUNT_FOLLOWING).where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)),
+                // プロフィールに出すのは、ブーストした相手をフォローしていて、boostedPosts で読める公開している投稿のブーストに限る。
+                // ログインしていなければ、公開している投稿のブーストは誰でも読めるので、フォローは問わない
+                .and(
+                    if (accountId == null) {
+                        DSL.noCondition()
+                    } else {
+                        DSL.exists(
+                            dsl.selectOne().from(ACCOUNT_FOLLOWING).where(ACCOUNT_FOLLOWING.ACCOUNT_ID.eq(accountId.value)).and(ACCOUNT_FOLLOWING.ACTOR_URI.eq(actorUri)),
+                        )
+                    },
                 )
                 .andExists(
                     dsl.selectOne().from(REMOTE_NOTES).where(REMOTE_NOTES.ID.eq(REMOTE_BOOSTS.REMOTE_NOTE_ID))
@@ -612,8 +620,23 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             (notes + boosts).sortedWith(compareByDescending<TimelinePosition> { it.score }.thenByDescending { it.member })
                 .take(limit).map { it.member }
         }
-        val hydrated = hydrate(accountId, members).associateBy { it.position.member }
-        return members.mapNotNull { hydrated[it] }
+        val hydrated = if (accountId == null) publicActorPosts(members) else hydrate(accountId, members)
+        val byMember = hydrated.associateBy { it.position.member }
+        return members.mapNotNull { byMember[it] }
+    }
+
+    /**
+     * ログインしていない人に出す、[actorPosts] の他のサーバーの投稿とブースト
+     */
+    private fun publicActorPosts(members: List<String>): List<TimelinePost> = jooq.withConnection { dsl ->
+        hydrateNotes(
+            dsl = dsl,
+            viewer = null,
+            localIds = listOf(),
+            remoteIds = members.mapNotNull { TimelineMembers.remoteNoteIdOf(it) },
+            localCondition = DSL.falseCondition(),
+            remoteCondition = REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES),
+        ) + boostedPosts(dsl, null, members.mapNotNull { TimelineMembers.boostIdOf(it) })
     }
 
     override fun localPosition(publicId: String): TimelinePosition? = jooq.withConnection { dsl ->

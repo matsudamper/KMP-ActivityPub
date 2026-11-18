@@ -2,10 +2,8 @@ package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +18,6 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLikeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
-import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginStateResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
@@ -46,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
+import net.matsudamper.kmp.activitypub.frontend.screen.awaitLoggedIn
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
@@ -264,29 +262,14 @@ internal class PostDetailScreenViewModel(
     }
 
     /**
-     * 確かめられるまでは、ログインしていないものとしてメンションの入力欄を出さない。
-     * 投稿が読めると読み直しの操作が無いので、確かめられなかったときは間を置いて確かめ直す
+     * 確かめられるまでは、ログインしていないものとしてメンションの入力欄を出さない
      */
     private fun checkLoginState() {
         if (viewModelStateFlow.value.loggedIn) return
         loginStateJob?.cancel()
         loginStateJob = viewModelScope.launch {
-            var retryDelay = LOGIN_STATE_FIRST_RETRY_DELAY
-            while (true) {
-                when (api.loginState()) {
-                    UserLoginStateResult.LoggedIn -> {
-                        viewModelStateFlow.update { it.copy(loggedIn = true) }
-                        return@launch
-                    }
-
-                    UserLoginStateResult.NotLoggedIn -> return@launch
-
-                    is UserLoginStateResult.Failure -> {
-                        delay(retryDelay)
-                        retryDelay = (retryDelay * 2).coerceAtMost(LOGIN_STATE_MAX_RETRY_DELAY)
-                    }
-                }
-            }
+            val loggedIn = api.awaitLoggedIn()
+            viewModelStateFlow.update { it.copy(loggedIn = loggedIn) }
         }
     }
 
@@ -958,6 +941,3 @@ internal class PostDetailScreenViewModel(
         data object Failed : PostState
     }
 }
-
-private val LOGIN_STATE_FIRST_RETRY_DELAY = 5.seconds
-private val LOGIN_STATE_MAX_RETRY_DELAY = 60.seconds

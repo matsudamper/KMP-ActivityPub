@@ -83,9 +83,10 @@ interface TimelineRepository {
     /**
      * [accountId] が読める、[actorUri] の保存済みの投稿と [actorUri] のブーストを新しい順に返す
      *
+     * @param accountId ログインしていなければ null。公開と公開タイムラインに載せない公開の投稿と、それらのブーストだけを返す
      * @param before この位置より古いものを返す。null なら最新から
      */
-    fun actorPosts(accountId: AccountId, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost>
+    fun actorPosts(accountId: AccountId?, actorUri: String, before: TimelinePosition?, limit: Int): List<TimelinePost>
     fun localPosition(publicId: String): TimelinePosition?
 
     /**

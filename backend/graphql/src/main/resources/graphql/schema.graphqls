@@ -45,12 +45,16 @@ type Query {
     リンク先へ取りに行くので遅い。読めない投稿か、保存していない他のサーバーの投稿か、サーバーに DOMAIN が無ければ空
     """
     linkPreviews(postId: TimelinePostId!): [LinkPreview!]!
-    "投稿は相手のサーバーの outbox を待つことがあるので含めない。userProfilePosts で別に読む"
+    """
+    投稿は相手のサーバーの outbox を待つことがあるので含めない。userProfilePosts で別に読む。
+    ログインしていなければ、他のサーバーのユーザーは相手のサーバーへ取りに行かず、このサーバーが保存しているユーザーだけを返す
+    """
     userProfile(acct: String!): UserProfile
     """
     プロフィールの投稿。after が null なら最初のページ、続きは前回の nextCursor を after に渡す。
     after を渡したときは、after が指す相手の続きを返す。
-    見つからないか、他のサーバーのユーザーでログインしていなければ null
+    ログインしていなければ、他のサーバーのユーザーは相手のサーバーへ取りに行かず、保存済みの公開と公開タイムラインに載せない公開の投稿と、それらのブーストだけを返す。
+    見つからなければ null
     """
     userProfilePosts(acct: String!, after: String): ProfilePostPage
     """
