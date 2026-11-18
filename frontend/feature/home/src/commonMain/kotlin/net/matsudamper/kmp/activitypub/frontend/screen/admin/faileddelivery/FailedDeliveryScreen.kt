@@ -11,21 +11,26 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -39,6 +44,8 @@ internal fun FailedDeliveryScreen(
 ) {
     val viewModel = koinViewModel<FailedDeliveryScreenViewModel>(key = id) { parametersOf(id) }
     val uiState by viewModel.uiStateFlow.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -46,20 +53,26 @@ internal fun FailedDeliveryScreen(
                 override fun navigateBack() {
                     navigator.back()
                 }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
     }
 
-    FailedDeliveryContent(uiState = uiState)
+    FailedDeliveryContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
 @Composable
 internal fun FailedDeliveryContent(
     uiState: FailedDeliveryScreenUiState,
+    snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             Row(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
@@ -85,19 +98,12 @@ internal fun FailedDeliveryContent(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                is FailedDeliveryScreenUiState.Content.Error -> {
-                    Column(
+                FailedDeliveryScreenUiState.Content.LoadFailed -> {
+                    TextButton(
+                        onClick = uiState.listener::onClickRetry,
                         modifier = Modifier.align(Alignment.Center).padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(
-                            text = content.message,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Button(onClick = uiState.listener::onClickRetry) {
-                            Text("再読み込み")
-                        }
+                        Text("再読み込み")
                     }
                 }
 

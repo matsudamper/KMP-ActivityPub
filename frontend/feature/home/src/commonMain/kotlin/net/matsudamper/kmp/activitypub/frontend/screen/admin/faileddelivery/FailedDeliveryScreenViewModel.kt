@@ -56,12 +56,20 @@ internal class FailedDeliveryScreenViewModel(
         loadJob?.cancel()
         viewModelStateFlow.value = LoadState.Loading
         loadJob = viewModelScope.launch {
-            viewModelStateFlow.value = when (val result = userApi.failedDelivery(id)) {
-                is UserFailedDeliveryResult.Found -> LoadState.Loaded(result.delivery)
-                UserFailedDeliveryResult.NotFound -> LoadState.Failed("配信が見つかりません")
-                UserFailedDeliveryResult.NotLoggedIn -> LoadState.Failed("ログインしていません")
-                is UserFailedDeliveryResult.Failure -> LoadState.Failed(result.message)
+            val failureMessage = when (val result = userApi.failedDelivery(id)) {
+                is UserFailedDeliveryResult.Found -> {
+                    viewModelStateFlow.value = LoadState.Loaded(result.delivery)
+                    return@launch
+                }
+
+                UserFailedDeliveryResult.NotFound -> "配信が見つかりません"
+
+                UserFailedDeliveryResult.NotLoggedIn -> "ログインしていません"
+
+                is UserFailedDeliveryResult.Failure -> result.message
             }
+            viewModelStateFlow.value = LoadState.Failed
+            events.send { it.showMessage(failureMessage) }
         }
     }
 
@@ -69,7 +77,7 @@ internal class FailedDeliveryScreenViewModel(
         return FailedDeliveryScreenUiState(
             content = when (loadState) {
                 LoadState.Loading -> FailedDeliveryScreenUiState.Content.Loading
-                is LoadState.Failed -> FailedDeliveryScreenUiState.Content.Error(loadState.message)
+                LoadState.Failed -> FailedDeliveryScreenUiState.Content.LoadFailed
                 is LoadState.Loaded -> FailedDeliveryScreenUiState.Content.Loaded(fields = createFields(loadState.delivery))
             },
             listener = listener,
@@ -98,14 +106,14 @@ internal class FailedDeliveryScreenViewModel(
 
     internal interface Event {
         fun navigateBack()
+
+        fun showMessage(message: String)
     }
 
     private sealed interface LoadState {
         data object Loading : LoadState
 
-        data class Failed(
-            val message: String,
-        ) : LoadState
+        data object Failed : LoadState
 
         data class Loaded(
             val delivery: UserFailedDelivery,

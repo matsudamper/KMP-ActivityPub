@@ -12,18 +12,22 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
@@ -44,6 +49,8 @@ internal fun FailedDeliveriesScreen(
 ) {
     val viewModel = koinViewModel<FailedDeliveriesScreenViewModel>()
     val uiState by viewModel.uiStateFlow.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel.eventHandler, navigator) {
         viewModel.eventHandler.collect(
@@ -55,20 +62,26 @@ internal fun FailedDeliveriesScreen(
                 override fun navigateToDelivery(id: String) {
                     navigator.navigate(Screen.FailedDelivery(id = id))
                 }
+
+                override fun showMessage(message: String) {
+                    coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+                }
             },
         )
     }
 
-    FailedDeliveriesContent(uiState = uiState)
+    FailedDeliveriesContent(uiState = uiState, snackbarHostState = snackbarHostState)
 }
 
 @Composable
 internal fun FailedDeliveriesContent(
     uiState: FailedDeliveriesScreenUiState,
+    snackbarHostState: SnackbarHostState,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             Row(
                 modifier = Modifier.fillMaxWidth().windowInsetsPadding(topBarWindowInsets).padding(horizontal = 4.dp, vertical = 8.dp),
@@ -94,9 +107,8 @@ internal fun FailedDeliveriesContent(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                is FailedDeliveriesScreenUiState.Content.Error -> {
-                    LoadError(
-                        message = content.message,
+                FailedDeliveriesScreenUiState.Content.LoadFailed -> {
+                    RetryButton(
                         onClickRetry = uiState.listener::onClickRetry,
                         modifier = Modifier.align(Alignment.Center),
                     )
@@ -156,13 +168,14 @@ private fun DeliveryList(
                 }
             }
 
-            is FailedDeliveriesScreenUiState.Footer.Error -> {
+            FailedDeliveriesScreenUiState.Footer.LoadFailed -> {
                 item {
-                    LoadError(
-                        message = footer.message,
-                        onClickRetry = listener::onClickRetryLoadMore,
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        RetryButton(onClickRetry = listener::onClickRetryLoadMore)
+                    }
                 }
             }
         }
@@ -214,23 +227,15 @@ private fun DeliveryItem(
 }
 
 @Composable
-private fun LoadError(
-    message: String,
+private fun RetryButton(
     onClickRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    TextButton(
+        onClick = onClickRetry,
         modifier = modifier.padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.error,
-        )
-        Button(onClick = onClickRetry) {
-            Text("再読み込み")
-        }
+        Text("再読み込み")
     }
 }
 

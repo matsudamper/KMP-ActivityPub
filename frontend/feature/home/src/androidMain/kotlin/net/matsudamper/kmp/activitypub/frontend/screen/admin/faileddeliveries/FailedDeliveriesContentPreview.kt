@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.admin.faileddeliveries
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -38,6 +39,7 @@ private fun FailedDeliveriesContentPreview() {
                 ),
                 listener = AndroidPreviewFailedDeliveriesListener,
             ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }
@@ -51,6 +53,21 @@ private fun FailedDeliveriesContentEmptyPreview() {
                 content = FailedDeliveriesScreenUiState.Content.Empty,
                 listener = AndroidPreviewFailedDeliveriesListener,
             ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun FailedDeliveriesLoadFailedPreview() {
+    MaterialTheme {
+        FailedDeliveriesContent(
+            uiState = FailedDeliveriesScreenUiState(
+                content = FailedDeliveriesScreenUiState.Content.LoadFailed,
+                listener = AndroidPreviewFailedDeliveriesListener,
+            ),
+            snackbarHostState = SnackbarHostState(),
         )
     }
 }

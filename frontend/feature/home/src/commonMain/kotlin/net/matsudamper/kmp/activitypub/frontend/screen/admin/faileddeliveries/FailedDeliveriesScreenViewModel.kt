@@ -44,7 +44,7 @@ internal class FailedDeliveriesScreenViewModel(
         override fun onScrolledToEnd() {
             // 失敗した後に自動で読み直すと、末尾にいる間は失敗を繰り返すので、ボタンを押したときだけ読み直す
             val loaded = viewModelStateFlow.value as? ListState.Loaded ?: return
-            if (loaded.loadMoreErrorMessage != null) return
+            if (loaded.loadMoreFailed) return
             loadMore()
         }
 
@@ -75,7 +75,7 @@ internal class FailedDeliveriesScreenViewModel(
         loadJob = viewModelScope.launch {
             when (val outcome = paging.refresh().toOutcome()) {
                 is PagingOutcome.Fetched -> applyResult(outcome.result)
-                is PagingOutcome.Failed -> viewModelStateFlow.value = ListState.Failed(outcome.message)
+                is PagingOutcome.Failed -> showLoadFailure(outcome.message)
                 PagingOutcome.NoHasMore -> Unit
             }
         }
@@ -85,13 +85,16 @@ internal class FailedDeliveriesScreenViewModel(
         if (loadJob?.isActive == true) return
         val loaded = viewModelStateFlow.value as? ListState.Loaded ?: return
         if (loaded.nextCursor == null) return
-        viewModelStateFlow.value = loaded.copy(loadMoreErrorMessage = null)
+        viewModelStateFlow.value = loaded.copy(loadMoreFailed = false)
         loadJob = viewModelScope.launch {
             when (val outcome = paging.fetchNext().toOutcome()) {
                 is PagingOutcome.Fetched -> applyResult(outcome.result)
 
-                is PagingOutcome.Failed -> viewModelStateFlow.update { current ->
-                    if (current is ListState.Loaded) current.copy(loadMoreErrorMessage = outcome.message) else current
+                is PagingOutcome.Failed -> {
+                    viewModelStateFlow.update { current ->
+                        if (current is ListState.Loaded) current.copy(loadMoreFailed = true) else current
+                    }
+                    events.send { it.showMessage(outcome.message) }
                 }
 
                 PagingOutcome.NoHasMore -> Unit
@@ -103,16 +106,23 @@ internal class FailedDeliveriesScreenViewModel(
      * 同じ内容を書き込んだときは watch が流れないので、取得結果はここでも反映する
      */
     private fun applyResult(result: UserFailedDeliveriesResult) {
-        viewModelStateFlow.update { current ->
-            when (result) {
-                is UserFailedDeliveriesResult.Success -> ListState.Loaded(
+        when (result) {
+            is UserFailedDeliveriesResult.Success -> viewModelStateFlow.update { current ->
+                ListState.Loaded(
                     deliveries = result.deliveries,
                     nextCursor = result.nextCursor,
-                    loadMoreErrorMessage = (current as? ListState.Loaded)?.loadMoreErrorMessage,
+                    loadMoreFailed = (current as? ListState.Loaded)?.loadMoreFailed ?: false,
                 )
-
-                UserFailedDeliveriesResult.NotLoggedIn -> ListState.Failed(NOT_LOGGED_IN_MESSAGE)
             }
+
+            UserFailedDeliveriesResult.NotLoggedIn -> showLoadFailure(NOT_LOGGED_IN_MESSAGE)
+        }
+    }
+
+    private fun showLoadFailure(message: String) {
+        viewModelStateFlow.value = ListState.Failed
+        viewModelScope.launch {
+            events.send { it.showMessage(message) }
         }
     }
 
@@ -121,7 +131,7 @@ internal class FailedDeliveriesScreenViewModel(
             content = when (listState) {
                 ListState.Loading -> FailedDeliveriesScreenUiState.Content.Loading
 
-                is ListState.Failed -> FailedDeliveriesScreenUiState.Content.Error(listState.message)
+                ListState.Failed -> FailedDeliveriesScreenUiState.Content.LoadFailed
 
                 is ListState.Loaded -> if (listState.deliveries.isEmpty()) {
                     FailedDeliveriesScreenUiState.Content.Empty
@@ -137,9 +147,8 @@ internal class FailedDeliveriesScreenViewModel(
     }
 
     private fun createFooter(loaded: ListState.Loaded): FailedDeliveriesScreenUiState.Footer {
-        val loadMoreErrorMessage = loaded.loadMoreErrorMessage
         return when {
-            loadMoreErrorMessage != null -> FailedDeliveriesScreenUiState.Footer.Error(loadMoreErrorMessage)
+            loaded.loadMoreFailed -> FailedDeliveriesScreenUiState.Footer.LoadFailed
             loaded.nextCursor != null -> FailedDeliveriesScreenUiState.Footer.Loading
             else -> FailedDeliveriesScreenUiState.Footer.None
         }
@@ -184,6 +193,8 @@ internal class FailedDeliveriesScreenViewModel(
         fun navigateBack()
 
         fun navigateToDelivery(id: String)
+
+        fun showMessage(message: String)
     }
 
     private companion object {
@@ -206,17 +217,15 @@ internal class FailedDeliveriesScreenViewModel(
     private sealed interface ListState {
         data object Loading : ListState
 
-        data class Failed(
-            val message: String,
-        ) : ListState
+        data object Failed : ListState
 
         /**
-         * @param loadMoreErrorMessage 続きを読めなかったときの理由。読めていれば null
+         * @param loadMoreFailed 続きを読めなかった。読み直すまで末尾まで送っても自動では読まない
          */
         data class Loaded(
             val deliveries: List<UserFailedDelivery>,
             val nextCursor: String?,
-            val loadMoreErrorMessage: String?,
+            val loadMoreFailed: Boolean,
         ) : ListState
     }
 }

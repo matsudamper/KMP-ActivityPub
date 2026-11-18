@@ -9,9 +9,7 @@ data class FailedDeliveryScreenUiState(
     sealed interface Content {
         data object Loading : Content
 
-        data class Error(
-            val message: String,
-        ) : Content
+        data object LoadFailed : Content
 
         /**
          * @param fields 上から並べる項目

@@ -9,9 +9,7 @@ data class FailedDeliveriesScreenUiState(
     sealed interface Content {
         data object Loading : Content
 
-        data class Error(
-            val message: String,
-        ) : Content
+        data object LoadFailed : Content
 
         data object Empty : Content
 
@@ -32,9 +30,7 @@ data class FailedDeliveriesScreenUiState(
 
         data object Loading : Footer
 
-        data class Error(
-            val message: String,
-        ) : Footer
+        data object LoadFailed : Footer
     }
 
     /**
