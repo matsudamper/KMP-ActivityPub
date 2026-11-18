@@ -51,7 +51,10 @@ class NotificationService(
 
     private fun viewsOf(accountId: AccountId, groups: List<NotificationGroup>): List<NotificationView> {
         val blockList = blockLists.of(accountId)
-        val posts = timeline.hydrate(accountId, groups.mapNotNull { it.noteMember }.distinct()).associateBy { it.position.member }
+        val members = groups.mapNotNull { it.noteMember }.distinct()
+        val hydrated = timeline.hydrate(accountId, members).associateBy { it.position.member }
+        // hydrate はこのサーバーの投稿を本人のものに限るので、このサーバーの別のアカウントからのメンションは開ける投稿として引き直す
+        val posts = hydrated + members.filterNot { it in hydrated }.mapNotNull { member -> timeline.viewablePost(accountId, member)?.let { member to it } }
         return groups.mapNotNull { group ->
             val entries = group.entries.filterNot { blockList.hidesActor(it.actor.actorUri) }
             if (entries.isEmpty()) return@mapNotNull null
