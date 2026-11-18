@@ -167,6 +167,15 @@ class QueryResolverImpl : QueryResolver {
         ) { replyTarget(viewer, postId.value) }
     }
 
+    override fun quoteTarget(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return linkedPost(
+            viewer = viewer,
+            env = env,
+            unavailableMessage = "引用先のサーバーから投稿を取れなかった",
+        ) { quoteTarget(viewer, postId.value) }
+    }
+
     override fun replies(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlTimelinePost>>> {
         val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
         return otelSupplyAsync {

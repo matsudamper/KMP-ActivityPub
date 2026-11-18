@@ -674,7 +674,7 @@ internal class UserProfileScreenViewModel(
         viewModelScope.launch {
             val load = api.loadQuote(postId)
             viewModelStateFlow.update { state ->
-                state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+                state.copy(quotes = state.quotes + (postId to load))
             }
         }
     }

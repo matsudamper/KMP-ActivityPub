@@ -245,7 +245,6 @@ internal class PostDetailScreenViewModel(
                     is UserPostDetailResult.Found -> PostState.Loaded(result.post)
 
                     UserPostDetailResult.NotFound,
-                    UserPostDetailResult.NotLoggedIn,
                     -> PostState.NotFound
 
                     is UserPostDetailResult.Failure -> {
@@ -465,7 +464,6 @@ internal class PostDetailScreenViewModel(
                     }
 
                     UserPostDetailResult.NotFound,
-                    UserPostDetailResult.NotLoggedIn,
                     -> current.copy(replyTargetLoad = ReplyTargetLoad.Unavailable)
 
                     is UserPostDetailResult.Failure -> current.copy(replyTargetLoad = ReplyTargetLoad.Failed)
@@ -640,7 +638,7 @@ internal class PostDetailScreenViewModel(
         viewModelScope.launch {
             val load = api.loadQuote(postId)
             viewModelStateFlow.update { state ->
-                state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+                state.copy(quotes = state.quotes + (postId to load))
             }
         }
     }

@@ -11,7 +11,6 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostRevision
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostRevisionPage
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePage
-import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.graphql.model.QlUserInfo
 import net.matsudamper.kmp.activitypub.graphql.model.UserInfoResolver
 import net.matsudamper.kmp.activitypub.graphql.otelSupplyAsync
@@ -49,13 +48,6 @@ class UserInfoResolverImpl : UserInfoResolver {
             )
             DataFetcherResult.Builder<QlNotificationPage?>(result).build()
         }
-
-    override fun quoteTarget(userInfo: QlUserInfo, postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> =
-        linkedPost(
-            viewer = userInfo.id,
-            env = env,
-            unavailableMessage = "引用先のサーバーから投稿を取れなかった",
-        ) { quoteTarget(userInfo.id, postId.value) }
 
     override fun postRevisions(
         userInfo: QlUserInfo,

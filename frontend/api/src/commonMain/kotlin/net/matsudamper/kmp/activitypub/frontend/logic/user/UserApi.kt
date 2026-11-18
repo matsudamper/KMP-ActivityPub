@@ -300,8 +300,7 @@ class UserApi(
         val response = client.query(QuoteTargetQuery(postId = postId)).execute()
         if (response.exception != null || response.hasErrors()) return UserPostDetailResult.Failure(response.failureMessage())
         val data = response.data ?: return UserPostDetailResult.Failure(response.failureMessage())
-        val userInfo = data.userInfo ?: return UserPostDetailResult.NotLoggedIn
-        val post = userInfo.quoteTarget ?: return UserPostDetailResult.NotFound
+        val post = data.quoteTarget ?: return UserPostDetailResult.NotFound
         return UserPostDetailResult.Found(post.timelinePostFields.toPost())
     }
 

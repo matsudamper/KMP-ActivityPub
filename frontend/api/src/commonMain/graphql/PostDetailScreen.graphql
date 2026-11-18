@@ -5,10 +5,8 @@ query PostDetailScreen($id: TimelinePostId!) {
 }
 
 query QuoteTarget($postId: TimelinePostId!) {
-    userInfo {
-        quoteTarget(postId: $postId) {
-            ...TimelinePostFields
-        }
+    quoteTarget(postId: $postId) {
+        ...TimelinePostFields
     }
 }
 

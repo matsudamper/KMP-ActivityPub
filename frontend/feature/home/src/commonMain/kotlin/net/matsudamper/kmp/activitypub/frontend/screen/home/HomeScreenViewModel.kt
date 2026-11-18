@@ -1711,7 +1711,7 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             val load = userApi.loadQuote(postId)
             viewModelStateFlow.update { state ->
-                state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+                state.copy(quotes = state.quotes + (postId to load))
             }
         }
     }
@@ -1722,7 +1722,7 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             val load = userApi.loadReplyTargetAuthor(postId)
             viewModelStateFlow.update { state ->
-                state.copy(replyTargetAuthors = if (load == null) state.replyTargetAuthors - postId else state.replyTargetAuthors + (postId to load))
+                state.copy(replyTargetAuthors = state.replyTargetAuthors + (postId to load))
             }
         }
     }

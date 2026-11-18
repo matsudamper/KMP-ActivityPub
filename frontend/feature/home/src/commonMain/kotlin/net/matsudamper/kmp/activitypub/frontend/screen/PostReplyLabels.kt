@@ -18,9 +18,9 @@ internal sealed interface ReplyTargetAuthorLoad {
 
 /**
  * @param postId [UserHomeTimelineResult.Post.id]
- * @return 取れなかったら [ReplyTargetAuthorLoad.Unavailable]。ログインが切れていたら null で、読み込み前に戻す
+ * @return 取れなかったら [ReplyTargetAuthorLoad.Unavailable]
  */
-internal suspend fun UserApi.loadReplyTargetAuthor(postId: String): ReplyTargetAuthorLoad? =
+internal suspend fun UserApi.loadReplyTargetAuthor(postId: String): ReplyTargetAuthorLoad =
     when (val result = replyTarget(postId)) {
         is UserPostDetailResult.Found -> ReplyTargetAuthorLoad.Loaded(
             UserHomeTimelineResult.Actor(
@@ -35,8 +35,6 @@ internal suspend fun UserApi.loadReplyTargetAuthor(postId: String): ReplyTargetA
         UserPostDetailResult.NotFound,
         is UserPostDetailResult.Failure,
         -> ReplyTargetAuthorLoad.Unavailable
-
-        UserPostDetailResult.NotLoggedIn -> null
     }
 
 /**
