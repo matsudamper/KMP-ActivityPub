@@ -384,6 +384,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
         mentionAcct: String?,
+        sensitive: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
         return otelFuture {
@@ -396,6 +397,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                     replyToPostId = replyToPostId,
                     quotePostId = quotePostId,
                     mentionAcct = mentionAcct,
+                    sensitive = sensitive,
                     env = env,
                 )
             DataFetcherResult.Builder(result).build()
@@ -532,6 +534,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
         mentionAcct: String?,
+        sensitive: Boolean,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -555,6 +558,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 replyToPostId = replyToPostId?.value,
                 quotePostId = quotePostId?.value,
                 mentionAcct = mentionAcct,
+                sensitive = sensitive,
             )
         val failure =
             when (result) {

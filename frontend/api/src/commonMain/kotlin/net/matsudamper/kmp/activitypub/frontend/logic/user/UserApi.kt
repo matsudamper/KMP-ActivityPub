@@ -973,6 +973,7 @@ class UserApi(
      * @param quotePostId 引用する [UserHomeTimelineResult.Post.id]。引用でなければ null
      * @param contentWarning 閲覧注意の注意書き。閲覧注意にしなければ null
      * @param mentionAcct 宛てるユーザーの `username@host`。返信先の投稿者のほかに宛てなければ null
+     * @param sensitive 閲覧注意の投稿にするか
      */
     suspend fun postNote(
         body: String,
@@ -982,6 +983,7 @@ class UserApi(
         replyToPostId: String?,
         quotePostId: String?,
         mentionAcct: String?,
+        sensitive: Boolean,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
         val mutation =
@@ -993,6 +995,7 @@ class UserApi(
                 replyToPostId = Optional.present(replyToPostId),
                 quotePostId = Optional.present(quotePostId),
                 mentionAcct = Optional.present(mentionAcct),
+                sensitive = sensitive,
             )
         val response = client.mutation(mutation).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())

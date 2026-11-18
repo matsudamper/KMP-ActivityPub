@@ -176,6 +176,7 @@ class NotificationRepositoryTest {
                     quoteInbox = null,
                     mentions = listOf(),
                     images = listOf(),
+                    sensitive = false,
                 ),
             )
             listOf(ALICE, BOB).forEach { repositories.remoteActorRepository.save(actor(it), NOW) }
