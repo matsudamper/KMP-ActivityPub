@@ -316,6 +316,27 @@ class NotePostServiceTest {
     }
 
     @Test
+    fun `動画は先頭のバイト列で判定した形式で記録し、配る Note の mediaType にする`() = runBlocking<Unit> {
+        val mp4 = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(MP4, null)))
+
+        assertIs<PostNoteResult.Posted>(
+            service.post(username = "user1", body = "動画", requestId = REQUEST_ID, contentWarning = null, imageIds = listOf(mp4), replyToPostId = null, quotePostId = null, mentionAcct = null),
+        )
+
+        assertEquals(listOf("video/mp4"), deliveryQueueRepository.posts.single().images.map { it.contentType })
+        val attachment = (AppJson.parseToJsonElement(deliveryQueueRepository.posts.single().body) as JsonObject)
+            .getValue("object").jsonObject.getValue("attachment").jsonArray
+        assertEquals(listOf("video/mp4"), attachment.map { it.jsonObject.getValue("mediaType").jsonPrimitive.content })
+    }
+
+    @Test
+    fun `HEIC のように ftyp で始まっても動画の brand でなければ置かない`() {
+        val heic = byteArrayOf(0, 0, 0, 0x18) + "ftypheic".encodeToByteArray()
+
+        assertEquals(UploadNoteImageResult.UnsupportedImage, service.uploadImage(username = "user1", image = noteImageUpload(heic, null)))
+    }
+
+    @Test
     fun `画像として読めないものや大きすぎるもの、長すぎる説明文は置かない`() {
         assertEquals(UploadNoteImageResult.UnsupportedImage, service.uploadImage(username = "user1", image = noteImageUpload("<svg/>".encodeToByteArray(), null)))
         assertEquals(UploadNoteImageResult.TooLarge, service.uploadImage(username = "user1", image = noteImageUpload(PNG + ByteArray(NotePostService.MAX_IMAGE_BYTES), null)))
@@ -838,6 +859,7 @@ class NotePostServiceTest {
         val NOW: Instant = Instant.parse("2026-11-01T00:00:00Z")
         val PNG = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1)
         val JPEG = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 2)
+        val MP4 = byteArrayOf(0, 0, 0, 0x18) + "ftypisom".encodeToByteArray() + byteArrayOf(3)
     }
 }
 

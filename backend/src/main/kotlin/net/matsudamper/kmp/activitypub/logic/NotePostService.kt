@@ -61,14 +61,15 @@ class NotePostService(
     private val logger = LoggerFactory.getLogger(NotePostService::class.java)
 
     /**
-     * 画像を置き場に置く。[UPLOADED_IMAGE_LIFETIME] のうちに投稿に付けなければ [UploadedNoteImageCleaner] が消す
+     * 画像か動画を置き場に置く。[UPLOADED_IMAGE_LIFETIME] のうちに投稿に付けなければ [UploadedNoteImageCleaner] が消す
      */
     fun uploadImage(
         username: String,
         image: NoteImageUpload,
     ): UploadNoteImageResult {
         if (image.size > MAX_IMAGE_BYTES) return UploadNoteImageResult.TooLarge
-        val format = ImageFormat.detect(image.openStream().use { it.readNBytes(ImageFormat.SIGNATURE_BYTES) }) ?: return UploadNoteImageResult.UnsupportedImage
+        val head = image.openStream().use { it.readNBytes(maxOf(ImageFormat.SIGNATURE_BYTES, VideoFormat.SIGNATURE_BYTES)) }
+        val contentType = ImageFormat.detect(head)?.contentType ?: VideoFormat.detect(head)?.contentType ?: return UploadNoteImageResult.UnsupportedImage
         val description = image.description?.trim()?.ifEmpty { null }
         // 書いた人の数え方と合わせるため、コードポイントで数える
         if (description != null && description.codePointCount(0, description.length) > MAX_DESCRIPTION_LENGTH) {
@@ -84,7 +85,7 @@ class NotePostService(
                     ImageStorage.PutRequest(
                         ownerAccountId = account.id,
                         path = path,
-                        contentType = format.contentType,
+                        contentType = contentType,
                         maxBytes = MAX_IMAGE_BYTES.toLong(),
                         inputStream = inputStream,
                     ),
@@ -106,7 +107,7 @@ class NotePostService(
             NoteImage(
                 publicId = NoteImagePublicId(UUID.randomUUID().toString()),
                 path = path.value,
-                contentType = format.contentType,
+                contentType = contentType,
                 description = description,
             )
         noteRepository.addUploadedImage(
@@ -554,7 +555,7 @@ sealed interface UploadNoteImageResult {
     data object TooLarge : UploadNoteImageResult
 
     /**
-     * PNG / JPEG / GIF / WebP ではない
+     * PNG / JPEG / GIF / WebP の画像でも、MP4 / MOV / WebM の動画でもない
      */
     data object UnsupportedImage : UploadNoteImageResult
 
