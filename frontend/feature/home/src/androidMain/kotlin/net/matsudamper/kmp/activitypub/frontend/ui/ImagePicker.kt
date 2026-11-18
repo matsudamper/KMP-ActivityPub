@@ -42,7 +42,10 @@ import okio.source
 private const val MAX_DECODED_PIXELS = 64_000_000L
 
 @Composable
-internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -> Unit {
+internal actual fun rememberImagePicker(
+    videoPickable: Boolean,
+    onPick: (PickedImageFile) -> Unit,
+): () -> Unit {
     // 読み込みは画面より長く生きるので Activity を持たせない
     val applicationContext = LocalContext.current.applicationContext
     val currentOnPick by rememberUpdatedState(onPick)
@@ -50,8 +53,11 @@ internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -
         rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
             if (uri != null) currentOnPick(ContentUriImageFile(context = applicationContext, uri = uri))
         }
-    return remember(launcher) {
-        { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+    return remember(launcher, videoPickable) {
+        {
+            val mediaType = if (videoPickable) ActivityResultContracts.PickVisualMedia.ImageAndVideo else ActivityResultContracts.PickVisualMedia.ImageOnly
+            launcher.launch(PickVisualMediaRequest(mediaType))
+        }
     }
 }
 
@@ -124,6 +130,8 @@ internal class ContentUriImageFile(
 ) : PickedImageFile {
     private val contentResolver: ContentResolver = context.contentResolver
 
+    override val video: Boolean = runCatching { contentResolver.getType(uri) }.getOrNull()?.startsWith("video/") == true
+
     override suspend fun read(maxBytes: Int): PickedImageFile.ReadResult {
         // 選んだ後に消されたファイルや権限の無いファイルは openInputStream が null を返すか投げる
         val bytes =
@@ -165,7 +173,7 @@ internal class ContentUriImageFile(
                 throw e
             }
         try {
-            val file = NoteWebpFiles.create(context)
+            val file = NoteAttachmentFiles.create(context = context, suffix = ".webp")
             // Android 10 は WEBP_LOSSLESS が無く、WEBP の品質 100 が可逆になる
             val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSLESS else Bitmap.CompressFormat.WEBP
             val output = MaxBytesOutputStream(output = FileOutputStream(file), maxBytes = maxBytes)
@@ -179,6 +187,27 @@ internal class ContentUriImageFile(
         } finally {
             if (oriented !== decoded) oriented.recycle()
             decoded.recycle()
+        }
+    }
+
+    /**
+     * 選んだファイルは送る前に消されたり権限が切れたりするので、キャッシュのファイルに写して持つ
+     */
+    override suspend fun toVideo(maxBytes: Int): VideoResult =
+        withContext(Dispatchers.IO) {
+            // 選んだ後に消されたファイルや権限の無いファイルは openInputStream が null を返すか投げる
+            runCatching { copyVideo(maxBytes) }.getOrDefault(VideoResult.Unreadable)
+        }
+
+    private fun copyVideo(maxBytes: Int): VideoResult {
+        val file = NoteAttachmentFiles.create(context = context, suffix = ".video")
+        val output = MaxBytesOutputStream(output = FileOutputStream(file), maxBytes = maxBytes)
+        val copied = runCatching { openSource().use { input -> output.use { input.copyTo(it) } } }.isSuccess
+        if (output.exceeded || !copied) file.delete()
+        return when {
+            output.exceeded -> VideoResult.TooLarge
+            copied -> VideoResult.Success(FileVideo(file))
+            else -> VideoResult.Unreadable
         }
     }
 
@@ -201,32 +230,49 @@ private class FileWebpImage(
 ) : WebpImage {
     override fun previewRequest(context: PlatformContext): ImageRequest = ImageRequest.Builder(context).data(file).build()
 
-    override suspend fun openContent(): UserNoteImageContent =
-        object : UserNoteImageContent {
-            override val byteCount: Long = file.length()
-
-            override fun writeTo(sink: BufferedSink) {
-                file.source().use { sink.writeAll(it) }
-            }
-        }
+    override suspend fun openContent(): UserNoteImageContent = file.toNoteImageContent()
 
     override fun release() {
         file.delete()
     }
 }
 
+private class FileVideo(
+    private val file: File,
+) : PickedVideo {
+    override val previewUrl: String = Uri.fromFile(file).toString()
+
+    override suspend fun openContent(): UserNoteImageContent = file.toNoteImageContent()
+
+    override fun release() {
+        file.delete()
+    }
+}
+
+private fun File.toNoteImageContent(): UserNoteImageContent =
+    object : UserNoteImageContent {
+        override val byteCount: Long = length()
+
+        override fun writeTo(sink: BufferedSink) {
+            source().use { sink.writeAll(it) }
+        }
+    }
+
 /**
- * 書き出した WebP の置き場。投稿画面を閉じる前にプロセスが終わると消されずに残るので、作るときに古いものを消す
+ * 書き出した WebP や写した動画の置き場。投稿画面を閉じる前にプロセスが終わると消されずに残るので、作るときに古いものを消す
  */
-private object NoteWebpFiles {
-    private const val DIRECTORY_NAME = "note-webp"
+private object NoteAttachmentFiles {
+    private const val DIRECTORY_NAME = "note-attachments"
     private val STALE_AFTER_MILLIS = TimeUnit.DAYS.toMillis(1)
 
-    fun create(context: Context): File {
+    fun create(
+        context: Context,
+        suffix: String,
+    ): File {
         val directory = File(context.cacheDir, DIRECTORY_NAME).apply { mkdirs() }
         val staleBefore = System.currentTimeMillis() - STALE_AFTER_MILLIS
         directory.listFiles()?.filter { it.lastModified() < staleBefore }?.forEach { it.delete() }
-        return File.createTempFile("note", ".webp", directory)
+        return File.createTempFile("note", suffix, directory)
     }
 }
 
@@ -260,7 +306,7 @@ private class MaxBytesOutputStream(
     private fun checkCapacity(additionalBytes: Int) {
         if (writtenBytes + additionalBytes <= maxBytes) return
         exceeded = true
-        throw IOException("WebP が $maxBytes バイトを超えた")
+        throw IOException("$maxBytes バイトを超えた")
     }
 }
 

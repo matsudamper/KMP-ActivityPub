@@ -7,19 +7,27 @@ import coil3.request.ImageRequest
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNoteImageContent
 
 /**
- * 画像ファイルを選ばせる。返した関数を呼ぶと選ぶ画面を開き、選ばれたファイルを [onPick] に渡す。
+ * 画像ファイルを選ばせる。[videoPickable] なら動画も選べる。返した関数を呼ぶと選ぶ画面を開き、選ばれたファイルを [onPick] に渡す。
  * 選ばずに閉じたら何も呼ばない
  */
 @Composable
-internal expect fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -> Unit
+internal expect fun rememberImagePicker(
+    videoPickable: Boolean,
+    onPick: (PickedImageFile) -> Unit,
+): () -> Unit
 
 /**
- * 選ばれた画像ファイル。
+ * 選ばれた画像か動画のファイル。
  *
  * 読むのは受け取った側のスコープで行う。クラウド上の写真などは読み終えるまで時間がかかり、
  * 画面のスコープで読むと回転などで作り直されたときに止まって、結果が届かなくなる
  */
 interface PickedImageFile {
+    /**
+     * 動画なら [toVideo]、画像なら [toWebp] で送るものにする
+     */
+    val video: Boolean
+
     /**
      * [maxBytes] を超えるファイルは最後まで読まずに [ReadResult.TooLarge] を返す。大きな写真を丸ごと読むとメモリが足りなくなる
      */
@@ -31,6 +39,11 @@ interface PickedImageFile {
      * 展開と書き出しは画面を止めるほど重いので、画面のスレッドの外で行う。元のファイルも書き出した WebP も丸ごとメモリには持たない
      */
     suspend fun toWebp(maxBytes: Int): WebpResult
+
+    /**
+     * 描き直さずにそのまま送る。[maxBytes] を超えたら [VideoResult.TooLarge]。元のファイルを丸ごとメモリには持たない
+     */
+    suspend fun toVideo(maxBytes: Int): VideoResult
 
     sealed interface ReadResult {
         class Success(
@@ -126,11 +139,9 @@ sealed interface WebpResult {
 }
 
 /**
- * 書き出した WebP。何枚も選んだまま投稿するまで持つので、Android はファイル、Web は Blob に置く
+ * 投稿に付ける画像か動画。何枚も選んだまま投稿するまで持つので、Android はファイル、Web は Blob に置く
  */
-interface WebpImage {
-    fun previewRequest(context: PlatformContext): ImageRequest
-
+interface PostAttachment {
     /**
      * Web は送る間だけ中身をメモリに読む
      */
@@ -140,4 +151,31 @@ interface WebpImage {
      * 外したか投稿し終えたら呼ぶ。送っている途中で呼ぶと送れなくなる
      */
     fun release()
+}
+
+/**
+ * 書き出した WebP
+ */
+interface WebpImage : PostAttachment {
+    fun previewRequest(context: PlatformContext): ImageRequest
+}
+
+/**
+ * 選んだまま送る動画
+ */
+interface PickedVideo : PostAttachment {
+    /**
+     * [VideoFirstFrame] に渡して 1 コマ目を出す。[release] の後は読めない
+     */
+    val previewUrl: String
+}
+
+sealed interface VideoResult {
+    class Success(
+        val video: PickedVideo,
+    ) : VideoResult
+
+    data object TooLarge : VideoResult
+
+    data object Unreadable : VideoResult
 }

@@ -70,8 +70,8 @@ internal fun ProfileEditScreen(
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    val pickIcon = rememberImagePicker(onPick = uiState.listener::onIconPicked)
-    val pickHeader = rememberImagePicker(onPick = uiState.listener::onHeaderPicked)
+    val pickIcon = rememberImagePicker(videoPickable = false, onPick = uiState.listener::onIconPicked)
+    val pickHeader = rememberImagePicker(videoPickable = false, onPick = uiState.listener::onHeaderPicked)
 
     LaunchedEffect(viewModel.eventHandler, navigator, pickIcon, pickHeader) {
         viewModel.eventHandler.collect(

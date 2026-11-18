@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -25,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,6 +54,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ImageDropTarget
 import net.matsudamper.kmp.activitypub.frontend.ui.ImagePasteHandler
 import net.matsudamper.kmp.activitypub.frontend.ui.MultilineTextField
 import net.matsudamper.kmp.activitypub.frontend.ui.PostQuoteCard
+import net.matsudamper.kmp.activitypub.frontend.ui.VideoFirstFrame
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import net.matsudamper.kmp.activitypub.frontend.ui.rememberImagePicker
 import org.koin.compose.viewmodel.koinViewModel
@@ -87,7 +91,7 @@ internal fun rememberPostScreenUiState(
     val viewModel = koinViewModel<PostScreenViewModel> { parametersOf(target) }
     val uiState by viewModel.uiStateFlow.collectAsState()
     val coroutineScope = rememberCoroutineScope()
-    val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
+    val pickImage = rememberImagePicker(videoPickable = true, onPick = uiState.listener::onImagePicked)
     val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
     val currentOnClose by rememberUpdatedState(onClose)
 
@@ -282,7 +286,7 @@ internal fun PostContent(
                     ) {
                         Icon(
                             imageVector = AppIcons.Image,
-                            contentDescription = "画像を追加",
+                            contentDescription = "画像か動画を追加",
                         )
                     }
                     if (uiState.addImageLoadingVisible) {
@@ -403,12 +407,34 @@ private fun SelectedImage(image: PostScreenUiState.Image) {
     Box(
         modifier = Modifier.size(SELECTED_IMAGE_SIZE).clip(RoundedCornerShape(8.dp)),
     ) {
-        AsyncImage(
-            model = image.preview.imageRequest(LocalPlatformContext.current),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        when (val preview = image.preview) {
+            is PostScreenUiState.ImagePreview -> {
+                AsyncImage(
+                    model = preview.imageRequest(LocalPlatformContext.current),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            is PostScreenUiState.VideoPreview -> {
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)) {
+                    VideoFirstFrame(videoUrl = preview.videoUrl, modifier = Modifier.fillMaxSize())
+                    Surface(
+                        modifier = Modifier.align(Alignment.Center).size(32.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.inverseSurface,
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.PlayArrow,
+                            contentDescription = "動画",
+                            modifier = Modifier.padding(4.dp),
+                        )
+                    }
+                }
+            }
+        }
         IconButton(
             onClick = image.listener::onClickRemove,
             enabled = image.removeButtonEnabled,
@@ -420,7 +446,7 @@ private fun SelectedImage(image: PostScreenUiState.Image) {
         ) {
             Icon(
                 imageVector = AppIcons.Close,
-                contentDescription = "画像を外す",
+                contentDescription = "添付を外す",
                 modifier = Modifier.size(18.dp),
             )
         }
