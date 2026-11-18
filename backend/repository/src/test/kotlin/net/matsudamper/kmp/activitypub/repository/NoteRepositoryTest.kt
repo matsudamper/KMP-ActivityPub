@@ -275,6 +275,24 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `同じ宛先への Create が届くまで Update は取り出さない`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A)))
+            val create = queue.claim(now = NOW, limit = 10).single()
+            queue.scheduleRetry(id = create.id, nextAttemptAt = NOW.plusSeconds(120), error = "失敗")
+
+            queue.enqueueNoteUpdate(noteUpdate(publicId = "note-1", body = "update", inboxes = listOf(INBOX_A, INBOX_B)))
+
+            assertEquals(listOf(INBOX_B to "update"), queue.claim(now = NOW.plusSeconds(60), limit = 10).map { it.inbox to it.body })
+            val retriedCreate = queue.claim(now = NOW.plusSeconds(120), limit = 10).single()
+            assertEquals("create-note-1", retriedCreate.body)
+            queue.markDelivered(id = retriedCreate.id, deliveredAt = NOW.plusSeconds(120))
+            assertEquals(listOf(INBOX_A to "update"), queue.claim(now = NOW.plusSeconds(120), limit = 10).map { it.inbox to it.body })
+        }
+    }
+
+    @Test
     fun `他のアカウントの投稿や無い投稿の編集は何も積まない`() {
         Accounts.insert(
             databasePath = dbPath,

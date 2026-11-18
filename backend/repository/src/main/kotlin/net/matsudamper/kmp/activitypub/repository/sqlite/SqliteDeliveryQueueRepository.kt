@@ -311,6 +311,7 @@ internal class SqliteDeliveryQueueRepository(
                 .where(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
                 .and(DELIVERY_QUEUE.NEXT_ATTEMPT_AT.le(StoredInstant.format(now)))
                 .andNot(likeWaitingForEarlierUndo(dsl))
+                .andNot(noteUpdateWaitingForCreate(dsl))
                 .orderBy(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, DELIVERY_QUEUE.ID)
                 .limit(limit)
                 .fetch { record ->
@@ -351,6 +352,24 @@ internal class SqliteDeliveryQueueRepository(
                     .and(undo.ID.lt(DELIVERY_QUEUE.ID))
                     .and(undo.STATE.`in`(DeliveryQueueValues.STATE_PENDING, DeliveryQueueValues.STATE_DELIVERING))
                     .and(undoneObject.eq(likedObject)),
+            ),
+        )
+    }
+
+    /**
+     * 同じ宛先への同じ投稿の Create がまだ届いていない Update。
+     * 相手は知らない投稿への Update を捨てるので、先に Update が届くと、後から届いた Create の編集前の本文が残る。
+     * Create が送れたか諦めるまで、Update は取り出さない
+     */
+    private fun noteUpdateWaitingForCreate(dsl: DSLContext): Condition {
+        val create = DELIVERY_QUEUE.`as`("pending_create")
+        return DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_UPDATE_NOTE).and(
+            DSL.exists(
+                dsl.selectOne().from(create)
+                    .where(create.KIND.eq(DeliveryQueueValues.KIND_CREATE_NOTE))
+                    .and(create.NOTE_ID.eq(DELIVERY_QUEUE.NOTE_ID))
+                    .and(create.INBOX.eq(DELIVERY_QUEUE.INBOX))
+                    .and(create.STATE.`in`(DeliveryQueueValues.STATE_PENDING, DeliveryQueueValues.STATE_DELIVERING)),
             ),
         )
     }
