@@ -125,9 +125,11 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
         // 受け取った時刻では編集の前後を決められないので、編集時刻の付いた編集を、時刻の無い Update では書き換えない
         val staleEdit = storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))
-        // 票数が変わっただけの Update は編集時刻が進まないので、投票は編集の新旧を問わず票数だけでも置き換え、表示中の画面にも知らせる
+        // 票数が変わっただけの Update は編集時刻が進まないので、投票は編集の新旧を問わず票数だけでも置き換え、表示中の画面にも知らせる。
+        // 同じ編集時刻の Update は本文を書き換えないが、投票は新しい版として受け取る
+        val pollFromStaleEdit = storedEditedAt != null && (note.editedAt == null || note.editedAt.isBefore(storedEditedAt))
         val storedPoll = dsl.remoteNotePoll(id)
-        val revisedPoll = storedPoll.revisedBy(incoming = note.poll, staleEdit = staleEdit)
+        val revisedPoll = storedPoll.revisedBy(incoming = note.poll, staleEdit = pollFromStaleEdit)
         val pollChanged = storedPoll != revisedPoll
         if (pollChanged) dsl.replaceRemoteNotePoll(id, revisedPoll)
         val membersIfPollChanged = if (pollChanged) members else listOf()

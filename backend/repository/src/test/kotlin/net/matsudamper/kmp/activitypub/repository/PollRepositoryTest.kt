@@ -85,6 +85,9 @@ class PollRepositoryTest {
         val counted = edited.copy(options = listOf(PollOptionRecord(name = "犬", votesCount = 2), PollOptionRecord(name = "猫", votesCount = 1)), votersCount = 3)
         assertEquals(1, repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = counted)).size)
         assertEquals(mapOf(objectUri to counted), repositories.pollRepository.remotePolls(setOf(objectUri)))
+        val sameTimeQuestion = edited.copy(options = listOf(PollOptionRecord(name = "鳥", votesCount = 0)))
+        repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = sameTimeQuestion).copy(editedAt = NOW.plusSeconds(10)))
+        assertEquals(mapOf(objectUri to sameTimeQuestion), repositories.pollRepository.remotePolls(setOf(objectUri)))
     }
 
     private fun notePost(multipleChoice: Boolean): NotePost = NotePost(
