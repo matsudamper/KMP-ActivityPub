@@ -60,8 +60,11 @@ class PollRepositoryTest {
         assertEquals(mapOf(objectUri to first), repositories.pollRepository.remotePolls(setOf(objectUri)))
 
         val counted = first.copy(options = listOf(PollOptionRecord(name = "犬", votesCount = 3), PollOptionRecord(name = "猫", votesCount = 1)), votersCount = 4)
-        repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = counted))
+        val position = repositories.timelineRepository.receive(remoteNote(objectUri = "$ACTOR/notes/other", poll = null))
+        assertTrue(position != null)
+        assertEquals(1, repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = counted)).size)
         assertEquals(mapOf(objectUri to counted), repositories.pollRepository.remotePolls(setOf(objectUri)))
+        assertEquals(listOf(), repositories.timelineRepository.reviseRemote(remoteNote(objectUri = objectUri, poll = counted)))
     }
 
     private fun notePost(multipleChoice: Boolean): NotePost = NotePost(
@@ -91,7 +94,7 @@ class PollRepositoryTest {
         votedAt = NOW,
     )
 
-    private fun remoteNote(objectUri: String, poll: PollRecord): RemoteNoteInput = RemoteNoteInput(
+    private fun remoteNote(objectUri: String, poll: PollRecord?): RemoteNoteInput = RemoteNoteInput(
         objectUri = objectUri, actorUri = ACTOR, contentHtml = "<p>どっち</p>", language = null, visibility = "public",
         localRecipients = setOf("alice"), inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW, editedAt = null,
         images = listOf(),

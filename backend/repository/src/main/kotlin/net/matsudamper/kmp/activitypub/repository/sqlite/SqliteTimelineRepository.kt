@@ -121,11 +121,14 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri)).and(REMOTE_NOTES.DELETED_AT.isNull)
             .fetchOne() ?: return@transaction listOf()
         val id = checkNotNull(stored.get(REMOTE_NOTES.ID))
-        // 票数が変わっただけの Update は編集時刻が進まないので、編集かどうかを問わず投票は置き換える
-        dsl.replaceRemoteNotePoll(id, note.poll)
+        val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
+        // 票数が変わっただけの Update は編集時刻が進まないので、編集かどうかを問わず投票は置き換え、表示中の画面にも知らせる
+        val pollChanged = dsl.remoteNotePoll(id) != note.poll
+        if (pollChanged) dsl.replaceRemoteNotePoll(id, note.poll)
+        val membersIfPollChanged = if (pollChanged) members else listOf()
         val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
         // 受け取った時刻では編集の前後を決められないので、編集時刻の付いた編集を、時刻の無い Update では書き換えない
-        if (storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))) return@transaction listOf()
+        if (storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))) return@transaction membersIfPollChanged
         val storedRevision = PostRevision(
             position = PostRevisionPosition.Current,
             contentHtml = checkNotNull(stored.get(REMOTE_NOTES.CONTENT_HTML)),
@@ -135,9 +138,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             revisedAt = storedEditedAt ?: StoredInstant.parse(checkNotNull(stored.get(REMOTE_NOTES.PUBLISHED_AT))),
         )
         val revised = storedRevision.copy(contentHtml = note.contentHtml, summary = note.summary, sensitive = note.sensitive, images = note.images, revisedAt = editedAt)
-        val members = listOf("r$id") + dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_NOTE_ID.eq(id)).fetch { "b${it.value1()}" }
         if (revised.copy(revisedAt = storedRevision.revisedAt) == storedRevision) {
-            if (note.editedAt == null) return@transaction listOf()
+            if (note.editedAt == null) return@transaction membersIfPollChanged
             dsl.update(REMOTE_NOTES)
                 .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
                 .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())

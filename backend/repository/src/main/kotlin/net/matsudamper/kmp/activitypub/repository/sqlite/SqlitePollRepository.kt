@@ -119,17 +119,33 @@ internal class SqlitePollRepository(
             .onConflictDoNothing()
             .execute() > 0
     }
+}
 
-    private fun DSLContext.remotePollOptions(remoteNoteIds: List<Long>): Map<Long, List<PollOptionRecord>> =
-        select(REMOTE_NOTE_POLL_OPTIONS.REMOTE_NOTE_ID, REMOTE_NOTE_POLL_OPTIONS.NAME, REMOTE_NOTE_POLL_OPTIONS.VOTES_COUNT)
-            .from(REMOTE_NOTE_POLL_OPTIONS)
-            .where(REMOTE_NOTE_POLL_OPTIONS.REMOTE_NOTE_ID.`in`(remoteNoteIds))
-            .orderBy(REMOTE_NOTE_POLL_OPTIONS.REMOTE_NOTE_ID, REMOTE_NOTE_POLL_OPTIONS.POSITION)
-            .fetch()
-            .groupBy(
-                keySelector = { checkNotNull(it.value1()) },
-                valueTransform = { PollOptionRecord(name = checkNotNull(it.value2()), votesCount = it.value3()) },
-            )
+private fun DSLContext.remotePollOptions(remoteNoteIds: List<Long>): Map<Long, List<PollOptionRecord>> =
+    select(REMOTE_NOTE_POLL_OPTIONS.REMOTE_NOTE_ID, REMOTE_NOTE_POLL_OPTIONS.NAME, REMOTE_NOTE_POLL_OPTIONS.VOTES_COUNT)
+        .from(REMOTE_NOTE_POLL_OPTIONS)
+        .where(REMOTE_NOTE_POLL_OPTIONS.REMOTE_NOTE_ID.`in`(remoteNoteIds))
+        .orderBy(REMOTE_NOTE_POLL_OPTIONS.REMOTE_NOTE_ID, REMOTE_NOTE_POLL_OPTIONS.POSITION)
+        .fetch()
+        .groupBy(
+            keySelector = { checkNotNull(it.value1()) },
+            valueTransform = { PollOptionRecord(name = checkNotNull(it.value2()), votesCount = it.value3()) },
+        )
+
+/**
+ * 他のサーバーの投稿の投票。投票でなければ null
+ */
+internal fun DSLContext.remoteNotePoll(remoteNoteId: Long): PollRecord? {
+    val poll = select(REMOTE_NOTE_POLLS.MULTIPLE_CHOICE, REMOTE_NOTE_POLLS.ENDS_AT, REMOTE_NOTE_POLLS.VOTERS_COUNT)
+        .from(REMOTE_NOTE_POLLS)
+        .where(REMOTE_NOTE_POLLS.REMOTE_NOTE_ID.eq(remoteNoteId))
+        .fetchOne() ?: return null
+    return PollRecord(
+        options = remotePollOptions(listOf(remoteNoteId))[remoteNoteId].orEmpty(),
+        multipleChoice = poll.value1() == 1L,
+        endsAt = poll.value2()?.let { StoredInstant.parse(it) },
+        votersCount = poll.value3(),
+    )
 }
 
 /**
