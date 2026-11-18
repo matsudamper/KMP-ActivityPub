@@ -20,7 +20,6 @@ import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
-@Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class NoteImageRoutesTest {
     @Test
     fun `Range があれば指定の範囲だけを 206 で返す`() =
