@@ -10,10 +10,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserAdminAccessResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserRemoteProfileRefreshResult
+import net.matsudamper.kmp.activitypub.frontend.screen.createFullPostedAtText
 import org.koin.core.annotation.KoinViewModel
 
 @KoinViewModel
@@ -150,10 +152,11 @@ internal class AdminScreenViewModel(
         if (this == null) return "まだ取り直していません"
         val counts = "$total 人中 $refreshed 人を取り直し、失敗 $failed 人、スキップ $skipped 人"
         val finishedAt = finishedAt
+        val timeZone = TimeZone.currentSystemDefault()
         return if (finishedAt == null) {
-            "取り直し中（$startedAt 開始）\n$counts"
+            "取り直し中（${createFullPostedAtText(publishedAt = startedAt, timeZone = timeZone)} 開始）\n$counts"
         } else {
-            "前回は $finishedAt に終了\n$counts"
+            "前回は ${createFullPostedAtText(publishedAt = finishedAt, timeZone = timeZone)} に終了\n$counts"
         }
     }
 
