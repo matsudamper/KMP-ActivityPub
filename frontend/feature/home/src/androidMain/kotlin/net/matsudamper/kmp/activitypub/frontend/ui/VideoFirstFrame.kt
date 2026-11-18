@@ -1,7 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
@@ -55,7 +57,9 @@ private const val FIRST_FRAME_TIME_US = 100_000L
 private fun retrieveFirstFrame(videoUrl: String): Bitmap? {
     val retriever = MediaMetadataRetriever()
     return try {
-        retriever.setDataSource(videoUrl, mapOf())
+        // 投稿画面で選んだ動画はキャッシュのファイルにある。URL を渡す方は file の URI を読めるとは限らない
+        val localPath = Uri.parse(videoUrl).takeIf { it.scheme == ContentResolver.SCHEME_FILE }?.path
+        if (localPath != null) retriever.setDataSource(localPath) else retriever.setDataSource(videoUrl, mapOf())
         retriever.getScaledFrameAtTime(
             FIRST_FRAME_TIME_US,
             MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
