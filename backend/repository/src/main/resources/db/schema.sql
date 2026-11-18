@@ -166,6 +166,33 @@ CREATE TABLE note_mentions (
     PRIMARY KEY (note_id, position)
 );
 
+-- 投稿に付けた投票。選択肢は note_poll_options
+CREATE TABLE note_polls (
+    note_id INTEGER PRIMARY KEY REFERENCES notes (id) ON DELETE CASCADE,
+    -- 複数選べるなら 1
+    multiple_choice INTEGER NOT NULL,
+    ends_at TEXT NOT NULL
+);
+
+-- 投票の選択肢。position は並べた順
+CREATE TABLE note_poll_options (
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    PRIMARY KEY (note_id, position)
+);
+
+-- 他のサーバーから届いた票。複数選べる投票では選んだ選択肢ごとに 1 行
+CREATE TABLE note_poll_votes (
+    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    actor_uri TEXT NOT NULL,
+    -- 票の Note の id
+    vote_uri TEXT NOT NULL,
+    voted_at TEXT NOT NULL,
+    PRIMARY KEY (note_id, position, actor_uri)
+);
+
 -- 置いたがまだ投稿に付けていない画像。投稿に付けたら note_images に移し、期限までに付かなければ消す
 CREATE TABLE uploaded_note_images (
     public_id TEXT PRIMARY KEY,
@@ -297,6 +324,27 @@ CREATE TABLE remote_note_images (
     description TEXT,
     -- RemoteMediaKind の値。画像だけだった頃の行は image
     media_kind TEXT NOT NULL DEFAULT 'image',
+    PRIMARY KEY (remote_note_id, position)
+);
+
+-- 他のサーバーの投稿に付いた投票。票数は届いた投稿に載っていた数
+CREATE TABLE remote_note_polls (
+    remote_note_id INTEGER PRIMARY KEY REFERENCES remote_notes (id) ON DELETE CASCADE,
+    -- 複数選べるなら 1
+    multiple_choice INTEGER NOT NULL,
+    -- 相手のサーバーが付けていなければ NULL
+    ends_at TEXT,
+    -- 相手のサーバーが出していなければ NULL
+    voters_count INTEGER
+);
+
+-- 他のサーバーの投票の選択肢。position は並んでいた順
+CREATE TABLE remote_note_poll_options (
+    remote_note_id INTEGER NOT NULL REFERENCES remote_notes (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    -- 相手のサーバーが出していなければ NULL
+    votes_count INTEGER,
     PRIMARY KEY (remote_note_id, position)
 );
 

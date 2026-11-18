@@ -81,6 +81,7 @@ internal fun List<CustomEmojiRecord>.toQlCustomEmojis(diContainer: DiContainer):
 internal fun createQlPostEmojis(
     noteRef: TimelineNoteRef,
     contentHtml: String,
+    pollOptions: List<String>,
     remoteEmojis: List<CustomEmojiRecord>,
     diContainer: DiContainer,
 ): List<QlCustomEmoji> = when (noteRef) {
@@ -91,7 +92,8 @@ internal fun createQlPostEmojis(
         if (urls == null) {
             listOf()
         } else {
-            diContainer.customEmojiService?.findInNoteContent(contentHtml).orEmpty()
+            // 投票の選択肢にも :shortcode: を書けるので、本文と一緒に探す
+            diContainer.customEmojiService?.findInNoteContent((listOf(contentHtml) + pollOptions).joinToString("\n")).orEmpty()
                 .map { emoji -> QlCustomEmoji(name = ":${emoji.shortcode}:", imageUrl = urls.imageUrl(emoji.publicId)) }
         }
     }

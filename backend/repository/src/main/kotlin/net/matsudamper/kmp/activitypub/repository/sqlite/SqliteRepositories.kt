@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
+import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
@@ -41,6 +42,7 @@ internal class SqliteRepositories(
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
     override val noteCountRepository: NoteCountRepository = SqliteNoteCountRepository(jooq)
     override val notePinRepository: NotePinRepository = SqliteNotePinRepository(jooq)
+    override val pollRepository: PollRepository = SqlitePollRepository(jooq)
     override val remoteActorRepository: RemoteActorRepository = SqliteRemoteActorRepository(jooq)
     override val favouriteRepository: FavouriteRepository = SqliteFavouriteRepository(jooq)
     override val boostRepository: BoostRepository = SqliteBoostRepository(jooq)

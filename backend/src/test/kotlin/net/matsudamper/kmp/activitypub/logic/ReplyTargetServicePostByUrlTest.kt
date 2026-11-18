@@ -42,6 +42,7 @@ class ReplyTargetServicePostByUrlTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        poll = null,
     )
 
     private val storedPost = TimelinePost(

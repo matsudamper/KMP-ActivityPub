@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.logic
 
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -18,11 +19,13 @@ import net.matsudamper.kmp.activitypub.FakeDeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.FakeFollowerRepository
 import net.matsudamper.kmp.activitypub.FakeImageStorage
 import net.matsudamper.kmp.activitypub.FakeNoteRepository
+import net.matsudamper.kmp.activitypub.FakePollRepository
 import net.matsudamper.kmp.activitypub.FakeRemoteActorRepository
 import net.matsudamper.kmp.activitypub.federation.RepositoryNoteStore
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NoteMention
+import net.matsudamper.kmp.activitypub.repository.NotePollInput
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.ReplyTarget
@@ -66,9 +69,10 @@ class NotePostServiceTest {
     private val service =
         NotePostService(
             directory = ActorDirectory(domain = DOMAIN, stored = LocalUsers),
-            publisher = NotePublisher(RepositoryNoteStore(noteRepository, imageUrls, BlobcatOnly), null),
+            publisher = NotePublisher(RepositoryNoteStore(noteRepository, imageUrls, BlobcatOnly, FakePollRepository()), null),
             accountService = AccountService(accountRepository),
             noteRepository = noteRepository,
+            polls = FakePollRepository(),
             imageStorage = imageStorage,
             imageUrls = imageUrls,
             emojiObjects = BlobcatOnly,
@@ -103,6 +107,7 @@ class NotePostServiceTest {
             quotePostId = null,
             mentionAcct = null,
             sensitive = false,
+            poll = null,
         )
 
         val posted = assertIs<PostNoteResult.Posted>(result)
@@ -129,6 +134,7 @@ class NotePostServiceTest {
             quotePostId = null,
             mentionAcct = null,
             sensitive = false,
+            poll = null,
         )
 
         val post = deliveryQueueRepository.posts.single()
@@ -151,6 +157,7 @@ class NotePostServiceTest {
             quotePostId = null,
             mentionAcct = null,
             sensitive = true,
+            poll = null,
         )
 
         val post = deliveryQueueRepository.posts.single()
@@ -172,6 +179,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -180,6 +188,84 @@ class NotePostServiceTest {
         val note = AppJson.parseToJsonElement(post.body).jsonObject.getValue("object").jsonObject
         assertEquals("ネタバレ", note.getValue("summary").jsonPrimitive.content)
         assertEquals("true", note.getValue("sensitive").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `投票を付けると選択肢と締め切りを記録し、配る Note を Question にする`() = runBlocking<Unit> {
+        val poll = PostPollInput(options = listOf(" 犬 ", "猫"), multipleChoice = false, expiresIn = Duration.ofHours(1))
+        assertIs<PostNoteResult.Posted>(
+            service.post(
+                username = "user1",
+                body = "どっち",
+                requestId = REQUEST_ID,
+                contentWarning = null,
+                imageIds = listOf(),
+                replyToPostId = null,
+                quotePostId = null,
+                mentionAcct = null,
+                sensitive = false,
+                poll = poll,
+            ),
+        )
+
+        val post = deliveryQueueRepository.posts.single()
+        assertEquals(NotePollInput(options = listOf("犬", "猫"), multipleChoice = false, endsAt = NOW.plus(Duration.ofHours(1))), post.poll)
+        val note = AppJson.parseToJsonElement(post.body).jsonObject.getValue("object").jsonObject
+        assertEquals("Question", note.getValue("type").jsonPrimitive.content)
+        assertEquals(listOf("犬", "猫"), note.getValue("oneOf").jsonArray.map { it.jsonObject.getValue("name").jsonPrimitive.content })
+    }
+
+    @Test
+    fun `投票の選択肢に入れたカスタム絵文字も Emoji として載せる`() = runBlocking<Unit> {
+        val poll = PostPollInput(options = listOf(":blobcat:", "猫"), multipleChoice = false, expiresIn = Duration.ofHours(1))
+        assertIs<PostNoteResult.Posted>(
+            service.post(
+                username = "user1",
+                body = "どっち",
+                requestId = REQUEST_ID,
+                contentWarning = null,
+                imageIds = listOf(),
+                replyToPostId = null,
+                quotePostId = null,
+                mentionAcct = null,
+                sensitive = false,
+                poll = poll,
+            ),
+        )
+
+        val tag = AppJson.parseToJsonElement(deliveryQueueRepository.posts.single().body).jsonObject.getValue("object").jsonObject.getValue("tag").jsonArray
+        assertEquals(listOf(":blobcat:"), tag.map { it.jsonObject.getValue("name").jsonPrimitive.content })
+    }
+
+    @Test
+    fun `範囲外の投票と画像付きの投票は積まない`() = runBlocking<Unit> {
+        val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
+        listOf(
+            PostPollInput(options = listOf("犬"), multipleChoice = false, expiresIn = Duration.ofHours(1)) to listOf(),
+            PostPollInput(options = listOf("犬", "犬 "), multipleChoice = false, expiresIn = Duration.ofHours(1)) to listOf(),
+            PostPollInput(options = listOf("犬", " "), multipleChoice = false, expiresIn = Duration.ofHours(1)) to listOf(),
+            PostPollInput(options = listOf("犬", "a".repeat(51)), multipleChoice = false, expiresIn = Duration.ofHours(1)) to listOf(),
+            PostPollInput(options = listOf("犬", "猫"), multipleChoice = false, expiresIn = Duration.ofMinutes(4)) to listOf(),
+            PostPollInput(options = listOf("犬", "猫"), multipleChoice = false, expiresIn = Duration.ofDays(8)) to listOf(),
+            PostPollInput(options = listOf("犬", "猫"), multipleChoice = false, expiresIn = Duration.ofHours(1)) to listOf(image),
+        ).forEach { (poll, imageIds) ->
+            assertEquals(
+                PostNoteResult.InvalidPoll,
+                service.post(
+                    username = "user1",
+                    body = "どっち",
+                    requestId = REQUEST_ID,
+                    contentWarning = null,
+                    imageIds = imageIds,
+                    replyToPostId = null,
+                    quotePostId = null,
+                    mentionAcct = null,
+                    sensitive = false,
+                    poll = poll,
+                ),
+            )
+        }
+        assertTrue(deliveryQueueRepository.posts.isEmpty())
     }
 
     @Test
@@ -195,6 +281,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -215,6 +302,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -235,6 +323,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -256,6 +345,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -276,6 +366,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -298,6 +389,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
         val resent =
@@ -312,6 +404,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
 
@@ -333,7 +426,7 @@ class NotePostServiceTest {
                     png,
                     jpeg,
                 ),
-                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false,
+                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
             ),
         )
 
@@ -368,7 +461,7 @@ class NotePostServiceTest {
                 imageIds = listOf(
                     image,
                 ),
-                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false,
+                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
             ),
         )
 
@@ -391,6 +484,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -409,7 +503,7 @@ class NotePostServiceTest {
                 imageIds = listOf(
                     image,
                 ),
-                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false,
+                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
             ),
         )
         assertEquals(
@@ -424,6 +518,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -441,6 +536,7 @@ class NotePostServiceTest {
                 requestId = REQUEST_ID,
                 contentWarning = null,
                 sensitive = false,
+                poll = null,
                 imageIds = listOf(mp4),
                 replyToPostId = null,
                 quotePostId = null,
@@ -485,6 +581,7 @@ class NotePostServiceTest {
             quotePostId = null,
             mentionAcct = null,
             sensitive = false,
+            poll = null,
         )
         val resent = service.post(
             username = "user1",
@@ -496,6 +593,7 @@ class NotePostServiceTest {
             quotePostId = null,
             mentionAcct = null,
             sensitive = false,
+            poll = null,
         )
 
         assertEquals(first, resent)
@@ -513,7 +611,7 @@ class NotePostServiceTest {
                     imageIds = listOf(
                         image,
                     ),
-                    replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false,
+                    replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
                 ),
             )
         enqueuedCount = 0
@@ -538,7 +636,7 @@ class NotePostServiceTest {
                     imageIds = listOf(
                         image,
                     ),
-                    replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false,
+                    replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
                 ),
             )
         imageStorage.deleteFails = true
@@ -571,6 +669,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
         enqueuedCount = 0
@@ -602,6 +701,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
 
@@ -626,6 +726,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
         val othersNote = assertIs<Note>(noteRepository.find(posted.publicId)).copy(username = "user2")
@@ -652,6 +753,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
         val recorded = assertIs<Note>(noteRepository.find(posted.publicId))
@@ -684,6 +786,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
 
@@ -724,6 +827,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
 
@@ -765,6 +869,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -789,6 +894,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -814,6 +920,7 @@ class NotePostServiceTest {
                     quotePostId = null,
                     mentionAcct = "@alice@remote.example",
                     sensitive = false,
+                    poll = null,
                 ),
             )
 
@@ -848,6 +955,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = "alice@remote.example",
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -879,6 +987,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = "alice@remote.example",
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -902,6 +1011,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = "user2@$DOMAIN",
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -928,6 +1038,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = "user1",
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -948,6 +1059,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = "bob@remote.example",
                 sensitive = false,
+                poll = null,
             ),
         )
         assertEquals(
@@ -962,6 +1074,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = "nobody",
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -982,6 +1095,7 @@ class NotePostServiceTest {
                 quotePostId = null,
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -1012,6 +1126,7 @@ class NotePostServiceTest {
                     quotePostId = "r1",
                     mentionAcct = null,
                     sensitive = false,
+                    poll = null,
                 ),
             )
 
@@ -1042,6 +1157,7 @@ class NotePostServiceTest {
                 quotePostId = "l1",
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -1065,6 +1181,7 @@ class NotePostServiceTest {
                 quotePostId = "l1",
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 
@@ -1085,6 +1202,7 @@ class NotePostServiceTest {
                 quotePostId = "r999",
                 mentionAcct = null,
                 sensitive = false,
+                poll = null,
             ),
         )
 

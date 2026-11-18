@@ -49,6 +49,7 @@ class NoteCountRepositoryTest {
         inboxes = listOf(),
         inReplyTo = null,
         mentions = listOf(),
+        poll = null,
         quoteUri = null,
         quoteInbox = null,
         sensitive = false,
@@ -60,6 +61,7 @@ class NoteCountRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        poll = null,
     )
 
     private fun withRepository(block: (Repositories) -> Unit) {

@@ -9,6 +9,8 @@ import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
 import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
+import net.matsudamper.kmp.activitypub.repository.PollOptionRecord
+import net.matsudamper.kmp.activitypub.repository.PollRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
@@ -27,6 +29,7 @@ import net.matsudamper.kotpub.boost.BoostStore.ReceivedRemoteBoost
 import net.matsudamper.kotpub.note.NoteVisibility
 import net.matsudamper.kotpub.note.ReceivedNote
 import net.matsudamper.kotpub.note.ReceivedNoteAttachment
+import net.matsudamper.kotpub.note.ReceivedPoll
 import net.matsudamper.kotpub.note.RemoteNoteStore
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -205,6 +208,18 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     images = attachments.mapNotNull { it.toRemoteMedia() },
     emojis = emojis.toRecords(),
     linkHref = linkHref,
+    poll = poll?.toRecord(),
+)
+
+/**
+ * 選択肢は HTML ではなくプレーンテキストで届き、画面も文字のまま出すので、手を加えずに残す。
+ * HTML として掃除すると `&` が `&amp;` に変わって出る
+ */
+private fun ReceivedPoll.toRecord(): PollRecord = PollRecord(
+    options = options.map { option -> PollOptionRecord(name = option.name, votesCount = option.votesCount?.toLong()) },
+    multipleChoice = multipleChoice,
+    endsAt = endsAt,
+    votersCount = votersCount?.toLong(),
 )
 
 /**

@@ -90,6 +90,7 @@ internal class KotpubRemoteUserProfiles(
         images = attachments.mapNotNull { attachment -> attachment.toRemoteMedia() },
         emojis = emojis.toRecords(),
         linkHref = null,
+        poll = null,
     )
 
     private fun FoundRemoteUser.toProfile(): RemoteUserProfile =
