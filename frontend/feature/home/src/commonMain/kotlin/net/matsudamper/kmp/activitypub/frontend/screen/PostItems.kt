@@ -141,6 +141,13 @@ internal fun createPostItemUiState(
                 onToggleBlur = { onToggleImageBlur(imageUrls, image.url !in blurToggledImageUrls) },
             )
         },
+        videos = body.videos.map { video ->
+            PostItemUiState.Video(
+                url = video.url,
+                description = video.description,
+                firstFrameVisible = !(body.sensitive && sensitiveImagesBlurred),
+            )
+        },
         replyCountText = body.replyCount.takeIf { it > 0 }?.toString(),
         replyListener = if (deleted) {
             null

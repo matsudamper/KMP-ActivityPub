@@ -86,6 +86,7 @@ class UserInfoResolverImpl : UserInfoResolver {
                             sensitive = body.sensitive,
                             mentions = body.mentions,
                             images = body.images,
+                            videos = body.videos,
                             emojis = createQlPostEmojis(noteRef = post.noteRef, contentHtml = revision.contentHtml, remoteEmojis = post.emojis, diContainer = diContainer),
                             revisedAt = revision.revisedAt.toString(),
                         )
