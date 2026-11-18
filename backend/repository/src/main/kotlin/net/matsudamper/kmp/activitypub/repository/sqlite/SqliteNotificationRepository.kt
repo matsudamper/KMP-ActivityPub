@@ -96,7 +96,9 @@ internal class SqliteNotificationRepository(
             DSL.row(NOTIFICATION_GROUPS.UPDATED_AT, NOTIFICATION_GROUPS.ID)
                 .lt(DSL.row(DSL.inline(StoredInstant.format(before.updatedAt)), DSL.inline(before.id.value)))
         }
-        dsl.groups(NOTIFICATION_GROUPS.ACCOUNT_ID.eq(accountId.value).and(older), limit)
+        // 相手のアクターが消えると記録の無い項目が残る。それで件数が埋まると、表示できる項目の無いページが続いてしまう
+        val hasEntries = DSL.exists(dsl.selectOne().from(NOTIFICATION_ENTRIES).where(NOTIFICATION_ENTRIES.GROUP_ID.eq(NOTIFICATION_GROUPS.ID)))
+        dsl.groups(NOTIFICATION_GROUPS.ACCOUNT_ID.eq(accountId.value).and(older).and(hasEntries), limit)
     }
 
     override fun find(id: NotificationGroupId): NotificationGroup? = jooq.withConnection { dsl ->

@@ -141,14 +141,16 @@ class NotificationRepositoryTest {
 
     @Test
     fun `取り消されても通知は残り、相手のアクターが消えたら相手の記録が消える`() = withRepositories { repositories, author, _ ->
-        repositories.favouriteRepository.add(NOTE_1, actor(BOB), NOW)
-        repositories.notificationRepository.record(favourited(BOB, NOW, null))
+        repositories.notificationRepository.record(NotificationEvent.Followed(AUTHOR, NotificationActorRef.Remote(ALICE), NOW))
+        repositories.favouriteRepository.add(NOTE_1, actor(BOB), NOW.plusSeconds(1))
+        repositories.notificationRepository.record(favourited(BOB, NOW.plusSeconds(1), null))
 
         repositories.favouriteRepository.remove(NOTE_1, BOB)
-        assertEquals(1, repositories.notificationRepository.page(author, null, 10).single().entries.size)
+        assertEquals(listOf(NotificationKind.FAVOURITE, NotificationKind.FOLLOW), repositories.notificationRepository.page(author, null, 10).map { it.kind })
 
+        // 相手が誰も残っていない項目は件数に数えず、古い項目まで読める
         repositories.favouriteRepository.removeActor(BOB)
-        assertTrue(repositories.notificationRepository.page(author, null, 10).single().entries.isEmpty())
+        assertEquals(listOf(NotificationKind.FOLLOW), repositories.notificationRepository.page(author, null, 1).map { it.kind })
     }
 
     private fun favourited(actorUri: String, at: Instant, reaction: NotificationReactionInput?): NotificationEvent =

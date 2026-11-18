@@ -19,7 +19,7 @@ interface NotificationRepository {
     fun record(event: NotificationEvent): NotificationGroupId?
 
     /**
-     * 新しい相手が加わった新しい順に、[before] より後ろから [limit] 件まで返す
+     * 新しい相手が加わった新しい順に、[before] より後ろから [limit] 件まで返す。相手が誰も残っていない項目は返さない
      */
     fun page(accountId: AccountId, before: NotificationGroupPosition?, limit: Int): List<NotificationGroup>
 
