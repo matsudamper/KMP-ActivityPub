@@ -365,6 +365,11 @@ internal class PostScreenViewModel(
                     viewModelStateFlow.update { it.copy(loadingImage = false) }
                 }
             if (image == null) return@launch
+            // 読んでいる間に編集を始めたら、編集では画像を送らないので捨てる
+            if (viewModelStateFlow.value.editing != null) {
+                image.release()
+                return@launch
+            }
             renewRequestId()
             viewModelStateFlow.update { state ->
                 state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), image = image), error = null)
