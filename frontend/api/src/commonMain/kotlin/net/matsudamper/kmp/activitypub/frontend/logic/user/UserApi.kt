@@ -967,6 +967,7 @@ class UserApi(
     /**
      * @param replyToPostId 返信する [UserHomeTimelineResult.Post.id]。投稿者へのメンションが本文の先頭に付く。返信でなければ null
      * @param quotePostId 引用する [UserHomeTimelineResult.Post.id]。引用でなければ null
+     * @param mentionAcct 宛てるユーザーの `username@host`。返信先の投稿者のほかに宛てなければ null
      */
     suspend fun postNote(
         body: String,
@@ -974,6 +975,7 @@ class UserApi(
         imageIds: List<String>,
         replyToPostId: String?,
         quotePostId: String?,
+        mentionAcct: String?,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
         val mutation =
@@ -983,6 +985,7 @@ class UserApi(
                 imageIds = imageIds,
                 replyToPostId = Optional.present(replyToPostId),
                 quotePostId = Optional.present(quotePostId),
+                mentionAcct = Optional.present(mentionAcct),
             )
         val response = client.mutation(mutation).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
@@ -998,6 +1001,7 @@ class UserApi(
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
             UserPostNoteFailure.REPLY_TARGET_NOT_FOUND -> UserPostNoteResult.ReplyTargetNotFound
             UserPostNoteFailure.QUOTE_TARGET_NOT_FOUND -> UserPostNoteResult.QuoteTargetNotFound
+            UserPostNoteFailure.MENTION_TARGET_NOT_FOUND -> UserPostNoteResult.MentionTargetNotFound
             UserPostNoteFailure.UNKNOWN__ -> UserPostNoteResult.Failure("Unknown")
         }
     }

@@ -37,6 +37,7 @@ data class UserProfileScreenUiState(
      * サーバーとアカウントのブロック。このサーバーのユーザーには出さない
      */
     val blockMenuItemsVisible: Boolean,
+    val postFabVisible: Boolean,
     val listener: Listener,
 ) {
     sealed interface Content {
@@ -121,5 +122,7 @@ data class UserProfileScreenUiState(
         fun onScrolledToEnd()
 
         fun onClickRetryLoadMore()
+
+        fun onClickPostFab()
     }
 }

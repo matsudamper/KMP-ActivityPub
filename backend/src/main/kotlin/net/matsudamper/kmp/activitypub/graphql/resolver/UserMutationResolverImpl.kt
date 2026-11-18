@@ -379,10 +379,22 @@ class UserMutationResolverImpl : UserMutationResolver {
         imageIds: List<NoteImagePublicId>,
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
+        mentionAcct: String?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val result = postNote(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = replyToPostId, quotePostId = quotePostId, env = env)
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
+        return otelFuture {
+            val result =
+                postNote(
+                    body = body,
+                    requestId = requestId,
+                    imageIds = imageIds,
+                    replyToPostId = replyToPostId,
+                    quotePostId = quotePostId,
+                    mentionAcct = mentionAcct,
+                    env = env,
+                )
+            DataFetcherResult.Builder(result).build()
+        }
     }
 
     override fun uploadNoteImage(
@@ -497,12 +509,13 @@ class UserMutationResolverImpl : UserMutationResolver {
         if (!context.claimPasskeyChallenge()) throw GraphQlClientException("パスキーの challenge は 1 リクエストにつき 1 回まで")
     }
 
-    private fun postNote(
+    private suspend fun postNote(
         body: String,
         requestId: String,
         imageIds: List<NoteImagePublicId>,
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
+        mentionAcct: String?,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -524,6 +537,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 imageIds = imageIds,
                 replyToPostId = replyToPostId?.value,
                 quotePostId = quotePostId?.value,
+                mentionAcct = mentionAcct,
             )
         val failure =
             when (result) {
@@ -534,6 +548,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 PostNoteResult.ImageNotFound -> QlUserPostNoteFailure.IMAGE_NOT_FOUND
                 PostNoteResult.ReplyTargetNotFound -> QlUserPostNoteFailure.REPLY_TARGET_NOT_FOUND
                 PostNoteResult.QuoteTargetNotFound -> QlUserPostNoteFailure.QUOTE_TARGET_NOT_FOUND
+                PostNoteResult.MentionTargetNotFound -> QlUserPostNoteFailure.MENTION_TARGET_NOT_FOUND
                 PostNoteResult.AccountNotFound -> QlUserPostNoteFailure.NOT_LOGGED_IN
             }
         return QlUserPostNoteResult(url = null, failure = failure)

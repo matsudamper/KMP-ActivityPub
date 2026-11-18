@@ -136,6 +136,13 @@ internal class UserProfileScreenViewModel(
             viewModelScope.launch { events.send { it.closeToHome() } }
         }
 
+        override fun onClickPostFab() {
+            val profile = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile ?: return
+            // このサーバーのユーザーは本文でもドメイン無しで書かないと、宛先のリンクにならない
+            val acct = if (profile.actorUri == null) profile.username else "${profile.username}@${profile.host}"
+            viewModelScope.launch { events.send { it.navigateToMentionPost(acct) } }
+        }
+
         override fun onClickTab(tab: ProfileContentTab) {
             viewModelStateFlow.update { it.copy(selectedTab = tab) }
         }
@@ -625,6 +632,7 @@ internal class UserProfileScreenViewModel(
             openOriginalMenuItemVisible = viewModelState.profile is ProfileState.Loaded,
             sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
             blockMenuItemsVisible = (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
+            postFabVisible = viewModelState.profile is ProfileState.Loaded,
             listener = listener,
         )
     }
@@ -923,6 +931,11 @@ internal class UserProfileScreenViewModel(
         fun navigateToQuotePost(postId: String)
 
         fun navigateToReplyPost(postId: String)
+
+        /**
+         * @param acct 宛先のユーザーの `username@host`。このサーバーのユーザーは `username`
+         */
+        fun navigateToMentionPost(acct: String)
 
         fun navigateToUserProfile(username: String)
     }
