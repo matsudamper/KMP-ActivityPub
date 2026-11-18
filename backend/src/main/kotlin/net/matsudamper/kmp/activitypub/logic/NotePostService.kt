@@ -124,6 +124,7 @@ class NotePostService(
      * @param replyToPostId 返信するタイムラインの投稿の id。投稿者に宛てて、投稿者の inbox にも積む。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。投稿者の inbox にも積む。引用でなければ null
      * @param mentionAcct 宛てるアカウントの acct。返信と同じく宛てて、他のサーバーのアカウントなら inbox にも積む。宛てなければ null
+     * @param sensitive 画像をぼかして出すセンシティブな投稿か
      */
     suspend fun post(
         username: String,
@@ -134,6 +135,7 @@ class NotePostService(
         replyToPostId: String?,
         quotePostId: String?,
         mentionAcct: String?,
+        sensitive: Boolean,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
         val summary = contentWarning?.replace("\r\n", "\n")?.trim()?.ifEmpty { null }
@@ -188,6 +190,7 @@ class NotePostService(
                 quote = quote?.objectUri,
                 mentions = mentions.map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
                 emojis = emojiObjects.find(contentHtml),
+                sensitive = sensitive,
             )
         val enqueued =
             deliveryQueueRepository.enqueueNote(
@@ -206,6 +209,7 @@ class NotePostService(
                     quoteUri = quote?.objectUri,
                     quoteInbox = quote?.authorInbox,
                     mentions = mentions.map { it.record },
+                    sensitive = sensitive,
                 ),
             )
         return when (enqueued) {

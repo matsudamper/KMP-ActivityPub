@@ -105,6 +105,7 @@ class NotificationRepositoryTest {
                     quoteInbox = null,
                     mentions = listOf(),
                     images = listOf(),
+                    sensitive = false,
                 ),
             )
             block(repositories, checkNotNull(repositories.accountRepository.findByUsername("user1")).id)

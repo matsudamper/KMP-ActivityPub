@@ -29,6 +29,7 @@ internal class PostNoteSubmitter(
      * @param quotePostId 引用するタイムラインの投稿の id。引用でなければ null
      * @param contentWarning 閲覧注意の注意書き。閲覧注意にしなければ null
      * @param mentionAcct 宛てるユーザーの `username@host`。返信先の投稿者のほかに宛てなければ null
+     * @param sensitive 閲覧注意の投稿にするか
      */
     suspend fun submit(
         body: String,
@@ -38,6 +39,7 @@ internal class PostNoteSubmitter(
         replyToPostId: String?,
         quotePostId: String?,
         mentionAcct: String?,
+        sensitive: Boolean,
     ): PostNoteSubmitResult =
         scope.async {
             val imageIds =
@@ -56,6 +58,7 @@ internal class PostNoteSubmitter(
                     replyToPostId = replyToPostId,
                     quotePostId = quotePostId,
                     mentionAcct = mentionAcct,
+                    sensitive = sensitive,
                 ),
             )
         }.await()
