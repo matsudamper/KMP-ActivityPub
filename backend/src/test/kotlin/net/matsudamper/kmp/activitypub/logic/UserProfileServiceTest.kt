@@ -603,8 +603,25 @@ class UserProfileServiceTest {
     @Test
     fun anonymousViewerDoesNotFetchRemoteProfile() = runBlocking {
         assertNull(service.profile("bob@remote.example", null))
-        assertEquals(ProfilePostsResult.NotLoggedIn, service.firstPosts("bob@remote.example", null))
+        assertEquals(ProfilePostsResult.NotFound, service.firstPosts("bob@remote.example", null))
         assertEquals(listOf(), requests)
+    }
+
+    @Test
+    fun anonymousViewerSeesStoredRemoteProfileAndPostsWithoutFetching() = runBlocking {
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
+        repositories.timelineRepository.actorPosts.add(storedPost("<p>保存した投稿</p>", summary = null, sensitive = false))
+
+        val profile = assertNotNull(service.profile("bob@remote.example", null))
+        val posts = firstPage("bob@remote.example", null).posts
+
+        assertEquals("保存済みの Bob", profile.user.displayName)
+        assertFalse(profile.following)
+        assertEquals(listOf("<p>保存した投稿</p>"), posts.map { it.contentHtml })
+        assertNull(posts.single().likedByMe)
+        assertNull(posts.single().reactionPostId)
+        assertEquals(listOf(), requests)
+        assertEquals(listOf(), featuredRequests)
     }
 
     @Test

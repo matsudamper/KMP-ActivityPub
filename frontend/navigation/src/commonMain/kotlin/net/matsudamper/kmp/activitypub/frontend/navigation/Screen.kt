@@ -174,8 +174,8 @@ sealed interface Screen : NavKey {
     ) : Screen {
         override val pathPattern: PathPattern get() = PATH_PATTERN
         override val pathParameters: Map<String, String> get() = mapOf(POST_ID_PARAMETER to postId)
-        override val parentScreen: Screen get() = Home.Timeline
-        override val loginRequired: Boolean get() = true
+        override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = false
 
         companion object {
             const val POST_ID_PARAMETER: String = "postId"

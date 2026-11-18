@@ -185,7 +185,6 @@ internal class PostScreenViewModel(
                     is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
 
                     UserPostDetailResult.NotFound,
-                    UserPostDetailResult.NotLoggedIn,
                     is UserPostDetailResult.Failure,
                     -> QuoteLoad.Unavailable
                 }
@@ -339,7 +338,6 @@ internal class PostScreenViewModel(
                 is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
 
                 UserPostDetailResult.NotFound,
-                UserPostDetailResult.NotLoggedIn,
                 is UserPostDetailResult.Failure,
                 -> QuoteLoad.Unavailable
             }

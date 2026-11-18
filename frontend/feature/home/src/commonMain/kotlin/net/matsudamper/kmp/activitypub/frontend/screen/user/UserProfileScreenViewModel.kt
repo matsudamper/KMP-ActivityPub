@@ -46,6 +46,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
+import net.matsudamper.kmp.activitypub.frontend.screen.awaitLoggedIn
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
@@ -99,9 +100,11 @@ internal class UserProfileScreenViewModel(
                 reactionPicker = null,
                 reactionConfirmation = null,
                 block = BlockState.None,
+                loggedIn = false,
             ),
         )
     private var loadJob: Job? = null
+    private var loginStateJob: Job? = null
     private var loadMoreJob: Job? = null
     private var loadMoreLikesJob: Job? = null
     private val followMenuController = FollowMenuController(
@@ -292,9 +295,22 @@ internal class UserProfileScreenViewModel(
     }
 
     /**
+     * 確かめられるまでは、ログインしていないものとしてフォローとブロックのメニューと投稿の FAB を出さない
+     */
+    private fun checkLoginState() {
+        if (viewModelStateFlow.value.loggedIn) return
+        loginStateJob?.cancel()
+        loginStateJob = viewModelScope.launch {
+            val loggedIn = api.awaitLoggedIn()
+            viewModelStateFlow.update { it.copy(loggedIn = loggedIn) }
+        }
+    }
+
+    /**
      * プロフィールを先に出し、投稿は相手のサーバーを待つことがあるので、出した後で読む
      */
     private fun load() {
+        checkLoginState()
         loadJob?.cancel()
         loadMoreJob?.cancel()
         loadMoreLikesJob?.cancel()
@@ -603,7 +619,6 @@ internal class UserProfileScreenViewModel(
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
-                UserLinkPreviewsResult.NotLoggedIn,
                 -> linkPreviewRequestedIds = linkPreviewRequestedIds - postId
             }
         }
@@ -639,8 +654,8 @@ internal class UserProfileScreenViewModel(
             },
             openOriginalMenuItemVisible = viewModelState.profile is ProfileState.Loaded,
             sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
-            blockMenuItemsVisible = (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
-            postFabVisible = viewModelState.profile is ProfileState.Loaded,
+            blockMenuItemsVisible = viewModelState.loggedIn && (viewModelState.profile as? ProfileState.Loaded)?.profile?.actorUri != null,
+            postFabVisible = viewModelState.loggedIn && viewModelState.profile is ProfileState.Loaded,
             listener = listener,
         )
     }
@@ -691,7 +706,7 @@ internal class UserProfileScreenViewModel(
         viewModelScope.launch {
             val load = api.loadQuote(postId)
             viewModelStateFlow.update { state ->
-                state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+                state.copy(quotes = state.quotes + (postId to load))
             }
         }
     }
@@ -730,7 +745,7 @@ internal class UserProfileScreenViewModel(
                     },
                 )
             },
-            followMenu = profile.actorUri?.let { actorUri ->
+            followMenu = profile.actorUri?.takeIf { viewModelState.loggedIn }?.let { actorUri ->
                 followMenuController.menu(
                     snapshot = followMenu,
                     actorUri = actorUri,
@@ -968,6 +983,7 @@ internal class UserProfileScreenViewModel(
         val reactionPicker: ReactionPickerTarget?,
         val reactionConfirmation: ReactionConfirmation?,
         val block: BlockState,
+        val loggedIn: Boolean,
     )
 
     private sealed interface BlockState {
