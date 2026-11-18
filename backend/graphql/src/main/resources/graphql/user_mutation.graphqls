@@ -45,6 +45,11 @@ type UserMutation {
     noteId には TimelinePost.deletableNoteId を渡す
     """
     deleteNote(noteId: PublicNoteId!): DeleteNoteResult! @lazy
+    """
+    ログインしているアカウントの投稿の本文を書き換え、投稿を届けた相手へ Update を積む。画像・返信先・引用・宛先は変えない。
+    noteId には TimelinePost.deletableNoteId を渡す。下書きには UserInfo.editableNoteBody を使う
+    """
+    editNote(noteId: PublicNoteId!, body: String!): EditNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -359,6 +364,22 @@ enum DeleteNoteFailure {
     FEDERATION_DISABLED
     "サーバー内部の失敗。投稿は残っているので、時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
+}
+
+type EditNoteResult {
+    failure: EditNoteFailure
+}
+
+enum EditNoteFailure {
+    NOT_LOGGED_IN
+    "無いか、ログイン中のアカウントの投稿ではない"
+    NOT_FOUND
+    "本文が空で、画像も引用も無い"
+    EMPTY_BODY
+    "本文が長すぎる。上限は 500 文字"
+    TOO_LONG
+    "サーバーに DOMAIN が無く、編集を配れない"
+    FEDERATION_DISABLED
 }
 
 type SetPinnedResult {

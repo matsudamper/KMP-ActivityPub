@@ -124,9 +124,9 @@ class TimelineService(
     }
 
     /**
-     * このサーバーの投稿に付いたリアクションが増減したことを、投稿者へ知らせる
+     * このサーバーの投稿が編集されたか、付いたリアクションが増減したことを、載せているアカウントへ知らせる
      */
-    fun publishReactionsChanged(notePublicId: PublicNoteId) {
+    fun publishLocalNoteChanged(notePublicId: PublicNoteId) {
         val position = repository.localPosition(notePublicId.value) ?: return
         publishUpdated(listOf(position.member))
     }

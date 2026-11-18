@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
+import net.matsudamper.kmp.activitypub.repository.NoteUpdate
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.repository.ProfileValueChange
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNTS
@@ -93,6 +94,7 @@ internal class SqliteDeliveryQueueRepository(
                     .set(NOTES.ACCOUNT_ID, accountId)
                     .set(NOTES.PUBLIC_ID, post.publicId.value)
                     .set(NOTES.CONTENT_HTML, post.contentHtml)
+                    .set(NOTES.SOURCE_TEXT, post.sourceText)
                     .set(NOTES.PUBLISHED_AT, publishedAt)
                     .set(NOTES.REQUEST_ID, post.requestId)
                     .set(NOTES.IN_REPLY_TO, post.inReplyTo)
@@ -171,6 +173,48 @@ internal class SqliteDeliveryQueueRepository(
                 .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
                 .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, enqueuedAt)
                 .set(DELIVERY_QUEUE.ENQUEUED_AT, enqueuedAt)
+                .execute()
+        }
+        true
+    }
+
+    override fun enqueueNoteUpdate(update: NoteUpdate): Boolean = jooq.transaction { dsl ->
+        val accountId =
+            dsl.select(ACCOUNTS.ID)
+                .from(ACCOUNTS)
+                .where(ACCOUNTS.USERNAME.eq(update.username.lowercase()))
+                .fetchOne(ACCOUNTS.ID)
+                ?: return@transaction false
+        val noteId =
+            dsl.select(NOTES.ID)
+                .from(NOTES)
+                .where(NOTES.ACCOUNT_ID.eq(accountId))
+                .and(NOTES.PUBLIC_ID.eq(update.publicId.value))
+                .fetchOne(NOTES.ID)
+                ?: return@transaction false
+        val updatedAt = StoredInstant.format(update.updatedAt)
+        dsl.update(NOTES)
+            .set(NOTES.CONTENT_HTML, update.contentHtml)
+            .set(NOTES.SOURCE_TEXT, update.sourceText)
+            .set(NOTES.UPDATED_AT, updatedAt)
+            .where(NOTES.ID.eq(noteId))
+            .execute()
+        dsl.deleteFrom(DELIVERY_QUEUE)
+            .where(DELIVERY_QUEUE.NOTE_ID.eq(noteId))
+            .and(DELIVERY_QUEUE.KIND.eq(DeliveryQueueValues.KIND_UPDATE_NOTE))
+            .and(DELIVERY_QUEUE.STATE.eq(DeliveryQueueValues.STATE_PENDING))
+            .execute()
+        update.inboxes.distinct().forEach { inbox ->
+            dsl.insertInto(DELIVERY_QUEUE)
+                .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_UPDATE_NOTE)
+                .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+                .set(DELIVERY_QUEUE.NOTE_ID, noteId)
+                .set(DELIVERY_QUEUE.INBOX, inbox)
+                .set(DELIVERY_QUEUE.BODY, update.body)
+                .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+                .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+                .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, updatedAt)
+                .set(DELIVERY_QUEUE.ENQUEUED_AT, updatedAt)
                 .execute()
         }
         true

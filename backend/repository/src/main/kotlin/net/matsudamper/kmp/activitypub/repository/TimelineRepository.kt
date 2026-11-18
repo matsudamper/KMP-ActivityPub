@@ -189,7 +189,7 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
  * @param boostUndone ブーストした相手がブーストを取り消したか。ほかの項目は取り消される前のまま
  * @param inReplyTo 返信先の投稿の id。返信でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の返信先
  * @param quoteUri 引用した投稿の id。引用でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の引用先
- * @param editedAt 投稿者が最後に編集した時刻。編集を受け取っていなければ null。ブーストで載った投稿は、ブーストされた元の投稿の編集
+ * @param editedAt 投稿者が最後に編集した時刻。編集していないか、編集を受け取っていなければ null。ブーストで載った投稿は、ブーストされた元の投稿の編集
  */
 data class TimelinePost(
     val position: TimelinePosition,

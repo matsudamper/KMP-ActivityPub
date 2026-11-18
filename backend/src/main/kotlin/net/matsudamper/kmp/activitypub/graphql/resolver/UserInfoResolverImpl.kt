@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.logic.ReplyTargetResult
 import net.matsudamper.kmp.activitypub.logic.ReplyTargetService
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.PostRevisionId
+import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 import net.matsudamper.kmp.activitypub.timeline.PostRevisionCursor
 
@@ -150,6 +151,15 @@ class UserInfoResolverImpl : UserInfoResolver {
         val groups = GraphQlEngine.diContainer(env).followingGroupService.groups(userInfo.id).map { it.toQlFollowingGroup() }
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(groups).build())
     }
+
+    override fun editableNoteBody(userInfo: QlUserInfo, noteId: PublicNoteId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<String?>> =
+        otelSupplyAsync {
+            val diContainer = GraphQlEngine.diContainer(env)
+            val account = diContainer.accountService.account(userInfo.id)
+            val notePostService = diContainer.notePostService
+            val body = if (account == null || notePostService == null) null else notePostService.editableBody(username = account.username, publicId = noteId)
+            DataFetcherResult.Builder<String?>(body).build()
+        }
 
     override fun mainGroupName(userInfo: QlUserInfo, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<String>> {
         val name = GraphQlEngine.diContainer(env).followingGroupService.mainGroupName(userInfo.id)

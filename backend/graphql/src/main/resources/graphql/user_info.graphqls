@@ -44,6 +44,11 @@ type UserInfo {
     編集を受け取っていなければ今の版だけ。開けない投稿なら null
     """
     postRevisions(postId: TimelinePostId!, after: String, limit: Int!): PostRevisionPage @lazy
+    """
+    UserMutation.editNote の下書きに出す本文。noteId には TimelinePost.deletableNoteId を渡す。
+    無いか、ログイン中のアカウントの投稿でないか、サーバーに DOMAIN が無ければ null
+    """
+    editableNoteBody(noteId: PublicNoteId!): String @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!

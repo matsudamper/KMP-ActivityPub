@@ -256,6 +256,48 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `投稿の編集を積むと本文と編集した時刻が変わり、まだ送っていない前の Update を置き換える`() {
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()))
+
+            assertEquals(true, queue.enqueueNoteUpdate(noteUpdate(publicId = "note-1", body = "update-1", inboxes = listOf(INBOX_A, INBOX_B))))
+            assertEquals(true, queue.enqueueNoteUpdate(noteUpdate(publicId = "note-1", body = "update-2", inboxes = listOf(INBOX_A, INBOX_A))))
+
+            val note = assertNotNull(repositories.noteRepository.find(PublicNoteId("note-1")))
+            assertEquals("<p>edited</p>", note.contentHtml)
+            assertEquals("edited", note.sourceText)
+            assertEquals(NOW.plusSeconds(60), note.updatedAt)
+            assertEquals(NOW, note.publishedAt)
+            val claimed = queue.claim(now = NOW.plusSeconds(60), limit = 10)
+            assertEquals(listOf(INBOX_A to "update-2"), claimed.map { it.inbox to it.body })
+        }
+    }
+
+    @Test
+    fun `他のアカウントの投稿や無い投稿の編集は何も積まない`() {
+        Accounts.insert(
+            databasePath = dbPath,
+            username = "user2",
+            passwordHash = "hash",
+            passwordHashType = "hash-type",
+            publicKeyPem = "public-key",
+            privateKeyPem = "private-key",
+            createdAt = NOW.toString(),
+        )
+        Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
+            val queue = repositories.deliveryQueueRepository
+            queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf()))
+
+            assertEquals(false, queue.enqueueNoteUpdate(noteUpdate(publicId = "note-1", body = "update", inboxes = listOf(INBOX_A)).copy(username = "user2")))
+            assertEquals(false, queue.enqueueNoteUpdate(noteUpdate(publicId = "missing", body = "update", inboxes = listOf(INBOX_A))))
+
+            assertEquals("<p>hello</p>", repositories.noteRepository.find(PublicNoteId("note-1"))?.contentHtml)
+            assertEquals(listOf(), queue.claim(now = NOW.plusSeconds(60), limit = 10))
+        }
+    }
+
+    @Test
     fun `投稿は新しい順に並び、位置の続きから返す`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
             val queue = repositories.deliveryQueueRepository
@@ -300,6 +342,7 @@ class NoteRepositoryTest {
             requestId = "request-$publicId",
             publicId = PublicNoteId(publicId),
             contentHtml = "<p>hello</p>",
+            sourceText = "",
             publishedAt = NOW,
             images = listOf(),
             body = "create-$publicId",
@@ -308,6 +351,21 @@ class NoteRepositoryTest {
             quoteUri = null,
             quoteInbox = null,
             mentions = listOf(),
+        )
+
+    private fun noteUpdate(
+        publicId: String,
+        body: String,
+        inboxes: List<String>,
+    ): NoteUpdate =
+        NoteUpdate(
+            username = "user1",
+            publicId = PublicNoteId(publicId),
+            contentHtml = "<p>edited</p>",
+            sourceText = "edited",
+            updatedAt = NOW.plusSeconds(60),
+            body = body,
+            inboxes = inboxes,
         )
 
     private fun noteDeletion(
