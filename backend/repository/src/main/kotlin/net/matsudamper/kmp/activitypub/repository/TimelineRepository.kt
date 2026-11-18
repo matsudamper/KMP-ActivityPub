@@ -192,6 +192,7 @@ data class TimelineRecipient(val accountId: AccountId, val groupId: FollowingGro
  * @param inReplyTo 返信先の投稿の id。返信でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の返信先
  * @param quoteUri 引用した投稿の id。引用でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の引用先
  * @param editedAt 投稿者が最後に編集した時刻。編集していないか、編集を受け取っていなければ null。ブーストで載った投稿は、ブーストされた元の投稿の編集
+ * @param linkHref Link で届いた投稿のリンク先。Note とこのサーバーの投稿は null
  */
 data class TimelinePost(
     val position: TimelinePosition,
@@ -224,6 +225,7 @@ data class TimelinePost(
     val inReplyTo: String?,
     val quoteUri: String?,
     val editedAt: Instant?,
+    val linkHref: String?,
 ) {
     /**
      * このサーバーの投稿の公開 id。他のサーバーの投稿は null
@@ -326,6 +328,10 @@ data class RemoteNoteInput(
     val editedAt: Instant?,
     val images: List<TimelinePostImage.Remote>,
     val emojis: List<CustomEmojiRecord>,
+    /**
+     * Link で届いた投稿のリンク先。Note なら null
+     */
+    val linkHref: String?,
 )
 
 /**

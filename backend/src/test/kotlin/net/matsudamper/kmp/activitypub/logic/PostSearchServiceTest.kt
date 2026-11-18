@@ -99,6 +99,7 @@ class PostSearchServiceTest {
                 inReplyTo = null,
                 quoteUri = null,
                 editedAt = null,
+                linkHref = null,
             ),
         )
     }

@@ -117,6 +117,7 @@ class ReplyTargetService(
             inReplyTo = note.inReplyTo,
             quoteUri = note.quoteUri,
             editedAt = null,
+            linkHref = note.linkHref,
         )
     }
 

@@ -138,5 +138,6 @@ class ProfileLikesServiceTest {
             inReplyTo = null,
             quoteUri = null,
             editedAt = null,
+            linkHref = null,
         )
 }
