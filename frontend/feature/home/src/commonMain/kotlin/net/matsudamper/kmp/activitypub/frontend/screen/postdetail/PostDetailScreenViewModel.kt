@@ -32,6 +32,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withLiked
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteEditingState
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteEditor
 import net.matsudamper.kmp.activitypub.frontend.screen.POST_TRANSLATION_FAILED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
@@ -81,6 +83,12 @@ internal class PostDetailScreenViewModel(
         coroutineScope = viewModelScope,
         onFailed = { viewModelScope.launch { events.send { it.showMessage(POST_TRANSLATION_FAILED_MESSAGE) } } },
     )
+    private val noteEditor = NoteEditor(
+        api = api,
+        coroutineScope = viewModelScope,
+        onMessage = { message -> viewModelScope.launch { events.send { it.showMessage(message) } } },
+        onEdited = { load() },
+    )
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
@@ -89,6 +97,7 @@ internal class PostDetailScreenViewModel(
                 linkPreviews = listOf(),
                 blurToggledImageUrls = setOf(),
                 noteDeletion = NoteDeletionState.None,
+                noteEditing = NoteEditingState.None,
                 reactionPicker = null,
                 reactionConfirmation = null,
                 mentionText = "",
@@ -195,6 +204,11 @@ internal class PostDetailScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            noteEditor.stateFlow.collect { noteEditing ->
+                viewModelStateFlow.update { it.copy(noteEditing = noteEditing) }
+            }
+        }
         viewModelScope.launch {
             postTranslations.stateFlow.collect { translation ->
                 viewModelStateFlow.update { it.copy(translation = translation) }
@@ -676,6 +690,7 @@ internal class PostDetailScreenViewModel(
                 PostState.Failed -> PostDetailScreenUiState.Content.Error
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
+            editNoteDialog = noteEditor.createDialogUiState(viewModelState.noteEditing),
             reactionPickerDialog = viewModelState.reactionPicker?.let { target ->
                 target.toDialogUiState(
                     onPick = { reaction -> pickReaction(target, reaction) },
@@ -818,7 +833,7 @@ internal class PostDetailScreenViewModel(
             createOpenOriginalMenuItems(post.body.shareUrl) { url ->
                 viewModelScope.launch { events.send { it.openUrl(url) } }
             } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                createNoteMenuItems(post.deletableNoteId, onClickEdit = noteEditor::start, onClickDelete = ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -876,6 +891,7 @@ internal class PostDetailScreenViewModel(
         val linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
         val blurToggledImageUrls: Set<String>,
         val noteDeletion: NoteDeletionState,
+        val noteEditing: NoteEditingState,
         val reactionPicker: ReactionPickerTarget?,
         val reactionConfirmation: ReactionConfirmation?,
         val mentionText: String,

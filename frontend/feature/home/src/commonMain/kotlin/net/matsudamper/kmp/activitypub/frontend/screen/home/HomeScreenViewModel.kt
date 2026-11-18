@@ -67,6 +67,8 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.withoutNote
 import net.matsudamper.kmp.activitypub.frontend.screen.AuthorTapAction
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.NoteDeletionState
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteEditingState
+import net.matsudamper.kmp.activitypub.frontend.screen.NoteEditor
 import net.matsudamper.kmp.activitypub.frontend.screen.POST_TRANSLATION_FAILED_MESSAGE
 import net.matsudamper.kmp.activitypub.frontend.screen.PostActorLabel
 import net.matsudamper.kmp.activitypub.frontend.screen.PostTapAction
@@ -123,6 +125,13 @@ internal class HomeScreenViewModel(
         coroutineScope = viewModelScope,
         onFailed = { viewModelScope.launch { events.send { it.showMessage(POST_TRANSLATION_FAILED_MESSAGE) } } },
     )
+    private val noteEditor = NoteEditor(
+        api = userApi,
+        coroutineScope = viewModelScope,
+        onMessage = { message -> viewModelScope.launch { events.send { it.showMessage(message) } } },
+        // タイムラインの行は、編集した後に購読で届く行で差し替わる
+        onEdited = {},
+    )
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
@@ -153,6 +162,7 @@ internal class HomeScreenViewModel(
                 profile = ProfileState.Loading,
                 myPosts = MyPostsState.Loading,
                 noteDeletion = NoteDeletionState.None,
+                noteEditing = NoteEditingState.None,
                 reactionPicker = null,
                 reactionConfirmation = null,
                 userContentTab = ProfileContentTab.Posts,
@@ -541,6 +551,11 @@ internal class HomeScreenViewModel(
         viewModelScope.launch {
             columnWidthStore.widthsFlow.collect { widths ->
                 viewModelStateFlow.update { it.copy(columnWidths = widths) }
+            }
+        }
+        viewModelScope.launch {
+            noteEditor.stateFlow.collect { noteEditing ->
+                viewModelStateFlow.update { it.copy(noteEditing = noteEditing) }
             }
         }
         viewModelScope.launch {
@@ -1458,6 +1473,7 @@ internal class HomeScreenViewModel(
                 HomeScreenUiState.RailItem(column = column, selected = column == viewModelState.openedColumn)
             },
             deleteNoteDialog = viewModelState.noteDeletion.toDialogUiState(deleteNoteDialogListener),
+            editNoteDialog = noteEditor.createDialogUiState(viewModelState.noteEditing),
             reactionPickerDialog = viewModelState.reactionPicker?.let { target ->
                 target.toDialogUiState(
                     onPick = { reaction -> pickReaction(target, reaction) },
@@ -1582,7 +1598,7 @@ internal class HomeScreenViewModel(
                             menuItems =
                             createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
                                 createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                                createNoteMenuItems(post.deletableNoteId, onClickEdit = noteEditor::start, onClickDelete = ::confirmNoteDeletion),
                             postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -1909,7 +1925,7 @@ internal class HomeScreenViewModel(
             menuItems =
             createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
                 createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                createNoteMenuItems(post.deletableNoteId, onClickEdit = noteEditor::start, onClickDelete = ::confirmNoteDeletion),
             postTapAction = PostTapAction.OpenPostDetail(postId = post.id, navigate = ::navigateToPostDetail),
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -2112,6 +2128,7 @@ internal class HomeScreenViewModel(
         val profile: ProfileState,
         val myPosts: MyPostsState,
         val noteDeletion: NoteDeletionState,
+        val noteEditing: NoteEditingState,
         val reactionPicker: ReactionPickerTarget?,
         val reactionConfirmation: ReactionConfirmation?,
         val userContentTab: ProfileContentTab,

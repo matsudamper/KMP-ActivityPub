@@ -51,6 +51,7 @@ import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDialog
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
+import net.matsudamper.kmp.activitypub.frontend.ui.EditNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemStyle
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
@@ -262,6 +263,10 @@ internal fun PostDetailContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
+    }
+    val editNoteDialog = uiState.editNoteDialog
+    if (editNoteDialog != null) {
+        EditNoteDialog(uiState = editNoteDialog)
     }
     val reactionPickerDialog = uiState.reactionPickerDialog
     if (reactionPickerDialog != null) {
