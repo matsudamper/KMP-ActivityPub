@@ -52,6 +52,7 @@ fragment ProfilePostFields on ProfilePost {
     pinned
     pinnableNoteId
     linkUrls
+    linkObjectUrl
     mentions {
         start
         end
