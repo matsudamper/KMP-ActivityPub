@@ -17,3 +17,33 @@ subscription RemoteProfileRefresh($start: Boolean!) {
         }
     }
 }
+
+query FailedDeliveries($after: String, $limit: Int!) {
+    userInfo {
+        failedDeliveries(after: $after, limit: $limit) {
+            deliveries {
+                ...FailedDeliveryFields
+            }
+            nextCursor
+        }
+    }
+}
+
+query FailedDelivery($id: FailedDeliveryId!) {
+    userInfo {
+        failedDelivery(id: $id) {
+            ...FailedDeliveryFields
+        }
+    }
+}
+
+fragment FailedDeliveryFields on FailedDelivery {
+    id
+    kind
+    username
+    inbox
+    attempts
+    enqueuedAt
+    failedAt
+    lastError
+}

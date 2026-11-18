@@ -12,6 +12,7 @@ import graphql.schema.CoercingSerializeException
 import graphql.schema.GraphQLScalarType
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
+import net.matsudamper.kmp.activitypub.shared.FailedDeliveryId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
 import net.matsudamper.kmp.activitypub.shared.NoteImagePublicId
 import net.matsudamper.kmp.activitypub.shared.NotificationGroupId
@@ -60,6 +61,13 @@ object GraphQlScalars {
             .newScalar()
             .name("FollowingGroupId")
             .coercing(LongIdCoercing(name = "FollowingGroupId", type = FollowingGroupId::class.java, wrap = ::FollowingGroupId, unwrap = FollowingGroupId::value))
+            .build()
+
+    val failedDeliveryId: GraphQLScalarType =
+        GraphQLScalarType
+            .newScalar()
+            .name("FailedDeliveryId")
+            .coercing(LongIdCoercing(name = "FailedDeliveryId", type = FailedDeliveryId::class.java, wrap = ::FailedDeliveryId, unwrap = FailedDeliveryId::value))
             .build()
 
     /**
