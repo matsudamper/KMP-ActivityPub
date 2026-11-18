@@ -245,6 +245,8 @@ type TimelinePost {
     hasQuoteTarget: Boolean!
     "投稿者が編集していれば true。ブーストで載った投稿は、ブーストされた元の投稿が編集されたか。編集前の版は UserInfo.postRevisions で取る。このサーバーの投稿は編集できないので false"
     edited: Boolean!
+    "投稿に付いた投票。投票でなければ null。ブーストで載った投稿は、ブーストされた元の投稿の投票"
+    poll: PostPoll
 }
 
 type PostRevisionPage {
@@ -326,6 +328,29 @@ type PostMention {
     end: Int!
     "UserInfo.profile などに渡す user@host"
     acct: String!
+}
+
+"""
+投稿に付いた投票。
+他のサーバーの投稿の票数は、届いた投稿に載っていた数で、届いた後に入った票は Update が届くまで数に入らない
+"""
+type PostPoll {
+    "選択肢。並べた順"
+    options: [PostPollOption!]!
+    "複数選べるなら true"
+    multipleChoice: Boolean!
+    "締め切り。相手のサーバーが付けていなければ null"
+    endsAt: String
+    "締め切りを過ぎていれば true。締め切りが無ければ false"
+    expired: Boolean!
+    "投票した人数。相手のサーバーが出していなければ null"
+    votersCount: Int
+}
+
+type PostPollOption {
+    title: String!
+    "この選択肢の票数。相手のサーバーが出していなければ null"
+    votesCount: Int
 }
 
 type PostImage {

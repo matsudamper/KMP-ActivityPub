@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import kotlinx.coroutines.runBlocking
@@ -14,6 +15,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlListedActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlLocalCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostAuthor
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostCounts
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostPoll
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostSearchResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfile
 import net.matsudamper.kmp.activitypub.graphql.model.QlProfileLikePage
@@ -92,7 +94,11 @@ class QueryResolverImpl : QueryResolver {
                 is ProfilePostsResult.Found -> QlProfilePostPage(
                     posts = result.page.posts.let { posts ->
                         val countsByRef = diContainer.postCountService?.countsOf(posts.map { it.noteRef }.toSet()).orEmpty()
-                        posts.map { post -> post.toQlProfilePost(counts = countsByRef[post.noteRef], diContainer = diContainer) }
+                        val pollsByRef = diContainer.pollService?.pollsOf(posts.map { it.noteRef }.toSet()).orEmpty()
+                        val now = Instant.now()
+                        posts.map { post ->
+                            post.toQlProfilePost(counts = countsByRef[post.noteRef], poll = pollsByRef[post.noteRef]?.toQlPostPoll(now), diContainer = diContainer)
+                        }
                     },
                     nextCursor = result.page.nextCursor?.encode(),
                 )
@@ -434,7 +440,7 @@ class QueryResolverImpl : QueryResolver {
 
     private fun ProfileLink.toQlProfileLink(): QlProfileLink = QlProfileLink(name = name, url = url)
 
-    private fun ProfilePost.toQlProfilePost(counts: PostCounts?, diContainer: DiContainer): QlProfilePost {
+    private fun ProfilePost.toQlProfilePost(counts: PostCounts?, poll: QlPostPoll?, diContainer: DiContainer): QlProfilePost {
         val qlBoostedNoteAuthor = boostedNoteAuthor?.let { author ->
             QlPostAuthor(
                 username = author.username,
@@ -483,6 +489,7 @@ class QueryResolverImpl : QueryResolver {
             stampCountsReceived = noteRef is TimelineNoteRef.Local,
             hasQuoteTarget = hasQuoteTarget,
             edited = edited,
+            poll = poll,
         )
     }
 }

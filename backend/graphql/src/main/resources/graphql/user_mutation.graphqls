@@ -35,8 +35,9 @@ type UserMutation {
     quotePostId には引用する TimelinePost.id を渡す。投稿者にも配る。引用なら本文は空でもよい。省略すると引用にしない。
     contentWarning には閲覧注意の注意書きを渡す。プレーンテキストで 500 文字まで。省略するか空なら閲覧注意にしない
     mentionAcct には宛てるアカウントの acct を username@host か username で渡す。先頭の @ は省いてよい。本文の @acct をリンクにし、宛てたアカウントにも配る。省略すると返信先の投稿者のほかには宛てない
+    poll には付ける投票を渡す。画像とは一緒に付けられない。省略すると投票を付けない
     """
-    postNote(body: String!, requestId: String!, contentWarning: String, imageIds: [NoteImageId!]! = [], replyToPostId: TimelinePostId, quotePostId: TimelinePostId, mentionAcct: String): UserPostNoteResult! @lazy
+    postNote(body: String!, requestId: String!, contentWarning: String, imageIds: [NoteImageId!]! = [], replyToPostId: TimelinePostId, quotePostId: TimelinePostId, mentionAcct: String, poll: PostNotePollInput): UserPostNoteResult! @lazy
     """
     投稿に付ける画像を置く。multipart で送る。PNG / JPEG / GIF / WebP で 20MB まで。
     description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える
@@ -227,6 +228,15 @@ enum DeletePasswordFailure {
     NO_PASSKEY
 }
 
+input PostNotePollInput {
+    "選択肢。並べた順。2〜4 個で、それぞれ 50 文字まで。前後の空白は落とす。同じ選択肢は並べられない"
+    options: [String!]!
+    "複数選べるようにするなら true"
+    multipleChoice: Boolean!
+    "投稿してから締め切るまでの秒数。5 分から 7 日まで"
+    expiresInSeconds: Int!
+}
+
 type UserPostNoteResult {
     "投稿の URL。投稿できなければ null"
     url: String
@@ -243,6 +253,8 @@ enum UserPostNoteFailure {
     CONTENT_WARNING_TOO_LONG
     "画像が多すぎる。上限は 4 枚"
     TOO_MANY_IMAGES
+    "投票の選択肢の数・長さか締め切りまでの秒数が範囲外、同じ選択肢がある、または画像と一緒に付けた"
+    INVALID_POLL
     "置いていないか、期限を過ぎたか、もう別の投稿に付けた画像がある"
     IMAGE_NOT_FOUND
     "サーバーに DOMAIN が無く、投稿を配れない"

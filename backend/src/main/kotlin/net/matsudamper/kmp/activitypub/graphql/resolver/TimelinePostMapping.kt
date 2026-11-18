@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.graphql.DiContainer
 import net.matsudamper.kmp.activitypub.graphql.model.QlActor
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotification
 import net.matsudamper.kmp.activitypub.graphql.model.QlNotificationKind
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostPoll
 import net.matsudamper.kmp.activitypub.graphql.model.QlTimelinePost
 import net.matsudamper.kmp.activitypub.logic.PostCounts
 import net.matsudamper.kmp.activitypub.logic.ProfileIconUrls
@@ -22,12 +23,22 @@ import net.matsudamper.kmp.activitypub.shared.TimelinePostId
 internal fun List<TimelinePost>.toQlTimelinePosts(diContainer: DiContainer): List<QlTimelinePost> {
     val localIconUrls = diContainer.profileIconUrls?.memoized()
     val countsByRef = diContainer.postCountService?.countsOf(map { it.noteRef }.toSet()).orEmpty()
-    return map { post -> post.toQlTimelinePost(localIconUrls = localIconUrls, counts = countsByRef[post.noteRef], diContainer = diContainer) }
+    val pollsByRef = diContainer.pollService?.pollsOf(map { it.noteRef }.toSet()).orEmpty()
+    val now = Instant.now()
+    return map { post ->
+        post.toQlTimelinePost(
+            localIconUrls = localIconUrls,
+            counts = countsByRef[post.noteRef],
+            poll = pollsByRef[post.noteRef]?.toQlPostPoll(now),
+            diContainer = diContainer,
+        )
+    }
 }
 
 private fun TimelinePost.toQlTimelinePost(
     localIconUrls: ProfileIconUrls?,
     counts: PostCounts?,
+    poll: QlPostPoll?,
     diContainer: DiContainer,
 ): QlTimelinePost {
     val body = createQlPostBody(
@@ -94,6 +105,7 @@ private fun TimelinePost.toQlTimelinePost(
         stampCountsReceived = noteRef is TimelineNoteRef.Local,
         hasQuoteTarget = quoteUri != null,
         edited = editedAt != null,
+        poll = poll,
     )
 }
 

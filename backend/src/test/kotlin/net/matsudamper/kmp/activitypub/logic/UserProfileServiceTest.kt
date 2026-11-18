@@ -789,6 +789,7 @@ class UserProfileServiceTest {
             editedAt = null,
             images = listOf(),
             emojis = listOf(),
+            poll = null,
         )
 
     private fun storedPost(contentHtml: String, summary: String?, sensitive: Boolean): TimelinePost =

@@ -49,6 +49,7 @@ class NoteCountRepositoryTest {
         inboxes = listOf(),
         inReplyTo = null,
         mentions = listOf(),
+        poll = null,
         quoteUri = null,
         quoteInbox = null,
     )
@@ -58,6 +59,7 @@ class NoteCountRepositoryTest {
         localRecipients = setOf("alice"), inReplyTo = inReplyTo, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW, editedAt = null,
         images = listOf(),
         emojis = listOf(),
+        poll = null,
     )
 
     private fun withRepository(block: (Repositories) -> Unit) {

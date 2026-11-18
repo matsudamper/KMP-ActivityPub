@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.graphql.resolver
 
+import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import kotlin.io.encoding.Base64
@@ -25,6 +26,7 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostNotePollInput
 import net.matsudamper.kmp.activitypub.graphql.model.QlReactionInput
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery
@@ -75,6 +77,7 @@ import net.matsudamper.kmp.activitypub.logic.EditNoteResult
 import net.matsudamper.kmp.activitypub.logic.NoteImageUpload
 import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostNoteResult
+import net.matsudamper.kmp.activitypub.logic.PostPollInput
 import net.matsudamper.kmp.activitypub.logic.PostReaction
 import net.matsudamper.kmp.activitypub.logic.RenameFollowingGroupResult
 import net.matsudamper.kmp.activitypub.logic.SetBoostedResult
@@ -384,6 +387,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
         mentionAcct: String?,
+        poll: QlPostNotePollInput?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
         return otelFuture {
@@ -396,6 +400,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                     replyToPostId = replyToPostId,
                     quotePostId = quotePostId,
                     mentionAcct = mentionAcct,
+                    poll = poll,
                     env = env,
                 )
             DataFetcherResult.Builder(result).build()
@@ -532,6 +537,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
         mentionAcct: String?,
+        poll: QlPostNotePollInput?,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -555,6 +561,13 @@ class UserMutationResolverImpl : UserMutationResolver {
                 replyToPostId = replyToPostId?.value,
                 quotePostId = quotePostId?.value,
                 mentionAcct = mentionAcct,
+                poll = poll?.let { input ->
+                    PostPollInput(
+                        options = input.options,
+                        multipleChoice = input.multipleChoice,
+                        expiresIn = Duration.ofSeconds(input.expiresInSeconds.toLong()),
+                    )
+                },
             )
         val failure =
             when (result) {
@@ -563,6 +576,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 PostNoteResult.TooLong -> QlUserPostNoteFailure.TOO_LONG
                 PostNoteResult.ContentWarningTooLong -> QlUserPostNoteFailure.CONTENT_WARNING_TOO_LONG
                 PostNoteResult.TooManyImages -> QlUserPostNoteFailure.TOO_MANY_IMAGES
+                PostNoteResult.InvalidPoll -> QlUserPostNoteFailure.INVALID_POLL
                 PostNoteResult.ImageNotFound -> QlUserPostNoteFailure.IMAGE_NOT_FOUND
                 PostNoteResult.ReplyTargetNotFound -> QlUserPostNoteFailure.REPLY_TARGET_NOT_FOUND
                 PostNoteResult.QuoteTargetNotFound -> QlUserPostNoteFailure.QUOTE_TARGET_NOT_FOUND

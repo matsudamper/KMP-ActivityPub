@@ -30,6 +30,7 @@ import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
 import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
+import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.PublishedLike
 import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
@@ -50,6 +51,7 @@ import net.matsudamper.kmp.activitypub.timeline.FakeTimelineRepository
 
 internal class FakeRepositories : Repositories {
     override val timelineRepository = FakeTimelineRepository()
+    override val pollRepository: PollRepository = FakePollRepository()
     override val followingRepository: FollowingRepository = object : FollowingRepository {
         private val entries = mutableSetOf<Pair<AccountId, String>>()
         private val activities = mutableMapOf<Pair<AccountId, String>, String>()

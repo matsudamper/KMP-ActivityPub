@@ -326,6 +326,10 @@ data class RemoteNoteInput(
     val editedAt: Instant?,
     val images: List<TimelinePostImage.Remote>,
     val emojis: List<CustomEmojiRecord>,
+    /**
+     * 投票でなければ null
+     */
+    val poll: PollRecord?,
 )
 
 /**

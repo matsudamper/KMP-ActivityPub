@@ -5,6 +5,8 @@ import java.time.Clock
 import java.time.Instant
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
+import net.matsudamper.kmp.activitypub.repository.PollOptionRecord
+import net.matsudamper.kmp.activitypub.repository.PollRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
 import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
@@ -22,6 +24,7 @@ import net.matsudamper.kotpub.actor.RemoteActors
 import net.matsudamper.kotpub.boost.BoostStore.ReceivedRemoteBoost
 import net.matsudamper.kotpub.note.ReceivedNote
 import net.matsudamper.kotpub.note.ReceivedNoteAttachment
+import net.matsudamper.kotpub.note.ReceivedPoll
 import net.matsudamper.kotpub.note.RemoteNoteStore
 import org.jsoup.Jsoup
 import org.jsoup.safety.Safelist
@@ -175,6 +178,14 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     editedAt = updated,
     images = attachments.mapNotNull { it.toRemoteMedia() },
     emojis = emojis.toRecords(),
+    poll = poll?.toRecord(),
+)
+
+private fun ReceivedPoll.toRecord(): PollRecord = PollRecord(
+    options = options.map { option -> PollOptionRecord(name = Jsoup.clean(option.name, Safelist.none()), votesCount = option.votesCount?.toLong()) },
+    multipleChoice = multipleChoice,
+    endsAt = endsAt,
+    votersCount = votersCount?.toLong(),
 )
 
 /**

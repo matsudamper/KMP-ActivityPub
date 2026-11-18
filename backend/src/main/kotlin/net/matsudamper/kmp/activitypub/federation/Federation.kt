@@ -22,6 +22,7 @@ import net.matsudamper.kmp.activitypub.logic.LocalNoteEmojiObjects
 import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
+import net.matsudamper.kmp.activitypub.logic.PollService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
 import net.matsudamper.kmp.activitypub.logic.ProfileHeaderUrls
@@ -49,6 +50,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
+import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -119,6 +121,7 @@ internal class Federation(
     customEmojiRepository: CustomEmojiRepository,
     blockLists: BlockLists,
     noteCountRepository: NoteCountRepository,
+    pollRepository: PollRepository,
     imageStorage: ImageStorage?,
     instanceActorKeyRepository: InstanceActorKeyRepository,
     remoteIconProxySigningKey: ByteArray,
@@ -142,7 +145,12 @@ internal class Federation(
         clock = Clock.systemUTC(),
     )
     private val noteEmojiObjects = LocalNoteEmojiObjects(customEmojis = customEmojiService, customEmojiUrls = customEmojiUrls)
-    private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls, emojiObjects = noteEmojiObjects)
+    private val notes = RepositoryNoteStore(
+        noteRepository = noteRepository,
+        imageUrls = noteImageUrls,
+        emojiObjects = noteEmojiObjects,
+        polls = pollRepository,
+    )
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, imageAvailable = imageStorage != null)
@@ -242,6 +250,8 @@ internal class Federation(
             noteShareUrls = noteShareUrls,
             blockLists = blockLists,
         )
+
+    val pollService: PollService = PollService(pollRepository)
 
     val postCountService: PostCountService =
         PostCountService(
@@ -476,7 +486,10 @@ internal class Federation(
                         approvals = quoteApprovals,
                     ),
                     UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes),
-                    CreateNoteHandler(receivedNotes),
+                    CreateNoteHandler(
+                        notes = receivedNotes,
+                        pollVotes = RecordedPollVotes(domain = domain, polls = pollRepository, blocks = inboxBlocks, clock = Clock.systemUTC()),
+                    ),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(

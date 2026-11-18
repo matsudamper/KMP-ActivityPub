@@ -121,6 +121,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).and(REMOTE_ACTORS.ACTOR_URI.eq(note.actorUri)).and(REMOTE_NOTES.DELETED_AT.isNull)
             .fetchOne() ?: return@transaction listOf()
         val id = checkNotNull(stored.get(REMOTE_NOTES.ID))
+        // 票数が変わっただけの Update は編集時刻が進まないので、編集かどうかを問わず投票は置き換える
+        dsl.replaceRemoteNotePoll(id, note.poll)
         val storedEditedAt = stored.get(REMOTE_NOTES.EDITED_AT)?.let { StoredInstant.parse(it) }
         // 受け取った時刻では編集の前後を決められないので、編集時刻の付いた編集を、時刻の無い Update では書き換えない
         if (storedEditedAt != null && (note.editedAt == null || !editedAt.isAfter(storedEditedAt))) return@transaction listOf()
@@ -775,6 +777,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val id = checkNotNull(dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID))
         insertRemoteNoteImages(dsl, id, note.images)
         dsl.insertRemoteNoteEmojis(id, note.emojis)
+        dsl.replaceRemoteNotePoll(id, note.poll)
         return id
     }
 
@@ -875,6 +878,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .fetchOne()
             ?: return null
         val id = checkNotNull(stored.value1())
+        // 票数が変わっても編集時刻は進まないので、編集の新旧を問わず取り直した票数にする。
+        // outbox から取った投稿は投票を読まないので、投票が無くても保存済みの投票は消さない
+        if (note.poll != null) dsl.replaceRemoteNotePoll(id, note.poll)
         val storedEditedAt = stored.value2()?.let { StoredInstant.parse(it) }
         val fetchedEditedAt = note.editedAt
         if (storedEditedAt != null && (fetchedEditedAt == null || fetchedEditedAt.isBefore(storedEditedAt))) return id
@@ -934,7 +940,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .and(REMOTE_NOTES.REMOTE_ACTOR_ID.eq(authorId))
             .execute()
         if (updated == 0) return null
-        return dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID)
+        val id = dsl.select(REMOTE_NOTES.ID).from(REMOTE_NOTES).where(REMOTE_NOTES.OBJECT_URI.eq(note.objectUri)).fetchOne(REMOTE_NOTES.ID) ?: return null
+        dsl.replaceRemoteNotePoll(id, note.poll)
+        return id
     }
 
     private fun existingPublishedNoteId(dsl: DSLContext, objectUri: String): Long? =

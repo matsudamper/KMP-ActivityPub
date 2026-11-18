@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NoteMention
+import net.matsudamper.kmp.activitypub.repository.NotePollInput
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
 import net.matsudamper.kmp.activitypub.repository.NoteUpdate
@@ -28,6 +29,8 @@ import net.matsudamper.kotpub.actor.ActorUrls
 import net.matsudamper.kotpub.entity.PublicNoteId as KotpubPublicNoteId
 import net.matsudamper.kotpub.note.NoteAttachment
 import net.matsudamper.kotpub.note.NoteMention as KotpubNoteMention
+import net.matsudamper.kotpub.note.NotePoll
+import net.matsudamper.kotpub.note.NotePollOption
 import net.matsudamper.kotpub.note.NotePublisher
 import net.matsudamper.kotpub.note.NoteUrls
 import org.slf4j.LoggerFactory
@@ -124,6 +127,7 @@ class NotePostService(
      * @param replyToPostId 返信するタイムラインの投稿の id。投稿者に宛てて、投稿者の inbox にも積む。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。投稿者の inbox にも積む。引用でなければ null
      * @param mentionAcct 宛てるアカウントの acct。返信と同じく宛てて、他のサーバーのアカウントなら inbox にも積む。宛てなければ null
+     * @param poll 付ける投票。画像とは一緒に付けられない。投票でなければ null
      */
     suspend fun post(
         username: String,
@@ -134,8 +138,11 @@ class NotePostService(
         replyToPostId: String?,
         quotePostId: String?,
         mentionAcct: String?,
+        poll: PostPollInput?,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
+        val pollOptions = poll?.options?.map { it.trim() }
+        if (poll != null && (imageIds.isNotEmpty() || pollOptions == null || !isValidPoll(pollOptions, poll.expiresIn))) return PostNoteResult.InvalidPoll
         val summary = contentWarning?.replace("\r\n", "\n")?.trim()?.ifEmpty { null }
         if (summary != null && summary.codePointCount(0, summary.length) > MAX_CONTENT_WARNING_LENGTH) return PostNoteResult.ContentWarningTooLong
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
@@ -175,6 +182,11 @@ class NotePostService(
                 NoteComposer.ComposeResult.TooLong -> return PostNoteResult.TooLong
             }
 
+        val notePoll = if (poll == null || pollOptions == null) {
+            null
+        } else {
+            NotePollInput(options = pollOptions, multipleChoice = poll.multipleChoice, endsAt = clock.instant().plus(poll.expiresIn))
+        }
         val prepared =
             publisher.prepare(
                 sender = sender,
@@ -188,6 +200,8 @@ class NotePostService(
                 quote = quote?.objectUri,
                 mentions = mentions.map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
                 emojis = emojiObjects.find(contentHtml),
+                sensitive = false,
+                poll = notePoll?.toUnvotedNotePoll(),
             )
         val enqueued =
             deliveryQueueRepository.enqueueNote(
@@ -206,6 +220,7 @@ class NotePostService(
                     quoteUri = quote?.objectUri,
                     quoteInbox = quote?.authorInbox,
                     mentions = mentions.map { it.record },
+                    poll = notePoll,
                 ),
             )
         return when (enqueued) {
@@ -460,6 +475,22 @@ class NotePostService(
         return listOf(NoteComposer.MentionLink(text = "@$acct", href = actorUri, username = mentionUsername), shortLink)
     }
 
+    private fun isValidPoll(options: List<String>, expiresIn: Duration): Boolean =
+        options.size in MIN_POLL_OPTIONS..MAX_POLL_OPTIONS &&
+            options.all { it.isNotEmpty() && it.codePointCount(0, it.length) <= MAX_POLL_OPTION_LENGTH } &&
+            // 相手は選んだ選択肢を文字列で送ってくるので、同じ文字列が 2 つあると見分けられない
+            options.distinct().size == options.size &&
+            expiresIn >= MIN_POLL_DURATION &&
+            expiresIn <= MAX_POLL_DURATION
+
+    private fun NotePollInput.toUnvotedNotePoll(): NotePoll =
+        NotePoll(
+            options = options.map { NotePollOption(name = it, votesCount = 0) },
+            multipleChoice = multipleChoice,
+            endsAt = endsAt,
+            votersCount = 0,
+        )
+
     private fun noteUrl(
         domain: String,
         publicId: PublicNoteId,
@@ -518,6 +549,15 @@ class NotePostService(
         const val MAX_CONTENT_WARNING_LENGTH: Int = NoteComposer.MAX_LENGTH
 
         /**
+         * 投票の選択肢の数と長さ、締め切りまでの長さ。Mastodon の既定に合わせ、相手のサーバーで弾かれないようにする
+         */
+        const val MIN_POLL_OPTIONS: Int = 2
+        const val MAX_POLL_OPTIONS: Int = 4
+        const val MAX_POLL_OPTION_LENGTH: Int = 50
+        val MIN_POLL_DURATION: Duration = Duration.ofMinutes(5)
+        val MAX_POLL_DURATION: Duration = Duration.ofDays(7)
+
+        /**
          * 置いてから投稿に付けるまでの猶予。画面は投稿する直前に置くので、送り直しを含めても足りる
          */
         val UPLOADED_IMAGE_LIFETIME: Duration = Duration.ofHours(1)
@@ -567,6 +607,18 @@ sealed interface UploadNoteImageResult {
     data object AccountNotFound : UploadNoteImageResult
 }
 
+/**
+ * 投稿に付ける投票
+ *
+ * @param options 選択肢。並べた順
+ * @param expiresIn 投稿してから締め切るまで
+ */
+data class PostPollInput(
+    val options: List<String>,
+    val multipleChoice: Boolean,
+    val expiresIn: Duration,
+)
+
 sealed interface PostNoteResult {
     data class Posted(
         val publicId: PublicNoteId,
@@ -583,6 +635,11 @@ sealed interface PostNoteResult {
     data object ContentWarningTooLong : PostNoteResult
 
     data object TooManyImages : PostNoteResult
+
+    /**
+     * 選択肢の数や長さ、締め切りまでの長さが範囲外か、同じ選択肢があるか、画像と一緒に付けた
+     */
+    data object InvalidPoll : PostNoteResult
 
     /**
      * 置いていないか、期限を過ぎたか、もう別の投稿に付けた画像がある

@@ -370,6 +370,7 @@ class NoteRepositoryTest {
             quoteUri = null,
             quoteInbox = null,
             mentions = listOf(),
+            poll = null,
         )
 
     private fun noteUpdate(
