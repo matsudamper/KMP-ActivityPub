@@ -35,7 +35,7 @@ internal actual fun VideoPlayerDialog(
         closeButton.setAttribute("aria-label", "閉じる")
         closeButton.style.cssText =
             "position:absolute;top:16px;right:16px;width:48px;height:48px;border:none;border-radius:50%;" +
-            "background:rgba(255,255,255,0.2);color:#fff;font-size:24px;cursor:pointer;"
+            "background:#333;color:#fff;font-size:24px;cursor:pointer;"
         closeButton.addEventListener("click", { currentOnDismissRequest() })
         val keyListener: (Event) -> Unit = { event ->
             if ((event as? KeyboardEvent)?.key == "Escape") currentOnDismissRequest()
