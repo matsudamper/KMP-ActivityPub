@@ -28,7 +28,7 @@ jobs:
       - name: setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
-      - uses: matsudamper/actions/gradle-remote-cache-credentials@ea61dcfdb8b73f16d3c94d87a78026e126d59777 # v1.2.0
+      - uses: matsudamper/actions/gradle-remote-cache-credentials@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
         continue-on-error: true
 
       - name: 成果物のビルド
