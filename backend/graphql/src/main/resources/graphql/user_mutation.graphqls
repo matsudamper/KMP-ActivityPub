@@ -35,9 +35,10 @@ type UserMutation {
     quotePostId には引用する TimelinePost.id を渡す。投稿者にも配る。引用なら本文は空でもよい。省略すると引用にしない。
     contentWarning には閲覧注意の注意書きを渡す。プレーンテキストで 500 文字まで。省略するか空なら閲覧注意にしない
     mentionAcct には宛てるアカウントの acct を username@host か username で渡す。先頭の @ は省いてよい。本文の @acct をリンクにし、宛てたアカウントにも配る。省略すると返信先の投稿者のほかには宛てない
+    sensitive が true なら閲覧注意の投稿にし、画像をぼかして出す。省略すると閲覧注意にしない
     poll には付ける投票を渡す。画像とは一緒に付けられない。省略すると投票を付けない
     """
-    postNote(body: String!, requestId: String!, contentWarning: String, imageIds: [NoteImageId!]! = [], replyToPostId: TimelinePostId, quotePostId: TimelinePostId, mentionAcct: String, poll: PostNotePollInput): UserPostNoteResult! @lazy
+    postNote(body: String!, requestId: String!, contentWarning: String, imageIds: [NoteImageId!]! = [], replyToPostId: TimelinePostId, quotePostId: TimelinePostId, mentionAcct: String, sensitive: Boolean! = false, poll: PostNotePollInput): UserPostNoteResult! @lazy
     """
     投稿に付ける画像を置く。multipart で送る。PNG / JPEG / GIF / WebP で 20MB まで。
     description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える

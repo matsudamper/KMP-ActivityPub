@@ -537,6 +537,7 @@ internal class PostDetailScreenViewModel(
                             replyToPostId = replyToPostId,
                             quotePostId = null,
                             mentionAcct = null,
+                            sensitive = false,
                             poll = null,
                         )
                     when (result) {

@@ -387,6 +387,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
         mentionAcct: String?,
+        sensitive: Boolean,
         poll: QlPostNotePollInput?,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
@@ -400,6 +401,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                     replyToPostId = replyToPostId,
                     quotePostId = quotePostId,
                     mentionAcct = mentionAcct,
+                    sensitive = sensitive,
                     poll = poll,
                     env = env,
                 )
@@ -537,6 +539,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
         mentionAcct: String?,
+        sensitive: Boolean,
         poll: QlPostNotePollInput?,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
@@ -561,6 +564,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 replyToPostId = replyToPostId?.value,
                 quotePostId = quotePostId?.value,
                 mentionAcct = mentionAcct,
+                sensitive = sensitive,
                 poll = poll?.let { input ->
                     PostPollInput(
                         options = input.options,

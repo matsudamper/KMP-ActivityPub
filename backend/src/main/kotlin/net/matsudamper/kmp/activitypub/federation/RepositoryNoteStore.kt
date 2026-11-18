@@ -101,8 +101,7 @@ internal class RepositoryNoteStore(
             quote = quoteUri,
             mentions = mentions.map { mention -> NoteMention(actorId = mention.actorUri, acct = mention.acct) },
             emojis = emojiObjects.find(contentHtml),
-            // 閲覧注意は summary があれば kotpub が付ける。注意書きの無い閲覧注意はまだ記録していない
-            sensitive = false,
+            sensitive = sensitive,
             poll = poll?.toNotePoll(),
         )
 

@@ -398,7 +398,7 @@ class TimelineRepositoryTest {
     fun localPostsUseEpochMillisecondsAndOnlyReachTheirAuthor() = withRepository { repositories, accounts ->
         val time = NOW.plusNanos(999999999)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "本文", null, "", time, listOf(), "create", listOf(), null, null, null, listOf(), null),
+            NotePost("alice", "request", PublicNoteId("local-1"), "本文", null, "", time, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false, poll = null),
         )
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
@@ -414,7 +414,13 @@ class TimelineRepositoryTest {
     fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
         listOf("local-1", "local-2").forEachIndexed { index, publicId ->
             repositories.deliveryQueueRepository.enqueueNote(
-                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", null, "", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, null, null, listOf(), null),
+                NotePost(
+                    "alice", "request-$index",
+                    PublicNoteId(
+                        publicId,
+                    ),
+                    "本文", null, "", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false, poll = null,
+                ),
             )
         }
         val repository = repositories.timelineRepository
@@ -763,10 +769,10 @@ class TimelineRepositoryTest {
     @Test
     fun localPostWithContentWarningIsSensitive() = withRepository { repositories, accounts ->
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request-1", PublicNoteId("local-cw"), "<p>本文</p>", "ネタバレ", "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), null),
+            NotePost("alice", "request-1", PublicNoteId("local-cw"), "<p>本文</p>", "ネタバレ", "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false, poll = null),
         )
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request-2", PublicNoteId("local-plain"), "<p>本文</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), null),
+            NotePost("alice", "request-2", PublicNoteId("local-plain"), "<p>本文</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false, poll = null),
         )
         val alice = accounts.getValue("alice")
         val repository = repositories.timelineRepository
@@ -792,7 +798,7 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), null),
+            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf(), sensitive = false, poll = null),
         )
         val localNote = assertNotNull(repository.localPosition("local-1"))
         val note = assertNotNull(repository.receive(note("content", "public", setOf())))

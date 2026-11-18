@@ -79,6 +79,7 @@ class PollRepositoryTest {
         quoteUri = null,
         quoteInbox = null,
         mentions = listOf(),
+        sensitive = false,
         poll = NotePollInput(options = listOf("犬", "猫"), multipleChoice = multipleChoice, endsAt = ENDS_AT),
     )
 

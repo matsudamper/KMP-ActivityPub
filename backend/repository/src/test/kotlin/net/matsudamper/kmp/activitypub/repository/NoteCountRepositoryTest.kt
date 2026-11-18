@@ -52,6 +52,7 @@ class NoteCountRepositoryTest {
         poll = null,
         quoteUri = null,
         quoteInbox = null,
+        sensitive = false,
     )
 
     private fun note(id: String, visibility: String, inReplyTo: String?): RemoteNoteInput = RemoteNoteInput(

@@ -104,6 +104,7 @@ class NotePostServiceTest {
             replyToPostId = null,
             quotePostId = null,
             mentionAcct = null,
+            sensitive = false,
             poll = null,
         )
 
@@ -130,6 +131,7 @@ class NotePostServiceTest {
             replyToPostId = null,
             quotePostId = null,
             mentionAcct = null,
+            sensitive = false,
             poll = null,
         )
 
@@ -139,6 +141,27 @@ class NotePostServiceTest {
         assertEquals("Emoji", tag.getValue("type").jsonPrimitive.content)
         assertEquals(":blobcat:", tag.getValue("name").jsonPrimitive.content)
         assertEquals(BLOBCAT.icon.url, tag.getValue("icon").jsonObject.getValue("url").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `センシティブで投稿すると記録と配る Note の両方に sensitive が付く`() = runBlocking<Unit> {
+        service.post(
+            username = "user1",
+            body = "hello",
+            requestId = REQUEST_ID,
+            contentWarning = null,
+            imageIds = listOf(),
+            replyToPostId = null,
+            quotePostId = null,
+            mentionAcct = null,
+            sensitive = true,
+            poll = null,
+        )
+
+        val post = deliveryQueueRepository.posts.single()
+        assertTrue(post.sensitive)
+        val note = AppJson.parseToJsonElement(post.body).jsonObject.getValue("object").jsonObject
+        assertEquals("true", note.getValue("sensitive").jsonPrimitive.content)
     }
 
     @Test
@@ -153,6 +176,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -177,6 +201,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = poll,
             ),
         )
@@ -211,6 +236,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = poll,
                 ),
             )
@@ -230,6 +256,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -250,6 +277,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -270,6 +298,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -291,6 +320,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -311,6 +341,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -333,6 +364,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -347,6 +379,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -369,7 +402,7 @@ class NotePostServiceTest {
                     png,
                     jpeg,
                 ),
-                replyToPostId = null, quotePostId = null, mentionAcct = null, poll = null,
+                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
             ),
         )
 
@@ -404,7 +437,7 @@ class NotePostServiceTest {
                 imageIds = listOf(
                     image,
                 ),
-                replyToPostId = null, quotePostId = null, mentionAcct = null, poll = null,
+                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
             ),
         )
 
@@ -426,6 +459,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -445,7 +479,7 @@ class NotePostServiceTest {
                 imageIds = listOf(
                     image,
                 ),
-                replyToPostId = null, quotePostId = null, mentionAcct = null, poll = null,
+                replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
             ),
         )
         assertEquals(
@@ -459,6 +493,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -489,6 +524,7 @@ class NotePostServiceTest {
             replyToPostId = null,
             quotePostId = null,
             mentionAcct = null,
+            sensitive = false,
             poll = null,
         )
         val resent = service.post(
@@ -500,6 +536,7 @@ class NotePostServiceTest {
             replyToPostId = null,
             quotePostId = null,
             mentionAcct = null,
+            sensitive = false,
             poll = null,
         )
 
@@ -518,7 +555,7 @@ class NotePostServiceTest {
                     imageIds = listOf(
                         image,
                     ),
-                    replyToPostId = null, quotePostId = null, mentionAcct = null, poll = null,
+                    replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
                 ),
             )
         enqueuedCount = 0
@@ -543,7 +580,7 @@ class NotePostServiceTest {
                     imageIds = listOf(
                         image,
                     ),
-                    replyToPostId = null, quotePostId = null, mentionAcct = null, poll = null,
+                    replyToPostId = null, quotePostId = null, mentionAcct = null, sensitive = false, poll = null,
                 ),
             )
         imageStorage.deleteFails = true
@@ -575,6 +612,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -606,6 +644,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -630,6 +669,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -656,6 +696,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -688,6 +729,7 @@ class NotePostServiceTest {
                     replyToPostId = "r1",
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -728,6 +770,7 @@ class NotePostServiceTest {
                     replyToPostId = "r1",
                     quotePostId = null,
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -769,6 +812,7 @@ class NotePostServiceTest {
                 replyToPostId = "r1",
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -793,6 +837,7 @@ class NotePostServiceTest {
                 replyToPostId = "l1",
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -818,6 +863,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = null,
                     mentionAcct = "@alice@remote.example",
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -852,6 +898,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = "alice@remote.example",
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -883,6 +930,7 @@ class NotePostServiceTest {
                 replyToPostId = "r1",
                 quotePostId = null,
                 mentionAcct = "alice@remote.example",
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -906,6 +954,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = "user2@$DOMAIN",
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -932,6 +981,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = "user1",
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -952,6 +1002,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = "bob@remote.example",
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -966,6 +1017,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = null,
                 mentionAcct = "nobody",
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -986,6 +1038,7 @@ class NotePostServiceTest {
                 replyToPostId = "r999",
                 quotePostId = null,
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -1016,6 +1069,7 @@ class NotePostServiceTest {
                     replyToPostId = null,
                     quotePostId = "r1",
                     mentionAcct = null,
+                    sensitive = false,
                     poll = null,
                 ),
             )
@@ -1046,6 +1100,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = "l1",
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )
@@ -1060,7 +1115,18 @@ class NotePostServiceTest {
         noteRepository.replyTargets["l1"] = ReplyTarget.Local(username = "user1", publicId = PublicNoteId("own"))
 
         assertIs<PostNoteResult.Posted>(
-            service.post(username = "user1", body = " ", requestId = REQUEST_ID, contentWarning = null, imageIds = listOf(), replyToPostId = null, quotePostId = "l1", mentionAcct = null, poll = null),
+            service.post(
+                username = "user1",
+                body = " ",
+                requestId = REQUEST_ID,
+                contentWarning = null,
+                imageIds = listOf(),
+                replyToPostId = null,
+                quotePostId = "l1",
+                mentionAcct = null,
+                sensitive = false,
+                poll = null,
+            ),
         )
 
         assertEquals("", deliveryQueueRepository.posts.single().contentHtml)
@@ -1079,6 +1145,7 @@ class NotePostServiceTest {
                 replyToPostId = null,
                 quotePostId = "r999",
                 mentionAcct = null,
+                sensitive = false,
                 poll = null,
             ),
         )

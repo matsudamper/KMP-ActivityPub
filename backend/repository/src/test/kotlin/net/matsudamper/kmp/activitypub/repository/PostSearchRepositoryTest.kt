@@ -111,6 +111,7 @@ class PostSearchRepositoryTest {
         quoteUri = null,
         quoteInbox = null,
         mentions = listOf(),
+        sensitive = false,
         poll = null,
     )
 

@@ -110,6 +110,7 @@ class BoostRepositoryTest {
                 mentions = listOf(),
                 poll = null,
                 images = listOf(),
+                sensitive = false,
             ),
         )
     }
