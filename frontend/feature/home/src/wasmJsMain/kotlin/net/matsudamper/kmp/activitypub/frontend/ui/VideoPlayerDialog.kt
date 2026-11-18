@@ -40,6 +40,14 @@ internal actual fun VideoPlayerDialog(
         val keyListener: (Event) -> Unit = { event ->
             if ((event as? KeyboardEvent)?.key == "Escape") currentOnDismissRequest()
         }
+        // 閉じるボタンが最後の要素なので、Tab で外へ出る代わりに最初の動画の操作部へ回す
+        closeButton.addEventListener("keydown", { event ->
+            val keyEvent = event as? KeyboardEvent
+            if (keyEvent?.key == "Tab" && !keyEvent.shiftKey) {
+                event.preventDefault()
+                video.focus()
+            }
+        })
         // Tab で後ろの要素へフォーカスが出たら、プレイヤーの中へ戻す
         val focusInListener: (Event) -> Unit = { event ->
             val target = event.target as? Node
