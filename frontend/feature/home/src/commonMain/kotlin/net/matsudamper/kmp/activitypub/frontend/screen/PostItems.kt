@@ -14,6 +14,8 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
  * 投稿の中身の見せ方はここだけで決める。画面ごとに組み立てると、閲覧注意の扱いなどが画面によって食い違う
  *
  * @param onToggleTranslation 翻訳のボタンを押したとき
+ * @param contentWarningOpened 閲覧注意の投稿の本文を開いているか。閲覧注意でなければ見ない
+ * @param onToggleContentWarning 閲覧注意の本文を開くか畳むボタンを押したとき
  * @param linkPreviews 取れた OGP。まだ取れていないリンクは URL だけのカードになる
  * @param quote [createPostItemQuote] で作る。引用でなければ null
  * @param replyLabel [createPostItemReplyLabel] で作る。「〜へのリプライ」の行を出さなければ null
@@ -42,6 +44,7 @@ internal fun createPostItemUiState(
     acct: String,
     body: UserPostBody,
     translation: PostTranslationState,
+    contentWarningOpened: Boolean,
     linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
     quote: PostItemUiState.Quote?,
     sensitiveImagesBlurred: Boolean,
@@ -55,6 +58,7 @@ internal fun createPostItemUiState(
     onToggleImageBlur: (imageUrls: List<String>, toggled: Boolean) -> Unit,
     onShare: (url: String) -> Unit,
     onToggleTranslation: (PostTranslationSource) -> Unit,
+    onToggleContentWarning: () -> Unit,
     onToggleLike: () -> Unit,
     onToggleBoost: () -> Unit,
     onReply: () -> Unit,
@@ -69,6 +73,8 @@ internal fun createPostItemUiState(
     val translationSource = body.language?.let { PostTranslationSource(text = body.content, languageTag = it) }
     val translationProgress = translationSource?.let { translation.progressBySource[it] }
     val translated = translationProgress as? PostTranslationProgress.Translated
+    val summary = body.summary
+    val bodyVisible = summary == null || contentWarningOpened
     return PostItemUiState(
         replyLabel = replyLabel,
         actorLabel = actorLabel?.let { label ->
@@ -99,6 +105,18 @@ internal fun createPostItemUiState(
         iconUrl = iconUrl,
         displayName = createTextWithEmojis(text = displayName, emojis = displayNameEmojis),
         acct = acct,
+        contentWarning = summary?.let {
+            PostItemUiState.ContentWarning(
+                text = createTextWithEmojis(text = summary, emojis = body.emojis),
+                toggleButtonText = if (contentWarningOpened) "隠す" else "もっと見る",
+                listener = object : PostItemUiState.ContentWarningListener {
+                    override fun onClickToggle() {
+                        onToggleContentWarning()
+                    }
+                },
+            )
+        },
+        bodyVisible = bodyVisible,
         body = createPostBodyText(
             content = translated?.text ?: body.content,
             // 訳すと文字の位置がずれるので、メンションは原文のときだけ押せる
@@ -206,7 +224,8 @@ internal fun createPostItemUiState(
 
             AuthorTapAction.AlreadyOnAuthorProfile -> null
         },
-        translateButton = if (translationSource == null) {
+        // 畳んだ本文は訳しても見えない
+        translateButton = if (translationSource == null || !bodyVisible) {
             null
         } else {
             createTranslateButton(source = translationSource, progress = translationProgress, translation = translation, onToggleTranslation = onToggleTranslation)
