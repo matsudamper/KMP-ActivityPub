@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 import org.koin.compose.viewmodel.koinViewModel
@@ -49,6 +50,10 @@ internal fun AdminScreen(
             object : AdminScreenViewModel.Event {
                 override fun navigateBack() {
                     navigator.back()
+                }
+
+                override fun navigateToFailedDeliveries() {
+                    navigator.navigate(Screen.FailedDeliveries)
                 }
 
                 override fun showMessage(message: String) {
@@ -104,6 +109,7 @@ internal fun AdminContent(
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
                         RemoteProfileRefreshSection(uiState = content.remoteProfileRefresh)
+                        FailedDeliveriesSection(onClickOpen = uiState.listener::onClickFailedDeliveries)
                     }
                 }
 
@@ -147,6 +153,30 @@ private fun RemoteProfileRefreshSection(
             enabled = uiState.startButtonEnabled,
         ) {
             Text(text = "全員を取り直す")
+        }
+    }
+}
+
+@Composable
+private fun FailedDeliveriesSection(
+    onClickOpen: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "配信",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "他のサーバーに送り直しても届かず、送るのを諦めた配信を確認できます。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = onClickOpen) {
+            Text(text = "諦めた配信を見る")
         }
     }
 }

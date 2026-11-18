@@ -113,7 +113,7 @@ class FollowerRepositoryTest {
             val oldClaimed = queue.claim(now = NOW, limit = 10).single()
             followers.recordFollow(FOLLOWER, followActivityUri = "https://remote.example/follows/2", acceptBody = "accept-2")
 
-            queue.giveUp(oldClaimed.id, error = "410")
+            queue.giveUp(oldClaimed.id, error = "410", failedAt = NOW)
 
             assertEquals("user1", followers.findFolloweeUsername(FOLLOWER.actorUri, "https://remote.example/follows/2"))
             assertEquals("accept-2", queue.claim(now = NOW, limit = 10).single().body)
@@ -155,7 +155,7 @@ class FollowerRepositoryTest {
             followers.recordFollow(FOLLOWER)
             val claimed = queue.claim(now = NOW, limit = 10).single()
 
-            queue.giveUp(claimed.id, error = "410")
+            queue.giveUp(claimed.id, error = "410", failedAt = NOW)
 
             assertNull(followers.findFolloweeUsername(FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI))
             assertEquals(0, queue.recoverDelivering(now = NOW))

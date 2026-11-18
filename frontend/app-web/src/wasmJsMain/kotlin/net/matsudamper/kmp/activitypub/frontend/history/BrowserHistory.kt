@@ -92,8 +92,10 @@ internal object BrowserHistory {
         fun onBackStackChanged(stack: List<NavKey>) {
             if (stack.isEmpty()) return
             val home = stack.last() as? Screen.Home
-            val previousHome = syncedStack.lastOrNull() as? Screen.Home
-            if (stack.size == syncedStack.size && home != null && previousHome != null && home != previousHome) {
+            val previousScreen = syncedStack.lastOrNull()
+            // ホームへの置き換えは履歴を積んで、ブラウザで戻ると置き換える前の画面に戻れるようにする。
+            // ログイン画面は戻れないように置き換えているので積まない
+            if (stack.size == syncedStack.size && home != null && previousScreen != home && previousScreen != Screen.Login) {
                 stackBottomHistoryIndex += 1
             }
             val targetHistoryIndex = stackBottomHistoryIndex + stack.lastIndex

@@ -35,6 +35,8 @@ import kotlin.math.roundToInt
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import net.matsudamper.kmp.activitypub.frontend.screen.admin.AdminScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.admin.faileddeliveries.FailedDeliveriesScreen
+import net.matsudamper.kmp.activitypub.frontend.screen.admin.faileddelivery.FailedDeliveryScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.blockedaccounts.BlockedAccountsScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.blockedservers.BlockedServersScreen
 import net.matsudamper.kmp.activitypub.frontend.screen.customemojis.CustomEmojisScreen
@@ -379,6 +381,14 @@ private fun ScreenContent(
 
         Screen.Admin -> {
             AdminScreen(navigator = navigator)
+        }
+
+        Screen.FailedDeliveries -> {
+            FailedDeliveriesScreen(navigator = navigator)
+        }
+
+        is Screen.FailedDelivery -> {
+            FailedDeliveryScreen(id = screen.id, navigator = navigator)
         }
 
         Screen.Following -> {
