@@ -80,6 +80,7 @@ interface DeliveryQueueRepository {
     fun giveUp(
         id: Long,
         error: String,
+        failedAt: Instant,
     )
 
     /**

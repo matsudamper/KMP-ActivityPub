@@ -150,7 +150,7 @@ class DeliveryQueueWorker(
             logger.warn("配信の送り主の鍵が無いので諦める: ${row.username} → ${row.inbox}")
             DeliverySpan.failed("送り主の鍵が無い")
             DeliverySpan.outcome("gave_up.no_account")
-            withOpenTelemetryContext { queue.giveUp(row.id, error = "送り主の鍵が無い") }
+            withOpenTelemetryContext { queue.giveUp(row.id, error = "送り主の鍵が無い", failedAt = clock.instant()) }
             return
         }
 
@@ -179,7 +179,7 @@ class DeliveryQueueWorker(
         val nextAttemptAt = retryPolicy.nextAttemptAt(attempts = row.attempts, enqueuedAt = row.enqueuedAt, now = clock.instant())
         if (!retryable || nextAttemptAt == null) {
             DeliverySpan.outcome(if (retryable) "gave_up.retry_exhausted" else "gave_up.rejected")
-            queue.giveUp(row.id, error = reason)
+            queue.giveUp(row.id, error = reason, failedAt = clock.instant())
             logger.warn("配信を諦めた: ${row.username} → ${row.inbox} 試行=${row.attempts} 回 $reason")
         } else {
             DeliverySpan.outcome("retry_scheduled")

@@ -353,6 +353,7 @@ internal class SqliteDeliveryQueueRepository(
     override fun giveUp(
         id: Long,
         error: String,
+        failedAt: Instant,
     ) {
         jooq.transaction { dsl ->
             val row = dsl.findRow(id) ?: return@transaction
@@ -361,6 +362,7 @@ internal class SqliteDeliveryQueueRepository(
                 .setNull(DELIVERY_QUEUE.NEXT_ATTEMPT_AT)
                 .setNull(DELIVERY_QUEUE.BODY)
                 .set(DELIVERY_QUEUE.LAST_ERROR, error)
+                .set(DELIVERY_QUEUE.FAILED_AT, StoredInstant.format(failedAt))
                 .where(DELIVERY_QUEUE.ID.eq(id))
                 .execute()
             if (row.kind == DeliveryQueueValues.KIND_ACCEPT_FOLLOW) {

@@ -180,7 +180,7 @@ class DeliveryQueueOpenTelemetryTest {
         override fun scheduleRetry(id: Long, nextAttemptAt: Instant, error: String) {
             tracer.spanBuilder("SQL scheduleRetry").startSpan().end()
         }
-        override fun giveUp(id: Long, error: String) {
+        override fun giveUp(id: Long, error: String, failedAt: Instant) {
             tracer.spanBuilder("SQL giveUp").startSpan().end()
         }
         override fun recoverDelivering(now: Instant): Int {

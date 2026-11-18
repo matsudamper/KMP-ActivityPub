@@ -182,7 +182,7 @@ class NoteRepositoryTest {
             queue.enqueueNote(notePost(publicId = "note-1", inboxes = listOf(INBOX_A, INBOX_B)))
             val claimed = queue.claim(now = NOW, limit = 10)
             queue.markDelivered(claimed[0].id, deliveredAt = NOW)
-            queue.giveUp(claimed[1].id, error = "410")
+            queue.giveUp(claimed[1].id, error = "410", failedAt = NOW)
 
             assertEquals(0, queue.recoverDelivering(now = NOW))
             assertEquals(listOf(), queue.claim(now = NOW.plusSeconds(3600), limit = 10))
