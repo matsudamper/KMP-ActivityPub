@@ -1,8 +1,5 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
-import android.content.Context
-import android.graphics.Color
-import android.webkit.WebView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,13 +9,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
 
 @Composable
@@ -26,22 +29,32 @@ internal actual fun VideoPlayerDialog(
     videoUrl: String,
     onDismissRequest: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val player = remember(videoUrl) {
+        ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(videoUrl))
+            prepare()
+            playWhenReady = true
+        }
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(ComposeColor.Black)) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             AndroidView(
-                factory = { context -> createVideoWebView(context, videoUrl) },
+                factory = { viewContext -> PlayerView(viewContext).apply { this.player = player } },
                 modifier = Modifier.fillMaxSize().safeDrawingPadding(),
-                onRelease = { webView -> webView.destroy() },
             )
             IconButton(
                 onClick = onDismissRequest,
                 modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(8.dp),
                 colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = ComposeColor.White.copy(alpha = 0.2f),
-                    contentColor = ComposeColor.White,
+                    containerColor = Color(0xFF333333),
+                    contentColor = Color.White,
                 ),
             ) {
                 Icon(imageVector = AppIcons.Close, contentDescription = "閉じる")
@@ -49,27 +62,3 @@ internal actual fun VideoPlayerDialog(
         }
     }
 }
-
-// 動画の再生に JavaScript は要らないので有効にしない
-private fun createVideoWebView(context: Context, videoUrl: String): WebView = WebView(context).apply {
-    setBackgroundColor(Color.BLACK)
-    settings.mediaPlaybackRequiresUserGesture = false
-    loadDataWithBaseURL(
-        null,
-        """
-        <!doctype html>
-        <html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-        <style>html,body{margin:0;height:100%;background:#000;display:flex;align-items:center;justify-content:center}video{max-width:100%;max-height:100%}</style>
-        </head><body><video src="${videoUrl.escapeHtmlAttribute()}" controls autoplay playsinline></video></body></html>
-        """.trimIndent(),
-        "text/html",
-        "UTF-8",
-        null,
-    )
-}
-
-private fun String.escapeHtmlAttribute(): String = this
-    .replace("&", "&amp;")
-    .replace("\"", "&quot;")
-    .replace("<", "&lt;")
-    .replace(">", "&gt;")
