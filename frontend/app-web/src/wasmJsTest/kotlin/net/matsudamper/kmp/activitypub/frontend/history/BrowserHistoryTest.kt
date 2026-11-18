@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import net.matsudamper.kmp.activitypub.frontend.navigation.Navigator
+import net.matsudamper.kmp.activitypub.frontend.navigation.OverlayHistoryEntry
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import org.w3c.dom.events.Event
 
@@ -268,10 +269,51 @@ class BrowserHistoryTest {
         }
     }
 
+    @Test
+    fun forwardToClosedOverlaySkipsItAndKeepsInAppBack() = runTest {
+        withContext(Dispatchers.Default) {
+            withTimeout(10_000) {
+                window.history.replaceState(null, "", Screen.Settings.path)
+                val backStack = NavBackStack<NavKey>(*BrowserHistory.initialScreens(Screen.Login).toTypedArray())
+                val navigator = Navigator(backStack)
+                val sync = BrowserHistory.BackStackHistorySync(backStack, Screen.Login)
+                sync.start()
+                try {
+                    val baseState = window.history.state?.toString().orEmpty()
+                    window.history.pushState(OverlayHistoryEntry.stateOf(baseState).toJsString(), "", window.location.href)
+                    awaitPopStates(count = 1) { window.history.back() }
+                    awaitPopStates(count = 2) { window.history.forward() }
+                    assertEquals(listOf<NavKey>(Screen.Home.Timeline, Screen.Settings), backStack.toList())
+                    navigator.back()
+                    awaitPopStates(count = 1) { sync.onBackStackChanged(backStack.toList()) }
+                    assertHome(backStack, Screen.Home.Tab.Timeline)
+                } finally {
+                    sync.stop()
+                }
+            }
+        }
+    }
+
     private fun assertHome(backStack: NavBackStack<NavKey>, tab: Screen.Home.Tab) {
         val home = Screen.Home(tab)
         assertEquals(listOf(home), backStack.toList())
         assertEquals(home.path, window.location.pathname)
+    }
+
+    private suspend fun awaitPopStates(count: Int, action: () -> Unit) {
+        val popped = CompletableDeferred<Unit>()
+        var remaining = count
+        val listener: (Event) -> Unit = {
+            remaining -= 1
+            if (remaining == 0) popped.complete(Unit)
+        }
+        window.addEventListener("popstate", listener)
+        try {
+            action()
+            popped.await()
+        } finally {
+            window.removeEventListener("popstate", listener)
+        }
     }
 
     private suspend fun awaitPopState(action: () -> Unit) {
