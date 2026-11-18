@@ -141,7 +141,14 @@ internal fun NotificationView.toQlNotificationGroup(post: QlTimelinePost?, local
 internal fun List<NotificationView>.toQlNotificationGroups(diContainer: DiContainer): List<QlNotificationGroup> {
     val posts = mapNotNull { it.post }.distinctBy { it.position.member }.toQlTimelinePosts(diContainer).associateBy { it.id.value }
     val localIconUrls = diContainer.profileIconUrls?.memoized()
-    return map { view -> view.toQlNotificationGroup(view.post?.let { posts.getValue(it.position.member) }, localIconUrls, diContainer) }
+    return map { view ->
+        val post = view.post?.let { post ->
+            val mapped = posts.getValue(post.position.member)
+            // メンションの投稿はこのサーバーの別のアカウントのものもあり、そこから消したり固定したりはできない
+            if (diContainer.viewablePostService.isOwnedByViewer(view.group.accountId, post)) mapped else mapped.copy(deletableNoteId = null, pinnableNoteId = null)
+        }
+        view.toQlNotificationGroup(post, localIconUrls, diContainer)
+    }
 }
 
 private fun NotificationActor.toQlActor(localIconUrls: ProfileIconUrls?, diContainer: DiContainer): QlActor {
