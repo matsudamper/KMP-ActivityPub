@@ -476,7 +476,7 @@ class QueryResolverImpl : QueryResolver {
             mentions = body.mentions,
             images = body.images,
             videos = body.videos,
-            emojis = createQlPostEmojis(noteRef = noteRef, contentHtml = contentHtml, remoteEmojis = emojis, diContainer = diContainer),
+            emojis = createQlPostEmojis(noteRef = noteRef, contentHtml = contentHtml, pollOptions = poll?.options.orEmpty().map { it.title }, remoteEmojis = emojis, diContainer = diContainer),
             favouriteCount = (favouriteCount ?: counts?.reportedFavouriteCount)?.toInt(),
             stamps = stamps.toQlPostStamps(diContainer),
             likedByMe = likedByMe,

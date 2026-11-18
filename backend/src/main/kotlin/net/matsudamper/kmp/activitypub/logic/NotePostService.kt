@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.repository.NoteUpdate
 import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
 import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
+import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.ReplyTarget
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
@@ -52,6 +53,7 @@ class NotePostService(
     private val publisher: NotePublisher,
     private val accountService: AccountService,
     private val noteRepository: NoteRepository,
+    private val polls: PollRepository,
     private val imageStorage: ImageStorage?,
     private val imageUrls: NoteImageUrls,
     private val emojiObjects: NoteEmojiObjects,
@@ -206,7 +208,7 @@ class NotePostService(
                 inReplyTo = reply?.inReplyTo,
                 quote = quote?.objectUri,
                 mentions = mentions.map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
-                emojis = emojiObjects.find(contentHtml),
+                emojis = emojiObjects.find(emojiSourceOf(contentHtml = contentHtml, pollOptions = notePoll?.options.orEmpty())),
                 sensitive = sensitive,
                 poll = notePoll?.toUnvotedNotePoll(),
             )
@@ -291,7 +293,10 @@ class NotePostService(
                 sender = sender,
                 publicId = KotpubPublicNoteId(publicId.value),
                 contentHtml = contentHtml,
-                emojis = emojiObjects.find(contentHtml),
+                // 編集しても投票は変わらないので、選択肢の絵文字も残す
+                emojis = emojiObjects.find(
+                    emojiSourceOf(contentHtml = contentHtml, pollOptions = polls.localPolls(setOf(publicId))[publicId]?.options.orEmpty().map { it.name }),
+                ),
             ) ?: return EditNoteResult.NotFound
         val updated =
             deliveryQueueRepository.enqueueNoteUpdate(
@@ -512,6 +517,11 @@ class NotePostService(
             options.distinct().size == options.size &&
             expiresIn >= MIN_POLL_DURATION &&
             expiresIn <= MAX_POLL_DURATION
+
+    /**
+     * 投票の選択肢にも `:shortcode:` を書けるので、本文と一緒に探す
+     */
+    private fun emojiSourceOf(contentHtml: String, pollOptions: List<String>): String = (listOf(contentHtml) + pollOptions).joinToString("\n")
 
     private fun NotePollInput.toUnvotedNotePoll(): NotePoll =
         NotePoll(

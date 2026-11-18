@@ -197,6 +197,7 @@ internal class Federation(
             publisher = NotePublisher(notes, null),
             accountService = accountService,
             noteRepository = noteRepository,
+            polls = pollRepository,
             imageStorage = imageStorage,
             imageUrls = noteImageUrls,
             emojiObjects = noteEmojiObjects,

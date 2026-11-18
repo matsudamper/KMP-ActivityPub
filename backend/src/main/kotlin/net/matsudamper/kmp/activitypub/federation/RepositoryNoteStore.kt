@@ -100,7 +100,8 @@ internal class RepositoryNoteStore(
             inReplyTo = inReplyTo,
             quote = quoteUri,
             mentions = mentions.map { mention -> NoteMention(actorId = mention.actorUri, acct = mention.acct) },
-            emojis = emojiObjects.find(contentHtml),
+            // 投票の選択肢にも :shortcode: を書けるので、本文と一緒に探す
+            emojis = emojiObjects.find((listOf(contentHtml) + poll?.options.orEmpty().map { it.name }).joinToString("\n")),
             sensitive = sensitive,
             poll = poll?.toNotePoll(),
         )

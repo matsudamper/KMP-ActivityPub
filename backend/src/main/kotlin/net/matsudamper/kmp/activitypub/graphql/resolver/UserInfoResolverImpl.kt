@@ -87,7 +87,7 @@ class UserInfoResolverImpl : UserInfoResolver {
                             mentions = body.mentions,
                             images = body.images,
                             videos = body.videos,
-                            emojis = createQlPostEmojis(noteRef = post.noteRef, contentHtml = revision.contentHtml, remoteEmojis = post.emojis, diContainer = diContainer),
+                            emojis = createQlPostEmojis(noteRef = post.noteRef, contentHtml = revision.contentHtml, pollOptions = listOf(), remoteEmojis = post.emojis, diContainer = diContainer),
                             revisedAt = revision.revisedAt.toString(),
                         )
                     },

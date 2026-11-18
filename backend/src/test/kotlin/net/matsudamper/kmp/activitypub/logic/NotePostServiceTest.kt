@@ -72,6 +72,7 @@ class NotePostServiceTest {
             publisher = NotePublisher(RepositoryNoteStore(noteRepository, imageUrls, BlobcatOnly, FakePollRepository()), null),
             accountService = AccountService(accountRepository),
             noteRepository = noteRepository,
+            polls = FakePollRepository(),
             imageStorage = imageStorage,
             imageUrls = imageUrls,
             emojiObjects = BlobcatOnly,
@@ -212,6 +213,28 @@ class NotePostServiceTest {
         val note = AppJson.parseToJsonElement(post.body).jsonObject.getValue("object").jsonObject
         assertEquals("Question", note.getValue("type").jsonPrimitive.content)
         assertEquals(listOf("犬", "猫"), note.getValue("oneOf").jsonArray.map { it.jsonObject.getValue("name").jsonPrimitive.content })
+    }
+
+    @Test
+    fun `投票の選択肢に入れたカスタム絵文字も Emoji として載せる`() = runBlocking<Unit> {
+        val poll = PostPollInput(options = listOf(":blobcat:", "猫"), multipleChoice = false, expiresIn = Duration.ofHours(1))
+        assertIs<PostNoteResult.Posted>(
+            service.post(
+                username = "user1",
+                body = "どっち",
+                requestId = REQUEST_ID,
+                contentWarning = null,
+                imageIds = listOf(),
+                replyToPostId = null,
+                quotePostId = null,
+                mentionAcct = null,
+                sensitive = false,
+                poll = poll,
+            ),
+        )
+
+        val tag = AppJson.parseToJsonElement(deliveryQueueRepository.posts.single().body).jsonObject.getValue("object").jsonObject.getValue("tag").jsonArray
+        assertEquals(listOf(":blobcat:"), tag.map { it.jsonObject.getValue("name").jsonPrimitive.content })
     }
 
     @Test
