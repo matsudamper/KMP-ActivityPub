@@ -294,6 +294,34 @@ class BrowserHistoryTest {
         }
     }
 
+    @Test
+    fun reloadWithOverlayOpenLeavesOverlayAndKeepsInAppBack() = runTest {
+        withContext(Dispatchers.Default) {
+            withTimeout(10_000) {
+                window.history.replaceState(null, "", Screen.Settings.path)
+                val firstBackStack = NavBackStack<NavKey>(*BrowserHistory.initialScreens(Screen.Login).toTypedArray())
+                val firstSync = BrowserHistory.BackStackHistorySync(firstBackStack, Screen.Login)
+                firstSync.start()
+                firstSync.stop()
+                val baseState = window.history.state?.toString().orEmpty()
+                window.history.pushState(OverlayHistoryEntry.stateOf(baseState).toJsString(), "", window.location.href)
+                val initialScreens = BrowserHistory.initialScreens(Screen.Login)
+                assertEquals(listOf(Screen.Home.Timeline, Screen.Settings), initialScreens)
+                val backStack = NavBackStack<NavKey>(*initialScreens.toTypedArray())
+                val navigator = Navigator(backStack)
+                val sync = BrowserHistory.BackStackHistorySync(backStack, Screen.Login)
+                try {
+                    awaitPopStates(count = 1) { sync.start() }
+                    navigator.back()
+                    awaitPopStates(count = 1) { sync.onBackStackChanged(backStack.toList()) }
+                    assertHome(backStack, Screen.Home.Tab.Timeline)
+                } finally {
+                    sync.stop()
+                }
+            }
+        }
+    }
+
     private fun assertHome(backStack: NavBackStack<NavKey>, tab: Screen.Home.Tab) {
         val home = Screen.Home(tab)
         assertEquals(listOf(home), backStack.toList())

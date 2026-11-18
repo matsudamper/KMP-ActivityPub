@@ -59,11 +59,28 @@ internal object BrowserHistory {
         private var stackBottomHistoryIndex = 0
         private var currentHistoryIndex = 0
         private var awaitingOwnGo = false
+        private var leavingOverlayOnStart = false
         private val popStateListener: (Event) -> Unit = { event ->
-            onPopState(historyEntryOf((event as PopStateEvent).state))
+            if (leavingOverlayOnStart) {
+                leavingOverlayOnStart = false
+                syncWithCurrentHistory()
+            } else {
+                onPopState(historyEntryOf((event as PopStateEvent).state))
+            }
         }
 
         fun start() {
+            window.addEventListener("popstate", popStateListener)
+            if (historyEntryOf(window.history.state)?.overlay == true) {
+                // 重ね表示を開いたまま再読み込みした。重ね表示は出し直せず、このまま合わせると同じ位置の履歴が 2 つ続くので、下の画面の履歴へ戻ってから合わせる
+                leavingOverlayOnStart = true
+                window.history.back()
+            } else {
+                syncWithCurrentHistory()
+            }
+        }
+
+        private fun syncWithCurrentHistory() {
             val reloadedHistoryIndex = historyEntryOf(window.history.state)?.index
             if (reloadedHistoryIndex != null && reloadedHistoryIndex >= backStack.lastIndex) {
                 // 再読み込み。下に積んだ画面の履歴は前回の起動で載せてあるので、そのまま使う
@@ -83,7 +100,6 @@ internal object BrowserHistory {
             }
             currentHistoryIndex = stackBottomHistoryIndex + backStack.lastIndex
             syncedStack = backStack.toList()
-            window.addEventListener("popstate", popStateListener)
         }
 
         fun stop() {
@@ -91,7 +107,7 @@ internal object BrowserHistory {
         }
 
         fun onBackStackChanged(stack: List<NavKey>) {
-            if (stack.isEmpty()) return
+            if (stack.isEmpty() || leavingOverlayOnStart) return
             val home = stack.last() as? Screen.Home
             val previousScreen = syncedStack.lastOrNull()
             // ホームへの置き換えは履歴を積んで、ブラウザで戻ると置き換える前の画面に戻れるようにする。
