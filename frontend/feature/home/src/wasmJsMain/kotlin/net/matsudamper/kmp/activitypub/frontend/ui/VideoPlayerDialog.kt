@@ -8,6 +8,7 @@ import kotlinx.browser.document
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLVideoElement
+import org.w3c.dom.Node
 import org.w3c.dom.events.Event
 import org.w3c.dom.events.KeyboardEvent
 
@@ -39,6 +40,11 @@ internal actual fun VideoPlayerDialog(
         val keyListener: (Event) -> Unit = { event ->
             if ((event as? KeyboardEvent)?.key == "Escape") currentOnDismissRequest()
         }
+        // Tab で後ろの要素へフォーカスが出たら、プレイヤーの中へ戻す
+        val focusInListener: (Event) -> Unit = { event ->
+            val target = event.target as? Node
+            if (target == null || !overlay.contains(target)) closeButton.focus()
+        }
         overlay.appendChild(video)
         overlay.appendChild(closeButton)
         overlay.setAttribute("role", "dialog")
@@ -46,10 +52,12 @@ internal actual fun VideoPlayerDialog(
         overlay.setAttribute("aria-label", "動画")
         document.body?.appendChild(overlay)
         document.addEventListener("keydown", keyListener)
+        document.addEventListener("focusin", focusInListener)
         // キーボードの操作が後ろの canvas に行かないよう、開いたらフォーカスを移す
         closeButton.focus()
         onDispose {
             document.removeEventListener("keydown", keyListener)
+            document.removeEventListener("focusin", focusInListener)
             video.pause()
             overlay.remove()
         }
