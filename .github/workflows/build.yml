@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: build-${{ github.head_ref || github.sha }}
@@ -30,6 +31,9 @@ jobs:
       - name: setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
+      - uses: matsudamper/actions/gradle-remote-cache-credentials@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
+        continue-on-error: true
+
       - name: ktlintCheck
         run: ./gradlew ktlintCheck
 
@@ -49,6 +53,9 @@ jobs:
       - name: setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
+      - uses: matsudamper/actions/gradle-remote-cache-credentials@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
+        continue-on-error: true
+
       - name: detektCheck
         run: ./gradlew detektCheck
 
@@ -67,6 +74,9 @@ jobs:
 
       - name: setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: matsudamper/actions/gradle-remote-cache-credentials@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
+        continue-on-error: true
 
       - name: Wasm バンドルのビルド
         run: ./gradlew :frontend:app-web:wasmJsBrowserDevelopmentExecutableDistribution
@@ -90,6 +100,9 @@ jobs:
 
       - name: setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: matsudamper/actions/gradle-remote-cache-credentials@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
+        continue-on-error: true
 
       # 手元と同じ鍵で署名し、インストール済みのアプリへ上書きできるようにする。Secret が無い fork では自動生成の鍵になる
       - name: デバッグ鍵の配置
@@ -131,7 +144,7 @@ jobs:
 
       - name: APK を S3 にアップロード
         id: upload_s3
-        uses: matsudamper/actions/upload-matsudamper-s3@5c2f397727eaf53708de3f663fa9b754f55d80be # v1.1.1
+        uses: matsudamper/actions/upload-matsudamper-s3@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
         continue-on-error: true
         with:
           file_path: ${{ env.APK_PATH }}
@@ -139,7 +152,7 @@ jobs:
       - name: QR コードのアップロード
         if: github.event_name == 'pull_request'
         id: qr_artifact
-        uses: matsudamper/actions/upload-qr-code@5c2f397727eaf53708de3f663fa9b754f55d80be # v1.1.1
+        uses: matsudamper/actions/upload-qr-code@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
         with:
           url: ${{ steps.upload_apk.outputs.artifact-url }}
           output_path: qrcode-github.png
@@ -148,7 +161,7 @@ jobs:
       - name: S3 の QR コードのアップロード
         if: github.event_name == 'pull_request' && steps.upload_s3.outputs.url != ''
         id: s3_qr_artifact
-        uses: matsudamper/actions/upload-qr-code@5c2f397727eaf53708de3f663fa9b754f55d80be # v1.1.1
+        uses: matsudamper/actions/upload-qr-code@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
         with:
           url: ${{ steps.upload_s3.outputs.url }}
           output_path: qrcode-s3.png
@@ -190,6 +203,9 @@ jobs:
 
       - name: setup Gradle
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - uses: matsudamper/actions/gradle-remote-cache-credentials@b23e18acbc459f662854bf84ec879d3e63793193 # v1.3.0
+        continue-on-error: true
 
       - name: テスト
         run: ./gradlew :backend:test

@@ -13,12 +13,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.HtmlElementView
@@ -172,6 +176,7 @@ object HtmlFormComponents {
      * 複数行の [PlatformInputField]。HTML の textarea を埋め込む
      *
      * @param onSubmitShortcut Ctrl+Enter（Mac は Cmd+Enter も）で呼ばれる。null なら改行のまま
+     * @param heightFitsContent true なら 1 行の高さから始めて、行が増えるたびに伸ばす。false なら決まった高さ
      */
     @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
     @Composable
@@ -184,10 +189,20 @@ object HtmlFormComponents {
         enabled: Boolean,
         hasError: Boolean,
         onSubmitShortcut: (() -> Unit)?,
+        heightFitsContent: Boolean,
         modifier: Modifier = Modifier,
     ) {
         val currentOnValueChange = rememberUpdatedState(onValueChange)
         val currentOnSubmitShortcut = rememberUpdatedState(onSubmitShortcut)
+        val density = LocalDensity.current
+        var contentHeight by remember { mutableStateOf(InputLineHeight) }
+        val currentHeightFitsContent = rememberUpdatedState(heightFitsContent)
+        val fitHeightToContent: (HTMLTextAreaElement) -> Unit = { textArea ->
+            if (currentHeightFitsContent.value) {
+                val measured = with(density) { (measureContentHeightCssPx(textArea) * window.devicePixelRatio).toFloat().toDp() }
+                contentHeight = maxOf(measured, InputLineHeight)
+            }
+        }
         val colors = MaterialTheme.colorScheme
         val textStyle = MaterialTheme.typography.bodyLarge
         val interactionSource = remember { MutableInteractionSource() }
@@ -212,9 +227,10 @@ object HtmlFormComponents {
                     HtmlElementView(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(TextAreaHeight),
+                            .height(if (heightFitsContent) contentHeight else TextAreaHeight),
                         factory = {
                             val textArea = document.createElement("textarea") as HTMLTextAreaElement
+                            textArea.rows = 1
                             textArea.id = inputId
                             textArea.name = inputName
                             textArea.setAttribute("aria-label", label)
@@ -223,6 +239,9 @@ object HtmlFormComponents {
                                 input = textArea,
                                 onValueChange = { currentOnValueChange.value(it) },
                             )
+                            textArea.addEventListener("input") { fitHeightToContent(textArea) }
+                            // 作った直後は幅が決まっておらず、折り返しを測れない
+                            window.requestAnimationFrame { fitHeightToContent(textArea) }
                             textArea.addEventListener("keydown") { event ->
                                 val onSubmitShortcutValue = currentOnSubmitShortcut.value ?: return@addEventListener
                                 if (keyboardKey(event) == "Enter" && hasCtrlOrMetaModifier(event) && !isComposing(event)) {
@@ -246,6 +265,7 @@ object HtmlFormComponents {
                                 onValueChange = { currentOnValueChange.value(it) },
                             )
                             syncInputValue(input = textArea, value = value)
+                            fitHeightToContent(textArea)
                         },
                     )
                 },
@@ -462,6 +482,16 @@ private fun applyInputStyle(
         setProperty("user-select", "text")
         setProperty("-webkit-user-select", "text")
     }
+}
+
+/**
+ * 高さを 100% にしたままだと、中身が少なくても枠の高さが返る
+ */
+private fun measureContentHeightCssPx(textArea: HTMLTextAreaElement): Int {
+    textArea.style.height = "0px"
+    val scrollHeight = textArea.scrollHeight
+    textArea.style.height = "100%"
+    return scrollHeight
 }
 
 private fun readInputValue(event: Event): String {

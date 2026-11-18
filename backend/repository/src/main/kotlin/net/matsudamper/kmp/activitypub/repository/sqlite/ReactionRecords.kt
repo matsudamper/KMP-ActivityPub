@@ -35,6 +35,7 @@ internal fun DSLContext.upsertRemoteActor(
         .set(REMOTE_ACTORS.DISPLAY_NAME, profile.displayName)
         .set(REMOTE_ACTORS.PROFILE_URL, profile.profileUrl)
         .set(REMOTE_ACTORS.ICON_URL, profile.iconUrl)
+        .set(REMOTE_ACTORS.SUMMARY, profile.summary)
         .set(REMOTE_ACTORS.UPDATED_AT, storedUpdatedAt)
         .onConflict(REMOTE_ACTORS.ACTOR_URI)
         .doUpdate()
@@ -45,9 +46,11 @@ internal fun DSLContext.upsertRemoteActor(
         .set(REMOTE_ACTORS.DISPLAY_NAME, profile.displayName)
         .set(REMOTE_ACTORS.PROFILE_URL, profile.profileUrl)
         .set(REMOTE_ACTORS.ICON_URL, profile.iconUrl)
+        .set(REMOTE_ACTORS.SUMMARY, profile.summary)
         .set(REMOTE_ACTORS.UPDATED_AT, storedUpdatedAt)
         .execute()
     replaceRemoteActorEmojis(actor.actorUri, profile.emojis)
+    replaceRemoteActorProfileFields(actor.actorUri, profile.fields)
     return checkNotNull(
         select(REMOTE_ACTORS.ID).from(REMOTE_ACTORS).where(REMOTE_ACTORS.ACTOR_URI.eq(actor.actorUri)).fetchOne(REMOTE_ACTORS.ID),
     ) { "記録したアクターを引けない: ${actor.actorUri}" }

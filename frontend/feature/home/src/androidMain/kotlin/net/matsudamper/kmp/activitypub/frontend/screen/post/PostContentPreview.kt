@@ -28,7 +28,7 @@ private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
             navigationIcon = PostNavigationIcon.Back,
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null),
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -44,7 +44,7 @@ private fun PostDialogMentionPreview() {
             PostDialogFrame {
                 PostContent(
                     navigationIcon = PostNavigationIcon.Close,
-                    uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null)
+                    uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null)
                         .copy(body = "@alice@example.social "),
                     snackbarHostState = SnackbarHostState(),
                 )
@@ -70,6 +70,7 @@ private fun PostContentQuotePreview() {
                     listener = null,
                 ),
                 replyTarget = null,
+                contentWarning = null,
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -97,7 +98,20 @@ private fun PostContentReplyPreview() {
                     removeButtonEnabled = true,
                     listener = AndroidPreviewReplyTargetListener,
                 ),
+                contentWarning = null,
             ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PostContentContentWarningPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Back,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = "ネタバレ"),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -110,7 +124,7 @@ private fun PostContentShortHeightPreview() {
     PostPreviewTheme {
         PostContent(
             navigationIcon = PostNavigationIcon.Back,
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null),
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -133,6 +147,7 @@ private fun PostContentImagesPreview() {
                 addImageLoadingVisible = true,
                 quote = null,
                 replyTarget = null,
+                contentWarning = null,
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -145,8 +160,9 @@ private fun PostContentEditInColumnPreview() {
     PostPreviewTheme {
         PostContent(
             navigationIcon = PostNavigationIcon.Close,
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null).copy(
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null).copy(
                 title = "投稿を編集",
+                contentWarningButtonVisible = false,
                 postButtonText = "更新",
                 editTarget = PostScreenUiState.EditTarget(cancelButtonEnabled = true, listener = AndroidPreviewEditTargetListener),
                 addImageButtonEnabled = false,
@@ -162,8 +178,9 @@ private fun PostContentEditLoadingPreview() {
     PostPreviewTheme {
         PostContent(
             navigationIcon = PostNavigationIcon.Close,
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null).copy(
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null).copy(
                 title = "投稿を編集",
+                contentWarningButtonVisible = false,
                 body = "",
                 bodyLoadingVisible = true,
                 inputEnabled = false,
@@ -191,16 +208,25 @@ private fun DiscardDraftDialogPreview() {
     }
 }
 
+/**
+ * @param contentWarning 閲覧注意にしないなら null
+ */
 private fun previewUiState(
     images: List<PostScreenUiState.Image>,
     addImageLoadingVisible: Boolean,
     quote: PostItemUiState.Quote?,
     replyTarget: PostScreenUiState.ReplyTarget?,
+    contentWarning: String?,
 ): PostScreenUiState =
     PostScreenUiState(
         title = "投稿",
         body = "Kotlin 2.4 がリリースされました",
         bodyInsertion = null,
+        contentWarningInputVisible = contentWarning != null,
+        contentWarning = contentWarning.orEmpty(),
+        contentWarningButtonVisible = true,
+        contentWarningButtonChecked = contentWarning != null,
+        contentWarningButtonEnabled = true,
         bodyLoadingVisible = false,
         inputHasError = false,
         inputEnabled = true,
@@ -238,6 +264,10 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
 
     override fun onBodyInsertionHandled() = Unit
+
+    override fun onClickContentWarning() = Unit
+
+    override fun onContentWarningChanged(text: String) = Unit
 
     override fun onClickAddImage() = Unit
 

@@ -74,7 +74,16 @@ internal class KotpubRemoteUserLookup(
                 inbox = actor.inbox,
                 sharedInbox = actor.sharedInbox,
                 publicKeyPem = actor.publicKeyPem,
-                profile = RemoteActorProfileRecord(username, actor.profile.displayName, actor.profile.profileUrl, actor.profile.iconUrl, actor.profile.headerUrl, emojis),
+                profile = RemoteActorProfileRecord(
+                    username,
+                    actor.profile.displayName,
+                    actor.profile.profileUrl,
+                    actor.profile.iconUrl,
+                    actor.profile.headerUrl,
+                    emojis,
+                    actor.profile.summary,
+                    actor.profile.fields.toFieldRecords(),
+                ),
             ),
             updatedAt = Instant.now(),
         )

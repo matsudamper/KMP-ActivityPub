@@ -5,6 +5,7 @@ import net.matsudamper.kmp.activitypub.logic.OutboxPosition
 import net.matsudamper.kmp.activitypub.logic.RemoteLikedCollections
 import net.matsudamper.kmp.activitypub.logic.RemoteLikedObjects
 import net.matsudamper.kmp.activitypub.logic.RemoteNotesPage
+import net.matsudamper.kmp.activitypub.logic.RemoteProfileField
 import net.matsudamper.kmp.activitypub.logic.RemoteProfilePostSources
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfile
 import net.matsudamper.kmp.activitypub.logic.RemoteUserProfiles
@@ -91,7 +92,12 @@ internal class KotpubRemoteUserProfiles(
     )
 
     private fun FoundRemoteUser.toProfile(): RemoteUserProfile =
-        RemoteUserProfile(user = user, headerUrl = actor.profile.headerUrl, biography = actor.profile.summary)
+        RemoteUserProfile(
+            user = user,
+            headerUrl = actor.profile.headerUrl,
+            biography = actor.profile.summary,
+            fields = actor.profile.fields.map { RemoteProfileField(name = it.name, htmlValue = it.htmlValue) },
+        )
 }
 
 internal class KotpubRemoteLikedCollections(

@@ -96,6 +96,10 @@ data class RemoteActorRecord(
     val profile: RemoteActorProfileRecord,
 )
 
+/**
+ * @param summary 自己紹介。相手が書いた HTML のまま
+ * @param fields プロフィールの補足情報。相手が並べた順
+ */
 data class RemoteActorProfileRecord(
     val preferredUsername: String?,
     val displayName: String?,
@@ -103,4 +107,14 @@ data class RemoteActorProfileRecord(
     val iconUrl: String?,
     val headerUrl: String?,
     val emojis: List<CustomEmojiRecord>,
+    val summary: String?,
+    val fields: List<RemoteActorProfileFieldRecord>,
+)
+
+/**
+ * @param htmlValue 相手が書いた HTML のまま
+ */
+data class RemoteActorProfileFieldRecord(
+    val name: String,
+    val htmlValue: String,
 )

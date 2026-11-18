@@ -74,6 +74,8 @@ CREATE TABLE remote_actors (
     profile_url TEXT,
     icon_url TEXT,
     header_url TEXT,
+    -- 自己紹介。相手が書いた HTML のまま
+    summary TEXT,
     updated_at TEXT NOT NULL
 );
 
@@ -84,6 +86,17 @@ CREATE TABLE remote_actor_emojis (
     name TEXT NOT NULL,
     image_url TEXT NOT NULL,
     PRIMARY KEY (remote_actor_id, name)
+);
+
+-- 他のサーバーのアクターのプロフィールの補足情報。プロフィールを受け取るたびに入れ替える
+CREATE TABLE remote_actor_profile_fields (
+    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
+    -- 相手が並べた順
+    position INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    -- 相手が書いた HTML のまま
+    html_value TEXT NOT NULL,
+    PRIMARY KEY (remote_actor_id, position)
 );
 
 CREATE TABLE account_followers (
@@ -103,6 +116,8 @@ CREATE TABLE notes (
     public_id TEXT NOT NULL UNIQUE,
     -- サニタイズ済みの HTML
     content_html TEXT NOT NULL,
+    -- 閲覧注意の注意書き。プレーンテキスト。閲覧注意でなければ NULL
+    summary TEXT,
     -- 書いたままの本文。編集の下書きに出す。記録し始める前の投稿は NULL
     source_text TEXT,
     published_at TEXT NOT NULL,

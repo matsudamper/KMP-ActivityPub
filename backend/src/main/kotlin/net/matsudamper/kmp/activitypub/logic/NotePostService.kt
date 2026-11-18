@@ -123,6 +123,7 @@ class NotePostService(
      * 画像があるか引用なら本文は空でもよい
      *
      * @param requestId 画面が送信ごとに作る ID。同じ ID で送り直されたら、新しく作らずに前の投稿を返す
+     * @param contentWarning 閲覧注意の注意書き。空白だけなら閲覧注意にしない
      * @param imageIds [uploadImage] で置いた画像。付けた順に並ぶ
      * @param replyToPostId 返信するタイムラインの投稿の id。投稿者に宛てて、投稿者の inbox にも積む。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。投稿者の inbox にも積む。引用でなければ null
@@ -132,12 +133,15 @@ class NotePostService(
         username: String,
         body: String,
         requestId: String,
+        contentWarning: String?,
         imageIds: List<NoteImagePublicId>,
         replyToPostId: String?,
         quotePostId: String?,
         mentionAcct: String?,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
+        val summary = contentWarning?.replace("\r\n", "\n")?.trim()?.ifEmpty { null }
+        if (summary != null && summary.codePointCount(0, summary.length) > MAX_CONTENT_WARNING_LENGTH) return PostNoteResult.ContentWarningTooLong
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
         val account = accountService.account(sender.username) ?: return PostNoteResult.AccountNotFound
         // 送り直しで付ける画像は最初の投稿に付いて期限の記録から消えているので、画像を探す前に見分ける
@@ -179,7 +183,7 @@ class NotePostService(
             publisher.prepare(
                 sender = sender,
                 contentHtml = contentHtml,
-                summary = null,
+                summary = summary,
                 attachments =
                 images.map { image ->
                     NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)
@@ -196,6 +200,7 @@ class NotePostService(
                     requestId = requestId,
                     publicId = PublicNoteId(prepared.publicId.value),
                     contentHtml = prepared.contentHtml,
+                    summary = summary,
                     sourceText = body.trim(),
                     publishedAt = prepared.publishedAt,
                     images = images,
@@ -534,6 +539,11 @@ class NotePostService(
         const val MAX_DESCRIPTION_LENGTH: Int = 1500
 
         /**
+         * 本文の上限に合わせる
+         */
+        const val MAX_CONTENT_WARNING_LENGTH: Int = NoteComposer.MAX_LENGTH
+
+        /**
          * 置いてから投稿に付けるまでの猶予。画面は投稿する直前に置くので、送り直しを含めても足りる
          */
         val UPLOADED_IMAGE_LIFETIME: Duration = Duration.ofHours(1)
@@ -595,6 +605,8 @@ sealed interface PostNoteResult {
     data object EmptyBody : PostNoteResult
 
     data object TooLong : PostNoteResult
+
+    data object ContentWarningTooLong : PostNoteResult
 
     data object TooManyImages : PostNoteResult
 
