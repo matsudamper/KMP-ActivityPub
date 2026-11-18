@@ -311,7 +311,9 @@ class BrowserHistoryTest {
                 val navigator = Navigator(backStack)
                 val sync = BrowserHistory.BackStackHistorySync(backStack, Screen.Login)
                 try {
-                    awaitPopStates(count = 1) { sync.start() }
+                    // popstate は登録した順に受け取られ、待ちはその場で再開する。同期より先に待つと、積み上げと履歴を合わせる前に進んでしまう
+                    sync.start()
+                    awaitPopStates(count = 1) {}
                     navigator.back()
                     awaitPopStates(count = 1) { sync.onBackStackChanged(backStack.toList()) }
                     assertHome(backStack, Screen.Home.Tab.Timeline)
