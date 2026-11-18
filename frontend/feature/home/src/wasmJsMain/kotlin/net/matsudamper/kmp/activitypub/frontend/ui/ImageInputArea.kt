@@ -37,10 +37,10 @@ private object DocumentImageInputListeners {
 
     private val pasteListener: (Event) -> Unit = listener@{ event ->
         val receiver = ImageInputReceivers.current ?: return@listener
-        val image = (event as? ClipboardEvent)?.clipboardData?.files?.firstImageOrNull() ?: return@listener
+        val media = (event as? ClipboardEvent)?.clipboardData?.files?.firstMediaOrNull() ?: return@listener
         // 画像のファイルを textarea に貼らせると、ファイル名などが文字として入ることがある
         event.preventDefault()
-        receiver(BrowserImageFile(image))
+        receiver(BrowserImageFile(media))
     }
 
     // dragover を止めないと drop が来ない
@@ -59,10 +59,10 @@ private object DocumentImageInputListeners {
         val dragEvent = event as? DragEvent ?: return@listener
         val files = dragEvent.dataTransfer?.files ?: return@listener
         if (files.length == 0) return@listener
-        // 画像でないファイルも、止めないとブラウザがそのページを離れて開いてしまう
+        // 画像や動画でないファイルも、止めないとブラウザがそのページを離れて開いてしまう
         dragEvent.preventDefault()
-        val image = files.firstImageOrNull() ?: return@listener
-        receiver(BrowserImageFile(image))
+        val media = files.firstMediaOrNull() ?: return@listener
+        receiver(BrowserImageFile(media))
     }
 
     fun attach() {
@@ -84,4 +84,7 @@ private object DocumentImageInputListeners {
     }
 }
 
-private fun FileList.firstImageOrNull() = (0 until length).firstNotNullOfOrNull { index -> get(index)?.takeIf { it.type in PICKABLE_IMAGE_TYPES } }
+private fun FileList.firstMediaOrNull() =
+    (0 until length).firstNotNullOfOrNull { index ->
+        get(index)?.takeIf { it.type in PICKABLE_IMAGE_TYPES || it.type in PICKABLE_VIDEO_TYPES }
+    }
