@@ -117,6 +117,19 @@ private fun PostContentContentWarningPreview() {
     }
 }
 
+/** 投稿カラムを最小幅まで縮めても、投稿ボタンが潰れないことを確かめる */
+@Preview(widthDp = 240)
+@Composable
+private fun PostContentNarrowWidthPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Close,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
 /** ソフトウェアキーボードで高さが詰まったときに、投稿ボタンまでスクロールで届くことを確かめる */
 @Preview(heightDp = 240)
 @Composable
