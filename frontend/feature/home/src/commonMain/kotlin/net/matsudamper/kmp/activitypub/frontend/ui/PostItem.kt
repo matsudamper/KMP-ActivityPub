@@ -639,7 +639,8 @@ private fun ActorLabelActorIcon(
         )
         // 画像の無いカスタム絵文字の :name: は丸に収まらず切れるので重ねない
         val reaction = actor.reaction?.takeIf { it.imageUrl != null || !it.emoji.startsWith(":") }
-        if (reaction != null) {
+        var imageFailed by remember(reaction?.imageUrl) { mutableStateOf(false) }
+        if (reaction != null && !imageFailed) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -649,36 +650,25 @@ private fun ActorLabelActorIcon(
                     .background(MaterialTheme.colorScheme.surface),
                 contentAlignment = Alignment.Center,
             ) {
-                ActorLabelReactionEmoji(reaction = reaction, sizes = sizes)
+                val imageUrl = reaction.imageUrl
+                if (imageUrl == null) {
+                    Text(
+                        text = reaction.emoji,
+                        style = sizes.countTextStyle,
+                        maxLines = 1,
+                    )
+                } else {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = reaction.emoji,
+                        modifier = Modifier.size(ActorLabelReactionSize),
+                        contentScale = ContentScale.Fit,
+                        // 取れなかった画像の丸だけが残らないよう、丸ごと出さない
+                        onError = { imageFailed = true },
+                    )
+                }
             }
         }
-    }
-}
-
-/**
- * カスタム絵文字の画像が取れなければ、何も出さない。:name: の文字は丸に収まらない
- */
-@Composable
-private fun ActorLabelReactionEmoji(
-    reaction: PostItemUiState.ActorLabelReaction,
-    sizes: PostItemSizes,
-) {
-    var imageFailed by remember(reaction.imageUrl) { mutableStateOf(false) }
-    val imageUrl = reaction.imageUrl
-    if (imageUrl == null) {
-        Text(
-            text = reaction.emoji,
-            style = sizes.countTextStyle,
-            maxLines = 1,
-        )
-    } else if (!imageFailed) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = reaction.emoji,
-            modifier = Modifier.size(ActorLabelReactionSize),
-            contentScale = ContentScale.Fit,
-            onError = { imageFailed = true },
-        )
     }
 }
 
