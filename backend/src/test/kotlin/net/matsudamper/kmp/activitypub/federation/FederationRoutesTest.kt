@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.ServerEnv
 import net.matsudamper.kmp.activitypub.TestDependencies
 import net.matsudamper.kmp.activitypub.TestEnv
 import net.matsudamper.kmp.activitypub.module
+import net.matsudamper.kmp.activitypub.repository.TimelinePosition
 import net.matsudamper.kotpub.crypto.RsaKeys
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
@@ -104,6 +105,50 @@ class FederationRoutesTest {
                 }
 
             assertNotEquals(ContentType("application", "activity+json"), response.contentType()?.withoutParameters())
+        }
+
+    @Test
+    fun `投稿の URL をブラウザで開いたときは投稿の画面へ転送する`() =
+        testApplication {
+            repositories.timelineRepository.localPositions["note1"] = TimelinePosition(score = 1, member = "l1")
+            setUp()
+            val client = createClient { followRedirects = false }
+
+            val response =
+                client.get("/notes/note1") {
+                    header(HttpHeaders.Accept, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                }
+
+            assertEquals(HttpStatusCode.Found, response.status)
+            assertEquals("/posts/l1", response.headers[HttpHeaders.Location])
+        }
+
+    @Test
+    fun `投稿の URL でも ActivityPub の取得なら転送しない`() =
+        testApplication {
+            repositories.timelineRepository.localPositions["note1"] = TimelinePosition(score = 1, member = "l1")
+            setUp()
+            val client = createClient { followRedirects = false }
+
+            val response =
+                client.get("/notes/note1") {
+                    header(HttpHeaders.Accept, "application/activity+json")
+                }
+
+            assertNotEquals(HttpStatusCode.Found, response.status)
+        }
+
+    @Test
+    fun `無い投稿の URL をブラウザで開いたときは 404 を返す`() =
+        testApplication {
+            setUp()
+
+            val response =
+                client.get("/notes/missing") {
+                    header(HttpHeaders.Accept, "text/html")
+                }
+
+            assertEquals(HttpStatusCode.NotFound, response.status)
         }
 
     @Test

@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 
 internal class FakeTimelineRepository : TimelineRepository {
     val positions = mutableListOf<TimelinePosition>()
+    val localPositions = mutableMapOf<String, TimelinePosition>()
     val pageRequests = mutableListOf<TimelinePosition?>()
     val events = mutableListOf<String>()
     val received = mutableListOf<RemoteNoteInput>()
@@ -90,7 +91,7 @@ internal class FakeTimelineRepository : TimelineRepository {
             .filter { before == null || it.position.score < before.score || (it.position.score == before.score && it.position.member < before.member) }
             .take(limit)
 
-    override fun localPosition(publicId: String): TimelinePosition? = null
+    override fun localPosition(publicId: String): TimelinePosition? = localPositions[publicId]
 
     override fun localPositionsByPublicId(publicIds: Set<PublicNoteId>): Map<PublicNoteId, TimelinePosition> =
         publicIds.associateWith { TimelinePosition(0, "l-${it.value}") }

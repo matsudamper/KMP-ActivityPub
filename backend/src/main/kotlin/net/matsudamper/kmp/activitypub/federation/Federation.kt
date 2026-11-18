@@ -106,7 +106,7 @@ internal class Federation(
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
     notePinRepository: NotePinRepository,
-    timelineRepository: TimelineRepository,
+    private val timelineRepository: TimelineRepository,
     timeline: TimelineService,
     notificationService: NotificationService,
     remoteActorRepository: RemoteActorRepository,
@@ -397,6 +397,12 @@ internal class Federation(
         FollowingEndpoint(directory = directory, following = AccountFollowingStore(followingRepository))
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
+
+    /**
+     * ブラウザで開いたときに見せる、フロントエンドの投稿の画面のパス。このサーバーの投稿でなければ null
+     */
+    fun notePagePath(publicId: String): String? =
+        timelineRepository.localPosition(publicId)?.let { "/posts/${it.member}" }
 
     private val quoteApprovals =
         QueuedQuoteApprovals(

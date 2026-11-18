@@ -10,7 +10,7 @@ internal class FrontendWebPageUrls(
     override fun profile(username: String): String = "https://$domain/@$username"
 
     /**
-     * 投稿 1 件の画面がまだ無いので、`url` を出さなかったときと同じ投稿の id を返す
+     * ブラウザで開くと投稿の画面へ転送するので、投稿の id と同じ URL を返す
      */
     override fun note(
         username: String,
