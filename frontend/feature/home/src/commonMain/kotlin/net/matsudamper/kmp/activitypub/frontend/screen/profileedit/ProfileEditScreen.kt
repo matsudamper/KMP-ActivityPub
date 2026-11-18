@@ -220,6 +220,7 @@ private fun LoadedContent(
                 onSubmitShortcut = null,
                 insertion = null,
                 onHandleInsertion = {},
+                heightFitsContent = false,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

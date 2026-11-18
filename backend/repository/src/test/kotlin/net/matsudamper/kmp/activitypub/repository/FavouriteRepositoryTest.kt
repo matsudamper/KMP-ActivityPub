@@ -112,6 +112,7 @@ class FavouriteRepositoryTest {
                 requestId = "request-$publicId",
                 publicId = PublicNoteId(publicId),
                 contentHtml = "<p>hello</p>",
+                summary = null,
                 sourceText = "",
                 publishedAt = NOW,
                 body = "create-$publicId",

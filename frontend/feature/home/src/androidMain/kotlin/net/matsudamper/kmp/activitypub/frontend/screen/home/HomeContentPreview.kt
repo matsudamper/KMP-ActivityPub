@@ -873,6 +873,11 @@ private fun HomeColumnsPreview(
                             title = "投稿",
                             body = "",
                             bodyInsertion = null,
+                            contentWarningInputVisible = false,
+                            contentWarning = "",
+                            contentWarningButtonVisible = true,
+                            contentWarningButtonChecked = false,
+                            contentWarningButtonEnabled = true,
                             bodyLoadingVisible = false,
                             inputHasError = false,
                             inputEnabled = true,
@@ -1057,6 +1062,10 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
 
     override fun onBodyInsertionHandled() = Unit
+
+    override fun onClickContentWarning() = Unit
+
+    override fun onContentWarningChanged(text: String) = Unit
 
     override fun onClickAddImage() = Unit
 
