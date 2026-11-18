@@ -38,3 +38,10 @@ docker run -d --name kmp-activitypub-valkey -p 6379:6379 valkey/valkey:8
 画面は `./gradlew :frontend:app-web:wasmJsBrowserDistribution` で作った
 `frontend/app-web/build/dist/wasmJs/productionExecutable` を `STATIC_SRC_DIR` に渡すと
 同じサーバーから出る。
+
+### Docker で native と JVM を切り替える
+
+イメージは `/app/bin/backend` で起動し、そこには native の実行ファイルが入っている。JRE も入っているので、`/app` にマウントするディレクトリの中身を入れ替えれば JVM でも動く。
+
+- native: `./gradlew :backend:nativeCompile` で作った `backend/build/native/nativeCompile/kmp-activitypub` を `bin/backend` として置く
+- JVM: `./gradlew :backend:installDist` で作った `backend/build/install/backend` の中身（`bin/` と `lib/`）を置く

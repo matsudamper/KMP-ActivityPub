@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserMyProfileResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsPageResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostResolveResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostSearchResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserProfileLikesResult
@@ -330,7 +331,7 @@ internal class HomeScreenViewModel(
         }
 
         override fun onSearch() {
-            search(query = viewModelStateFlow.value.search.query)
+            search(query = viewModelStateFlow.value.search.query, switchesTargetByUrl = true)
         }
 
         override fun onClickLoadMoreSearchResult() {
@@ -944,7 +945,10 @@ internal class HomeScreenViewModel(
         }
     }
 
-    private fun search(query: String) {
+    /**
+     * @param switchesTargetByUrl URL が投稿を指していたら投稿の検索に切り替えるか。種類を選び直したときに切り替え返さないよう、入力して探すときだけ true にする
+     */
+    private fun search(query: String, switchesTargetByUrl: Boolean) {
         val trimmedQuery = query.trim()
         searchJob?.cancel()
         searchWatchJob?.cancel()
@@ -954,7 +958,12 @@ internal class HomeScreenViewModel(
             return
         }
         updateSearchResult { SearchResultState.Loading }
-        if (viewModelStateFlow.value.search.target == SearchTarget.Posts) {
+        val target = viewModelStateFlow.value.search.target
+        if (isUrlQuery(trimmedQuery) && (switchesTargetByUrl || target == SearchTarget.Posts)) {
+            searchJob = viewModelScope.launch { resolveUrl(url = trimmedQuery, target = target) }
+            return
+        }
+        if (target == SearchTarget.Posts) {
             searchJob = viewModelScope.launch { searchPosts(trimmedQuery) }
             return
         }
@@ -1060,7 +1069,45 @@ internal class HomeScreenViewModel(
      * `@user@host` と URL は名前の一部ではなく、1 人を指す書き方として引く
      */
     private fun isResolveQuery(query: String): Boolean =
-        query.startsWith("https://") || query.startsWith("http://") || query.removePrefix("@").contains('@')
+        isUrlQuery(query) || query.removePrefix("@").contains('@')
+
+    private fun isUrlQuery(query: String): Boolean =
+        query.startsWith("https://") || query.startsWith("http://")
+
+    /**
+     * URL が投稿を指していれば投稿の検索に切り替えて出す。投稿でなければ、ユーザーの検索ならユーザーとして引く
+     */
+    private suspend fun resolveUrl(url: String, target: SearchTarget) {
+        when (val result = userApi.resolvePost(url)) {
+            is UserPostResolveResult.Found -> {
+                updateSearch {
+                    it.copy(
+                        target = SearchTarget.Posts,
+                        result = SearchResultState.PostsLoaded(query = url, posts = listOf(result.post), nextCursor = null),
+                    )
+                }
+            }
+
+            UserPostResolveResult.NotFound -> {
+                when (target) {
+                    SearchTarget.Users -> resolveUser(url)
+                    SearchTarget.Posts -> updateSearchResult { SearchResultState.PostsLoaded(query = url, posts = listOf(), nextCursor = null) }
+                }
+            }
+
+            is UserPostResolveResult.Failure -> {
+                when (target) {
+                    // 投稿の取得に失敗しても、ユーザーの URL なら引ける
+                    SearchTarget.Users -> resolveUser(url)
+
+                    SearchTarget.Posts -> {
+                        updateSearchResult { SearchResultState.NotSearched }
+                        events.send { it.showMessage(result.message) }
+                    }
+                }
+            }
+        }
+    }
 
     private suspend fun resolveUser(query: String) {
         when (val result = userApi.resolveUser(query)) {
@@ -1117,7 +1164,7 @@ internal class HomeScreenViewModel(
         if (viewModelStateFlow.value.search.target == target) return
         updateSearch { it.copy(target = target) }
         // 前の種類の結果を残さないよう、同じ文字で探し直す
-        search(query = viewModelStateFlow.value.search.query)
+        search(query = viewModelStateFlow.value.search.query, switchesTargetByUrl = false)
     }
 
     private fun loadMoreSearchResult() {
@@ -1448,10 +1495,7 @@ internal class HomeScreenViewModel(
             notifications = createNotifications(viewModelState),
             search = HomeScreenUiState.Search(
                 query = viewModelState.search.query,
-                queryLabel = when (viewModelState.search.target) {
-                    SearchTarget.Users -> "ユーザーを検索"
-                    SearchTarget.Posts -> "投稿を検索"
-                },
+                queryLabel = "検索",
                 targets = SearchTarget.entries.map { target ->
                     HomeScreenUiState.SearchTarget(
                         label = when (target) {

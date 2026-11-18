@@ -30,6 +30,12 @@ type Query {
     """
     quoteTarget(postId: TimelinePostId!): TimelinePost
     """
+    検索に入力された投稿の URL から投稿を 1 件引く。このサーバーの投稿は ActivityPub の URL と画面の /posts/{id} の URL を読み、
+    他のサーバーの投稿は Mastodon の /@user/1 のような画面の URL も読む。返す投稿は replyTarget と同じ。
+    見つからないか、ログインしていないか、サーバーに DOMAIN が無ければ null。相手のサーバーが応えなければ、null とエラーを返す
+    """
+    resolvePost(url: String!): TimelinePost
+    """
     投稿のリプライ・いいね・ブーストの数。id には TimelinePost.id か ProfilePost.id を渡す。開けない投稿なら null。
     他のサーバーの投稿は、前に取ってから 1 分経っていれば相手のサーバーから数を取り直すので遅い。個別投稿画面を開いたときに使う
     """

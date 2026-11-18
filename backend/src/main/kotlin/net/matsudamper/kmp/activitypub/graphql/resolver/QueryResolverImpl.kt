@@ -42,6 +42,7 @@ import net.matsudamper.kmp.activitypub.logic.ProfileLikesResult
 import net.matsudamper.kmp.activitypub.logic.ProfilePost
 import net.matsudamper.kmp.activitypub.logic.ProfilePostCursor
 import net.matsudamper.kmp.activitypub.logic.ProfilePostsResult
+import net.matsudamper.kmp.activitypub.logic.ReplyTargetResult
 import net.matsudamper.kmp.activitypub.logic.SearchedUser
 import net.matsudamper.kmp.activitypub.logic.UserSearchCursor
 import net.matsudamper.kmp.activitypub.logic.memoized
@@ -180,6 +181,15 @@ class QueryResolverImpl : QueryResolver {
             env = env,
             unavailableMessage = "引用先のサーバーから投稿を取れなかった",
         ) { quoteTarget(viewer, postId.value) }
+    }
+
+    override fun resolvePost(url: String, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<QlTimelinePost?>> {
+        val viewer = GraphQlEngine.graphQlContext(env).viewerAccountId
+        return linkedPost(
+            viewer = viewer,
+            env = env,
+            unavailableMessage = "相手のサーバーから投稿を取れなかった",
+        ) { if (viewer == null) ReplyTargetResult.NotFound else postByUrl(viewer, url.trim()) }
     }
 
     override fun replies(postId: TimelinePostId, env: DataFetchingEnvironment): CompletionStage<DataFetcherResult<List<QlTimelinePost>>> {

@@ -41,14 +41,18 @@ internal class FetchingUnsavedRemoteNotes(
             }
         }
 
-    override suspend fun fetch(objectUri: String): RemoteNoteFetchResult {
-        val note = when (val lookup = remoteNotes.find(objectUri)) {
+    override suspend fun fetch(objectUri: String): RemoteNoteFetchResult = fetched(objectUri, remoteNotes.find(objectUri))
+
+    override suspend fun fetchByUrl(url: String): RemoteNoteFetchResult = fetched(url, remoteNotes.findByUrl(url))
+
+    private suspend fun fetched(requestedUri: String, lookup: RemoteNoteLookup): RemoteNoteFetchResult {
+        val note = when (lookup) {
             is RemoteNoteLookup.Found -> lookup.note
 
             is RemoteNoteLookup.NotFound -> return RemoteNoteFetchResult.NotFound
 
             is RemoteNoteLookup.Unavailable -> {
-                logger.warn("投稿を取れなかった: $objectUri ${lookup.failure}")
+                logger.warn("投稿を取れなかった: $requestedUri ${lookup.failure}")
                 return RemoteNoteFetchResult.Unavailable
             }
         }

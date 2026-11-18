@@ -41,6 +41,11 @@ interface UnsavedRemoteNotes {
      * 投稿と投稿者を取ってくる。どちらも保存しない
      */
     suspend fun fetch(objectUri: String): RemoteNoteFetchResult
+
+    /**
+     * 人が入力した投稿の URL から、[fetch] と同じく投稿と投稿者を取ってくる。画面の URL のように投稿の id と違う URL も読む
+     */
+    suspend fun fetchByUrl(url: String): RemoteNoteFetchResult = fetch(url)
 }
 
 sealed interface RemoteNoteFetchResult {
