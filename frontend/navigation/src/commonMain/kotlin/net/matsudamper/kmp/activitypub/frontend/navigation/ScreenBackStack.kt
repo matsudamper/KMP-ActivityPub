@@ -42,6 +42,7 @@ private val ScreenSavedStateConfiguration = SavedStateConfiguration {
             subclass(Screen.QuotePost::class)
             subclass(Screen.ReplyPost::class)
             subclass(Screen.EditPost::class)
+            subclass(Screen.MentionPost::class)
             subclass(Screen.PostRevisions::class)
             subclass(Screen.Image::class)
         }

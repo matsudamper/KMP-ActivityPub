@@ -178,6 +178,11 @@ internal class Federation(
             onAcceptEnqueued = deliveryQueueWorker::wakeUp,
         )
 
+    private val kotpubRemoteUserLookup =
+        KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors, storedActors = remoteActorRepository)
+
+    val remoteUserLookup: RemoteUserLookup = kotpubRemoteUserLookup
+
     val notePostService: NotePostService =
         NotePostService(
             directory = directory,
@@ -188,6 +193,8 @@ internal class Federation(
             imageUrls = noteImageUrls,
             emojiObjects = noteEmojiObjects,
             followerRepository = followerRepository,
+            remoteActors = remoteActorRepository,
+            remoteUsers = kotpubRemoteUserLookup,
             deliveryQueueRepository = deliveryQueueRepository,
             clock = Clock.systemUTC(),
             onEnqueued = deliveryQueueWorker::wakeUp,
@@ -295,11 +302,6 @@ internal class Federation(
             openRegistrations = false,
             usageSource = RepositoryNodeInfoUsage(accountRepository = accountRepository, noteRepository = noteRepository),
         )
-
-    private val kotpubRemoteUserLookup =
-        KotpubRemoteUserLookup(webFinger = HttpWebFingerLookup(httpClient), remoteActors = remoteActors, storedActors = remoteActorRepository)
-
-    val remoteUserLookup: RemoteUserLookup = kotpubRemoteUserLookup
 
     val remoteProfileRefreshService: RemoteProfileRefreshService =
         RemoteProfileRefreshService(
