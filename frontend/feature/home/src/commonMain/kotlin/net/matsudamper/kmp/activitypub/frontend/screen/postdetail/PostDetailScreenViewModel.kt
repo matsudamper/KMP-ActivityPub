@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.ReactionChange
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionConfirmation
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionDecision
 import net.matsudamper.kmp.activitypub.frontend.screen.ReactionPickerTarget
+import net.matsudamper.kmp.activitypub.frontend.screen.awaitLoggedIn
 import net.matsudamper.kmp.activitypub.frontend.screen.confirm
 import net.matsudamper.kmp.activitypub.frontend.screen.createNoteMenuItems
 import net.matsudamper.kmp.activitypub.frontend.screen.createPinMenuItems
@@ -93,6 +94,7 @@ internal class PostDetailScreenViewModel(
                 reactionConfirmation = null,
                 mentionText = "",
                 mentionSending = false,
+                loggedIn = false,
                 replyTargets = listOf(),
                 replyTargetLoad = ReplyTargetLoad.Waiting,
                 replies = listOf(),
@@ -103,6 +105,7 @@ internal class PostDetailScreenViewModel(
     private var loadJob: Job? = null
     private var replyTargetJob: Job? = null
     private var repliesJob: Job? = null
+    private var loginStateJob: Job? = null
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -211,6 +214,13 @@ internal class PostDetailScreenViewModel(
             }
         }
         viewModelScope.launch {
+            // 編集した投稿を書き換わった本文で出す
+            api.editedNoteIds.collect { noteId ->
+                val loaded = viewModelStateFlow.value.post as? PostState.Loaded
+                if (loaded?.post?.deletableNoteId == noteId) load()
+            }
+        }
+        viewModelScope.launch {
             // ほかの画面で変えたブーストもここで反映する
             api.boostChanges.collect { change ->
                 updateBoosted(reactionPostId = change.reactionPostId, boosted = change.boosted)
@@ -220,6 +230,7 @@ internal class PostDetailScreenViewModel(
     }
 
     private fun load() {
+        checkLoginState()
         loadJob?.cancel()
         replyTargetJob?.cancel()
         repliesJob?.cancel()
@@ -238,7 +249,6 @@ internal class PostDetailScreenViewModel(
                     is UserPostDetailResult.Found -> PostState.Loaded(result.post)
 
                     UserPostDetailResult.NotFound,
-                    UserPostDetailResult.NotLoggedIn,
                     -> PostState.NotFound
 
                     is UserPostDetailResult.Failure -> {
@@ -259,6 +269,18 @@ internal class PostDetailScreenViewModel(
     }
 
     /**
+     * 確かめられるまでは、ログインしていないものとしてメンションの入力欄を出さない
+     */
+    private fun checkLoginState() {
+        if (viewModelStateFlow.value.loggedIn) return
+        loginStateJob?.cancel()
+        loginStateJob = viewModelScope.launch {
+            val loggedIn = api.awaitLoggedIn()
+            viewModelStateFlow.update { it.copy(loggedIn = loggedIn) }
+        }
+    }
+
+    /**
      * 取り直しでは、取れるまで今の返信を出したままにする
      *
      * @param loadedPostId 保存していない投稿の id で開いたときも、開いたときに保存した投稿の id で引く
@@ -272,7 +294,6 @@ internal class PostDetailScreenViewModel(
                 when (result) {
                     is UserPostRepliesResult.Success -> state.copy(replies = result.replies, repliesLoad = RepliesLoad.Loaded)
 
-                    UserPostRepliesResult.NotLoggedIn,
                     is UserPostRepliesResult.Failure,
                     -> state.copy(repliesLoad = RepliesLoad.Failed)
                 }
@@ -459,13 +480,16 @@ internal class PostDetailScreenViewModel(
                     }
 
                     UserPostDetailResult.NotFound,
-                    UserPostDetailResult.NotLoggedIn,
                     -> current.copy(replyTargetLoad = ReplyTargetLoad.Unavailable)
 
                     is UserPostDetailResult.Failure -> current.copy(replyTargetLoad = ReplyTargetLoad.Failed)
                 }
             }
         }
+    }
+
+    private fun navigateToEditPost(noteId: String) {
+        viewModelScope.launch { events.send { it.navigateToEditPost(noteId) } }
     }
 
     private fun confirmNoteDeletion(noteId: String) {
@@ -504,7 +528,15 @@ internal class PostDetailScreenViewModel(
             val error =
                 try {
                     val result =
-                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, contentWarning = null, images = listOf(), replyToPostId = replyToPostId, quotePostId = null)
+                        postNoteSubmitter.submit(
+                            body = body,
+                            requestId = mentionRequestId,
+                            contentWarning = null,
+                            images = listOf(),
+                            replyToPostId = replyToPostId,
+                            quotePostId = null,
+                            mentionAcct = null,
+                        )
                     when (result) {
                         // 画像を付けないので置けないことは無い
                         is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"
@@ -547,9 +579,10 @@ internal class PostDetailScreenViewModel(
 
             UserPostNoteResult.ReplyTargetNotFound -> "この投稿にはメンションできません"
 
-            // メンションでは引用も閲覧注意もしない
+            // メンションでは引用も閲覧注意もせず、返信先の投稿者のほかには宛てない
             UserPostNoteResult.QuoteTargetNotFound,
             UserPostNoteResult.ContentWarningTooLong,
+            UserPostNoteResult.MentionTargetNotFound,
             UserPostNoteResult.TooManyImages,
             UserPostNoteResult.ImageNotFound,
             -> "メンションを送れませんでした"
@@ -621,7 +654,6 @@ internal class PostDetailScreenViewModel(
 
                 // カードは URL だけでも出ているので、取れなくても知らせない。次に画面に入ったときに取り直す
                 is UserLinkPreviewsResult.Failure,
-                UserLinkPreviewsResult.NotLoggedIn,
                 -> linkPreviewRequested = false
             }
         }
@@ -636,7 +668,7 @@ internal class PostDetailScreenViewModel(
         viewModelScope.launch {
             val load = api.loadQuote(postId)
             viewModelStateFlow.update { state ->
-                state.copy(quotes = if (load == null) state.quotes - postId else state.quotes + (postId to load))
+                state.copy(quotes = state.quotes + (postId to load))
             }
         }
     }
@@ -653,6 +685,12 @@ internal class PostDetailScreenViewModel(
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
         )
 
+    /**
+     * ログインしていない間は、いいね・リアクション・ブーストを押しても送れないので出さない
+     */
+    private fun UserPostBody.withoutReactionsUnlessLoggedIn(loggedIn: Boolean): UserPostBody =
+        if (loggedIn) this else copy(likedByMe = null, boostedByMe = null)
+
     private fun createUiState(viewModelState: ViewModelState): PostDetailScreenUiState {
         return PostDetailScreenUiState(
             content = when (val post = viewModelState.post) {
@@ -663,13 +701,17 @@ internal class PostDetailScreenViewModel(
                     replyTargets = viewModelState.replyTargets.reversed().map { replyTarget -> createThreadPostItem(replyTarget, viewModelState) },
                     post = createPostItem(post.post, viewModelState),
                     replies = createReplies(viewModelState),
-                    mentionBox = PostDetailScreenUiState.MentionBox(
-                        text = viewModelState.mentionText,
-                        placeholder = "${createAcct(post.post)} へメンション",
-                        textFieldEnabled = !viewModelState.mentionSending,
-                        sendButtonEnabled = viewModelState.mentionSendable(),
-                        listener = mentionBoxListener,
-                    ),
+                    mentionBox = if (viewModelState.loggedIn) {
+                        PostDetailScreenUiState.MentionBox(
+                            text = viewModelState.mentionText,
+                            placeholder = "${createAcct(post.post)} へメンション",
+                            textFieldEnabled = !viewModelState.mentionSending,
+                            sendButtonEnabled = viewModelState.mentionSendable(),
+                            listener = mentionBoxListener,
+                        )
+                    } else {
+                        null
+                    },
                 )
 
                 PostState.NotFound -> PostDetailScreenUiState.Content.NotFound
@@ -739,7 +781,7 @@ internal class PostDetailScreenViewModel(
             displayName = post.displayName,
             displayNameEmojis = post.displayNameEmojis,
             acct = createAcct(post),
-            body = post.body,
+            body = post.body.withoutReactionsUnlessLoggedIn(viewModelState.loggedIn),
             linkPreviews = listOf(),
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
@@ -804,7 +846,7 @@ internal class PostDetailScreenViewModel(
             displayName = post.displayName,
             displayNameEmojis = post.displayNameEmojis,
             acct = createAcct(post),
-            body = post.body,
+            body = post.body.withoutReactionsUnlessLoggedIn(viewModelState.loggedIn),
             linkPreviews = viewModelState.linkPreviews,
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
@@ -819,7 +861,7 @@ internal class PostDetailScreenViewModel(
             createOpenOriginalMenuItems(post.body.shareUrl) { url ->
                 viewModelScope.launch { events.send { it.openUrl(url) } }
             } + createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                createNoteMenuItems(post.deletableNoteId, onClickEdit = ::navigateToEditPost, onClickDelete = ::confirmNoteDeletion),
             postTapAction = PostTapAction.AlreadyOnPostDetail,
             onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
             onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -862,6 +904,11 @@ internal class PostDetailScreenViewModel(
 
         fun navigateToReplyPost(postId: String)
 
+        /**
+         * @param noteId 編集する投稿の deletableNoteId
+         */
+        fun navigateToEditPost(noteId: String)
+
         fun navigateToPostRevisions(postId: String)
 
         fun openUrl(url: String)
@@ -881,6 +928,7 @@ internal class PostDetailScreenViewModel(
         val reactionConfirmation: ReactionConfirmation?,
         val mentionText: String,
         val mentionSending: Boolean,
+        val loggedIn: Boolean,
         /**
          * 取れた返信先を、開いている投稿に近い順に並べたもの
          */

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import net.matsudamper.kmp.activitypub.frontend.event.EventSender
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserEditableNoteBodyResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
@@ -38,7 +39,7 @@ internal class PostScreenViewModel(
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
-                body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                body = savedStateHandle.get<String>(BODY_KEY) ?: initialBody(),
                 contentWarning = savedStateHandle.get<String>(CONTENT_WARNING_KEY),
                 images = listOf(),
                 loadingImage = false,
@@ -47,13 +48,40 @@ internal class PostScreenViewModel(
                 emojiPickerRequestKey = null,
                 bodyInsertion = null,
                 quote = when (target) {
-                    PostScreenTarget.NewNote, is PostScreenTarget.Reply -> null
+                    PostScreenTarget.NewNote, is PostScreenTarget.Reply, is PostScreenTarget.Edit, is PostScreenTarget.Mention -> null
                     is PostScreenTarget.Quote -> QuoteLoad.Loading
                 },
                 replyTarget = initialReplyToPostId()?.let { postId -> ReplyTarget(postId = postId, load = QuoteLoad.Loading) },
+                editing = initialEditingNoteId()?.let { noteId ->
+                    Editing(noteId = noteId, originalBody = savedStateHandle.get<String>(EDITING_ORIGINAL_BODY_KEY))
+                },
+                discardConfirmation = null,
             ),
         )
     private var replyTargetJob: Job? = null
+    private var editableBodyJob: Job? = null
+
+    private val editTargetListener =
+        object : PostScreenUiState.EditTargetListener {
+            override fun onClickCancel() {
+                if (viewModelStateFlow.value.submitting) return
+                finishEditing()
+            }
+        }
+
+    private val discardDraftDialogListener =
+        object : PostScreenUiState.DiscardDraftDialogListener {
+            override fun onClickDiscard() {
+                when (val confirmation = viewModelStateFlow.value.discardConfirmation ?: return) {
+                    is DiscardConfirmation.Edit -> startEditing(confirmation.noteId)
+                    is DiscardConfirmation.Reply -> startReplyAfterEditing(confirmation.postId)
+                }
+            }
+
+            override fun onDismiss() {
+                viewModelStateFlow.update { it.copy(discardConfirmation = null) }
+            }
+        }
 
     private val replyTargetListener =
         object : PostScreenUiState.ReplyTargetListener {
@@ -124,7 +152,11 @@ internal class PostScreenViewModel(
                     override fun onReplyRequested(postId: String) {
                         // 送信中に返信先を替えると、送り終えたときに新しい返信先まで消してしまう
                         if (viewModelStateFlow.value.submitting) return
-                        changeReplyTarget(postId = postId)
+                        requestReply(postId)
+                    }
+
+                    override fun onEditRequested(noteId: String) {
+                        requestEditing(noteId)
                     }
 
                     override fun onClickPost() {
@@ -164,7 +196,6 @@ internal class PostScreenViewModel(
                     is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
 
                     UserPostDetailResult.NotFound,
-                    UserPostDetailResult.NotLoggedIn,
                     is UserPostDetailResult.Failure,
                     -> QuoteLoad.Unavailable
                 }
@@ -173,7 +204,120 @@ internal class PostScreenViewModel(
         }
         val replyTarget = viewModelStateFlow.value.replyTarget
         if (replyTarget != null) loadReplyTarget(replyTarget.postId)
+        val editing = viewModelStateFlow.value.editing
+        if (editing != null && editing.originalBody == null) loadEditableBody(editing.noteId)
     }
+
+    /**
+     * 編集をやめた後に画面が作り直されても、開いたときの編集に戻さない
+     */
+    private fun initialEditingNoteId(): String? =
+        if (savedStateHandle.contains(EDITING_NOTE_ID_KEY)) {
+            savedStateHandle.get<String>(EDITING_NOTE_ID_KEY)?.takeIf { it.isNotEmpty() }
+        } else {
+            (target as? PostScreenTarget.Edit)?.noteId
+        }
+
+    /**
+     * 書きかけの投稿があれば、消してよいか確かめてから編集を始める
+     */
+    private fun requestEditing(noteId: String) {
+        val state = viewModelStateFlow.value
+        // 送信中に書き換えると、送り終えたときに編集を始めた本文まで消してしまう
+        if (state.submitting) return
+        if (state.editing?.noteId == noteId) return
+        if (state.hasDraft()) {
+            viewModelStateFlow.update { it.copy(discardConfirmation = DiscardConfirmation.Edit(noteId)) }
+        } else {
+            startEditing(noteId)
+        }
+    }
+
+    /**
+     * 編集中に返信を始めると、送信が返信ではなく編集になってしまうので、編集をやめてから返信先を入れる。
+     * 編集中の本文を書き換えていれば、消してよいか確かめる
+     */
+    private fun requestReply(postId: String) {
+        val state = viewModelStateFlow.value
+        if (state.editing == null) {
+            changeReplyTarget(postId = postId)
+            return
+        }
+        if (state.hasDraft()) {
+            viewModelStateFlow.update { it.copy(discardConfirmation = DiscardConfirmation.Reply(postId)) }
+        } else {
+            startReplyAfterEditing(postId)
+        }
+    }
+
+    private fun startReplyAfterEditing(postId: String) {
+        viewModelStateFlow.update { it.copy(discardConfirmation = null) }
+        finishEditing()
+        changeReplyTarget(postId = postId)
+    }
+
+    private fun startEditing(noteId: String) {
+        val state = viewModelStateFlow.value
+        savedStateHandle[BODY_KEY] = ""
+        savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
+        savedStateHandle[EDITING_NOTE_ID_KEY] = noteId
+        savedStateHandle.remove<String>(EDITING_ORIGINAL_BODY_KEY)
+        replyTargetJob?.cancel()
+        editableBodyJob?.cancel()
+        viewModelStateFlow.update {
+            it.copy(
+                body = "",
+                images = listOf(),
+                quote = null,
+                replyTarget = null,
+                editing = Editing(noteId = noteId, originalBody = null),
+                discardConfirmation = null,
+                error = null,
+            )
+        }
+        state.images.forEach { it.image.release() }
+        loadEditableBody(noteId)
+    }
+
+    private fun loadEditableBody(noteId: String) {
+        editableBodyJob = viewModelScope.launch {
+            val result = api.editableNoteBody(noteId)
+            if (viewModelStateFlow.value.editing?.noteId != noteId) return@launch
+            when (result) {
+                is UserEditableNoteBodyResult.Success -> {
+                    savedStateHandle[BODY_KEY] = result.body
+                    savedStateHandle[EDITING_ORIGINAL_BODY_KEY] = result.body
+                    viewModelStateFlow.update { it.copy(body = result.body, editing = Editing(noteId = noteId, originalBody = result.body)) }
+                }
+
+                is UserEditableNoteBodyResult.Failure -> {
+                    events.send { it.showMessage(result.message) }
+                    finishEditing()
+                }
+            }
+        }
+    }
+
+    /**
+     * 編集のために開いた画面は閉じ、投稿カラムは新しい投稿を書く状態に戻す
+     */
+    private fun finishEditing() {
+        editableBodyJob?.cancel()
+        if (target is PostScreenTarget.Edit) {
+            viewModelScope.launch { events.send { it.closeToHome() } }
+            return
+        }
+        savedStateHandle[BODY_KEY] = ""
+        savedStateHandle[EDITING_NOTE_ID_KEY] = ""
+        savedStateHandle.remove<String>(EDITING_ORIGINAL_BODY_KEY)
+        viewModelStateFlow.update { it.copy(body = "", editing = null, error = null) }
+    }
+
+    private fun initialBody(): String =
+        when (target) {
+            is PostScreenTarget.Mention -> "@${target.acct} "
+            PostScreenTarget.NewNote, is PostScreenTarget.Quote, is PostScreenTarget.Reply, is PostScreenTarget.Edit -> ""
+        }
 
     /**
      * 外した後に画面が作り直されても、開いたときの返信先に戻さない
@@ -205,7 +349,6 @@ internal class PostScreenViewModel(
                 is UserPostDetailResult.Found -> if (result.post.deleted) QuoteLoad.Unavailable else QuoteLoad.Loaded(result.post)
 
                 UserPostDetailResult.NotFound,
-                UserPostDetailResult.NotLoggedIn,
                 is UserPostDetailResult.Failure,
                 -> QuoteLoad.Unavailable
             }
@@ -246,6 +389,11 @@ internal class PostScreenViewModel(
                     viewModelStateFlow.update { it.copy(loadingImage = false) }
                 }
             if (image == null) return@launch
+            // 読んでいる間に編集を始めたら、編集では画像を送らないので捨てる
+            if (viewModelStateFlow.value.editing != null) {
+                image.release()
+                return@launch
+            }
             renewRequestId()
             viewModelStateFlow.update { state ->
                 state.copy(images = state.images + SelectedImage(id = Uuid.random().toString(), image = image), error = null)
@@ -288,6 +436,11 @@ internal class PostScreenViewModel(
     private fun post() {
         val state = viewModelStateFlow.value
         if (state.postable().not()) return
+        val editing = state.editing
+        if (editing != null) {
+            update(noteId = editing.noteId, body = state.body)
+            return
+        }
 
         viewModelStateFlow.update { it.copy(submitting = true, error = null) }
         viewModelScope.launch {
@@ -303,6 +456,7 @@ internal class PostScreenViewModel(
                             replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
                             quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
+                            mentionAcct = (target as? PostScreenTarget.Mention)?.acct,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -322,6 +476,25 @@ internal class PostScreenViewModel(
             renewRequestId()
             viewModelStateFlow.update { it.copy(body = "", contentWarning = null, images = listOf(), replyTarget = null) }
             state.images.forEach { it.image.release() }
+            events.send { it.navigateBack() }
+        }
+    }
+
+    private fun update(noteId: String, body: String) {
+        viewModelStateFlow.update { it.copy(submitting = true, error = null) }
+        viewModelScope.launch {
+            val error =
+                try {
+                    api.editNote(noteId = noteId, body = body)
+                } finally {
+                    viewModelStateFlow.update { it.copy(submitting = false) }
+                }
+            if (error != null) {
+                viewModelStateFlow.update { it.copy(error = error) }
+                events.send { it.showMessage(error) }
+                return@launch
+            }
+            if (target !is PostScreenTarget.Edit) finishEditing()
             events.send { it.navigateBack() }
         }
     }
@@ -356,6 +529,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
             UserPostNoteResult.ReplyTargetNotFound -> "返信先の投稿が見つかりません"
             UserPostNoteResult.QuoteTargetNotFound -> "引用する投稿が見つかりません"
+            UserPostNoteResult.MentionTargetNotFound -> "宛先のユーザーが見つかりません"
             is UserPostNoteResult.Failure -> result.message
         }
 
@@ -377,16 +551,19 @@ internal class PostScreenViewModel(
         listener: PostScreenUiState.Listener,
     ): PostScreenUiState =
         PostScreenUiState(
+            title = if (viewModelState.editing == null) "投稿" else "投稿を編集",
             body = viewModelState.body,
             bodyInsertion = viewModelState.bodyInsertion,
             contentWarningInputVisible = viewModelState.contentWarning != null,
             contentWarning = viewModelState.contentWarning.orEmpty(),
             contentWarningButtonChecked = viewModelState.contentWarning != null,
             contentWarningButtonEnabled = viewModelState.submitting.not(),
+            bodyLoadingVisible = viewModelState.editableBodyLoading(),
             inputHasError = viewModelState.error != null,
-            inputEnabled = viewModelState.submitting.not(),
+            inputEnabled = viewModelState.submitting.not() && viewModelState.editableBodyLoading().not(),
             closeButtonEnabled = viewModelState.submitting.not(),
             postButtonEnabled = viewModelState.postable(),
+            postButtonText = if (viewModelState.editing == null) "投稿" else "更新",
             images =
             viewModelState.images.map { selected ->
                 PostScreenUiState.Image(
@@ -407,9 +584,29 @@ internal class PostScreenViewModel(
                     listener = replyTargetListener,
                 )
             },
+            editTarget = if (viewModelState.editing == null || target is PostScreenTarget.Edit) {
+                null
+            } else {
+                PostScreenUiState.EditTarget(cancelButtonEnabled = viewModelState.submitting.not(), listener = editTargetListener)
+            },
+            discardDraftDialog = when (viewModelState.discardConfirmation) {
+                null -> null
+
+                is DiscardConfirmation.Edit -> PostScreenUiState.DiscardDraftDialog(
+                    message = "書きかけの投稿を破棄して、投稿の編集を始めますか",
+                    discardButtonText = "破棄して編集",
+                    listener = discardDraftDialogListener,
+                )
+
+                is DiscardConfirmation.Reply -> PostScreenUiState.DiscardDraftDialog(
+                    message = "編集中の本文を破棄して、返信を始めますか",
+                    discardButtonText = "破棄して返信",
+                    listener = discardDraftDialogListener,
+                )
+            },
             addImageButtonEnabled = viewModelState.imageAddable(),
             addImageLoadingVisible = viewModelState.loadingImage,
-            addEmojiButtonEnabled = viewModelState.submitting.not(),
+            addEmojiButtonEnabled = viewModelState.submitting.not() && viewModelState.editableBodyLoading().not(),
             emojiPickerDialog = viewModelState.emojiPickerRequestKey?.let { requestKey ->
                 ReactionPickerDialogUiState(
                     requestKey = requestKey,
@@ -421,8 +618,20 @@ internal class PostScreenViewModel(
             listener = listener,
         )
 
-    private fun ViewModelState.postable(): Boolean =
-        submitting.not() && loadingImage.not() && quotePostable() && replyPostable() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
+    private fun ViewModelState.postable(): Boolean {
+        if (editing != null) return submitting.not() && editableBodyLoading().not()
+        return submitting.not() && loadingImage.not() && quotePostable() && replyPostable() && (body.isNotBlank() || images.isNotEmpty() || quote != null)
+    }
+
+    private fun ViewModelState.editableBodyLoading(): Boolean = editing != null && editing.originalBody == null
+
+    /**
+     * 編集を始めると消える、書きかけの投稿。編集中なら書き換えた本文
+     */
+    private fun ViewModelState.hasDraft(): Boolean {
+        if (editing != null) return editing.originalBody != null && body != editing.originalBody
+        return body.isNotBlank() || images.isNotEmpty() || replyTarget != null
+    }
 
     /**
      * 引用先を読み込めるまでは、どの投稿を引用するか決まらない
@@ -434,7 +643,10 @@ internal class PostScreenViewModel(
      */
     private fun ViewModelState.replyPostable(): Boolean = replyTarget == null || replyTarget.load is QuoteLoad.Loaded
 
-    private fun ViewModelState.imageAddable(): Boolean = submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
+    /**
+     * 編集では本文だけを書き換えるので、画像は足せない
+     */
+    private fun ViewModelState.imageAddable(): Boolean = editing == null && submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
 
     private data class ViewModelState(
         val body: String,
@@ -462,6 +674,38 @@ internal class PostScreenViewModel(
          * 返信でなければ null
          */
         val replyTarget: ReplyTarget?,
+        /**
+         * 新しく投稿するなら null
+         */
+        val editing: Editing?,
+        /**
+         * 書きかけの投稿を消してよいか確かめている間。確かめていなければ null
+         */
+        val discardConfirmation: DiscardConfirmation?,
+    )
+
+    /**
+     * 書きかけの投稿を消してから始めること
+     */
+    private sealed interface DiscardConfirmation {
+        /**
+         * @param noteId 編集する投稿の deletableNoteId
+         */
+        data class Edit(val noteId: String) : DiscardConfirmation
+
+        /**
+         * @param postId 返信するホームタイムラインの投稿の id
+         */
+        data class Reply(val postId: String) : DiscardConfirmation
+    }
+
+    /**
+     * @param noteId 編集する投稿の deletableNoteId
+     * @param originalBody 読み込んだ編集前の本文。読み込んでいる間は null
+     */
+    private data class Editing(
+        val noteId: String,
+        val originalBody: String?,
     )
 
     /**
@@ -512,6 +756,8 @@ private const val BODY_KEY = "body"
 private const val CONTENT_WARNING_KEY = "contentWarning"
 private const val REQUEST_ID_KEY = "requestId"
 private const val REPLY_TO_POST_ID_KEY = "replyToPostId"
+private const val EDITING_NOTE_ID_KEY = "editingNoteId"
+private const val EDITING_ORIGINAL_BODY_KEY = "editingOriginalBody"
 
 /**
  * サーバーの 1 投稿あたりの上限

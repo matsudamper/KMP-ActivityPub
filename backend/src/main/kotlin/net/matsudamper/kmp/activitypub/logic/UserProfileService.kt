@@ -59,7 +59,8 @@ class UserProfileService(
     private val remoteFetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * プロフィールの情報だけを返す。投稿は相手のサーバーの outbox を待つことがあるので、[firstPosts] で別に読む
+     * プロフィールの情報だけを返す。投稿は相手のサーバーの outbox を待つことがあるので、[firstPosts] で別に読む。
+     * ログインしていなければ、他のサーバーのユーザーは相手のサーバーへ取りに行かず、保存済みのアクターだけを返す
      */
     suspend fun profile(acct: String, viewer: AccountId?): UserProfile? {
         val target = ProfileAcct.parse(acct, localDomain) ?: return null
@@ -77,18 +78,17 @@ class UserProfileService(
         }
         val storedActor = remoteActors.findByAcct(target.username, target.host)
         val followed = following.isFollowing(viewer, storedActor?.actorUri)
-        if (followed) {
-            val actor = checkNotNull(storedActor)
+        if (followed || viewer == null) {
+            val actor = storedActor ?: return null
             return UserProfile(
                 user = SearchedUser(actor.actorUri, actor.preferredUsername, target.host, false, actor.displayName ?: actor.preferredUsername, actor.iconUrl, actor.emojis, actor.updatedAt),
-                following = true,
+                following = followed,
                 headerUrl = remoteActors.findByUri(actor.actorUri)?.profile?.headerUrl,
                 biography = null,
                 links = listOf(),
                 viewerIsOwner = false,
             )
         }
-        if (viewer == null) return null
         val profiles = remoteProfiles ?: return null
         val remote = if (storedActor != null) profiles.findByActorUri(storedActor.actorUri) else profiles.find(target.username, target.host)
         if (remote == null) return null
@@ -123,7 +123,10 @@ class UserProfileService(
             val account = accounts.findByUsername(target.username) ?: return ProfilePostsResult.NotFound
             return ProfilePostsResult.Found(localProfilePosts(accountId = account.id, username = account.username, viewer = viewer, cursor = null))
         }
-        if (viewer == null) return ProfilePostsResult.NotLoggedIn
+        if (viewer == null) {
+            val storedActorUri = remoteActors.findByAcct(target.username, target.host)?.actorUri ?: return ProfilePostsResult.NotFound
+            return ProfilePostsResult.Found(storedOnlyPage(viewer = null, actorUri = storedActorUri, before = null, pinnedObjectUris = listOf()))
+        }
         val actorUri = remoteActors.findByAcct(target.username, target.host)?.actorUri
             ?: remoteProfiles?.find(target.username, target.host)?.user?.actorUri
             ?: return ProfilePostsResult.NotFound
@@ -156,11 +159,7 @@ class UserProfileService(
             }
         }
 
-        is ProfilePostCursor.Stored -> if (viewer == null) {
-            ProfilePostsResult.NotLoggedIn
-        } else {
-            ProfilePostsResult.Found(storedOnlyPage(viewer, cursor.actorUri, cursor.before.toPosition(), cursor.pinnedObjectUris))
-        }
+        is ProfilePostCursor.Stored -> ProfilePostsResult.Found(storedOnlyPage(viewer, cursor.actorUri, cursor.before.toPosition(), cursor.pinnedObjectUris))
     }
 
     /**
@@ -353,9 +352,9 @@ class UserProfileService(
     }
 
     /**
-     * outbox を読めないときに、保存済みの投稿だけで出す
+     * outbox を読めないときと、ログインしていなくて相手のサーバーへ取りに行かないときに、保存済みの投稿だけで出す
      */
-    private fun storedOnlyPage(viewer: AccountId, actorUri: String, before: TimelinePosition?, pinnedObjectUris: List<String>): ProfilePostPage {
+    private fun storedOnlyPage(viewer: AccountId?, actorUri: String, before: TimelinePosition?, pinnedObjectUris: List<String>): ProfilePostPage {
         val stored = timeline.actorPosts(viewer, actorUri, before = before, limit = PROFILE_POST_LIMIT)
         val last = stored.lastOrNull()?.position
         return ProfilePostPage(
@@ -438,7 +437,7 @@ class UserProfileService(
     /**
      * @return 投稿者のホストが分からないブーストは、誰の投稿か示せないので null
      */
-    private fun TimelinePost.toActorProfilePost(viewer: AccountId): ProfilePost? {
+    private fun TimelinePost.toActorProfilePost(viewer: AccountId?): ProfilePost? {
         val author = if (boostedBy == null) null else boostedNoteAuthor() ?: return null
         return toProfilePost(viewer = viewer, boostedNoteAuthor = author)
     }

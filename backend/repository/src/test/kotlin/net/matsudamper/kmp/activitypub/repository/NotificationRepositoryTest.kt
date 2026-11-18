@@ -96,6 +96,7 @@ class NotificationRepositoryTest {
                     publicId = NOTE_1,
                     contentHtml = "<p>hello</p>",
                     summary = null,
+                    sourceText = "",
                     publishedAt = NOW,
                     body = "create-note-1",
                     inboxes = listOf(),

@@ -43,6 +43,13 @@ class PostRepliesServiceTest {
     }
 
     @Test
+    fun anonymousViewerGetsNoRepliesToUnsavedRemotePost() {
+        timeline.replies.add(remoteReply(member = "r2", host = "remote.example", inReplyTo = "https://remote.example/notes/1"))
+
+        assertEquals(listOf(), service.replies(null, UnsavedRemoteNoteId.of("https://remote.example/notes/1")))
+    }
+
+    @Test
     fun repliesFromBlockedServerAreHidden() {
         timeline.positions.add(TimelinePosition(1, "l1"))
         val inReplyTo = NoteUrls(DOMAIN, KotpubPublicNoteId("l1")).noteUrl

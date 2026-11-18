@@ -102,6 +102,7 @@ class PostSearchRepositoryTest {
         publicId = PublicNoteId(publicId),
         contentHtml = contentHtml,
         summary = null,
+        sourceText = "",
         publishedAt = NOW,
         images = listOf(),
         body = "create",

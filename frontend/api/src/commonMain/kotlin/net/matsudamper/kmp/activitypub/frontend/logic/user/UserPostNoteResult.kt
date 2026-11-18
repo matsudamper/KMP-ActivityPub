@@ -30,6 +30,11 @@ sealed interface UserPostNoteResult {
      */
     data object QuoteTargetNotFound : UserPostNoteResult
 
+    /**
+     * 宛てるユーザーが無いか、相手のサーバーから引けない
+     */
+    data object MentionTargetNotFound : UserPostNoteResult
+
     data class Failure(
         val message: String,
     ) : UserPostNoteResult

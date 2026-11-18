@@ -393,7 +393,7 @@ class TimelineRepositoryTest {
     fun localPostsUseEpochMillisecondsAndOnlyReachTheirAuthor() = withRepository { repositories, accounts ->
         val time = NOW.plusNanos(999999999)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "本文", null, time, listOf(), "create", listOf(), null, null, null, listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "本文", null, "", time, listOf(), "create", listOf(), null, null, null, listOf()),
         )
         val repository = repositories.timelineRepository
         val position = assertNotNull(repository.localPosition("local-1"))
@@ -409,7 +409,7 @@ class TimelineRepositoryTest {
     fun localPositionsByPublicIdMatchEachLocalPositionAndSkipMissingNotes() = withRepository { repositories, _ ->
         listOf("local-1", "local-2").forEachIndexed { index, publicId ->
             repositories.deliveryQueueRepository.enqueueNote(
-                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", null, NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, null, null, listOf()),
+                NotePost("alice", "request-$index", PublicNoteId(publicId), "本文", null, "", NOW.plusSeconds(index.toLong()), listOf(), "create", listOf(), null, null, null, listOf()),
             )
         }
         val repository = repositories.timelineRepository
@@ -596,6 +596,32 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun anonymousActorPostsShowOnlyPublishedNotesAndTheirBoosts() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        val public = assertNotNull(repository.receive(note("public", "public", setOf())))
+        val unlisted = assertNotNull(repository.receive(note("unlisted", "unlisted", setOf())))
+        val followers = assertNotNull(repository.receive(note("followers", "followers", setOf("alice"))))
+        val direct = assertNotNull(repository.receive(note("direct", "direct", setOf("alice"))))
+        val boost = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+
+        // フォローしている alice には読める投稿がすべて出る
+        assertTrue(repository.actorPosts(alice, ACTOR, null, 10).map { it.position.member }.containsAll(listOf(followers.member, direct.member)))
+        // ログインしていなければ、公開と公開タイムラインに載せない公開の投稿と、そのブーストだけが出る
+        val anonymous = repository.actorPosts(null, ACTOR, null, 10).map { it.position.member }
+        assertTrue(anonymous.containsAll(listOf(public.member, unlisted.member)))
+        assertTrue(anonymous.none { it == followers.member || it == direct.member })
+        assertEquals(listOf(boost.member), repository.actorPosts(null, BOOSTER, null, 10).map { it.position.member })
+        assertTrue(repository.actorPosts(null, BOOSTER, null, 10).all { it.likedByMe.not() })
+    }
+
+    @Test
     fun actorPostsDoNotStopAtBoostsTheViewerCannotSee() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
@@ -732,10 +758,10 @@ class TimelineRepositoryTest {
     @Test
     fun localPostWithContentWarningIsSensitive() = withRepository { repositories, accounts ->
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request-1", PublicNoteId("local-cw"), "<p>本文</p>", "ネタバレ", NOW, listOf(), "create", listOf(), null, null, null, listOf()),
+            NotePost("alice", "request-1", PublicNoteId("local-cw"), "<p>本文</p>", "ネタバレ", "", NOW, listOf(), "create", listOf(), null, null, null, listOf()),
         )
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request-2", PublicNoteId("local-plain"), "<p>本文</p>", null, NOW, listOf(), "create", listOf(), null, null, null, listOf()),
+            NotePost("alice", "request-2", PublicNoteId("local-plain"), "<p>本文</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf()),
         )
         val alice = accounts.getValue("alice")
         val repository = repositories.timelineRepository
@@ -761,7 +787,7 @@ class TimelineRepositoryTest {
         repositories.followingRepository.add(alice, ACTOR, NOW)
         repositories.followingRepository.add(alice, BOOSTER, NOW)
         repositories.deliveryQueueRepository.enqueueNote(
-            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", null, NOW, listOf(), "create", listOf(), null, null, null, listOf()),
+            NotePost("alice", "request", PublicNoteId("local-1"), "<p>このサーバーの投稿</p>", null, "", NOW, listOf(), "create", listOf(), null, null, null, listOf()),
         )
         val localNote = assertNotNull(repository.localPosition("local-1"))
         val note = assertNotNull(repository.receive(note("content", "public", setOf())))
@@ -799,6 +825,13 @@ class TimelineRepositoryTest {
             assertNull(repository.viewablePost(bob, position.member))
             assertNull(repository.contentHtml(bob, position.member))
         }
+        // ログインしていなくても、このサーバーの投稿と公開の投稿、そのブーストは開ける
+        listOf(localNote, note, boost, accountBoost).forEach { position ->
+            assertEquals(position.member, repository.viewablePost(null, position.member)?.position?.member)
+            assertNotNull(repository.contentHtml(null, position.member))
+        }
+        assertNull(repository.viewablePost(null, direct.member))
+        assertNull(repository.contentHtml(null, direct.member))
         assertNull(repository.viewablePost(alice, "r999"))
         assertNull(repository.contentHtml(alice, "r999"))
     }

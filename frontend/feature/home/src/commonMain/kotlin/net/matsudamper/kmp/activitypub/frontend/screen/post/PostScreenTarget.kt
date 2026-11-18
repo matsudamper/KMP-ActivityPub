@@ -15,4 +15,14 @@ internal sealed interface PostScreenTarget {
      * @param postId 返信するホームタイムラインの投稿の id
      */
     data class Reply(val postId: String) : PostScreenTarget
+
+    /**
+     * @param noteId 編集する自分の投稿の id。投稿の deletableNoteId
+     */
+    data class Edit(val noteId: String) : PostScreenTarget
+
+    /**
+     * @param acct 本文の先頭に宛先として入れるユーザーの `username@host`。このサーバーのユーザーは `username`
+     */
+    data class Mention(val acct: String) : PostScreenTarget
 }

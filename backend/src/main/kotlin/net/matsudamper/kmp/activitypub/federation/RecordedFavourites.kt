@@ -25,7 +25,7 @@ internal class RecordedFavourites(
         )
         if (added) {
             notifications.publish(NotificationKind.FAVOURITE, notePublicId, favourite.actor.actorId)
-            timeline.publishReactionsChanged(notePublicId)
+            timeline.publishLocalNoteChanged(notePublicId)
         }
         return added
     }
@@ -36,7 +36,7 @@ internal class RecordedFavourites(
     ): Boolean {
         val publicId = PublicNoteId(notePublicId.value)
         val removed = favouriteRepository.remove(notePublicId = publicId, actorUri = actorUri)
-        if (removed) timeline.publishReactionsChanged(publicId)
+        if (removed) timeline.publishLocalNoteChanged(publicId)
         return removed
     }
 

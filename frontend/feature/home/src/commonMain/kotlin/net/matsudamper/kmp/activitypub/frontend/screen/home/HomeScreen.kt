@@ -234,7 +234,17 @@ internal fun HomeScreen(
                         navigator.navigate(Screen.ReplyPost(postId = postId))
                     } else {
                         postColumn.onReplyRequested(postId)
-                        uiState.listener.onReplyOpenedInPostColumn()
+                        uiState.listener.onPostColumnTargetChanged()
+                    }
+                }
+
+                override fun openEdit(noteId: String) {
+                    val postColumn = postColumnListener
+                    if (postColumn == null) {
+                        navigator.navigate(Screen.EditPost(noteId = noteId))
+                    } else {
+                        postColumn.onEditRequested(noteId)
+                        uiState.listener.onPostColumnTargetChanged()
                     }
                 }
             },

@@ -870,19 +870,24 @@ private fun HomeColumnsPreview(
                     PostContent(
                         navigationIcon = PostNavigationIcon.Close,
                         uiState = PostScreenUiState(
+                            title = "投稿",
                             body = "",
                             bodyInsertion = null,
                             contentWarningInputVisible = false,
                             contentWarning = "",
                             contentWarningButtonChecked = false,
                             contentWarningButtonEnabled = true,
+                            bodyLoadingVisible = false,
                             inputHasError = false,
                             inputEnabled = true,
                             closeButtonEnabled = true,
                             postButtonEnabled = false,
+                            postButtonText = "投稿",
                             images = listOf(),
                             quote = null,
                             replyTarget = null,
+                            editTarget = null,
+                            discardDraftDialog = null,
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
                             addEmojiButtonEnabled = true,
@@ -932,7 +937,7 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onPostColumnFinished() = Unit
 
-    override fun onReplyOpenedInPostColumn() = Unit
+    override fun onPostColumnTargetChanged() = Unit
 
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 
@@ -1068,6 +1073,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onClickAddEmoji() = Unit
 
     override fun onReplyRequested(postId: String) = Unit
+
+    override fun onEditRequested(noteId: String) = Unit
 
     override fun onClickPost() = Unit
 

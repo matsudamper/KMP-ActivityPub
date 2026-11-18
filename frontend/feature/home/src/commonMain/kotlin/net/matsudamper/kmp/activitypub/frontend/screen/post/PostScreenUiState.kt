@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.TextInsertion
 
 data class PostScreenUiState(
+    val title: String,
     val body: String,
     /**
      * 選んだ絵文字。入力欄が本文に入れ終えるまで持つ。入れるものが無ければ null
@@ -18,6 +19,10 @@ data class PostScreenUiState(
     val contentWarning: String,
     val contentWarningButtonChecked: Boolean,
     val contentWarningButtonEnabled: Boolean,
+    /**
+     * 編集する投稿の本文を読み込んでいる間
+     */
+    val bodyLoadingVisible: Boolean,
     val inputHasError: Boolean,
     val inputEnabled: Boolean,
     /**
@@ -25,6 +30,7 @@ data class PostScreenUiState(
      */
     val closeButtonEnabled: Boolean,
     val postButtonEnabled: Boolean,
+    val postButtonText: String,
     /**
      * 付けた順
      */
@@ -37,6 +43,14 @@ data class PostScreenUiState(
      * 返信でなければ null
      */
     val replyTarget: ReplyTarget?,
+    /**
+     * 投稿カラムで自分の投稿を編集している間。編集のために開いた画面や、新しく投稿するなら null
+     */
+    val editTarget: EditTarget?,
+    /**
+     * 書きかけの投稿を消して編集や返信を始めてよいか確かめる。確かめていなければ null
+     */
+    val discardDraftDialog: DiscardDraftDialog?,
     val addImageButtonEnabled: Boolean,
     val addImageLoadingVisible: Boolean,
     val addEmojiButtonEnabled: Boolean,
@@ -64,6 +78,29 @@ data class PostScreenUiState(
     @Immutable
     interface ReplyTargetListener {
         fun onClickRemove()
+    }
+
+    data class EditTarget(
+        val cancelButtonEnabled: Boolean,
+        val listener: EditTargetListener,
+    )
+
+    @Immutable
+    interface EditTargetListener {
+        fun onClickCancel()
+    }
+
+    data class DiscardDraftDialog(
+        val message: String,
+        val discardButtonText: String,
+        val listener: DiscardDraftDialogListener,
+    )
+
+    @Immutable
+    interface DiscardDraftDialogListener {
+        fun onClickDiscard()
+
+        fun onDismiss()
     }
 
     @Immutable
@@ -98,6 +135,13 @@ data class PostScreenUiState(
          * @param postId 返信するホームタイムラインの投稿の id
          */
         fun onReplyRequested(postId: String)
+
+        /**
+         * 開いたままの投稿カラムで、自分の投稿の編集を始めるとき
+         *
+         * @param noteId 編集する投稿の deletableNoteId
+         */
+        fun onEditRequested(noteId: String)
 
         fun onClickPost()
 
