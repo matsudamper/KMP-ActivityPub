@@ -473,6 +473,7 @@ class QueryResolverImpl : QueryResolver {
             pinned = pinned,
             pinnableNoteId = pinnableNoteId,
             linkUrls = body.linkUrls,
+            linkObjectUrl = linkHref?.takeIf { it in body.linkUrls },
             mentions = body.mentions,
             images = body.images,
             videos = body.videos,

@@ -225,6 +225,7 @@ data class PostItemUiState(
         val siteName: String,
         val imageUrl: String?,
         val faviconUrl: String?,
+        val linkObjectLabelVisible: Boolean,
         val listener: LinkPreviewListener,
     )
 

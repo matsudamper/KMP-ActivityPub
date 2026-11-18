@@ -9,6 +9,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 internal fun createPostLinkPreview(
     url: String,
     preview: UserLinkPreviewsResult.LinkPreview?,
+    linkObjectLabelVisible: Boolean,
     onClick: () -> Unit,
 ): PostItemUiState.LinkPreview {
     return PostItemUiState.LinkPreview(
@@ -16,6 +17,7 @@ internal fun createPostLinkPreview(
         siteName = preview?.siteName ?: url.substringAfter("://").substringBefore('/'),
         imageUrl = preview?.imageUrl,
         faviconUrl = preview?.faviconUrl,
+        linkObjectLabelVisible = linkObjectLabelVisible,
         listener = object : PostItemUiState.LinkPreviewListener {
             override fun onClick() {
                 onClick()

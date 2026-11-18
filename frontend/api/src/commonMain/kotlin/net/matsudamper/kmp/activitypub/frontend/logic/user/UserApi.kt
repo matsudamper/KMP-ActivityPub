@@ -1415,6 +1415,7 @@ class UserApi(
                 summary = summary,
                 sensitive = sensitive,
                 linkUrls = linkUrls,
+                linkObjectUrl = linkObjectUrl,
                 mentions = mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
                 images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
                 videos = videos.map { video -> UserPostVideo(url = video.url, description = video.description) },

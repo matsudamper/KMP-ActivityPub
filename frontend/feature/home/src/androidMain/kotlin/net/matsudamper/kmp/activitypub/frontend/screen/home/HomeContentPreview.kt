@@ -1233,6 +1233,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
                 siteName = "Kotlin",
                 imageUrl = "https://example.com/ogp.png",
                 faviconUrl = "https://example.com/favicon.ico",
+                linkObjectLabelVisible = false,
                 listener = AndroidPreviewLinkPreviewListener,
             ),
             PostItemUiState.LinkPreview(
@@ -1240,6 +1241,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
                 siteName = "example.com",
                 imageUrl = null,
                 faviconUrl = null,
+                linkObjectLabelVisible = false,
                 listener = AndroidPreviewLinkPreviewListener,
             ),
         ),

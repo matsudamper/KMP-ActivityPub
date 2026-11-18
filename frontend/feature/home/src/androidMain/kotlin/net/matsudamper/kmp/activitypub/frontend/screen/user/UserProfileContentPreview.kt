@@ -69,6 +69,7 @@ private fun UserProfileContentPreview() {
                                         siteName = "Kotlin",
                                         imageUrl = null,
                                         faviconUrl = null,
+                                        linkObjectLabelVisible = false,
                                         listener = AndroidPreviewLinkPreviewListener,
                                     ),
                                 ),

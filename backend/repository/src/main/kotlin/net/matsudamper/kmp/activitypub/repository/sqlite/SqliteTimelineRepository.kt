@@ -143,6 +143,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             dsl.update(REMOTE_NOTES)
                 .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
                 .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+                .set(REMOTE_NOTES.LINK_HREF, note.linkHref)
                 .where(REMOTE_NOTES.ID.eq(id))
                 .execute()
             // 版には絵文字を残さないので、絵文字の画像だけが変わった編集もここに来る
@@ -153,6 +154,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         dsl.update(REMOTE_NOTES)
             .set(REMOTE_NOTES.CONTENT_HTML, revised.contentHtml)
             .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+            .set(REMOTE_NOTES.LINK_HREF, note.linkHref)
             .set(REMOTE_NOTES.SUMMARY, revised.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (revised.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.EDITED_AT, StoredInstant.format(editedAt))
@@ -370,6 +372,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             NOTES.QUOTE_URI,
             NOTES.UPDATED_AT,
             DSL.inline(null, String::class.java),
+            DSL.inline(null, String::class.java),
         ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.ID.`in`(localIds)).and(localCondition)
         val remote = dsl.select(
@@ -384,6 +387,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             REMOTE_NOTES.QUOTE_URI,
             REMOTE_NOTES.EDITED_AT,
             REMOTE_NOTES.LANGUAGE,
+            REMOTE_NOTES.LINK_HREF,
         ).from(REMOTE_NOTES).join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(REMOTE_NOTES.REMOTE_ACTOR_ID))
             .where(REMOTE_NOTES.ID.`in`(remoteIds)).and(remoteCondition)
         val imagesByMember = remoteImages(dsl, remoteIds) + localImages(dsl, localIds)
@@ -435,6 +439,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 record.value17(),
                 record.value18(),
                 record.value19()?.let { StoredInstant.parse(it) },
+                record.value21(),
             )
         }
     }
@@ -776,6 +781,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
             .set(REMOTE_NOTES.QUOTE_URI, note.quoteUri)
+            .set(REMOTE_NOTES.LINK_HREF, note.linkHref)
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.PUBLISHED_AT, StoredInstant.format(note.publishedAt))
@@ -912,6 +918,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             .set(REMOTE_NOTES.VISIBILITY, note.visibility)
             .set(REMOTE_NOTES.CONTENT_HTML, note.contentHtml)
             .set(REMOTE_NOTES.LANGUAGE, note.language?.toLanguageTag())
+            .set(REMOTE_NOTES.LINK_HREF, note.linkHref)
             .set(REMOTE_NOTES.SUMMARY, note.summary)
             .set(REMOTE_NOTES.SENSITIVE, if (note.sensitive) 1L else 0L)
             .set(REMOTE_NOTES.IN_REPLY_TO, note.inReplyTo)
@@ -987,8 +994,8 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
         val boostedNoteIds = dsl.boostedNoteIds(accountId, ACCOUNT_BOOSTS.REMOTE_NOTE_ID, rows.map { checkNotNull(it.value3()) })
         val imagesByNote = remoteImages(dsl, rows.map { checkNotNull(it.value3()) })
         val emojisByNote = dsl.remoteNoteEmojisById(rows.map { checkNotNull(it.value3()) })
-        // jOOQ の型付きの行は 22 列までなので、引用先・編集した時刻・言語は別に引く
-        val quoteEditAndLanguageByNote = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI, REMOTE_NOTES.EDITED_AT, REMOTE_NOTES.LANGUAGE).from(REMOTE_NOTES)
+        // jOOQ の型付きの行は 22 列までなので、引用先・編集した時刻・言語・リンク先は別に引く
+        val overflowColumnsByNote = dsl.select(REMOTE_NOTES.ID, REMOTE_NOTES.QUOTE_URI, REMOTE_NOTES.EDITED_AT, REMOTE_NOTES.LANGUAGE, REMOTE_NOTES.LINK_HREF).from(REMOTE_NOTES)
             .where(REMOTE_NOTES.ID.`in`(rows.map { checkNotNull(it.value3()) }))
             .fetch().associateBy { it.value1() }
         val emojisByActor = dsl.remoteActorEmojisByUri(rows.flatMap { listOf(checkNotNull(it.value8()), checkNotNull(it.value13())) }.toSet())
@@ -998,7 +1005,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             TimelinePost(
                 position = TimelinePosition(checkNotNull(record.value2()), "b${record.value1()}"),
                 contentHtml = checkNotNull(record.value4()),
-                language = quoteEditAndLanguageByNote[record.value3()]?.value4()?.let { Locale.forLanguageTag(it) },
+                language = overflowColumnsByNote[record.value3()]?.value4()?.let { Locale.forLanguageTag(it) },
                 publishedAt = StoredInstant.parse(checkNotNull(record.value5())),
                 actorUri = authorUri,
                 username = record.value9() ?: authorUri,
@@ -1028,8 +1035,9 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
                 deleted = record.value20() != null,
                 boostUndone = record.value21() != null,
                 inReplyTo = record.value22(),
-                quoteUri = quoteEditAndLanguageByNote[record.value3()]?.value2(),
-                editedAt = quoteEditAndLanguageByNote[record.value3()]?.value3()?.let { StoredInstant.parse(it) },
+                quoteUri = overflowColumnsByNote[record.value3()]?.value2(),
+                editedAt = overflowColumnsByNote[record.value3()]?.value3()?.let { StoredInstant.parse(it) },
+                linkHref = overflowColumnsByNote[record.value3()]?.value5(),
             )
         }
     }

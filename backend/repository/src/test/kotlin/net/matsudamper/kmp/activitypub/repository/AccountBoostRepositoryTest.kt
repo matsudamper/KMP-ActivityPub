@@ -389,6 +389,7 @@ class AccountBoostRepositoryTest {
         localRecipients = setOf(), inReplyTo = null, quoteUri = null, summary = null, sensitive = false, publishedAt = NOW, receivedAt = NOW, editedAt = null,
         images = listOf(),
         emojis = listOf(),
+        linkHref = null,
         poll = null,
     )
 

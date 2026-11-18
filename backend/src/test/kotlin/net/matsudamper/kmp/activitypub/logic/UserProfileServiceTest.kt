@@ -797,6 +797,7 @@ class UserProfileServiceTest {
             editedAt = null,
             images = listOf(),
             emojis = listOf(),
+            linkHref = null,
             poll = null,
         )
 
@@ -829,6 +830,7 @@ class UserProfileServiceTest {
             inReplyTo = null,
             quoteUri = null,
             editedAt = null,
+            linkHref = null,
         )
 
     private companion object {

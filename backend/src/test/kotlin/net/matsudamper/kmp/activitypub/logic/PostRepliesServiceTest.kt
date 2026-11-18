@@ -97,6 +97,7 @@ class PostRepliesServiceTest {
         inReplyTo = inReplyTo,
         quoteUri = null,
         editedAt = null,
+        linkHref = null,
     )
 
     private companion object {

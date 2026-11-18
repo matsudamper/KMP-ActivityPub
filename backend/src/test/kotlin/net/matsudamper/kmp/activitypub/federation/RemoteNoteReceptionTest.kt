@@ -399,6 +399,7 @@ class RemoteNoteReceptionTest {
         "$ACTOR/notes/1", ACTOR, "<p>本文</p><script>bad()</script>", null, Instant.EPOCH, null, to, listOf(), null, null, null, false, NoteVisibility.Public, listOf(), listOf(),
         mentions = listOf(),
         poll = null,
+        linkHref = null,
     )
 
     private class Fixture(openTelemetry: OpenTelemetry) {
