@@ -1,0 +1,52 @@
+package net.matsudamper.kmp.activitypub.frontend.ui
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.browser.document
+import org.w3c.dom.HTMLButtonElement
+import org.w3c.dom.HTMLDivElement
+import org.w3c.dom.HTMLVideoElement
+import org.w3c.dom.events.Event
+import org.w3c.dom.events.KeyboardEvent
+
+/**
+ * Compose の canvas の上に HTML の要素を重ねる。canvas の下にある Compose の閉じるボタンは押せないので、閉じるボタンも HTML で置く
+ */
+@Composable
+internal actual fun VideoPlayerDialog(
+    videoUrl: String,
+    onDismissRequest: () -> Unit,
+) {
+    val currentOnDismissRequest by rememberUpdatedState(onDismissRequest)
+    DisposableEffect(videoUrl) {
+        val overlay = document.createElement("div") as HTMLDivElement
+        overlay.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:#000;display:flex;align-items:center;justify-content:center;"
+        val video = document.createElement("video") as HTMLVideoElement
+        video.src = videoUrl
+        video.controls = true
+        video.autoplay = true
+        video.setAttribute("playsinline", "")
+        video.style.cssText = "max-width:100%;max-height:100%;"
+        val closeButton = document.createElement("button") as HTMLButtonElement
+        closeButton.textContent = "✕"
+        closeButton.setAttribute("aria-label", "閉じる")
+        closeButton.style.cssText =
+            "position:absolute;top:16px;right:16px;width:48px;height:48px;border:none;border-radius:50%;" +
+            "background:rgba(255,255,255,0.2);color:#fff;font-size:24px;cursor:pointer;"
+        closeButton.addEventListener("click", { currentOnDismissRequest() })
+        val keyListener: (Event) -> Unit = { event ->
+            if ((event as? KeyboardEvent)?.key == "Escape") currentOnDismissRequest()
+        }
+        overlay.appendChild(video)
+        overlay.appendChild(closeButton)
+        document.body?.appendChild(overlay)
+        document.addEventListener("keydown", keyListener)
+        onDispose {
+            document.removeEventListener("keydown", keyListener)
+            video.pause()
+            overlay.remove()
+        }
+    }
+}

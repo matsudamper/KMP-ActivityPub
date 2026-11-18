@@ -36,6 +36,10 @@ fragment TimelinePostFields on TimelinePost {
         thumbnailUrl
         description
     }
+    videos {
+        url
+        description
+    }
     emojis {
         name
         imageUrl

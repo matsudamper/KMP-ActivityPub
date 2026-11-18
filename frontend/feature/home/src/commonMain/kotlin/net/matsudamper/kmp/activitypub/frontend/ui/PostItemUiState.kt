@@ -37,6 +37,7 @@ data class PostItemUiState(
      */
     val linkPreviews: List<LinkPreview>,
     val images: List<Image>,
+    val videos: List<Video>,
     /**
      * 1 件も無ければ null で、リプライのアイコンだけを出す
      */
@@ -219,6 +220,17 @@ data class PostItemUiState(
         val blurToggleButtonVisible: Boolean,
         val blurred: Boolean,
         val listener: ImageListener,
+    )
+
+    /**
+     * サムネイルは相手のサーバーから来ないので、開くまで中身は出さない
+     *
+     * @param url 開いたときに再生する動画の URL
+     * @param description 動画の説明文。無ければ null
+     */
+    data class Video(
+        val url: String,
+        val description: String?,
     )
 
     @Immutable
