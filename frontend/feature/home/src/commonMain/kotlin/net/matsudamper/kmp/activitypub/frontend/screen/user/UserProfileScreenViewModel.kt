@@ -90,6 +90,7 @@ internal class UserProfileScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySource = mapOf()),
+                openedContentWarningPostIds = setOf(),
                 profile = ProfileState.Loading,
                 linkPreviews = mapOf(),
                 quotes = mapOf(),
@@ -602,6 +603,13 @@ internal class UserProfileScreenViewModel(
         updateProfile { profile -> if (profile is ProfileState.Loaded) profile.copy(likes = transform(profile.likes)) else profile }
     }
 
+    private fun toggleContentWarning(postId: String) {
+        viewModelStateFlow.update {
+            val opened = it.openedContentWarningPostIds
+            it.copy(openedContentWarningPostIds = if (postId in opened) opened - postId else opened + postId)
+        }
+    }
+
     private fun toggleImageBlur(imageUrls: List<String>, toggled: Boolean) {
         viewModelStateFlow.update {
             it.copy(blurToggledImageUrls = it.blurToggledImageUrls.withBlurToggled(imageUrls, toggled))
@@ -797,7 +805,9 @@ internal class UserProfileScreenViewModel(
                     ),
                     sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
                     translation = viewModelState.translation,
+                    contentWarningOpened = post.postId in viewModelState.openedContentWarningPostIds,
                     onToggleTranslation = postTranslations::toggle,
+                    onToggleContentWarning = { toggleContentWarning(post.postId) },
                     blurToggledImageUrls = viewModelState.blurToggledImageUrls,
                     authorTapAction = if (boostedNoteAuthor == null) {
                         AuthorTapAction.AlreadyOnAuthorProfile
@@ -885,7 +895,9 @@ internal class UserProfileScreenViewModel(
             ),
             sensitiveImagesBlurred = viewModelState.sensitiveImagesBlurred,
             translation = viewModelState.translation,
+            contentWarningOpened = post.id in viewModelState.openedContentWarningPostIds,
             onToggleTranslation = postTranslations::toggle,
+            onToggleContentWarning = { toggleContentWarning(post.id) },
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
@@ -970,6 +982,10 @@ internal class UserProfileScreenViewModel(
 
     private data class ViewModelState(
         val translation: PostTranslationState,
+        /**
+         * 閲覧注意の本文を開いている投稿の id
+         */
+        val openedContentWarningPostIds: Set<String>,
         val profile: ProfileState,
         val linkPreviews: Map<String, List<UserLinkPreviewsResult.LinkPreview>>,
         /**
