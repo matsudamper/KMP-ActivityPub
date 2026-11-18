@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -132,6 +134,32 @@ internal fun PostContentWithImageInput(
     if (emojiPickerDialog != null) {
         ReactionPickerDialog(dialogUiState = emojiPickerDialog)
     }
+    val discardDraftDialog = uiState.discardDraftDialog
+    if (discardDraftDialog != null) {
+        DiscardDraftDialog(dialog = discardDraftDialog)
+    }
+}
+
+/**
+ * 投稿カラムで書きかけの投稿があるときに、編集を始める前に確かめる
+ */
+@Composable
+internal fun DiscardDraftDialog(dialog: PostScreenUiState.DiscardDraftDialog) {
+    AlertDialog(
+        onDismissRequest = dialog.listener::onDismiss,
+        title = { Text("書きかけの投稿を破棄") },
+        text = { Text("書きかけの投稿を破棄して、投稿の編集を始めますか") },
+        confirmButton = {
+            TextButton(onClick = dialog.listener::onClickDiscard) {
+                Text("破棄して編集")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = dialog.listener::onDismiss) {
+                Text("キャンセル")
+            }
+        },
+    )
 }
 
 /**
@@ -174,7 +202,7 @@ internal fun PostContent(
                     }
                 }
                 Text(
-                    text = "投稿",
+                    text = uiState.title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
@@ -185,19 +213,29 @@ internal fun PostContent(
             modifier = Modifier.fillMaxWidth().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            MultilineTextField(
-                value = uiState.body,
-                onValueChange = uiState.listener::onBodyChanged,
-                label = "今なにしてる？",
-                inputId = POST_BODY_INPUT_ID,
-                inputName = "body",
-                enabled = uiState.inputEnabled,
-                hasError = uiState.inputHasError,
-                onSubmitShortcut = uiState.listener::onPressPostShortcut,
-                insertion = uiState.bodyInsertion,
-                onHandleInsertion = uiState.listener::onBodyInsertionHandled,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            val editTarget = uiState.editTarget
+            if (editTarget != null) {
+                EditTarget(editTarget = editTarget)
+            }
+            // 読み終えたときに入力欄の位置が動かないよう、読んでいる間も入力欄を出して上に重ねる
+            Box(contentAlignment = Alignment.Center) {
+                MultilineTextField(
+                    value = uiState.body,
+                    onValueChange = uiState.listener::onBodyChanged,
+                    label = "今なにしてる？",
+                    inputId = POST_BODY_INPUT_ID,
+                    inputName = "body",
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.inputHasError,
+                    onSubmitShortcut = uiState.listener::onPressPostShortcut,
+                    insertion = uiState.bodyInsertion,
+                    onHandleInsertion = uiState.listener::onBodyInsertionHandled,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (uiState.bodyLoadingVisible) {
+                    CircularProgressIndicator()
+                }
+            }
             val quote = uiState.quote
             if (quote != null) {
                 PostQuoteCard(quote = quote, unavailableText = "引用先の投稿を表示できません", textStyle = MaterialTheme.typography.bodyMedium)
@@ -244,7 +282,7 @@ internal fun PostContent(
                     onClick = uiState.listener::onClickPost,
                     enabled = uiState.postButtonEnabled,
                 ) {
-                    Text("投稿")
+                    Text(uiState.postButtonText)
                 }
             }
             val replyTarget = uiState.replyTarget
@@ -287,6 +325,38 @@ private fun ReplyTarget(replyTarget: PostScreenUiState.ReplyTarget) {
             }
         }
         PostQuoteCard(quote = replyTarget.post, unavailableText = "返信先の投稿を表示できません", textStyle = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun EditTarget(editTarget: PostScreenUiState.EditTarget) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = AppIcons.Edit,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = "投稿を編集中",
+            modifier = Modifier.padding(start = 4.dp).weight(1f),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        IconButton(
+            onClick = editTarget.listener::onClickCancel,
+            enabled = editTarget.cancelButtonEnabled,
+            modifier = Modifier.size(32.dp),
+        ) {
+            Icon(
+                imageVector = AppIcons.Close,
+                contentDescription = "編集をやめる",
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 

@@ -329,7 +329,6 @@ private fun createLoadedUiState(
             ),
         ),
         deleteNoteDialog = deleteNoteDialog,
-        editNoteDialog = null,
         reactionPickerDialog = null,
         reactionConfirmDialog = null,
         listener = AndroidPreviewPostDetailListener,
@@ -399,7 +398,6 @@ private fun PostDetailContentNotFoundPreview() {
             uiState = PostDetailScreenUiState(
                 content = PostDetailScreenUiState.Content.NotFound,
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 listener = AndroidPreviewPostDetailListener,

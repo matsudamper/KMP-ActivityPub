@@ -220,6 +220,24 @@ sealed interface Screen : NavKey {
     }
 
     /**
+     * @param noteId 編集するこのサーバーの自分の投稿の id。ホームタイムラインの投稿の id とは別のもの
+     */
+    @Serializable
+    data class EditPost(
+        val noteId: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(NOTE_ID_PARAMETER to noteId)
+        override val parentScreen: Screen get() = Home.Timeline
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val NOTE_ID_PARAMETER: String = "noteId"
+            val PATH_PATTERN: PathPattern = PathPattern("/notes/{$NOTE_ID_PARAMETER}/edit")
+        }
+    }
+
+    /**
      * @param postId 編集履歴を見るホームタイムラインの投稿の id
      */
     @Serializable
@@ -307,6 +325,9 @@ sealed interface Screen : NavKey {
                 },
                 ReplyPost.PATH_PATTERN to { parameters ->
                     ReplyPost(postId = parameters.getValue(ReplyPost.POST_ID_PARAMETER))
+                },
+                EditPost.PATH_PATTERN to { parameters ->
+                    EditPost(noteId = parameters.getValue(EditPost.NOTE_ID_PARAMETER))
                 },
                 PostRevisions.PATH_PATTERN to { parameters ->
                     PostRevisions(postId = parameters.getValue(PostRevisions.POST_ID_PARAMETER))

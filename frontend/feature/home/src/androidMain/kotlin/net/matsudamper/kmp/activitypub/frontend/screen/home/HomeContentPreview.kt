@@ -300,7 +300,6 @@ private fun HomeTimelinePreview(
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = deleteNoteDialog,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -367,7 +366,6 @@ private fun HomeSearchContentPreview() {
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -414,7 +412,6 @@ private fun HomeNotificationsContentPreview() {
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -459,7 +456,6 @@ private fun HomeSearchEmptyContentPreview() {
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -505,7 +501,6 @@ private fun HomeSearchPostsContentPreview() {
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -598,7 +593,6 @@ private fun HomeUserContentPreview() {
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -660,7 +654,6 @@ private fun HomeUserMediaEmptyContentPreview() {
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -758,7 +751,6 @@ private fun HomeUserMediaContentPreview() {
                 openedColumnWidth = 400.dp,
                 railItems = listOf(),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -859,7 +851,6 @@ private fun HomeColumnsPreview(
                 userPosts = HomeScreenUiState.UserPosts.Loading,
                 userTabIconUrl = null,
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -879,15 +870,20 @@ private fun HomeColumnsPreview(
                     PostContent(
                         navigationIcon = PostNavigationIcon.Close,
                         uiState = PostScreenUiState(
+                            title = "投稿",
                             body = "",
                             bodyInsertion = null,
+                            bodyLoadingVisible = false,
                             inputHasError = false,
                             inputEnabled = true,
                             closeButtonEnabled = true,
                             postButtonEnabled = false,
+                            postButtonText = "投稿",
                             images = listOf(),
                             quote = null,
                             replyTarget = null,
+                            editTarget = null,
+                            discardDraftDialog = null,
                             addImageButtonEnabled = true,
                             addImageLoadingVisible = false,
                             addEmojiButtonEnabled = true,
@@ -937,7 +933,7 @@ private object AndroidPreviewHomeListener : HomeScreenUiState.Listener {
 
     override fun onPostColumnFinished() = Unit
 
-    override fun onReplyOpenedInPostColumn() = Unit
+    override fun onPostColumnTargetChanged() = Unit
 
     override fun onTabChanged(tab: HomeScreenUiState.Tab) = Unit
 
@@ -1069,6 +1065,8 @@ private object AndroidPreviewPostScreenListener : PostScreenUiState.Listener {
     override fun onClickAddEmoji() = Unit
 
     override fun onReplyRequested(postId: String) = Unit
+
+    override fun onEditRequested(noteId: String) = Unit
 
     override fun onClickPost() = Unit
 

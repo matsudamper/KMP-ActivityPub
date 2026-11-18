@@ -126,7 +126,6 @@ import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.AddFollowingGroupDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
-import net.matsudamper.kmp.activitypub.frontend.ui.EditNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.EmojiText
 import net.matsudamper.kmp.activitypub.frontend.ui.FollowMenu
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
@@ -235,7 +234,17 @@ internal fun HomeScreen(
                         navigator.navigate(Screen.ReplyPost(postId = postId))
                     } else {
                         postColumn.onReplyRequested(postId)
-                        uiState.listener.onReplyOpenedInPostColumn()
+                        uiState.listener.onPostColumnTargetChanged()
+                    }
+                }
+
+                override fun openEdit(noteId: String) {
+                    val postColumn = postColumnListener
+                    if (postColumn == null) {
+                        navigator.navigate(Screen.EditPost(noteId = noteId))
+                    } else {
+                        postColumn.onEditRequested(noteId)
+                        uiState.listener.onPostColumnTargetChanged()
                     }
                 }
             },
@@ -493,10 +502,6 @@ internal fun HomeContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
-    }
-    val editNoteDialog = uiState.editNoteDialog
-    if (editNoteDialog != null) {
-        EditNoteDialog(uiState = editNoteDialog)
     }
     val reactionPickerDialog = uiState.reactionPickerDialog
     if (reactionPickerDialog != null) {

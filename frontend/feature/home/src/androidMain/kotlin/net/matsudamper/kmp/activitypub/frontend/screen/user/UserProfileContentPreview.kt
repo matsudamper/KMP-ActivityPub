@@ -134,7 +134,6 @@ private fun UserProfileContentPreview() {
                         likesFooter = UserProfileScreenUiState.PostsFooter.Loading,
                     ),
                     deleteNoteDialog = null,
-                    editNoteDialog = null,
                     reactionPickerDialog = null,
                     reactionConfirmDialog = null,
                     addFollowingGroupDialog = null,
@@ -292,7 +291,6 @@ private fun UserProfileContentMediaPreview() {
                     likesFooter = UserProfileScreenUiState.PostsFooter.None,
                 ),
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -351,7 +349,6 @@ private fun UserProfileContentNotFoundPreview() {
             uiState = UserProfileScreenUiState(
                 content = UserProfileScreenUiState.Content.NotFound,
                 deleteNoteDialog = null,
-                editNoteDialog = null,
                 reactionPickerDialog = null,
                 reactionConfirmDialog = null,
                 addFollowingGroupDialog = null,
@@ -451,7 +448,6 @@ private val LocalUserContent = UserProfileScreenUiState.Content.Loaded(
 private val LocalUserUiState = UserProfileScreenUiState(
     content = LocalUserContent,
     deleteNoteDialog = null,
-    editNoteDialog = null,
     reactionPickerDialog = null,
     reactionConfirmDialog = null,
     addFollowingGroupDialog = null,

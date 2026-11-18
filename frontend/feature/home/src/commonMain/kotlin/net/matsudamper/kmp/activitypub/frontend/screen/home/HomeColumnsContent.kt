@@ -43,7 +43,6 @@ import net.matsudamper.kmp.activitypub.frontend.screen.reaction.ReactionPickerDi
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.FontSizeTheme
 import net.matsudamper.kmp.activitypub.frontend.screen.topBarWindowInsets
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialog
-import net.matsudamper.kmp.activitypub.frontend.ui.EditNoteDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileIcon
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialog
 import net.matsudamper.kmp.activitypub.frontend.ui.icon.AppIcons
@@ -199,10 +198,6 @@ internal fun HomeColumnsContent(
     val deleteNoteDialog = uiState.deleteNoteDialog
     if (deleteNoteDialog != null) {
         DeleteNoteDialog(uiState = deleteNoteDialog)
-    }
-    val editNoteDialog = uiState.editNoteDialog
-    if (editNoteDialog != null) {
-        EditNoteDialog(uiState = editNoteDialog)
     }
     val reactionPickerDialog = uiState.reactionPickerDialog
     if (reactionPickerDialog != null) {
