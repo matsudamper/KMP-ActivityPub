@@ -7,6 +7,7 @@ import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteBoostInput
+import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -172,7 +173,7 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     publishedAt = published ?: now,
     receivedAt = now,
     editedAt = updated,
-    images = attachments.mapNotNull { it.toImage() },
+    images = attachments.mapNotNull { it.toRemoteMedia() },
     emojis = emojis.toRecords(),
 )
 
@@ -187,8 +188,17 @@ private fun ReceivedNote.contentWithoutQuoteFallback(): String {
     return body.html()
 }
 
-// 動画や音声も添付で来る。画像だけを出すので、申告が画像のものだけを残す
-internal fun ReceivedNoteAttachment.toImage(): TimelinePostImage.Remote? {
-    if (mediaType?.startsWith("image/") != true) return null
-    return TimelinePostImage.Remote(url = url, description = name?.let { Jsoup.clean(it, Safelist.none()) }?.takeIf { it.isNotBlank() })
+// 音声などの出せない添付は落とす。申告が画像か動画のものだけを残す
+internal fun ReceivedNoteAttachment.toRemoteMedia(): TimelinePostImage.Remote? {
+    val mediaKind =
+        when {
+            mediaType?.startsWith("image/", ignoreCase = true) == true -> RemoteMediaKind.Image
+            mediaType?.startsWith("video/", ignoreCase = true) == true -> RemoteMediaKind.Video
+            else -> return null
+        }
+    return TimelinePostImage.Remote(
+        url = url,
+        description = name?.let { Jsoup.clean(it, Safelist.none()) }?.takeIf { it.isNotBlank() },
+        mediaKind = mediaKind,
+    )
 }

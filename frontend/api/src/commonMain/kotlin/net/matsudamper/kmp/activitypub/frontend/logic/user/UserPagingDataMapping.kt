@@ -50,6 +50,7 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
             linkUrls = linkUrls,
             mentions = mentions.map { mention -> UserPostMention(start = mention.start, end = mention.end, acct = mention.acct) },
             images = images.map { image -> UserPostImage(url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description) },
+            videos = videos.map { video -> UserPostVideo(url = video.url, description = video.description) },
             favouriteCount = favouriteCount,
             boostCount = boostCount,
             replyCount = replyCount,
@@ -126,6 +127,7 @@ private fun UserHomeTimelineResult.Post.toFields(): TimelinePostFields = Timelin
     images = body.images.map { image ->
         TimelinePostFields.Image(__typename = "PostImage", url = image.url, thumbnailUrl = image.thumbnailUrl, description = image.description)
     },
+    videos = body.videos.map { video -> TimelinePostFields.Video(__typename = "PostVideo", url = video.url, description = video.description) },
     emojis = body.emojis.map { emoji -> TimelinePostFields.Emoji(__typename = "CustomEmoji", name = emoji.name, imageUrl = emoji.imageUrl) },
     deletableNoteId = deletableNoteId,
     pinnableNoteId = pinnableNoteId,

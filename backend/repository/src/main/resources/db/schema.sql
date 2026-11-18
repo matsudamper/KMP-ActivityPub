@@ -291,6 +291,8 @@ CREATE TABLE remote_note_images (
     position INTEGER NOT NULL,
     url TEXT NOT NULL,
     description TEXT,
+    -- RemoteMediaKind の値。画像だけだった頃の行は image
+    media_kind TEXT NOT NULL DEFAULT 'image',
     PRIMARY KEY (remote_note_id, position)
 );
 
@@ -321,6 +323,8 @@ CREATE TABLE remote_note_revision_images (
     position INTEGER NOT NULL,
     url TEXT NOT NULL,
     description TEXT,
+    -- RemoteMediaKind の値。画像だけだった頃の行は image
+    media_kind TEXT NOT NULL DEFAULT 'image',
     PRIMARY KEY (revision_id, position)
 );
 

@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.FollowingSpan
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
+import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
@@ -249,19 +250,23 @@ class RemoteNoteReceptionTest {
     }
 
     @Test
-    fun onlyImageAttachmentsAreSavedAsImages() = runBlocking {
+    fun onlyImageAndVideoAttachmentsAreSaved() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         val attachments = listOf(
             ReceivedNoteAttachment(url = "https://remote.example/a.png", mediaType = "image/png", name = "<b>説明</b>"),
             ReceivedNoteAttachment(url = "https://remote.example/b.mp4", mediaType = "video/mp4", name = null),
             ReceivedNoteAttachment(url = "https://remote.example/c", mediaType = null, name = null),
+            ReceivedNoteAttachment(url = "https://remote.example/e.mp3", mediaType = "audio/mpeg", name = null),
             ReceivedNoteAttachment(url = "https://remote.example/d.webp", mediaType = "image/webp", name = null),
+            ReceivedNoteAttachment(url = "https://remote.example/f.webm", mediaType = "VIDEO/webm", name = null),
         )
         fixture.receiver.save(note(listOf()).copy(attachments = attachments))
         assertEquals(
             listOf(
-                TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明"),
-                TimelinePostImage.Remote(url = "https://remote.example/d.webp", description = null),
+                TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明", mediaKind = RemoteMediaKind.Image),
+                TimelinePostImage.Remote(url = "https://remote.example/b.mp4", description = null, mediaKind = RemoteMediaKind.Video),
+                TimelinePostImage.Remote(url = "https://remote.example/d.webp", description = null, mediaKind = RemoteMediaKind.Image),
+                TimelinePostImage.Remote(url = "https://remote.example/f.webm", description = null, mediaKind = RemoteMediaKind.Video),
             ),
             fixture.repositories.timelineRepository.received.single().images,
         )
