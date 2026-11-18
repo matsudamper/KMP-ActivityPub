@@ -22,7 +22,10 @@ internal actual fun VideoFirstFrame(
     modifier: Modifier,
 ) {
     val frame by produceState(initialValue = FirstFrameCache.get(videoUrl), videoUrl) {
-        if (value == null) {
+        // URL が変わっても produceState は前の値を持ち続けるので、前の動画のコマを出さないよう置き換えてから取る
+        val cached = FirstFrameCache.get(videoUrl)
+        value = cached
+        if (cached == null) {
             value = withContext(Dispatchers.IO) { retrieveFirstFrame(videoUrl) }?.also { FirstFrameCache.put(videoUrl, it) }
         }
     }
