@@ -1,5 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.logic.user
 
+import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveriesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
@@ -524,5 +525,29 @@ private fun ActorListFields.toUserFollowListResult(): UserFollowListResult.Succe
             )
         },
         nextCursor = nextCursor,
+    )
+}
+
+fun FailedDeliveriesQuery.Data.toUserFailedDeliveriesResult(): UserFailedDeliveriesResult {
+    val page = userInfo?.failedDeliveries ?: return UserFailedDeliveriesResult.NotLoggedIn
+    return UserFailedDeliveriesResult.Success(
+        deliveries = page.deliveries.map { it.failedDeliveryFields.toUserFailedDelivery() },
+        nextCursor = page.nextCursor,
+    )
+}
+
+/**
+ * 続きのページを後ろにつなぐ。どちらかが読めていなければ null
+ */
+fun FailedDeliveriesQuery.Data.withNextPage(page: FailedDeliveriesQuery.Data): FailedDeliveriesQuery.Data? {
+    val beforeUserInfo = userInfo ?: return null
+    val pageDeliveries = page.userInfo?.failedDeliveries ?: return null
+    return copy(
+        userInfo = beforeUserInfo.copy(
+            failedDeliveries = beforeUserInfo.failedDeliveries.copy(
+                deliveries = beforeUserInfo.failedDeliveries.deliveries + pageDeliveries.deliveries,
+                nextCursor = pageDeliveries.nextCursor,
+            ),
+        ),
     )
 }

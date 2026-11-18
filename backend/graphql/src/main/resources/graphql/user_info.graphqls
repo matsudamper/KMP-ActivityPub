@@ -12,9 +12,21 @@ type UserInfo {
     編集を受け取っていなければ今の版だけ。開けない投稿なら null
     """
     postRevisions(postId: TimelinePostId!, after: String, limit: Int!): PostRevisionPage @lazy
+    """
+    UserMutation.editNote の下書きに出す本文。noteId には TimelinePost.deletableNoteId を渡す。
+    無いか、ログイン中のアカウントの投稿でないか、サーバーに DOMAIN が無ければ null
+    """
+    editableNoteBody(noteId: PublicNoteId!): String @lazy
     id: UserId!
     "サーバーの ADMIN_USER_IDS に入っていれば true。管理画面に入れる"
     isAdmin: Boolean!
+    """
+    送るのを諦めた配信を新しく積んだ順に返す。after には前回の nextCursor を渡す。limit は 100 までに縮める。
+    管理者でなければエラー
+    """
+    failedDeliveries(after: String, limit: Int!): FailedDeliveryPage! @lazy
+    "送るのを諦めた配信を 1 件。無ければ null。管理者でなければエラー"
+    failedDelivery(id: FailedDeliveryId!): FailedDelivery @lazy
     "フォローを仕分けるグループ。作った順"
     followingGroups: [FollowingGroup!]! @lazy
     "どのグループにも入れていないフォローを入れるメインの名前"
@@ -50,6 +62,28 @@ type RemoteProfileRefreshProgress {
     startedAt: String!
     "終わっていなければ null"
     finishedAt: String
+}
+
+type FailedDeliveryPage {
+    deliveries: [FailedDelivery!]!
+    nextCursor: String
+}
+
+"送るのを諦めた配信。送る本文は諦めたときに消すので持たない"
+type FailedDelivery {
+    id: FailedDeliveryId!
+    "配信の種別。accept_follow / create_note / like など、サーバーの配信キューの綴りのまま"
+    kind: String!
+    "署名したこのサーバーのアカウント"
+    username: String!
+    inbox: String!
+    "送ろうとした回数"
+    attempts: Int!
+    enqueuedAt: String!
+    "諦めた時刻を残すようにする前に諦めたものは null"
+    failedAt: String
+    "最後に送れなかった理由"
+    lastError: String
 }
 
 "フォローを仕分けるグループ。どのグループにも入れていないフォローはメインに入る"

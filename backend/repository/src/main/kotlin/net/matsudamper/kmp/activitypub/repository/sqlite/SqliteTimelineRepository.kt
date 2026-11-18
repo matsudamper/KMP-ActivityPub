@@ -360,7 +360,7 @@ internal class SqliteTimelineRepository(private val jooq: SqliteJooq) : Timeline
             DSL.inline(null, String::class.java),
             NOTES.IN_REPLY_TO,
             NOTES.QUOTE_URI,
-            DSL.inline(null, String::class.java),
+            NOTES.UPDATED_AT,
             DSL.inline(null, String::class.java),
         ).from(NOTES).join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.ID.`in`(localIds)).and(localCondition)

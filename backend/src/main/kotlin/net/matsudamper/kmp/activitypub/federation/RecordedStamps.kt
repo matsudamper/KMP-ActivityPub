@@ -21,7 +21,7 @@ internal class RecordedStamps(
             emojiImageUrl = stamp.emojiImageUrl,
             receivedAt = stamp.receivedAt,
         )
-        if (put) timeline.publishReactionsChanged(notePublicId)
+        if (put) timeline.publishLocalNoteChanged(notePublicId)
         return put
     }
 
@@ -32,7 +32,7 @@ internal class RecordedStamps(
     ): Boolean {
         val publicId = PublicNoteId(notePublicId.value)
         val removed = stampRepository.remove(notePublicId = publicId, actorUri = actorUri, emoji = emoji)
-        if (removed) timeline.publishReactionsChanged(publicId)
+        if (removed) timeline.publishLocalNoteChanged(publicId)
         return removed
     }
 

@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
+import net.matsudamper.kmp.activitypub.repository.NoteUpdate
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
@@ -44,7 +45,9 @@ internal class FakeDeliveryQueueRepository(
                 publicId = post.publicId,
                 username = post.username,
                 contentHtml = post.contentHtml,
+                sourceText = post.sourceText,
                 publishedAt = post.publishedAt,
+                updatedAt = null,
                 images = post.images,
                 inReplyTo = post.inReplyTo,
                 quoteUri = post.quoteUri,
@@ -60,6 +63,15 @@ internal class FakeDeliveryQueueRepository(
         val removed = notes.notes.removeAll { it.publicId == deletion.publicId && it.username.equals(deletion.username, ignoreCase = true) }
         if (removed) noteDeletions += deletion
         return removed
+    }
+
+    val noteUpdates = mutableListOf<NoteUpdate>()
+
+    override fun enqueueNoteUpdate(update: NoteUpdate): Boolean {
+        val index = notes.notes.indexOfFirst { it.publicId == update.publicId && it.username.equals(update.username, ignoreCase = true) }.takeIf { it >= 0 } ?: return false
+        notes.notes[index] = notes.notes[index].copy(contentHtml = update.contentHtml, sourceText = update.sourceText, updatedAt = update.updatedAt)
+        noteUpdates += update
+        return true
     }
 
     override fun updateProfile(update: ProfileUpdate): Boolean {
@@ -86,6 +98,7 @@ internal class FakeDeliveryQueueRepository(
     override fun giveUp(
         id: Long,
         error: String,
+        failedAt: Instant,
     ) = Unit
 
     override fun recoverDelivering(now: Instant): Int = 0

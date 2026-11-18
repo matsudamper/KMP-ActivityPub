@@ -25,6 +25,20 @@ object NoteComposer {
     }
 
     /**
+     * [compose] で作った HTML を書いた形のテキストに戻す。書いたままの本文を記録する前の投稿を編集するのに使う。
+     * 他のサーバーのアカウントへのメンションはリンクの表示どおり `@alice` になり、書いた `@alice@example.com` には戻らない
+     */
+    fun toPlainText(contentHtml: String): String =
+        contentHtml
+            .replace(Regex("</p>\\s*<p>"), "\n\n")
+            .replace("<br>", "\n")
+            .replace(Regex("<[^>]*>"), "")
+            .replace("&quot;", "\"")
+            .replace("&gt;", ">")
+            .replace("&lt;", "<")
+            .replace("&amp;", "&")
+
+    /**
      * Mastodon が残すのはこの程度のタグで、それ以外は相手側で落とされる。
      * Mastodon は他サーバーの本文をリンクにし直さないので、URL はここで `<a>` にしておく
      */

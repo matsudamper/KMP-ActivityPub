@@ -7,6 +7,7 @@ import net.matsudamper.kmp.activitypub.repository.BoostRepository
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRepository
 import net.matsudamper.kmp.activitypub.repository.DatabaseConfig
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
+import net.matsudamper.kmp.activitypub.repository.FailedDeliveryRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingGroupRepository
@@ -36,6 +37,7 @@ internal class SqliteRepositories(
     override val accountRepository: AccountRepository = SqliteAccountRepository(jooq)
     override val followerRepository: FollowerRepository = SqliteFollowerRepository(jooq)
     override val deliveryQueueRepository: DeliveryQueueRepository = SqliteDeliveryQueueRepository(jooq)
+    override val failedDeliveryRepository: FailedDeliveryRepository = SqliteFailedDeliveryRepository(jooq)
     override val noteRepository: NoteRepository = SqliteNoteRepository(jooq)
     override val noteCountRepository: NoteCountRepository = SqliteNoteCountRepository(jooq)
     override val notePinRepository: NotePinRepository = SqliteNotePinRepository(jooq)

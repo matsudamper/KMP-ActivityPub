@@ -43,6 +43,10 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.CreateFollowingGroupMuta
 import net.matsudamper.kmp.activitypub.frontend.graphql.CustomEmojisQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteCustomEmojiMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.DeleteNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.EditNoteMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.EditableNoteBodyQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveriesQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveryQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
@@ -87,6 +91,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.BlockServerFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGroupFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteCustomEmojiFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.EditNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ReactionInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
@@ -132,6 +137,12 @@ class UserApi(
      * [deleteNote] で消せた投稿の id。どの画面で消しても、投稿を出している画面がここで外す
      */
     val deletedNoteIds = deletedNoteIdsFlow.asSharedFlow()
+    private val editedNoteIdsFlow = MutableSharedFlow<String>()
+
+    /**
+     * [editNote] で編集できた投稿の id。どの画面で編集しても、投稿を出している画面がここで読み直す
+     */
+    val editedNoteIds = editedNoteIdsFlow.asSharedFlow()
     private val pinChangesFlow = MutableSharedFlow<PinChange>()
 
     /**
@@ -799,6 +810,32 @@ class UserApi(
     }
 
     /**
+     * 送るのを諦めた配信の一覧。新しく積んだ順
+     */
+    fun failedDeliveriesPaging(): CursorPagingModel<FailedDeliveriesQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = FailedDeliveriesQuery(after = Optional.present(null), limit = FAILED_DELIVERIES_PAGE_SIZE),
+            queryAfter = { cursor -> FailedDeliveriesQuery(after = Optional.present(cursor), limit = FAILED_DELIVERIES_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.failedDeliveries?.nextCursor },
+            appendPage = { before, page -> before.withNextPage(page) },
+        )
+    }
+
+    /**
+     * @param id [UserFailedDelivery.id]
+     */
+    suspend fun failedDelivery(id: String): UserFailedDeliveryResult {
+        val client = clients.awaitLoadedClient() ?: return UserFailedDeliveryResult.Failure("接続先が未設定")
+        val response = client.query(FailedDeliveryQuery(id = id)).fetchPolicy(FetchPolicy.NetworkOnly).execute()
+        if (response.exception != null || response.hasErrors()) return UserFailedDeliveryResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserFailedDeliveryResult.Failure(response.failureMessage())
+        val userInfo = data.userInfo ?: return UserFailedDeliveryResult.NotLoggedIn
+        val delivery = userInfo.failedDelivery ?: return UserFailedDeliveryResult.NotFound
+        return UserFailedDeliveryResult.Found(delivery.failedDeliveryFields.toUserFailedDelivery())
+    }
+
+    /**
      * 購読した時点の進み具合を流し、その後は変わるたびに流す。購読できないか切れたら [UserRemoteProfileRefreshResult.Failure] を流して終わる
      *
      * @param start 走っていなければ取り直しを始める。既に走っていれば、それの進み具合を流す
@@ -997,6 +1034,47 @@ class UserApi(
             DeleteNoteFailure.INTERNAL_SERVER_ERROR -> "投稿を削除できませんでした。時間をおいて試してください"
 
             DeleteNoteFailure.UNKNOWN__ -> "Unknown"
+        }
+    }
+
+    /**
+     * @param noteId [UserHomeTimelineResult.Post.deletableNoteId]
+     */
+    suspend fun editableNoteBody(noteId: String): UserEditableNoteBodyResult {
+        val client = clients.client.value ?: return UserEditableNoteBodyResult.Failure("接続先が未設定")
+        val response = client.query(EditableNoteBodyQuery(noteId = noteId)).execute()
+        if (response.exception != null || response.hasErrors()) return UserEditableNoteBodyResult.Failure(response.failureMessage())
+        val userInfo = response.data?.userInfo ?: return UserEditableNoteBodyResult.Failure("ログインしていません")
+        val body = userInfo.editableNoteBody ?: return UserEditableNoteBodyResult.Failure("投稿が見つかりません")
+        return UserEditableNoteBodyResult.Success(body)
+    }
+
+    /**
+     * @param noteId [UserHomeTimelineResult.Post.deletableNoteId]
+     * @return 編集できなければ、その理由
+     */
+    suspend fun editNote(noteId: String, body: String): String? {
+        val client = clients.client.value ?: return "接続先が未設定"
+        val response = client.mutation(EditNoteMutation(noteId = noteId, body = body)).execute()
+        if (response.exception != null || response.hasErrors()) return response.failureMessage()
+        val editNote = response.data?.user?.editNote ?: return response.failureMessage()
+        return when (editNote.failure) {
+            null -> {
+                editedNoteIdsFlow.emit(noteId)
+                null
+            }
+
+            EditNoteFailure.NOT_LOGGED_IN -> "ログインしていません"
+
+            EditNoteFailure.NOT_FOUND -> "投稿が見つかりません"
+
+            EditNoteFailure.EMPTY_BODY -> "本文を入力してください"
+
+            EditNoteFailure.TOO_LONG -> "本文が長すぎます"
+
+            EditNoteFailure.FEDERATION_DISABLED -> "このサーバーでは投稿を編集できません"
+
+            EditNoteFailure.UNKNOWN__ -> "Unknown"
         }
     }
 
@@ -1354,6 +1432,7 @@ class UserApi(
     private companion object {
         const val TIMELINE_PAGE_SIZE = 40
         const val POST_REVISIONS_PAGE_SIZE = 20
+        const val FAILED_DELIVERIES_PAGE_SIZE = 30
         const val ACCOUNT_EVENT_MAX_CONSECUTIVE_FAILURES = 5
 
         /**

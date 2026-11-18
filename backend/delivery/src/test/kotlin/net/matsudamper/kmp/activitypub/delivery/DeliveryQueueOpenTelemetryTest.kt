@@ -28,6 +28,7 @@ import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.EnqueueNoteResult
 import net.matsudamper.kmp.activitypub.repository.NoteDeletion
 import net.matsudamper.kmp.activitypub.repository.NotePost
+import net.matsudamper.kmp.activitypub.repository.NoteUpdate
 import net.matsudamper.kmp.activitypub.repository.ProfileUpdate
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.telemetry.FilteringSpanExporter
@@ -180,7 +181,7 @@ class DeliveryQueueOpenTelemetryTest {
         override fun scheduleRetry(id: Long, nextAttemptAt: Instant, error: String) {
             tracer.spanBuilder("SQL scheduleRetry").startSpan().end()
         }
-        override fun giveUp(id: Long, error: String) {
+        override fun giveUp(id: Long, error: String, failedAt: Instant) {
             tracer.spanBuilder("SQL giveUp").startSpan().end()
         }
         override fun recoverDelivering(now: Instant): Int {
@@ -194,6 +195,7 @@ class DeliveryQueueOpenTelemetryTest {
         override fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant) = error("未使用")
         override fun enqueueNote(post: NotePost): EnqueueNoteResult = error("未使用")
         override fun enqueueNoteDeletion(deletion: NoteDeletion): Boolean = error("未使用")
+        override fun enqueueNoteUpdate(update: NoteUpdate): Boolean = error("未使用")
         override fun updateProfile(update: ProfileUpdate): Boolean = error("未使用")
     }
 

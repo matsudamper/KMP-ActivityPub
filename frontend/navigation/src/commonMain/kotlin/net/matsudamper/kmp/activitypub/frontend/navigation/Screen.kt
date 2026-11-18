@@ -124,6 +124,32 @@ sealed interface Screen : NavKey {
     }
 
     @Serializable
+    data object FailedDeliveries : Screen {
+        override val pathPattern: PathPattern get() = PathPattern("/admin/failed-deliveries")
+        override val pathParameters: Map<String, String> get() = mapOf()
+        override val parentScreen: Screen get() = Admin
+        override val loginRequired: Boolean get() = true
+    }
+
+    /**
+     * @param id 送るのを諦めた配信の id
+     */
+    @Serializable
+    data class FailedDelivery(
+        val id: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(ID_PARAMETER to id)
+        override val parentScreen: Screen get() = FailedDeliveries
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val ID_PARAMETER: String = "id"
+            val PATH_PATTERN: PathPattern = PathPattern("/admin/failed-deliveries/{$ID_PARAMETER}")
+        }
+    }
+
+    @Serializable
     data object ProfileEdit : Screen {
         override val pathPattern: PathPattern get() = PathPattern("/settings/profile")
         override val pathParameters: Map<String, String> get() = mapOf()
@@ -220,6 +246,24 @@ sealed interface Screen : NavKey {
     }
 
     /**
+     * @param noteId 編集するこのサーバーの自分の投稿の id。ホームタイムラインの投稿の id とは別のもの
+     */
+    @Serializable
+    data class EditPost(
+        val noteId: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(NOTE_ID_PARAMETER to noteId)
+        override val parentScreen: Screen get() = Home.Timeline
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val NOTE_ID_PARAMETER: String = "noteId"
+            val PATH_PATTERN: PathPattern = PathPattern("/notes/{$NOTE_ID_PARAMETER}/edit")
+        }
+    }
+
+    /**
      * @param acct 宛先のユーザーの `username@host`。このサーバーのユーザーは `username`
      */
     @Serializable
@@ -311,6 +355,10 @@ sealed interface Screen : NavKey {
                 CustomEmojis.pathPattern to { _ -> CustomEmojis },
                 BlockedAccounts.pathPattern to { _ -> BlockedAccounts },
                 Admin.pathPattern to { _ -> Admin },
+                FailedDeliveries.pathPattern to { _ -> FailedDeliveries },
+                FailedDelivery.PATH_PATTERN to { parameters ->
+                    FailedDelivery(id = parameters.getValue(FailedDelivery.ID_PARAMETER))
+                },
                 ProfileEdit.pathPattern to { _ -> ProfileEdit },
                 Following.pathPattern to { _ -> Following },
                 Followers.pathPattern to { _ -> Followers },
@@ -325,6 +373,9 @@ sealed interface Screen : NavKey {
                 },
                 ReplyPost.PATH_PATTERN to { parameters ->
                     ReplyPost(postId = parameters.getValue(ReplyPost.POST_ID_PARAMETER))
+                },
+                EditPost.PATH_PATTERN to { parameters ->
+                    EditPost(noteId = parameters.getValue(EditPost.NOTE_ID_PARAMETER))
                 },
                 MentionPost.PATH_PATTERN to { parameters ->
                     MentionPost(acct = parameters.getValue(MentionPost.ACCT_PARAMETER))

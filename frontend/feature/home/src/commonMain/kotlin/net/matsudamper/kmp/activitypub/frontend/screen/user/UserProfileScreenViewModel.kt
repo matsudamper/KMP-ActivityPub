@@ -246,6 +246,10 @@ internal class UserProfileScreenViewModel(
             }
         }
         viewModelScope.launch {
+            // 編集した投稿を書き換わった本文で出す
+            api.editedNoteIds.collect { reloadPostsWithoutLoading() }
+        }
+        viewModelScope.launch {
             // ほかの画面で変えたブーストもここで反映する
             api.boostChanges.collect { change -> applyBoosted(postId = change.reactionPostId, boosted = change.boosted) }
         }
@@ -564,6 +568,10 @@ internal class UserProfileScreenViewModel(
         }
     }
 
+    private fun navigateToEditPost(noteId: String) {
+        viewModelScope.launch { events.send { it.navigateToEditPost(noteId) } }
+    }
+
     private fun confirmNoteDeletion(noteId: String) {
         viewModelStateFlow.update { it.copy(noteDeletion = it.noteDeletion.confirm(noteId)) }
     }
@@ -803,7 +811,7 @@ internal class UserProfileScreenViewModel(
                     menuItems =
                     createOpenOriginalMenuItems(post.body.shareUrl) { url -> viewModelScope.launch { events.send { it.openUrl(url) } } } +
                         createPinMenuItems(post.pinnableNoteId, post.pinned, ::setPinned) +
-                        createNoteMenuItems(post.deletableNoteId, ::confirmNoteDeletion),
+                        createNoteMenuItems(post.deletableNoteId, onClickEdit = ::navigateToEditPost, onClickDelete = ::confirmNoteDeletion),
                     postTapAction = PostTapAction.OpenPostDetail(postId = post.postId, navigate = ::navigateToPostDetail),
                     onOpenUrl = { url -> viewModelScope.launch { events.send { it.openUrl(url) } } },
                     onOpenProfile = { acct -> viewModelScope.launch { events.send { it.navigateToUserProfile(acct) } } },
@@ -946,6 +954,11 @@ internal class UserProfileScreenViewModel(
         fun navigateToQuotePost(postId: String)
 
         fun navigateToReplyPost(postId: String)
+
+        /**
+         * @param noteId 編集する投稿の deletableNoteId
+         */
+        fun navigateToEditPost(noteId: String)
 
         /**
          * @param acct 宛先のユーザーの `username@host`。このサーバーのユーザーは `username`
