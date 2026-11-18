@@ -534,6 +534,33 @@ class HomeScreenViewModelTest {
         collectJob.cancel()
     }
 
+    @Test
+    fun searchingPostUrlSwitchesToPostsAndShowsThePost() = withViewModel { viewModel, engine ->
+        viewModel.uiStateFlow.value.listener.onSearchQueryChanged("https://remote.example/@alice/1")
+        engine.responses.send { response("""{"data":{"resolvePost":${post("found")}}}""") }
+
+        viewModel.uiStateFlow.value.listener.onSearch()
+
+        val search = viewModel.uiStateFlow.first { it.search.result is HomeScreenUiState.SearchResult.PostsLoaded }.search
+        assertEquals("投稿", search.targets.single { it.selected }.label)
+        val result = search.result as HomeScreenUiState.SearchResult.PostsLoaded
+        assertEquals(listOf("found"), result.items.map { it.body.text.text })
+    }
+
+    @Test
+    fun choosingUsersAfterPostUrlSearchDoesNotSwitchBackToPosts() = withViewModel { viewModel, engine ->
+        viewModel.uiStateFlow.value.listener.onSearchQueryChanged("https://remote.example/@alice/1")
+        engine.responses.send { response("""{"data":{"resolvePost":${post("found")}}}""") }
+        viewModel.uiStateFlow.value.listener.onSearch()
+        viewModel.uiStateFlow.first { it.search.result is HomeScreenUiState.SearchResult.PostsLoaded }
+        engine.responses.send { response("""{"data":{"resolveUser":null}}""") }
+
+        viewModel.uiStateFlow.value.search.targets.single { it.label == "ユーザー" }.listener.onClick()
+
+        val search = viewModel.uiStateFlow.first { it.search.result is HomeScreenUiState.SearchResult.Loaded }.search
+        assertEquals("ユーザー", search.targets.single { it.selected }.label)
+    }
+
     private class RecordingEvent(
         private val receivedEvents: Channel<String>,
     ) : HomeScreenViewModel.Event {

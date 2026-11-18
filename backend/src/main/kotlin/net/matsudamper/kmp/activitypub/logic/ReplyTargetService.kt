@@ -13,6 +13,7 @@ import net.matsudamper.kotpub.note.NoteUrls
 
 /**
  * 返信や引用の投稿から、返信先や引用先の投稿を引く。返信先を順にたどれるよう、返した投稿の id もまた渡せる。
+ * 検索に入力された投稿の URL からも同じく引く。
  * 保存していない他のサーバーの投稿は、取ってきても保存しない。id は [UnsavedRemoteNoteId] にして、いいねやブーストを付けたときに保存させる
  */
 class ReplyTargetService(
@@ -32,6 +33,29 @@ class ReplyTargetService(
      */
     suspend fun quoteTarget(viewer: AccountId?, postId: String): ReplyTargetResult =
         linkedPost(viewer = viewer, postId = postId, link = PostLink.Quote)
+
+    /**
+     * このサーバーの投稿は、ActivityPub の投稿の URL と画面の投稿の URL（`/posts/{id}`）を読む。
+     * 他のサーバーの投稿は、画面の投稿の URL のように投稿の id と違う URL も読む
+     *
+     * @param url 人が入力した投稿の URL
+     */
+    suspend fun postByUrl(viewer: AccountId, url: String): ReplyTargetResult {
+        val localPost = localPostOfUrl(viewer, url)
+        if (localPost != null) return localPost
+        // 相手のサーバーに取りに行けるのは https の URI だけ
+        if (!url.startsWith("https://")) return ReplyTargetResult.NotFound
+        val stored = storedRemotePost(viewer, url)
+        if (stored != null) return ReplyTargetResult.Found(stored)
+        return when (val fetched = unsavedNotes.fetchByUrl(url)) {
+            // 画面の URL から引いたときは、投稿の id で保存していることがある
+            is RemoteNoteFetchResult.Found -> ReplyTargetResult.Found(storedRemotePost(viewer, fetched.note.objectUri) ?: fetched.toUnsavedPost())
+
+            RemoteNoteFetchResult.NotFound -> ReplyTargetResult.NotFound
+
+            RemoteNoteFetchResult.Unavailable -> ReplyTargetResult.Unavailable
+        }
+    }
 
     private suspend fun linkedPost(viewer: AccountId?, postId: String, link: PostLink): ReplyTargetResult {
         val linkedUri = when (val lookup = linkedUriOf(viewer, postId, link)) {
@@ -122,6 +146,22 @@ class ReplyTargetService(
     }
 
     /**
+     * @return このサーバーの URL でなければ null
+     */
+    private fun localPostOfUrl(viewer: AccountId, url: String): ReplyTargetResult? {
+        val localPublicId = localPublicIdOf(url)
+        if (localPublicId != null) {
+            val member = timeline.localPosition(localPublicId)?.member ?: return ReplyTargetResult.NotFound
+            return timeline.viewablePost(viewer, member)?.let { ReplyTargetResult.Found(it) } ?: ReplyTargetResult.NotFound
+        }
+        val parsed = runCatching { URI(url) }.getOrNull() ?: return null
+        if (parsed.host != domain) return null
+        val member = localPostPathPattern.matchEntire(parsed.path.orEmpty())?.groupValues?.get(1) ?: return ReplyTargetResult.NotFound
+        if (!member.matches(TimelineCursor.MEMBER_PATTERN)) return ReplyTargetResult.NotFound
+        return timeline.viewablePost(viewer, member)?.let { ReplyTargetResult.Found(it) } ?: ReplyTargetResult.NotFound
+    }
+
+    /**
      * @return このサーバーの投稿の URL でなければ null
      */
     private fun localPublicIdOf(uri: String): String? {
@@ -129,6 +169,10 @@ class ReplyTargetService(
         if (parsed.host != domain) return null
         val publicId = parsed.path?.substringAfterLast('/')?.takeIf { it.isNotEmpty() } ?: return null
         return publicId.takeIf { runCatching { NoteUrls(domain, KotpubPublicNoteId(it)).noteUrl }.getOrNull() == uri }
+    }
+
+    private companion object {
+        val localPostPathPattern = Regex("/posts/([^/]+)/?")
     }
 
     private enum class PostLink {

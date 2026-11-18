@@ -43,3 +43,9 @@ query HomeScreenSearchPosts($query: String!, $after: String) {
         nextCursor
     }
 }
+
+query HomeScreenResolvePost($url: String!) {
+    resolvePost(url: $url) {
+        ...TimelinePostFields
+    }
+}

@@ -353,7 +353,7 @@ private fun HomeTimelinePreview(
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
@@ -394,7 +394,7 @@ private fun HomeSearchContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(
@@ -465,7 +465,7 @@ private fun HomeNotificationsContentPreview() {
                 ),
                 search = HomeScreenUiState.Search(
                     query = "",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
@@ -506,7 +506,7 @@ private fun HomeSearchEmptyContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "unknown",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(),
@@ -550,7 +550,7 @@ private fun HomeSearchPostsContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
-                    queryLabel = "投稿を検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "投稿"),
                     result = HomeScreenUiState.SearchResult.PostsLoaded(
                         items = previewTimelinePosts(),
@@ -595,7 +595,7 @@ private fun HomeUserContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
@@ -690,7 +690,7 @@ private fun HomeUserMediaEmptyContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
@@ -751,7 +751,7 @@ private fun HomeUserMediaContentPreview() {
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.NotSearched,
                 ),
@@ -902,7 +902,7 @@ private fun HomeColumnsPreview(
                 notifications = HomeScreenUiState.Notifications.Loading,
                 search = HomeScreenUiState.Search(
                     query = "kotlin",
-                    queryLabel = "ユーザーを検索",
+                    queryLabel = "検索",
                     targets = previewSearchTargets(selectedLabel = "ユーザー"),
                     result = HomeScreenUiState.SearchResult.Loaded(
                         accounts = listOf(
