@@ -490,7 +490,7 @@ internal class Federation(
                     UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes),
                     CreateNoteHandler(
                         notes = receivedNotes,
-                        pollVotes = RecordedPollVotes(domain = domain, polls = pollRepository, blocks = inboxBlocks, clock = Clock.systemUTC()),
+                        pollVotes = RecordedPollVotes(domain = domain, polls = pollRepository, blocks = inboxBlocks, timeline = timeline, clock = Clock.systemUTC()),
                     ),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
