@@ -138,7 +138,9 @@ internal class UserProfileScreenViewModel(
 
         override fun onClickPostFab() {
             val profile = (viewModelStateFlow.value.profile as? ProfileState.Loaded)?.profile ?: return
-            viewModelScope.launch { events.send { it.navigateToMentionPost("${profile.username}@${profile.host}") } }
+            // このサーバーのユーザーは本文でもドメイン無しで書かないと、宛先のリンクにならない
+            val acct = if (profile.actorUri == null) profile.username else "${profile.username}@${profile.host}"
+            viewModelScope.launch { events.send { it.navigateToMentionPost(acct) } }
         }
 
         override fun onClickTab(tab: ProfileContentTab) {
@@ -931,7 +933,7 @@ internal class UserProfileScreenViewModel(
         fun navigateToReplyPost(postId: String)
 
         /**
-         * @param acct 宛先のユーザーの `username@host`
+         * @param acct 宛先のユーザーの `username@host`。このサーバーのユーザーは `username`
          */
         fun navigateToMentionPost(acct: String)
 

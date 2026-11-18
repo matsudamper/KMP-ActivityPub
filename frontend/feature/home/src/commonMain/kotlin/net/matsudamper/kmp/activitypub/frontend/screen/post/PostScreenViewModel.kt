@@ -288,6 +288,7 @@ internal class PostScreenViewModel(
                             replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
                             quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
+                            mentionAcct = (target as? PostScreenTarget.Mention)?.acct,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -339,6 +340,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
             UserPostNoteResult.ReplyTargetNotFound -> "返信先の投稿が見つかりません"
             UserPostNoteResult.QuoteTargetNotFound -> "引用する投稿が見つかりません"
+            UserPostNoteResult.MentionTargetNotFound -> "宛先のユーザーが見つかりません"
             is UserPostNoteResult.Failure -> result.message
         }
 

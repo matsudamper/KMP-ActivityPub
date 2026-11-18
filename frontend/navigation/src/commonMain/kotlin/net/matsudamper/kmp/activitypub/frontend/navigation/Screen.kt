@@ -220,7 +220,7 @@ sealed interface Screen : NavKey {
     }
 
     /**
-     * @param acct 宛先のユーザーの `username@host`
+     * @param acct 宛先のユーザーの `username@host`。このサーバーのユーザーは `username`
      */
     @Serializable
     data class MentionPost(

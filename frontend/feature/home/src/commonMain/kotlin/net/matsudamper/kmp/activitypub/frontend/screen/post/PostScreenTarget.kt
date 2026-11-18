@@ -17,7 +17,7 @@ internal sealed interface PostScreenTarget {
     data class Reply(val postId: String) : PostScreenTarget
 
     /**
-     * @param acct 本文の先頭に宛先として入れるユーザーの `username@host`
+     * @param acct 本文の先頭に宛先として入れるユーザーの `username@host`。このサーバーのユーザーは `username`
      */
     data class Mention(val acct: String) : PostScreenTarget
 }
