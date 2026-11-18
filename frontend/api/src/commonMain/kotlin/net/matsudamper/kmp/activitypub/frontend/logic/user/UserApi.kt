@@ -1362,7 +1362,7 @@ class UserApi(
             .onEach { event ->
                 val arrivedPost = event.timelinePostArrived?.timelinePostFields?.toPost()
                 val removedPosts = event.timelinePostsDeleted
-                val arrivedNotification = event.notificationArrived?.notificationFields?.toNotification()
+                val arrivedNotification = event.notificationGroupUpdated?.notificationFields?.toNotification()
                 if (arrivedPost != null) emit(AccountStreamEvent.PostArrived(arrivedPost))
                 if (removedPosts != null) {
                     emit(

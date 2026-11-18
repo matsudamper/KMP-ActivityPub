@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.graphql.resolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.reactive.asPublisher
 import graphql.schema.DataFetchingEnvironment
@@ -31,7 +32,7 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             // 接続はログアウトや期限切れの後も残るので、流すたびにセッションを確かめて終える
             .takeWhile { context.userAccountId() == accountId }
             .filterNot { event -> diContainer.blockLists.hides(accountId, event) }
-            .map { event -> event.toQlAccountEvent(diContainer) }
+            .mapNotNull { event -> event.toQlAccountEvent(accountId, diContainer) }
             .asPublisher(Dispatchers.IO)
     }
 
@@ -51,11 +52,14 @@ class SubscriptionResolverImpl : SubscriptionResolver {
             .asPublisher(Dispatchers.IO)
     }
 
-    private fun AccountEvent.toQlAccountEvent(diContainer: DiContainer): QlAccountEvent = when (this) {
+    /**
+     * @return 流さなくてよければ null
+     */
+    private fun AccountEvent.toQlAccountEvent(accountId: AccountId, diContainer: DiContainer): QlAccountEvent? = when (this) {
         is AccountEvent.PostArrived -> QlAccountEvent(
             timelinePostArrived = listOf(post).toQlTimelinePosts(diContainer).single(),
             timelinePostsDeleted = null,
-            notificationArrived = null,
+            notificationGroupUpdated = null,
             timelinePostUpdated = null,
         )
 
@@ -65,21 +69,23 @@ class SubscriptionResolverImpl : SubscriptionResolver {
                 postIds = deletedMembers.map { TimelinePostId(it) },
                 boostUndonePostIds = boostUndoneMembers.map { TimelinePostId(it) },
             ),
-            notificationArrived = null,
+            notificationGroupUpdated = null,
             timelinePostUpdated = null,
         )
 
-        is AccountEvent.NotificationArrived -> QlAccountEvent(
-            timelinePostArrived = null,
-            timelinePostsDeleted = null,
-            notificationArrived = notification.toQlNotification(listOf(post).toQlTimelinePosts(diContainer).single(), diContainer),
-            timelinePostUpdated = null,
-        )
+        is AccountEvent.NotificationGroupUpdated -> diContainer.notificationService.find(accountId, groupId)?.let { view ->
+            QlAccountEvent(
+                timelinePostArrived = null,
+                timelinePostsDeleted = null,
+                notificationGroupUpdated = listOf(view).toQlNotificationGroups(diContainer).single(),
+                timelinePostUpdated = null,
+            )
+        }
 
         is AccountEvent.PostUpdated -> QlAccountEvent(
             timelinePostArrived = null,
             timelinePostsDeleted = null,
-            notificationArrived = null,
+            notificationGroupUpdated = null,
             timelinePostUpdated = listOf(post).toQlTimelinePosts(diContainer).single(),
         )
     }

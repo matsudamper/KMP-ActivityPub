@@ -482,22 +482,52 @@ CREATE UNIQUE INDEX remote_boosts_actor_note ON remote_boosts (remote_actor_id, 
 
 CREATE INDEX remote_boosts_actor_score ON remote_boosts (remote_actor_id, score_ms DESC, id DESC);
 
--- 他のサーバーから届いた、こちらの投稿へのお気に入りとブーストの通知。取り消されたら行ごと消す
-CREATE TABLE notifications (
+-- 通知カラムに出す 1 項目。お気に入りとブーストは投稿ごと・種類ごとに 1 行にまとめ、フォローとメンションは 1 件ごとに 1 行にする。
+-- 中身は notification_entries に相手ごとに持つ
+CREATE TABLE notification_groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    -- 通知を受け取るアカウント
     account_id INTEGER NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
-    -- favourite か boost
+    -- follow / mention / favourite / boost。取りうる値は NotificationKind が持つ
     kind TEXT NOT NULL,
-    note_id INTEGER NOT NULL REFERENCES notes (id) ON DELETE CASCADE,
-    remote_actor_id INTEGER NOT NULL REFERENCES remote_actors (id) ON DELETE CASCADE,
-    received_at TEXT NOT NULL
+    -- 対象の投稿。follow ではどちらも NULL。mention では宛てた投稿、ほかは受け取るアカウントの投稿
+    note_id INTEGER REFERENCES notes (id) ON DELETE CASCADE,
+    remote_note_id INTEGER REFERENCES remote_notes (id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL,
+    -- 最後に新しい相手が加わった時刻。通知カラムはこの新しい順に並べる。同じ相手の付け直しでは変えない
+    updated_at TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX notifications_kind_note_actor ON notifications (kind, note_id, remote_actor_id);
+CREATE INDEX notification_groups_account_updated ON notification_groups (account_id, updated_at DESC, id DESC);
 
-CREATE INDEX notifications_account_id ON notifications (account_id, id DESC);
+CREATE INDEX notification_groups_kind_note ON notification_groups (kind, note_id);
 
-CREATE INDEX notifications_remote_actor_id ON notifications (remote_actor_id);
+CREATE INDEX notification_groups_remote_note_id ON notification_groups (remote_note_id);
+
+-- 通知の相手ごとの記録。同じ相手から同じものが届き直しても行を増やさず、取り消されても消さない
+CREATE TABLE notification_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id INTEGER NOT NULL REFERENCES notification_groups (id) ON DELETE CASCADE,
+    -- 相手。このサーバーのアカウントなら actor_account_id、他のサーバーのアクターなら actor_remote_actor_id のどちらか一方
+    actor_account_id INTEGER REFERENCES accounts (id) ON DELETE CASCADE,
+    actor_remote_actor_id INTEGER REFERENCES remote_actors (id) ON DELETE CASCADE,
+    -- favourite で付けた絵文字。Unicode の絵文字そのものか :name:。絵文字の無いいいねと、ほかの種類では NULL
+    emoji TEXT,
+    -- 他のサーバーのカスタム絵文字の画像の URL
+    emoji_image_url TEXT,
+    -- このサーバーのカスタム絵文字。消した後に同じ名前で別の画像を置けるので、名前ではなく id で結び付ける
+    emoji_custom_emoji_id INTEGER REFERENCES custom_emojis (id) ON DELETE SET NULL,
+    -- その相手から最初に届いた時刻
+    created_at TEXT NOT NULL,
+    -- 最後に書き換えた時刻。絵文字の付け直しで変わる
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX notification_entries_group ON notification_entries (group_id, created_at DESC, id DESC);
+
+CREATE INDEX notification_entries_actor_account_id ON notification_entries (actor_account_id);
+
+CREATE INDEX notification_entries_actor_remote_actor_id ON notification_entries (actor_remote_actor_id);
 
 CREATE INDEX remote_boosts_remote_note_id ON remote_boosts (remote_note_id);
 

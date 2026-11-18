@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.frontend.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.FlingBehavior
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -548,6 +550,20 @@ private fun ReplyLabel(
 }
 
 /**
+ * 投稿の無い通知の行。投稿の上に出す行と同じ見た目で、上下に余白を取る
+ */
+@Composable
+internal fun ActorOnlyItem(
+    label: PostItemUiState.ActorLabel,
+    style: PostItemStyle,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.padding(horizontal = PostHorizontalPadding, vertical = 12.dp)) {
+        ActorLabel(actorLabel = label, sizes = style.sizes())
+    }
+}
+
+/**
  * アイコンの列に揃えて出す。本文の列に揃えると、誰の投稿かを示す名前の行と見分けにくい
  */
 @Composable
@@ -570,6 +586,8 @@ private fun ActorLabel(
                 imageVector = when (actorLabel.icon) {
                     PostItemUiState.ActorLabelIcon.Boost -> AppIcons.Repeat
                     PostItemUiState.ActorLabelIcon.Favourite -> AppIcons.Star
+                    PostItemUiState.ActorLabelIcon.Mention -> AppIcons.Reply
+                    PostItemUiState.ActorLabelIcon.Follow -> AppIcons.Person
                 },
                 contentDescription = null,
                 modifier = Modifier.size(sizes.actionIconSize),
@@ -580,13 +598,11 @@ private fun ActorLabel(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ProfileIcon(
-                iconUrl = actorLabel.iconUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(ActorLabelIconSize)
-                    .clip(CircleShape),
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                actorLabel.actors.forEach { actor ->
+                    ActorLabelActorIcon(actor = actor, sizes = sizes)
+                }
+            }
             EmojiText(
                 modifier = Modifier.weight(1f, fill = false),
                 text = actorLabel.actorName,
@@ -617,7 +633,60 @@ private fun ActorLabel(
     }
 }
 
+/**
+ * お気に入りの絵文字はアイコンの右下に重ねる。絵文字の分だけ行が高くならないよう、アイコンの枠からはみ出させる
+ */
+@Composable
+private fun ActorLabelActorIcon(
+    actor: PostItemUiState.ActorLabelActor,
+    sizes: PostItemSizes,
+) {
+    Box {
+        ProfileIcon(
+            iconUrl = actor.iconUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(ActorLabelIconSize)
+                .clip(CircleShape),
+        )
+        // 画像の無いカスタム絵文字の :name: は丸に収まらず切れるので重ねない
+        val reaction = actor.reaction?.takeIf { it.imageUrl != null || !it.emoji.startsWith(":") }
+        var imageFailed by remember(reaction?.imageUrl) { mutableStateOf(false) }
+        if (reaction != null && !imageFailed) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 4.dp, y = 4.dp)
+                    .size(ActorLabelReactionSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface),
+                contentAlignment = Alignment.Center,
+            ) {
+                val imageUrl = reaction.imageUrl
+                if (imageUrl == null) {
+                    Text(
+                        text = reaction.emoji,
+                        style = sizes.countTextStyle,
+                        maxLines = 1,
+                    )
+                } else {
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = reaction.emoji,
+                        modifier = Modifier.size(ActorLabelReactionSize),
+                        contentScale = ContentScale.Fit,
+                        // 取れなかった画像の丸だけが残らないよう、丸ごと出さない
+                        onError = { imageFailed = true },
+                    )
+                }
+            }
+        }
+    }
+}
+
 private val ActorLabelIconSize = 20.dp
+
+private val ActorLabelReactionSize = 14.dp
 
 /**
  * M3 の Filter chip に合わせ、自分が付けた絵文字は secondaryContainer で塗り、それ以外は枠線だけにする

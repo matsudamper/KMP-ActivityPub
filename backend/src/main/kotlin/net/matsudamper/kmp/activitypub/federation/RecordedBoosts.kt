@@ -1,8 +1,10 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Clock
+import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
-import net.matsudamper.kmp.activitypub.repository.NotificationKind
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
 import net.matsudamper.kotpub.boost.BoostStore
@@ -10,7 +12,7 @@ import net.matsudamper.kotpub.boost.BoostStore
 internal class RecordedBoosts(
     private val boostRepository: BoostRepository,
     private val receivedNotes: ReceivedRemoteNotes,
-    private val notifications: ReceivedNotifications,
+    private val notifications: NotificationRecorder,
     private val blocks: InboxBlocks,
     private val timeline: TimelineService,
     private val clock: Clock,
@@ -24,7 +26,15 @@ internal class RecordedBoosts(
             activityUri = boost.activityUri,
             receivedAt = boost.receivedAt,
         )
-        if (added) notifications.publish(NotificationKind.BOOST, notePublicId, boost.actor.actorId)
+        if (added) {
+            notifications.record(
+                NotificationEvent.Boosted(
+                    notePublicId = notePublicId,
+                    actor = NotificationActorRef.Remote(boost.actor.actorId),
+                    occurredAt = boost.receivedAt,
+                ),
+            )
+        }
         return added
     }
 

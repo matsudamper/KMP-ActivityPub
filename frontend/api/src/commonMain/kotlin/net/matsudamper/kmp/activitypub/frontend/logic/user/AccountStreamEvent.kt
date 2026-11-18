@@ -15,6 +15,9 @@ sealed interface AccountStreamEvent {
      */
     data class PostUpdated(val post: UserHomeTimelineResult.Post) : AccountStreamEvent
 
+    /**
+     * 通知カラムの項目に相手が加わったか、お気に入りの絵文字が付け直された
+     */
     data class NotificationArrived(val notification: UserNotificationsResult.Notification) : AccountStreamEvent
 
     data object WaitingToReconnect : AccountStreamEvent

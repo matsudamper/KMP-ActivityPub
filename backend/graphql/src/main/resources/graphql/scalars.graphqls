@@ -21,7 +21,7 @@ scalar TimelinePostId
 scalar PostRevisionId
 
 "通知の識別子"
-scalar NotificationId
+scalar NotificationGroupId
 
 "諦めた配信の識別子"
 scalar FailedDeliveryId

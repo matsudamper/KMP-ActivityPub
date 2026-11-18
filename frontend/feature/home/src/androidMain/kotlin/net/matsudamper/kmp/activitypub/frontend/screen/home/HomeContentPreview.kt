@@ -27,6 +27,7 @@ import net.matsudamper.kmp.activitypub.frontend.screen.post.PostContent
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostNavigationIcon
 import net.matsudamper.kmp.activitypub.frontend.screen.post.PostScreenUiState
 import net.matsudamper.kmp.activitypub.frontend.screen.theme.AppFontSize
+import net.matsudamper.kmp.activitypub.frontend.ui.ActorOnlyItem
 import net.matsudamper.kmp.activitypub.frontend.ui.DeleteNoteDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItem
@@ -35,6 +36,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileContentTab
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.previewBoostButton
 import net.matsudamper.kmp.activitypub.frontend.ui.previewFollowMenu
 
@@ -288,7 +290,7 @@ private fun TimelineReplyItemsPreview() {
                             icon = PostItemUiState.ActorLabelIcon.Boost,
                             actorName = createTextWithEmojis(text = "Bob", emojis = listOf()),
                             actionText = "がブースト",
-                            iconUrl = null,
+                            actors = listOf(PostItemUiState.ActorLabelActor(iconUrl = null, reaction = null)),
                             cancelledLabelVisible = false,
                             listener = AndroidPreviewActorLabelListener,
                         ),
@@ -311,13 +313,39 @@ private fun TimelineNotificationAndDeletedItemsPreview() {
             Column {
                 val posts = previewTimelinePosts()
                 val notifiedPost = posts.first()
+                ActorOnlyItem(
+                    label = PostItemUiState.ActorLabel(
+                        icon = PostItemUiState.ActorLabelIcon.Follow,
+                        actorName = createTextWithEmojis(text = "Dave", emojis = listOf()),
+                        actionText = "にフォローされました",
+                        actors = listOf(PostItemUiState.ActorLabelActor(iconUrl = null, reaction = null)),
+                        cancelledLabelVisible = false,
+                        listener = AndroidPreviewActorLabelListener,
+                    ),
+                    style = PostItemStyle.Timeline,
+                )
+                HorizontalDivider()
                 listOf(
                     notifiedPost.copy(
                         actorLabel = PostItemUiState.ActorLabel(
                             icon = PostItemUiState.ActorLabelIcon.Favourite,
                             actorName = createTextWithEmojis(text = "Alice :kotlin:", emojis = PreviewEmojis),
-                            actionText = "がお気に入り",
-                            iconUrl = null,
+                            actionText = "ほか 2 人がお気に入り",
+                            actors = listOf(
+                                PostItemUiState.ActorLabelActor(iconUrl = null, reaction = PostItemUiState.ActorLabelReaction(emoji = "🎉", imageUrl = null)),
+                                PostItemUiState.ActorLabelActor(iconUrl = null, reaction = null),
+                                PostItemUiState.ActorLabelActor(iconUrl = null, reaction = PostItemUiState.ActorLabelReaction(emoji = ":blob:", imageUrl = null)),
+                            ),
+                            cancelledLabelVisible = false,
+                            listener = AndroidPreviewActorLabelListener,
+                        ),
+                    ),
+                    notifiedPost.copy(
+                        actorLabel = PostItemUiState.ActorLabel(
+                            icon = PostItemUiState.ActorLabelIcon.Mention,
+                            actorName = createTextWithEmojis(text = "Carol", emojis = listOf()),
+                            actionText = "がメンション",
+                            actors = listOf(PostItemUiState.ActorLabelActor(iconUrl = null, reaction = null)),
                             cancelledLabelVisible = false,
                             listener = AndroidPreviewActorLabelListener,
                         ),
@@ -327,7 +355,7 @@ private fun TimelineNotificationAndDeletedItemsPreview() {
                             icon = PostItemUiState.ActorLabelIcon.Boost,
                             actorName = createTextWithEmojis(text = "Bob", emojis = listOf()),
                             actionText = "がブースト",
-                            iconUrl = null,
+                            actors = listOf(PostItemUiState.ActorLabelActor(iconUrl = null, reaction = null)),
                             cancelledLabelVisible = false,
                             listener = AndroidPreviewActorLabelListener,
                         ),
@@ -475,7 +503,7 @@ private fun HomeNotificationsContentPreview() {
                 timelineStreamStatus = HomeScreenUiState.TimelineStreamStatus.Receiving,
                 sensitiveImagesBlurred = true,
                 notifications = HomeScreenUiState.Notifications.Loaded(
-                    items = previewTimelinePosts(),
+                    items = previewTimelinePosts().map { TimelineItemUiState.Post(it) },
                     emptyMessage = null,
                     refreshing = false,
                     footer = HomeScreenUiState.TimelineFooter.None,
@@ -878,7 +906,7 @@ private fun HomeColumnsContentPreviewTimelineColumns() = HomeColumnsPreview(
         HomeScreenUiState.TimelineColumn(
             title = "$fontSizeLabel ${width.value.toInt()}dp",
             listStateKey = "${fontSize.name}-$width",
-            items = previewTimelinePosts().take(1),
+            items = previewTimelinePosts().take(1).map { TimelineItemUiState.Post(it) },
             footer = HomeScreenUiState.TimelineFooter.None,
             selected = false,
             fontSize = fontSize,
@@ -1252,7 +1280,7 @@ private fun previewTimelinePosts(): List<PostItemUiState> = listOf(
             icon = PostItemUiState.ActorLabelIcon.Boost,
             actorName = createTextWithEmojis(text = "Alice :kotlin: とても長い名前のユーザーとても長い名前のユーザー", emojis = PreviewEmojis),
             actionText = "がブースト",
-            iconUrl = null,
+            actors = listOf(PostItemUiState.ActorLabelActor(iconUrl = null, reaction = null)),
             cancelledLabelVisible = true,
             listener = AndroidPreviewActorLabelListener,
         ),
@@ -1357,7 +1385,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
     HomeScreenUiState.TimelineColumn(
         title = "メイン",
         listStateKey = "home",
-        items = items,
+        items = items.map { TimelineItemUiState.Post(it) },
         footer = footer,
         selected = true,
         fontSize = AppFontSize.Medium,
@@ -1368,7 +1396,7 @@ private fun previewTimelineColumns(items: List<PostItemUiState>, footer: HomeScr
     HomeScreenUiState.TimelineColumn(
         title = "ニュース",
         listStateKey = "news",
-        items = items.take(1),
+        items = items.take(1).map { TimelineItemUiState.Post(it) },
         footer = HomeScreenUiState.TimelineFooter.None,
         selected = false,
         fontSize = AppFontSize.Large,

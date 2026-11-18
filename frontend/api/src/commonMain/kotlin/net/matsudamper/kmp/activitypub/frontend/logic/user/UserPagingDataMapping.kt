@@ -84,10 +84,13 @@ internal fun TimelinePostFields.toPost(): UserHomeTimelineResult.Post {
 }
 
 /**
- * @return このアプリが知らない種類の通知なら null
+ * @return このアプリが知らない種類の通知か、相手が誰もいなければ null
  */
 internal fun NotificationFields.toNotification(): UserNotificationsResult.Notification? {
+    if (recentActors.isEmpty()) return null
     val notificationKind = when (kind) {
+        NotificationKind.FOLLOW -> UserNotificationsResult.Kind.Follow
+        NotificationKind.MENTION -> UserNotificationsResult.Kind.Mention
         NotificationKind.FAVOURITE -> UserNotificationsResult.Kind.Favourite
         NotificationKind.BOOST -> UserNotificationsResult.Kind.Boost
         NotificationKind.UNKNOWN__ -> return null
@@ -95,9 +98,15 @@ internal fun NotificationFields.toNotification(): UserNotificationsResult.Notifi
     return UserNotificationsResult.Notification(
         id = id,
         kind = notificationKind,
-        actor = actor.actorFields.toActor(),
-        post = post.timelinePostFields.toPost(),
-        receivedAt = receivedAt,
+        actors = recentActors.map { recent ->
+            UserNotificationsResult.NotificationActor(
+                actor = recent.actor.actorFields.toActor(),
+                reaction = recent.reaction?.let { UserNotificationsResult.Reaction(emoji = it.emoji, imageUrl = it.imageUrl) },
+            )
+        },
+        actorCount = actorCount,
+        post = post?.timelinePostFields?.toPost(),
+        updatedAt = updatedAt,
     )
 }
 
@@ -180,15 +189,24 @@ private fun UserHomeTimelineResult.Actor.toFields(): ActorFields = ActorFields(
 )
 
 private fun UserNotificationsResult.Notification.toFields(): NotificationFields = NotificationFields(
-    __typename = "Notification",
+    __typename = "NotificationGroup",
     id = id,
     kind = when (kind) {
+        UserNotificationsResult.Kind.Follow -> NotificationKind.FOLLOW
+        UserNotificationsResult.Kind.Mention -> NotificationKind.MENTION
         UserNotificationsResult.Kind.Favourite -> NotificationKind.FAVOURITE
         UserNotificationsResult.Kind.Boost -> NotificationKind.BOOST
     },
-    actor = NotificationFields.Actor(__typename = "Actor", actorFields = actor.toFields()),
-    post = NotificationFields.Post(__typename = "TimelinePost", timelinePostFields = post.toFields()),
-    receivedAt = receivedAt,
+    post = post?.let { NotificationFields.Post(__typename = "TimelinePost", timelinePostFields = it.toFields()) },
+    recentActors = actors.map { recent ->
+        NotificationFields.RecentActor(
+            __typename = "NotificationActor",
+            actor = NotificationFields.Actor(__typename = "Actor", actorFields = recent.actor.toFields()),
+            reaction = recent.reaction?.let { NotificationFields.Reaction(__typename = "NotificationReaction", emoji = it.emoji, imageUrl = it.imageUrl) },
+        )
+    },
+    actorCount = actorCount,
+    updatedAt = updatedAt,
 )
 
 /**
@@ -342,15 +360,21 @@ fun TimelineQuery.Data.withArrivedPosts(posts: List<UserHomeTimelineResult.Post>
 }
 
 /**
- * 購読で届いた通知を、取得し直さずに先頭へ足す。[notifications] は新しい順
+ * 購読で届いた通知を、取得し直さずに反映する。[notifications] は新しい順。
+ * 新しい相手が加わった項目は先頭へ移し、絵文字の付け直しだけの項目はその場で置き換える
  */
 fun NotificationsQuery.Data.withArrivedNotifications(notifications: List<UserNotificationsResult.Notification>): NotificationsQuery.Data {
     val info = userInfo ?: return this
     val page = info.notifications ?: return this
-    val arrived = notifications.map { NotificationsQuery.Notification(__typename = "Notification", notificationFields = it.toFields()) }
+    val arrived = notifications.map { NotificationsQuery.Notification(__typename = "NotificationGroup", notificationFields = it.toFields()) }
+    val loadedUpdatedAtById = page.notifications.associate { it.notificationFields.id to it.notificationFields.updatedAt }
+    val (replacedInPlace, movedToTop) = arrived.partition { loadedUpdatedAtById[it.notificationFields.id] == it.notificationFields.updatedAt }
+    val replacementById = replacedInPlace.associateBy { it.notificationFields.id }
+    val movedIds = movedToTop.map { it.notificationFields.id }.toSet()
+    val remaining = page.notifications.filterNot { it.notificationFields.id in movedIds }.map { replacementById[it.notificationFields.id] ?: it }
     return copy(
         userInfo = info.copy(
-            notifications = page.copy(notifications = (arrived + page.notifications).distinctBy { it.notificationFields.id }),
+            notifications = page.copy(notifications = (movedToTop + remaining).distinctBy { it.notificationFields.id }),
         ),
     )
 }
@@ -380,7 +404,7 @@ fun NotificationsQuery.Data.withPosts(transform: (TimelinePostFields) -> Timelin
                 notifications = page.notifications.map { notification ->
                     val fields = notification.notificationFields
                     notification.copy(
-                        notificationFields = fields.copy(post = fields.post.copy(timelinePostFields = transform(fields.post.timelinePostFields))),
+                        notificationFields = fields.copy(post = fields.post?.let { it.copy(timelinePostFields = transform(it.timelinePostFields)) }),
                     )
                 },
             ),
@@ -465,7 +489,7 @@ fun NotificationsQuery.Data.withoutNote(deletableNoteId: String): NotificationsQ
     return copy(
         userInfo = info.copy(
             notifications = page.copy(
-                notifications = page.notifications.filterNot { it.notificationFields.post.timelinePostFields.deletableNoteId == deletableNoteId },
+                notifications = page.notifications.filterNot { it.notificationFields.post?.timelinePostFields?.deletableNoteId == deletableNoteId },
             ),
         ),
     )

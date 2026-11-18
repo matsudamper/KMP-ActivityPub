@@ -79,6 +79,7 @@ class NotePostServiceTest {
             remoteActors = remoteActorRepository,
             remoteUsers = remoteUsers,
             deliveryQueueRepository = deliveryQueueRepository,
+            notifications = {},
             clock = object : Clock() {
                 override fun getZone(): ZoneId = ZoneOffset.UTC
 

@@ -9,14 +9,21 @@ query Notifications($after: String, $limit: Int!) {
     }
 }
 
-fragment NotificationFields on Notification {
+fragment NotificationFields on NotificationGroup {
     id
     kind
-    actor {
-        ...ActorFields
-    }
     post {
         ...TimelinePostFields
     }
-    receivedAt
+    recentActors {
+        actor {
+            ...ActorFields
+        }
+        reaction {
+            emoji
+            imageUrl
+        }
+    }
+    actorCount
+    updatedAt
 }

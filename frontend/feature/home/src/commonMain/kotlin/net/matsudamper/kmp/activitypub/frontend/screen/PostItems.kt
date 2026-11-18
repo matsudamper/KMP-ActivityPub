@@ -6,6 +6,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.language.LanguageTag
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserCustomEmoji
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserNotificationsResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostStamp
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
@@ -78,26 +79,9 @@ internal fun createPostItemUiState(
     return PostItemUiState(
         replyLabel = replyLabel,
         actorLabel = actorLabel?.let { label ->
-            val actor = label.actor
-            PostItemUiState.ActorLabel(
-                icon = when (label) {
-                    is PostActorLabel.Boost, is PostActorLabel.BoostNotification -> PostItemUiState.ActorLabelIcon.Boost
-                    is PostActorLabel.FavouriteNotification -> PostItemUiState.ActorLabelIcon.Favourite
-                },
-                actorName = createTextWithEmojis(text = actor.displayName, emojis = actor.displayNameEmojis),
-                actionText = when (label) {
-                    is PostActorLabel.Boost, is PostActorLabel.BoostNotification -> "がブースト"
-                    is PostActorLabel.FavouriteNotification -> "がお気に入り"
-                },
-                iconUrl = actor.iconUrl,
+            createActorLabelUiState(
+                label = label,
                 cancelledLabelVisible = label is PostActorLabel.Boost && (boostUndone || (label.byViewer && body.boostedByMe == false)),
-                listener = label.navigateToProfile?.let { navigateToProfile ->
-                    object : PostItemUiState.ActorLabelListener {
-                        override fun onClick() {
-                            navigateToProfile(actor.host?.let { host -> "${actor.username}@$host" } ?: actor.username)
-                        }
-                    }
-                },
             )
         },
         pinnedLabelVisible = pinned,
@@ -306,9 +290,67 @@ internal sealed interface AuthorTapAction {
 }
 
 /**
+ * 投稿の上に出す「〜がブースト」「〜がお気に入り」の行と、投稿の無い通知の行を作る
+ */
+internal fun createActorLabelUiState(
+    label: PostActorLabel,
+    cancelledLabelVisible: Boolean,
+): PostItemUiState.ActorLabel {
+    val actor = label.actor
+    val othersPrefix = when (label) {
+        is PostActorLabel.Boost -> ""
+        is PostActorLabel.Notification -> if (label.actorCount > 1) "ほか ${label.actorCount - 1} 人" else ""
+    }
+    return PostItemUiState.ActorLabel(
+        icon = when (label) {
+            is PostActorLabel.Boost -> PostItemUiState.ActorLabelIcon.Boost
+
+            is PostActorLabel.Notification -> when (label.kind) {
+                UserNotificationsResult.Kind.Follow -> PostItemUiState.ActorLabelIcon.Follow
+                UserNotificationsResult.Kind.Mention -> PostItemUiState.ActorLabelIcon.Mention
+                UserNotificationsResult.Kind.Favourite -> PostItemUiState.ActorLabelIcon.Favourite
+                UserNotificationsResult.Kind.Boost -> PostItemUiState.ActorLabelIcon.Boost
+            }
+        },
+        actorName = createTextWithEmojis(text = actor.displayName, emojis = actor.displayNameEmojis),
+        actionText = othersPrefix + when (label) {
+            is PostActorLabel.Boost -> "がブースト"
+
+            is PostActorLabel.Notification -> when (label.kind) {
+                UserNotificationsResult.Kind.Follow -> "にフォローされました"
+                UserNotificationsResult.Kind.Mention -> "がメンション"
+                UserNotificationsResult.Kind.Favourite -> "がお気に入り"
+                UserNotificationsResult.Kind.Boost -> "がブースト"
+            }
+        },
+        actors = when (label) {
+            is PostActorLabel.Boost -> listOf(PostItemUiState.ActorLabelActor(iconUrl = actor.iconUrl, reaction = null))
+
+            is PostActorLabel.Notification -> label.actors.map { notificationActor ->
+                PostItemUiState.ActorLabelActor(
+                    iconUrl = notificationActor.actor.iconUrl,
+                    reaction = notificationActor.reaction?.let { PostItemUiState.ActorLabelReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
+                )
+            }
+        },
+        cancelledLabelVisible = cancelledLabelVisible,
+        listener = label.navigateToProfile?.let { navigateToProfile ->
+            object : PostItemUiState.ActorLabelListener {
+                override fun onClick() {
+                    navigateToProfile(actor.host?.let { host -> "${actor.username}@$host" } ?: actor.username)
+                }
+            }
+        },
+    )
+}
+
+/**
  * 投稿の上に出す「〜がブースト」「〜がお気に入り」の行の元
  */
 internal sealed interface PostActorLabel {
+    /**
+     * 名前を出し、押したときにプロフィールを開く相手
+     */
     val actor: UserHomeTimelineResult.Actor
 
     /**
@@ -328,20 +370,19 @@ internal sealed interface PostActorLabel {
     ) : PostActorLabel
 
     /**
-     * 自分の投稿がブーストされた通知
+     * 通知。お気に入りとブーストは投稿ごとにまとまっているので、相手が何人もいる
+     *
+     * @param actors 新しく加わった順の相手。数人まで
+     * @param actorCount 相手の人数
      */
-    class BoostNotification(
-        override val actor: UserHomeTimelineResult.Actor,
+    class Notification(
+        val kind: UserNotificationsResult.Kind,
+        val actors: List<UserNotificationsResult.NotificationActor>,
+        val actorCount: Int,
         override val navigateToProfile: ((username: String) -> Unit)?,
-    ) : PostActorLabel
-
-    /**
-     * 自分の投稿がお気に入りされた通知
-     */
-    class FavouriteNotification(
-        override val actor: UserHomeTimelineResult.Actor,
-        override val navigateToProfile: ((username: String) -> Unit)?,
-    ) : PostActorLabel
+    ) : PostActorLabel {
+        override val actor: UserHomeTimelineResult.Actor = actors.first().actor
+    }
 }
 
 /**

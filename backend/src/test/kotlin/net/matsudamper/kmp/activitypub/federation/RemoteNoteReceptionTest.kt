@@ -17,7 +17,11 @@ import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.FollowingSpan
+import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
+import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
 import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteReceptionInterest
@@ -110,6 +114,25 @@ class RemoteNoteReceptionTest {
     }
 
     @Test
+    fun mentionsOfLocalAccountsAreRecordedExceptDirectMessages() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        fixture.repositories.timelineRepository.interested = true
+        val localActor = checkNotNull(fixture.directory.resolve("alice")).actorId
+        val mentioning = note(listOf(localActor)).copy(mentions = listOf(localActor, "https://elsewhere.example/users/alice"))
+        fixture.receiver.save(mentioning)
+        fixture.receiver.save(mentioning.copy(id = "$ACTOR/notes/direct", visibility = NoteVisibility.Direct))
+        fixture.receiver.save(note(listOf(localActor)).copy(id = "$ACTOR/notes/addressed-only"))
+
+        assertEquals(
+            listOf(Triple("alice", NotificationPostRef.Remote(mentioning.id), NotificationActorRef.Remote(ACTOR))),
+            fixture.recordedNotifications.map { event ->
+                val mentioned = event as NotificationEvent.Mentioned
+                Triple(mentioned.mentionedUsername, mentioned.post, mentioned.actor)
+            },
+        )
+    }
+
+    @Test
     fun profileUrlFollowUsesDocumentIdAndReceivesCreate() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         val profileUrl = "https://remote.example/@remote"
@@ -130,6 +153,7 @@ class RemoteNoteReceptionTest {
                 fixture.directory,
                 fixture.inboxBlocks,
                 fixture.timeline,
+                NotificationRecorder {},
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
             )
@@ -190,6 +214,7 @@ class RemoteNoteReceptionTest {
                 fixture.directory,
                 fixture.inboxBlocks,
                 fixture.timeline,
+                NotificationRecorder {},
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
                 telemetry,
@@ -398,6 +423,7 @@ class RemoteNoteReceptionTest {
                 AccountEvents(repositories.timelineRepository),
                 Clock.systemUTC(),
             )
+        val recordedNotifications = mutableListOf<NotificationEvent>()
         val receiver =
             ReceivedRemoteNotes(
                 repositories.timelineRepository,
@@ -406,6 +432,7 @@ class RemoteNoteReceptionTest {
                 directory,
                 inboxBlocks,
                 timeline,
+                NotificationRecorder { recordedNotifications += it },
                 Clock.systemUTC(),
                 { actorUri, objectUri -> repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now()) },
                 openTelemetry,

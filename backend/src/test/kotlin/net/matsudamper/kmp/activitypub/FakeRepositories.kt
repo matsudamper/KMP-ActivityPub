@@ -24,7 +24,9 @@ import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.LocalCustomEmoji
 import net.matsudamper.kmp.activitypub.repository.NewLocalCustomEmoji
-import net.matsudamper.kmp.activitypub.repository.NotificationKind
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
+import net.matsudamper.kmp.activitypub.repository.NotificationGroup
+import net.matsudamper.kmp.activitypub.repository.NotificationGroupPosition
 import net.matsudamper.kmp.activitypub.repository.NotificationRepository
 import net.matsudamper.kmp.activitypub.repository.OutgoingLike
 import net.matsudamper.kmp.activitypub.repository.PasskeyDeleteResult
@@ -32,7 +34,6 @@ import net.matsudamper.kmp.activitypub.repository.PasskeyRepository
 import net.matsudamper.kmp.activitypub.repository.PasskeySummary
 import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.PublishedLike
-import net.matsudamper.kmp.activitypub.repository.ReceivedNotification
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchCursor
@@ -43,7 +44,7 @@ import net.matsudamper.kmp.activitypub.repository.StoredPasskey
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
-import net.matsudamper.kmp.activitypub.shared.NotificationId
+import net.matsudamper.kmp.activitypub.shared.NotificationGroupId
 import net.matsudamper.kmp.activitypub.shared.PasskeyCredentialId
 import net.matsudamper.kmp.activitypub.shared.PasskeyUserHandle
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -148,8 +149,9 @@ internal class FakeRepositories : Repositories {
     override val accountBoostRepository: FakeAccountBoostRepository = FakeAccountBoostRepository()
     override val boostRepository: FakeBoostRepository = FakeBoostRepository()
     override val notificationRepository: NotificationRepository = object : NotificationRepository {
-        override fun page(accountId: AccountId, after: NotificationId?, limit: Int): List<ReceivedNotification> = listOf()
-        override fun find(kind: NotificationKind, notePublicId: PublicNoteId, actorUri: String): ReceivedNotification? = null
+        override fun record(event: NotificationEvent): NotificationGroupId? = null
+        override fun page(accountId: AccountId, before: NotificationGroupPosition?, limit: Int): List<NotificationGroup> = listOf()
+        override fun find(id: NotificationGroupId): NotificationGroup? = null
     }
     override val deliveryQueueRepository: FakeDeliveryQueueRepository = FakeDeliveryQueueRepository(noteRepository)
     override val failedDeliveryRepository: FailedDeliveryRepository = object : FailedDeliveryRepository {

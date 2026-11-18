@@ -115,7 +115,7 @@ sealed interface LikeTarget {
         val inbox: String,
     ) : LikeTarget
 
-    data object Local : LikeTarget
+    data class Local(val publicId: PublicNoteId) : LikeTarget
 }
 
 /**
