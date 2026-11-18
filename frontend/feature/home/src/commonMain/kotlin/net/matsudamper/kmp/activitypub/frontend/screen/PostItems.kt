@@ -129,7 +129,11 @@ internal fun createPostItemUiState(
             null
         },
         linkPreviews = body.linkUrls.map { url ->
-            createPostLinkPreview(url = url, preview = linkPreviews.firstOrNull { it.url == url }) { onOpenUrl(url) }
+            createPostLinkPreview(
+                url = url,
+                preview = linkPreviews.firstOrNull { it.url == url },
+                linkObjectLabelVisible = url == body.linkObjectUrl,
+            ) { onOpenUrl(url) }
         },
         images = body.images.mapIndexed { index, image ->
             createPostImage(
