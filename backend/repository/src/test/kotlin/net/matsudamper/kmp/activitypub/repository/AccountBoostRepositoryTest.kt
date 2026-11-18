@@ -330,6 +330,7 @@ class AccountBoostRepositoryTest {
                 quoteUri = null,
                 quoteInbox = null,
                 mentions = listOf(),
+                sensitive = false,
             ),
         )
         return checkNotNull(repositories.timelineRepository.localPosition("bob-note")).member

@@ -200,7 +200,7 @@ class UserProfileService(
                 language = null,
                 publishedAt = it.publishedAt.toString(),
                 summary = it.summary,
-                sensitive = it.summary != null,
+                sensitive = it.sensitive || it.summary != null,
                 postId = member,
                 deletableNoteId = if (ownProfile) it.publicId.value else null,
                 pinned = it.publicId in pinnedNoteIdSet,

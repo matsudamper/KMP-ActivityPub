@@ -141,6 +141,7 @@ class NoteReplyRepositoryTest {
         quoteUri = null,
         quoteInbox = null,
         mentions = listOf(),
+        sensitive = false,
     )
 
     private fun note(id: String, visibility: String, recipients: Set<String>): RemoteNoteInput = RemoteNoteInput(

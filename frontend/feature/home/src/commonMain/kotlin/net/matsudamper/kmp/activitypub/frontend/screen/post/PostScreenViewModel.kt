@@ -43,6 +43,7 @@ internal class PostScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 body = savedStateHandle.get<String>(BODY_KEY) ?: initialBody(),
+                sensitive = savedStateHandle.get<Boolean>(SENSITIVE_KEY) ?: false,
                 contentWarning = savedStateHandle.get<String>(CONTENT_WARNING_KEY),
                 images = listOf(),
                 loadingImage = false,
@@ -139,6 +140,10 @@ internal class PostScreenViewModel(
                     override fun onClickAddEmoji() {
                         if (viewModelStateFlow.value.submitting) return
                         viewModelStateFlow.update { it.copy(emojiPickerRequestKey = Uuid.random().toString()) }
+                    }
+
+                    override fun onClickSensitive() {
+                        toggleSensitive()
                     }
 
                     override fun onClickAddImage() {
@@ -263,6 +268,7 @@ internal class PostScreenViewModel(
         val state = viewModelStateFlow.value
         savedStateHandle[BODY_KEY] = ""
         savedStateHandle[CONTENT_WARNING_KEY] = null
+        savedStateHandle[SENSITIVE_KEY] = false
         savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
         savedStateHandle[EDITING_NOTE_ID_KEY] = noteId
         savedStateHandle.remove<String>(EDITING_ORIGINAL_BODY_KEY)
@@ -272,6 +278,7 @@ internal class PostScreenViewModel(
             it.copy(
                 body = "",
                 contentWarning = null,
+                sensitive = false,
                 images = listOf(),
                 quote = null,
                 replyTarget = null,
@@ -369,6 +376,14 @@ internal class PostScreenViewModel(
         savedStateHandle[BODY_KEY] = text
         renewRequestId()
         viewModelStateFlow.update { it.copy(body = text, error = null) }
+    }
+
+    private fun toggleSensitive() {
+        if (viewModelStateFlow.value.sensitiveChangeable().not()) return
+        val sensitive = viewModelStateFlow.value.sensitive.not()
+        savedStateHandle[SENSITIVE_KEY] = sensitive
+        renewRequestId()
+        viewModelStateFlow.update { it.copy(sensitive = sensitive, error = null) }
     }
 
     /**
@@ -490,6 +505,7 @@ internal class PostScreenViewModel(
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
                             quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
                             mentionAcct = (target as? PostScreenTarget.Mention)?.acct,
+                            sensitive = state.sensitive,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -506,8 +522,9 @@ internal class PostScreenViewModel(
             savedStateHandle[BODY_KEY] = ""
             savedStateHandle[CONTENT_WARNING_KEY] = null
             savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
+            savedStateHandle[SENSITIVE_KEY] = false
             renewRequestId()
-            viewModelStateFlow.update { it.copy(body = "", contentWarning = null, images = listOf(), replyTarget = null) }
+            viewModelStateFlow.update { it.copy(body = "", contentWarning = null, images = listOf(), replyTarget = null, sensitive = false) }
             state.images.forEach { it.attachment.release() }
             events.send { it.navigateBack() }
         }
@@ -641,6 +658,8 @@ internal class PostScreenViewModel(
             addImageButtonEnabled = viewModelState.imageAddable(),
             addImageLoadingVisible = viewModelState.loadingImage,
             addEmojiButtonEnabled = viewModelState.submitting.not() && viewModelState.editableBodyLoading().not(),
+            sensitiveChipSelected = viewModelState.sensitive,
+            sensitiveChipEnabled = viewModelState.sensitiveChangeable(),
             emojiPickerDialog = viewModelState.emojiPickerRequestKey?.let { requestKey ->
                 ReactionPickerDialogUiState(
                     requestKey = requestKey,
@@ -678,12 +697,18 @@ internal class PostScreenViewModel(
     private fun ViewModelState.replyPostable(): Boolean = replyTarget == null || replyTarget.load is QuoteLoad.Loaded
 
     /**
+     * 編集では本文しか書き換えないので、閲覧注意も投稿したときのまま
+     */
+    private fun ViewModelState.sensitiveChangeable(): Boolean = editing == null && submitting.not()
+
+    /**
      * 編集では本文だけを書き換えるので、画像は足せない
      */
     private fun ViewModelState.imageAddable(): Boolean = editing == null && submitting.not() && loadingImage.not() && images.size < MAX_IMAGES
 
     private data class ViewModelState(
         val body: String,
+        val sensitive: Boolean,
         /**
          * 閲覧注意にしなければ null
          */
@@ -791,6 +816,7 @@ private const val REQUEST_ID_KEY = "requestId"
 private const val REPLY_TO_POST_ID_KEY = "replyToPostId"
 private const val EDITING_NOTE_ID_KEY = "editingNoteId"
 private const val EDITING_ORIGINAL_BODY_KEY = "editingOriginalBody"
+private const val SENSITIVE_KEY = "sensitive"
 
 /**
  * サーバーの 1 投稿あたりの上限

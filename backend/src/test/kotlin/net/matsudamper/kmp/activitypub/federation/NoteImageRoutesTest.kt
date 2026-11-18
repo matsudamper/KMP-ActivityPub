@@ -75,6 +75,7 @@ class NoteImageRoutesTest {
                 quoteUri = null,
                 quoteInbox = null,
                 mentions = listOf(),
+                sensitive = false,
             )
         return NoteImageFiles(noteRepository = noteRepository, imageStorage = imageStorage)
     }
