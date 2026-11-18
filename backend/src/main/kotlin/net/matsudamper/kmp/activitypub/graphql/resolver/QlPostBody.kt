@@ -5,12 +5,15 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlCustomEmoji
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostImage
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostMention
 import net.matsudamper.kmp.activitypub.graphql.model.QlPostStamp
+import net.matsudamper.kmp.activitypub.graphql.model.QlPostVideo
 import net.matsudamper.kmp.activitypub.logic.htmlToPlainTextWithMentions
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
+import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.StampCount
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
 import net.matsudamper.kmp.activitypub.repository.TimelinePostImage
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * TimelinePost と ProfilePost で投稿の中身の返し方を揃えるため、両方ここを通す。
@@ -23,6 +26,7 @@ internal class QlPostBody(
     val linkUrls: List<String>,
     val mentions: List<QlPostMention>,
     val images: List<QlPostImage>,
+    val videos: List<QlPostVideo>,
 )
 
 /**
@@ -45,6 +49,7 @@ internal fun createQlPostBody(
         linkUrls = if (linkUrlsEnabled) diContainer.linkPreviewService?.links(contentHtml).orEmpty() else listOf(),
         mentions = plainText.mentions.map { QlPostMention(start = it.start, end = it.end, acct = it.acct) },
         images = images.toQlPostImages(diContainer),
+        videos = images.toQlPostVideos(),
     )
 }
 
@@ -102,8 +107,20 @@ internal fun createQlPostImage(url: String, description: String?): QlPostImage =
 private fun List<TimelinePostImage>.toQlPostImages(diContainer: DiContainer): List<QlPostImage> = mapNotNull { image ->
     val url =
         when (image) {
-            is TimelinePostImage.Remote -> diContainer.remoteImageProxy?.proxyUrlOf(image.url)
+            is TimelinePostImage.Remote ->
+                when (image.mediaKind) {
+                    RemoteMediaKind.Image -> diContainer.remoteImageProxy?.proxyUrlOf(image.url)
+                    RemoteMediaKind.Video -> null
+                }
+
             is TimelinePostImage.Local -> diContainer.noteImageUrls?.url(image.publicId)
         }
     url?.let { createQlPostImage(url = it, description = image.description) }
 }
+
+// 動画は video 要素で読むので CORS が無くても再生できる。中継はしない。http(s) 以外の URL は返さない
+private fun List<TimelinePostImage>.toQlPostVideos(): List<QlPostVideo> = filterIsInstance<TimelinePostImage.Remote>()
+    .filter { it.mediaKind == RemoteMediaKind.Video }
+    .mapNotNull { video ->
+        video.url.toHttpUrlOrNull()?.let { QlPostVideo(url = it.toString(), description = video.description) }
+    }

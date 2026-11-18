@@ -86,7 +86,7 @@ internal class KotpubRemoteUserProfiles(
         publishedAt = Instant.parse(publishedAt),
         receivedAt = fetchedAt,
         editedAt = null,
-        images = attachments.mapNotNull { attachment -> attachment.toImage() },
+        images = attachments.mapNotNull { attachment -> attachment.toRemoteMedia() },
         emojis = emojis.toRecords(),
     )
 

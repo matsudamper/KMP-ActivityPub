@@ -21,6 +21,7 @@ import net.matsudamper.kmp.activitypub.repository.Note
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
+import net.matsudamper.kmp.activitypub.repository.RemoteMediaKind
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteInput
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelineNoteRef
@@ -755,6 +756,6 @@ class UserProfileServiceTest {
         )
 
     private companion object {
-        val image = TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null)
+        val image = TimelinePostImage.Remote(url = "https://remote.example/a.png", description = null, mediaKind = RemoteMediaKind.Image)
     }
 }

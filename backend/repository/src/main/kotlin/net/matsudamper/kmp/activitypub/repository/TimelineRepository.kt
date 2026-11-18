@@ -283,14 +283,26 @@ sealed interface TimelinePostImage {
     val description: String?
 
     /**
-     * @param url 他のサーバーにある画像の URL
+     * 他のサーバーの投稿の添付。画像のほかに動画も来る
+     *
+     * @param url 他のサーバーにある添付の URL
      */
-    data class Remote(val url: String, override val description: String?) : TimelinePostImage
+    data class Remote(val url: String, override val description: String?, val mediaKind: RemoteMediaKind) : TimelinePostImage
 
     /**
      * このサーバーの投稿の画像。URL はこのサーバーのドメインで決まるので、識別子だけ持つ
      */
     data class Local(val publicId: NoteImagePublicId, override val description: String?) : TimelinePostImage
+}
+
+enum class RemoteMediaKind(val storedValue: String) {
+    Image("image"),
+    Video("video"),
+    ;
+
+    companion object {
+        fun fromStoredValue(value: String): RemoteMediaKind = entries.first { it.storedValue == value }
+    }
 }
 
 data class RemoteNoteInput(

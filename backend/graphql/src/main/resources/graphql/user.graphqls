@@ -56,6 +56,8 @@ type ProfilePost {
     mentions: [PostMention!]!
     "投稿に付いた画像。付いた順"
     images: [PostImage!]!
+    "投稿に付いた動画。付いた順"
+    videos: [PostVideo!]!
     "本文と summary に入るカスタム絵文字。画像を中継できなければ空"
     emojis: [CustomEmoji!]!
     "他のサーバーから届いたお気に入りと、このサーバーのアカウントのいいねを合わせた数。他のサーバーの投稿は、相手のサーバーが出している数を UserInfo.postCounts で取ったことがあればその数で、無ければ null"
