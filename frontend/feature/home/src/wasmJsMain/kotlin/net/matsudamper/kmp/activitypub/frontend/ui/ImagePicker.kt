@@ -41,19 +41,23 @@ import org.khronos.webgl.Int8Array
 import org.khronos.webgl.toByteArray
 import org.khronos.webgl.toInt8Array
 import org.w3c.dom.HTMLInputElement
+import org.w3c.dom.url.URL
 import org.w3c.files.Blob
 import org.w3c.files.File
 import org.w3c.files.FileReader
 import org.w3c.files.get
 
 @Composable
-internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -> Unit {
+internal actual fun rememberImagePicker(
+    videoPickable: Boolean,
+    onPick: (PickedImageFile) -> Unit,
+): () -> Unit {
     val currentOnPick by rememberUpdatedState(onPick)
-    return remember {
+    return remember(videoPickable) {
         {
             val input = document.createElement("input") as HTMLInputElement
             input.type = "file"
-            input.accept = PICKABLE_IMAGE_TYPES.joinToString(",")
+            input.accept = (if (videoPickable) PICKABLE_IMAGE_TYPES + PICKABLE_VIDEO_TYPES else PICKABLE_IMAGE_TYPES).joinToString(",")
             input.addEventListener("change", {
                 val file = input.files?.get(0)
                 if (file != null) currentOnPick(BrowserImageFile(file))
@@ -66,6 +70,8 @@ internal actual fun rememberImagePicker(onPick: (PickedImageFile) -> Unit): () -
 internal class BrowserImageFile(
     private val file: File,
 ) : PickedImageFile {
+    override val video: Boolean = file.type in PICKABLE_VIDEO_TYPES
+
     override suspend fun read(maxBytes: Int): PickedImageFile.ReadResult {
         if (file.size.toDouble() > maxBytes) return PickedImageFile.ReadResult.TooLarge
 
@@ -88,6 +94,37 @@ internal class BrowserImageFile(
     }
 
     override suspend fun toWebp(maxBytes: Int): WebpResult = file.toWebp(maxBytes)
+
+    override suspend fun toVideo(maxBytes: Int): VideoResult {
+        if (file.size.toDouble() > maxBytes) return VideoResult.TooLarge
+        return VideoResult.Success(BlobVideo(file))
+    }
+}
+
+/**
+ * 中身は選んだファイルのまま持ち、送る間だけメモリに読む
+ */
+private class BlobVideo(
+    private val blob: Blob,
+) : PickedVideo {
+    override val previewUrl: String = URL.createObjectURL(blob)
+
+    override suspend fun openContent(): UserNoteImageContent = blob.toNoteImageContent()
+
+    override fun release() {
+        URL.revokeObjectURL(previewUrl)
+    }
+}
+
+private suspend fun Blob.toNoteImageContent(): UserNoteImageContent {
+    val bytes = readBytes(this)
+    return object : UserNoteImageContent {
+        override val byteCount: Long = bytes.size.toLong()
+
+        override fun writeTo(sink: BufferedSink) {
+            sink.write(bytes)
+        }
+    }
 }
 
 /**
@@ -326,16 +363,7 @@ private class BlobWebpImage(
             .fetcherFactory(BlobWebpFetcher.Factory)
             .build()
 
-    override suspend fun openContent(): UserNoteImageContent {
-        val bytes = readBytes(blob)
-        return object : UserNoteImageContent {
-            override val byteCount: Long = bytes.size.toLong()
-
-            override fun writeTo(sink: BufferedSink) {
-                sink.write(bytes)
-            }
-        }
-    }
+    override suspend fun openContent(): UserNoteImageContent = blob.toNoteImageContent()
 
     override fun release() = Unit
 }
@@ -385,6 +413,8 @@ private fun Image.encodeWebpBytes(): ByteArray? {
 private const val MAX_DECODED_PIXELS = 64_000_000L
 
 internal val PICKABLE_IMAGE_TYPES = listOf("image/png", "image/jpeg", "image/gif", "image/webp")
+
+internal val PICKABLE_VIDEO_TYPES = listOf("video/mp4", "video/quicktime", "video/webm")
 
 /**
  * JPEG は寸法の前に EXIF などのメタデータが並ぶ。写真のメタデータはふつうこれに収まる

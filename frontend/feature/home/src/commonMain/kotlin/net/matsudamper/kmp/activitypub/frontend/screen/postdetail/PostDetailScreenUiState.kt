@@ -27,10 +27,6 @@ data class PostDetailScreenUiState(
             val replyTargets: List<PostItemUiState>,
             val post: PostItemUiState,
             val replies: Replies,
-            /**
-             * ログインしていなければ null
-             */
-            val mentionBox: MentionBox?,
         ) : Content
 
         data object NotFound : Content
@@ -96,24 +92,6 @@ data class PostDetailScreenUiState(
         val listKey: String,
         val post: PostItemUiState,
     )
-
-    /**
-     * 投稿の下に置く、投稿者へのメンションの入力欄
-     */
-    data class MentionBox(
-        val text: String,
-        val placeholder: String,
-        val textFieldEnabled: Boolean,
-        val sendButtonEnabled: Boolean,
-        val listener: Listener,
-    ) {
-        @Immutable
-        interface Listener {
-            fun onTextChange(text: String)
-
-            fun onClickSend()
-        }
-    }
 
     @Immutable
     interface Listener {

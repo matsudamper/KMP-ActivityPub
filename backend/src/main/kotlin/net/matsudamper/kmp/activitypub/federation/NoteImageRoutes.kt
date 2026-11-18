@@ -3,9 +3,14 @@ package net.matsudamper.kmp.activitypub.federation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.RangeUnits
+import io.ktor.http.contentRangeHeaderValue
+import io.ktor.http.parseRangesSpecifier
+import io.ktor.server.request.header
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.RoutingCall
 import io.ktor.server.routing.get
 import net.matsudamper.kmp.activitypub.imagestorage.ImagePath
 import net.matsudamper.kmp.activitypub.imagestorage.ImageStorage
@@ -16,7 +21,7 @@ import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import org.slf4j.LoggerFactory
 
 /**
- * 投稿に付けた画像を返す。他のサーバーは投稿を受け取った後にここへ取りに来る
+ * 投稿に付けた画像や動画を返す。他のサーバーは投稿を受け取った後にここへ取りに来る
  */
 internal class NoteImageFiles(
     private val noteRepository: NoteRepository,
@@ -61,7 +66,8 @@ internal fun Route.noteImageRoutes(files: NoteImageFiles) {
         when (val file = files.find(call.parameters["publicId"].orEmpty())) {
             is NoteImageFile.Found -> {
                 call.response.header(HttpHeaders.CacheControl, "public, max-age=31536000, immutable")
-                call.respondBytes(bytes = file.bytes, contentType = ContentType.parse(file.contentType), status = HttpStatusCode.OK)
+                call.response.header(HttpHeaders.AcceptRanges, "bytes")
+                call.respondFile(file)
             }
 
             // 投稿が消えれば画像も出さなくなるので、見つからないことは覚えさせない
@@ -74,6 +80,38 @@ internal fun Route.noteImageRoutes(files: NoteImageFiles) {
                 call.response.header(HttpHeaders.CacheControl, "no-store")
                 call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.ServiceUnavailable)
             }
+        }
+    }
+}
+
+/**
+ * Safari は動画を Range で少しずつ読み、206 が返らないと再生しない。範囲は 1 つだけ受け付け、複数なら全体を返す
+ */
+private suspend fun RoutingCall.respondFile(file: NoteImageFile.Found) {
+    val contentType = ContentType.parse(file.contentType)
+    val rangeHeader = request.header(HttpHeaders.Range)
+    if (rangeHeader == null) {
+        respondBytes(bytes = file.bytes, contentType = contentType, status = HttpStatusCode.OK)
+        return
+    }
+    val totalLength = file.bytes.size.toLong()
+    val ranges = parseRangesSpecifier(rangeHeader)?.takeIf { it.unit == RangeUnits.Bytes.unitToken }?.merge(totalLength)
+    when {
+        ranges == null || ranges.size > 1 -> respondBytes(bytes = file.bytes, contentType = contentType, status = HttpStatusCode.OK)
+
+        ranges.isEmpty() -> {
+            response.header(HttpHeaders.ContentRange, contentRangeHeaderValue(range = null, fullLength = totalLength, unit = RangeUnits.Bytes))
+            respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.RequestedRangeNotSatisfiable)
+        }
+
+        else -> {
+            val range = ranges.single()
+            response.header(HttpHeaders.ContentRange, contentRangeHeaderValue(range = range, fullLength = totalLength, unit = RangeUnits.Bytes))
+            respondBytes(
+                bytes = file.bytes.copyOfRange(range.first.toInt(), range.last.toInt() + 1),
+                contentType = contentType,
+                status = HttpStatusCode.PartialContent,
+            )
         }
     }
 }

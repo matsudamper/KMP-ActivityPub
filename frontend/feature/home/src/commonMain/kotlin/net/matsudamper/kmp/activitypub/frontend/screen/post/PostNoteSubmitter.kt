@@ -8,7 +8,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteImage
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserUploadNoteImageResult
-import net.matsudamper.kmp.activitypub.frontend.ui.WebpImage
+import net.matsudamper.kmp.activitypub.frontend.ui.PostAttachment
 import org.koin.core.annotation.Singleton
 
 /**
@@ -22,8 +22,8 @@ internal class PostNoteSubmitter(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     /**
-     * 画像を 1 枚ずつ置いてから投稿する。送り直しでは画像も置き直す。
-     * 前に置いた画像は投稿に付いているか、付かずにサーバーの期限で消える
+     * 画像や動画を 1 つずつ置いてから投稿する。送り直しでは置き直す。
+     * 前に置いたものは投稿に付いているか、付かずにサーバーの期限で消える
      *
      * @param replyToPostId 返信するタイムラインの投稿の id。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。引用でなければ null
@@ -35,7 +35,7 @@ internal class PostNoteSubmitter(
         body: String,
         requestId: String,
         contentWarning: String?,
-        images: List<WebpImage>,
+        images: List<PostAttachment>,
         replyToPostId: String?,
         quotePostId: String?,
         mentionAcct: String?,

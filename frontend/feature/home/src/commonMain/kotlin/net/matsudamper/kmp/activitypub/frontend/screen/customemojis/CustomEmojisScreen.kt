@@ -56,7 +56,7 @@ internal fun CustomEmojisScreen(
     val uiState by viewModel.uiStateFlow.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    val pickImage = rememberImagePicker(onPick = uiState.listener::onImagePicked)
+    val pickImage = rememberImagePicker(videoPickable = false, onPick = uiState.listener::onImagePicked)
 
     LaunchedEffect(viewModel.eventHandler, navigator, pickImage) {
         viewModel.eventHandler.collect(

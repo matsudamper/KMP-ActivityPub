@@ -294,9 +294,11 @@ sealed interface TimelinePostImage {
     data class Remote(val url: String, override val description: String?, val mediaKind: RemoteMediaKind) : TimelinePostImage
 
     /**
-     * このサーバーの投稿の画像。URL はこのサーバーのドメインで決まるので、識別子だけ持つ
+     * このサーバーの投稿の添付。画像のほかに動画もある。URL はこのサーバーのドメインで決まるので、識別子だけ持つ
+     *
+     * @param contentType 受け付けたときに判定した形式
      */
-    data class Local(val publicId: NoteImagePublicId, override val description: String?) : TimelinePostImage
+    data class Local(val publicId: NoteImagePublicId, override val description: String?, val contentType: String) : TimelinePostImage
 }
 
 enum class RemoteMediaKind(val storedValue: String) {

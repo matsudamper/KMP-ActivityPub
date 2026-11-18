@@ -67,10 +67,10 @@ data class PostScreenUiState(
     val listener: Listener,
 ) {
     /**
-     * @param preview 送る画像。表示するときに読む
+     * @param preview 送る画像か動画。表示するときに読む
      */
     data class Image(
-        val preview: ImagePreview,
+        val preview: AttachmentPreview,
         val removeButtonEnabled: Boolean,
         val listener: ImageListener,
     )
@@ -109,10 +109,16 @@ data class PostScreenUiState(
         fun onDismiss()
     }
 
+    sealed interface AttachmentPreview
+
     @Immutable
-    fun interface ImagePreview {
+    fun interface ImagePreview : AttachmentPreview {
         fun imageRequest(context: PlatformContext): ImageRequest
     }
+
+    data class VideoPreview(
+        val videoUrl: String,
+    ) : AttachmentPreview
 
     @Immutable
     interface ImageListener {

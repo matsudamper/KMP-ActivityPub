@@ -205,7 +205,7 @@ class UserProfileService(
                 deletableNoteId = if (ownProfile) it.publicId.value else null,
                 pinned = it.publicId in pinnedNoteIdSet,
                 pinnableNoteId = if (ownProfile) it.publicId else null,
-                images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description) },
+                images = it.images.map { image -> TimelinePostImage.Local(publicId = image.publicId, description = image.description, contentType = image.contentType) },
                 emojis = listOf(),
                 favouriteCount = favouriteCounts[it.publicId],
                 stamps = stampCounts[it.publicId].orEmpty(),
