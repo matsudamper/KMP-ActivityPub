@@ -38,7 +38,7 @@ internal class PostScreenViewModel(
     private val viewModelStateFlow: MutableStateFlow<ViewModelState> =
         MutableStateFlow(
             ViewModelState(
-                body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                body = savedStateHandle.get<String>(BODY_KEY) ?: initialBody(),
                 images = listOf(),
                 loadingImage = false,
                 submitting = false,
@@ -46,7 +46,7 @@ internal class PostScreenViewModel(
                 emojiPickerRequestKey = null,
                 bodyInsertion = null,
                 quote = when (target) {
-                    PostScreenTarget.NewNote, is PostScreenTarget.Reply -> null
+                    PostScreenTarget.NewNote, is PostScreenTarget.Reply, is PostScreenTarget.Mention -> null
                     is PostScreenTarget.Quote -> QuoteLoad.Loading
                 },
                 replyTarget = initialReplyToPostId()?.let { postId -> ReplyTarget(postId = postId, load = QuoteLoad.Loading) },
@@ -162,6 +162,12 @@ internal class PostScreenViewModel(
         val replyTarget = viewModelStateFlow.value.replyTarget
         if (replyTarget != null) loadReplyTarget(replyTarget.postId)
     }
+
+    private fun initialBody(): String =
+        when (target) {
+            is PostScreenTarget.Mention -> "@${target.acct} "
+            PostScreenTarget.NewNote, is PostScreenTarget.Quote, is PostScreenTarget.Reply -> ""
+        }
 
     /**
      * 外した後に画面が作り直されても、開いたときの返信先に戻さない
@@ -280,6 +286,7 @@ internal class PostScreenViewModel(
                             replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
                             quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
+                            mentionAcct = (target as? PostScreenTarget.Mention)?.acct,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -331,6 +338,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
             UserPostNoteResult.ReplyTargetNotFound -> "返信先の投稿が見つかりません"
             UserPostNoteResult.QuoteTargetNotFound -> "引用する投稿が見つかりません"
+            UserPostNoteResult.MentionTargetNotFound -> "宛先のユーザーが見つかりません"
             is UserPostNoteResult.Failure -> result.message
         }
 

@@ -220,6 +220,24 @@ sealed interface Screen : NavKey {
     }
 
     /**
+     * @param acct 宛先のユーザーの `username@host`。このサーバーのユーザーは `username`
+     */
+    @Serializable
+    data class MentionPost(
+        val acct: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(ACCT_PARAMETER to acct)
+        override val parentScreen: Screen get() = UserProfile(username = acct)
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val ACCT_PARAMETER: String = "acct"
+            val PATH_PATTERN: PathPattern = PathPattern("/@{$ACCT_PARAMETER}/post")
+        }
+    }
+
+    /**
      * @param postId 編集履歴を見るホームタイムラインの投稿の id
      */
     @Serializable
@@ -307,6 +325,9 @@ sealed interface Screen : NavKey {
                 },
                 ReplyPost.PATH_PATTERN to { parameters ->
                     ReplyPost(postId = parameters.getValue(ReplyPost.POST_ID_PARAMETER))
+                },
+                MentionPost.PATH_PATTERN to { parameters ->
+                    MentionPost(acct = parameters.getValue(MentionPost.ACCT_PARAMETER))
                 },
                 PostRevisions.PATH_PATTERN to { parameters ->
                     PostRevisions(postId = parameters.getValue(PostRevisions.POST_ID_PARAMETER))

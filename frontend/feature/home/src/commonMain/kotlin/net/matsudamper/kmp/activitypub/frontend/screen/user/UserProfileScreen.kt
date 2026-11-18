@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -124,6 +126,10 @@ internal fun UserProfileScreen(
                 navigator.navigate(Screen.ReplyPost(postId = postId))
             }
 
+            override fun navigateToMentionPost(acct: String) {
+                navigator.navigate(Screen.MentionPost(acct = acct))
+            }
+
             override fun navigateToUserProfile(username: String) {
                 navigator.navigate(Screen.UserProfile(username = username))
             }
@@ -167,6 +173,16 @@ internal fun UserProfileContent(
             }
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        floatingActionButton = {
+            if (uiState.postFabVisible) {
+                FloatingActionButton(
+                    onClick = uiState.listener::onClickPostFab,
+                    shape = CircleShape,
+                ) {
+                    Icon(imageVector = AppIcons.Edit, contentDescription = "このユーザー宛てに投稿")
+                }
+            }
+        },
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when (val content = uiState.content) {

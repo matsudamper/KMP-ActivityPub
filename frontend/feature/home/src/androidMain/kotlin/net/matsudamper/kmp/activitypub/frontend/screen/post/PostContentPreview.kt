@@ -1,9 +1,14 @@
 package net.matsudamper.kmp.activitypub.frontend.screen.post
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.ColorImage
@@ -11,6 +16,7 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImagePreviewHandler
 import coil3.compose.LocalAsyncImagePreviewHandler
 import coil3.request.ImageRequest
+import net.matsudamper.kmp.activitypub.frontend.screen.PostDialogFrame
 import net.matsudamper.kmp.activitypub.frontend.screen.createPostBodyText
 import net.matsudamper.kmp.activitypub.frontend.screen.createTextWithEmojis
 import net.matsudamper.kmp.activitypub.frontend.ui.PickedImageFile
@@ -25,6 +31,25 @@ private fun PostContentPreview() {
             uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null),
             snackbarHostState = SnackbarHostState(),
         )
+    }
+}
+
+@Preview(widthDp = 1200, heightDp = 800)
+@Composable
+private fun PostDialogMentionPreview() {
+    PostPreviewTheme {
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+        ) {
+            PostDialogFrame {
+                PostContent(
+                    navigationIcon = PostNavigationIcon.Close,
+                    uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null)
+                        .copy(body = "@alice@example.social "),
+                    snackbarHostState = SnackbarHostState(),
+                )
+            }
+        }
     }
 }
 

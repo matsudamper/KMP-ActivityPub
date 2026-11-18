@@ -517,7 +517,14 @@ internal class PostDetailScreenViewModel(
             val error =
                 try {
                     val result =
-                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId, quotePostId = null)
+                        postNoteSubmitter.submit(
+                            body = body,
+                            requestId = mentionRequestId,
+                            images = listOf(),
+                            replyToPostId = replyToPostId,
+                            quotePostId = null,
+                            mentionAcct = null,
+                        )
                     when (result) {
                         // 画像を付けないので置けないことは無い
                         is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"
@@ -560,8 +567,9 @@ internal class PostDetailScreenViewModel(
 
             UserPostNoteResult.ReplyTargetNotFound -> "この投稿にはメンションできません"
 
-            // メンションでは引用しない
+            // メンションでは引用せず、返信先の投稿者のほかには宛てない
             UserPostNoteResult.QuoteTargetNotFound,
+            UserPostNoteResult.MentionTargetNotFound,
             UserPostNoteResult.TooManyImages,
             UserPostNoteResult.ImageNotFound,
             -> "メンションを送れませんでした"
