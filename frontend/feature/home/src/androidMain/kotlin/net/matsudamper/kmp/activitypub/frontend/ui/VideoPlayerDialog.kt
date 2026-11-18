@@ -1,5 +1,9 @@
 package net.matsudamper.kmp.activitypub.frontend.ui
 
+import android.view.View
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +14,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,24 +47,40 @@ internal actual fun VideoPlayerDialog(
     DisposableEffect(player) {
         onDispose { player.release() }
     }
+    var closeButtonVisible by remember { mutableStateOf(true) }
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             AndroidView(
-                factory = { viewContext -> PlayerView(viewContext).apply { this.player = player } },
+                factory = { viewContext ->
+                    PlayerView(viewContext).apply {
+                        this.player = player
+                        setControllerVisibilityListener(
+                            PlayerView.ControllerVisibilityListener { visibility ->
+                                closeButtonVisible = visibility == View.VISIBLE
+                            },
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxSize().safeDrawingPadding(),
             )
-            IconButton(
-                onClick = onDismissRequest,
+            AnimatedVisibility(
+                visible = closeButtonVisible,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(8.dp),
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color(0xFF333333),
-                    contentColor = Color.White,
-                ),
             ) {
-                Icon(imageVector = AppIcons.Close, contentDescription = "閉じる")
+                IconButton(
+                    onClick = onDismissRequest,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = Color(0xFF333333),
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Icon(imageVector = AppIcons.Close, contentDescription = "閉じる")
+                }
             }
         }
     }
