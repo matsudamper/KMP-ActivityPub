@@ -831,6 +831,8 @@ class NotePostServiceTest {
                 iconUrl = null,
                 headerUrl = null,
                 emojis = listOf(),
+                summary = null,
+                fields = listOf(),
             ),
         )
         val NOW: Instant = Instant.parse("2026-11-01T00:00:00Z")
