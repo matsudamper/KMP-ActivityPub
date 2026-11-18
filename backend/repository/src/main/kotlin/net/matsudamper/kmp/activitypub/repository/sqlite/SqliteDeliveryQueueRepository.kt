@@ -94,6 +94,7 @@ internal class SqliteDeliveryQueueRepository(
                     .set(NOTES.ACCOUNT_ID, accountId)
                     .set(NOTES.PUBLIC_ID, post.publicId.value)
                     .set(NOTES.CONTENT_HTML, post.contentHtml)
+                    .set(NOTES.SUMMARY, post.summary)
                     .set(NOTES.SOURCE_TEXT, post.sourceText)
                     .set(NOTES.PUBLISHED_AT, publishedAt)
                     .set(NOTES.REQUEST_ID, post.requestId)

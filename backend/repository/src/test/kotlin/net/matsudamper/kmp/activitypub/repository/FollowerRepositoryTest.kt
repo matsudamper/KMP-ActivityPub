@@ -254,6 +254,8 @@ class FollowerRepositoryTest {
                 iconUrl = null,
                 headerUrl = null,
                 emojis = listOf(),
+                summary = null,
+                fields = listOf(),
             ),
         )
     }

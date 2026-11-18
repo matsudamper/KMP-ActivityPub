@@ -82,6 +82,23 @@ class HomeScreenViewModelTest {
     }
 
     @Test
+    fun contentWarningPostIsFoldedUntilOpened() = withViewModel { viewModel, engine ->
+        engine.responses.send { timelinePage(listOf(post("a").replace(""""summary":null,"sensitive":false""", """"summary":"ネタバレ","sensitive":true""")), null) }
+        viewModel.uiStateFlow.value.listener.onScreenShown()
+
+        val folded = viewModel.uiStateFlow.first { it.timelineColumns.firstOrNull()?.items?.isNotEmpty() == true }.timelineColumns.single().items.single()
+        assertEquals("ネタバレ", folded.contentWarning?.text?.text?.text)
+        assertFalse(folded.bodyVisible)
+
+        folded.contentWarning?.listener?.onClickToggle()
+        val opened = viewModel.uiStateFlow.first { it.timelineColumns.single().items.single().bodyVisible }.timelineColumns.single().items.single()
+        assertEquals("隠す", opened.contentWarning?.toggleButtonText)
+
+        opened.contentWarning?.listener?.onClickToggle()
+        viewModel.uiStateFlow.first { !it.timelineColumns.single().items.single().bodyVisible }
+    }
+
+    @Test
     fun movingColumnSavesNewOrder() = withViewModel { viewModel, _ ->
         columnSettingStore.columns.value = listOf(mainColumn, newsColumn, allColumn)
         viewModel.uiStateFlow.first { it.timelineColumns.size == 3 }

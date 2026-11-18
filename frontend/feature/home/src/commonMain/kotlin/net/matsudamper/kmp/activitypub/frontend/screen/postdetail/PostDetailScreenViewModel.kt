@@ -86,6 +86,7 @@ internal class PostDetailScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySource = mapOf()),
+                openedContentWarningPostIds = setOf(),
                 post = PostState.Loading,
                 linkPreviews = listOf(),
                 blurToggledImageUrls = setOf(),
@@ -531,6 +532,7 @@ internal class PostDetailScreenViewModel(
                         postNoteSubmitter.submit(
                             body = body,
                             requestId = mentionRequestId,
+                            contentWarning = null,
                             images = listOf(),
                             replyToPostId = replyToPostId,
                             quotePostId = null,
@@ -578,8 +580,9 @@ internal class PostDetailScreenViewModel(
 
             UserPostNoteResult.ReplyTargetNotFound -> "この投稿にはメンションできません"
 
-            // メンションでは引用せず、返信先の投稿者のほかには宛てない
+            // メンションでは引用も閲覧注意もせず、返信先の投稿者のほかには宛てない
             UserPostNoteResult.QuoteTargetNotFound,
+            UserPostNoteResult.ContentWarningTooLong,
             UserPostNoteResult.MentionTargetNotFound,
             UserPostNoteResult.TooManyImages,
             UserPostNoteResult.ImageNotFound,
@@ -629,6 +632,13 @@ internal class PostDetailScreenViewModel(
                 else -> current
             }
             state.copy(post = post, replyTargets = state.replyTargets.map(update), replies = state.replies.map(update))
+        }
+    }
+
+    private fun toggleContentWarning(postId: String) {
+        viewModelStateFlow.update {
+            val opened = it.openedContentWarningPostIds
+            it.copy(openedContentWarningPostIds = if (postId in opened) opened - postId else opened + postId)
         }
     }
 
@@ -784,7 +794,9 @@ internal class PostDetailScreenViewModel(
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
             translation = viewModelState.translation,
+            contentWarningOpened = post.id in viewModelState.openedContentWarningPostIds,
             onToggleTranslation = postTranslations::toggle,
+            onToggleContentWarning = { toggleContentWarning(post.id) },
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val username = if (host == null) post.username else "${post.username}@$host"
@@ -849,7 +861,9 @@ internal class PostDetailScreenViewModel(
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
             translation = viewModelState.translation,
+            contentWarningOpened = post.id in viewModelState.openedContentWarningPostIds,
             onToggleTranslation = postTranslations::toggle,
+            onToggleContentWarning = { toggleContentWarning(post.id) },
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val username = if (host == null) post.username else "${post.username}@$host"
@@ -918,6 +932,10 @@ internal class PostDetailScreenViewModel(
 
     private data class ViewModelState(
         val translation: PostTranslationState,
+        /**
+         * 閲覧注意の本文を開いている投稿の id
+         */
+        val openedContentWarningPostIds: Set<String>,
         val post: PostState,
         val linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
         val blurToggledImageUrls: Set<String>,

@@ -1,9 +1,11 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import net.matsudamper.kmp.activitypub.repository.CustomEmojiRecord
+import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileFieldRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kotpub.actor.RemoteActor
+import net.matsudamper.kotpub.actor.RemoteActorProfileField
 import net.matsudamper.kotpub.emoji.CustomEmoji
 
 internal fun RemoteActor.toRecord(): RemoteActorRecord = RemoteActorRecord(
@@ -11,7 +13,19 @@ internal fun RemoteActor.toRecord(): RemoteActorRecord = RemoteActorRecord(
     inbox,
     sharedInbox,
     publicKeyPem,
-    RemoteActorProfileRecord(profile.preferredUsername, profile.displayName, profile.profileUrl, profile.iconUrl, profile.headerUrl, profile.emojis.toRecords()),
+    RemoteActorProfileRecord(
+        profile.preferredUsername,
+        profile.displayName,
+        profile.profileUrl,
+        profile.iconUrl,
+        profile.headerUrl,
+        profile.emojis.toRecords(),
+        profile.summary,
+        profile.fields.toFieldRecords(),
+    ),
 )
 
 internal fun List<CustomEmoji>.toRecords(): List<CustomEmojiRecord> = map { CustomEmojiRecord(name = it.name, imageUrl = it.imageUrl) }
+
+internal fun List<RemoteActorProfileField>.toFieldRecords(): List<RemoteActorProfileFieldRecord> =
+    map { RemoteActorProfileFieldRecord(name = it.name, htmlValue = it.htmlValue) }

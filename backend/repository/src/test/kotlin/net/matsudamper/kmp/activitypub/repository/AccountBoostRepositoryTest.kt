@@ -230,7 +230,7 @@ class AccountBoostRepositoryTest {
         assertEquals("注意", edited["$ACTOR/notes/public"]?.summary)
 
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         assertTrue(timeline.storeFetchedNotes(alice, listOf(note("public").copy(actorUri = BOOSTER, contentHtml = "<p>なりすまし</p>"))).isEmpty())
@@ -320,6 +320,7 @@ class AccountBoostRepositoryTest {
                 requestId = "request",
                 publicId = PublicNoteId("bob-note"),
                 contentHtml = "<p>本文</p>",
+                summary = null,
                 sourceText = "",
                 publishedAt = NOW,
                 images = listOf(),
@@ -341,7 +342,7 @@ class AccountBoostRepositoryTest {
 
     private fun receiveBoost(repositories: Repositories, follower: AccountId): String {
         repositories.remoteActorRepository.save(
-            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf(), null, listOf())),
             NOW,
         )
         repositories.followingRepository.add(follower, BOOSTER, NOW)
@@ -398,7 +399,7 @@ class AccountBoostRepositoryTest {
             }
             Repositories.create(DatabaseConfig(path)).use { repositories ->
                 repositories.remoteActorRepository.save(
-                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf())),
+                    RemoteActorRecord(ACTOR, "$ACTOR/inbox", null, "key", RemoteActorProfileRecord("remote", "Remote", null, null, null, listOf(), null, listOf())),
                     NOW,
                 )
                 val alice = checkNotNull(repositories.accountRepository.findByUsername("alice")).id

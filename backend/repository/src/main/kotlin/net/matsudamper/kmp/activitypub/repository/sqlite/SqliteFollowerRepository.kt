@@ -39,6 +39,7 @@ internal class SqliteFollowerRepository(
             .set(REMOTE_ACTORS.PROFILE_URL, profile.profileUrl)
             .set(REMOTE_ACTORS.ICON_URL, profile.iconUrl)
             .set(REMOTE_ACTORS.HEADER_URL, profile.headerUrl)
+            .set(REMOTE_ACTORS.SUMMARY, profile.summary)
             .set(REMOTE_ACTORS.UPDATED_AT, storedReceivedAt)
             .onConflict(REMOTE_ACTORS.ACTOR_URI)
             .doUpdate()
@@ -50,9 +51,11 @@ internal class SqliteFollowerRepository(
             .set(REMOTE_ACTORS.PROFILE_URL, profile.profileUrl)
             .set(REMOTE_ACTORS.ICON_URL, profile.iconUrl)
             .set(REMOTE_ACTORS.HEADER_URL, profile.headerUrl)
+            .set(REMOTE_ACTORS.SUMMARY, profile.summary)
             .set(REMOTE_ACTORS.UPDATED_AT, storedReceivedAt)
             .execute()
         dsl.replaceRemoteActorEmojis(follower.actorUri, profile.emojis)
+        dsl.replaceRemoteActorProfileFields(follower.actorUri, profile.fields)
         val remoteActorId =
             checkNotNull(dsl.findRemoteActorId(follower.actorUri)) { "記録したアクターを引けない: ${follower.actorUri}" }
 
@@ -176,10 +179,12 @@ internal class SqliteFollowerRepository(
                 .set(REMOTE_ACTORS.PROFILE_URL, profile.profileUrl)
                 .set(REMOTE_ACTORS.ICON_URL, profile.iconUrl)
                 .set(REMOTE_ACTORS.HEADER_URL, profile.headerUrl)
+                .set(REMOTE_ACTORS.SUMMARY, profile.summary)
                 .set(REMOTE_ACTORS.UPDATED_AT, StoredInstant.format(Instant.now()))
                 .where(REMOTE_ACTORS.ACTOR_URI.eq(actorUri))
                 .execute()
             dsl.replaceRemoteActorEmojis(actorUri, profile.emojis)
+            dsl.replaceRemoteActorProfileFields(actorUri, profile.fields)
         }
     }
 

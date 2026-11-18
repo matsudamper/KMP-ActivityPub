@@ -95,6 +95,7 @@ class NotificationRepositoryTest {
                     requestId = "request-note-1",
                     publicId = NOTE_1,
                     contentHtml = "<p>hello</p>",
+                    summary = null,
                     sourceText = "",
                     publishedAt = NOW,
                     body = "create-note-1",
@@ -115,7 +116,7 @@ class NotificationRepositoryTest {
         inbox = "$actorUri/inbox",
         sharedInbox = null,
         publicKeyPem = "key-$actorUri",
-        profile = RemoteActorProfileRecord(actorUri.substringAfterLast('/'), null, null, null, null, listOf()),
+        profile = RemoteActorProfileRecord(actorUri.substringAfterLast('/'), null, null, null, null, listOf(), null, listOf()),
     )
 
     private companion object {
