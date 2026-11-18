@@ -5,8 +5,8 @@ import java.util.concurrent.CompletionStage
 import graphql.GraphqlErrorBuilder
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
-import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
+import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockedAccount
 import net.matsudamper.kmp.activitypub.graphql.model.QlFailedDelivery
 import net.matsudamper.kmp.activitypub.graphql.model.QlFailedDeliveryPage
