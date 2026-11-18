@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -148,6 +149,8 @@ internal fun PostContent(
     navigationIcon: PostNavigationIcon,
     snackbarHostState: SnackbarHostState,
 ) {
+    // ダイアログで開いた投稿画面の下にホームの投稿カラムが残るので、入力欄ごとに id を分ける
+    val bodyInputId = remember { "$POST_BODY_INPUT_ID_PREFIX-${Uuid.random()}" }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -189,7 +192,7 @@ internal fun PostContent(
                 value = uiState.body,
                 onValueChange = uiState.listener::onBodyChanged,
                 label = "今なにしてる？",
-                inputId = POST_BODY_INPUT_ID,
+                inputId = bodyInputId,
                 inputName = "body",
                 enabled = uiState.inputEnabled,
                 hasError = uiState.inputHasError,
@@ -321,4 +324,4 @@ private fun SelectedImage(image: PostScreenUiState.Image) {
 
 private val SELECTED_IMAGE_SIZE = 96.dp
 
-private const val POST_BODY_INPUT_ID = "post-body"
+private const val POST_BODY_INPUT_ID_PREFIX = "post-body"
