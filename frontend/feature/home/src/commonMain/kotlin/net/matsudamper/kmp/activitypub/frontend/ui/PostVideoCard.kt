@@ -31,10 +31,11 @@ internal fun PostVideoCard(
     video: PostItemUiState.Video,
     modifier: Modifier = Modifier,
 ) {
-    var playerVisible by remember { mutableStateOf(false) }
+    // LazyRow は位置で状態を持つので、開いている間に動画の並びが変わっても選んだ動画を出し続けるよう URL で持つ
+    var playingVideoUrl by remember { mutableStateOf<String?>(null) }
     Surface(
         modifier = modifier.width(LinkPreviewCardWidth),
-        onClick = { playerVisible = true },
+        onClick = { playingVideoUrl = video.url },
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -73,10 +74,11 @@ internal fun PostVideoCard(
             }
         }
     }
-    if (playerVisible) {
+    val currentPlayingVideoUrl = playingVideoUrl
+    if (currentPlayingVideoUrl != null) {
         VideoPlayerDialog(
-            videoUrl = video.url,
-            onDismissRequest = { playerVisible = false },
+            videoUrl = currentPlayingVideoUrl,
+            onDismissRequest = { playingVideoUrl = null },
         )
     }
 }
