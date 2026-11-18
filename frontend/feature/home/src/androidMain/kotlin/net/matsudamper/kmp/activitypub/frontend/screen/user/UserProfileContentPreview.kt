@@ -143,6 +143,7 @@ private fun UserProfileContentPreview() {
                     openOriginalMenuItemVisible = true,
                     sensitiveImagesBlurred = true,
                     blockMenuItemsVisible = true,
+                    postFabVisible = true,
                     listener = AndroidPreviewUserProfileListener,
                 ),
                 snackbarHostState = SnackbarHostState(),
@@ -302,6 +303,7 @@ private fun UserProfileContentMediaPreview() {
                 openOriginalMenuItemVisible = true,
                 sensitiveImagesBlurred = true,
                 blockMenuItemsVisible = true,
+                postFabVisible = true,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -360,6 +362,7 @@ private fun UserProfileContentNotFoundPreview() {
                 openOriginalMenuItemVisible = false,
                 sensitiveImagesBlurred = true,
                 blockMenuItemsVisible = false,
+                postFabVisible = false,
                 listener = AndroidPreviewUserProfileListener,
             ),
             snackbarHostState = SnackbarHostState(),
@@ -459,6 +462,7 @@ private val LocalUserUiState = UserProfileScreenUiState(
     openOriginalMenuItemVisible = true,
     sensitiveImagesBlurred = true,
     blockMenuItemsVisible = false,
+    postFabVisible = true,
     listener = AndroidPreviewUserProfileListener,
 )
 
@@ -480,6 +484,8 @@ private object AndroidPreviewUserProfileListener : UserProfileScreenUiState.List
     override fun onClickRetryLoadMore() = Unit
 
     override fun onClickSensitiveImagesVisibility() = Unit
+
+    override fun onClickPostFab() = Unit
 }
 
 private object AndroidPreviewMediaListener : ProfileMediaUiState.Listener {
