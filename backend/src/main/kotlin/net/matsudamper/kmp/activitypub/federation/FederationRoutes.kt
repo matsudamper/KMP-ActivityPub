@@ -98,6 +98,18 @@ internal fun Route.federationRoutes(federation: Federation) {
         call.respondEndpoint(response)
     }
 
+    get("/users/{username}/following") {
+        val response =
+            withOpenTelemetryContext {
+                federation.followingEndpoint.get(
+                    username = call.parameters["username"],
+                    accept = call.request.header(HttpHeaders.Accept),
+                    cursor = call.request.queryParameters[COLLECTION_CURSOR_PARAM],
+                )
+            }
+        call.respondEndpoint(response)
+    }
+
     get("/users/{username}/outbox") {
         val response =
             withOpenTelemetryContext {
