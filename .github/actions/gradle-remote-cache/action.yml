@@ -1,0 +1,45 @@
+name: Gradle リモートキャッシュの認証
+description: GitHub の OIDC トークンを STS で一時的な認証情報に替え、Gradle の S3 ビルドキャッシュに渡す
+inputs:
+  endpoint:
+    description: S3 互換サーバーの URL。OIDC トークンの audience にもなる
+    required: true
+    default: https://s3.matsudamper.net
+  role_arn:
+    description: AssumeRoleWithWebIdentity で受け取るロール
+    required: true
+    default: arn:minio:iam:::role/tamgVaR1Cd1wW4XKj_NCS9NKzGE
+runs:
+  using: composite
+  steps:
+    - name: OIDC トークンの取得
+      id: get_token
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      with:
+        script: |
+          return await core.getIDToken('${{ inputs.endpoint }}')
+        result-encoding: string
+
+    - name: STS で一時的な認証情報を受け取る
+      shell: bash
+      env:
+        ENDPOINT: ${{ inputs.endpoint }}
+        ROLE_ARN: ${{ inputs.role_arn }}
+        WEB_IDENTITY_TOKEN: ${{ steps.get_token.outputs.result }}
+      run: |
+        CREDS=$(aws sts assume-role-with-web-identity \
+          --endpoint-url "$ENDPOINT" \
+          --role-arn "$ROLE_ARN" \
+          --role-session-name gradle-remote-cache \
+          --web-identity-token "$WEB_IDENTITY_TOKEN" \
+          --region us-east-1)
+        ACCESS_KEY_ID=$(echo "$CREDS" | jq -r .Credentials.AccessKeyId)
+        SECRET_KEY=$(echo "$CREDS" | jq -r .Credentials.SecretAccessKey)
+        SESSION_TOKEN=$(echo "$CREDS" | jq -r .Credentials.SessionToken)
+        echo "::add-mask::$SECRET_KEY"
+        echo "::add-mask::$SESSION_TOKEN"
+        {
+          echo "S3_BUILD_CACHE_ACCESS_KEY_ID=$ACCESS_KEY_ID"
+          echo "S3_BUILD_CACHE_SECRET_KEY=$SECRET_KEY"
+          echo "S3_BUILD_CACHE_SESSION_TOKEN=$SESSION_TOKEN"
+        } >> "$GITHUB_ENV"
