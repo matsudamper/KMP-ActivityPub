@@ -310,7 +310,6 @@ object AppIcons {
                 defaultHeight = 24.dp,
                 viewportWidth = 24f,
                 viewportHeight = 24f,
-                autoMirror = true,
             ).addPath(
                 pathData = addPathNodes("M8,5v14l11,-7z"),
                 fill = SolidColor(Color.Black),
