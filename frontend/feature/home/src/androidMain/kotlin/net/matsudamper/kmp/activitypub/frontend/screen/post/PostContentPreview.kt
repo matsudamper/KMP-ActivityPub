@@ -22,7 +22,7 @@ private fun PostContentPreview() {
     PostPreviewTheme {
         PostContent(
             navigationIcon = PostNavigationIcon.Back,
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null),
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -45,6 +45,7 @@ private fun PostContentQuotePreview() {
                     listener = null,
                 ),
                 replyTarget = null,
+                contentWarning = null,
             ),
             snackbarHostState = SnackbarHostState(),
         )
@@ -72,7 +73,20 @@ private fun PostContentReplyPreview() {
                     removeButtonEnabled = true,
                     listener = AndroidPreviewReplyTargetListener,
                 ),
+                contentWarning = null,
             ),
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun PostContentContentWarningPreview() {
+    PostPreviewTheme {
+        PostContent(
+            navigationIcon = PostNavigationIcon.Back,
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = "ネタバレ"),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -85,7 +99,7 @@ private fun PostContentShortHeightPreview() {
     PostPreviewTheme {
         PostContent(
             navigationIcon = PostNavigationIcon.Back,
-            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null),
+            uiState = previewUiState(images = listOf(), addImageLoadingVisible = false, quote = null, replyTarget = null, contentWarning = null),
             snackbarHostState = SnackbarHostState(),
         )
     }
@@ -108,21 +122,30 @@ private fun PostContentImagesPreview() {
                 addImageLoadingVisible = true,
                 quote = null,
                 replyTarget = null,
+                contentWarning = null,
             ),
             snackbarHostState = SnackbarHostState(),
         )
     }
 }
 
+/**
+ * @param contentWarning 閲覧注意にしないなら null
+ */
 private fun previewUiState(
     images: List<PostScreenUiState.Image>,
     addImageLoadingVisible: Boolean,
     quote: PostItemUiState.Quote?,
     replyTarget: PostScreenUiState.ReplyTarget?,
+    contentWarning: String?,
 ): PostScreenUiState =
     PostScreenUiState(
         body = "Kotlin 2.4 がリリースされました",
         bodyInsertion = null,
+        contentWarningInputVisible = contentWarning != null,
+        contentWarning = contentWarning.orEmpty(),
+        contentWarningButtonChecked = contentWarning != null,
+        contentWarningButtonEnabled = true,
         inputHasError = false,
         inputEnabled = true,
         closeButtonEnabled = true,
@@ -156,6 +179,10 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onBodyChanged(text: String) = Unit
 
     override fun onBodyInsertionHandled() = Unit
+
+    override fun onClickContentWarning() = Unit
+
+    override fun onContentWarningChanged(text: String) = Unit
 
     override fun onClickAddImage() = Unit
 

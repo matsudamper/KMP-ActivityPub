@@ -939,10 +939,12 @@ class UserApi(
     /**
      * @param replyToPostId 返信する [UserHomeTimelineResult.Post.id]。投稿者へのメンションが本文の先頭に付く。返信でなければ null
      * @param quotePostId 引用する [UserHomeTimelineResult.Post.id]。引用でなければ null
+     * @param contentWarning 閲覧注意の注意書き。閲覧注意にしなければ null
      */
     suspend fun postNote(
         body: String,
         requestId: String,
+        contentWarning: String?,
         imageIds: List<String>,
         replyToPostId: String?,
         quotePostId: String?,
@@ -952,6 +954,7 @@ class UserApi(
             UserPostNoteMutation(
                 body = body,
                 requestId = requestId,
+                contentWarning = Optional.present(contentWarning),
                 imageIds = imageIds,
                 replyToPostId = Optional.present(replyToPostId),
                 quotePostId = Optional.present(quotePostId),
@@ -965,6 +968,7 @@ class UserApi(
             UserPostNoteFailure.NOT_LOGGED_IN -> UserPostNoteResult.NotLoggedIn
             UserPostNoteFailure.EMPTY_BODY -> UserPostNoteResult.EmptyBody
             UserPostNoteFailure.TOO_LONG -> UserPostNoteResult.TooLong
+            UserPostNoteFailure.CONTENT_WARNING_TOO_LONG -> UserPostNoteResult.ContentWarningTooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound

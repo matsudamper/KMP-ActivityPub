@@ -39,6 +39,7 @@ internal class PostScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                contentWarning = savedStateHandle.get<String>(CONTENT_WARNING_KEY),
                 images = listOf(),
                 loadingImage = false,
                 submitting = false,
@@ -92,6 +93,16 @@ internal class PostScreenViewModel(
 
                     override fun onBodyInsertionHandled() {
                         viewModelStateFlow.update { it.copy(bodyInsertion = null) }
+                    }
+
+                    override fun onClickContentWarning() {
+                        if (viewModelStateFlow.value.submitting) return
+                        changeContentWarning(if (viewModelStateFlow.value.contentWarning == null) "" else null)
+                    }
+
+                    override fun onContentWarningChanged(text: String) {
+                        if (viewModelStateFlow.value.contentWarning == text) return
+                        changeContentWarning(text)
                     }
 
                     override fun onClickAddEmoji() {
@@ -213,6 +224,15 @@ internal class PostScreenViewModel(
     }
 
     /**
+     * @param text 閲覧注意にしないなら null
+     */
+    private fun changeContentWarning(text: String?) {
+        savedStateHandle[CONTENT_WARNING_KEY] = text
+        renewRequestId()
+        viewModelStateFlow.update { it.copy(contentWarning = text, error = null) }
+    }
+
+    /**
      * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、loadingImage が下りなくなる
      */
     private fun addImage(file: PickedImageFile) {
@@ -277,6 +297,7 @@ internal class PostScreenViewModel(
                         postNoteSubmitter.submit(
                             body = state.body,
                             requestId = requestId(),
+                            contentWarning = state.contentWarning,
                             images = state.images.map { it.image },
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと返信できない
                             replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
@@ -296,9 +317,10 @@ internal class PostScreenViewModel(
                 return@launch
             }
             savedStateHandle[BODY_KEY] = ""
+            savedStateHandle[CONTENT_WARNING_KEY] = null
             savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
             renewRequestId()
-            viewModelStateFlow.update { it.copy(body = "", images = listOf(), replyTarget = null) }
+            viewModelStateFlow.update { it.copy(body = "", contentWarning = null, images = listOf(), replyTarget = null) }
             state.images.forEach { it.image.release() }
             events.send { it.navigateBack() }
         }
@@ -328,6 +350,7 @@ internal class PostScreenViewModel(
             UserPostNoteResult.NotLoggedIn -> "ログインしていません"
             UserPostNoteResult.EmptyBody -> "本文が空です"
             UserPostNoteResult.TooLong -> "本文が長すぎます"
+            UserPostNoteResult.ContentWarningTooLong -> "注意書きが長すぎます"
             UserPostNoteResult.FederationDisabled -> "サーバーが投稿を配れる設定になっていません"
             UserPostNoteResult.TooManyImages -> "画像は $MAX_IMAGES 枚までにしてください"
             UserPostNoteResult.ImageNotFound -> "画像を送れませんでした。もう一度投稿してください"
@@ -356,6 +379,10 @@ internal class PostScreenViewModel(
         PostScreenUiState(
             body = viewModelState.body,
             bodyInsertion = viewModelState.bodyInsertion,
+            contentWarningInputVisible = viewModelState.contentWarning != null,
+            contentWarning = viewModelState.contentWarning.orEmpty(),
+            contentWarningButtonChecked = viewModelState.contentWarning != null,
+            contentWarningButtonEnabled = viewModelState.submitting.not(),
             inputHasError = viewModelState.error != null,
             inputEnabled = viewModelState.submitting.not(),
             closeButtonEnabled = viewModelState.submitting.not(),
@@ -411,6 +438,10 @@ internal class PostScreenViewModel(
 
     private data class ViewModelState(
         val body: String,
+        /**
+         * 閲覧注意にしなければ null
+         */
+        val contentWarning: String?,
         val images: List<SelectedImage>,
         val loadingImage: Boolean,
         val submitting: Boolean,
@@ -478,6 +509,7 @@ internal class PostScreenViewModel(
 }
 
 private const val BODY_KEY = "body"
+private const val CONTENT_WARNING_KEY = "contentWarning"
 private const val REQUEST_ID_KEY = "requestId"
 private const val REPLY_TO_POST_ID_KEY = "replyToPostId"
 

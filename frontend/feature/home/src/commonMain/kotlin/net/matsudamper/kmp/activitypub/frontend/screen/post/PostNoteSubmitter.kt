@@ -27,10 +27,12 @@ internal class PostNoteSubmitter(
      *
      * @param replyToPostId 返信するタイムラインの投稿の id。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。引用でなければ null
+     * @param contentWarning 閲覧注意の注意書き。閲覧注意にしなければ null
      */
     suspend fun submit(
         body: String,
         requestId: String,
+        contentWarning: String?,
         images: List<WebpImage>,
         replyToPostId: String?,
         quotePostId: String?,
@@ -43,7 +45,9 @@ internal class PostNoteSubmitter(
                         else -> return@async PostNoteSubmitResult.UploadFailed(uploaded)
                     }
                 }
-            PostNoteSubmitResult.Submitted(api.postNote(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = replyToPostId, quotePostId = quotePostId))
+            PostNoteSubmitResult.Submitted(
+                api.postNote(body = body, requestId = requestId, contentWarning = contentWarning, imageIds = imageIds, replyToPostId = replyToPostId, quotePostId = quotePostId),
+            )
         }.await()
 }
 

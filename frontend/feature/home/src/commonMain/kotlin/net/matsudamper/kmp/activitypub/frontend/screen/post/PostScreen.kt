@@ -19,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -185,6 +186,21 @@ internal fun PostContent(
             modifier = Modifier.fillMaxWidth().padding(innerPadding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (uiState.contentWarningInputVisible) {
+                MultilineTextField(
+                    value = uiState.contentWarning,
+                    onValueChange = uiState.listener::onContentWarningChanged,
+                    label = "注意書き",
+                    inputId = POST_CONTENT_WARNING_INPUT_ID,
+                    inputName = "contentWarning",
+                    enabled = uiState.inputEnabled,
+                    hasError = uiState.inputHasError,
+                    onSubmitShortcut = uiState.listener::onPressPostShortcut,
+                    insertion = null,
+                    onHandleInsertion = {},
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             MultilineTextField(
                 value = uiState.body,
                 onValueChange = uiState.listener::onBodyChanged,
@@ -237,6 +253,21 @@ internal fun PostContent(
                     Icon(
                         imageVector = AppIcons.Emoticon,
                         contentDescription = "絵文字を追加",
+                    )
+                }
+                IconToggleButton(
+                    checked = uiState.contentWarningButtonChecked,
+                    onCheckedChange = { uiState.listener.onClickContentWarning() },
+                    enabled = uiState.contentWarningButtonEnabled,
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ),
+                ) {
+                    Text(
+                        text = "CW",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -322,3 +353,5 @@ private fun SelectedImage(image: PostScreenUiState.Image) {
 private val SELECTED_IMAGE_SIZE = 96.dp
 
 private const val POST_BODY_INPUT_ID = "post-body"
+
+private const val POST_CONTENT_WARNING_INPUT_ID = "post-content-warning"
