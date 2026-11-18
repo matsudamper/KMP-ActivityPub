@@ -456,6 +456,7 @@ class UserProfileService(
         sensitive = note.sensitive,
         images = note.images,
         emojis = note.emojis,
+        linkHref = note.linkHref,
     )
 
     private fun RemoteNoteInput.toUnsavedProfilePost(): ProfilePost {
