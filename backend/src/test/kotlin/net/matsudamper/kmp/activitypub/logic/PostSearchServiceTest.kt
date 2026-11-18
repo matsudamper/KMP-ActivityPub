@@ -100,6 +100,7 @@ class PostSearchServiceTest {
                 quoteUri = null,
                 editedAt = null,
                 linkHref = null,
+                unknownTypes = listOf(),
             ),
         )
     }

@@ -389,6 +389,7 @@ class AccountBoostRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        unknownTypes = listOf(),
     )
 
     private fun withRepository(block: (Repositories, AccountId, AccountId) -> Unit) {

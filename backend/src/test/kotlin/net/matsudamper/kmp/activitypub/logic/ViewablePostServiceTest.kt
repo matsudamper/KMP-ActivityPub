@@ -51,6 +51,7 @@ class ViewablePostServiceTest {
         quoteUri = null,
         editedAt = null,
         linkHref = null,
+        unknownTypes = listOf(),
     )
     private val imports = mutableListOf<String>()
     private val unsavedNotes = object : UnsavedRemoteNotes {

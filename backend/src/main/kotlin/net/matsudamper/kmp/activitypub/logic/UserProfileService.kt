@@ -218,6 +218,7 @@ class UserProfileService(
                 hasQuoteTarget = it.quoteUri != null,
                 edited = false,
                 linkHref = null,
+                unknownTypes = listOf(),
             )
         }.toMap()
         val boostPosts = takenBoosts.mapNotNull { post ->
@@ -457,6 +458,7 @@ class UserProfileService(
         images = note.images,
         emojis = note.emojis,
         linkHref = note.linkHref,
+        unknownTypes = note.unknownTypes,
     )
 
     private fun RemoteNoteInput.toUnsavedProfilePost(): ProfilePost {
@@ -485,6 +487,7 @@ class UserProfileService(
             hasQuoteTarget = quoteUri != null,
             edited = false,
             linkHref = linkHref,
+            unknownTypes = unknownTypes,
         )
     }
 
@@ -514,6 +517,7 @@ class UserProfileService(
             hasQuoteTarget = quoteUri != null,
             edited = editedAt != null,
             linkHref = linkHref,
+            unknownTypes = unknownTypes,
         )
     }
 
@@ -815,6 +819,10 @@ data class ProfilePost(
      * Link で届いた投稿のリンク先。Note とこのサーバーの投稿は null
      */
     val linkHref: String?,
+    /**
+     * 投稿本体・添付・タグのうち読み方を知らない type の名前。このサーバーの投稿は空
+     */
+    val unknownTypes: List<String>,
 ) {
     /**
      * OGP は保存した投稿の本文から引くので、保存していない投稿は引けない

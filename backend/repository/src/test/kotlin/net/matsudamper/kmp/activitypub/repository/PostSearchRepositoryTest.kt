@@ -120,6 +120,7 @@ class PostSearchRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        unknownTypes = listOf(),
     )
 
     private fun withRepository(block: (Repositories, AccountId) -> Unit) {

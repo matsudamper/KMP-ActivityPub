@@ -468,6 +468,7 @@ class QueryResolverImpl : QueryResolver {
             pinnableNoteId = pinnableNoteId,
             linkUrls = body.linkUrls,
             linkObjectUrl = linkHref?.takeIf { it in body.linkUrls },
+            unknownObjectTypes = unknownTypes,
             mentions = body.mentions,
             images = body.images,
             videos = body.videos,

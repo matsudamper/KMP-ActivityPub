@@ -24,6 +24,15 @@ class ReceivedNoteToRemoteNoteInputTest {
         assertEquals("<p>本文</p>", input.contentHtml)
     }
 
+    @Test
+    fun unknownTypesKeepOnlyDisplayableNames() {
+        val note = note(content = "", linkHref = null).copy(
+            unknownTypes = listOf("Article", "as:Page", "with space", "<script>", "a".repeat(65)) + (1..20).map { "Type$it" },
+        )
+        val input = note.toRemoteNoteInput(localRecipients = setOf(), now = Instant.EPOCH)
+        assertEquals(listOf("Article", "as:Page") + (1..8).map { "Type$it" }, input.unknownTypes)
+    }
+
     private fun note(content: String, linkHref: String?): ReceivedNote = ReceivedNote(
         id = "https://remote.example/links/1",
         attributedTo = "https://remote.example/actor",
@@ -43,5 +52,6 @@ class ReceivedNoteToRemoteNoteInputTest {
         mentions = listOf(),
         poll = null,
         linkHref = linkHref,
+        unknownTypes = listOf(),
     )
 }
