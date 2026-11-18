@@ -39,6 +39,7 @@ internal class PostScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 body = savedStateHandle.get<String>(BODY_KEY).orEmpty(),
+                sensitive = savedStateHandle.get<Boolean>(SENSITIVE_KEY) ?: false,
                 images = listOf(),
                 loadingImage = false,
                 submitting = false,
@@ -97,6 +98,10 @@ internal class PostScreenViewModel(
                     override fun onClickAddEmoji() {
                         if (viewModelStateFlow.value.submitting) return
                         viewModelStateFlow.update { it.copy(emojiPickerRequestKey = Uuid.random().toString()) }
+                    }
+
+                    override fun onClickSensitive() {
+                        toggleSensitive()
                     }
 
                     override fun onClickAddImage() {
@@ -212,6 +217,14 @@ internal class PostScreenViewModel(
         viewModelStateFlow.update { it.copy(body = text, error = null) }
     }
 
+    private fun toggleSensitive() {
+        if (viewModelStateFlow.value.submitting) return
+        val sensitive = viewModelStateFlow.value.sensitive.not()
+        savedStateHandle[SENSITIVE_KEY] = sensitive
+        renewRequestId()
+        viewModelStateFlow.update { it.copy(sensitive = sensitive, error = null) }
+    }
+
     /**
      * 読み込みも viewModelScope で行う。画面のスコープだと回転などで止まり、loadingImage が下りなくなる
      */
@@ -282,6 +295,7 @@ internal class PostScreenViewModel(
                             replyToPostId = (state.replyTarget?.load as? QuoteLoad.Loaded)?.post?.id,
                             // 開いた投稿が保存していない他のサーバーの投稿だと、読み込んだときに保存した投稿の id でないと引用できない
                             quotePostId = (state.quote as? QuoteLoad.Loaded)?.post?.id,
+                            sensitive = state.sensitive,
                         )
                     when (result) {
                         is PostNoteSubmitResult.UploadFailed -> uploadErrorMessage(result.result)
@@ -297,8 +311,9 @@ internal class PostScreenViewModel(
             }
             savedStateHandle[BODY_KEY] = ""
             savedStateHandle[REPLY_TO_POST_ID_KEY] = ""
+            savedStateHandle[SENSITIVE_KEY] = false
             renewRequestId()
-            viewModelStateFlow.update { it.copy(body = "", images = listOf(), replyTarget = null) }
+            viewModelStateFlow.update { it.copy(body = "", images = listOf(), replyTarget = null, sensitive = false) }
             state.images.forEach { it.image.release() }
             events.send { it.navigateBack() }
         }
@@ -383,6 +398,8 @@ internal class PostScreenViewModel(
             addImageButtonEnabled = viewModelState.imageAddable(),
             addImageLoadingVisible = viewModelState.loadingImage,
             addEmojiButtonEnabled = viewModelState.submitting.not(),
+            sensitiveChipSelected = viewModelState.sensitive,
+            sensitiveChipEnabled = viewModelState.submitting.not(),
             emojiPickerDialog = viewModelState.emojiPickerRequestKey?.let { requestKey ->
                 ReactionPickerDialogUiState(
                     requestKey = requestKey,
@@ -411,6 +428,7 @@ internal class PostScreenViewModel(
 
     private data class ViewModelState(
         val body: String,
+        val sensitive: Boolean,
         val images: List<SelectedImage>,
         val loadingImage: Boolean,
         val submitting: Boolean,
@@ -480,6 +498,7 @@ internal class PostScreenViewModel(
 private const val BODY_KEY = "body"
 private const val REQUEST_ID_KEY = "requestId"
 private const val REPLY_TO_POST_ID_KEY = "replyToPostId"
+private const val SENSITIVE_KEY = "sensitive"
 
 /**
  * サーバーの 1 投稿あたりの上限

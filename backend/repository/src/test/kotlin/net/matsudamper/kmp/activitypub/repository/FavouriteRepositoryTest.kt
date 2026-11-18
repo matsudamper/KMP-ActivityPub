@@ -120,6 +120,7 @@ class FavouriteRepositoryTest {
                 quoteInbox = null,
                 mentions = listOf(),
                 images = listOf(),
+                sensitive = false,
             ),
         )
     }

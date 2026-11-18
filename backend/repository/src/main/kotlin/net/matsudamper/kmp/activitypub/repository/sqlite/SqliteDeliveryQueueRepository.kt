@@ -98,6 +98,7 @@ internal class SqliteDeliveryQueueRepository(
                     .set(NOTES.IN_REPLY_TO, post.inReplyTo)
                     .set(NOTES.QUOTE_URI, post.quoteUri)
                     .set(NOTES.QUOTE_INBOX, post.quoteInbox)
+                    .set(NOTES.SENSITIVE, if (post.sensitive) 1L else 0L)
                     .returning(NOTES.ID)
                     .fetchOne(NOTES.ID),
             ) { "記録した投稿の id を引けない: ${post.publicId}" }

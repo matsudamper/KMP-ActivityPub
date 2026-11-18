@@ -379,9 +379,10 @@ class UserMutationResolverImpl : UserMutationResolver {
         imageIds: List<NoteImagePublicId>,
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
+        sensitive: Boolean,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPostNoteResult>> {
-        val result = postNote(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = replyToPostId, quotePostId = quotePostId, env = env)
+        val result = postNote(body = body, requestId = requestId, imageIds = imageIds, replyToPostId = replyToPostId, quotePostId = quotePostId, sensitive = sensitive, env = env)
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(result).build())
     }
 
@@ -503,6 +504,7 @@ class UserMutationResolverImpl : UserMutationResolver {
         imageIds: List<NoteImagePublicId>,
         replyToPostId: TimelinePostId?,
         quotePostId: TimelinePostId?,
+        sensitive: Boolean,
         env: DataFetchingEnvironment,
     ): QlUserPostNoteResult {
         val diContainer = GraphQlEngine.diContainer(env)
@@ -524,6 +526,7 @@ class UserMutationResolverImpl : UserMutationResolver {
                 imageIds = imageIds,
                 replyToPostId = replyToPostId?.value,
                 quotePostId = quotePostId?.value,
+                sensitive = sensitive,
             )
         val failure =
             when (result) {

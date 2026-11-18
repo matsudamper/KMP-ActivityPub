@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -239,6 +240,13 @@ internal fun PostContent(
                         contentDescription = "絵文字を追加",
                     )
                 }
+                FilterChip(
+                    selected = uiState.sensitiveChipSelected,
+                    onClick = uiState.listener::onClickSensitive,
+                    enabled = uiState.sensitiveChipEnabled,
+                    label = { Text("センシティブ") },
+                    modifier = Modifier.padding(start = 4.dp),
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = uiState.listener::onClickPost,

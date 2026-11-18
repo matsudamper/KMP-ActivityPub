@@ -133,6 +133,8 @@ private fun previewUiState(
         addImageButtonEnabled = addImageLoadingVisible.not(),
         addImageLoadingVisible = addImageLoadingVisible,
         addEmojiButtonEnabled = true,
+        sensitiveChipSelected = images.isNotEmpty(),
+        sensitiveChipEnabled = true,
         emojiPickerDialog = null,
         listener = AndroidPreviewPostListener,
     )
@@ -162,6 +164,8 @@ private object AndroidPreviewPostListener : PostScreenUiState.Listener {
     override fun onImagePicked(file: PickedImageFile) = Unit
 
     override fun onClickAddEmoji() = Unit
+
+    override fun onClickSensitive() = Unit
 
     override fun onReplyRequested(postId: String) = Unit
 

@@ -115,6 +115,7 @@ class NotePostService(
      * @param imageIds [uploadImage] で置いた画像。付けた順に並ぶ
      * @param replyToPostId 返信するタイムラインの投稿の id。投稿者に宛てて、投稿者の inbox にも積む。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。投稿者の inbox にも積む。引用でなければ null
+     * @param sensitive 閲覧注意の投稿か
      */
     fun post(
         username: String,
@@ -123,6 +124,7 @@ class NotePostService(
         imageIds: List<NoteImagePublicId>,
         replyToPostId: String?,
         quotePostId: String?,
+        sensitive: Boolean,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
         val sender = directory.resolve(username) ?: return PostNoteResult.AccountNotFound
@@ -168,6 +170,7 @@ class NotePostService(
                 quote = quote?.objectUri,
                 mentions = listOfNotNull(mention).map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
                 emojis = emojiObjects.find(contentHtml),
+                sensitive = sensitive,
             )
         val enqueued =
             deliveryQueueRepository.enqueueNote(
@@ -184,6 +187,7 @@ class NotePostService(
                     quoteUri = quote?.objectUri,
                     quoteInbox = quote?.authorInbox,
                     mentions = listOfNotNull(mention?.record),
+                    sensitive = sensitive,
                 ),
             )
         return when (enqueued) {

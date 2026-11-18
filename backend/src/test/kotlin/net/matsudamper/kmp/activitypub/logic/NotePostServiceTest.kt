@@ -67,7 +67,7 @@ class NotePostServiceTest {
     fun `投稿すると本文を HTML にしてフォロワーの inbox ごとに積む`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
 
-        val result = service.post(username = "user1", body = "<b>hello</b>\nworld", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null)
+        val result = service.post(username = "user1", body = "<b>hello</b>\nworld", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = false)
 
         val posted = assertIs<PostNoteResult.Posted>(result)
         assertTrue(posted.url.startsWith("https://$DOMAIN/"))
@@ -83,7 +83,7 @@ class NotePostServiceTest {
 
     @Test
     fun `本文に入れたこのサーバーのカスタム絵文字を、配る Note に Emoji として載せる`() {
-        service.post(username = "user1", body = "hello :blobcat: :unknown:", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null)
+        service.post(username = "user1", body = "hello :blobcat: :unknown:", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = false)
 
         val post = deliveryQueueRepository.posts.single()
         assertEquals("<p>hello :blobcat: :unknown:</p>", post.contentHtml)
@@ -94,8 +94,21 @@ class NotePostServiceTest {
     }
 
     @Test
+    fun `閲覧注意で投稿すると記録と配る Note の両方に sensitive が付く`() {
+        service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = true)
+
+        val post = deliveryQueueRepository.posts.single()
+        assertTrue(post.sensitive)
+        val note = AppJson.parseToJsonElement(post.body).jsonObject.getValue("object").jsonObject
+        assertEquals("true", note.getValue("sensitive").jsonPrimitive.content)
+    }
+
+    @Test
     fun `空の本文は積まない`() {
-        assertEquals(PostNoteResult.EmptyBody, service.post(username = "user1", body = " \n ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null))
+        assertEquals(
+            PostNoteResult.EmptyBody,
+            service.post(username = "user1", body = " \n ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = false),
+        )
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
         assertEquals(0, enqueuedCount)
@@ -105,7 +118,7 @@ class NotePostServiceTest {
     fun `長すぎる本文は積まない`() {
         assertEquals(
             PostNoteResult.TooLong,
-            service.post(username = "user1", body = "あ".repeat(NoteComposer.MAX_LENGTH + 1), requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null),
+            service.post(username = "user1", body = "あ".repeat(NoteComposer.MAX_LENGTH + 1), requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = false),
         )
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
@@ -113,7 +126,10 @@ class NotePostServiceTest {
 
     @Test
     fun `アクターとして扱えないアカウントでは積まない`() {
-        assertEquals(PostNoteResult.AccountNotFound, service.post(username = "other", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null))
+        assertEquals(
+            PostNoteResult.AccountNotFound,
+            service.post(username = "other", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = false),
+        )
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
     }
@@ -122,8 +138,10 @@ class NotePostServiceTest {
     fun `同じ requestId で送り直されたら最初の投稿の URL を返して積み直さない`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A)
 
-        val first = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null))
-        val resent = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null))
+        val first =
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = false))
+        val resent =
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null, sensitive = false))
 
         assertEquals(first, resent)
         assertEquals(1, deliveryQueueRepository.posts.size)
@@ -136,7 +154,9 @@ class NotePostServiceTest {
         val png = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, description = " 猫 ")))
         val jpeg = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(JPEG, description = " ")))
 
-        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "画像", requestId = REQUEST_ID, imageIds = listOf(png, jpeg), replyToPostId = null, quotePostId = null))
+        assertIs<PostNoteResult.Posted>(
+            service.post(username = "user1", body = "画像", requestId = REQUEST_ID, imageIds = listOf(png, jpeg), replyToPostId = null, quotePostId = null, sensitive = false),
+        )
 
         val images = deliveryQueueRepository.posts.single().images
         assertEquals(listOf(png, jpeg), images.map { it.publicId })
@@ -163,7 +183,7 @@ class NotePostServiceTest {
     fun `画像があれば本文は空でもよい`() {
         val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
 
-        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = " ", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null))
+        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = " ", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null, sensitive = false))
 
         assertEquals("", deliveryQueueRepository.posts.single().contentHtml)
     }
@@ -172,7 +192,10 @@ class NotePostServiceTest {
     fun `画像が多すぎたら積まない`() {
         val images = List(NotePostService.MAX_IMAGES + 1) { uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null))) }
 
-        assertEquals(PostNoteResult.TooManyImages, service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = images, replyToPostId = null, quotePostId = null))
+        assertEquals(
+            PostNoteResult.TooManyImages,
+            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = images, replyToPostId = null, quotePostId = null, sensitive = false),
+        )
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
     }
@@ -182,10 +205,13 @@ class NotePostServiceTest {
         val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
         now = NOW.plus(NotePostService.UPLOADED_IMAGE_LIFETIME)
 
-        assertEquals(PostNoteResult.ImageNotFound, service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null))
         assertEquals(
             PostNoteResult.ImageNotFound,
-            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(NoteImagePublicId("missing")), replyToPostId = null, quotePostId = null),
+            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null, sensitive = false),
+        )
+        assertEquals(
+            PostNoteResult.ImageNotFound,
+            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(NoteImagePublicId("missing")), replyToPostId = null, quotePostId = null, sensitive = false),
         )
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
@@ -205,8 +231,8 @@ class NotePostServiceTest {
     @Test
     fun `同じ requestId で送り直されたら、画像が投稿に付いた後でも最初の投稿を返す`() {
         val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
-        val first = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null)
-        val resent = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null)
+        val first = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null, sensitive = false)
+        val resent = service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null, sensitive = false)
 
         assertEquals(first, resent)
         assertEquals(1, deliveryQueueRepository.posts.size)
@@ -216,7 +242,10 @@ class NotePostServiceTest {
     fun `投稿を消すと画像を置き場から消し、フォロワーの inbox ごとに Delete を積む`() {
         followerRepository.deliveryInboxes += listOf(INBOX_A, INBOX_B)
         val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
-        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null))
+        val posted =
+            assertIs<PostNoteResult.Posted>(
+                service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null, sensitive = false),
+            )
         enqueuedCount = 0
 
         assertEquals(DeleteNoteResult.Deleted, service.delete(username = "user1", publicId = posted.publicId))
@@ -232,7 +261,10 @@ class NotePostServiceTest {
     @Test
     fun `画像を置き場から消せなければ投稿を残し、Delete も積まない`() {
         val image = uploaded(service.uploadImage(username = "user1", image = noteImageUpload(PNG, null)))
-        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null))
+        val posted =
+            assertIs<PostNoteResult.Posted>(
+                service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(image), replyToPostId = null, quotePostId = null, sensitive = false),
+            )
         imageStorage.deleteFails = true
 
         assertEquals(DeleteNoteResult.ImageDeleteFailed, service.delete(username = "user1", publicId = posted.publicId))
@@ -262,7 +294,7 @@ class NotePostServiceTest {
 
         val posted =
             assertIs<PostNoteResult.Posted>(
-                service.post(username = "user1", body = "@alice@remote.example こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1", quotePostId = null),
+                service.post(username = "user1", body = "@alice@remote.example こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1", quotePostId = null, sensitive = false),
             )
 
         val post = deliveryQueueRepository.posts.single()
@@ -292,7 +324,7 @@ class NotePostServiceTest {
                 inbox = REMOTE_INBOX,
             )
 
-        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1", quotePostId = null))
+        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "こんにちは", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r1", quotePostId = null, sensitive = false))
 
         val post = deliveryQueueRepository.posts.single()
         assertEquals("<p>こんにちは</p>", post.contentHtml)
@@ -304,7 +336,7 @@ class NotePostServiceTest {
     fun `自分の投稿への返信は自分に宛てない`() {
         noteRepository.replyTargets["l1"] = ReplyTarget.Local(username = "user1", publicId = PublicNoteId("own"))
 
-        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "続き", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "l1", quotePostId = null))
+        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "続き", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "l1", quotePostId = null, sensitive = false))
 
         val post = deliveryQueueRepository.posts.single()
         assertEquals("https://$DOMAIN/notes/own", post.inReplyTo)
@@ -316,7 +348,7 @@ class NotePostServiceTest {
     fun `返信できない投稿には積まない`() {
         assertEquals(
             PostNoteResult.ReplyTargetNotFound,
-            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r999", quotePostId = null),
+            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = "r999", quotePostId = null, sensitive = false),
         )
 
         assertEquals(listOf(), deliveryQueueRepository.posts)
@@ -335,7 +367,7 @@ class NotePostServiceTest {
             )
 
         val posted =
-            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "これ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "r1"))
+            assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "これ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "r1", sensitive = false))
 
         val post = deliveryQueueRepository.posts.single()
         assertEquals("https://remote.example/notes/1", post.quoteUri)
@@ -353,7 +385,7 @@ class NotePostServiceTest {
     fun `このサーバーの投稿の引用は投稿の URL を引用先にする`() {
         noteRepository.replyTargets["l1"] = ReplyTarget.Local(username = "user1", publicId = PublicNoteId("own"))
 
-        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "続き", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "l1"))
+        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "続き", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "l1", sensitive = false))
 
         val post = deliveryQueueRepository.posts.single()
         assertEquals("https://$DOMAIN/notes/own", post.quoteUri)
@@ -364,7 +396,7 @@ class NotePostServiceTest {
     fun `引用なら本文が空でも積む`() {
         noteRepository.replyTargets["l1"] = ReplyTarget.Local(username = "user1", publicId = PublicNoteId("own"))
 
-        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = " ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "l1"))
+        assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = " ", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "l1", sensitive = false))
 
         assertEquals("", deliveryQueueRepository.posts.single().contentHtml)
     }
@@ -373,7 +405,7 @@ class NotePostServiceTest {
     fun `引用できない投稿は積まない`() {
         assertEquals(
             PostNoteResult.QuoteTargetNotFound,
-            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "r999"),
+            service.post(username = "user1", body = "hello", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = "r999", sensitive = false),
         )
 
         assertEquals(listOf(), deliveryQueueRepository.posts)

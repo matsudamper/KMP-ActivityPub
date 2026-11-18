@@ -504,7 +504,7 @@ internal class PostDetailScreenViewModel(
             val error =
                 try {
                     val result =
-                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId, quotePostId = null)
+                        postNoteSubmitter.submit(body = body, requestId = mentionRequestId, images = listOf(), replyToPostId = replyToPostId, quotePostId = null, sensitive = false)
                     when (result) {
                         // 画像を付けないので置けないことは無い
                         is PostNoteSubmitResult.UploadFailed -> "メンションを送れませんでした"

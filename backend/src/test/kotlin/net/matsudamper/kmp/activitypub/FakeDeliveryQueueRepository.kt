@@ -50,6 +50,7 @@ internal class FakeDeliveryQueueRepository(
                 quoteUri = post.quoteUri,
                 quoteInbox = post.quoteInbox,
                 mentions = post.mentions,
+                sensitive = post.sensitive,
             )
         return EnqueueNoteResult.Enqueued(deliveries = post.inboxes.distinct().size)
     }
