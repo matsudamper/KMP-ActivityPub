@@ -52,6 +52,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.screen.CreateOpenOriginalMenuItemsUseCase
 import net.matsudamper.kmp.activitypub.frontend.screen.PostedAtRefreshTicker
 import net.matsudamper.kmp.activitypub.frontend.ui.PostItemUiState
+import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 import okio.Buffer
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -76,9 +77,9 @@ class HomeScreenViewModelTest {
 
         val uiState = viewModel.uiStateFlow.first { it.timelineColumns.size == 3 && it.timelineColumns[2].items.size == 2 }
         assertEquals(listOf("メイン", "ニュース", "全部"), uiState.timelineColumns.map { it.title })
-        assertEquals(listOf("a"), uiState.timelineColumns[0].items.map { it.body.text.text })
-        assertEquals(listOf("b"), uiState.timelineColumns[1].items.map { it.body.text.text })
-        assertEquals(listOf("a", "b"), uiState.timelineColumns[2].items.map { it.body.text.text })
+        assertEquals(listOf("a"), uiState.timelineColumns[0].items.posts().map { it.body.text.text })
+        assertEquals(listOf("b"), uiState.timelineColumns[1].items.posts().map { it.body.text.text })
+        assertEquals(listOf("a", "b"), uiState.timelineColumns[2].items.posts().map { it.body.text.text })
     }
 
     @Test
@@ -385,24 +386,33 @@ class HomeScreenViewModelTest {
     }
 
     @Test
-    fun notificationsColumnShowsLoadedAndArrivedNotificationsWithTheActor() = withViewModel { viewModel, engine ->
+    fun notificationsColumnShowsLoadedAndArrivedNotificationsWithTheActors() = withViewModel { viewModel, engine ->
         columnSettingStore.columns.value = listOf(TimelineColumnSetting(id = "notifications", name = "通知", sources = setOf(TimelineSource.Notifications), fontSize = TimelineFontSize.Medium))
         engine.notificationResponses.send {
             response(
                 """{"data":{"userInfo":{"__typename":"UserInfo","notifications":{"__typename":"NotificationPage",""" +
-                    """"notifications":[${notification(id = "1", kind = "FAVOURITE", actorName = "Bob", postId = "mine")}],"nextCursor":null}}}}""",
+                    """"notifications":[${notification(id = "1", kind = "FAVOURITE", actorNames = listOf("Bob"), postId = "mine", updatedAt = "2026-11-01T00:00:01Z")}],"nextCursor":null}}}}""",
             )
         }
         viewModel.uiStateFlow.value.listener.onScreenShown()
-        viewModel.uiStateFlow.first { it.mainColumnItems().size == 1 }
-        arrivals.send(
-            """{"__typename":"AccountEvent","timelinePostArrived":null,"timelinePostsDeleted":null,""" +
-                """"notificationArrived":${notification(id = "2", kind = "BOOST", actorName = "Carol", postId = "mine")},"timelinePostUpdated":null}""",
-        )
+        viewModel.uiStateFlow.first { it.mainColumnRows().size == 1 }
+        arrivals.send(notificationUpdated(notification(id = "2", kind = "FOLLOW", actorNames = listOf("Carol"), postId = null, updatedAt = "2026-11-01T00:00:02Z")))
+        viewModel.uiStateFlow.first { it.mainColumnRows().size == 2 }
+        // 同じ項目に新しい相手が加わったら、置き換えて先頭へ移す
+        arrivals.send(notificationUpdated(notification(id = "1", kind = "FAVOURITE", actorNames = listOf("Erin", "Bob"), postId = "mine", updatedAt = "2026-11-01T00:00:03Z")))
 
-        val items = viewModel.uiStateFlow.first { it.mainColumnItems().size == 2 }.mainColumnItems()
-        assertEquals(listOf("Carol がブースト", "Bob がお気に入り"), items.map { item -> item.actorLabel?.let { "${it.actorName.text.text} ${it.actionText}" } })
-        assertEquals(listOf("mine", "mine"), items.map { it.body.text.text })
+        val rows = viewModel.uiStateFlow.first { it.mainColumnRows().firstOrNull() is TimelineItemUiState.Post }.mainColumnRows()
+        assertEquals(
+            listOf("Erin ほか 1 人がお気に入り", "Carol にフォローされました"),
+            rows.map { row ->
+                val label = when (row) {
+                    is TimelineItemUiState.Post -> checkNotNull(row.uiState.actorLabel)
+                    is TimelineItemUiState.ActorOnly -> row.label
+                }
+                "${label.actorName.text.text} ${label.actionText}"
+            },
+        )
+        assertEquals(listOf("mine"), rows.posts().map { it.body.text.text })
     }
 
     @Test
@@ -604,26 +614,33 @@ class HomeScreenViewModelTest {
     private fun actor(displayName: String): String =
         """{"__typename":"Actor","username":"${displayName.lowercase()}","host":"remote.example","displayName":"$displayName","displayNameEmojis":[],"iconUrl":null}"""
 
-    private fun notification(id: String, kind: String, actorName: String, postId: String): String =
-        """{"__typename":"Notification","id":"$id","kind":"$kind","actor":${actor(actorName)},"post":${post(postId)},"receivedAt":"2026-11-01T00:00:0${id}Z"}"""
+    private fun notification(id: String, kind: String, actorNames: List<String>, postId: String?, updatedAt: String): String {
+        val recentActors = actorNames.joinToString(",") { """{"__typename":"NotificationActor","actor":${actor(it)},"reaction":null}""" }
+        val post = postId?.let { post(it) } ?: "null"
+        return """{"__typename":"NotificationGroup","id":"$id","kind":"$kind","post":$post,"recentActors":[$recentActors],""" +
+            """"actorCount":${actorNames.size},"updatedAt":"$updatedAt"}"""
+    }
+
+    private fun notificationUpdated(notification: String): String =
+        """{"__typename":"AccountEvent","timelinePostArrived":null,"timelinePostsDeleted":null,"notificationGroupUpdated":$notification,"timelinePostUpdated":null}"""
 
     private fun postArrived(id: String): String = postArrivedEvent(post(id))
 
     private fun postArrivedEvent(post: String): String =
-        """{"__typename":"AccountEvent","timelinePostArrived":$post,"timelinePostsDeleted":null,"notificationArrived":null,"timelinePostUpdated":null}"""
+        """{"__typename":"AccountEvent","timelinePostArrived":$post,"timelinePostsDeleted":null,"notificationGroupUpdated":null,"timelinePostUpdated":null}"""
 
     private fun postUpdated(id: String, content: String): String {
         val updated = post(id)
             .replace(""""content":"$id"""", """"content":"$content"""")
             .replace(""""edited":false""", """"edited":true""")
             .replace(""""stamps":[]""", """"stamps":[{"__typename":"PostStamp","emoji":"👍","imageUrl":null,"count":1,"customEmojiShortcode":null}]""")
-        return """{"__typename":"AccountEvent","timelinePostArrived":null,"timelinePostsDeleted":null,"notificationArrived":null,"timelinePostUpdated":$updated}"""
+        return """{"__typename":"AccountEvent","timelinePostArrived":null,"timelinePostsDeleted":null,"notificationGroupUpdated":null,"timelinePostUpdated":$updated}"""
     }
 
     private fun postsDeleted(ids: List<String>): String {
         val postIds = ids.joinToString(",") { "\"$it\"" }
         return """{"__typename":"AccountEvent","timelinePostArrived":null,""" +
-            """"timelinePostsDeleted":{"__typename":"TimelinePostsDeleted","postIds":[$postIds],"boostUndonePostIds":[]},"notificationArrived":null,"timelinePostUpdated":null}"""
+            """"timelinePostsDeleted":{"__typename":"TimelinePostsDeleted","postIds":[$postIds],"boostUndonePostIds":[]},"notificationGroupUpdated":null,"timelinePostUpdated":null}"""
     }
 
     private fun myProfile(headerUrl: String): String =
@@ -631,7 +648,11 @@ class HomeScreenViewModelTest {
 
     private fun HomeScreenUiState.profileHeaderUrl(): String? = (profile as? HomeScreenUiState.Profile.Loaded)?.headerUrl
 
-    private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()
+    private fun HomeScreenUiState.mainColumnItems(): List<PostItemUiState> = mainColumnRows().posts()
+
+    private fun HomeScreenUiState.mainColumnRows(): List<TimelineItemUiState> = timelineColumns.firstOrNull()?.items.orEmpty()
+
+    private fun List<TimelineItemUiState>.posts(): List<PostItemUiState> = filterIsInstance<TimelineItemUiState.Post>().map { it.uiState }
 
     private fun HomeScreenUiState.mainColumnFooter(): HomeScreenUiState.TimelineFooter? = timelineColumns.firstOrNull()?.footer
 

@@ -96,18 +96,36 @@ data class PostItemUiState(
     val listener: Listener,
 ) {
     /**
-     * @param iconUrl 相手のプロフィール画像が無ければ null
+     * @param actorName 先頭の相手の名前
+     * @param actors アイコンを並べる相手。新しく加わった順
      * @param listener その相手のプロフィールを見ているときは押せないので null
-     * @param actionText actorName に続ける「がブースト」など。行に収まらないときは actorName だけを省略する
+     * @param actionText actorName に続ける「がブースト」など。ほかにも相手がいれば「ほか 2 人が」から始める。行に収まらないときは actorName だけを省略する
      * @param cancelledLabelVisible ブーストが取り消された後か。一覧は読み直すまでそのまま出すので、取り消されたことを示す
      */
     data class ActorLabel(
         val icon: ActorLabelIcon,
         val actorName: TextWithEmojis,
         val actionText: String,
-        val iconUrl: String?,
+        val actors: List<ActorLabelActor>,
         val cancelledLabelVisible: Boolean,
         val listener: ActorLabelListener?,
+    )
+
+    /**
+     * @param iconUrl 相手のプロフィール画像が無ければ null
+     * @param reaction お気に入りで付けた絵文字。アイコンに重ねて出す。無ければ null
+     */
+    data class ActorLabelActor(
+        val iconUrl: String?,
+        val reaction: ActorLabelReaction?,
+    )
+
+    /**
+     * @param imageUrl カスタム絵文字の画像。Unicode の絵文字か、画像が無ければ null で、文字で出す
+     */
+    data class ActorLabelReaction(
+        val emoji: String,
+        val imageUrl: String?,
     )
 
     /**
@@ -157,6 +175,8 @@ data class PostItemUiState(
     enum class ActorLabelIcon {
         Boost,
         Favourite,
+        Mention,
+        Follow,
     }
 
     data class MenuItem(
