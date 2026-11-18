@@ -24,7 +24,6 @@ plugins {
     id("com.github.burrunan.s3-build-cache") version "1.9.11"
 }
 
-// 認証情報は CI が OIDC で受け取った一時的なものだけ。バケットは匿名で読めないので、無い手元ではリモートを使わない
 val remoteBuildCacheAccessKeyId: String? = System.getenv("S3_BUILD_CACHE_ACCESS_KEY_ID")
 buildCache {
     remote<AwsS3BuildCache> {
