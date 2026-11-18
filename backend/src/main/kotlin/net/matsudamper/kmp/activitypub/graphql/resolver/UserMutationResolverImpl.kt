@@ -19,12 +19,12 @@ import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteCustomEmojiFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteCustomEmojiResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeleteNoteResult
-import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteFailure
-import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasskeyResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlDeletePasswordResult
+import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteFailure
+import net.matsudamper.kmp.activitypub.graphql.model.QlEditNoteResult
 import net.matsudamper.kmp.activitypub.graphql.model.QlReactionInput
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyFailure
 import net.matsudamper.kmp.activitypub.graphql.model.QlRegisterPasskeyQuery

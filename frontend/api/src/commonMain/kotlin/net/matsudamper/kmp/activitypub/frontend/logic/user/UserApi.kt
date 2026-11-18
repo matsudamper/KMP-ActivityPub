@@ -1027,17 +1027,11 @@ class UserApi(
         val editNote = response.data?.user?.editNote ?: return response.failureMessage()
         return when (editNote.failure) {
             null -> null
-
             EditNoteFailure.NOT_LOGGED_IN -> "ログインしていません"
-
             EditNoteFailure.NOT_FOUND -> "投稿が見つかりません"
-
             EditNoteFailure.EMPTY_BODY -> "本文を入力してください"
-
             EditNoteFailure.TOO_LONG -> "本文が長すぎます"
-
             EditNoteFailure.FEDERATION_DISABLED -> "このサーバーでは投稿を編集できません"
-
             EditNoteFailure.UNKNOWN__ -> "Unknown"
         }
     }

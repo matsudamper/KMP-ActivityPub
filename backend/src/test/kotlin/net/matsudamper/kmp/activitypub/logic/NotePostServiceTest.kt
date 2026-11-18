@@ -295,12 +295,13 @@ class NotePostServiceTest {
 
     @Test
     fun `書いたままの本文が無い投稿は、HTML から戻した本文を下書きに出す`() {
-        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = "a & <b>\nc\n\nhttps://example.com/x", requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null))
+        val body = "a & <b>\nc\n\nhttps://example.com/x"
+        val posted = assertIs<PostNoteResult.Posted>(service.post(username = "user1", body = body, requestId = REQUEST_ID, imageIds = listOf(), replyToPostId = null, quotePostId = null))
         val recorded = assertIs<Note>(noteRepository.find(posted.publicId))
         noteRepository.notes.clear()
         noteRepository.notes += recorded.copy(sourceText = null)
 
-        assertEquals("a & <b>\nc\n\nhttps://example.com/x", service.editableBody(username = "user1", publicId = posted.publicId))
+        assertEquals(body, service.editableBody(username = "user1", publicId = posted.publicId))
     }
 
     @Test
