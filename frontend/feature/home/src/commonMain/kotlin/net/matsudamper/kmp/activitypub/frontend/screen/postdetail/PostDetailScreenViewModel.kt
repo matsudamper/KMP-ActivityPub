@@ -18,6 +18,7 @@ import net.matsudamper.kmp.activitypub.frontend.logic.user.UserApi
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserHomeTimelineResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLikeState
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLinkPreviewsResult
+import net.matsudamper.kmp.activitypub.frontend.logic.user.UserLoginStateResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostBody
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostDetailResult
 import net.matsudamper.kmp.activitypub.frontend.logic.user.UserPostNoteResult
@@ -93,6 +94,7 @@ internal class PostDetailScreenViewModel(
                 reactionConfirmation = null,
                 mentionText = "",
                 mentionSending = false,
+                loggedIn = false,
                 replyTargets = listOf(),
                 replyTargetLoad = ReplyTargetLoad.Waiting,
                 replies = listOf(),
@@ -195,6 +197,11 @@ internal class PostDetailScreenViewModel(
         }.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            // 確かめられなければ、ログインしていないものとしてメンションの入力欄を出さない
+            val loggedIn = api.loginState() == UserLoginStateResult.LoggedIn
+            viewModelStateFlow.update { it.copy(loggedIn = loggedIn) }
+        }
         viewModelScope.launch {
             postTranslations.stateFlow.collect { translation ->
                 viewModelStateFlow.update { it.copy(translation = translation) }
@@ -660,13 +667,17 @@ internal class PostDetailScreenViewModel(
                     replyTargets = viewModelState.replyTargets.reversed().map { replyTarget -> createThreadPostItem(replyTarget, viewModelState) },
                     post = createPostItem(post.post, viewModelState),
                     replies = createReplies(viewModelState),
-                    mentionBox = PostDetailScreenUiState.MentionBox(
-                        text = viewModelState.mentionText,
-                        placeholder = "${createAcct(post.post)} へメンション",
-                        textFieldEnabled = !viewModelState.mentionSending,
-                        sendButtonEnabled = viewModelState.mentionSendable(),
-                        listener = mentionBoxListener,
-                    ),
+                    mentionBox = if (viewModelState.loggedIn) {
+                        PostDetailScreenUiState.MentionBox(
+                            text = viewModelState.mentionText,
+                            placeholder = "${createAcct(post.post)} へメンション",
+                            textFieldEnabled = !viewModelState.mentionSending,
+                            sendButtonEnabled = viewModelState.mentionSendable(),
+                            listener = mentionBoxListener,
+                        )
+                    } else {
+                        null
+                    },
                 )
 
                 PostState.NotFound -> PostDetailScreenUiState.Content.NotFound
@@ -878,6 +889,7 @@ internal class PostDetailScreenViewModel(
         val reactionConfirmation: ReactionConfirmation?,
         val mentionText: String,
         val mentionSending: Boolean,
+        val loggedIn: Boolean,
         /**
          * 取れた返信先を、開いている投稿に近い順に並べたもの
          */
