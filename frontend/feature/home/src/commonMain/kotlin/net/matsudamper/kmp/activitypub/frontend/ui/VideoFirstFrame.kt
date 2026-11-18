@@ -9,5 +9,5 @@ import androidx.compose.ui.Modifier
 @Composable
 internal expect fun VideoFirstFrame(
     videoUrl: String,
-    modifier: Modifier,
+    modifier: Modifier = Modifier,
 )
