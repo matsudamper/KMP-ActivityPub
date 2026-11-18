@@ -601,6 +601,32 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun anonymousActorPostsShowOnlyPublishedNotesAndTheirBoosts() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        val alice = accounts.getValue("alice")
+        repositories.remoteActorRepository.save(
+            RemoteActorRecord(BOOSTER, "$BOOSTER/inbox", null, "key", RemoteActorProfileRecord("booster", "Booster", null, null, null, listOf())),
+            NOW,
+        )
+        repositories.followingRepository.add(alice, ACTOR, NOW)
+        repositories.followingRepository.add(alice, BOOSTER, NOW)
+        val public = assertNotNull(repository.receive(note("public", "public", setOf())))
+        val unlisted = assertNotNull(repository.receive(note("unlisted", "unlisted", setOf())))
+        val followers = assertNotNull(repository.receive(note("followers", "followers", setOf("alice"))))
+        val direct = assertNotNull(repository.receive(note("direct", "direct", setOf("alice"))))
+        val boost = assertNotNull(repository.receiveBoost(boost("1", note("boosted", "public", setOf()))))
+
+        // フォローしている alice には読める投稿がすべて出る
+        assertTrue(repository.actorPosts(alice, ACTOR, null, 10).map { it.position.member }.containsAll(listOf(followers.member, direct.member)))
+        // ログインしていなければ、公開と公開タイムラインに載せない公開の投稿と、そのブーストだけが出る
+        val anonymous = repository.actorPosts(null, ACTOR, null, 10).map { it.position.member }
+        assertTrue(anonymous.containsAll(listOf(public.member, unlisted.member)))
+        assertTrue(anonymous.none { it == followers.member || it == direct.member })
+        assertEquals(listOf(boost.member), repository.actorPosts(null, BOOSTER, null, 10).map { it.position.member })
+        assertTrue(repository.actorPosts(null, BOOSTER, null, 10).all { it.likedByMe.not() })
+    }
+
+    @Test
     fun actorPostsDoNotStopAtBoostsTheViewerCannotSee() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")
@@ -784,6 +810,13 @@ class TimelineRepositoryTest {
             assertNull(repository.viewablePost(bob, position.member))
             assertNull(repository.contentHtml(bob, position.member))
         }
+        // ログインしていなくても、このサーバーの投稿と公開の投稿、そのブーストは開ける
+        listOf(localNote, note, boost, accountBoost).forEach { position ->
+            assertEquals(position.member, repository.viewablePost(null, position.member)?.position?.member)
+            assertNotNull(repository.contentHtml(null, position.member))
+        }
+        assertNull(repository.viewablePost(null, direct.member))
+        assertNull(repository.contentHtml(null, direct.member))
         assertNull(repository.viewablePost(alice, "r999"))
         assertNull(repository.contentHtml(alice, "r999"))
     }

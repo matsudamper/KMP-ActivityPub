@@ -37,6 +37,38 @@ private fun PostDetailContentMentionTypedPreview() = PostDetailLoadedPreview(del
 
 @Preview
 @Composable
+private fun PostDetailContentNotLoggedInPreview() {
+    val loadedUiState = createLoadedUiState(
+        images = listOf(previewImage(index = 1), previewImage(index = 2)),
+        deleteNoteDialog = null,
+        mentionText = "",
+        replyTargetLoader = null,
+        quote = null,
+        replyTargets = listOf(),
+        replies = PostDetailScreenUiState.Replies.Loaded(listOf()),
+    )
+    val loadedContent = loadedUiState.content as PostDetailScreenUiState.Content.Loaded
+    MaterialTheme {
+        PostDetailContent(
+            uiState = loadedUiState.copy(
+                content = loadedContent.copy(
+                    post = loadedContent.post.copy(
+                        favouriteButton = null,
+                        boostButton = null,
+                        reactionButton = null,
+                        stamps = loadedContent.post.stamps.map { it.copy(listener = null) },
+                    ),
+                    mentionBox = null,
+                ),
+            ),
+            snackbarHostState = SnackbarHostState(),
+            layout = PostDetailLayout.FullScreen,
+        )
+    }
+}
+
+@Preview
+@Composable
 private fun PostDetailContentDeleteNoteDialogPreview() = PostDetailLoadedPreview(
     deleteNoteDialog = DeleteNoteDialogUiState(deleteButtonEnabled = true, listener = AndroidPreviewDeleteNoteDialogListener),
     mentionText = "",

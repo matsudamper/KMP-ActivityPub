@@ -14,18 +14,20 @@ class PostRepliesService(
     private val blockLists: BlockLists,
 ) {
     /**
+     * @param viewer ログインしていなければ null。ブロックした相手が無いので、誰の返信も隠さない。保存していない投稿の返信は返さない
      * @param postId タイムラインの投稿の id か、[UnsavedRemoteNoteId] の id
      * @return 古い順。[postId] の投稿を読めなければ空
      */
-    fun replies(viewer: AccountId, postId: String): List<TimelinePost> {
+    fun replies(viewer: AccountId?, postId: String): List<TimelinePost> {
         val objectUri = objectUriOf(viewer, postId) ?: return listOf()
-        val blockList = blockLists.of(viewer)
-        return timeline.replies(viewer = viewer, objectUri = objectUri, limit = REPLY_LIMIT, hidesAuthor = blockList::hidesActor)
+        val blockList = viewer?.let(blockLists::of)
+        return timeline.replies(viewer = viewer, objectUri = objectUri, limit = REPLY_LIMIT) { actorUri -> blockList?.hidesActor(actorUri) == true }
     }
 
-    private fun objectUriOf(viewer: AccountId, postId: String): String? {
+    private fun objectUriOf(viewer: AccountId?, postId: String): String? {
         val unsavedObjectUri = UnsavedRemoteNoteId.objectUriOf(postId)
-        if (unsavedObjectUri != null) return unsavedObjectUri
+        // 保存していない投稿はログインしていないと開けないので、その返信も出さない
+        if (unsavedObjectUri != null) return if (viewer == null) null else unsavedObjectUri
         if (!postId.matches(TimelineCursor.MEMBER_PATTERN)) return null
         val post = timeline.viewablePost(viewer, postId) ?: return null
         // 返信はこの URL を返信先として記録している

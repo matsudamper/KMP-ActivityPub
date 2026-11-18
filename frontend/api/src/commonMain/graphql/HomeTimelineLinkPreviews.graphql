@@ -1,11 +1,9 @@
 query HomeTimelineLinkPreviews($postId: TimelinePostId!) {
-    userInfo {
-        linkPreviews(postId: $postId) {
-            url
-            title
-            siteName
-            imageUrl
-            faviconUrl
-        }
+    linkPreviews(postId: $postId) {
+        url
+        title
+        siteName
+        imageUrl
+        faviconUrl
     }
 }

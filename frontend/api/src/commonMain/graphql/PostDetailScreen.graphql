@@ -1,32 +1,24 @@
 query PostDetailScreen($id: TimelinePostId!) {
-    userInfo {
-        timelinePost(id: $id) {
-            ...TimelinePostFields
-        }
+    timelinePost(id: $id) {
+        ...TimelinePostFields
     }
 }
 
 query QuoteTarget($postId: TimelinePostId!) {
-    userInfo {
-        quoteTarget(postId: $postId) {
-            ...TimelinePostFields
-        }
+    quoteTarget(postId: $postId) {
+        ...TimelinePostFields
     }
 }
 
 query ReplyTarget($postId: TimelinePostId!) {
-    userInfo {
-        replyTarget(postId: $postId) {
-            ...TimelinePostFields
-        }
+    replyTarget(postId: $postId) {
+        ...TimelinePostFields
     }
 }
 
 query PostReplies($postId: TimelinePostId!) {
-    userInfo {
-        replies(postId: $postId) {
-            ...TimelinePostFields
-        }
+    replies(postId: $postId) {
+        ...TimelinePostFields
     }
 }
 
@@ -59,11 +51,9 @@ query PostRevisions($postId: TimelinePostId!, $after: String, $limit: Int!) {
 }
 
 query PostCounts($postId: TimelinePostId!) {
-    userInfo {
-        postCounts(postId: $postId) {
-            replyCount
-            favouriteCount
-            boostCount
-        }
+    postCounts(postId: $postId) {
+        replyCount
+        favouriteCount
+        boostCount
     }
 }
