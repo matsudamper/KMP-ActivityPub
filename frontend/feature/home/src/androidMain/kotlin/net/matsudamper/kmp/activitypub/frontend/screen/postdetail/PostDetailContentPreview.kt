@@ -316,6 +316,7 @@ private fun createLoadedUiState(
                         siteName = "Kotlin",
                         imageUrl = null,
                         faviconUrl = null,
+                        linkObjectLabelVisible = false,
                         listener = AndroidPreviewLinkPreviewListener,
                     ),
                 ),

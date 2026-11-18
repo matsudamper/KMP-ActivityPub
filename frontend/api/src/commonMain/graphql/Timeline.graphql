@@ -23,6 +23,7 @@ fragment TimelinePostFields on TimelinePost {
     summary
     sensitive
     linkUrls
+    linkObjectUrl
     mentions {
         start
         end

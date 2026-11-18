@@ -29,6 +29,7 @@ import net.matsudamper.kotpub.note.ReceivedNote
 import net.matsudamper.kotpub.note.ReceivedNoteAttachment
 import net.matsudamper.kotpub.note.RemoteNoteStore
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import org.jsoup.safety.Safelist
 
 internal class ReceivedRemoteNotes(
@@ -190,7 +191,7 @@ internal class ReceivedRemoteNotes(
 internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: Instant): RemoteNoteInput = RemoteNoteInput(
     objectUri = id,
     actorUri = attributedTo,
-    contentHtml = Jsoup.clean(contentWithoutQuoteFallback(), Safelist.basic()),
+    contentHtml = Jsoup.clean(contentWithLinkHref(), Safelist.basic()),
     language = language,
     visibility = visibility.name.lowercase(),
     localRecipients = localRecipients,
@@ -203,7 +204,18 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     editedAt = updated,
     images = attachments.mapNotNull { it.toRemoteMedia() },
     emojis = emojis.toRecords(),
+    linkHref = linkHref,
 )
+
+/**
+ * Link は本文を持たないので、リンク先を本文の先頭に置いて、本文のリンクと同じくカードにする
+ */
+private fun ReceivedNote.contentWithLinkHref(): String {
+    val content = contentWithoutQuoteFallback()
+    val href = linkHref ?: return content
+    val anchor = Element("a").attr("href", href).text(href)
+    return "<p>${anchor.outerHtml()}</p>$content"
+}
 
 /**
  * 引用を読めない相手向けに、Mastodon や Misskey は本文の末尾に `RE: 引用先の URL` を quote-inline のクラスで足す。
