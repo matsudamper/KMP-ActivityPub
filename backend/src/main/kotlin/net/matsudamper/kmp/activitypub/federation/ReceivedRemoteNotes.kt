@@ -209,8 +209,12 @@ internal fun ReceivedNote.toRemoteNoteInput(localRecipients: Set<String>, now: I
     poll = poll?.toRecord(),
 )
 
+/**
+ * 選択肢は HTML ではなくプレーンテキストで届き、画面も文字のまま出すので、手を加えずに残す。
+ * HTML として掃除すると `&` が `&amp;` に変わり、票の文字列とも一致しなくなる
+ */
 private fun ReceivedPoll.toRecord(): PollRecord = PollRecord(
-    options = options.map { option -> PollOptionRecord(name = Jsoup.clean(option.name, Safelist.none()), votesCount = option.votesCount?.toLong()) },
+    options = options.map { option -> PollOptionRecord(name = option.name, votesCount = option.votesCount?.toLong()) },
     multipleChoice = multipleChoice,
     endsAt = endsAt,
     votersCount = votersCount?.toLong(),
