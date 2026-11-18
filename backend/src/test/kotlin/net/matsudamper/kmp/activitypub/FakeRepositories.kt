@@ -93,6 +93,8 @@ internal class FakeRepositories : Repositories {
         }
         override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = throw NotImplementedError()
         override fun count(accountId: AccountId): Long = entries.count { it.first == accountId }.toLong()
+        override fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String> = throw NotImplementedError()
+        override fun countAccepted(username: String): Long = throw NotImplementedError()
     }
     override val followingGroupRepository: FollowingGroupRepository = object : FollowingGroupRepository {
         private val rows = mutableListOf<Pair<AccountId, FollowingGroup>>()

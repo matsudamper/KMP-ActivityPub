@@ -61,6 +61,7 @@ import net.matsudamper.kotpub.actor.HttpRemoteActors
 import net.matsudamper.kotpub.actor.InstanceActorEndpoint
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
+import net.matsudamper.kotpub.follower.FollowingEndpoint
 import net.matsudamper.kotpub.httpsignature.HttpSignatureSigner
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
 import net.matsudamper.kotpub.httpsignature.SignedFetchActivityPubHttpClient
@@ -390,6 +391,9 @@ internal class Federation(
         )
 
     val followerEndpoint: FollowerEndpoint = FollowerEndpoint(directory = directory, followers = followers)
+
+    val followingEndpoint: FollowingEndpoint =
+        FollowingEndpoint(directory = directory, following = AccountFollowingStore(followingRepository))
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
