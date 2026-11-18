@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -49,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.uuid.Uuid
@@ -468,13 +470,21 @@ private fun PollEditor(
             Spacer(modifier = Modifier.weight(1f))
             PollDurationSelector(pollEditor = pollEditor)
         }
+        // ラベルとチェックボックスを 1 つの操作として読み上げさせ、行のどこを押しても切り替える
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = pollEditor.multipleChoiceChecked,
+                    enabled = pollEditor.inputEnabled,
+                    role = Role.Checkbox,
+                    onValueChange = pollEditor.listener::onMultipleChoiceChanged,
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(
                 checked = pollEditor.multipleChoiceChecked,
-                onCheckedChange = pollEditor.listener::onMultipleChoiceChanged,
+                onCheckedChange = null,
                 enabled = pollEditor.inputEnabled,
             )
             Text(text = "複数選択を許可", style = MaterialTheme.typography.bodyMedium)
