@@ -56,6 +56,10 @@ internal fun AdminScreen(
                     navigator.navigate(Screen.FailedDeliveries)
                 }
 
+                override fun navigateToUnknownObjectTypes() {
+                    navigator.navigate(Screen.UnknownObjectTypes)
+                }
+
                 override fun showMessage(message: String) {
                     coroutineScope.launch { snackbarHostState.showSnackbar(message) }
                 }
@@ -110,6 +114,7 @@ internal fun AdminContent(
                     ) {
                         RemoteProfileRefreshSection(uiState = content.remoteProfileRefresh)
                         FailedDeliveriesSection(onClickOpen = uiState.listener::onClickFailedDeliveries)
+                        UnknownObjectTypesSection(onClickOpen = uiState.listener::onClickUnknownObjectTypes)
                     }
                 }
 
@@ -177,6 +182,30 @@ private fun FailedDeliveriesSection(
         )
         Button(onClick = onClickOpen) {
             Text(text = "諦めた配信を見る")
+        }
+    }
+}
+
+@Composable
+private fun UnknownObjectTypesSection(
+    onClickOpen: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "受信",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "他のサーバーから届いたもののうち、このサーバーが読み方を知らない型と、その出どころを確認できます。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = onClickOpen) {
+            Text(text = "知らない型を見る")
         }
     }
 }

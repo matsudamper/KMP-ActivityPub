@@ -43,6 +43,8 @@ private object AndroidPreviewAdminListener : AdminScreenUiState.Listener {
     override fun onClickBack() = Unit
 
     override fun onClickFailedDeliveries() = Unit
+
+    override fun onClickUnknownObjectTypes() = Unit
 }
 
 private object AndroidPreviewRemoteProfileRefreshListener : AdminScreenUiState.RemoteProfileRefreshListener {

@@ -73,6 +73,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.SetReactionMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.TimelineQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockAccountMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UnblockServerMutation
+import net.matsudamper.kmp.activitypub.frontend.graphql.UnknownObjectTypesQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileHeaderMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileIconMutation
 import net.matsudamper.kmp.activitypub.frontend.graphql.UpdateProfileMutation
@@ -822,6 +823,16 @@ class UserApi(
         )
     }
 
+    fun unknownObjectTypesPaging(): CursorPagingModel<UnknownObjectTypesQuery.Data> {
+        return CursorPagingModel(
+            clients = clients,
+            firstQuery = UnknownObjectTypesQuery(after = Optional.present(null), limit = UNKNOWN_OBJECT_TYPES_PAGE_SIZE),
+            queryAfter = { cursor -> UnknownObjectTypesQuery(after = Optional.present(cursor), limit = UNKNOWN_OBJECT_TYPES_PAGE_SIZE) },
+            nextCursorOf = { it.userInfo?.unknownObjectTypes?.nextCursor },
+            appendPage = { before, page -> before.withNextPage(page) },
+        )
+    }
+
     /**
      * @param id [UserFailedDelivery.id]
      */
@@ -1441,6 +1452,7 @@ class UserApi(
         const val TIMELINE_PAGE_SIZE = 40
         const val POST_REVISIONS_PAGE_SIZE = 20
         const val FAILED_DELIVERIES_PAGE_SIZE = 30
+        const val UNKNOWN_OBJECT_TYPES_PAGE_SIZE = 30
         const val ACCOUNT_EVENT_MAX_CONSECUTIVE_FAILURES = 5
 
         /**

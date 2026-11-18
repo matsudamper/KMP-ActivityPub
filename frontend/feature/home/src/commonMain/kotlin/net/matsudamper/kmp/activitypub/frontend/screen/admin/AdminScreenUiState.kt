@@ -37,5 +37,7 @@ data class AdminScreenUiState(
         fun onClickBack()
 
         fun onClickFailedDeliveries()
+
+        fun onClickUnknownObjectTypes()
     }
 }
