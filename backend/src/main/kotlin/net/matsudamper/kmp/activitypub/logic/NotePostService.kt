@@ -179,6 +179,7 @@ class NotePostService(
             publisher.prepare(
                 sender = sender,
                 contentHtml = contentHtml,
+                summary = null,
                 attachments =
                 images.map { image ->
                     NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)

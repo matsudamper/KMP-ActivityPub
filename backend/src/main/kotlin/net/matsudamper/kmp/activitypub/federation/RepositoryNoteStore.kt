@@ -75,6 +75,7 @@ internal class RepositoryNoteStore(
             publicId = KotpubPublicNoteId(publicId.value),
             username = username,
             contentHtml = contentHtml,
+            summary = null,
             publishedAt = publishedAt,
             updatedAt = updatedAt,
             attachments =
