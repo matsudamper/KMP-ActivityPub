@@ -8,6 +8,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import kotlinx.browser.window
+import net.matsudamper.kmp.activitypub.frontend.navigation.OverlayHistoryEntry
 import net.matsudamper.kmp.activitypub.frontend.navigation.Screen
 import org.w3c.dom.PopStateEvent
 import org.w3c.dom.events.Event
@@ -58,11 +59,28 @@ internal object BrowserHistory {
         private var stackBottomHistoryIndex = 0
         private var currentHistoryIndex = 0
         private var awaitingOwnGo = false
+        private var leavingOverlayOnStart = false
         private val popStateListener: (Event) -> Unit = { event ->
-            onPopState(historyEntryOf((event as PopStateEvent).state))
+            if (leavingOverlayOnStart) {
+                leavingOverlayOnStart = false
+                syncWithCurrentHistory()
+            } else {
+                onPopState(historyEntryOf((event as PopStateEvent).state))
+            }
         }
 
         fun start() {
+            window.addEventListener("popstate", popStateListener)
+            if (historyEntryOf(window.history.state)?.overlay == true) {
+                // 重ね表示を開いたまま再読み込みした。重ね表示は出し直せず、このまま合わせると同じ位置の履歴が 2 つ続くので、下の画面の履歴へ戻ってから合わせる
+                leavingOverlayOnStart = true
+                window.history.back()
+            } else {
+                syncWithCurrentHistory()
+            }
+        }
+
+        private fun syncWithCurrentHistory() {
             val reloadedHistoryIndex = historyEntryOf(window.history.state)?.index
             if (reloadedHistoryIndex != null && reloadedHistoryIndex >= backStack.lastIndex) {
                 // 再読み込み。下に積んだ画面の履歴は前回の起動で載せてあるので、そのまま使う
@@ -82,7 +100,6 @@ internal object BrowserHistory {
             }
             currentHistoryIndex = stackBottomHistoryIndex + backStack.lastIndex
             syncedStack = backStack.toList()
-            window.addEventListener("popstate", popStateListener)
         }
 
         fun stop() {
@@ -90,7 +107,7 @@ internal object BrowserHistory {
         }
 
         fun onBackStackChanged(stack: List<NavKey>) {
-            if (stack.isEmpty()) return
+            if (stack.isEmpty() || leavingOverlayOnStart) return
             val home = stack.last() as? Screen.Home
             val previousScreen = syncedStack.lastOrNull()
             // ホームへの置き換えは履歴を積んで、ブラウザで戻ると置き換える前の画面に戻れるようにする。
@@ -126,6 +143,11 @@ internal object BrowserHistory {
         }
 
         private fun onPopState(historyEntry: HistoryEntry?) {
+            if (historyEntry?.overlay == true) {
+                // 閉じた重ね表示の履歴へ「進む」で着いた。重ね表示は出し直せないので、その下の画面の履歴へ戻す
+                window.history.back()
+                return
+            }
             val arrivedByOwnGo = awaitingOwnGo && historyEntry?.index == currentHistoryIndex
             awaitingOwnGo = false
             if (arrivedByOwnGo) {
@@ -210,10 +232,12 @@ internal object BrowserHistory {
 
     /**
      * @param paths このエントリを積んだ時点の積み上げ。下から順に並ぶ
+     * @param overlay 画面の積み上げに載らない重ね表示のために積んだ履歴か
      */
     private class HistoryEntry(
         val index: Int,
         val paths: List<String>,
+        val overlay: Boolean,
     )
 
     /**
@@ -222,10 +246,12 @@ internal object BrowserHistory {
     private const val HISTORY_STATE_SEPARATOR = "\n"
 
     private fun historyEntryOf(state: JsAny?): HistoryEntry? {
-        if (state is JsNumber) return HistoryEntry(index = state.toInt(), paths = listOf())
-        val lines = (state as? JsString)?.toString()?.split(HISTORY_STATE_SEPARATOR) ?: return null
+        if (state is JsNumber) return HistoryEntry(index = state.toInt(), paths = listOf(), overlay = false)
+        val stateText = (state as? JsString)?.toString() ?: return null
+        val overlayBaseState = OverlayHistoryEntry.baseStateOf(stateText)
+        val lines = (overlayBaseState ?: stateText).split(HISTORY_STATE_SEPARATOR)
         val index = lines.first().toIntOrNull() ?: return null
-        return HistoryEntry(index = index, paths = lines.drop(1))
+        return HistoryEntry(index = index, paths = lines.drop(1), overlay = overlayBaseState != null)
     }
 
     private fun screensWithParents(screen: Screen): List<Screen> {
