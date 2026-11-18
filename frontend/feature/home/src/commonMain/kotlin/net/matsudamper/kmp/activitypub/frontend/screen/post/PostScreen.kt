@@ -198,6 +198,7 @@ internal fun PostContent(
                     onSubmitShortcut = uiState.listener::onPressPostShortcut,
                     insertion = null,
                     onHandleInsertion = {},
+                    heightFitsContent = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -212,6 +213,7 @@ internal fun PostContent(
                 onSubmitShortcut = uiState.listener::onPressPostShortcut,
                 insertion = uiState.bodyInsertion,
                 onHandleInsertion = uiState.listener::onBodyInsertionHandled,
+                heightFitsContent = false,
                 modifier = Modifier.fillMaxWidth(),
             )
             val quote = uiState.quote
