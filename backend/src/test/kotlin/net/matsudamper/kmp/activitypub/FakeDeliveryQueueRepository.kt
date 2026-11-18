@@ -98,6 +98,7 @@ internal class FakeDeliveryQueueRepository(
     override fun giveUp(
         id: Long,
         error: String,
+        failedAt: Instant,
     ) = Unit
 
     override fun recoverDelivering(now: Instant): Int = 0
