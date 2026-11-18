@@ -13,10 +13,11 @@ import kotlinx.coroutines.withContext
 import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.telemetry.withOpenTelemetryContext
 import net.matsudamper.kotpub.http.ActivityPubClientResponse
-import net.matsudamper.kotpub.http.ActivityPubHttpClient
 import net.matsudamper.kotpub.http.ActivityPubPostResponse
 import net.matsudamper.kotpub.http.PublicAddressDnsResolver
 import net.matsudamper.kotpub.http.ResponseBody
+import net.matsudamper.kotpub.http.SingleHopActivityPubHttpClient
+import net.matsudamper.kotpub.http.SingleHopGetResponse
 import okhttp3.Dns
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.HttpUrl
@@ -32,7 +33,7 @@ import okhttp3.Response
  * IP アドレスがそのまま書かれた URL は OkHttp が名前を引かずそこを通らないので、送る前に確かめる。
  * リダイレクトの移り先も同じく確かめるため、リダイレクトは自分で辿る
  */
-internal class OkHttpActivityPubClient : ActivityPubHttpClient {
+internal class OkHttpActivityPubClient : SingleHopActivityPubHttpClient {
     private val client: OkHttpClient =
         OkHttpClient.Builder()
             // プロキシを通すと名前解決がプロキシ側に移り、PublicAddressDnsResolver を通らない
@@ -76,6 +77,28 @@ internal class OkHttpActivityPubClient : ActivityPubHttpClient {
             }
         }
         throw ProtocolException("リダイレクトが多すぎる: $url")
+    }
+
+    override suspend fun getSingleHop(
+        url: String,
+        headers: Map<String, String>,
+        maxBodyBytes: Int,
+        readsBody: (status: Int, finalUrl: String) -> Boolean,
+    ): SingleHopGetResponse {
+        val request = Request.Builder()
+            .url(url)
+            .headers(withUserAgent(headers).toHeaders())
+            .get()
+            .build()
+        requirePublicIpAddressHost(request.url)
+        return execute(request, callTimeoutNanos = CALL_TIMEOUT.toNanos()) { response ->
+            val location = response.header("Location")
+            if (response.isRedirect && location != null) {
+                SingleHopGetResponse.Redirect(location)
+            } else {
+                SingleHopGetResponse.Final(response.toActivityPubClientResponse(maxBodyBytes, readsBody))
+            }
+        }
     }
 
     override suspend fun post(

@@ -193,6 +193,12 @@ CREATE INDEX delivery_queue_state_next_attempt_at ON delivery_queue (state, next
 -- 投稿を消したときに、外部キーで消す行をこれで引く
 CREATE INDEX delivery_queue_note_id ON delivery_queue (note_id);
 
+-- サーバー自身のアクター（/actor）の鍵。他のサーバーへの GET の署名に使う。行は 1 つだけ
+CREATE TABLE instance_actor_key (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    private_key_pem TEXT NOT NULL
+);
+
 CREATE TABLE health_check (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     checked_at TEXT NOT NULL

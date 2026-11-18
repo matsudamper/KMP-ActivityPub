@@ -43,6 +43,7 @@ import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FavouriteRepository
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
+import net.matsudamper.kmp.activitypub.repository.InstanceActorKeyRepository
 import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
@@ -58,9 +59,12 @@ import net.matsudamper.kotpub.actor.ActorEndpoint
 import net.matsudamper.kotpub.actor.ActorHeaderEndpoint
 import net.matsudamper.kotpub.actor.ActorIconEndpoint
 import net.matsudamper.kotpub.actor.HttpRemoteActors
+import net.matsudamper.kotpub.actor.InstanceActorEndpoint
 import net.matsudamper.kotpub.delivery.HttpActivityDelivery
 import net.matsudamper.kotpub.follower.FollowerEndpoint
+import net.matsudamper.kotpub.httpsignature.HttpSignatureSigner
 import net.matsudamper.kotpub.httpsignature.HttpSignatureVerifier
+import net.matsudamper.kotpub.httpsignature.SignedFetchActivityPubHttpClient
 import net.matsudamper.kotpub.inbox.AnnounceHandler
 import net.matsudamper.kotpub.inbox.CreateNoteHandler
 import net.matsudamper.kotpub.inbox.DeleteActorHandler
@@ -115,10 +119,16 @@ internal class Federation(
     blockLists: BlockLists,
     noteCountRepository: NoteCountRepository,
     imageStorage: ImageStorage?,
+    instanceActorKeyRepository: InstanceActorKeyRepository,
     remoteIconProxySigningKey: ByteArray,
     openTelemetry: OpenTelemetry,
 ) : AutoCloseable {
-    private val httpClient = OkHttpActivityPubClient()
+    private val instanceActor = storedInstanceActor(domain = domain, keys = instanceActorKeyRepository)
+    private val httpClient = SignedFetchActivityPubHttpClient(
+        client = OkHttpActivityPubClient(),
+        signingActor = instanceActor,
+        signer = HttpSignatureSigner(),
+    )
     private val publicAddressHttpClient = PublicAddressHttpClient()
     private val directory = ActorDirectory(domain = domain, stored = AccountActorNames(accountService))
     private val remoteActors = HttpRemoteActors(client = httpClient, openTelemetry = openTelemetry)
@@ -270,7 +280,9 @@ internal class Federation(
             onEnqueued = deliveryQueueWorker::wakeUp,
         )
 
-    val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory)
+    val webFingerEndpoint: WebFingerEndpoint = WebFingerEndpoint(directory = directory, instanceActor = instanceActor.urls)
+
+    val instanceActorEndpoint: InstanceActorEndpoint = InstanceActorEndpoint(instanceActor)
 
     /**
      * アカウントは CLI からしか作れないので、誰でも登録できるとは出さない

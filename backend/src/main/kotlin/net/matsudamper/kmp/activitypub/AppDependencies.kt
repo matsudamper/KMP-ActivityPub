@@ -134,6 +134,7 @@ class AppDependencies(
                 blockLists = blockLists,
                 noteCountRepository = repositories.noteCountRepository,
                 imageStorage = imageStorage,
+                instanceActorKeyRepository = repositories.instanceActorKeyRepository,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
