@@ -41,8 +41,13 @@ internal actual fun VideoPlayerDialog(
         }
         overlay.appendChild(video)
         overlay.appendChild(closeButton)
+        overlay.setAttribute("role", "dialog")
+        overlay.setAttribute("aria-modal", "true")
+        overlay.setAttribute("aria-label", "動画")
         document.body?.appendChild(overlay)
         document.addEventListener("keydown", keyListener)
+        // キーボードの操作が後ろの canvas に行かないよう、開いたらフォーカスを移す
+        closeButton.focus()
         onDispose {
             document.removeEventListener("keydown", keyListener)
             video.pause()
