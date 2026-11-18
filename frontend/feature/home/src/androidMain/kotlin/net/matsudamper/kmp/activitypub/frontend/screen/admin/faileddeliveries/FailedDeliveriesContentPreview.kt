@@ -31,7 +31,7 @@ private fun FailedDeliveriesContentPreview() {
                             kindText = "いいね",
                             inbox = "https://remote.example/inbox",
                             failedAtText = "諦めた時刻は不明",
-                            errorText = "",
+                            errorText = null,
                         ),
                     ),
                     footer = FailedDeliveriesScreenUiState.Footer.Loading,
@@ -60,7 +60,7 @@ private fun previewDelivery(
     kindText: String,
     inbox: String,
     failedAtText: String,
-    errorText: String,
+    errorText: String?,
 ): FailedDeliveriesScreenUiState.Delivery = FailedDeliveriesScreenUiState.Delivery(
     listKey = listKey,
     kindText = kindText,

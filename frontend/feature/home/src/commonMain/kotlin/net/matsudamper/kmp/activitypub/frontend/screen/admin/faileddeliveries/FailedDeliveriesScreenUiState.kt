@@ -39,14 +39,14 @@ data class FailedDeliveriesScreenUiState(
 
     /**
      * @param listKey 続きを読んで行が増えても、同じ配信を同じ行として扱う
-     * @param errorText 最後に送れなかった理由。残っていなければ空
+     * @param errorText 最後に送れなかった理由。残っていなければ null
      */
     data class Delivery(
         val listKey: String,
         val kindText: String,
         val inbox: String,
         val failedAtText: String,
-        val errorText: String,
+        val errorText: String?,
         val listener: DeliveryListener,
     )
 

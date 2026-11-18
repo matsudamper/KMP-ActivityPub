@@ -156,7 +156,7 @@ internal class FailedDeliveriesScreenViewModel(
             } else {
                 "${createFullPostedAtText(publishedAt = failedAt, timeZone = TimeZone.currentSystemDefault())} に諦めた"
             },
-            errorText = delivery.lastError.orEmpty(),
+            errorText = delivery.lastError,
             listener = object : FailedDeliveriesScreenUiState.DeliveryListener {
                 override fun onClick() {
                     viewModelScope.launch {
