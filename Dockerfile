@@ -4,7 +4,7 @@ WORKDIR /app
 
 EXPOSE 8080
 
-RUN dnf install -y shadow-utils \
+RUN dnf install -y shadow-utils findutils \
     && dnf clean all \
     && useradd --system --no-create-home --shell /sbin/nologin app \
     && mkdir /app/data \
