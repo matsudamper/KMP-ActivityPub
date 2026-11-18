@@ -42,10 +42,13 @@ internal fun DSLContext.remoteNoteReadableBy(accountId: AccountId): Condition {
 }
 
 /**
- * REMOTE_NOTES の行を [accountId] が個別投稿画面やプロフィールで見られるか。読める投稿に加えて、公開している投稿はフォローしていなくても見られる
+ * REMOTE_NOTES の行を [accountId] が個別投稿画面やプロフィールで見られるか。読める投稿に加えて、公開している投稿はフォローしていなくても見られる。
+ * ログインしていなければ公開している投稿だけ
  */
-internal fun DSLContext.remoteNoteViewableBy(accountId: AccountId): Condition =
-    remoteNoteReadableBy(accountId).or(REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES))
+internal fun DSLContext.remoteNoteViewableBy(accountId: AccountId?): Condition {
+    val published = REMOTE_NOTES.VISIBILITY.`in`(PUBLISHED_REMOTE_NOTE_VISIBILITIES)
+    return if (accountId == null) published else remoteNoteReadableBy(accountId).or(published)
+}
 
 /**
  * REMOTE_BOOSTS の行を読めるか。公開している投稿は投稿元で誰でも読めるので、ブーストした相手や投稿者のフォローは問わない

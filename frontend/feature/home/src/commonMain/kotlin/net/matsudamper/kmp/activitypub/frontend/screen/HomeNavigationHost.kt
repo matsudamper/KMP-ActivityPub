@@ -94,6 +94,7 @@ fun HomeNavigationHost(
                         key is Screen.UserProfile && openAsDialog -> UserProfileDialogMetadata
                         key is Screen.PostDetail && openAsDialog -> PostDetailDialogMetadata
                         key is Screen.ProfileEdit && openAsDialog -> ProfileEditDialogMetadata
+                        key is Screen.MentionPost && openAsDialog -> PostDialogMetadata
                         else -> mapOf()
                     },
                 ) { screenKey ->
@@ -118,6 +119,15 @@ fun HomeNavigationHost(
                         }
                     } else if (screen is Screen.ProfileEdit && openAsDialog) {
                         ProfileEditDialogFrame {
+                            ScreenEntryContent(
+                                screen = screen,
+                                navigator = navigator,
+                                serverSettingUiState = serverSettingUiState,
+                                inDialog = true,
+                            )
+                        }
+                    } else if (screen is Screen.MentionPost && openAsDialog) {
+                        PostDialogFrame {
                             ScreenEntryContent(
                                 screen = screen,
                                 navigator = navigator,
@@ -170,6 +180,14 @@ internal fun PostDetailDialogFrame(
 @Composable
 internal fun ProfileEditDialogFrame(content: @Composable () -> Unit) {
     UpperDialogFrame(maxWidth = PROFILE_EDIT_DIALOG_MAX_WIDTH, onClickOutside = null, content = content)
+}
+
+/**
+ * 置き方は [PostDetailDialogFrame] と同じ。外側を押しても閉じない。入力の途中で閉じると書いたものが消える
+ */
+@Composable
+internal fun PostDialogFrame(content: @Composable () -> Unit) {
+    UpperDialogFrame(maxWidth = POST_DIALOG_MAX_WIDTH, onClickOutside = null, content = content)
 }
 
 /**
@@ -303,12 +321,31 @@ private fun ScreenContent(
             )
         }
 
+        is Screen.MentionPost -> {
+            // プロフィールから開くので、閉じたらプロフィールに戻る
+            PostScreen(
+                target = PostScreenTarget.Mention(acct = screen.acct),
+                navigationIcon = PostNavigationIcon.Close,
+                onNavigateBack = navigator::back,
+                onClose = navigator::back,
+            )
+        }
+
         is Screen.ReplyPost -> {
             PostScreen(
                 target = PostScreenTarget.Reply(postId = screen.postId),
                 navigationIcon = PostNavigationIcon.Close,
                 onNavigateBack = navigator::back,
                 onClose = navigator::closeToHome,
+            )
+        }
+
+        is Screen.EditPost -> {
+            PostScreen(
+                target = PostScreenTarget.Edit(noteId = screen.noteId),
+                navigationIcon = PostNavigationIcon.Close,
+                onNavigateBack = navigator::back,
+                onClose = navigator::back,
             )
         }
 
@@ -385,10 +422,15 @@ private const val UPPER_DIALOG_VERTICAL_MARGIN_RATIO = 0.05f
 
 private val PROFILE_EDIT_DIALOG_MAX_WIDTH = 600.dp
 
+private val POST_DIALOG_MAX_WIDTH = 600.dp
+
 private val PostDetailDialogMetadata: Map<String, Any> =
     DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false))
 
 private val ProfileEditDialogMetadata: Map<String, Any> =
+    DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false))
+
+private val PostDialogMetadata: Map<String, Any> =
     DialogSceneStrategy.dialog(DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false))
 
 private val UserProfileDialogMetadata: Map<String, Any> =

@@ -76,6 +76,7 @@ internal class RepositoryNoteStore(
             username = username,
             contentHtml = contentHtml,
             publishedAt = publishedAt,
+            updatedAt = updatedAt,
             attachments =
             images.map { image ->
                 NoteAttachment(url = imageUrls.url(image.publicId), mediaType = image.contentType, description = image.description)

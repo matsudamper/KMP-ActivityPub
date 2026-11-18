@@ -469,7 +469,7 @@ class UserProfileServiceTest {
     fun localProfileContinuesNotesAndBoostsWithoutGapsOrPinnedDuplicates() = runBlocking {
         (1..25).forEach { index ->
             repositories.noteRepository.notes.add(
-                Note(PublicNoteId("note-$index"), "alice", "<p>投稿 $index</p>", Instant.ofEpochSecond(index * 10L), listOf(), null, null, null, listOf(), sensitive = false),
+                Note(PublicNoteId("note-$index"), "alice", "<p>投稿 $index</p>", null, Instant.ofEpochSecond(index * 10L), null, listOf(), null, null, null, listOf(), sensitive = false),
             )
         }
         repositories.notePinRepository.pin(viewer, PublicNoteId("note-3"), Instant.EPOCH, NotePinService.MAX_PINS)
@@ -493,7 +493,7 @@ class UserProfileServiceTest {
 
     @Test
     fun localProfileUsesStoredPosts() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", Instant.EPOCH, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "<p>保存済みの投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
         val post = firstPage("alice", viewer).posts.single()
         assertEquals(listOf(), requests)
         assertEquals("<p>保存済みの投稿</p>", post.contentHtml)
@@ -502,8 +502,8 @@ class UserProfileServiceTest {
 
     @Test
     fun localQuotePostHasQuoteTarget() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "", Instant.EPOCH, listOf(), null, "https://remote.example/notes/9", null, listOf(), sensitive = false))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-2"), "alice", "<p>普通の投稿</p>", Instant.EPOCH.plusSeconds(1), listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-1"), "alice", "", null, Instant.EPOCH, null, listOf(), null, "https://remote.example/notes/9", null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-2"), "alice", "<p>普通の投稿</p>", null, Instant.EPOCH.plusSeconds(1), null, listOf(), null, null, null, listOf(), sensitive = false))
 
         assertEquals(mapOf("l-note-1" to true, "l-note-2" to false), firstPage("alice", viewer).posts.associate { it.postId to it.hasQuoteTarget })
     }
@@ -511,8 +511,8 @@ class UserProfileServiceTest {
     @Test
     fun ownLocalPostsHaveDeletableNoteIdButOthersDoNot() = runBlocking {
         repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.EPOCH, listOf(), null, null, null, listOf(), sensitive = false))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
 
         assertEquals("note-alice", firstPage("alice", viewer).posts.single().deletableNoteId)
         assertNull(firstPage("carol", viewer).posts.single().deletableNoteId)
@@ -521,7 +521,7 @@ class UserProfileServiceTest {
     @Test
     fun othersLocalPostsCanBeOpened() = runBlocking {
         repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
 
         val post = firstPage("carol", viewer).posts.single()
 
@@ -532,7 +532,9 @@ class UserProfileServiceTest {
 
     @Test
     fun localProfileShowsOwnBoostsAtTheTimeTheyWereBoosted() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", Instant.ofEpochMilli(1_000), listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(
+            Note(PublicNoteId("note-alice"), "alice", "<p>自分の投稿</p>", null, Instant.ofEpochMilli(1_000), null, listOf(), null, null, null, listOf(), sensitive = false),
+        )
         repositories.timelineRepository.accountBoosts.add(
             storedPost("<p>ブーストした投稿</p>", summary = null, sensitive = false).copy(
                 position = TimelinePosition(2_000, "a1"),
@@ -565,8 +567,8 @@ class UserProfileServiceTest {
 
     @Test
     fun pinnedPostsComeFirstWithoutDuplicates() = runBlocking {
-        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", Instant.EPOCH, listOf(), null, null, null, listOf(), sensitive = false))
-        repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", Instant.EPOCH.plusSeconds(1), listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("old"), "alice", "<p>古い投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("new"), "alice", "<p>新しい投稿</p>", null, Instant.EPOCH.plusSeconds(1), null, listOf(), null, null, null, listOf(), sensitive = false))
         repositories.notePinRepository.pin(viewer, PublicNoteId("old"), Instant.EPOCH, NotePinService.MAX_PINS)
 
         val posts = firstPage("alice", viewer).posts
@@ -578,7 +580,7 @@ class UserProfileServiceTest {
     @Test
     fun onlyOwnProfilePostsHavePinnableNoteId() = runBlocking {
         val carol = repositories.accountRepository.add("carol", "hash", "type")
-        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", Instant.EPOCH, listOf(), null, null, null, listOf(), sensitive = false))
+        repositories.noteRepository.notes.add(Note(PublicNoteId("note-carol"), "carol", "<p>他の人の投稿</p>", null, Instant.EPOCH, null, listOf(), null, null, null, listOf(), sensitive = false))
 
         assertEquals(listOf(null), firstPage("carol", viewer).posts.map { it.pinnableNoteId })
         assertEquals(listOf(PublicNoteId("note-carol")), firstPage("carol", carol).posts.map { it.pinnableNoteId })
@@ -605,8 +607,25 @@ class UserProfileServiceTest {
     @Test
     fun anonymousViewerDoesNotFetchRemoteProfile() = runBlocking {
         assertNull(service.profile("bob@remote.example", null))
-        assertEquals(ProfilePostsResult.NotLoggedIn, service.firstPosts("bob@remote.example", null))
+        assertEquals(ProfilePostsResult.NotFound, service.firstPosts("bob@remote.example", null))
         assertEquals(listOf(), requests)
+    }
+
+    @Test
+    fun anonymousViewerSeesStoredRemoteProfileAndPostsWithoutFetching() = runBlocking {
+        repositories.remoteActorRepository.add(RemoteActorSearchRecord(actorUri, "bob", "保存済みの Bob", null, listOf(), Instant.EPOCH))
+        repositories.timelineRepository.actorPosts.add(storedPost("<p>保存した投稿</p>", summary = null, sensitive = false))
+
+        val profile = assertNotNull(service.profile("bob@remote.example", null))
+        val posts = firstPage("bob@remote.example", null).posts
+
+        assertEquals("保存済みの Bob", profile.user.displayName)
+        assertFalse(profile.following)
+        assertEquals(listOf("<p>保存した投稿</p>"), posts.map { it.contentHtml })
+        assertNull(posts.single().likedByMe)
+        assertNull(posts.single().reactionPostId)
+        assertEquals(listOf(), requests)
+        assertEquals(listOf(), featuredRequests)
     }
 
     @Test

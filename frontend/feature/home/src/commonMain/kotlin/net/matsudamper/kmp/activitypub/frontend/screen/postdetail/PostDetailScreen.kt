@@ -104,6 +104,10 @@ internal fun PostDetailScreen(
                 navigator.navigate(Screen.ReplyPost(postId = postId))
             }
 
+            override fun navigateToEditPost(noteId: String) {
+                navigator.navigate(Screen.EditPost(noteId = noteId))
+            }
+
             override fun navigateToPostRevisions(postId: String) {
                 navigator.navigate(Screen.PostRevisions(postId = postId))
             }
@@ -250,10 +254,10 @@ internal fun PostDetailContent(
                             modifier = Modifier.align(Alignment.BottomCenter),
                         )
                     }
-                    val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
-                    if (loadedContent != null) {
+                    val mentionBox = (uiState.content as? PostDetailScreenUiState.Content.Loaded)?.mentionBox
+                    if (mentionBox != null) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MentionBox(uiState = loadedContent.mentionBox)
+                        MentionBox(uiState = mentionBox)
                     }
                 }
             }

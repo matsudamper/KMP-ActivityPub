@@ -33,9 +33,10 @@ type UserMutation {
     imageIds には uploadNoteImage で置いた画像を付ける順に渡す。省略すると画像無し。画像があれば本文は空でもよい。
     replyToPostId には返信する TimelinePost.id を渡す。投稿者へのメンションを本文の先頭に付け、投稿者にも配る。省略すると返信にしない。
     quotePostId には引用する TimelinePost.id を渡す。投稿者にも配る。引用なら本文は空でもよい。省略すると引用にしない。
+    mentionAcct には宛てるアカウントの acct を username@host か username で渡す。先頭の @ は省いてよい。本文の @acct をリンクにし、宛てたアカウントにも配る。省略すると返信先の投稿者のほかには宛てない
     sensitive が true なら閲覧注意の投稿にし、画像をぼかして出す
     """
-    postNote(body: String!, requestId: String!, imageIds: [NoteImageId!]! = [], replyToPostId: TimelinePostId, quotePostId: TimelinePostId, sensitive: Boolean!): UserPostNoteResult! @lazy
+    postNote(body: String!, requestId: String!, imageIds: [NoteImageId!]! = [], replyToPostId: TimelinePostId, quotePostId: TimelinePostId, mentionAcct: String, sensitive: Boolean!): UserPostNoteResult! @lazy
     """
     投稿に付ける画像を置く。multipart で送る。PNG / JPEG / GIF / WebP で 20MB まで。
     description は画像の説明文で 1500 文字まで。置いてから 1 時間のうちに postNote で付けなければ消える
@@ -46,6 +47,11 @@ type UserMutation {
     noteId には TimelinePost.deletableNoteId を渡す
     """
     deleteNote(noteId: PublicNoteId!): DeleteNoteResult! @lazy
+    """
+    ログインしているアカウントの投稿の本文を書き換え、投稿を届けた相手へ Update を積む。画像・返信先・引用・宛先は変えない。
+    noteId には TimelinePost.deletableNoteId を渡す。下書きには UserInfo.editableNoteBody を使う
+    """
+    editNote(noteId: PublicNoteId!, body: String!): EditNoteResult! @lazy
     "ログインしているアカウントのプロフィールを書き換え、フォロワーへの Update を積む。null の項目は今のまま"
     updateProfile(query: UpdateProfileQuery!): UpdateProfileResult! @lazy
     """
@@ -243,6 +249,8 @@ enum UserPostNoteFailure {
     REPLY_TARGET_NOT_FOUND
     "引用する投稿が無いか、読めないか、消された"
     QUOTE_TARGET_NOT_FOUND
+    "mentionAcct のアカウントが無いか、相手のサーバーから引けない"
+    MENTION_TARGET_NOT_FOUND
 }
 
 input UpdateProfileQuery {
@@ -360,6 +368,22 @@ enum DeleteNoteFailure {
     FEDERATION_DISABLED
     "サーバー内部の失敗。投稿は残っているので、時間をおいて送り直せば通ることがある"
     INTERNAL_SERVER_ERROR
+}
+
+type EditNoteResult {
+    failure: EditNoteFailure
+}
+
+enum EditNoteFailure {
+    NOT_LOGGED_IN
+    "無いか、ログイン中のアカウントの投稿ではない"
+    NOT_FOUND
+    "本文が空で、画像も引用も無い"
+    EMPTY_BODY
+    "本文が長すぎる。上限は 500 文字"
+    TOO_LONG
+    "サーバーに DOMAIN が無く、編集を配れない"
+    FEDERATION_DISABLED
 }
 
 type SetPinnedResult {

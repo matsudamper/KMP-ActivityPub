@@ -16,6 +16,8 @@ import net.matsudamper.kmp.activitypub.repository.NoteImage
 import net.matsudamper.kmp.activitypub.repository.NoteMention
 import net.matsudamper.kmp.activitypub.repository.NotePost
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.NoteUpdate
+import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.ReplyTarget
 import net.matsudamper.kmp.activitypub.repository.UploadedNoteImage
 import net.matsudamper.kmp.activitypub.shared.AccountId
@@ -31,11 +33,13 @@ import net.matsudamper.kotpub.note.NoteUrls
 import org.slf4j.LoggerFactory
 
 /**
- * 投稿を記録して、フォロワーへの配信を積む。消すときも同じく Delete を積む。送るのは配信キューのワーカー。
+ * 投稿を記録して、フォロワーへの配信を積む。編集するときは Update を、消すときは Delete を同じく積む。送るのは配信キューのワーカー。
  * 画像は先に [uploadImage] で置き、[post] には置いた画像の id を渡す
  *
  * @param imageStorage null なら画像を置けないので、画像付きの投稿はできない
+ * @param remoteUsers 保存していない他のサーバーのアカウントに宛てるときに、相手のサーバーから引いて [remoteActors] に保存する
  * @param onEnqueued 積んだ後に呼ぶ。次の巡回を待たずに送らせる
+ * @param onEdited 編集した後に呼ぶ。投稿を載せている画面に新しい本文を流す
  */
 class NotePostService(
     private val directory: ActorDirectory,
@@ -46,10 +50,13 @@ class NotePostService(
     private val imageUrls: NoteImageUrls,
     private val emojiObjects: NoteEmojiObjects,
     private val followerRepository: FollowerRepository,
+    private val remoteActors: RemoteActorRepository,
+    private val remoteUsers: RemoteUserLookup,
     private val deliveryQueueRepository: DeliveryQueueRepository,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
     private val onPosted: (PublicNoteId) -> Unit,
+    private val onEdited: (PublicNoteId) -> Unit,
 ) {
     private val logger = LoggerFactory.getLogger(NotePostService::class.java)
 
@@ -115,15 +122,17 @@ class NotePostService(
      * @param imageIds [uploadImage] で置いた画像。付けた順に並ぶ
      * @param replyToPostId 返信するタイムラインの投稿の id。投稿者に宛てて、投稿者の inbox にも積む。返信でなければ null
      * @param quotePostId 引用するタイムラインの投稿の id。投稿者の inbox にも積む。引用でなければ null
+     * @param mentionAcct 宛てるアカウントの acct。返信と同じく宛てて、他のサーバーのアカウントなら inbox にも積む。宛てなければ null
      * @param sensitive 閲覧注意の投稿か
      */
-    fun post(
+    suspend fun post(
         username: String,
         body: String,
         requestId: String,
         imageIds: List<NoteImagePublicId>,
         replyToPostId: String?,
         quotePostId: String?,
+        mentionAcct: String?,
         sensitive: Boolean,
     ): PostNoteResult {
         if (imageIds.size > MAX_IMAGES) return PostNoteResult.TooManyImages
@@ -150,9 +159,15 @@ class NotePostService(
             } else {
                 resolveQuote(accountId = account.id, quotePostId = quotePostId) ?: return PostNoteResult.QuoteTargetNotFound
             }
-        val mention = reply?.mention
+        val addressed =
+            if (mentionAcct == null) {
+                null
+            } else {
+                resolveAddressed(sender = sender, mentionAcct = mentionAcct) ?: return PostNoteResult.MentionTargetNotFound
+            }
+        val mentions = listOfNotNull(reply?.mention, addressed?.mention).distinctBy { it.record.actorUri }
         val contentHtml =
-            when (val composed = NoteComposer.compose(body = body, mentions = listOfNotNull(mention?.link))) {
+            when (val composed = NoteComposer.compose(body = body, mentions = mentions.map { it.link })) {
                 is NoteComposer.ComposeResult.Composed -> composed.contentHtml
                 NoteComposer.ComposeResult.Empty -> if (imageIds.isEmpty() && quote == null) return PostNoteResult.EmptyBody else ""
                 NoteComposer.ComposeResult.TooLong -> return PostNoteResult.TooLong
@@ -168,7 +183,7 @@ class NotePostService(
                 },
                 inReplyTo = reply?.inReplyTo,
                 quote = quote?.objectUri,
-                mentions = listOfNotNull(mention).map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
+                mentions = mentions.map { KotpubNoteMention(actorId = it.record.actorUri, acct = it.record.acct) },
                 emojis = emojiObjects.find(contentHtml),
                 sensitive = sensitive,
             )
@@ -179,14 +194,15 @@ class NotePostService(
                     requestId = requestId,
                     publicId = PublicNoteId(prepared.publicId.value),
                     contentHtml = prepared.contentHtml,
+                    sourceText = body.trim(),
                     publishedAt = prepared.publishedAt,
                     images = images,
                     body = prepared.activityJson,
-                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + listOfNotNull(mention?.record?.inbox, quote?.authorInbox),
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + mentions.mapNotNull { it.record.inbox } + listOfNotNull(quote?.authorInbox),
                     inReplyTo = reply?.inReplyTo,
                     quoteUri = quote?.objectUri,
                     quoteInbox = quote?.authorInbox,
-                    mentions = listOfNotNull(mention?.record),
+                    mentions = mentions.map { it.record },
                     sensitive = sensitive,
                 ),
             )
@@ -207,6 +223,63 @@ class NotePostService(
 
             EnqueueNoteResult.ImageNotFound -> PostNoteResult.ImageNotFound
         }
+    }
+
+    /**
+     * 編集の下書きに出す本文
+     *
+     * @return 無いか、別のアカウントの投稿なら null
+     */
+    fun editableBody(
+        username: String,
+        publicId: PublicNoteId,
+    ): String? {
+        val note = noteRepository.find(publicId)?.takeIf { it.username.equals(username, ignoreCase = true) } ?: return null
+        return note.sourceText ?: NoteComposer.toPlainText(note.contentHtml)
+    }
+
+    /**
+     * 本文を書き換えて、投稿を届けた相手へ Update を積む。画像・返信先・引用・宛先は変えない。
+     * 画像があるか引用なら本文は空でもよい
+     */
+    fun edit(
+        username: String,
+        publicId: PublicNoteId,
+        body: String,
+    ): EditNoteResult {
+        val sender = directory.resolve(username) ?: return EditNoteResult.AccountNotFound
+        val note = noteRepository.find(publicId)?.takeIf { it.username.equals(sender.username, ignoreCase = true) } ?: return EditNoteResult.NotFound
+        val contentHtml =
+            when (val composed = NoteComposer.compose(body = body, mentions = note.mentions.flatMap { it.toMentionLinks() })) {
+                is NoteComposer.ComposeResult.Composed -> composed.contentHtml
+                NoteComposer.ComposeResult.Empty -> if (note.images.isEmpty() && note.quoteUri == null) return EditNoteResult.EmptyBody else ""
+                NoteComposer.ComposeResult.TooLong -> return EditNoteResult.TooLong
+            }
+        val prepared =
+            publisher.prepareUpdate(
+                sender = sender,
+                publicId = KotpubPublicNoteId(publicId.value),
+                contentHtml = contentHtml,
+                emojis = emojiObjects.find(contentHtml),
+            ) ?: return EditNoteResult.NotFound
+        val updated =
+            deliveryQueueRepository.enqueueNoteUpdate(
+                NoteUpdate(
+                    username = sender.username,
+                    publicId = publicId,
+                    contentHtml = prepared.contentHtml,
+                    sourceText = body.trim(),
+                    updatedAt = prepared.updatedAt,
+                    body = prepared.activityJson,
+                    // 投稿を届けた相手には、書き換えたことも伝える
+                    inboxes = followerRepository.findDeliveryInboxes(sender.username) + note.mentions.mapNotNull { it.inbox } + listOfNotNull(note.quoteInbox),
+                ),
+            )
+        if (!updated) return EditNoteResult.NotFound
+        logger.info("投稿を編集して Update を積んだ: ${sender.acct} ${publicId.value}")
+        onEnqueued()
+        onEdited(publicId)
+        return EditNoteResult.Edited
     }
 
     /**
@@ -267,21 +340,15 @@ class NotePostService(
             null -> null
 
             is ReplyTarget.Remote -> {
-                // 名前が無いと宛先の表示も acct も作れない
-                val preferredUsername = target.preferredUsername ?: return null
-                val host = URI(target.actorUri).host ?: return null
                 Reply(
                     inReplyTo = target.objectUri,
                     mention =
-                    ReplyMention(
-                        record = NoteMention(actorUri = target.actorUri, acct = "$preferredUsername@$host", inbox = target.inbox),
-                        link =
-                        NoteComposer.MentionLink(
-                            text = "@$preferredUsername@$host",
-                            href = target.profileUrl ?: target.actorUri,
-                            username = preferredUsername,
-                        ),
-                    ),
+                    remoteMention(
+                        actorUri = target.actorUri,
+                        preferredUsername = target.preferredUsername,
+                        profileUrl = target.profileUrl,
+                        inbox = target.inbox,
+                    ) ?: return null,
                 )
             }
 
@@ -289,21 +356,77 @@ class NotePostService(
                 val author = directory.resolve(target.username) ?: return null
                 Reply(
                     inReplyTo = NoteUrls(author.domain, KotpubPublicNoteId(target.publicId.value)).noteUrl,
-                    // 自分の投稿への返信は、自分に宛てない
-                    mention =
-                    if (author.username.equals(sender.username, ignoreCase = true)) {
-                        null
-                    } else {
-                        ReplyMention(
-                            // このサーバーのアカウントには配らないので inbox は要らない
-                            record = NoteMention(actorUri = author.actorId, acct = "${author.username}@${author.domain}", inbox = null),
-                            // 画面ではこのサーバーのアカウントをドメイン無しで出すので、その形で書かれる
-                            link = NoteComposer.MentionLink(text = "@${author.username}", href = author.actorId, username = author.username),
-                        )
-                    },
+                    mention = localMention(sender = sender, target = author),
                 )
             }
         }
+
+    /**
+     * 他のサーバーのアカウントは保存済みのアクターを使い、保存していなければ相手のサーバーから引いて保存する
+     *
+     * @return 宛てるアカウントが見つからなければ null
+     */
+    private suspend fun resolveAddressed(
+        sender: ActorUrls,
+        mentionAcct: String,
+    ): Addressed? {
+        val target = ProfileAcct.parse(mentionAcct, sender.domain) ?: return null
+        if (target.isLocal) {
+            val account = directory.resolve(target.username) ?: return null
+            return Addressed(mention = localMention(sender = sender, target = account))
+        }
+        val actorUri =
+            remoteActors.findByAcct(target.username, target.host)?.actorUri
+                ?: remoteUsers.findByAcct(username = target.username, host = target.host)?.actorUri
+                ?: return null
+        val actor = remoteActors.findByUri(actorUri) ?: return null
+        val mention =
+            remoteMention(
+                actorUri = actor.actorUri,
+                preferredUsername = actor.profile.preferredUsername,
+                profileUrl = actor.profile.profileUrl,
+                inbox = actor.inbox,
+            ) ?: return null
+        return Addressed(mention = mention)
+    }
+
+    /**
+     * @return 名前かホストが無く、宛先の表示も acct も作れなければ null
+     */
+    private fun remoteMention(
+        actorUri: String,
+        preferredUsername: String?,
+        profileUrl: String?,
+        inbox: String,
+    ): ReplyMention? {
+        if (preferredUsername == null) return null
+        val host = URI(actorUri).host ?: return null
+        return ReplyMention(
+            record = NoteMention(actorUri = actorUri, acct = "$preferredUsername@$host", inbox = inbox),
+            link =
+            NoteComposer.MentionLink(
+                text = "@$preferredUsername@$host",
+                href = profileUrl ?: actorUri,
+                username = preferredUsername,
+            ),
+        )
+    }
+
+    /**
+     * @return 自分自身には宛てないので、[target] が [sender] なら null
+     */
+    private fun localMention(
+        sender: ActorUrls,
+        target: ActorUrls,
+    ): ReplyMention? {
+        if (target.username.equals(sender.username, ignoreCase = true)) return null
+        return ReplyMention(
+            // このサーバーのアカウントには配らないので inbox は要らない
+            record = NoteMention(actorUri = target.actorId, acct = "${target.username}@${target.domain}", inbox = null),
+            // 画面ではこのサーバーのアカウントをドメイン無しで出すので、その形で書かれる
+            link = NoteComposer.MentionLink(text = "@${target.username}", href = target.actorId, username = target.username),
+        )
+    }
 
     /**
      * @return 引用できない投稿なら null
@@ -324,6 +447,17 @@ class NotePostService(
             }
         }
 
+    /**
+     * 他のサーバーのアカウントは、書いた `@alice@example.com` と、書いたままの本文を記録する前の投稿から戻した `@alice` の両方をリンクにする
+     */
+    private fun NoteMention.toMentionLinks(): List<NoteComposer.MentionLink> {
+        val mentionUsername = acct.substringBefore('@')
+        val shortLink = NoteComposer.MentionLink(text = "@$mentionUsername", href = actorUri, username = mentionUsername)
+        // このサーバーのアカウントは画面に合わせてドメイン無しで書かれる
+        if (inbox == null) return listOf(shortLink)
+        return listOf(NoteComposer.MentionLink(text = "@$acct", href = actorUri, username = mentionUsername), shortLink)
+    }
+
     private fun noteUrl(
         domain: String,
         publicId: PublicNoteId,
@@ -334,6 +468,13 @@ class NotePostService(
      */
     private class Reply(
         val inReplyTo: String,
+        val mention: ReplyMention?,
+    )
+
+    /**
+     * @param mention 宛てるアカウント。自分自身なら宛てないので null
+     */
+    private class Addressed(
         val mention: ReplyMention?,
     )
 
@@ -450,9 +591,35 @@ sealed interface PostNoteResult {
     data object QuoteTargetNotFound : PostNoteResult
 
     /**
+     * 宛てるアカウントが無いか、相手のサーバーから引けない
+     */
+    data object MentionTargetNotFound : PostNoteResult
+
+    /**
      * アカウントが無いか、鍵が無くてアクターとして扱えない
      */
     data object AccountNotFound : PostNoteResult
+}
+
+sealed interface EditNoteResult {
+    data object Edited : EditNoteResult
+
+    /**
+     * 無いか、別のアカウントの投稿
+     */
+    data object NotFound : EditNoteResult
+
+    /**
+     * 本文が空で、画像も引用も無い
+     */
+    data object EmptyBody : EditNoteResult
+
+    data object TooLong : EditNoteResult
+
+    /**
+     * アカウントが無いか、鍵が無くてアクターとして扱えない
+     */
+    data object AccountNotFound : EditNoteResult
 }
 
 sealed interface DeleteNoteResult {

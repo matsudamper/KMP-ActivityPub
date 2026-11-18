@@ -31,7 +31,7 @@ internal class SqliteNoteRepository(
     private val jooq: SqliteJooq,
 ) : NoteRepository {
     override fun find(publicId: PublicNoteId): Note? = jooq.withConnection { dsl ->
-        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX, NOTES.SENSITIVE)
+        dsl.select(NOTE_FIELDS)
             .from(NOTES)
             .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(NOTES.PUBLIC_ID.eq(publicId.value))
@@ -44,7 +44,7 @@ internal class SqliteNoteRepository(
         if (publicIds.isEmpty()) return mapOf()
 
         return jooq.withConnection { dsl ->
-            dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX, NOTES.SENSITIVE)
+            dsl.select(NOTE_FIELDS)
                 .from(NOTES)
                 .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
                 .where(NOTES.PUBLIC_ID.`in`(publicIds.map { it.value }))
@@ -195,7 +195,7 @@ internal class SqliteNoteRepository(
         after: NotePosition?,
         limit: Int,
     ): List<Note> = jooq.withConnection { dsl ->
-        dsl.select(NOTES.ID, NOTES.PUBLIC_ID, ACCOUNTS.USERNAME, NOTES.CONTENT_HTML, NOTES.PUBLISHED_AT, NOTES.IN_REPLY_TO, NOTES.QUOTE_URI, NOTES.QUOTE_INBOX, NOTES.SENSITIVE)
+        dsl.select(NOTE_FIELDS)
             .from(NOTES)
             .join(ACCOUNTS).on(ACCOUNTS.ID.eq(NOTES.ACCOUNT_ID))
             .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
@@ -311,7 +311,9 @@ internal class SqliteNoteRepository(
                 publicId = PublicNoteId(checkNotNull(record.get(NOTES.PUBLIC_ID))),
                 username = checkNotNull(record.get(ACCOUNTS.USERNAME)),
                 contentHtml = checkNotNull(record.get(NOTES.CONTENT_HTML)),
+                sourceText = record.get(NOTES.SOURCE_TEXT),
                 publishedAt = StoredInstant.parse(checkNotNull(record.get(NOTES.PUBLISHED_AT))),
+                updatedAt = record.get(NOTES.UPDATED_AT)?.let { StoredInstant.parse(it) },
                 images = imagesByNoteId[record.get(NOTES.ID)].orEmpty(),
                 inReplyTo = record.get(NOTES.IN_REPLY_TO),
                 quoteUri = record.get(NOTES.QUOTE_URI),
@@ -366,3 +368,21 @@ internal class SqliteNoteRepository(
             description = get(NOTE_IMAGES.DESCRIPTION),
         )
 }
+
+/**
+ * [toNotes] が読む列
+ */
+private val NOTE_FIELDS =
+    listOf(
+        NOTES.ID,
+        NOTES.PUBLIC_ID,
+        ACCOUNTS.USERNAME,
+        NOTES.CONTENT_HTML,
+        NOTES.SOURCE_TEXT,
+        NOTES.PUBLISHED_AT,
+        NOTES.UPDATED_AT,
+        NOTES.IN_REPLY_TO,
+        NOTES.QUOTE_URI,
+        NOTES.QUOTE_INBOX,
+        NOTES.SENSITIVE,
+    )

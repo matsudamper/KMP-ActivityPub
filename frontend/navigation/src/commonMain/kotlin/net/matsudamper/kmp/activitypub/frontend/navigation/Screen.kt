@@ -174,8 +174,8 @@ sealed interface Screen : NavKey {
     ) : Screen {
         override val pathPattern: PathPattern get() = PATH_PATTERN
         override val pathParameters: Map<String, String> get() = mapOf(POST_ID_PARAMETER to postId)
-        override val parentScreen: Screen get() = Home.Timeline
-        override val loginRequired: Boolean get() = true
+        override val parentScreen: Screen? get() = null
+        override val loginRequired: Boolean get() = false
 
         companion object {
             const val POST_ID_PARAMETER: String = "postId"
@@ -216,6 +216,42 @@ sealed interface Screen : NavKey {
         companion object {
             const val POST_ID_PARAMETER: String = "postId"
             val PATH_PATTERN: PathPattern = PathPattern("/posts/{$POST_ID_PARAMETER}/reply")
+        }
+    }
+
+    /**
+     * @param noteId 編集するこのサーバーの自分の投稿の id。ホームタイムラインの投稿の id とは別のもの
+     */
+    @Serializable
+    data class EditPost(
+        val noteId: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(NOTE_ID_PARAMETER to noteId)
+        override val parentScreen: Screen get() = Home.Timeline
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val NOTE_ID_PARAMETER: String = "noteId"
+            val PATH_PATTERN: PathPattern = PathPattern("/notes/{$NOTE_ID_PARAMETER}/edit")
+        }
+    }
+
+    /**
+     * @param acct 宛先のユーザーの `username@host`。このサーバーのユーザーは `username`
+     */
+    @Serializable
+    data class MentionPost(
+        val acct: String,
+    ) : Screen {
+        override val pathPattern: PathPattern get() = PATH_PATTERN
+        override val pathParameters: Map<String, String> get() = mapOf(ACCT_PARAMETER to acct)
+        override val parentScreen: Screen get() = UserProfile(username = acct)
+        override val loginRequired: Boolean get() = true
+
+        companion object {
+            const val ACCT_PARAMETER: String = "acct"
+            val PATH_PATTERN: PathPattern = PathPattern("/@{$ACCT_PARAMETER}/post")
         }
     }
 
@@ -307,6 +343,12 @@ sealed interface Screen : NavKey {
                 },
                 ReplyPost.PATH_PATTERN to { parameters ->
                     ReplyPost(postId = parameters.getValue(ReplyPost.POST_ID_PARAMETER))
+                },
+                EditPost.PATH_PATTERN to { parameters ->
+                    EditPost(noteId = parameters.getValue(EditPost.NOTE_ID_PARAMETER))
+                },
+                MentionPost.PATH_PATTERN to { parameters ->
+                    MentionPost(acct = parameters.getValue(MentionPost.ACCT_PARAMETER))
                 },
                 PostRevisions.PATH_PATTERN to { parameters ->
                     PostRevisions(postId = parameters.getValue(PostRevisions.POST_ID_PARAMETER))

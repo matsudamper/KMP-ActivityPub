@@ -41,6 +41,7 @@ class NoteCountRepositoryTest {
         requestId = "request-$publicId",
         publicId = PublicNoteId(publicId),
         contentHtml = "<p>本文</p>",
+        sourceText = "",
         publishedAt = NOW,
         images = listOf(),
         body = "create",
