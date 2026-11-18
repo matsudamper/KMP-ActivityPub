@@ -19,8 +19,12 @@ class BlockLists(
 
     fun hides(accountId: AccountId, event: AccountEvent): Boolean = when (event) {
         is AccountEvent.PostArrived -> of(accountId).hides(event.post)
+
         is AccountEvent.PostUpdated -> of(accountId).hides(event.post)
-        is AccountEvent.NotificationArrived -> of(accountId).hidesActor(event.notification.actor.actorUri)
+
+        // 相手ごとのブロックは NotificationService で除く
+        is AccountEvent.NotificationGroupUpdated -> false
+
         is AccountEvent.PostsDeleted -> false
     }
 }

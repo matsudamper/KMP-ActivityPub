@@ -36,6 +36,7 @@ class BoostServiceTest {
         boosts = boosts,
         unsavedNotes = NoUnsavedRemoteNotes,
         followerRepository = followerRepository,
+        notifications = {},
         clock = Clock.fixed(NOW, ZoneOffset.UTC),
         onEnqueued = { enqueuedCount++ },
     )
@@ -59,6 +60,7 @@ class BoostServiceTest {
             boosts = boosts,
             unsavedNotes = unsavedNotes,
             followerRepository = followerRepository,
+            notifications = {},
             clock = Clock.fixed(NOW, ZoneOffset.UTC),
             onEnqueued = { enqueuedCount++ },
         )

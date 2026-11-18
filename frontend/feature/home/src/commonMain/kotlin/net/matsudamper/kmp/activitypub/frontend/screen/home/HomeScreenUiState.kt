@@ -14,6 +14,7 @@ import net.matsudamper.kmp.activitypub.frontend.ui.ProfileLinkUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ProfileMediaUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.ReactionConfirmDialogUiState
 import net.matsudamper.kmp.activitypub.frontend.ui.TextWithEmojis
+import net.matsudamper.kmp.activitypub.frontend.ui.TimelineItemUiState
 
 data class HomeScreenUiState(
     val selectedTab: Tab,
@@ -81,7 +82,7 @@ data class HomeScreenUiState(
     data class TimelineColumn(
         val title: String,
         val listStateKey: String,
-        val items: List<PostItemUiState>,
+        val items: List<TimelineItemUiState>,
         val footer: TimelineFooter,
         val selected: Boolean,
         /**
@@ -207,7 +208,7 @@ data class HomeScreenUiState(
          * @param emptyMessage 通知があれば null
          */
         data class Loaded(
-            val items: List<PostItemUiState>,
+            val items: List<TimelineItemUiState>,
             val emptyMessage: String?,
             val refreshing: Boolean,
             val footer: TimelineFooter,

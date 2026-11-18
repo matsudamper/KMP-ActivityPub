@@ -48,9 +48,8 @@ class UserInfoResolverImpl : UserInfoResolver {
         otelSupplyAsync {
             val diContainer = GraphQlEngine.diContainer(env)
             val page = diContainer.notificationService.page(userInfo.id, after, limit)
-            val posts = page.notifications.map { it.post }.distinctBy { it.position.member }.toQlTimelinePosts(diContainer).associateBy { it.id.value }
             val result = QlNotificationPage(
-                notifications = page.notifications.map { it.notification.toQlNotification(posts.getValue(it.post.position.member), diContainer) },
+                notifications = page.notifications.toQlNotificationGroups(diContainer),
                 nextCursor = page.nextCursor,
             )
             DataFetcherResult.Builder<QlNotificationPage?>(result).build()

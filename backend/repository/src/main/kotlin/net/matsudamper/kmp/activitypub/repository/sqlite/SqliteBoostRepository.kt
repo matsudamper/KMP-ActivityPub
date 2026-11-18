@@ -3,12 +3,10 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.BoostRemoval
 import net.matsudamper.kmp.activitypub.repository.BoostRepository
-import net.matsudamper.kmp.activitypub.repository.NotificationKind
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_BOOSTS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTES
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTE_BOOSTS
-import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.NOTIFICATIONS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_ACTORS
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.REMOTE_BOOSTS
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
@@ -27,15 +25,13 @@ internal class SqliteBoostRepository(
         val noteId = dsl.findNoteId(notePublicId) ?: return@transaction false
         val remoteActorId = dsl.upsertRemoteActor(actor, updatedAt = receivedAt)
 
-        val inserted = dsl.insertInto(NOTE_BOOSTS)
+        dsl.insertInto(NOTE_BOOSTS)
             .set(NOTE_BOOSTS.NOTE_ID, noteId)
             .set(NOTE_BOOSTS.REMOTE_ACTOR_ID, remoteActorId)
             .set(NOTE_BOOSTS.ACTIVITY_URI, activityUri)
             .set(NOTE_BOOSTS.RECEIVED_AT, StoredInstant.format(receivedAt))
             .onConflictDoNothing()
             .execute() > 0
-        if (inserted) dsl.insertNotification(NotificationKind.BOOST, noteId, remoteActorId, receivedAt)
-        inserted
     }
 
     override fun remove(
@@ -52,7 +48,6 @@ internal class SqliteBoostRepository(
             .where(NOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId))
             .and(NOTE_BOOSTS.ACTIVITY_URI.eq(activityUri))
             .execute()
-        boostedNoteIds.forEach { noteId -> dsl.deleteNotification(NotificationKind.BOOST, checkNotNull(noteId), remoteActorId) }
         val undoneBoostId = dsl.select(REMOTE_BOOSTS.ID).from(REMOTE_BOOSTS)
             .where(REMOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId))
             .and(REMOTE_BOOSTS.ACTIVITY_URI.eq(activityUri))
@@ -70,7 +65,7 @@ internal class SqliteBoostRepository(
 
     override fun removeActor(actorUri: String): Int = jooq.transaction { dsl ->
         val remoteActorId = dsl.remoteActorId(actorUri) ?: return@transaction 0
-        dsl.deleteFrom(NOTIFICATIONS).where(NOTIFICATIONS.REMOTE_ACTOR_ID.eq(remoteActorId)).and(NOTIFICATIONS.KIND.eq(NotificationKind.BOOST.stored)).execute()
+        dsl.deleteNotificationEntriesOf(remoteActorId)
         dsl.deleteFrom(NOTE_BOOSTS).where(NOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId)).execute() +
             dsl.deleteFrom(REMOTE_BOOSTS).where(REMOTE_BOOSTS.REMOTE_ACTOR_ID.eq(remoteActorId)).execute()
     }
