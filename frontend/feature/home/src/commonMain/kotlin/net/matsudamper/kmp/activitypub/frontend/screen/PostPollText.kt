@@ -1,7 +1,6 @@
 package net.matsudamper.kmp.activitypub.frontend.screen
 
 import kotlin.math.roundToInt
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
@@ -40,9 +39,11 @@ internal fun createPostPoll(poll: UserPostPoll, emojis: List<UserCustomEmoji>, n
  * 締め切りが分からなければ null
  */
 private fun createPollDeadlineText(poll: UserPostPoll, now: Instant): String? {
-    if (poll.expired) return "締め切り済み"
-    val endsAt = poll.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
-    val remaining = (endsAt - now).coerceAtLeast(Duration.ZERO)
+    val endsAt = poll.endsAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+    // 取得した後に締め切りを過ぎても expired は取得したときのままなので、今の時刻でも確かめる
+    if (poll.expired || (endsAt != null && endsAt <= now)) return "締め切り済み"
+    if (endsAt == null) return null
+    val remaining = endsAt - now
     return when {
         remaining < 1.hours -> "あと${remaining.inWholeMinutes.coerceAtLeast(1)}分"
         remaining < 1.days -> "あと${remaining.inWholeHours}時間"
