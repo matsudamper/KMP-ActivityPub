@@ -7,7 +7,7 @@ subscription AccountEvents {
             postIds
             boostUndonePostIds
         }
-        notificationArrived {
+        notificationGroupUpdated {
             ...NotificationFields
         }
         timelinePostUpdated {

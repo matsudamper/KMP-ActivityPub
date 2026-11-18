@@ -1,5 +1,9 @@
 package net.matsudamper.kmp.activitypub.federation
 
+import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
+import net.matsudamper.kmp.activitypub.repository.NotificationReactionInput
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.shared.PublicNoteId
 import net.matsudamper.kmp.activitypub.timeline.TimelineService
@@ -8,6 +12,7 @@ import net.matsudamper.kotpub.stamp.StampStore
 
 internal class RecordedStamps(
     private val stampRepository: StampRepository,
+    private val notifications: NotificationRecorder,
     private val blocks: InboxBlocks,
     private val timeline: TimelineService,
 ) : StampStore {
@@ -21,7 +26,18 @@ internal class RecordedStamps(
             emojiImageUrl = stamp.emojiImageUrl,
             receivedAt = stamp.receivedAt,
         )
-        if (put) timeline.publishLocalNoteChanged(notePublicId)
+        if (put) {
+            // 1 人が同じ投稿に違う絵文字を押せるが、通知は相手ごとに 1 つにして、最後に押した絵文字を出す
+            notifications.record(
+                NotificationEvent.Favourited(
+                    notePublicId = notePublicId,
+                    reaction = NotificationReactionInput(emoji = stamp.emoji, emojiImageUrl = stamp.emojiImageUrl, customEmojiId = null),
+                    actor = NotificationActorRef.Remote(stamp.actor.actorId),
+                    occurredAt = stamp.receivedAt,
+                ),
+            )
+            timeline.publishLocalNoteChanged(notePublicId)
+        }
         return put
     }
 

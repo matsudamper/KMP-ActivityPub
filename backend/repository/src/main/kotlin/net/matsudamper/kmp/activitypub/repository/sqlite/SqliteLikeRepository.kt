@@ -33,8 +33,9 @@ internal class SqliteLikeRepository(
         val localNoteId = TimelineMembers.localNoteIdOf(member)
         if (localNoteId != null) {
             // このサーバーの投稿は outbox で公開しているので、誰でも読める
-            val exists = jooq.withConnection { dsl -> dsl.fetchExists(NOTES, NOTES.ID.eq(localNoteId)) }
-            return if (exists) LikeTarget.Local else null
+            return jooq.withConnection { dsl ->
+                dsl.select(NOTES.PUBLIC_ID).from(NOTES).where(NOTES.ID.eq(localNoteId)).fetchOne(NOTES.PUBLIC_ID)
+            }?.let { LikeTarget.Local(PublicNoteId(it)) }
         }
         val boostId = TimelineMembers.boostIdOf(member)
         if (boostId != null) {

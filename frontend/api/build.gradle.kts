@@ -44,7 +44,7 @@ apollo {
         mapScalarToKotlinString("CustomEmojiId")
         mapScalarToKotlinString("TimelinePostId")
         mapScalarToKotlinString("PostRevisionId")
-        mapScalarToKotlinString("NotificationId")
+        mapScalarToKotlinString("NotificationGroupId")
         mapScalarToKotlinString("FailedDeliveryId")
         mapScalarToUpload("Upload")
         plugin(libs.apollo.normalized.cache.compiler.plugin)

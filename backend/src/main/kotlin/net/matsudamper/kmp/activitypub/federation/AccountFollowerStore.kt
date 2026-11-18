@@ -1,7 +1,10 @@
 package net.matsudamper.kmp.activitypub.federation
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
+import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
+import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRecord
 import net.matsudamper.kotpub.actor.RemoteActor
@@ -14,6 +17,7 @@ import net.matsudamper.kotpub.follower.FollowerStore
 internal class AccountFollowerStore(
     private val followerRepository: FollowerRepository,
     private val blocks: InboxBlocks,
+    private val notifications: NotificationRecorder,
     private val onAcceptEnqueued: () -> Unit,
 ) : FollowerStore {
     override fun record(
@@ -38,7 +42,16 @@ internal class AccountFollowerStore(
             receivedAt = receivedAt,
             acceptBody = acceptBody,
         )
-        if (recorded) onAcceptEnqueued()
+        if (recorded) {
+            onAcceptEnqueued()
+            notifications.record(
+                NotificationEvent.Followed(
+                    followeeUsername = username,
+                    actor = NotificationActorRef.Remote(follower.actorId),
+                    occurredAt = receivedAt,
+                ),
+            )
+        }
         return recorded
     }
 
