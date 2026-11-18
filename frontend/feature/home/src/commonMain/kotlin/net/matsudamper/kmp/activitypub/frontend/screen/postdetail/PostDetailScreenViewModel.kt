@@ -2,8 +2,10 @@ package net.matsudamper.kmp.activitypub.frontend.screen.postdetail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -105,6 +107,7 @@ internal class PostDetailScreenViewModel(
     private var loadJob: Job? = null
     private var replyTargetJob: Job? = null
     private var repliesJob: Job? = null
+    private var loginStateJob: Job? = null
 
     /**
      * 表示には使わないので ViewModelState に入れない。入れると失敗時の削除で投稿の listener が作り直され、即座に取り直しを繰り返す
@@ -261,13 +264,29 @@ internal class PostDetailScreenViewModel(
     }
 
     /**
-     * 確かめられなかったときは、ログインしていないものとしてメンションの入力欄を出さない。投稿の読み直しで確かめ直す
+     * 確かめられるまでは、ログインしていないものとしてメンションの入力欄を出さない。
+     * 投稿が読めると読み直しの操作が無いので、確かめられなかったときは間を置いて確かめ直す
      */
     private fun checkLoginState() {
         if (viewModelStateFlow.value.loggedIn) return
-        viewModelScope.launch {
-            val loggedIn = api.loginState() == UserLoginStateResult.LoggedIn
-            viewModelStateFlow.update { it.copy(loggedIn = loggedIn) }
+        loginStateJob?.cancel()
+        loginStateJob = viewModelScope.launch {
+            var retryDelay = LOGIN_STATE_FIRST_RETRY_DELAY
+            while (true) {
+                when (api.loginState()) {
+                    UserLoginStateResult.LoggedIn -> {
+                        viewModelStateFlow.update { it.copy(loggedIn = true) }
+                        return@launch
+                    }
+
+                    UserLoginStateResult.NotLoggedIn -> return@launch
+
+                    is UserLoginStateResult.Failure -> {
+                        delay(retryDelay)
+                        retryDelay = (retryDelay * 2).coerceAtMost(LOGIN_STATE_MAX_RETRY_DELAY)
+                    }
+                }
+            }
         }
     }
 
@@ -939,3 +958,6 @@ internal class PostDetailScreenViewModel(
         data object Failed : PostState
     }
 }
+
+private val LOGIN_STATE_FIRST_RETRY_DELAY = 5.seconds
+private val LOGIN_STATE_MAX_RETRY_DELAY = 60.seconds
