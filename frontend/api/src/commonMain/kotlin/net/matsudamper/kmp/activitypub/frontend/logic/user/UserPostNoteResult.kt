@@ -9,6 +9,8 @@ sealed interface UserPostNoteResult {
 
     data object TooLong : UserPostNoteResult
 
+    data object ContentWarningTooLong : UserPostNoteResult
+
     data object FederationDisabled : UserPostNoteResult
 
     data object TooManyImages : UserPostNoteResult

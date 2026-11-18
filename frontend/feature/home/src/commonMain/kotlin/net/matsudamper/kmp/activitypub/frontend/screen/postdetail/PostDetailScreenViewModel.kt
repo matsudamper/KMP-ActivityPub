@@ -531,6 +531,7 @@ internal class PostDetailScreenViewModel(
                         postNoteSubmitter.submit(
                             body = body,
                             requestId = mentionRequestId,
+                            contentWarning = null,
                             images = listOf(),
                             replyToPostId = replyToPostId,
                             quotePostId = null,
@@ -578,8 +579,9 @@ internal class PostDetailScreenViewModel(
 
             UserPostNoteResult.ReplyTargetNotFound -> "この投稿にはメンションできません"
 
-            // メンションでは引用せず、返信先の投稿者のほかには宛てない
+            // メンションでは引用も閲覧注意もせず、返信先の投稿者のほかには宛てない
             UserPostNoteResult.QuoteTargetNotFound,
+            UserPostNoteResult.ContentWarningTooLong,
             UserPostNoteResult.MentionTargetNotFound,
             UserPostNoteResult.TooManyImages,
             UserPostNoteResult.ImageNotFound,

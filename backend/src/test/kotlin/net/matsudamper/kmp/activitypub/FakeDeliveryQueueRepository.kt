@@ -45,6 +45,7 @@ internal class FakeDeliveryQueueRepository(
                 publicId = post.publicId,
                 username = post.username,
                 contentHtml = post.contentHtml,
+                summary = post.summary,
                 sourceText = post.sourceText,
                 publishedAt = post.publishedAt,
                 updatedAt = null,

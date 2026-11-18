@@ -19,6 +19,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -33,6 +34,7 @@ internal actual fun MultilineTextField(
     onSubmitShortcut: (() -> Unit)?,
     insertion: TextInsertion?,
     onHandleInsertion: () -> Unit,
+    heightFitsContent: Boolean,
     modifier: Modifier,
 ) {
     var editedValue by remember { mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length))) }
@@ -62,7 +64,7 @@ internal actual fun MultilineTextField(
         isError = hasError,
         label = { Text(label) },
         modifier = modifier
-            .heightIn(min = 160.dp)
+            .heightIn(min = if (heightFitsContent) Dp.Unspecified else 160.dp)
             .onPreviewKeyEvent { event ->
                 val submitShortcutPressed = onSubmitShortcut != null &&
                     event.isCtrlPressed &&

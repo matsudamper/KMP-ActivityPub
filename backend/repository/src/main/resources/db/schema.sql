@@ -103,6 +103,8 @@ CREATE TABLE notes (
     public_id TEXT NOT NULL UNIQUE,
     -- サニタイズ済みの HTML
     content_html TEXT NOT NULL,
+    -- 閲覧注意の注意書き。プレーンテキスト。閲覧注意でなければ NULL
+    summary TEXT,
     -- 書いたままの本文。編集の下書きに出す。記録し始める前の投稿は NULL
     source_text TEXT,
     published_at TEXT NOT NULL,
