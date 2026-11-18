@@ -69,12 +69,24 @@ internal actual fun VideoPlayerDialog(
         document.body?.appendChild(overlay)
         document.addEventListener("keydown", keyListener)
         document.addEventListener("focusin", focusInListener)
+        // 動画は画面の積み上げに載らないので、ブラウザの戻るがアプリの外まで戻ってしまう。
+        // 開いている画面と同じ履歴をもう 1 つ積み、戻るではそれを消して動画だけを閉じる
+        window.history.pushState(window.history.state, "", window.location.href)
+        var videoHistoryEntryPopped = false
+        val popStateListener: (Event) -> Unit = {
+            videoHistoryEntryPopped = true
+            currentOnDismissRequest()
+        }
+        window.addEventListener("popstate", popStateListener)
         // キーボードの操作が後ろの canvas に行かないよう、開いたらフォーカスを移す
         closeButton.focus()
         onDispose {
             hideCloseButtonTimer.cancel()
             document.removeEventListener("keydown", keyListener)
             document.removeEventListener("focusin", focusInListener)
+            window.removeEventListener("popstate", popStateListener)
+            // 閉じるボタンなどで閉じたときは、積んだ履歴が残ると次の戻るが空振りする
+            if (!videoHistoryEntryPopped) window.history.back()
             video.pause()
             // pause と要素の削除だけでは読み込みが続くことがあるので、src を外して止める
             video.removeAttribute("src")
