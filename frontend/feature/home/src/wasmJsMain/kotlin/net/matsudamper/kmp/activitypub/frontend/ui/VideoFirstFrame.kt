@@ -60,8 +60,8 @@ internal actual fun VideoFirstFrame(
 
 private fun createFirstFrameVideo(videoUrl: String): HTMLVideoElement {
     val video = document.createElement("video") as HTMLVideoElement
-    // #t で 1 コマ目より少し先を指すと、再生しなくてもそのコマが描かれる
-    video.src = "$videoUrl#t=0.1"
+    // #t で 1 コマ目より少し先を指すと、再生しなくてもそのコマが描かれる。元の URL に時間指定などがあればそれに任せる
+    video.src = if ("#" in videoUrl) videoUrl else "$videoUrl#t=0.1"
     video.muted = true
     video.preload = "metadata"
     video.setAttribute("playsinline", "")
