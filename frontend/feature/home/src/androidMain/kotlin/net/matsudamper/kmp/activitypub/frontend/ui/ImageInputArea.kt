@@ -52,15 +52,15 @@ internal actual fun ImageInputArea(
         modifier = modifier
             .dragAndDropTarget(
                 shouldStartDragAndDrop = { event ->
-                    ImageInputReceivers.current != null && event.mimeTypes().any { it.startsWith("image/") }
+                    ImageInputReceivers.current != null && event.mimeTypes().any { it.isPickableMediaMimeType() }
                 },
                 target = dropTarget,
             )
             .onPreviewKeyEvent { event ->
                 if (!event.isCtrlPressed || event.key != Key.V) return@onPreviewKeyEvent false
                 val receiver = ImageInputReceivers.current ?: return@onPreviewKeyEvent false
-                // 画像が無ければ入力欄の文字の貼り付けに任せる
-                val uri = applicationContext.clipboardImageUriOrNull() ?: return@onPreviewKeyEvent false
+                // 画像や動画が無ければ入力欄の文字の貼り付けに任せる
+                val uri = applicationContext.clipboardMediaUriOrNull() ?: return@onPreviewKeyEvent false
                 if (event.type == KeyEventType.KeyDown) {
                     receiver(ContentUriImageFile(context = applicationContext, uri = uri))
                 }
@@ -71,11 +71,13 @@ internal actual fun ImageInputArea(
     }
 }
 
-private fun android.content.Context.clipboardImageUriOrNull(): Uri? {
+private fun android.content.Context.clipboardMediaUriOrNull(): Uri? {
     val clipboard = getSystemService<ClipboardManager>() ?: return null
     val description = clipboard.primaryClipDescription ?: return null
-    val hasImage = (0 until description.mimeTypeCount).any { description.getMimeType(it).startsWith("image/") }
-    if (!hasImage) return null
+    val hasMedia = (0 until description.mimeTypeCount).any { description.getMimeType(it).isPickableMediaMimeType() }
+    if (!hasMedia) return null
     val clip = clipboard.primaryClip ?: return null
     return (0 until clip.itemCount).firstNotNullOfOrNull { clip.getItemAt(it).uri }
 }
+
+private fun String.isPickableMediaMimeType(): Boolean = startsWith("image/") || startsWith("video/")

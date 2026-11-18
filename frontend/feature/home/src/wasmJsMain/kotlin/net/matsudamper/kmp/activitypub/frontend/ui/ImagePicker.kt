@@ -414,7 +414,7 @@ private const val MAX_DECODED_PIXELS = 64_000_000L
 
 internal val PICKABLE_IMAGE_TYPES = listOf("image/png", "image/jpeg", "image/gif", "image/webp")
 
-private val PICKABLE_VIDEO_TYPES = listOf("video/mp4", "video/quicktime", "video/webm")
+internal val PICKABLE_VIDEO_TYPES = listOf("video/mp4", "video/quicktime", "video/webm")
 
 /**
  * JPEG は寸法の前に EXIF などのメタデータが並ぶ。写真のメタデータはふつうこれに収まる

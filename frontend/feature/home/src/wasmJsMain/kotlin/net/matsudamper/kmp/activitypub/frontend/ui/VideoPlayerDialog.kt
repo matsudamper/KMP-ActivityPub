@@ -5,6 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.browser.document
+import kotlinx.browser.window
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLVideoElement
@@ -35,8 +36,15 @@ internal actual fun VideoPlayerDialog(
         closeButton.setAttribute("aria-label", "閉じる")
         closeButton.style.cssText =
             "position:absolute;top:16px;right:16px;width:48px;height:48px;border:none;border-radius:50%;" +
-            "background:#333;color:#fff;font-size:24px;cursor:pointer;"
+            "background:#333;color:#fff;font-size:24px;cursor:pointer;transition:opacity 0.3s;"
         closeButton.addEventListener("click", { currentOnDismissRequest() })
+        val closeButtonHideDelayMillis = 3000
+        val hideCloseButtonTimer = HideCloseButtonTimer(closeButton, closeButtonHideDelayMillis)
+        val showCloseButtonListener: (Event) -> Unit = { hideCloseButtonTimer.showAndRestart() }
+        overlay.addEventListener("pointermove", showCloseButtonListener)
+        overlay.addEventListener("pointerdown", showCloseButtonListener)
+        overlay.addEventListener("keydown", showCloseButtonListener)
+        hideCloseButtonTimer.showAndRestart()
         val keyListener: (Event) -> Unit = { event ->
             if ((event as? KeyboardEvent)?.key == "Escape") currentOnDismissRequest()
         }
@@ -64,6 +72,7 @@ internal actual fun VideoPlayerDialog(
         // キーボードの操作が後ろの canvas に行かないよう、開いたらフォーカスを移す
         closeButton.focus()
         onDispose {
+            hideCloseButtonTimer.cancel()
             document.removeEventListener("keydown", keyListener)
             document.removeEventListener("focusin", focusInListener)
             video.pause()
@@ -72,5 +81,33 @@ internal actual fun VideoPlayerDialog(
             video.load()
             overlay.remove()
         }
+    }
+}
+
+private class HideCloseButtonTimer(
+    private val closeButton: HTMLButtonElement,
+    private val delayMillis: Int,
+) {
+    private var timeoutId: Int? = null
+
+    fun showAndRestart() {
+        cancel()
+        closeButton.style.opacity = "1"
+        closeButton.style.setProperty("pointer-events", "auto")
+        timeoutId = window.setTimeout(
+            handler = {
+                closeButton.style.opacity = "0"
+                // 透明のまま押せると、見えないボタンで動画の右上の操作を奪う
+                closeButton.style.setProperty("pointer-events", "none")
+                null
+            },
+            timeout = delayMillis,
+        )
+    }
+
+    fun cancel() {
+        val id = timeoutId ?: return
+        window.clearTimeout(id)
+        timeoutId = null
     }
 }
