@@ -86,6 +86,7 @@ internal class PostDetailScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySource = mapOf()),
+                openedContentWarningPostIds = setOf(),
                 post = PostState.Loading,
                 linkPreviews = listOf(),
                 blurToggledImageUrls = setOf(),
@@ -634,6 +635,13 @@ internal class PostDetailScreenViewModel(
         }
     }
 
+    private fun toggleContentWarning(postId: String) {
+        viewModelStateFlow.update {
+            val opened = it.openedContentWarningPostIds
+            it.copy(openedContentWarningPostIds = if (postId in opened) opened - postId else opened + postId)
+        }
+    }
+
     private fun toggleImageBlur(imageUrls: List<String>, toggled: Boolean) {
         viewModelStateFlow.update {
             it.copy(blurToggledImageUrls = it.blurToggledImageUrls.withBlurToggled(imageUrls, toggled))
@@ -786,7 +794,9 @@ internal class PostDetailScreenViewModel(
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
             translation = viewModelState.translation,
+            contentWarningOpened = post.id in viewModelState.openedContentWarningPostIds,
             onToggleTranslation = postTranslations::toggle,
+            onToggleContentWarning = { toggleContentWarning(post.id) },
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val username = if (host == null) post.username else "${post.username}@$host"
@@ -851,7 +861,9 @@ internal class PostDetailScreenViewModel(
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = true,
             translation = viewModelState.translation,
+            contentWarningOpened = post.id in viewModelState.openedContentWarningPostIds,
             onToggleTranslation = postTranslations::toggle,
+            onToggleContentWarning = { toggleContentWarning(post.id) },
             blurToggledImageUrls = viewModelState.blurToggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val username = if (host == null) post.username else "${post.username}@$host"
@@ -920,6 +932,10 @@ internal class PostDetailScreenViewModel(
 
     private data class ViewModelState(
         val translation: PostTranslationState,
+        /**
+         * 閲覧注意の本文を開いている投稿の id
+         */
+        val openedContentWarningPostIds: Set<String>,
         val post: PostState,
         val linkPreviews: List<UserLinkPreviewsResult.LinkPreview>,
         val blurToggledImageUrls: Set<String>,

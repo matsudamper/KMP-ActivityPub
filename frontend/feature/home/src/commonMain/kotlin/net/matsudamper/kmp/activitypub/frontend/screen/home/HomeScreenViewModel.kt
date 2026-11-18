@@ -127,6 +127,7 @@ internal class HomeScreenViewModel(
         MutableStateFlow(
             ViewModelState(
                 translation = PostTranslationState(viewerLanguage = null, translatorSupported = false, progressBySource = mapOf()),
+                openedContentWarningPostIds = setOf(),
                 selectedTab = selectedTab,
                 openedColumn = null,
                 columnWidths = mapOf(),
@@ -1206,6 +1207,13 @@ internal class HomeScreenViewModel(
         }
     }
 
+    private fun toggleContentWarning(postId: String) {
+        viewModelStateFlow.update {
+            val opened = it.openedContentWarningPostIds
+            it.copy(openedContentWarningPostIds = if (postId in opened) opened - postId else opened + postId)
+        }
+    }
+
     private fun toggleImageBlur(imageUrls: List<String>, toggled: Boolean) {
         viewModelStateFlow.update {
             val urls = it.imageBlur.toggledImageUrls.withBlurToggled(imageUrls, toggled)
@@ -1574,7 +1582,9 @@ internal class HomeScreenViewModel(
                             ),
                             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
                             translation = viewModelState.translation,
+                            contentWarningOpened = post.postId in viewModelState.openedContentWarningPostIds,
                             onToggleTranslation = postTranslations::toggle,
+                            onToggleContentWarning = { toggleContentWarning(post.postId) },
                             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
                             authorTapAction = if (boostedNoteAuthor == null) {
                                 AuthorTapAction.AlreadyOnAuthorProfile
@@ -1667,7 +1677,9 @@ internal class HomeScreenViewModel(
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
             translation = viewModelState.translation,
+            contentWarningOpened = post.id in viewModelState.openedContentWarningPostIds,
             onToggleTranslation = postTranslations::toggle,
+            onToggleContentWarning = { toggleContentWarning(post.id) },
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 viewModelScope.launch { events.send { it.navigateToUserProfile(profileAcct) } }
@@ -1908,7 +1920,9 @@ internal class HomeScreenViewModel(
             quote = createQuote(post, viewModelState),
             sensitiveImagesBlurred = viewModelState.imageBlur.sensitiveImagesBlurred,
             translation = viewModelState.translation,
+            contentWarningOpened = post.id in viewModelState.openedContentWarningPostIds,
             onToggleTranslation = postTranslations::toggle,
+            onToggleContentWarning = { toggleContentWarning(post.id) },
             blurToggledImageUrls = viewModelState.imageBlur.toggledImageUrls,
             authorTapAction = AuthorTapAction.OpenProfile {
                 val host = post.host
@@ -2103,6 +2117,10 @@ internal class HomeScreenViewModel(
 
     private data class ViewModelState(
         val translation: PostTranslationState,
+        /**
+         * 閲覧注意の本文を開いている投稿の id
+         */
+        val openedContentWarningPostIds: Set<String>,
         val selectedTab: HomeScreenUiState.Tab,
         /**
          * 横に広い画面でタイムラインの左に開くカラム。開いていなければ null
