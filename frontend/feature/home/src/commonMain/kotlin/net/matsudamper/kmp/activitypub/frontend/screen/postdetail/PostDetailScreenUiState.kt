@@ -27,7 +27,10 @@ data class PostDetailScreenUiState(
             val replyTargets: List<PostItemUiState>,
             val post: PostItemUiState,
             val replies: Replies,
-            val mentionBox: MentionBox,
+            /**
+             * ログインしていなければ null
+             */
+            val mentionBox: MentionBox?,
         ) : Content
 
         data object NotFound : Content

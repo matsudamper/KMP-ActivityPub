@@ -18,9 +18,10 @@ class ViewablePostService(
     /**
      * 保存していない他のサーバーの投稿は、取ってきて保存してから返す
      *
+     * @param viewer ログインしていなければ null。保存していない投稿は取ってこず、開けない
      * @return 開けない投稿なら null
      */
-    suspend fun post(viewer: AccountId, postId: String): ViewablePost? {
+    suspend fun post(viewer: AccountId?, postId: String): ViewablePost? {
         val member = memberOf(viewer = viewer, postId = postId, importsMissing = true) ?: return null
         val post = timeline.viewablePost(viewer, member) ?: return null
         return ViewablePost(post = post, ownedByViewer = isOwnedByViewer(viewer, post))
@@ -29,21 +30,22 @@ class ViewablePostService(
     /**
      * 他の人の投稿も開けるので、消したり固定したりできるかはこれで分ける
      */
-    fun isOwnedByViewer(viewer: AccountId, post: TimelinePost): Boolean =
-        post.boostedBy == null && post.localPublicId != null && post.username == accounts.account(viewer)?.username
+    fun isOwnedByViewer(viewer: AccountId?, post: TimelinePost): Boolean =
+        viewer != null && post.boostedBy == null && post.localPublicId != null && post.username == accounts.account(viewer)?.username
 
     /**
      * OGP を引くためだけに投稿を保存しないよう、保存していない投稿は null を返す
      *
      * @return 開けないか、保存していない投稿なら null
      */
-    suspend fun contentHtml(viewer: AccountId, postId: String): String? {
+    suspend fun contentHtml(viewer: AccountId?, postId: String): String? {
         val member = memberOf(viewer = viewer, postId = postId, importsMissing = false) ?: return null
         return timeline.contentHtml(viewer, member)
     }
 
-    private suspend fun memberOf(viewer: AccountId, postId: String, importsMissing: Boolean): String? {
+    private suspend fun memberOf(viewer: AccountId?, postId: String, importsMissing: Boolean): String? {
         if (UnsavedRemoteNoteId.objectUriOf(postId) == null) return postId
+        if (viewer == null) return null
         return unsavedNotes?.memberOf(viewer = viewer, postId = postId, importsMissing = importsMissing)
     }
 }

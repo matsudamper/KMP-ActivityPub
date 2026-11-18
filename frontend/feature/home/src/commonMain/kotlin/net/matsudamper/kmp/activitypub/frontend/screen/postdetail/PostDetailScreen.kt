@@ -250,10 +250,10 @@ internal fun PostDetailContent(
                             modifier = Modifier.align(Alignment.BottomCenter),
                         )
                     }
-                    val loadedContent = uiState.content as? PostDetailScreenUiState.Content.Loaded
-                    if (loadedContent != null) {
+                    val mentionBox = (uiState.content as? PostDetailScreenUiState.Content.Loaded)?.mentionBox
+                    if (mentionBox != null) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        MentionBox(uiState = loadedContent.mentionBox)
+                        MentionBox(uiState = mentionBox)
                     }
                 }
             }
