@@ -40,6 +40,12 @@ internal class AdminScreenViewModel(
                     events.send { it.navigateBack() }
                 }
             }
+
+            override fun onClickFailedDeliveries() {
+                viewModelScope.launch {
+                    events.send { it.navigateToFailedDeliveries() }
+                }
+            }
         }
 
     private val remoteProfileRefreshListener =
@@ -153,6 +159,8 @@ internal class AdminScreenViewModel(
 
     internal interface Event {
         fun navigateBack()
+
+        fun navigateToFailedDeliveries()
 
         fun showMessage(message: String)
     }

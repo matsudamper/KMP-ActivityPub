@@ -190,6 +190,8 @@ CREATE TABLE delivery_queue (
     next_attempt_at TEXT,
     enqueued_at TEXT NOT NULL,
     last_error TEXT,
+    -- 諦めた時刻。failed 以外と、この列を足す前に諦めた行では NULL
+    failed_at TEXT,
     -- フォローが外れたら、その Accept はもう送らない
     FOREIGN KEY (account_id, remote_actor_id) REFERENCES account_followers (account_id, remote_actor_id) ON DELETE CASCADE
 );
