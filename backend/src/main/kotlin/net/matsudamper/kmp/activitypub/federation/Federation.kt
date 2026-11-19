@@ -281,6 +281,7 @@ internal class Federation(
         remoteActors,
         remoteActorRepository,
         followingRepository,
+        blockLists,
         deliveryQueueRepository,
         Clock.systemUTC(),
         deliveryQueueWorker::wakeUp,

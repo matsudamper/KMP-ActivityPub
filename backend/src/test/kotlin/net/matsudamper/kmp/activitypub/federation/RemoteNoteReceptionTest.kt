@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.FollowingSpan
 import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
+import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
 import net.matsudamper.kmp.activitypub.repository.NotificationEvent
 import net.matsudamper.kmp.activitypub.repository.NotificationPostRef
@@ -90,6 +91,18 @@ class RemoteNoteReceptionTest {
             assertEquals("already_following", services[1].attributes.get(FollowingSpan.SKIP_REASON))
             assertEquals("following_not_found", services[4].attributes.get(FollowingSpan.SKIP_REASON))
         }
+    }
+
+    @Test
+    fun followingBlockedActorThroughProfileUrlIsRejected() = runBlocking {
+        val fixture = Fixture(OpenTelemetry.noop())
+        val profileUrl = "https://remote.example/@remote"
+        fixture.repositories.actorBlockRepository.add(fixture.accountId, BlockedActor(actorUri = ACTOR, acct = "remote@remote.example"), Instant.EPOCH)
+
+        fixture.following.setFollowing(fixture.accountId, profileUrl, true)
+
+        assertFalse(fixture.following.isFollowing(fixture.accountId, profileUrl))
+        assertFalse(fixture.following.isFollowing(fixture.accountId, ACTOR))
     }
 
     @Test
@@ -444,6 +457,7 @@ class RemoteNoteReceptionTest {
             remote,
             repositories.remoteActorRepository,
             repositories.followingRepository,
+            blockLists,
             repositories.deliveryQueueRepository,
             Clock.systemUTC(),
             {},
@@ -452,7 +466,7 @@ class RemoteNoteReceptionTest {
         val following = FollowingService(
             repositories.accountRepository,
             repositories.followingRepository,
-            BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
+            blockLists,
             delivery,
             TimelineInvalidator {},
             "local.example",

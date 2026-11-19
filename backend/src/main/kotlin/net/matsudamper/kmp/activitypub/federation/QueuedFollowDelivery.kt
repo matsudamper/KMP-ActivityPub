@@ -5,6 +5,7 @@ import java.util.UUID
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.logic.AccountService
+import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.FollowDelivery
 import net.matsudamper.kmp.activitypub.logic.FollowingSpan
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
@@ -27,6 +28,7 @@ internal class QueuedFollowDelivery(
     private val actors: RemoteActors,
     private val storedActors: RemoteActorRepository,
     private val following: FollowingRepository,
+    private val blockLists: BlockLists,
     private val queue: DeliveryQueueRepository,
     private val clock: Clock,
     private val onEnqueued: () -> Unit,
@@ -62,6 +64,12 @@ internal class QueuedFollowDelivery(
             span.setAttribute(FollowingSpan.ACTOR_ID_DIFFERS, actorUri != remote.actorId)
             storedActors.save(remote.toRecord(), clock.instant())
             if (actorUri != remote.actorId) storedActors.remove(actorUri)
+            if (blockLists.of(accountId).hidesActor(remote.actorId)) {
+                // プロフィールの URL など、ブロックした URI と違う URL から引いたときはここで初めて分かる
+                following.remove(accountId, actorUri)
+                span.setAttribute(FollowingSpan.SKIP_REASON, "blocked")
+                return
+            }
             if (!following.contains(accountId, actorUri)) {
                 span.setAttribute(FollowingSpan.SKIP_REASON, "following_removed")
                 return
