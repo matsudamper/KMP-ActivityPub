@@ -24,6 +24,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.NotificationService
+import net.matsudamper.kmp.activitypub.logic.PageOgpService
 import net.matsudamper.kmp.activitypub.logic.PollService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
@@ -399,6 +400,15 @@ internal class Federation(
             val iconVersion = actorAppearances.find(username).iconVersion
             if (iconVersion == null) null else directory.resolve(username)?.icon(iconVersion)
         }
+
+    val pageOgpService: PageOgpService =
+        PageOgpService(
+            domain = domain,
+            accounts = accountRepository,
+            timeline = timeline,
+            profileIconUrls = profileIconUrls,
+            noteImageUrls = noteImageUrls,
+        )
 
     val profileHeaderUrls: ProfileHeaderUrls =
         ProfileHeaderUrls { username ->
