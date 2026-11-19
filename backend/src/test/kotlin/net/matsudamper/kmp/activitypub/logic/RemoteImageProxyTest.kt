@@ -8,6 +8,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
@@ -108,6 +110,38 @@ class RemoteImageProxyTest {
         assertEquals(RemoteImageProxyResult.Unavailable, fetch(checkNotNull(proxy.proxyUrlOf(REMOTE_URL))))
     }
 
+    @Test
+    fun `同時に取りに行ける数を使い切っていれば取りに行かずに Busy を返し、空けば再び取りに行く`() {
+        remoteIcons[REMOTE_URL] = TestProfileIcons.read("400x400.png")
+        val fetchStarted = CompletableDeferred<Unit>()
+        val releaseFetch = CompletableDeferred<Unit>()
+        val singleFetchProxy =
+            RemoteImageProxy(
+                origin = "https://example.com",
+                signingKey = "key-1".encodeToByteArray(),
+                fetcher = { url, _ ->
+                    fetchedUrls += url
+                    fetchStarted.complete(Unit)
+                    releaseFetch.await()
+                    remoteIcons[url]
+                },
+                maxConcurrentFetches = 1,
+            )
+        val (encodedUrl, signature) = split(checkNotNull(singleFetchProxy.proxyUrlOf(REMOTE_URL)))
+
+        runBlocking {
+            val firstFetch = async { singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) }
+            fetchStarted.await()
+
+            assertEquals(RemoteImageProxyResult.Busy, singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature))
+
+            releaseFetch.complete(Unit)
+            assertIs<RemoteImageProxyResult.Found>(firstFetch.await())
+            assertIs<RemoteImageProxyResult.Found>(singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature))
+        }
+        assertEquals(listOf(REMOTE_URL, REMOTE_URL), fetchedUrls)
+    }
+
     private fun createProxy(signingKey: ByteArray): RemoteImageProxy =
         RemoteImageProxy(
             origin = "https://example.com",
@@ -116,6 +150,7 @@ class RemoteImageProxyTest {
                 fetchedUrls += url
                 remoteIcons[url]
             },
+            maxConcurrentFetches = 1,
         )
 
     private fun fetch(proxyUrl: String): RemoteImageProxyResult {

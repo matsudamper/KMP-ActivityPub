@@ -39,6 +39,12 @@ internal fun Route.remoteImageProxyRoutes(proxy: RemoteImageProxy) {
                 call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.BadGateway)
             }
 
+            RemoteImageProxyResult.Busy -> {
+                call.response.header(HttpHeaders.CacheControl, "no-store")
+                call.response.header(HttpHeaders.RetryAfter, RETRY_AFTER_SECONDS_WHEN_BUSY.toString())
+                call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.ServiceUnavailable)
+            }
+
             RemoteImageProxyResult.NotIssued -> {
                 call.response.header(HttpHeaders.CacheControl, "no-store")
                 call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.NotFound)
@@ -48,3 +54,4 @@ internal fun Route.remoteImageProxyRoutes(proxy: RemoteImageProxy) {
 }
 
 private const val CONTENT_TYPE_OPTIONS_HEADER = "X-Content-Type-Options"
+private const val RETRY_AFTER_SECONDS_WHEN_BUSY = 5

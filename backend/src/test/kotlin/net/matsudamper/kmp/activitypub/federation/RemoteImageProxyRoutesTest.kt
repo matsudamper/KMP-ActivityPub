@@ -28,6 +28,7 @@ class RemoteImageProxyRoutesTest {
                         assertEquals(remoteUrl, url)
                         bytes
                     },
+                    maxConcurrentFetches = 1,
                 )
             application {
                 routing { remoteImageProxyRoutes(proxy) }
