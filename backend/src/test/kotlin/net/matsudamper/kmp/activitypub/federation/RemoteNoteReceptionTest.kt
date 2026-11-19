@@ -19,6 +19,7 @@ import net.matsudamper.kmp.activitypub.logic.FollowingService
 import net.matsudamper.kmp.activitypub.logic.FollowingSpan
 import net.matsudamper.kmp.activitypub.logic.NotificationRecorder
 import net.matsudamper.kmp.activitypub.logic.TimelineInvalidator
+import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.NotificationActorRef
 import net.matsudamper.kmp.activitypub.repository.NotificationEvent
@@ -216,8 +217,8 @@ class RemoteNoteReceptionTest {
             val fixture = Fixture(OpenTelemetry.noop())
             val stored = fixture.repositories.timelineRepository
             val repository = object : TimelineRepository by stored {
-                override fun receive(note: RemoteNoteInput): TimelinePosition? =
-                    if (stored.hasRemoteNote(note.objectUri)) null else stored.receive(note)
+                override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?> =
+                    if (stored.hasRemoteNote(note.objectUri)) AuthorCheckedWrite.Written(null) else stored.receive(note, expectedAuthorUri)
             }
             val receiver = ReceivedRemoteNotes(
                 repository,
