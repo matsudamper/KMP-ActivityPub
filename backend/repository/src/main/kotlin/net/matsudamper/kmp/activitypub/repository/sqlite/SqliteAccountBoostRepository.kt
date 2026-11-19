@@ -1,10 +1,10 @@
 package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
-import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.AccountBoostPosition
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRecord
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
+import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
