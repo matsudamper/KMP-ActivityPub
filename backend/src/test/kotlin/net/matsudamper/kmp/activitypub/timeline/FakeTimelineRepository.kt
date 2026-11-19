@@ -1,6 +1,7 @@
 package net.matsudamper.kmp.activitypub.timeline
 
 import java.time.Instant
+import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.LikedNotePosition
 import net.matsudamper.kmp.activitypub.repository.LikedTimelinePost
 import net.matsudamper.kmp.activitypub.repository.PostRevision
@@ -46,6 +47,10 @@ internal class FakeTimelineRepository : TimelineRepository {
         received.add(note)
         return TimelinePosition(1, "r1")
     }
+    override fun receive(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<TimelinePosition?> = AuthorCheckedWrite.Written(receive(note))
+
+    override fun findRemoteNoteAuthor(objectUri: String): String? = received.lastOrNull { it.objectUri == objectUri }?.actorUri
+
     override fun receiveBoost(boost: RemoteBoostInput): TimelinePosition? {
         receivedBoosts.add(boost)
         return TimelinePosition(1, "b1")
@@ -56,6 +61,8 @@ internal class FakeTimelineRepository : TimelineRepository {
         revised.add(note)
         return listOf()
     }
+
+    override fun reviseRemote(note: RemoteNoteInput, expectedAuthorUri: String?): AuthorCheckedWrite<List<String>> = AuthorCheckedWrite.Written(reviseRemote(note))
 
     override fun revisions(viewer: AccountId, member: String, olderThan: PostRevisionPosition?, limit: Int): List<PostRevision>? = null
     override fun hasRemoteNote(objectUri: String): Boolean = received.any { it.objectUri == objectUri }

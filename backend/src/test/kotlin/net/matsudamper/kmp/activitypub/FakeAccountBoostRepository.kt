@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.AccountBoostPosition
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRecord
 import net.matsudamper.kmp.activitypub.repository.AccountBoostRepository
+import net.matsudamper.kmp.activitypub.repository.AuthorCheckedWrite
 import net.matsudamper.kmp.activitypub.repository.BoostTarget
 import net.matsudamper.kmp.activitypub.repository.OutgoingBoost
 import net.matsudamper.kmp.activitypub.repository.RemoteNoteDeletion
@@ -35,6 +36,9 @@ internal class FakeAccountBoostRepository(
 
     override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant): RemoteNoteDeletion =
         RemoteNoteDeletion(undoneBoostCount = 0, deletedTimelineMembers = listOf())
+
+    override fun deleteRemoteNoteAndUndoBoosts(actorUri: String, objectUri: String, now: Instant, expectedAuthorUri: String?): AuthorCheckedWrite<RemoteNoteDeletion> =
+        AuthorCheckedWrite.Written(deleteRemoteNoteAndUndoBoosts(actorUri, objectUri, now))
 
     override fun listForOutbox(username: String, after: AccountBoostPosition?, limit: Int): List<AccountBoostRecord> = listOf()
 

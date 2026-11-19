@@ -72,6 +72,22 @@ class TimelineRepositoryTest {
     }
 
     @Test
+    fun 保存済みの投稿者が見込みと食い違えば受信も編集も書かない() = withRepository { repositories, accounts ->
+        val repository = repositories.timelineRepository
+        repositories.followingRepository.add(accounts.getValue("alice"), ACTOR, NOW)
+        val original = note("1", "public", setOf())
+        assertNull(repository.findRemoteNoteAuthor(original.objectUri))
+        assertEquals(AuthorCheckedWrite.AuthorChanged, repository.receive(original, expectedAuthorUri = ACTOR))
+        val saved = assertNotNull((repository.receive(original, expectedAuthorUri = null) as AuthorCheckedWrite.Written).value)
+        assertEquals(ACTOR, repository.findRemoteNoteAuthor(original.objectUri))
+
+        val edited = original.copy(contentHtml = "<p>編集</p>", editedAt = NOW.plusSeconds(10))
+        assertEquals(AuthorCheckedWrite.AuthorChanged, repository.reviseRemote(edited, expectedAuthorUri = null))
+        assertEquals(AuthorCheckedWrite.AuthorChanged, repository.reviseRemote(edited, expectedAuthorUri = "https://other.example/actor"))
+        assertEquals(AuthorCheckedWrite.Written(listOf(saved.member)), repository.reviseRemote(edited, expectedAuthorUri = ACTOR))
+    }
+
+    @Test
     fun revisedRemoteNoteKeepsEarlierRevisionsAndIgnoresStaleOrUnchangedEdits() = withRepository { repositories, accounts ->
         val repository = repositories.timelineRepository
         val alice = accounts.getValue("alice")

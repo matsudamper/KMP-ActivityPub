@@ -112,11 +112,11 @@ class RemoteNoteReceptionTest {
             val fixture = Fixture(telemetry)
             val repository = fixture.repositories.timelineRepository
             repository.interested = false
-            fixture.receiver.save(note(listOf()))
+            fixture.receiver.save(note(listOf()), expectedAttributedTo = null)
             val localActor = checkNotNull(fixture.directory.resolve("alice")).actorId
-            fixture.receiver.save(note(listOf(localActor, localActor, "https://elsewhere.example/users/alice")))
+            fixture.receiver.save(note(listOf(localActor, localActor, "https://elsewhere.example/users/alice")), expectedAttributedTo = null)
             repository.interested = true
-            fixture.receiver.save(note(listOf()))
+            fixture.receiver.save(note(listOf()), expectedAttributedTo = null)
             val spans = exporter.finishedSpanItems.filter { it.name == "Inbox.Create" }
             assertEquals(listOf(ACTOR, ACTOR, ACTOR), spans.map { it.attributes.get(InboxSpan.ACTOR) })
             assertEquals(listOf(0L, 0L, 1L), spans.map { it.attributes.get(InboxSpan.FOLLOWING_ACCOUNT_COUNT) })
@@ -131,9 +131,9 @@ class RemoteNoteReceptionTest {
         fixture.repositories.timelineRepository.interested = true
         val localActor = checkNotNull(fixture.directory.resolve("alice")).actorId
         val mentioning = note(listOf(localActor)).copy(mentions = listOf(localActor, "https://elsewhere.example/users/alice"))
-        fixture.receiver.save(mentioning)
-        fixture.receiver.save(mentioning.copy(id = "$ACTOR/notes/direct", visibility = NoteVisibility.Direct))
-        fixture.receiver.save(note(listOf(localActor)).copy(id = "$ACTOR/notes/addressed-only"))
+        fixture.receiver.save(mentioning, expectedAttributedTo = null)
+        fixture.receiver.save(mentioning.copy(id = "$ACTOR/notes/direct", visibility = NoteVisibility.Direct), expectedAttributedTo = null)
+        fixture.receiver.save(note(listOf(localActor)).copy(id = "$ACTOR/notes/addressed-only"), expectedAttributedTo = null)
 
         assertEquals(
             listOf(Triple("alice", NotificationPostRef.Remote(mentioning.id), NotificationActorRef.Remote(ACTOR))),
@@ -167,9 +167,9 @@ class RemoteNoteReceptionTest {
                 fixture.timeline,
                 NotificationRecorder {},
                 Clock.systemUTC(),
-                { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
+                { actorUri, objectUri, _ -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
             )
-        receiver.save(note(listOf()))
+        receiver.save(note(listOf()), expectedAttributedTo = null)
         assertTrue(stored.received.isEmpty())
         assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
         assertTrue(fixture.following.isFollowing(fixture.accountId, ACTOR))
@@ -178,7 +178,7 @@ class RemoteNoteReceptionTest {
         assertEquals(null, fixture.repositories.remoteActorRepository.findByUri(profileUrl))
         assertEquals(listOf(ACTOR), fixture.repositories.remoteActorRepository.searchByName("remote", null, 10).map { it.actorUri })
         assertTrue(fixture.repositories.deliveryQueueRepository.followBodies.single().contains("\"object\":\"$ACTOR\""))
-        receiver.save(note(listOf()))
+        receiver.save(note(listOf()), expectedAttributedTo = null)
         assertEquals(ACTOR, stored.received.single().actorUri)
         assertTrue(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
         assertEquals(1L, fixture.repositories.followingRepository.count(fixture.accountId))
@@ -228,17 +228,17 @@ class RemoteNoteReceptionTest {
                 fixture.timeline,
                 NotificationRecorder {},
                 Clock.systemUTC(),
-                { actorUri, objectUri -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
+                { actorUri, objectUri, _ -> repository.deleteRemote(actorUri, objectUri, Instant.now()) },
                 telemetry,
             )
             val request = telemetry.getTracer("test").spanBuilder("inbox request").startSpan()
             request.makeCurrent().use {
                 withOpenTelemetryContext {
                     stored.interested = false
-                    receiver.save(note(listOf()))
+                    receiver.save(note(listOf()), expectedAttributedTo = null)
                     stored.interested = true
-                    receiver.save(note(listOf()))
-                    receiver.save(note(listOf()))
+                    receiver.save(note(listOf()), expectedAttributedTo = null)
+                    receiver.save(note(listOf()), expectedAttributedTo = null)
                 }
             }
             request.end()
@@ -269,7 +269,7 @@ class RemoteNoteReceptionTest {
     fun unrelatedCreatesDoNotFetchOrWriteActors() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false
-        fixture.receiver.save(note(listOf("https://elsewhere.example/actor")))
+        fixture.receiver.save(note(listOf("https://elsewhere.example/actor")), expectedAttributedTo = null)
         assertEquals(0, fixture.remote.requests)
         assertTrue(fixture.repositories.remoteActorRepository.savedActors.isEmpty())
         assertTrue(fixture.repositories.timelineRepository.received.isEmpty())
@@ -278,9 +278,9 @@ class RemoteNoteReceptionTest {
     @Test
     fun interestedCreatesReuseActorsAndFetchOnlyWhenMissing() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
-        fixture.receiver.save(note(listOf()))
+        fixture.receiver.save(note(listOf()), expectedAttributedTo = null)
         fixture.remote.available = false
-        fixture.receiver.save(note(listOf()))
+        fixture.receiver.save(note(listOf()), expectedAttributedTo = null)
         assertEquals(1, fixture.remote.requests)
         assertEquals(2, fixture.repositories.timelineRepository.received.size)
         assertEquals(1, fixture.repositories.remoteActorRepository.savedActors.size)
@@ -297,7 +297,7 @@ class RemoteNoteReceptionTest {
             ReceivedNoteAttachment(url = "https://remote.example/d.webp", mediaType = "image/webp", name = null),
             ReceivedNoteAttachment(url = "https://remote.example/f.webm", mediaType = "VIDEO/webm", name = null),
         )
-        fixture.receiver.save(note(listOf()).copy(attachments = attachments))
+        fixture.receiver.save(note(listOf()).copy(attachments = attachments), expectedAttributedTo = null)
         assertEquals(
             listOf(
                 TimelinePostImage.Remote(url = "https://remote.example/a.png", description = "説明", mediaKind = RemoteMediaKind.Image),
@@ -313,8 +313,8 @@ class RemoteNoteReceptionTest {
     fun quoteFallbackIsRemovedOnlyFromQuotes() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         val content = """<p>引用</p><p class="quote-inline">RE: <a href="https://other.example/notes/1">https://other.example/notes/1</a></p>"""
-        fixture.receiver.save(note(listOf()).copy(content = content, quote = "https://other.example/notes/1"))
-        fixture.receiver.save(note(listOf()).copy(id = "$ACTOR/notes/2", content = content))
+        fixture.receiver.save(note(listOf()).copy(content = content, quote = "https://other.example/notes/1"), expectedAttributedTo = null)
+        fixture.receiver.save(note(listOf()).copy(id = "$ACTOR/notes/2", content = content), expectedAttributedTo = null)
         val received = fixture.repositories.timelineRepository.received
         assertEquals("<p>引用</p>", received[0].contentHtml)
         assertEquals("https://other.example/notes/1", received[0].quoteUri)
@@ -326,7 +326,7 @@ class RemoteNoteReceptionTest {
     fun addressedLocalAccountsAreResolvedBeforeFetchingActors() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false
-        fixture.receiver.save(note(listOf(checkNotNull(fixture.directory.resolve("alice")).actorId)))
+        fixture.receiver.save(note(listOf(checkNotNull(fixture.directory.resolve("alice")).actorId)), expectedAttributedTo = null)
         assertEquals(1, fixture.remote.requests)
         assertEquals(setOf("alice"), fixture.repositories.timelineRepository.received.single().localRecipients)
     }
@@ -336,7 +336,7 @@ class RemoteNoteReceptionTest {
         val fixture = Fixture(OpenTelemetry.noop())
         fixture.repositories.timelineRepository.interested = false
         fixture.repositories.serverBlockRepository.add(fixture.accountId, "remote.example", Instant.EPOCH)
-        fixture.receiver.save(note(listOf(checkNotNull(fixture.directory.resolve("alice")).actorId)))
+        fixture.receiver.save(note(listOf(checkNotNull(fixture.directory.resolve("alice")).actorId)), expectedAttributedTo = null)
         assertEquals(0, fixture.remote.requests)
         assertTrue(fixture.repositories.timelineRepository.received.isEmpty())
     }
@@ -382,7 +382,7 @@ class RemoteNoteReceptionTest {
     fun editedNoteIsSanitizedAndRevisedAtTheSendersEditTime() = runBlocking {
         val fixture = Fixture(OpenTelemetry.noop())
         val editedAt = Instant.parse("2026-08-10T01:00:00Z")
-        fixture.receiver.update(note(listOf()).copy(updated = editedAt))
+        fixture.receiver.update(note(listOf()).copy(updated = editedAt), expectedAttributedTo = null)
         val revised = fixture.repositories.timelineRepository.revised.single()
         assertEquals("<p>本文</p>", revised.contentHtml)
         assertEquals(editedAt, revised.editedAt)
@@ -448,7 +448,7 @@ class RemoteNoteReceptionTest {
                 timeline,
                 NotificationRecorder { recordedNotifications += it },
                 Clock.systemUTC(),
-                { actorUri, objectUri -> repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now()) },
+                { actorUri, objectUri, _ -> repositories.timelineRepository.deleteRemote(actorUri, objectUri, Instant.now()) },
                 openTelemetry,
             )
         val delivery = QueuedFollowDelivery(
