@@ -15,7 +15,7 @@ import kotlinx.coroutines.sync.Semaphore
  * このサーバーが発行した URL だけを中継する。誰の指定でも取りに行くと、このサーバーを踏み台にされる
  *
  * @param origin `https://example.com` の形。末尾に / を付けない
- * @param maxConcurrentFetches 取得中の画像はメモリに丸ごと載るので、ログインなしで何度でも呼べる中継が使い切らないよう絞る
+ * @param maxConcurrentFetches 取得から送り終えるまで画像はメモリに丸ごと載るので、ログインなしで何度でも呼べる中継が使い切らないよう絞る
  */
 class RemoteImageProxy(
     private val origin: String,
@@ -38,19 +38,23 @@ class RemoteImageProxy(
         return "$origin$PATH_PREFIX/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
     }
 
-    suspend fun fetch(
+    /**
+     * 取得した画像は [respond] が返るまでメモリに残るので、送り終えるまで同時取得数の枠を手放さない
+     */
+    suspend fun <T> fetch(
         encodedUrl: String,
         signature: String,
-    ): RemoteImageProxyResult {
+        respond: suspend (RemoteImageProxyResult) -> T,
+    ): T {
         val remoteUrl =
             runCatching { Base64.getUrlDecoder().decode(encodedUrl).decodeToString() }.getOrNull()
-                ?: return RemoteImageProxyResult.NotIssued
+                ?: return respond(RemoteImageProxyResult.NotIssued)
         val signatureMatches = MessageDigest.isEqual(sign(remoteUrl).encodeToByteArray(), signature.encodeToByteArray())
-        if (!signatureMatches) return RemoteImageProxyResult.NotIssued
+        if (!signatureMatches) return respond(RemoteImageProxyResult.NotIssued)
 
-        if (!fetchPermits.tryAcquire()) return RemoteImageProxyResult.Busy
+        if (!fetchPermits.tryAcquire()) return respond(RemoteImageProxyResult.Busy)
         return try {
-            fetchImage(remoteUrl)
+            respond(fetchImage(remoteUrl))
         } finally {
             fetchPermits.release()
         }

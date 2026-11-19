@@ -130,16 +130,42 @@ class RemoteImageProxyTest {
         val (encodedUrl, signature) = split(checkNotNull(singleFetchProxy.proxyUrlOf(REMOTE_URL)))
 
         runBlocking {
-            val firstFetch = async { singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) }
+            val firstFetch = async { singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) { it } }
             fetchStarted.await()
 
-            assertEquals(RemoteImageProxyResult.Busy, singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature))
+            assertEquals(RemoteImageProxyResult.Busy, singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) { it })
 
             releaseFetch.complete(Unit)
             assertIs<RemoteImageProxyResult.Found>(firstFetch.await())
-            assertIs<RemoteImageProxyResult.Found>(singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature))
+            assertIs<RemoteImageProxyResult.Found>(singleFetchProxy.fetch(encodedUrl = encodedUrl, signature = signature) { it })
         }
         assertEquals(listOf(REMOTE_URL, REMOTE_URL), fetchedUrls)
+    }
+
+    @Test
+    fun `取得した画像を送り終えるまでは枠を手放さず Busy を返す`() {
+        remoteIcons[REMOTE_URL] = TestProfileIcons.read("400x400.png")
+        val respondStarted = CompletableDeferred<Unit>()
+        val finishRespond = CompletableDeferred<Unit>()
+        val (encodedUrl, signature) = split(checkNotNull(proxy.proxyUrlOf(REMOTE_URL)))
+
+        runBlocking {
+            val firstFetch =
+                async {
+                    proxy.fetch(encodedUrl = encodedUrl, signature = signature) { result ->
+                        respondStarted.complete(Unit)
+                        finishRespond.await()
+                        result
+                    }
+                }
+            respondStarted.await()
+
+            assertEquals(RemoteImageProxyResult.Busy, proxy.fetch(encodedUrl = encodedUrl, signature = signature) { it })
+
+            finishRespond.complete(Unit)
+            assertIs<RemoteImageProxyResult.Found>(firstFetch.await())
+        }
+        assertEquals(listOf(REMOTE_URL), fetchedUrls)
     }
 
     private fun createProxy(signingKey: ByteArray): RemoteImageProxy =
@@ -166,7 +192,7 @@ class RemoteImageProxyTest {
     private fun RemoteImageProxy.fetchBlocking(
         encodedUrl: String,
         signature: String,
-    ): RemoteImageProxyResult = runBlocking { fetch(encodedUrl = encodedUrl, signature = signature) }
+    ): RemoteImageProxyResult = runBlocking { fetch(encodedUrl = encodedUrl, signature = signature) { it } }
 
     private companion object {
         const val REMOTE_URL = "https://remote.example/media/icon.png"

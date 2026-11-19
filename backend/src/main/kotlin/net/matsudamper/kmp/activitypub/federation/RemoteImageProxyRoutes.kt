@@ -3,6 +3,7 @@ package net.matsudamper.kmp.activitypub.federation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.Route
@@ -15,40 +16,47 @@ import net.matsudamper.kmp.activitypub.logic.RemoteImageProxyResult
  */
 internal fun Route.remoteImageProxyRoutes(proxy: RemoteImageProxy) {
     get("${RemoteImageProxy.PATH_PREFIX}/{encodedUrl}/{signature}${RemoteImageProxy.PATH_SUFFIX}") {
-        val result =
-            proxy.fetch(
-                encodedUrl = call.parameters["encodedUrl"].orEmpty(),
-                signature = call.parameters["signature"].orEmpty(),
-            )
-        call.response.header(CONTENT_TYPE_OPTIONS_HEADER, "nosniff")
-        when (result) {
-            is RemoteImageProxyResult.Found -> {
-                val cacheControl =
-                    if (call.request.queryParameters.contains("v")) {
-                        "public, max-age=31536000, immutable"
-                    } else {
-                        "public, max-age=86400"
-                    }
-                call.response.header(HttpHeaders.CacheControl, cacheControl)
-                call.respondBytes(bytes = result.bytes, contentType = ContentType.parse(result.contentType), status = HttpStatusCode.OK)
-            }
+        proxy.fetch(
+            encodedUrl = call.parameters["encodedUrl"].orEmpty(),
+            signature = call.parameters["signature"].orEmpty(),
+        ) { result ->
+            respondRemoteImage(call = call, result = result)
+        }
+    }
+}
 
-            // 相手が落ちているだけのこともあるので、失敗を edge に残さない
-            RemoteImageProxyResult.Unavailable -> {
-                call.response.header(HttpHeaders.CacheControl, "no-store")
-                call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.BadGateway)
-            }
+private suspend fun respondRemoteImage(
+    call: ApplicationCall,
+    result: RemoteImageProxyResult,
+) {
+    call.response.header(CONTENT_TYPE_OPTIONS_HEADER, "nosniff")
+    when (result) {
+        is RemoteImageProxyResult.Found -> {
+            val cacheControl =
+                if (call.request.queryParameters.contains("v")) {
+                    "public, max-age=31536000, immutable"
+                } else {
+                    "public, max-age=86400"
+                }
+            call.response.header(HttpHeaders.CacheControl, cacheControl)
+            call.respondBytes(bytes = result.bytes, contentType = ContentType.parse(result.contentType), status = HttpStatusCode.OK)
+        }
 
-            RemoteImageProxyResult.Busy -> {
-                call.response.header(HttpHeaders.CacheControl, "no-store")
-                call.response.header(HttpHeaders.RetryAfter, RETRY_AFTER_SECONDS_WHEN_BUSY.toString())
-                call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.ServiceUnavailable)
-            }
+        // 相手が落ちているだけのこともあるので、失敗を edge に残さない
+        RemoteImageProxyResult.Unavailable -> {
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.BadGateway)
+        }
 
-            RemoteImageProxyResult.NotIssued -> {
-                call.response.header(HttpHeaders.CacheControl, "no-store")
-                call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.NotFound)
-            }
+        RemoteImageProxyResult.Busy -> {
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            call.response.header(HttpHeaders.RetryAfter, RETRY_AFTER_SECONDS_WHEN_BUSY.toString())
+            call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.ServiceUnavailable)
+        }
+
+        RemoteImageProxyResult.NotIssued -> {
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            call.respondBytes(bytes = byteArrayOf(), status = HttpStatusCode.NotFound)
         }
     }
 }
