@@ -18,8 +18,10 @@ internal class FakeActorBlockRepository : ActorBlockRepository {
         if (index == null) rows += Row(accountId, actor, null) else rows[index] = rows[index].copy(actor = actor)
     }
 
-    override fun remove(accountId: AccountId, actorUri: String) {
-        rows.removeAll { it.accountId == accountId && it.actor.actorUri == actorUri }
+    override fun remove(accountId: AccountId, actorUri: String): String? {
+        val removed = rows.firstOrNull { it.accountId == accountId && it.actor.actorUri == actorUri } ?: return null
+        rows.remove(removed)
+        return removed.blockActivityId
     }
 
     override fun findBlockActivityId(accountId: AccountId, actorUri: String): String? =

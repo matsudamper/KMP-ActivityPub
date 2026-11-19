@@ -35,13 +35,12 @@ internal class SqliteActorBlockRepository(
         }
     }
 
-    override fun remove(accountId: AccountId, actorUri: String) {
-        jooq.withConnection { dsl ->
-            dsl.deleteFrom(ACCOUNT_ACTOR_BLOCKS)
-                .where(ACCOUNT_ACTOR_BLOCKS.ACCOUNT_ID.eq(accountId.value))
-                .and(ACCOUNT_ACTOR_BLOCKS.ACTOR_URI.eq(actorUri))
-                .execute()
-        }
+    override fun remove(accountId: AccountId, actorUri: String): String? = jooq.withConnection { dsl ->
+        dsl.deleteFrom(ACCOUNT_ACTOR_BLOCKS)
+            .where(ACCOUNT_ACTOR_BLOCKS.ACCOUNT_ID.eq(accountId.value))
+            .and(ACCOUNT_ACTOR_BLOCKS.ACTOR_URI.eq(actorUri))
+            .returning(ACCOUNT_ACTOR_BLOCKS.BLOCK_ACTIVITY_ID)
+            .fetchOne(ACCOUNT_ACTOR_BLOCKS.BLOCK_ACTIVITY_ID)
     }
 
     override fun findBlockActivityId(accountId: AccountId, actorUri: String): String? = jooq.withConnection { dsl ->

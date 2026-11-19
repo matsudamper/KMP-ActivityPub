@@ -54,8 +54,7 @@ class ActorBlockService(
      */
     suspend fun unblock(accountId: AccountId?, actorUri: String): UnblockActorResult {
         if (accountId == null || accounts.findById(accountId) == null) return UnblockActorResult.NotLoggedIn
-        val blockActivityId = actorBlocks.findBlockActivityId(accountId, actorUri)
-        actorBlocks.remove(accountId, actorUri)
+        val blockActivityId = actorBlocks.remove(accountId, actorUri)
         if (blockActivityId != null) {
             try {
                 delivery.undoBlock(accountId, actorUri, blockActivityId)

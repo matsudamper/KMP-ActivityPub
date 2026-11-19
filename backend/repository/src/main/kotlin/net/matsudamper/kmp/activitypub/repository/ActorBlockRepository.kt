@@ -17,7 +17,11 @@ interface ActorBlockRepository {
      */
     fun add(accountId: AccountId, actor: BlockedActor, createdAt: Instant)
 
-    fun remove(accountId: AccountId, actorUri: String)
+    /**
+     * @return 消した行に記録してあった Block の id。ブロックしていないか、Block を送っていなければ null。
+     *   消すのと同時に読む。分けると、間に記録された Block を取り消せない
+     */
+    fun remove(accountId: AccountId, actorUri: String): String?
 
     /**
      * 相手に送った Block の id。ブロックしていないか、まだ送っていなければ null
