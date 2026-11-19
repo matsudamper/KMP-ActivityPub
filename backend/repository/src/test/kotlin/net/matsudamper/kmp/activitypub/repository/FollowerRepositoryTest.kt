@@ -248,20 +248,23 @@ class FollowerRepositoryTest {
                 followers.listFollowRecords("user1"),
             )
 
-            assertTrue(followers.reject("user1", FOLLOWER.actorUri, FOLLOWER.inbox, "reject-1", NOW))
+            assertFalse(followers.reject("user1", FOLLOWER.actorUri, "https://remote.example/follows/old", FOLLOWER.inbox, "reject-old", NOW))
+            assertEquals(1, followers.listFollowRecords("user1").size)
+
+            assertTrue(followers.reject("user1", FOLLOWER.actorUri, FOLLOW_ACTIVITY_URI, FOLLOWER.inbox, "reject-1", NOW))
 
             assertEquals(listOf(), followers.listFollowRecords("user1"))
             val claimed = repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).single()
             assertEquals(FOLLOWER.inbox, claimed.inbox)
             assertEquals("reject-1", claimed.body)
-            assertFalse(followers.reject("nobody", FOLLOWER.actorUri, FOLLOWER.inbox, "reject-2", NOW))
+            assertFalse(followers.reject("nobody", FOLLOWER.actorUri, null, FOLLOWER.inbox, "reject-2", NOW))
         }
     }
 
     @Test
     fun `記録の無い相手にも Reject を積む`() {
         Repositories.create(DatabaseConfig(path = dbPath)).use { repositories ->
-            assertTrue(repositories.followerRepository.reject("user1", FOLLOWER.actorUri, FOLLOWER.inbox, "reject-1", NOW))
+            assertTrue(repositories.followerRepository.reject("user1", FOLLOWER.actorUri, null, FOLLOWER.inbox, "reject-1", NOW))
             assertEquals(listOf("reject-1"), repositories.deliveryQueueRepository.claim(now = NOW, limit = 10).map { it.body })
         }
     }
