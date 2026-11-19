@@ -6,8 +6,11 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.header
 import io.ktor.server.response.respondBytes
+import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.writeFully
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxy
 import net.matsudamper.kmp.activitypub.logic.RemoteImageProxyResult
 
@@ -39,7 +42,13 @@ private suspend fun respondRemoteImage(
                     "public, max-age=86400"
                 }
             call.response.header(HttpHeaders.CacheControl, cacheControl)
-            call.respondBytes(bytes = result.bytes, contentType = ContentType.parse(result.contentType), status = HttpStatusCode.OK)
+            call.respondBytesWriter(
+                contentType = ContentType.parse(result.contentType),
+                status = HttpStatusCode.OK,
+                contentLength = result.bytes.size.toLong(),
+            ) {
+                writeInChunks(result.bytes)
+            }
         }
 
         // 相手が落ちているだけのこともあるので、失敗を edge に残さない
@@ -61,5 +70,18 @@ private suspend fun respondRemoteImage(
     }
 }
 
+/**
+ * 一度に書くと配列の写しが丸ごと読み手のバッファへ移り、送り終える前に書き手が再開して枠を手放す。
+ * 区切って書けば、ByteChannel は溜まりが上限（1MB）に達すると読み手が受け取るまで書き手を止めるので、
+ * 枠を手放した後に残るのは数MBに収まる
+ */
+private suspend fun ByteWriteChannel.writeInChunks(bytes: ByteArray) {
+    for (start in bytes.indices step RESPONSE_CHUNK_BYTES) {
+        writeFully(bytes, startIndex = start, endIndex = minOf(start + RESPONSE_CHUNK_BYTES, bytes.size))
+        flush()
+    }
+}
+
 private const val CONTENT_TYPE_OPTIONS_HEADER = "X-Content-Type-Options"
 private const val RETRY_AFTER_SECONDS_WHEN_BUSY = 5
+private const val RESPONSE_CHUNK_BYTES = 64 * 1024
