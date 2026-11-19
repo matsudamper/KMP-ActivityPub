@@ -452,6 +452,7 @@ class RemoteNoteReceptionTest {
         val following = FollowingService(
             repositories.accountRepository,
             repositories.followingRepository,
+            BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
             delivery,
             TimelineInvalidator {},
             "local.example",

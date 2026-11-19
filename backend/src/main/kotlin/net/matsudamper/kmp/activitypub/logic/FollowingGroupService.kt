@@ -66,7 +66,7 @@ class FollowingGroupService(
      * 購読するときは [groupId] に入れる。既に購読していれば入れ直すだけ。
      *
      * @param groupId null ならメイン。購読をやめるときは使わない
-     * @return 未ログイン・不正な相手・他のアカウントのグループなら false
+     * @return 未ログイン・不正な相手・ブロックした相手・他のアカウントのグループなら false
      */
     suspend fun setFollowing(accountId: AccountId?, actorUri: String, followed: Boolean, groupId: FollowingGroupId?): Boolean {
         if (followed && accountId != null && groupId != null && !groups.exists(accountId, groupId)) return false

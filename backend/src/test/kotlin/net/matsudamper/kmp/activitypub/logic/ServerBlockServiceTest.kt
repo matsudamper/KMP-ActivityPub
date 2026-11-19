@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 import net.matsudamper.kmp.activitypub.FakeRepositories
 import net.matsudamper.kmp.activitypub.repository.TimelineBooster
 import net.matsudamper.kmp.activitypub.repository.TimelinePosition
@@ -15,17 +16,19 @@ import net.matsudamper.kmp.activitypub.timeline.FakeTimelineRepository
 
 class ServerBlockServiceTest {
     private val repositories = FakeRepositories()
+    private val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
+    private val following = FollowingService(repositories.accountRepository, repositories.followingRepository, blockLists, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
     private val service = ServerBlockService(
         accounts = repositories.accountRepository,
         serverBlocks = repositories.serverBlockRepository,
+        following = following,
         clock = Clock.systemUTC(),
     )
-    private val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
     private val alice = repositories.accountRepository.add("alice", "hash", "type")
     private val bob = repositories.accountRepository.add("bob", "hash", "type")
 
     @Test
-    fun hostIsTakenFromUrlOrAccountName() {
+    fun hostIsTakenFromUrlOrAccountName() = runBlocking {
         listOf(
             " Remote.Example " to "remote.example",
             "https://remote.example/@carol" to "remote.example",
@@ -42,7 +45,7 @@ class ServerBlockServiceTest {
     }
 
     @Test
-    fun invalidServerOrNoAccountIsRejected() {
+    fun invalidServerOrNoAccountIsRejected() = runBlocking {
         listOf("", "  ", "https://", "remote example", "@carol@").forEach { input ->
             assertEquals(BlockServerResult.InvalidServer, service.block(alice, input), input)
         }
@@ -53,7 +56,7 @@ class ServerBlockServiceTest {
     }
 
     @Test
-    fun unblockRemovesOnlyThatHost() {
+    fun unblockRemovesOnlyThatHost() = runBlocking {
         service.block(alice, "remote.example")
         service.block(alice, "other.example")
         assertEquals(UnblockServerResult.Unblocked, service.unblock(alice, "remote.example"))
@@ -62,7 +65,7 @@ class ServerBlockServiceTest {
     }
 
     @Test
-    fun postsFromBlockedServerAuthorOrBoosterAreHidden() {
+    fun postsFromBlockedServerAuthorOrBoosterAreHidden() = runBlocking {
         service.block(alice, "remote.example")
         val timeline = FakeTimelineRepository()
         timeline.positions.add(TimelinePosition(1, "r1"))
@@ -83,5 +86,26 @@ class ServerBlockServiceTest {
         assertFalse(blockLists.hides(alice, AccountEvent.PostArrived(subdomain)))
         assertFalse(blockLists.hides(alice, AccountEvent.PostArrived(post)))
         assertFalse(blockLists.hides(bob, AccountEvent.PostArrived(blockedAuthor)))
+    }
+
+    @Test
+    fun blockingServerUnfollowsItsActorsAndRejectsNewFollows() = runBlocking {
+        val carol = "https://remote.example/users/carol"
+        val dave = "https://remote.example/users/dave"
+        val erin = "https://other.example/users/erin"
+        listOf(carol, dave, erin).forEach { assertTrue(following.setFollowing(alice, it, true)) }
+        assertTrue(following.setFollowing(bob, carol, true))
+
+        service.block(alice, "remote.example")
+
+        assertFalse(following.isFollowing(alice, carol))
+        assertFalse(following.isFollowing(alice, dave))
+        assertTrue(following.isFollowing(alice, erin))
+        assertTrue(following.isFollowing(bob, carol))
+        assertFalse(following.setFollowing(alice, carol, true))
+        assertFalse(following.isFollowing(alice, carol))
+
+        service.unblock(alice, "remote.example")
+        assertTrue(following.setFollowing(alice, carol, true))
     }
 }

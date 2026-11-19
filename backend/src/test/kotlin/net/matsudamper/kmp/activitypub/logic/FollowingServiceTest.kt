@@ -20,6 +20,7 @@ class FollowingServiceTest {
         val service = FollowingService(
             accounts = repositories.accountRepository,
             following = repositories.followingRepository,
+            blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
             delivery = object : FollowDelivery {
                 override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?) {
                     deliveries.add(followed)
@@ -59,6 +60,7 @@ class FollowingServiceTest {
         val service = FollowingService(
             repositories.accountRepository,
             repositories.followingRepository,
+            BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
             object : FollowDelivery {
                 override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?) {
                     error("配信先を取得できない")

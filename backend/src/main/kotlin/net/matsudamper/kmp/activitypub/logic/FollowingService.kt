@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.repository.AccountRepository
+import net.matsudamper.kmp.activitypub.repository.ActorListPosition
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.telemetry.OpenTelemetryInitializer
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory
 class FollowingService(
     private val accounts: AccountRepository,
     private val following: FollowingRepository,
+    private val blockLists: BlockLists,
     private val delivery: FollowDelivery,
     private val invalidator: TimelineInvalidator,
     private val localDomain: String,
@@ -33,6 +35,27 @@ class FollowingService(
             span.setAttribute(FollowingSpan.FOLLOWED, followed)
             setFollowingInSpan(accountId, actorUri, followed, span)
         }
+
+    /**
+     * ブロックしたサーバーかアクターへのフォローを外す。相手には Undo を送る
+     */
+    suspend fun unfollowBlocked(accountId: AccountId) {
+        val blockList = blockLists.of(accountId)
+        blockedFollowingActorUris(accountId, blockList).forEach { actorUri ->
+            setFollowing(accountId, actorUri, false)
+        }
+    }
+
+    private fun blockedFollowingActorUris(accountId: AccountId, blockList: BlockList): List<String> =
+        generateSequence(following.list(accountId, null, UNFOLLOW_PAGE_SIZE)) { page ->
+            if (page.size < UNFOLLOW_PAGE_SIZE) return@generateSequence null
+            val last = page.last()
+            following.list(accountId, ActorListPosition(listedAt = last.listedAt, actorUri = last.actorUri), UNFOLLOW_PAGE_SIZE)
+        }
+            .flatten()
+            .map { it.actorUri }
+            .filter { blockList.hidesActor(it) }
+            .toList()
 
     private suspend fun setFollowingInSpan(accountId: AccountId?, actorUri: String, followed: Boolean, span: Span): Boolean {
         if (accountId == null || accounts.findById(accountId) == null) {
@@ -65,6 +88,10 @@ class FollowingService(
                 span.setAttribute(FollowingSpan.ENQUEUED, false)
                 span.setAttribute(FollowingSpan.SKIP_REASON, "following_not_found")
             }
+        } else if (blockLists.of(accountId).hidesActor(actorUri)) {
+            span.setAttribute(FollowingSpan.ENQUEUED, false)
+            span.setAttribute(FollowingSpan.SKIP_REASON, "blocked")
+            return false
         } else if (following.add(accountId, actorUri, clock.instant())) {
             try {
                 delivery.send(accountId, actorUri, true, null)
@@ -78,6 +105,10 @@ class FollowingService(
             span.setAttribute(FollowingSpan.SKIP_REASON, "already_following")
         }
         return true
+    }
+
+    private companion object {
+        const val UNFOLLOW_PAGE_SIZE = 100
     }
 }
 
