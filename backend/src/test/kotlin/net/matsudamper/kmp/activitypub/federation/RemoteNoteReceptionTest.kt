@@ -99,8 +99,7 @@ class RemoteNoteReceptionTest {
         val profileUrl = "https://remote.example/@remote"
         fixture.repositories.actorBlockRepository.add(fixture.accountId, BlockedActor(actorUri = ACTOR, acct = "remote@remote.example"), Instant.EPOCH)
 
-        fixture.following.setFollowing(fixture.accountId, profileUrl, true)
-
+        assertFalse(fixture.following.setFollowing(fixture.accountId, profileUrl, true))
         assertFalse(fixture.following.isFollowing(fixture.accountId, profileUrl))
         assertFalse(fixture.following.isFollowing(fixture.accountId, ACTOR))
     }

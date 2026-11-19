@@ -22,8 +22,9 @@ class FollowingServiceTest {
             following = repositories.followingRepository,
             blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
             delivery = object : FollowDelivery {
-                override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?) {
+                override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?): FollowDeliveryResult {
                     deliveries.add(followed)
+                    return FollowDeliveryResult.Proceeded
                 }
             },
             invalidator = TimelineInvalidator {},
@@ -62,7 +63,7 @@ class FollowingServiceTest {
             repositories.followingRepository,
             BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
             object : FollowDelivery {
-                override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?) {
+                override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?): FollowDeliveryResult {
                     error("配信先を取得できない")
                 }
             },

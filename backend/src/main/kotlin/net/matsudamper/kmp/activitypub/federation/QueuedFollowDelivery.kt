@@ -7,6 +7,7 @@ import io.opentelemetry.api.trace.Span
 import net.matsudamper.kmp.activitypub.logic.AccountService
 import net.matsudamper.kmp.activitypub.logic.BlockLists
 import net.matsudamper.kmp.activitypub.logic.FollowDelivery
+import net.matsudamper.kmp.activitypub.logic.FollowDeliveryResult
 import net.matsudamper.kmp.activitypub.logic.FollowingSpan
 import net.matsudamper.kmp.activitypub.repository.DeliveryQueueRepository
 import net.matsudamper.kmp.activitypub.repository.FollowingRepository
@@ -37,7 +38,7 @@ internal class QueuedFollowDelivery(
     private val logger = LoggerFactory.getLogger(QueuedFollowDelivery::class.java)
     private val tracer = openTelemetry.getTracer("activitypub-following")
 
-    override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?) {
+    override suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?): FollowDeliveryResult =
         inOpenTelemetrySuspendSpan(tracer, "Following.enqueue", false) { span ->
             span.setAttribute(FollowingSpan.REQUESTED_URL, actorUri)
             span.setAttribute(FollowingSpan.FOLLOWED, followed)
@@ -50,9 +51,8 @@ internal class QueuedFollowDelivery(
                 throw failure
             }
         }
-    }
 
-    private suspend fun sendInSpan(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?, span: Span) {
+    private suspend fun sendInSpan(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?, span: Span): FollowDeliveryResult {
         val account = checkNotNull(accounts.account(accountId))
         val sender = checkNotNull(directory.resolve(account.username))
         if (followed) {
@@ -68,11 +68,11 @@ internal class QueuedFollowDelivery(
                 // プロフィールの URL など、ブロックした URI と違う URL から引いたときはここで初めて分かる
                 following.remove(accountId, actorUri)
                 span.setAttribute(FollowingSpan.SKIP_REASON, "blocked")
-                return
+                return FollowDeliveryResult.Blocked
             }
             if (!following.contains(accountId, actorUri)) {
                 span.setAttribute(FollowingSpan.SKIP_REASON, "following_removed")
-                return
+                return FollowDeliveryResult.Proceeded
             }
             val canonicalFollowingAdded = actorUri != remote.actorId && following.add(accountId, remote.actorId, clock.instant())
             if (actorUri != remote.actorId) {
@@ -81,7 +81,7 @@ internal class QueuedFollowDelivery(
                     val recordedId = following.followId(accountId, remote.actorId)
                     if (recordedId != null) span.setAttribute(FollowingSpan.FOLLOW_ID, recordedId)
                     span.setAttribute(FollowingSpan.SKIP_REASON, "canonical_actor_already_followed")
-                    return
+                    return FollowDeliveryResult.Proceeded
                 }
             }
             val id = "${sender.actorId}/follows/${UUID.randomUUID()}"
@@ -101,7 +101,7 @@ internal class QueuedFollowDelivery(
             }
             if (!enqueued) {
                 span.setAttribute(FollowingSpan.SKIP_REASON, "following_removed")
-                return
+                return FollowDeliveryResult.Proceeded
             }
             span.setAttribute(FollowingSpan.FOLLOW_ID, id)
         } else {
@@ -109,7 +109,7 @@ internal class QueuedFollowDelivery(
             if (inbox == null || followId == null) {
                 span.setAttribute(FollowingSpan.SKIP_REASON, if (inbox == null) "stored_inbox_missing" else "follow_id_missing")
                 logger.warn("保存済みの inbox または Follow の ID が無いので Undo を諦める: $actorUri")
-                return
+                return FollowDeliveryResult.Proceeded
             }
             val follow = FollowActivities.follow(followId, sender.actorId, actorUri)
             val undo = FollowActivities.undo("${sender.actorId}/undo/${UUID.randomUUID()}", follow)
@@ -117,5 +117,6 @@ internal class QueuedFollowDelivery(
         }
         span.setAttribute(FollowingSpan.ENQUEUED, true)
         onEnqueued()
+        return FollowDeliveryResult.Proceeded
     }
 }

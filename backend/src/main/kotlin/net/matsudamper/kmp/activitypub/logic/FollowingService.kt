@@ -93,11 +93,16 @@ class FollowingService(
             span.setAttribute(FollowingSpan.SKIP_REASON, "blocked")
             return false
         } else if (following.add(accountId, actorUri, clock.instant())) {
-            try {
+            val result = try {
                 delivery.send(accountId, actorUri, true, null)
             } catch (failure: Exception) {
                 following.remove(accountId, actorUri)
                 throw failure
+            }
+            if (result == FollowDeliveryResult.Blocked) {
+                span.setAttribute(FollowingSpan.ENQUEUED, false)
+                span.setAttribute(FollowingSpan.SKIP_REASON, "blocked")
+                return false
             }
             invalidator.invalidate(accountId)
         } else {
@@ -113,7 +118,16 @@ class FollowingService(
 }
 
 interface FollowDelivery {
-    suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?)
+    suspend fun send(accountId: AccountId, actorUri: String, followed: Boolean, followId: String?): FollowDeliveryResult
+}
+
+enum class FollowDeliveryResult {
+    Proceeded,
+
+    /**
+     * 相手を引いて分かった正規のアクター URI がブロック中だった。フォローは取り消してある
+     */
+    Blocked,
 }
 
 fun interface TimelineInvalidator {
