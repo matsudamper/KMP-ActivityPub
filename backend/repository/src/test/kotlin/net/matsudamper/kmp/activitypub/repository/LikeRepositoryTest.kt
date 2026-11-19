@@ -336,6 +336,7 @@ class LikeRepositoryTest {
                 quoteInbox = null,
                 mentions = listOf(),
                 sensitive = false,
+                poll = null,
             ),
         )
         return checkNotNull(repositories.timelineRepository.localPosition(publicId)).member
@@ -373,6 +374,7 @@ class LikeRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        poll = null,
     )
 
     private fun withRepository(block: (Repositories, AccountId, AccountId) -> Unit) {

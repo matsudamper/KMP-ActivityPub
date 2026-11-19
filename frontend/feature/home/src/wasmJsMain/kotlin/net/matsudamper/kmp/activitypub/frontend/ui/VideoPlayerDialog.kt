@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.browser.document
 import kotlinx.browser.window
+import net.matsudamper.kmp.activitypub.frontend.navigation.OverlayHistoryEntry
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLVideoElement
@@ -69,12 +70,25 @@ internal actual fun VideoPlayerDialog(
         document.body?.appendChild(overlay)
         document.addEventListener("keydown", keyListener)
         document.addEventListener("focusin", focusInListener)
+        // 動画は画面の積み上げに載らないので、ブラウザの戻るがアプリの外まで戻ってしまう。
+        // 開いている画面の履歴をもう 1 つ積み、戻るではそれを消して動画だけを閉じる
+        val baseState = window.history.state?.toString().orEmpty()
+        window.history.pushState(OverlayHistoryEntry.stateOf(baseState).toJsString(), "", window.location.href)
+        var videoHistoryEntryPopped = false
+        val popStateListener: (Event) -> Unit = {
+            videoHistoryEntryPopped = true
+            currentOnDismissRequest()
+        }
+        window.addEventListener("popstate", popStateListener)
         // キーボードの操作が後ろの canvas に行かないよう、開いたらフォーカスを移す
         closeButton.focus()
         onDispose {
             hideCloseButtonTimer.cancel()
             document.removeEventListener("keydown", keyListener)
             document.removeEventListener("focusin", focusInListener)
+            window.removeEventListener("popstate", popStateListener)
+            // 閉じるボタンなどで閉じたときは、積んだ履歴が残ると次の戻るが空振りする
+            if (!videoHistoryEntryPopped) window.history.back()
             video.pause()
             // pause と要素の削除だけでは読み込みが続くことがあるので、src を外して止める
             video.removeAttribute("src")

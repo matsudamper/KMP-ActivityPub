@@ -186,6 +186,7 @@ internal fun Application.module(deps: AppDependencies) {
                 replyTargetService = federation?.replyTargetService,
                 postRepliesService = federation?.postRepliesService,
                 postCountService = federation?.postCountService,
+                pollService = federation?.pollService,
                 customEmojiService = federation?.customEmojiService,
                 customEmojiUrls = federation?.customEmojiUrls,
             ),

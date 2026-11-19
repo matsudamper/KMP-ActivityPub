@@ -91,6 +91,8 @@ type ProfilePost {
     hasQuoteTarget: Boolean!
     "投稿者が編集していれば true。ブーストした投稿は、ブーストされた元の投稿が編集されたか。他のサーバーの outbox から取った投稿と、このサーバーの投稿は false"
     edited: Boolean!
+    "投稿に付いた投票。投票でないか、他のサーバーの outbox から取っただけで保存していない投稿は null"
+    poll: PostPoll
 }
 
 type PostAuthor {

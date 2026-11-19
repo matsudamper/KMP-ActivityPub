@@ -17,6 +17,7 @@ interface Repositories : AutoCloseable {
     val noteRepository: NoteRepository
     val noteCountRepository: NoteCountRepository
     val notePinRepository: NotePinRepository
+    val pollRepository: PollRepository
     val remoteActorRepository: RemoteActorRepository
     val favouriteRepository: FavouriteRepository
     val stampRepository: StampRepository

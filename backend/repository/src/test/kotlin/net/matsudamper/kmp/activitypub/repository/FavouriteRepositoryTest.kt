@@ -121,6 +121,7 @@ class FavouriteRepositoryTest {
                 quoteUri = null,
                 quoteInbox = null,
                 mentions = listOf(),
+                poll = null,
                 images = listOf(),
                 sensitive = false,
             ),

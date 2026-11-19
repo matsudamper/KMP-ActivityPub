@@ -331,6 +331,7 @@ class AccountBoostRepositoryTest {
                 quoteInbox = null,
                 mentions = listOf(),
                 sensitive = false,
+                poll = null,
             ),
         )
         return checkNotNull(repositories.timelineRepository.localPosition("bob-note")).member
@@ -389,6 +390,7 @@ class AccountBoostRepositoryTest {
         images = listOf(),
         emojis = listOf(),
         linkHref = null,
+        poll = null,
     )
 
     private fun withRepository(block: (Repositories, AccountId, AccountId) -> Unit) {

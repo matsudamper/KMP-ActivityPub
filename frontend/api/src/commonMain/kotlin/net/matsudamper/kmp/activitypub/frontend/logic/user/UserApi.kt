@@ -50,6 +50,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.FailedDeliveryQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowerUsersQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingGroupsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.FollowingUsersQuery
+import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolvePostQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenResolveUserQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchPostsQuery
 import net.matsudamper.kmp.activitypub.frontend.graphql.HomeScreenSearchUsersQuery
@@ -93,6 +94,7 @@ import net.matsudamper.kmp.activitypub.frontend.graphql.type.CreateFollowingGrou
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteCustomEmojiFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.DeleteNoteFailure
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.EditNoteFailure
+import net.matsudamper.kmp.activitypub.frontend.graphql.type.PostNotePollInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ProfileLinkInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.ReactionInput
 import net.matsudamper.kmp.activitypub.frontend.graphql.type.RenameFollowingGroupFailure
@@ -957,6 +959,18 @@ class UserApi(
         )
     }
 
+    /**
+     * 投稿の URL から投稿を 1 件引く
+     */
+    suspend fun resolvePost(url: String): UserPostResolveResult {
+        val client = clients.awaitLoadedClient() ?: return UserPostResolveResult.Failure("接続先が未設定")
+        val response = client.query(HomeScreenResolvePostQuery(url = url)).execute()
+        if (response.exception != null || response.hasErrors()) return UserPostResolveResult.Failure(response.failureMessage())
+        val data = response.data ?: return UserPostResolveResult.Failure(response.failureMessage())
+        val post = data.resolvePost ?: return UserPostResolveResult.NotFound
+        return UserPostResolveResult.Found(post.timelinePostFields.toPost())
+    }
+
     suspend fun resolveUser(query: String): UserResolveResult {
         val client = clients.awaitLoadedClient() ?: return UserResolveResult.Failure("接続先が未設定")
         val response = client.query(HomeScreenResolveUserQuery(query = query)).execute()
@@ -995,6 +1009,7 @@ class UserApi(
         quotePostId: String?,
         mentionAcct: String?,
         sensitive: Boolean,
+        poll: UserPostNotePoll?,
     ): UserPostNoteResult {
         val client = clients.client.value ?: return UserPostNoteResult.Failure("接続先が未設定")
         val mutation =
@@ -1007,6 +1022,11 @@ class UserApi(
                 quotePostId = Optional.present(quotePostId),
                 mentionAcct = Optional.present(mentionAcct),
                 sensitive = sensitive,
+                poll = Optional.present(
+                    poll?.let {
+                        PostNotePollInput(options = it.options, multipleChoice = it.multipleChoice, expiresInSeconds = it.expiresInSeconds)
+                    },
+                ),
             )
         val response = client.mutation(mutation).execute()
         if (response.exception != null || response.hasErrors()) return UserPostNoteResult.Failure(response.failureMessage())
@@ -1020,6 +1040,7 @@ class UserApi(
             UserPostNoteFailure.CONTENT_WARNING_TOO_LONG -> UserPostNoteResult.ContentWarningTooLong
             UserPostNoteFailure.FEDERATION_DISABLED -> UserPostNoteResult.FederationDisabled
             UserPostNoteFailure.TOO_MANY_IMAGES -> UserPostNoteResult.TooManyImages
+            UserPostNoteFailure.INVALID_POLL -> UserPostNoteResult.InvalidPoll
             UserPostNoteFailure.IMAGE_NOT_FOUND -> UserPostNoteResult.ImageNotFound
             UserPostNoteFailure.REPLY_TARGET_NOT_FOUND -> UserPostNoteResult.ReplyTargetNotFound
             UserPostNoteFailure.QUOTE_TARGET_NOT_FOUND -> UserPostNoteResult.QuoteTargetNotFound
@@ -1433,6 +1454,15 @@ class UserApi(
                 viewerReaction = viewerReaction?.let { UserViewerReaction(emoji = it.emoji, imageUrl = it.imageUrl) },
                 boostedByMe = boostedByMe,
                 edited = edited,
+                poll = poll?.let { poll ->
+                    UserPostPoll(
+                        options = poll.options.map { option -> UserPostPollOption(title = option.title, votesCount = option.votesCount) },
+                        multipleChoice = poll.multipleChoice,
+                        endsAt = poll.endsAt,
+                        expired = poll.expired,
+                        votersCount = poll.votersCount,
+                    )
+                },
             ),
             boostedNoteAuthor = boostedNoteAuthor?.let { author ->
                 UserProfileResult.Author(

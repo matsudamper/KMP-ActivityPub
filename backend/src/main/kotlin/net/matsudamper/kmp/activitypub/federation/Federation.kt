@@ -23,6 +23,7 @@ import net.matsudamper.kmp.activitypub.logic.NoteImageUrls
 import net.matsudamper.kmp.activitypub.logic.NotePostService
 import net.matsudamper.kmp.activitypub.logic.NoteShareUrls
 import net.matsudamper.kmp.activitypub.logic.NotificationService
+import net.matsudamper.kmp.activitypub.logic.PollService
 import net.matsudamper.kmp.activitypub.logic.PostCountService
 import net.matsudamper.kmp.activitypub.logic.PostRepliesService
 import net.matsudamper.kmp.activitypub.logic.ProfileHeaderUrls
@@ -49,6 +50,7 @@ import net.matsudamper.kmp.activitypub.repository.LikeRepository
 import net.matsudamper.kmp.activitypub.repository.NoteCountRepository
 import net.matsudamper.kmp.activitypub.repository.NotePinRepository
 import net.matsudamper.kmp.activitypub.repository.NoteRepository
+import net.matsudamper.kmp.activitypub.repository.PollRepository
 import net.matsudamper.kmp.activitypub.repository.RemoteActorRepository
 import net.matsudamper.kmp.activitypub.repository.StampRepository
 import net.matsudamper.kmp.activitypub.repository.TimelineRepository
@@ -92,7 +94,6 @@ import net.matsudamper.kotpub.note.HttpRemoteOutbox
 import net.matsudamper.kotpub.note.NoteEndpoint
 import net.matsudamper.kotpub.note.NotePublisher
 import net.matsudamper.kotpub.note.OutboxEndpoint
-import net.matsudamper.kotpub.note.PollVoteStore
 import net.matsudamper.kotpub.quote.QuoteAuthorizationEndpoint
 import net.matsudamper.kotpub.quote.QuoteRequestHandler
 import net.matsudamper.kotpub.webfinger.HttpWebFingerLookup
@@ -107,7 +108,7 @@ internal class Federation(
     deliveryQueueRepository: DeliveryQueueRepository,
     noteRepository: NoteRepository,
     notePinRepository: NotePinRepository,
-    timelineRepository: TimelineRepository,
+    private val timelineRepository: TimelineRepository,
     timeline: TimelineService,
     notificationService: NotificationService,
     remoteActorRepository: RemoteActorRepository,
@@ -119,6 +120,7 @@ internal class Federation(
     customEmojiRepository: CustomEmojiRepository,
     blockLists: BlockLists,
     noteCountRepository: NoteCountRepository,
+    pollRepository: PollRepository,
     imageStorage: ImageStorage?,
     instanceActorKeyRepository: InstanceActorKeyRepository,
     unknownObjectTypeRepository: UnknownObjectTypeRepository,
@@ -144,7 +146,12 @@ internal class Federation(
         clock = Clock.systemUTC(),
     )
     private val noteEmojiObjects = LocalNoteEmojiObjects(customEmojis = customEmojiService, customEmojiUrls = customEmojiUrls)
-    private val notes = RepositoryNoteStore(noteRepository = noteRepository, imageUrls = noteImageUrls, emojiObjects = noteEmojiObjects)
+    private val notes = RepositoryNoteStore(
+        noteRepository = noteRepository,
+        imageUrls = noteImageUrls,
+        emojiObjects = noteEmojiObjects,
+        polls = pollRepository,
+    )
     private val localActors = LocalActors(directory = directory, accountService = accountService)
     private val actorProfiles = AccountActorProfiles(accountService)
     private val actorAppearances = AccountActorAppearances(accountService = accountService, imageAvailable = imageStorage != null)
@@ -193,6 +200,7 @@ internal class Federation(
             publisher = NotePublisher(notes, null),
             accountService = accountService,
             noteRepository = noteRepository,
+            polls = pollRepository,
             imageStorage = imageStorage,
             imageUrls = noteImageUrls,
             emojiObjects = noteEmojiObjects,
@@ -247,6 +255,8 @@ internal class Federation(
             noteShareUrls = noteShareUrls,
             blockLists = blockLists,
         )
+
+    val pollService: PollService = PollService(pollRepository)
 
     val postCountService: PostCountService =
         PostCountService(
@@ -401,6 +411,12 @@ internal class Federation(
 
     val noteEndpoint: NoteEndpoint = NoteEndpoint(domain, notes, null)
 
+    /**
+     * ブラウザで開いたときに見せる、フロントエンドの投稿の画面のパス。このサーバーの投稿でなければ null
+     */
+    fun notePagePath(publicId: String): String? =
+        timelineRepository.localPosition(publicId)?.let { "/posts/${it.member}" }
+
     private val quoteApprovals =
         QueuedQuoteApprovals(
             localActors = localActors,
@@ -482,8 +498,11 @@ internal class Federation(
                         approvals = quoteApprovals,
                     ),
                     UpdateHandler(actors = UpdateActorHandler(followers), notes = receivedNotes, unknownTypes = unknownTypes),
-                    // 投票の付いた投稿を作れないので、届いた票は記録しない
-                    CreateNoteHandler(notes = receivedNotes, pollVotes = PollVoteStore { }, unknownTypes = unknownTypes),
+                    CreateNoteHandler(
+                        notes = receivedNotes,
+                        pollVotes = RecordedPollVotes(domain = domain, polls = pollRepository, blocks = inboxBlocks, timeline = timeline, clock = Clock.systemUTC()),
+                        unknownTypes = unknownTypes,
+                    ),
                     FollowResponseHandler("Accept", followingResponses),
                     FollowResponseHandler("Reject", followingResponses),
                     DeleteHandler(

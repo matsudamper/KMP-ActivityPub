@@ -334,6 +334,10 @@ data class RemoteNoteInput(
      * Link で届いた投稿のリンク先。Note なら null
      */
     val linkHref: String?,
+    /**
+     * 投票でなければ null
+     */
+    val poll: PollRecord?,
 )
 
 /**

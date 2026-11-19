@@ -137,6 +137,7 @@ class AppDependencies(
                 customEmojiRepository = repositories.customEmojiRepository,
                 blockLists = blockLists,
                 noteCountRepository = repositories.noteCountRepository,
+                pollRepository = repositories.pollRepository,
                 imageStorage = imageStorage,
                 instanceActorKeyRepository = repositories.instanceActorKeyRepository,
                 unknownObjectTypeRepository = repositories.unknownObjectTypeRepository,
