@@ -14,33 +14,31 @@ import net.matsudamper.kmp.activitypub.shared.AccountId
 @Suppress("RemoveRedundantBackticks", "NonAsciiCharacters")
 class ServerEnvTest {
     @Test
-    fun `未設定なら既定値になる`() {
+    fun `既定値の無い変数が無ければ起動しない`() {
+        listOf("HOST", "PORT", "DB_PATH", "COOKIE_SECURE", "TRUST_CF_CONNECTING_IP").forEach { name ->
+            assertFailsWith<IllegalArgumentException>(name) { ServerEnv(FEATURES_DISABLED - name) }
+            assertFailsWith<IllegalArgumentException>(name) { ServerEnv(FEATURES_DISABLED + mapOf(name to "")) }
+        }
+    }
+
+    @Test
+    fun `任意の変数が無ければ null になる`() {
         val env = ServerEnv(FEATURES_DISABLED)
 
-        assertEquals("0.0.0.0", env.host)
-        assertEquals(8080, env.port)
         assertNull(env.staticSrcDir)
-        assertEquals(Path("./data/kmp-activitypub.db"), env.dbPath)
-        assertTrue(env.cookieSecure)
         assertNull(env.domain)
-        assertFalse(env.trustCfConnectingIp)
     }
 
     @Test
-    fun `空文字の指定は未設定として扱う`() {
-        val env = ServerEnv(FEATURES_DISABLED + mapOf("HOST" to "", "PORT" to "", "STATIC_SRC_DIR" to "", "DB_PATH" to ""))
-
-        assertEquals("0.0.0.0", env.host)
-        assertEquals(8080, env.port)
-        assertNull(env.staticSrcDir)
-        assertEquals(Path("./data/kmp-activitypub.db"), env.dbPath)
+    fun `STATIC_SRC_DIR が空文字なら未設定として扱う`() {
+        assertNull(ServerEnv(FEATURES_DISABLED + mapOf("STATIC_SRC_DIR" to "")).staticSrcDir)
     }
 
     @Test
-    fun `PASSKEY_ORIGINS が空文字なら https の RP ID を受け付ける`() {
-        val env = ServerEnv(PASSKEY_ENABLED + mapOf("PASSKEY_ORIGINS" to ""))
-
-        assertEquals(setOf("https://example.com"), assertNotNull(env.passkeyRelyingParty).origins)
+    fun `ENABLE_PASSKEY が true で PASSKEY_ORIGINS が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> { ServerEnv(PASSKEY_ENABLED - "PASSKEY_ORIGINS") }
+        assertFailsWith<IllegalArgumentException> { ServerEnv(PASSKEY_ENABLED + mapOf("PASSKEY_ORIGINS" to "")) }
+        assertFailsWith<IllegalArgumentException> { ServerEnv(PASSKEY_ENABLED + mapOf("PASSKEY_ORIGINS" to " , ")) }
     }
 
     @Test
@@ -131,7 +129,7 @@ class ServerEnvTest {
 
     @Test
     fun `ENABLE_PASSKEY が true で PASSKEY_RP_ID が無ければ起動しない`() {
-        assertFailsWith<IllegalArgumentException> { ServerEnv(FEATURES_DISABLED + mapOf("ENABLE_PASSKEY" to "true")) }
+        assertFailsWith<IllegalArgumentException> { ServerEnv(PASSKEY_ENABLED - "PASSKEY_RP_ID") }
     }
 
     @Test
@@ -190,13 +188,19 @@ class ServerEnvTest {
     }
 
     @Test
-    fun `S3 を有効にすると既定値で埋める`() {
+    fun `ENABLE_S3 が true で S3_ROLE_SESSION_NAME か S3_PATH_STYLE_ACCESS が無ければ起動しない`() {
+        assertFailsWith<IllegalArgumentException> { ServerEnv(S3_REQUIRED - "S3_ROLE_SESSION_NAME") }
+        assertFailsWith<IllegalArgumentException> { ServerEnv(S3_REQUIRED - "S3_PATH_STYLE_ACCESS") }
+    }
+
+    @Test
+    fun `S3 を有効にすると指定した値を使う`() {
         val config = assertNotNull(ServerEnv(S3_REQUIRED).s3).imageStorage
 
         assertEquals(URI("https://s3.example.com"), config.endpoint)
         assertEquals(URI("https://sts.example.com"), config.stsEndpoint)
         assertEquals("kmp-activitypub-image-upload", config.roleSessionName)
-        assertTrue(config.pathStyleAccess)
+        assertFalse(config.pathStyleAccess)
     }
 
     @Test
@@ -219,8 +223,19 @@ class ServerEnvTest {
     }
 
     private companion object {
-        val FEATURES_DISABLED: Map<String, String> = mapOf("ENABLE_PASSKEY" to "false", "ENABLE_S3" to "false", "REMOTE_ICON_PROXY_SECRET" to "test-secret")
-        val PASSKEY_ENABLED: Map<String, String> = FEATURES_DISABLED + mapOf("ENABLE_PASSKEY" to "true", "PASSKEY_RP_ID" to "example.com")
+        val FEATURES_DISABLED: Map<String, String> =
+            mapOf(
+                "HOST" to "0.0.0.0",
+                "PORT" to "8080",
+                "DB_PATH" to "./data/kmp-activitypub.db",
+                "COOKIE_SECURE" to "true",
+                "TRUST_CF_CONNECTING_IP" to "false",
+                "ENABLE_PASSKEY" to "false",
+                "ENABLE_S3" to "false",
+                "REMOTE_ICON_PROXY_SECRET" to "test-secret",
+            )
+        val PASSKEY_ENABLED: Map<String, String> =
+            FEATURES_DISABLED + mapOf("ENABLE_PASSKEY" to "true", "PASSKEY_RP_ID" to "example.com", "PASSKEY_ORIGINS" to "https://example.com")
         val S3_REQUIRED: Map<String, String> =
             FEATURES_DISABLED +
                 mapOf(
@@ -233,6 +248,8 @@ class ServerEnvTest {
                     "S3_AUDIENCE" to "sts.amazonaws.com",
                     "S3_ENDPOINT" to "https://s3.example.com",
                     "STS_ENDPOINT" to "https://sts.example.com",
+                    "S3_ROLE_SESSION_NAME" to "kmp-activitypub-image-upload",
+                    "S3_PATH_STYLE_ACCESS" to "false",
                 )
     }
 }

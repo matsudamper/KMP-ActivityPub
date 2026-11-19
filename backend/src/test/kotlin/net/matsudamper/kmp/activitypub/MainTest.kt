@@ -133,6 +133,8 @@ class MainTest {
                                 "S3_AUDIENCE" to "sts.amazonaws.com",
                                 "S3_ENDPOINT" to "https://s3.example.com",
                                 "STS_ENDPOINT" to "https://sts.example.com",
+                                "S3_ROLE_SESSION_NAME" to "kmp-activitypub-image-upload",
+                                "S3_PATH_STYLE_ACCESS" to "true",
                             ),
                         ),
                     ),
