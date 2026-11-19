@@ -411,6 +411,7 @@ internal class Federation(
             origin = "https://$domain",
             signingKey = remoteIconProxySigningKey,
             fetcher = PublicAddressRemoteImageFetcher(publicAddressHttpClient),
+            maxConcurrentFetches = MAX_CONCURRENT_REMOTE_IMAGE_FETCHES,
         )
 
     val linkPreviewService: LinkPreviewService =
@@ -534,3 +535,8 @@ internal class Federation(
         publicAddressHttpClient.close()
     }
 }
+
+/**
+ * 1件あたり最大で投稿の画像の上限まで読むので、この数を掛けた分がメモリに載りうる
+ */
+private const val MAX_CONCURRENT_REMOTE_IMAGE_FETCHES = 4

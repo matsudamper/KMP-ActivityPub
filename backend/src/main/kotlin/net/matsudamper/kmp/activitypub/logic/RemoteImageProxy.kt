@@ -6,6 +6,7 @@ import java.time.Instant
 import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import kotlinx.coroutines.sync.Semaphore
 
 /**
  * 他のサーバーの画像を、このサーバーを通して配る。
@@ -14,12 +15,16 @@ import javax.crypto.spec.SecretKeySpec
  * このサーバーが発行した URL だけを中継する。誰の指定でも取りに行くと、このサーバーを踏み台にされる
  *
  * @param origin `https://example.com` の形。末尾に / を付けない
+ * @param maxConcurrentFetches 取得から送り終えるまで画像はメモリに丸ごと載るので、ログインなしで何度でも呼べる中継が使い切らないよう絞る
  */
 class RemoteImageProxy(
     private val origin: String,
     private val signingKey: ByteArray,
     private val fetcher: RemoteImageFetcher,
+    maxConcurrentFetches: Int,
 ) {
+    private val fetchPermits = Semaphore(maxConcurrentFetches)
+
     /**
      * http と https 以外は取りに行けないので null
      */
@@ -33,16 +38,29 @@ class RemoteImageProxy(
         return "$origin$PATH_PREFIX/$encodedUrl/${sign(remoteUrl)}$PATH_SUFFIX$version"
     }
 
-    suspend fun fetch(
+    /**
+     * 取得した画像は [respond] が返るまでメモリに残るので、送り終えるまで同時取得数の枠を手放さない
+     */
+    suspend fun <T> fetch(
         encodedUrl: String,
         signature: String,
-    ): RemoteImageProxyResult {
+        respond: suspend (RemoteImageProxyResult) -> T,
+    ): T {
         val remoteUrl =
             runCatching { Base64.getUrlDecoder().decode(encodedUrl).decodeToString() }.getOrNull()
-                ?: return RemoteImageProxyResult.NotIssued
+                ?: return respond(RemoteImageProxyResult.NotIssued)
         val signatureMatches = MessageDigest.isEqual(sign(remoteUrl).encodeToByteArray(), signature.encodeToByteArray())
-        if (!signatureMatches) return RemoteImageProxyResult.NotIssued
+        if (!signatureMatches) return respond(RemoteImageProxyResult.NotIssued)
 
+        if (!fetchPermits.tryAcquire()) return respond(RemoteImageProxyResult.Busy)
+        return try {
+            respond(fetchImage(remoteUrl))
+        } finally {
+            fetchPermits.release()
+        }
+    }
+
+    private suspend fun fetchImage(remoteUrl: String): RemoteImageProxyResult {
         val bytes = fetcher.fetch(url = remoteUrl, maxBytes = MAX_IMAGE_BYTES) ?: return RemoteImageProxyResult.Unavailable
         val contentType = ImageFormat.detect(bytes)?.contentType
             ?: ICO_CONTENT_TYPE.takeIf { bytes.isIco() }
@@ -107,4 +125,9 @@ sealed interface RemoteImageProxyResult {
      * 相手から取れないか、受け付ける画像の形式ではない
      */
     data object Unavailable : RemoteImageProxyResult
+
+    /**
+     * 同時に取りに行ける数を使い切っている。待たせると接続とメモリがたまるので、取りに行かずに断る
+     */
+    data object Busy : RemoteImageProxyResult
 }
