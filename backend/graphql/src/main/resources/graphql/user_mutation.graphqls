@@ -17,11 +17,11 @@ type UserMutation {
     blockAccount(acct: String!): BlockAccountResult! @lazy
     "アカウントのブロックを解除する。actorUri には BlockedAccount.actorUri を渡す。ブロックしていなくても成功する"
     unblockAccount(actorUri: String!): UnblockAccountResult! @lazy
-    login(query: UserLoginQuery!): UserLoginResult! @lazy
-    passkeyLoginOptions: String! @lazy
-    passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy
+    login(query: UserLoginQuery!): UserLoginResult! @lazy @singleExecutionPerRequest
+    passkeyLoginOptions: String! @lazy @singleExecutionPerRequest
+    passkeyLogin(credential: String!): UserPasskeyLoginResult! @lazy @singleExecutionPerRequest
     "ログインしていなければ null"
-    passkeyRegistrationOptions: String @lazy
+    passkeyRegistrationOptions: String @lazy @singleExecutionPerRequest
     registerPasskey(query: RegisterPasskeyQuery!): RegisterPasskeyResult! @lazy
     deletePasskey(id: PasskeyCredentialId!): DeletePasskeyResult! @lazy
     "パスワードが既に無くても成功する"
