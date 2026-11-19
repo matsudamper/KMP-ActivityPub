@@ -28,7 +28,17 @@ class ActorBlockServiceTest {
 
         override suspend fun postSources(actorUri: String): RemoteProfilePostSources = error("投稿は読まない")
     }
-    private val following = FollowingService(repositories.accountRepository, repositories.followingRepository, BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository), NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
+    private val following =
+        FollowingService(
+            repositories.accountRepository,
+            repositories.followingRepository,
+            BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
+            NoOpFollowDelivery,
+            TimelineInvalidator {
+            },
+            "local.example",
+            Clock.systemUTC(),
+        )
     private val service = ActorBlockService(
         accounts = repositories.accountRepository,
         actorBlocks = repositories.actorBlockRepository,

@@ -17,7 +17,8 @@ import net.matsudamper.kmp.activitypub.timeline.FakeTimelineRepository
 class ServerBlockServiceTest {
     private val repositories = FakeRepositories()
     private val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
-    private val following = FollowingService(repositories.accountRepository, repositories.followingRepository, blockLists, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
+    private val following =
+        FollowingService(repositories.accountRepository, repositories.followingRepository, blockLists, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC())
     private val service = ServerBlockService(
         accounts = repositories.accountRepository,
         serverBlocks = repositories.serverBlockRepository,
