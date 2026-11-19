@@ -128,15 +128,14 @@ internal class SqliteFollowerRepository(
     override fun reject(
         username: String,
         followerActorUri: String,
-        followActivityUri: String?,
+        followActivityUri: String,
+        rejectsUnrecordedFollow: Boolean,
         inbox: String,
         rejectBody: String,
         now: Instant,
     ): Boolean = jooq.transaction { dsl ->
         val accountId = dsl.findAccountId(username) ?: return@transaction false
         val remoteActorId = dsl.findRemoteActorId(followerActorUri)
-        val activityCondition =
-            if (followActivityUri == null) DSL.noCondition() else ACCOUNT_FOLLOWERS.FOLLOW_ACTIVITY_URI.eq(followActivityUri)
         // まだ送れていない Accept は外部キーでフォローと一緒に消える
         val removed = if (remoteActorId == null) {
             0
@@ -144,10 +143,10 @@ internal class SqliteFollowerRepository(
             dsl.deleteFrom(ACCOUNT_FOLLOWERS)
                 .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(accountId))
                 .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(remoteActorId))
-                .and(activityCondition)
+                .and(ACCOUNT_FOLLOWERS.FOLLOW_ACTIVITY_URI.eq(followActivityUri))
                 .execute()
         }
-        if (followActivityUri != null && removed == 0) return@transaction false
+        if (!rejectsUnrecordedFollow && removed == 0) return@transaction false
         val storedNow = StoredInstant.format(now)
         dsl.insertInto(DELIVERY_QUEUE)
             .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_REJECT_FOLLOW)

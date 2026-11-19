@@ -38,15 +38,16 @@ internal class FakeFollowerRepository : FollowerRepository {
     override fun reject(
         username: String,
         followerActorUri: String,
-        followActivityUri: String?,
+        followActivityUri: String,
+        rejectsUnrecordedFollow: Boolean,
         inbox: String,
         rejectBody: String,
         now: Instant,
     ): Boolean {
         val removed = followRecords.removeAll {
-            it.first == username && it.second.followerActorUri == followerActorUri && (followActivityUri == null || it.second.followActivityUri == followActivityUri)
+            it.first == username && it.second.followerActorUri == followerActorUri && it.second.followActivityUri == followActivityUri
         }
-        if (followActivityUri != null && !removed) return false
+        if (!rejectsUnrecordedFollow && !removed) return false
         rejects += Rejected(username = username, followerActorUri = followerActorUri, inbox = inbox, body = rejectBody)
         return true
     }

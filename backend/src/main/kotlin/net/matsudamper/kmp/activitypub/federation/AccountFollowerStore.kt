@@ -67,7 +67,8 @@ internal class AccountFollowerStore(
         val rejected = followerRepository.reject(
             username = username,
             followerActorUri = follower.actorId,
-            followActivityUri = null,
+            followActivityUri = followActivityUri,
+            rejectsUnrecordedFollow = true,
             inbox = follower.inbox,
             rejectBody = rejectBody,
             now = receivedAt,

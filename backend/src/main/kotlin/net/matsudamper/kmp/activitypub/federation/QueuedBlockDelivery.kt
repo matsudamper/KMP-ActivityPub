@@ -61,6 +61,7 @@ internal class QueuedBlockDelivery(
                 username = account.username,
                 followerActorUri = record.followerActorUri,
                 followActivityUri = record.followActivityUri,
+                rejectsUnrecordedFollow = false,
                 inbox = record.inbox,
                 rejectBody = AppJson.encodeToString(OutgoingActivity.serializer(), reject),
                 now = clock.instant(),

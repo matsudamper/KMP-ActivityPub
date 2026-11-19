@@ -41,16 +41,17 @@ interface FollowerRepository {
      * フォローの記録を消して、Reject を積む。まだ送れていない Accept も一緒に消える。
      * 消すのと投函を分けると、こちらではフォロワーでないのに相手はフォローしているつもりのまま残る
      *
-     * [followActivityUri] が null なら、記録が無くても Reject は積む。受け付けない Follow を断るときに使う
-     *
-     * @param followActivityUri 外すフォローの元の Follow の id。読んでから外すまでに同じ相手が Follow し直していたら、
-     *   新しいフォローは外さず Reject も積まない。null なら id を問わない
-     * @return 宛先のアカウントが無いか、[followActivityUri] のフォローがもう無ければ false
+     * @param followActivityUri 断る Follow の id。この id のフォローだけを外す。読んでから外すまでに同じ相手が Follow し直していても、
+     *   新しいフォローは外さない
+     * @param rejectsUnrecordedFollow true なら、記録が無くても Reject を積む。受けたばかりの Follow を断るときに使う。
+     *   false なら、記録を外せたときだけ積む
+     * @return 宛先のアカウントが無いか、Reject を積まなかったら false
      */
     fun reject(
         username: String,
         followerActorUri: String,
-        followActivityUri: String?,
+        followActivityUri: String,
+        rejectsUnrecordedFollow: Boolean,
         inbox: String,
         rejectBody: String,
         now: Instant,
