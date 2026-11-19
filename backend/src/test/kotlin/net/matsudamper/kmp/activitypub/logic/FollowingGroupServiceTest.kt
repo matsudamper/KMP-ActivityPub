@@ -23,6 +23,7 @@ class FollowingGroupServiceTest {
     private val followingService = FollowingService(
         repositories.accountRepository,
         repositories.followingRepository,
+        BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
         NoOpFollowDelivery,
         TimelineInvalidator {},
         "local.example",

@@ -47,3 +47,18 @@ fragment FailedDeliveryFields on FailedDelivery {
     failedAt
     lastError
 }
+
+query UnknownObjectTypes($after: String, $limit: Int!) {
+    userInfo {
+        unknownObjectTypes(after: $after, limit: $limit) {
+            types {
+                typeName
+                sourceUrl
+                seenCount
+                firstSeenAt
+                lastSeenAt
+            }
+            nextCursor
+        }
+    }
+}

@@ -7,12 +7,13 @@ import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 /**
- * アカウントごとに他のサーバーのアクターをブロックする。ブロックしたアクターの投稿・ブースト・通知は、読むときに除く
+ * アカウントごとに他のサーバーのアクターをブロックする。ブロックしたアクターの投稿・ブースト・通知は、読むときに除く。フォローしていれば外す
  */
 class ActorBlockService(
     private val accounts: AccountRepository,
     private val actorBlocks: ActorBlockRepository,
     private val profiles: UserProfileService,
+    private val following: FollowingService,
     private val clock: Clock,
 ) {
     /**
@@ -31,6 +32,7 @@ class ActorBlockService(
         val actorUri = user.actorUri ?: return BlockActorResult.LocalAccount
         val actor = BlockedActor(actorUri = actorUri, acct = "${user.username}@${user.host}")
         actorBlocks.add(accountId, actor, clock.instant())
+        following.unfollowBlocked(accountId)
         return BlockActorResult.Blocked(actor)
     }
 

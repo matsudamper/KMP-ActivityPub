@@ -20,6 +20,7 @@ import net.matsudamper.kmp.activitypub.logic.PasskeyService
 import net.matsudamper.kmp.activitypub.logic.PostSearchService
 import net.matsudamper.kmp.activitypub.logic.ProfileLikesService
 import net.matsudamper.kmp.activitypub.logic.ServerBlockService
+import net.matsudamper.kmp.activitypub.logic.UnknownObjectTypeService
 import net.matsudamper.kmp.activitypub.logic.UserProfileService
 import net.matsudamper.kmp.activitypub.logic.UserSearchService
 import net.matsudamper.kmp.activitypub.oidc.OidcSigningKey
@@ -72,12 +73,8 @@ class AppDependencies(
         blockLists = blockLists,
         events = accountEvents,
     )
-    val serverBlockService: ServerBlockService = ServerBlockService(
-        accounts = repositories.accountRepository,
-        serverBlocks = repositories.serverBlockRepository,
-        clock = Clock.systemUTC(),
-    )
     val failedDeliveryService: FailedDeliveryService = FailedDeliveryService(repository = repositories.failedDeliveryRepository)
+    val unknownObjectTypeService: UnknownObjectTypeService = UnknownObjectTypeService(repository = repositories.unknownObjectTypeRepository)
     val followListService: FollowListService = FollowListService(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
@@ -138,6 +135,7 @@ class AppDependencies(
                 pollRepository = repositories.pollRepository,
                 imageStorage = imageStorage,
                 instanceActorKeyRepository = repositories.instanceActorKeyRepository,
+                unknownObjectTypeRepository = repositories.unknownObjectTypeRepository,
                 remoteIconProxySigningKey = env.remoteIconProxySecret.encodeToByteArray(),
                 openTelemetry = OpenTelemetryInitializer.get(),
             )
@@ -146,9 +144,17 @@ class AppDependencies(
     val followingService: FollowingService = FollowingService(
         accounts = repositories.accountRepository,
         following = repositories.followingRepository,
+        blockLists = blockLists,
         delivery = checkNotNull(federation).followDelivery,
         invalidator = timelineService,
         localDomain = checkNotNull(env.domain),
+        clock = Clock.systemUTC(),
+    )
+
+    val serverBlockService: ServerBlockService = ServerBlockService(
+        accounts = repositories.accountRepository,
+        serverBlocks = repositories.serverBlockRepository,
+        following = followingService,
         clock = Clock.systemUTC(),
     )
 
@@ -194,6 +200,7 @@ class AppDependencies(
         accounts = repositories.accountRepository,
         actorBlocks = repositories.actorBlockRepository,
         profiles = userProfileService,
+        following = followingService,
         clock = Clock.systemUTC(),
     )
 

@@ -41,6 +41,8 @@ import net.matsudamper.kmp.activitypub.repository.RemoteActorSearchRecord
 import net.matsudamper.kmp.activitypub.repository.Repositories
 import net.matsudamper.kmp.activitypub.repository.ServerBlockRepository
 import net.matsudamper.kmp.activitypub.repository.StoredPasskey
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectType
+import net.matsudamper.kmp.activitypub.repository.UnknownObjectTypeRepository
 import net.matsudamper.kmp.activitypub.shared.AccountId
 import net.matsudamper.kmp.activitypub.shared.CustomEmojiId
 import net.matsudamper.kmp.activitypub.shared.FollowingGroupId
@@ -93,7 +95,13 @@ internal class FakeRepositories : Repositories {
             if (groupId == null) groups.remove(accountId to actorUri) else groups[accountId to actorUri] = groupId
             return true
         }
-        override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = throw NotImplementedError()
+        override fun list(accountId: AccountId, after: ActorListPosition?, limit: Int): List<ListedActor> = entries
+            .filter { it.first == accountId }
+            .map { it.second }
+            .sortedDescending()
+            .filter { after == null || it < after.actorUri }
+            .take(limit)
+            .map { ListedActor(actorUri = it, listedAt = Instant.EPOCH, preferredUsername = null, displayName = null, iconUrl = null, emojis = listOf(), actorUpdatedAt = null) }
         override fun count(accountId: AccountId): Long = entries.count { it.first == accountId }.toLong()
         override fun listAcceptedActorUris(username: String, after: String?, limit: Int): List<String> = throw NotImplementedError()
         override fun countAccepted(username: String): Long = throw NotImplementedError()
@@ -158,6 +166,11 @@ internal class FakeRepositories : Repositories {
         override fun page(beforeId: Long?, limit: Int): List<FailedDelivery> = listOf()
 
         override fun find(id: Long): FailedDelivery? = null
+    }
+    override val unknownObjectTypeRepository: UnknownObjectTypeRepository = object : UnknownObjectTypeRepository {
+        override fun record(typeNames: List<String>, sourceUrl: String, seenAt: Instant) = Unit
+
+        override fun page(beforeId: Long?, limit: Int): List<UnknownObjectType> = listOf()
     }
     override val actorBlockRepository: ActorBlockRepository = object : ActorBlockRepository {
         private val rows = mutableListOf<Pair<AccountId, BlockedActor>>()

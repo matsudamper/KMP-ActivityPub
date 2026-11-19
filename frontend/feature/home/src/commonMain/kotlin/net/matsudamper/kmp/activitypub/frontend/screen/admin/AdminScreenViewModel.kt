@@ -48,6 +48,12 @@ internal class AdminScreenViewModel(
                     events.send { it.navigateToFailedDeliveries() }
                 }
             }
+
+            override fun onClickUnknownObjectTypes() {
+                viewModelScope.launch {
+                    events.send { it.navigateToUnknownObjectTypes() }
+                }
+            }
         }
 
     private val remoteProfileRefreshListener =
@@ -164,6 +170,8 @@ internal class AdminScreenViewModel(
         fun navigateBack()
 
         fun navigateToFailedDeliveries()
+
+        fun navigateToUnknownObjectTypes()
 
         fun showMessage(message: String)
     }

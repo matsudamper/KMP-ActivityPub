@@ -163,16 +163,16 @@ class UserMutationResolverImpl : UserMutationResolver {
         server: String,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlBlockServerResult>> {
-        val result = GraphQlEngine.diContainer(env).serverBlockService.block(
-            accountId = GraphQlEngine.graphQlContext(env).userAccountId(),
-            server = server,
-        )
-        val qlResult = when (result) {
-            is BlockServerResult.Blocked -> QlBlockServerResult(host = result.host, failure = null)
-            BlockServerResult.NotLoggedIn -> QlBlockServerResult(host = null, failure = QlBlockServerFailure.NOT_LOGGED_IN)
-            BlockServerResult.InvalidServer -> QlBlockServerResult(host = null, failure = QlBlockServerFailure.INVALID_SERVER)
+        val accountId = GraphQlEngine.graphQlContext(env).userAccountId()
+        val service = GraphQlEngine.diContainer(env).serverBlockService
+        return otelFuture {
+            val qlResult = when (val result = service.block(accountId = accountId, server = server)) {
+                is BlockServerResult.Blocked -> QlBlockServerResult(host = result.host, failure = null)
+                BlockServerResult.NotLoggedIn -> QlBlockServerResult(host = null, failure = QlBlockServerFailure.NOT_LOGGED_IN)
+                BlockServerResult.InvalidServer -> QlBlockServerResult(host = null, failure = QlBlockServerFailure.INVALID_SERVER)
+            }
+            DataFetcherResult.Builder(qlResult).build()
         }
-        return CompletableFuture.completedFuture(DataFetcherResult.Builder(qlResult).build())
     }
 
     override fun unblockServer(

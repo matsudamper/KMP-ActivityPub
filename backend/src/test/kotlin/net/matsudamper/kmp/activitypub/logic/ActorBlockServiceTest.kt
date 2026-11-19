@@ -28,6 +28,17 @@ class ActorBlockServiceTest {
 
         override suspend fun postSources(actorUri: String): RemoteProfilePostSources = error("投稿は読まない")
     }
+    private val following =
+        FollowingService(
+            repositories.accountRepository,
+            repositories.followingRepository,
+            BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository),
+            NoOpFollowDelivery,
+            TimelineInvalidator {
+            },
+            "local.example",
+            Clock.systemUTC(),
+        )
     private val service = ActorBlockService(
         accounts = repositories.accountRepository,
         actorBlocks = repositories.actorBlockRepository,
@@ -42,10 +53,11 @@ class ActorBlockServiceTest {
             accountBoosts = repositories.accountBoostRepository,
             timeline = repositories.timelineRepository,
             pins = repositories.notePinRepository,
-            following = FollowingService(repositories.accountRepository, repositories.followingRepository, NoOpFollowDelivery, TimelineInvalidator {}, "local.example", Clock.systemUTC()),
+            following = following,
             remoteProfiles = remoteProfiles,
             localDomain = "local.example",
         ),
+        following = following,
         clock = Clock.systemUTC(),
     )
     private val blockLists = BlockLists(repositories.serverBlockRepository, repositories.actorBlockRepository)
@@ -84,5 +96,21 @@ class ActorBlockServiceTest {
 
         assertEquals(UnblockActorResult.Unblocked, service.unblock(alice, carolUri))
         assertFalse(blockLists.hides(alice, AccountEvent.PostArrived(byCarol)))
+    }
+
+    @Test
+    fun blockingActorUnfollowsOnlyThatActorAndRejectsNewFollows() = runBlocking {
+        val dave = "https://remote.example/users/dave"
+        assertTrue(following.setFollowing(alice, carolUri, true))
+        assertTrue(following.setFollowing(alice, dave, true))
+        assertTrue(following.setFollowing(bob, carolUri, true))
+
+        service.block(alice, "carol@remote.example")
+
+        assertFalse(following.isFollowing(alice, carolUri))
+        assertTrue(following.isFollowing(alice, dave))
+        assertTrue(following.isFollowing(bob, carolUri))
+        assertFalse(following.setFollowing(alice, carolUri, true))
+        assertFalse(following.isFollowing(alice, carolUri))
     }
 }
