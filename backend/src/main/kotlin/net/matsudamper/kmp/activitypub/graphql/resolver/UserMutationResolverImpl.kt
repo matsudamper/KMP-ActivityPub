@@ -7,7 +7,6 @@ import kotlin.io.encoding.Base64
 import graphql.execution.DataFetcherResult
 import graphql.schema.DataFetchingEnvironment
 import net.matsudamper.kmp.activitypub.graphql.GraphQlClientException
-import net.matsudamper.kmp.activitypub.graphql.GraphQlContext
 import net.matsudamper.kmp.activitypub.graphql.GraphQlEngine
 import net.matsudamper.kmp.activitypub.graphql.GraphQlUpload
 import net.matsudamper.kmp.activitypub.graphql.model.QlBlockAccountFailure
@@ -234,7 +233,6 @@ class UserMutationResolverImpl : UserMutationResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
-        if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
         val diContainer = GraphQlEngine.diContainer(env)
         val loginThrottle = diContainer.loginThrottle
         val clientIp = context.clientIp
@@ -265,9 +263,6 @@ class UserMutationResolverImpl : UserMutationResolver {
         userMutation: QlUserMutation,
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<String>> {
-        val context = GraphQlEngine.graphQlContext(env)
-        claimPasskeyChallenge(context)
-
         return CompletableFuture.completedFuture(DataFetcherResult.Builder(passkeyService(env).loginOptions()).build())
     }
 
@@ -277,8 +272,6 @@ class UserMutationResolverImpl : UserMutationResolver {
         env: DataFetchingEnvironment,
     ): CompletionStage<DataFetcherResult<QlUserPasskeyLoginResult>> {
         val context = GraphQlEngine.graphQlContext(env)
-        if (!context.claimLoginAttempt()) throw GraphQlClientException("login は 1 リクエストにつき 1 回まで")
-
         val accountId = passkeyService(env).login(credentialJson = credential)
         val result =
             if (accountId == null) {
@@ -299,7 +292,6 @@ class UserMutationResolverImpl : UserMutationResolver {
         val account =
             context.userAccountId()?.let { GraphQlEngine.diContainer(env).accountService.account(it) }
                 ?: return CompletableFuture.completedFuture(DataFetcherResult.Builder<String?>(null).build())
-        claimPasskeyChallenge(context)
 
         return CompletableFuture.completedFuture(DataFetcherResult.Builder<String?>(passkeyService(env).registrationOptions(account)).build())
     }
@@ -526,10 +518,6 @@ class UserMutationResolverImpl : UserMutationResolver {
 
     private fun passkeyService(env: DataFetchingEnvironment): PasskeyService =
         GraphQlEngine.diContainer(env).passkeyService ?: throw GraphQlClientException("パスキーは無効")
-
-    private fun claimPasskeyChallenge(context: GraphQlContext) {
-        if (!context.claimPasskeyChallenge()) throw GraphQlClientException("パスキーの challenge は 1 リクエストにつき 1 回まで")
-    }
 
     private suspend fun postNote(
         body: String,

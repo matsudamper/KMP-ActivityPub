@@ -1,1 +1,5 @@
 directive @lazy on FIELD_DEFINITION
+"""
+1リクエスト内で1回までしか実行できないことを示す。付いたフィールドを2つ以上含む操作は実行前にエラーになる
+"""
+directive @singleExecutionPerRequest on FIELD_DEFINITION

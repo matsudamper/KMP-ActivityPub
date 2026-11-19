@@ -190,6 +190,7 @@ class GraphQlEngine private constructor(
                         ChainedInstrumentation(
                             MaxQueryComplexityInstrumentation(MAX_QUERY_COMPLEXITY),
                             IdLoggerInstrumentation(TraceLogger.impl()),
+                            SingleExecutionPerRequestInstrumentation(),
                             GraphQLTelemetry
                                 .builder(OpenTelemetryInitializer.get())
                                 .setAddOperationNameToSpanName(true)

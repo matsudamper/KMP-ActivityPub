@@ -1,6 +1,5 @@
 package net.matsudamper.kmp.activitypub.graphql
 
-import java.util.concurrent.atomic.AtomicBoolean
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.plugins.origin
 import net.matsudamper.kmp.activitypub.session.SessionCookieManager
@@ -25,19 +24,6 @@ class GraphQlContext(
         secure = cookieSecure,
         cookieName = SessionCookieManager.USER_COOKIE_NAME,
     )
-
-    private val loginAttempted = AtomicBoolean(false)
-    private val passkeyChallengeIssued = AtomicBoolean(false)
-
-    /**
-     * alias で login を並べてもハッシュ計算は 1 リクエスト 1 回までにする
-     */
-    fun claimLoginAttempt(): Boolean = loginAttempted.compareAndSet(false, true)
-
-    /**
-     * alias で並べて challenge の上限を一度に埋められないよう、1 リクエスト 1 回までにする
-     */
-    fun claimPasskeyChallenge(): Boolean = passkeyChallengeIssued.compareAndSet(false, true)
 
     fun userAccountId(): AccountId? {
         val token = userCookie.token() ?: return null
