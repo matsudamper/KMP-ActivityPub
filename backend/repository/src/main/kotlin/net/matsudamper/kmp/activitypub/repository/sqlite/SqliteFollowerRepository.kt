@@ -2,6 +2,7 @@ package net.matsudamper.kmp.activitypub.repository.sqlite
 
 import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorListPosition
+import net.matsudamper.kmp.activitypub.repository.FollowRecord
 import net.matsudamper.kmp.activitypub.repository.FollowerRepository
 import net.matsudamper.kmp.activitypub.repository.ListedActor
 import net.matsudamper.kmp.activitypub.repository.RemoteActorProfileRecord
@@ -109,6 +110,51 @@ internal class SqliteFollowerRepository(
             .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(remoteActorId))
             .and(activityCondition)
             .execute() > 0
+    }
+
+    override fun reject(
+        username: String,
+        followerActorUri: String,
+        inbox: String,
+        rejectBody: String,
+        now: Instant,
+    ): Boolean = jooq.transaction { dsl ->
+        val accountId = dsl.findAccountId(username) ?: return@transaction false
+        val remoteActorId = dsl.findRemoteActorId(followerActorUri)
+        // まだ送れていない Accept は外部キーでフォローと一緒に消える
+        if (remoteActorId != null) {
+            dsl.deleteFrom(ACCOUNT_FOLLOWERS)
+                .where(ACCOUNT_FOLLOWERS.ACCOUNT_ID.eq(accountId))
+                .and(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID.eq(remoteActorId))
+                .execute()
+        }
+        val storedNow = StoredInstant.format(now)
+        dsl.insertInto(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_REJECT_FOLLOW)
+            .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId)
+            .set(DELIVERY_QUEUE.INBOX, inbox)
+            .set(DELIVERY_QUEUE.BODY, rejectBody)
+            .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+            .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, storedNow)
+            .set(DELIVERY_QUEUE.ENQUEUED_AT, storedNow)
+            .execute()
+        true
+    }
+
+    override fun listFollowRecords(username: String): List<FollowRecord> = jooq.withConnection { dsl ->
+        dsl.select(REMOTE_ACTORS.ACTOR_URI, ACCOUNT_FOLLOWERS.FOLLOW_ACTIVITY_URI, REMOTE_ACTORS.INBOX)
+            .from(ACCOUNT_FOLLOWERS)
+            .join(ACCOUNTS).on(ACCOUNTS.ID.eq(ACCOUNT_FOLLOWERS.ACCOUNT_ID))
+            .join(REMOTE_ACTORS).on(REMOTE_ACTORS.ID.eq(ACCOUNT_FOLLOWERS.REMOTE_ACTOR_ID))
+            .where(ACCOUNTS.USERNAME.eq(username.lowercase()))
+            .fetch { record ->
+                FollowRecord(
+                    followerActorUri = checkNotNull(record.get(REMOTE_ACTORS.ACTOR_URI)),
+                    followActivityUri = checkNotNull(record.get(ACCOUNT_FOLLOWERS.FOLLOW_ACTIVITY_URI)),
+                    inbox = checkNotNull(record.get(REMOTE_ACTORS.INBOX)),
+                )
+            }
     }
 
     override fun findFolloweeUsername(

@@ -17,6 +17,12 @@ interface DeliveryQueueRepository {
      * このサーバーの投稿の引用を承認した Accept を積む
      */
     fun enqueueQuoteAccept(accountId: AccountId, inbox: String, body: String, now: Instant)
+
+    /**
+     * ブロックを解除したので、送った Block を取り消す Undo を積む
+     */
+    fun enqueueUndoBlock(accountId: AccountId, inbox: String, body: String, now: Instant)
+
     fun cancelPendingFollowAndEnqueueUndo(accountId: AccountId, inbox: String, followId: String, body: String, now: Instant)
 
     /**

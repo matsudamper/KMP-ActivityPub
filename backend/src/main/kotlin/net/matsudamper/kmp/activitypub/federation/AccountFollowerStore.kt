@@ -12,13 +12,13 @@ import net.matsudamper.kotpub.actor.RemoteActorProfile
 import net.matsudamper.kotpub.follower.FollowerStore
 
 /**
- * @param onAcceptEnqueued Accept を積んだ後に呼ぶ。相手の画面ではフォローが保留のまま待っているので、次の巡回を待たずに送らせる
+ * @param onEnqueued Accept か Reject を積んだ後に呼ぶ。相手の画面ではフォローが保留のまま待っているので、次の巡回を待たずに送らせる
  */
 internal class AccountFollowerStore(
     private val followerRepository: FollowerRepository,
     private val blocks: InboxBlocks,
     private val notifications: NotificationRecorder,
-    private val onAcceptEnqueued: () -> Unit,
+    private val onEnqueued: () -> Unit,
 ) : FollowerStore {
     override fun record(
         username: String,
@@ -27,8 +27,6 @@ internal class AccountFollowerStore(
         receivedAt: Instant,
         acceptBody: String,
     ): Boolean {
-        // 記録しなければ Accept を積まないので、相手からはフォローが保留のまま残る
-        if (blocks.blocks(username, follower.actorId)) return false
         val recorded = followerRepository.record(
             username = username,
             follower = RemoteActorRecord(
@@ -43,7 +41,7 @@ internal class AccountFollowerStore(
             acceptBody = acceptBody,
         )
         if (recorded) {
-            onAcceptEnqueued()
+            onEnqueued()
             notifications.record(
                 NotificationEvent.Followed(
                     followeeUsername = username,
@@ -53,6 +51,26 @@ internal class AccountFollowerStore(
             )
         }
         return recorded
+    }
+
+    override fun refuses(username: String, followerActorUri: String): Boolean = blocks.blocks(username, followerActorUri)
+
+    override fun reject(
+        username: String,
+        follower: RemoteActor,
+        followActivityUri: String,
+        receivedAt: Instant,
+        rejectBody: String,
+    ): Boolean {
+        val rejected = followerRepository.reject(
+            username = username,
+            followerActorUri = follower.actorId,
+            inbox = follower.inbox,
+            rejectBody = rejectBody,
+            now = receivedAt,
+        )
+        if (rejected) onEnqueued()
+        return rejected
     }
 
     override fun remove(

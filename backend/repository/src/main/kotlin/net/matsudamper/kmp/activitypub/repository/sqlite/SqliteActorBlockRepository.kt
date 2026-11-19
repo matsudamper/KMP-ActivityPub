@@ -4,6 +4,7 @@ import java.time.Instant
 import net.matsudamper.kmp.activitypub.repository.ActorBlockRepository
 import net.matsudamper.kmp.activitypub.repository.BlockedActor
 import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.ACCOUNT_ACTOR_BLOCKS
+import net.matsudamper.kmp.activitypub.repository.jooq.tables.references.DELIVERY_QUEUE
 import net.matsudamper.kmp.activitypub.shared.AccountId
 
 internal class SqliteActorBlockRepository(
@@ -41,5 +42,39 @@ internal class SqliteActorBlockRepository(
                 .and(ACCOUNT_ACTOR_BLOCKS.ACTOR_URI.eq(actorUri))
                 .execute()
         }
+    }
+
+    override fun findBlockActivityId(accountId: AccountId, actorUri: String): String? = jooq.withConnection { dsl ->
+        dsl.select(ACCOUNT_ACTOR_BLOCKS.BLOCK_ACTIVITY_ID).from(ACCOUNT_ACTOR_BLOCKS)
+            .where(ACCOUNT_ACTOR_BLOCKS.ACCOUNT_ID.eq(accountId.value))
+            .and(ACCOUNT_ACTOR_BLOCKS.ACTOR_URI.eq(actorUri))
+            .fetchOne(ACCOUNT_ACTOR_BLOCKS.BLOCK_ACTIVITY_ID)
+    }
+
+    override fun recordBlockActivity(
+        accountId: AccountId,
+        actorUri: String,
+        blockActivityId: String,
+        inbox: String,
+        body: String,
+        now: Instant,
+    ): Boolean = jooq.transaction { dsl ->
+        val updated = dsl.update(ACCOUNT_ACTOR_BLOCKS)
+            .set(ACCOUNT_ACTOR_BLOCKS.BLOCK_ACTIVITY_ID, blockActivityId)
+            .where(ACCOUNT_ACTOR_BLOCKS.ACCOUNT_ID.eq(accountId.value))
+            .and(ACCOUNT_ACTOR_BLOCKS.ACTOR_URI.eq(actorUri))
+            .execute()
+        if (updated == 0) return@transaction false
+        dsl.insertInto(DELIVERY_QUEUE)
+            .set(DELIVERY_QUEUE.KIND, DeliveryQueueValues.KIND_BLOCK)
+            .set(DELIVERY_QUEUE.ACCOUNT_ID, accountId.value)
+            .set(DELIVERY_QUEUE.INBOX, inbox)
+            .set(DELIVERY_QUEUE.BODY, body)
+            .set(DELIVERY_QUEUE.STATE, DeliveryQueueValues.STATE_PENDING)
+            .set(DELIVERY_QUEUE.ATTEMPTS, 0L)
+            .set(DELIVERY_QUEUE.NEXT_ATTEMPT_AT, StoredInstant.format(now))
+            .set(DELIVERY_QUEUE.ENQUEUED_AT, StoredInstant.format(now))
+            .execute()
+        true
     }
 }

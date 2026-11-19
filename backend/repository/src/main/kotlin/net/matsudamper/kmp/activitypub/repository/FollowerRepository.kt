@@ -32,6 +32,27 @@ interface FollowerRepository {
         followActivityUri: String?,
     ): Boolean
 
+    /**
+     * フォローの記録を消して、Reject を積む。まだ送れていない Accept も一緒に消える。
+     * 消すのと投函を分けると、こちらではフォロワーでないのに相手はフォローしているつもりのまま残る
+     *
+     * 記録が無くても Reject は積む。受け付けない Follow を断るときにも使う
+     *
+     * @return 宛先のアカウントが無ければ false
+     */
+    fun reject(
+        username: String,
+        followerActorUri: String,
+        inbox: String,
+        rejectBody: String,
+        now: Instant,
+    ): Boolean
+
+    /**
+     * フォローしてきた相手を、Accept を送れていないものも含めて返す
+     */
+    fun listFollowRecords(username: String): List<FollowRecord>
+
     fun findFolloweeUsername(
         followerActorUri: String,
         followActivityUri: String,
@@ -87,6 +108,16 @@ interface FollowerRepository {
      */
     fun findDeliveryInboxes(username: String): List<String>
 }
+
+/**
+ * @param followActivityUri 相手が送ってきた Follow の id
+ * @param inbox 相手個人の inbox
+ */
+data class FollowRecord(
+    val followerActorUri: String,
+    val followActivityUri: String,
+    val inbox: String,
+)
 
 data class RemoteActorRecord(
     val actorUri: String,

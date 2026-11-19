@@ -131,6 +131,7 @@ class AppDependencies(
                 boostRepository = repositories.boostRepository,
                 customEmojiRepository = repositories.customEmojiRepository,
                 blockLists = blockLists,
+                actorBlockRepository = repositories.actorBlockRepository,
                 noteCountRepository = repositories.noteCountRepository,
                 pollRepository = repositories.pollRepository,
                 imageStorage = imageStorage,
@@ -155,6 +156,7 @@ class AppDependencies(
         accounts = repositories.accountRepository,
         serverBlocks = repositories.serverBlockRepository,
         following = followingService,
+        delivery = checkNotNull(federation).blockDelivery,
         clock = Clock.systemUTC(),
     )
 
@@ -201,6 +203,7 @@ class AppDependencies(
         actorBlocks = repositories.actorBlockRepository,
         profiles = userProfileService,
         following = followingService,
+        delivery = checkNotNull(federation).blockDelivery,
         clock = Clock.systemUTC(),
     )
 
